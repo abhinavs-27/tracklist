@@ -1,0 +1,10 @@
+-- SQL is managed as migrations. Do not run this file directly.
+--
+-- Apply migrations in order in the Supabase SQL Editor (paste each file forward):
+--
+--   1. migrations/001_initial_schema.sql   -- tables and initial indexes
+--   2. migrations/002_audit_indexes.sql    -- feed/comments indexes
+--   ... then any newer migration files
+--
+-- For a new project: run 001, then 002, then any later migrations.
+-- For an existing project: run only migrations you have not applied yet.
