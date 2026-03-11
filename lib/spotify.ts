@@ -1,5 +1,5 @@
-const SPOTIFY_ACCOUNTS_BASE = 'https://accounts.spotify.com';
-const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
+const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
+const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
 let cachedAccessToken: string | null = null;
 let tokenExpiresAt = 0;
@@ -7,7 +7,11 @@ let tokenExpiresAt = 0;
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
 
-function withTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+function withTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...init, signal: controller.signal }).finally(() => {
@@ -23,20 +27,20 @@ async function getClientCredentialsToken(): Promise<string> {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    throw new Error('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET');
+    throw new Error("Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET");
   }
 
   const res = await withTimeout(
     `${SPOTIFY_ACCOUNTS_BASE}/api/token`,
     {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
       },
-      body: 'grant_type=client_credentials',
+      body: "grant_type=client_credentials",
     },
-    DEFAULT_TIMEOUT_MS
+    DEFAULT_TIMEOUT_MS,
   );
 
   if (!res.ok) {
@@ -44,13 +48,19 @@ async function getClientCredentialsToken(): Promise<string> {
     throw new Error(`Spotify token error: ${res.status} ${text}`);
   }
 
-  const data = (await res.json()) as { access_token: string; expires_in: number };
+  const data = (await res.json()) as {
+    access_token: string;
+    expires_in: number;
+  };
   cachedAccessToken = data.access_token;
   tokenExpiresAt = Date.now() + data.expires_in * 1000;
   return data.access_token;
 }
 
-async function spotifyFetch<T>(path: string, params?: Record<string, string>): Promise<T> {
+async function spotifyFetch<T>(
+  path: string,
+  params?: Record<string, string>,
+): Promise<T> {
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -66,8 +76,10 @@ async function spotifyFetch<T>(path: string, params?: Record<string, string>): P
       {
         headers: { Authorization: `Bearer ${token}` },
       },
-      DEFAULT_TIMEOUT_MS
+      DEFAULT_TIMEOUT_MS,
     );
+
+    console.log({ res });
 
     if (res.ok) {
       return res.json() as Promise<T>;
@@ -75,8 +87,10 @@ async function spotifyFetch<T>(path: string, params?: Record<string, string>): P
 
     // Handle rate limiting with simple bounded backoff.
     if (res.status === 429) {
-      const retryAfterHeader = res.headers.get('Retry-After');
-      const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : 1;
+      const retryAfterHeader = res.headers.get("Retry-After");
+      const retryAfterSeconds = retryAfterHeader
+        ? Number.parseInt(retryAfterHeader, 10)
+        : 1;
       const delayMs = Number.isFinite(retryAfterSeconds)
         ? Math.min(Math.max(retryAfterSeconds, 1), 10) * 1000
         : 1000;
@@ -109,44 +123,48 @@ export interface SpotifySearchResponse {
 
 export async function searchSpotify(
   query: string,
-  types: ('artist' | 'album' | 'track')[] = ['artist', 'album', 'track'],
-  limit = 20
+  types: ("artist" | "album" | "track")[] = ["artist", "album", "track"],
+  limit = 10,
 ): Promise<SpotifySearchResponse> {
-  const type = types.join(',');
-  const safeLimit = Math.min(Math.max(limit, 1), 50);
-  return spotifyFetch<SpotifySearchResponse>('/search', {
+  const type = types.join(",");
+  const safeLimit = Math.min(Math.max(limit, 1), 10);
+  return spotifyFetch<SpotifySearchResponse>("/search", {
     q: query,
     type,
     limit: String(safeLimit),
   });
 }
 
-export async function getArtist(spotifyId: string): Promise<SpotifyApi.ArtistObjectFull> {
+export async function getArtist(
+  spotifyId: string,
+): Promise<SpotifyApi.ArtistObjectFull> {
   return spotifyFetch<SpotifyApi.ArtistObjectFull>(`/artists/${spotifyId}`);
 }
 
 export async function getArtistAlbums(
   spotifyId: string,
-  limit = 20
+  limit = 20,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
   return spotifyFetch(`/artists/${spotifyId}/albums`, { limit: String(limit) });
 }
 
 export async function getArtistTopTracks(
   spotifyId: string,
-  market = 'US'
+  market = "US",
 ): Promise<{ tracks: SpotifyApi.TrackObjectFull[] }> {
   return spotifyFetch(`/artists/${spotifyId}/top-tracks`, { market });
 }
 
-export async function getAlbum(spotifyId: string): Promise<SpotifyApi.AlbumObjectFull> {
+export async function getAlbum(
+  spotifyId: string,
+): Promise<SpotifyApi.AlbumObjectFull> {
   return spotifyFetch<SpotifyApi.AlbumObjectFull>(`/albums/${spotifyId}`);
 }
 
 export async function getAlbumTracks(
   spotifyId: string,
   limit = 50,
-  offset = 0
+  offset = 0,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>> {
   return spotifyFetch(`/albums/${spotifyId}/tracks`, {
     limit: String(limit),
@@ -154,6 +172,8 @@ export async function getAlbumTracks(
   });
 }
 
-export async function getTrack(spotifyId: string): Promise<SpotifyApi.TrackObjectFull> {
+export async function getTrack(
+  spotifyId: string,
+): Promise<SpotifyApi.TrackObjectFull> {
   return spotifyFetch<SpotifyApi.TrackObjectFull>(`/tracks/${spotifyId}`);
 }

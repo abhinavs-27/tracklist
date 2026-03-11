@@ -10,6 +10,7 @@ import ConnectSpotifyButton from '@/components/connect-spotify-button';
 import SyncSpotifyButton from '@/components/sync-spotify-button';
 import { ProfileEditModal } from './profile-edit-modal';
 import type { LogWithUser } from '@/types';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 async function getProfile(username: string) {
   const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
@@ -43,10 +44,26 @@ async function getSpotifyStatus(): Promise<{ connected: boolean } | null> {
 export default async function ProfilePage({
   params,
 }: {
-  params: Promise<{ username: string }>;
+  params: { username: string };
 }) {
-  const { username } = await params;
+  const { username } = params;
   const session = await getServerSession(authOptions);
+
+  // Ensure the user exists via Supabase; avoid 404s caused by incorrect params typing.
+  const supabase = createSupabaseServerClient();
+  const { data: userRow, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('username', username)
+    .single();
+
+  if (!userRow || error) {
+    if (error) {
+      // Log the error server-side for diagnostics while still returning 404.
+      console.error('Profile user lookup error:', error);
+    }
+    notFound();
+  }
 
   const profile = await getProfile(username);
   if (!profile) notFound();

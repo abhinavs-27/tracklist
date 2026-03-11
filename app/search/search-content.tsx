@@ -2,19 +2,21 @@ import { SearchBar } from "@/components/search-bar";
 import { ArtistCard } from "@/components/artist-card";
 import { AlbumCard } from "@/components/album-card";
 import { TrackCard } from "@/components/track-card";
+import { searchSpotify } from "@/lib/spotify";
+import type { SpotifySearchResponse } from "@/lib/spotify";
 
-async function search(q: string) {
-  const res = await fetch(
-    `/api/search?q=${encodeURIComponent(q)}&type=artist,album,track&limit=20`,
-    { cache: "no-store" },
-  );
+async function search(q: string): Promise<SpotifySearchResponse | null> {
+  const query = q.trim();
+  if (!query) return null;
 
-  if (!res.ok) {
-    // Best-effort surface of error without leaking internals.
+  try {
+    // Uses client-credentials flow under the hood with SPOTIFY_CLIENT_ID/SECRET
+    // and caches the token in memory.
+    return await searchSpotify(query, ["artist", "album", "track"], 20);
+  } catch (err) {
+    console.error("Spotify search error:", err);
     return null;
   }
-
-  return res.json();
 }
 
 export async function SearchPageContent({
