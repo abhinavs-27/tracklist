@@ -1,25 +1,29 @@
-import { SearchBar } from '@/components/search-bar';
-import { ArtistCard } from '@/components/artist-card';
-import { AlbumCard } from '@/components/album-card';
-import { TrackCard } from '@/components/track-card';
+import { SearchBar } from "@/components/search-bar";
+import { ArtistCard } from "@/components/artist-card";
+import { AlbumCard } from "@/components/album-card";
+import { TrackCard } from "@/components/track-card";
 
 async function search(q: string) {
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
   const res = await fetch(
-    `${base}/api/search?q=${encodeURIComponent(q)}&type=artist,album,track&limit=20`,
-    { cache: 'no-store' }
+    `/api/search?q=${encodeURIComponent(q)}&type=artist,album,track&limit=20`,
+    { cache: "no-store" },
   );
-  if (!res.ok) return null;
+
+  if (!res.ok) {
+    // Best-effort surface of error without leaking internals.
+    return null;
+  }
+
   return res.json();
 }
 
 export async function SearchPageContent({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: { q?: string };
 }) {
-  const { q } = await searchParams;
-  const query = (q ?? '').trim();
+  const q = (searchParams.q ?? "").trim();
+  const query = q;
 
   if (!query) {
     return (
@@ -35,7 +39,9 @@ export async function SearchPageContent({
     return (
       <div>
         <SearchBar defaultValue={query} placeholder="Search..." />
-        <p className="mt-4 text-red-400">Search failed. Check Spotify credentials.</p>
+        <p className="mt-4 text-red-400">
+          Search failed. Check Spotify credentials.
+        </p>
       </div>
     );
   }
