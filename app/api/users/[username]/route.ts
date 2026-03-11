@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { createSupabaseServerClient } from '@/lib/supabase';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { createSupabaseServerClient } from "@/lib/supabase";
 import {
   apiBadRequest,
   apiNotFound,
@@ -9,8 +9,13 @@ import {
   apiForbidden,
   apiConflict,
   apiInternalError,
-} from '@/lib/api-response';
-import { isValidUsername, validateUsernameUpdate, validateBio, validateAvatarUrl } from '@/lib/validation';
+} from "@/lib/api-response";
+import {
+  isValidUsername,
+  validateUsernameUpdate,
+  validateBio,
+  validateAvatarUrl,
+} from "@/lib/validation";
 
 type RouteParams = {
   username: string;
@@ -18,29 +23,42 @@ type RouteParams = {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: RouteParams }
+  { params }: { params: RouteParams },
 ) {
+  console.log("started");
   try {
     const { username } = params;
-    if (!username) return apiBadRequest('username is required');
-    if (!isValidUsername(username)) return apiBadRequest('Invalid username format');
+    console.log({ username });
+    if (!username) return apiBadRequest("username is required");
+    if (!isValidUsername(username))
+      return apiBadRequest("Invalid username format");
 
     const supabase = createSupabaseServerClient();
     const { data: user, error } = await supabase
-      .from('users')
-      .select('id, username, avatar_url, bio, created_at')
-      .eq('username', username)
+      .from("users")
+      .select("id, username, avatar_url, bio, created_at")
+      .eq("username", username)
       .single();
 
-    if (error || !user) return apiNotFound('User not found');
+    if (error || !user) return apiNotFound("User not found");
 
     const [followersRes, followingRes] = await Promise.all([
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+      supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", user.id),
+      supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("follower_id", user.id),
     ]);
 
     if (followersRes.error || followingRes.error) {
-      console.error('User followers/following count error:', followersRes.error, followingRes.error);
+      console.error(
+        "User followers/following count error:",
+        followersRes.error,
+        followingRes.error,
+      );
       return apiInternalError(followersRes.error ?? followingRes.error);
     }
 
@@ -51,13 +69,13 @@ export async function GET(
     let isFollowing = false;
     if (session?.user?.id && session.user.id !== user.id) {
       const { data: follow, error: followError } = await supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', session.user.id)
-        .eq('following_id', user.id)
+        .from("follows")
+        .select("id")
+        .eq("follower_id", session.user.id)
+        .eq("following_id", user.id)
         .single();
-      if (followError && followError.code !== 'PGRST116') {
-        console.error('User isFollowing lookup error:', followError);
+      if (followError && followError.code !== "PGRST116") {
+        console.error("User isFollowing lookup error:", followError);
         return apiInternalError(followError);
       }
       isFollowing = !!follow;
@@ -77,20 +95,21 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: RouteParams }
+  { params }: { params: RouteParams },
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
     const { username } = params;
-    if (!username || !isValidUsername(username)) return apiBadRequest('Invalid username');
+    if (!username || !isValidUsername(username))
+      return apiBadRequest("Invalid username");
 
     const supabase = createSupabaseServerClient();
     const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
+      .from("users")
+      .select("id")
+      .eq("username", username)
       .single();
 
     if (!user || user.id !== session.user.id) return apiForbidden();
@@ -99,10 +118,14 @@ export async function PATCH(
     try {
       body = await request.json();
     } catch {
-      return apiBadRequest('Invalid JSON body');
+      return apiBadRequest("Invalid JSON body");
     }
     const b = body as Record<string, unknown>;
-    const updates: { username?: string; bio?: string | null; avatar_url?: string | null } = {};
+    const updates: {
+      username?: string;
+      bio?: string | null;
+      avatar_url?: string | null;
+    } = {};
 
     const usernameResult = validateUsernameUpdate(b.username);
     if (usernameResult.ok) updates.username = usernameResult.value;
@@ -115,14 +138,19 @@ export async function PATCH(
     }
 
     if (Object.keys(updates).length === 0) {
-      return apiBadRequest('No valid fields to update');
+      return apiBadRequest("No valid fields to update");
     }
 
-    const { data, error } = await supabase.from('users').update(updates).eq('id', session.user.id).select().single();
+    const { data, error } = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", session.user.id)
+      .select()
+      .single();
 
     if (error) {
-      if (error.code === '23505') return apiConflict('Username taken');
-      console.error('User update error:', error);
+      if (error.code === "23505") return apiConflict("Username taken");
+      console.error("User update error:", error);
       return apiInternalError(error);
     }
     return NextResponse.json(data);

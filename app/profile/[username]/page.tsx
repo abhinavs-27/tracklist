@@ -1,39 +1,35 @@
-import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { ProfileHeader } from '@/components/profile-header';
-import { LogCard } from '@/components/log-card';
-import { TasteMatchSection } from '@/components/taste-match';
-import { ProfileRecentAlbumsWithSync } from '@/components/profile-recent-albums-with-sync';
-import ConnectSpotifyButton from '@/components/connect-spotify-button';
-import SyncSpotifyButton from '@/components/sync-spotify-button';
-import { ProfileEditModal } from './profile-edit-modal';
-import type { LogWithUser } from '@/types';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
-
-async function getProfile(username: string) {
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const res = await fetch(`${base}/api/users/${encodeURIComponent(username)}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { ProfileHeader } from "@/components/profile-header";
+import { LogCard } from "@/components/log-card";
+import { TasteMatchSection } from "@/components/taste-match";
+import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-with-sync";
+import ConnectSpotifyButton from "@/components/connect-spotify-button";
+import SyncSpotifyButton from "@/components/sync-spotify-button";
+import { ProfileEditModal } from "./profile-edit-modal";
+import type { LogWithUser } from "@/types";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 async function getLogs(userId: string): Promise<LogWithUser[]> {
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const res = await fetch(`${base}/api/logs?user_id=${encodeURIComponent(userId)}&limit=30`, {
-    cache: 'no-store',
-  });
+  const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const res = await fetch(
+    `${base}/api/logs?user_id=${encodeURIComponent(userId)}&limit=30`,
+    {
+      cache: "no-store",
+    },
+  );
   if (!res.ok) return [];
   return res.json();
 }
 
 async function getSpotifyStatus(): Promise<{ connected: boolean } | null> {
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
   try {
-    const res = await fetch(`${base}/api/spotify/status`, { cache: 'no-store' });
+    const res = await fetch(`${base}/api/spotify/status`, {
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     return (await res.json()) as { connected: boolean };
   } catch {
@@ -44,36 +40,83 @@ async function getSpotifyStatus(): Promise<{ connected: boolean } | null> {
 export default async function ProfilePage({
   params,
 }: {
-  params: { username: string };
+  params: Promise<{ username: string }>;
 }) {
-  const { username } = params;
+  const { username } = await params;
   const session = await getServerSession(authOptions);
 
-  // Ensure the user exists via Supabase; avoid 404s caused by incorrect params typing.
+  console.log("ProfilePage: fetching user", username);
+
   const supabase = createSupabaseServerClient();
-  const { data: userRow, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('username', username)
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("id, username, avatar_url, bio, created_at")
+    .eq("username", username)
     .single();
 
-  if (!userRow || error) {
-    if (error) {
-      // Log the error server-side for diagnostics while still returning 404.
-      console.error('Profile user lookup error:', error);
+  if (!user || userError) {
+    if (userError) {
+      console.error("ProfilePage user fetch error:", userError);
     }
     notFound();
   }
 
-  const profile = await getProfile(username);
-  if (!profile) notFound();
+  const [followersRes, followingRes] = await Promise.all([
+    supabase
+      .from("follows")
+      .select("*", { count: "exact", head: true })
+      .eq("following_id", user.id),
+    supabase
+      .from("follows")
+      .select("*", { count: "exact", head: true })
+      .eq("follower_id", user.id),
+  ]);
+
+  if (followersRes.error || followingRes.error) {
+    console.error(
+      "ProfilePage followers/following count error:",
+      followersRes.error,
+      followingRes.error,
+    );
+  }
+
+  const followersCount = followersRes.count ?? 0;
+  const followingCount = followingRes.count ?? 0;
+
+  let isFollowing = false;
+  if (session?.user?.id && session.user.id !== user.id) {
+    const { data: follow, error: followError } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", session.user.id)
+      .eq("following_id", user.id)
+      .single();
+    if (followError && followError.code !== "PGRST116") {
+      console.error("ProfilePage isFollowing lookup error:", followError);
+    }
+    isFollowing = !!follow;
+  }
+
+  const profile = {
+    id: user.id,
+    username: user.username,
+    avatar_url: user.avatar_url ?? null,
+    bio: user.bio ?? null,
+    created_at: user.created_at,
+    followers_count: followersCount,
+    following_count: followingCount,
+    is_following: isFollowing,
+    is_own_profile: !!session?.user?.id && session.user.id === user.id,
+  };
 
   const [logs, spotifyStatus] = await Promise.all([
     getLogs(profile.id),
     profile.is_own_profile ? getSpotifyStatus() : Promise.resolve(null),
   ]);
 
-  const reviews = logs.filter((l) => typeof l.review === 'string' && l.review.trim().length > 0);
+  const reviews = logs.filter(
+    (l) => typeof l.review === "string" && l.review.trim().length > 0,
+  );
   const isOwnProfile = !!profile.is_own_profile;
   const spotifyConnected = spotifyStatus?.connected ?? false;
 
@@ -107,10 +150,14 @@ export default async function ProfilePage({
                       Spotify Connected
                     </span>
                   ) : (
-                    <ConnectSpotifyButton returnTo={`/profile/${profile.username}`} />
+                    <ConnectSpotifyButton
+                      returnTo={`/profile/${profile.username}`}
+                    />
                   )
                 ) : (
-                  <ConnectSpotifyButton returnTo={`/profile/${profile.username}`} />
+                  <ConnectSpotifyButton
+                    returnTo={`/profile/${profile.username}`}
+                  />
                 )}
               </div>
               {spotifyConnected && <SyncSpotifyButton />}
@@ -119,7 +166,10 @@ export default async function ProfilePage({
         </div>
       </header>
 
-      <TasteMatchSection profileUserId={profile.id} viewerUserId={session?.user?.id ?? null} />
+      <TasteMatchSection
+        profileUserId={profile.id}
+        viewerUserId={session?.user?.id ?? null}
+      />
 
       <ProfileRecentAlbumsWithSync
         userId={profile.id}
@@ -138,12 +188,17 @@ export default async function ProfilePage({
       </section>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-white">Recent reviews</h2>
+        <h2 className="mb-4 text-lg font-semibold text-white">
+          Recent reviews
+        </h2>
         {logs.length === 0 ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
             <p className="text-zinc-500">No logs yet.</p>
             {isOwnProfile && (
-              <Link href="/search" className="mt-2 inline-block text-emerald-400 hover:underline">
+              <Link
+                href="/search"
+                className="mt-2 inline-block text-emerald-400 hover:underline"
+              >
                 Search for music to log
               </Link>
             )}
@@ -156,7 +211,11 @@ export default async function ProfilePage({
           <ul className="space-y-4">
             {reviews.map((log) => (
               <li key={log.id}>
-                <LogCard log={log} spotifyName={log.title ?? undefined} showComments={true} />
+                <LogCard
+                  log={log}
+                  spotifyName={log.title ?? undefined}
+                  showComments={true}
+                />
               </li>
             ))}
           </ul>
@@ -165,4 +224,3 @@ export default async function ProfilePage({
     </div>
   );
 }
-
