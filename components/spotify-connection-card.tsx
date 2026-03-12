@@ -38,7 +38,7 @@ export function SpotifyConnectionCard({
     setError(null);
     setSyncLoading(true);
     try {
-      const res = await fetch('/api/spotify/sync?mode=album', { method: 'POST' });
+      const res = await fetch('/api/spotify/sync', { method: 'POST' });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error || `Sync failed (${res.status})`);

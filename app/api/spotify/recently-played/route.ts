@@ -45,7 +45,7 @@ export async function GET() {
 
     const { data: tracks, error } = await supabase
       .from("spotify_recent_tracks")
-      .select("track_id, track_name, artist_name, album_name, album_image, played_at")
+      .select("track_id, track_name, artist_name, album_id, album_name, album_image, played_at")
       .eq("user_id", userId)
       .order("played_at", { ascending: false })
       .limit(MAX_TRACKS);

@@ -28,24 +28,14 @@ export async function POST(request: NextRequest) {
       return apiBadRequest('Invalid JSON body');
     }
     const b = body as Record<string, unknown>;
-    const { spotify_id, type, rating, review, listened_at, title } = b;
+    const { spotify_id, listened_at } = b;
 
-    if (!spotify_id || !type || rating == null) {
-      return apiBadRequest('Missing required fields: spotify_id, type, rating');
+    if (!spotify_id) {
+      return apiBadRequest('Missing required field: spotify_id');
     }
     if (!isValidSpotifyId(spotify_id)) {
       return apiBadRequest('Invalid spotify_id format');
     }
-    if (!['song', 'album'].includes(type as string)) {
-      return apiBadRequest('type must be song or album');
-    }
-    const r = Number(rating);
-    if (r < 1 || r > 5 || !Number.isInteger(r)) {
-      return apiBadRequest('rating must be an integer between 1 and 5');
-    }
-
-    const reviewText = validateReviewContent(review);
-    const titleText = validateLogTitle(title);
     let listenedAt: string;
     try {
       listenedAt = listened_at
@@ -61,12 +51,8 @@ export async function POST(request: NextRequest) {
       .from('logs')
       .insert({
         user_id: session.user.id,
-        spotify_id,
-        type,
-        title: titleText,
-        rating: r,
-        review: reviewText,
-        listened_at: listenedAt,
+        spotify_song_id: spotify_id,
+        played_at: listenedAt,
       })
       .select()
       .single();
@@ -75,6 +61,11 @@ export async function POST(request: NextRequest) {
       console.error('Log create error:', error);
       return apiInternalError(error);
     }
+    console.log(
+      '[logs] Passive log added: user=%s, song=%s',
+      session.user.id,
+      spotify_id,
+    );
     return NextResponse.json(data);
   } catch (e) {
     return apiInternalError(e);
@@ -99,12 +90,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('logs')
-      .select('id, user_id, spotify_id, type, title, rating, review, listened_at, created_at')
+      .select('id, user_id, spotify_song_id, played_at, created_at')
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (userId) query = query.eq('user_id', userId);
-    if (spotifyId) query = query.eq('spotify_id', spotifyId);
+    if (spotifyId) query = query.eq('spotify_song_id', spotifyId);
 
     const { data: logs, error: logsError } = await query;
 
@@ -143,9 +134,13 @@ export async function GET(request: NextRequest) {
     const commentData = commentsRes.data;
 
     const likeCountMap = new Map<string, number>();
-    (likeData ?? []).forEach((l) => likeCountMap.set(l.log_id, (likeCountMap.get(l.log_id) ?? 0) + 1));
+    (likeData ?? []).forEach((l) => {
+      likeCountMap.set(l.log_id, (likeCountMap.get(l.log_id) ?? 0) + 1);
+    });
     const commentCountMap = new Map<string, number>();
-    (commentData ?? []).forEach((c) => commentCountMap.set(c.log_id, (commentCountMap.get(c.log_id) ?? 0) + 1));
+    (commentData ?? []).forEach((c) => {
+      commentCountMap.set(c.log_id, (commentCountMap.get(c.log_id) ?? 0) + 1);
+    });
 
     const session = await getServerSession(authOptions);
     let likedSet = new Set<string>();
@@ -165,7 +160,15 @@ export async function GET(request: NextRequest) {
     }
 
     const result = logs.map((log) => ({
-      ...log,
+      id: log.id,
+      user_id: log.user_id,
+      spotify_id: log.spotify_song_id,
+      type: 'song',
+      title: null,
+      rating: null,
+      review: null,
+      listened_at: log.played_at,
+      created_at: log.created_at,
       user: userMap.get(log.user_id) ?? null,
       like_count: likeCountMap.get(log.id) ?? 0,
       comment_count: commentCountMap.get(log.id) ?? 0,

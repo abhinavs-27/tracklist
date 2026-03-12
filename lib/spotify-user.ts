@@ -44,7 +44,12 @@ function buildRedirectUri(): string {
 export function getSpotifyAuthorizeUrl(state: string): string {
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
   const redirectUri = buildRedirectUri();
-  const scopes = ["user-read-recently-played"];
+  const scopes = [
+    "user-read-recently-played",
+    "user-read-email",
+    "user-read-private",
+    "user-library-read",
+  ];
 
   const url = new URL(`${SPOTIFY_ACCOUNTS_BASE}/authorize`);
   url.searchParams.set("response_type", "code");
@@ -186,4 +191,72 @@ export async function getRecentlyPlayed(
   }
 
   return (await res.json()) as SpotifyRecentlyPlayedResponse;
+}
+
+// ------------------------------------------------------------
+// Generic helpers for user-authenticated Spotify API calls
+// ------------------------------------------------------------
+
+async function spotifyUserFetch<T>(
+  accessToken: string,
+  path: string,
+  params?: Record<string, string>,
+): Promise<T> {
+  const url = new URL(`${SPOTIFY_API_BASE}${path}`);
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.warn("spotifyUserFetch error", {
+      path,
+      status: res.status,
+      body: text,
+    });
+    throw new Error(`Spotify user API error: ${res.status} ${path} ${text}`);
+  }
+
+  return (await res.json()) as T;
+}
+
+export async function getUserArtist(
+  accessToken: string,
+  artistId: string,
+): Promise<SpotifyApi.ArtistObjectFull> {
+  return spotifyUserFetch<SpotifyApi.ArtistObjectFull>(
+    accessToken,
+    `/artists/${artistId}`,
+  );
+}
+
+export async function getUserArtistAlbums(
+  accessToken: string,
+  artistId: string,
+  limit = 10,
+): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
+  // Some environments enforce a maximum of 10 for this endpoint
+  const safeLimit = Math.min(Math.max(limit, 1), 10);
+  return spotifyUserFetch<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>>(
+    accessToken,
+    `/artists/${artistId}/albums`,
+    { limit: String(safeLimit) },
+  );
+}
+
+export async function getUserArtistTopTracks(
+  accessToken: string,
+  artistId: string,
+  market = "US",
+): Promise<{ tracks: SpotifyApi.TrackObjectFull[] }> {
+  return spotifyUserFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
+    accessToken,
+    `/artists/${artistId}/top-tracks`,
+    { market },
+  );
 }

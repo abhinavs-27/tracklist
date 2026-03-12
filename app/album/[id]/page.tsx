@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getAlbum, getAlbumTracks } from "@/lib/spotify";
-import { AlbumLogButton } from "./album-log-button";
+import { getOrFetchAlbum } from "@/lib/spotify-cache";
+import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { LogCard } from "@/components/log-card";
 import { TrackCard } from "@/components/track-card";
+import { EntityReviewsSection } from "@/components/entity-reviews-section";
 import type { LogWithUser } from "@/types";
+import type { ReviewsResponse } from "@/components/entity-reviews-section";
 
 async function getLogsForSpotify(spotifyId: string): Promise<LogWithUser[]> {
   const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
@@ -20,25 +22,40 @@ async function getLogsForSpotify(spotifyId: string): Promise<LogWithUser[]> {
   return res.json();
 }
 
-type PageParams = {
-  id: string;
-};
+async function getReviewsForEntity(
+  entityType: "album" | "song",
+  entityId: string
+): Promise<ReviewsResponse | null> {
+  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
+  const res = await fetch(
+    `${base}/api/reviews?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}&limit=20`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
+
+type PageParams = Promise<{ id: string }>;
 
 export default async function AlbumPage({ params }: { params: PageParams }) {
-  const { id } = params;
+  const { id } = await params;
   const session = await getServerSession(authOptions);
 
-  let album;
-  let tracks;
+  let album: SpotifyApi.AlbumObjectFull;
+  let tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
   try {
-    [album, tracks] = await Promise.all([getAlbum(id), getAlbumTracks(id)]);
+    const data = await getOrFetchAlbum(id);
+    album = data.album;
+    tracks = data.tracks;
   } catch {
     notFound();
   }
 
-  const logs = await getLogsForSpotify(id);
+  const [logs, reviewsData] = await Promise.all([
+    getLogsForSpotify(id),
+    getReviewsForEntity("album", id),
+  ]);
   const image = album.images?.[0]?.url;
-  const artistNames = album.artists?.map((a) => a.name).join(", ") ?? "";
 
   return (
     <div className="space-y-8">
@@ -91,7 +108,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
             {tracks.items.map((t) => (
               <div key={t.id} className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <TrackCard track={t} showAlbum={false} noLink />
+                  <TrackCard track={t} showAlbum={false} songPageLink />
                 </div>
                 {session && (
                   <AlbumLogButton
@@ -106,6 +123,13 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           </div>
         </section>
       ) : null}
+
+      <EntityReviewsSection
+        entityType="album"
+        entityId={id}
+        spotifyName={album.name}
+        initialData={reviewsData}
+      />
 
       {logs.length > 0 && (
         <section>

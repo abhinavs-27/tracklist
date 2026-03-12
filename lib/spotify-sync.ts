@@ -18,6 +18,7 @@ export type RecentTrackRow = {
   track_id: string;
   track_name: string;
   artist_name: string;
+  album_id: string | null;
   album_name: string | null;
   album_image: string | null;
   played_at: string;
@@ -46,6 +47,7 @@ export async function syncRecentlyPlayed(
       track_id: track.id,
       track_name: track.name ?? "",
       artist_name: artistName,
+      album_id: album?.id ?? null,
       album_name: album?.name ?? null,
       album_image: albumImage,
       played_at: new Date(item.played_at).toISOString(),
@@ -57,13 +59,52 @@ export async function syncRecentlyPlayed(
   }
 
   const supabase = createSupabaseAdminClient();
-  const { error } = await supabase.from("spotify_recent_tracks").upsert(rows, {
-    onConflict: "user_id,track_id,played_at",
-  });
 
-  if (error) {
-    console.error("spotify-sync: upsert spotify_recent_tracks failed", error);
-    throw error;
+  // Upsert into spotify_recent_tracks (existing behavior)
+  const { error: recentError } = await supabase
+    .from("spotify_recent_tracks")
+    .upsert(rows, {
+      onConflict: "user_id,track_id,played_at",
+    });
+
+  if (recentError) {
+    console.error(
+      "spotify-sync: upsert spotify_recent_tracks failed",
+      recentError,
+    );
+    throw recentError;
   }
-  console.log("spotify-sync: upserted", rows.length, "recent tracks for user", userId);
+
+  // Also insert passive song logs into logs table (songs only), skipping duplicates
+  const passiveLogs = rows.map((r) => ({
+    user_id: userId,
+    spotify_song_id: r.track_id,
+    played_at: r.played_at,
+  }));
+
+  const { error: logsError } = await supabase
+    .from("logs")
+    .upsert(passiveLogs, {
+      onConflict: "user_id,spotify_song_id,played_at",
+    });
+
+  if (logsError) {
+    console.error(
+      "spotify-sync: upsert logs passive entries failed",
+      logsError,
+    );
+  } else {
+    console.log(
+      "[logs] Passive log added: user=%s, songs=%d",
+      userId,
+      passiveLogs.length,
+    );
+  }
+
+  console.log(
+    "spotify-sync: upserted",
+    rows.length,
+    "recent tracks for user",
+    userId,
+  );
 }

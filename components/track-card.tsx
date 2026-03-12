@@ -4,14 +4,16 @@ interface TrackCardProps {
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified;
   showAlbum?: boolean;
   noLink?: boolean;
+  /** When true, link to the song page instead of the album */
+  songPageLink?: boolean;
 }
 
-export function TrackCard({ track, showAlbum = true, noLink = false }: TrackCardProps) {
+export function TrackCard({ track, showAlbum = true, noLink = false, songPageLink = false }: TrackCardProps) {
   const artistNames = track.artists?.map((a) => a.name).join(', ') ?? '';
   const album = 'album' in track ? track.album : null;
   const image = album?.images?.[0]?.url;
   const albumId = album?.id;
-  const href = albumId ? `/album/${albumId}` : undefined;
+  const href = noLink ? undefined : songPageLink ? `/song/${track.id}` : (albumId ? `/album/${albumId}` : undefined);
 
   const content = (
     <>
@@ -34,7 +36,7 @@ export function TrackCard({ track, showAlbum = true, noLink = false }: TrackCard
 
   const className = "group flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50";
 
-  if (noLink || !href) {
+  if (!href) {
     return <div className={className}>{content}</div>;
   }
 

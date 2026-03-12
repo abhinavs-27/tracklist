@@ -8,7 +8,7 @@ import { getRecentlyPlayed, getValidSpotifyAccessToken } from '@/lib/spotify-use
 type SyncResponse = {
   inserted: number;
   skipped: number;
-  mode: 'album' | 'song' | 'both';
+  mode: 'song';
 };
 
 export async function POST(request: NextRequest) {
@@ -17,11 +17,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) return apiUnauthorized();
 
     const url = new URL(request.url);
-    const modeParam = url.searchParams.get('mode');
-    const mode = (modeParam === 'album' || modeParam === 'song' || modeParam === 'both' ? modeParam : 'album') as
-      | 'album'
-      | 'song'
-      | 'both';
+    const mode: 'song' = 'song';
 
     let accessToken: string;
     try {
@@ -35,51 +31,44 @@ export async function POST(request: NextRequest) {
     const recent = await getRecentlyPlayed(accessToken, 50);
     const items = recent.items ?? [];
 
-    const candidates: Array<{ spotify_id: string; type: 'album' | 'song'; listened_at: string; title?: string | null }> =
-      [];
+    const candidates: Array<{ spotify_id: string; listened_at: string }> = [];
 
     for (const it of items) {
       const playedAt = it.played_at;
       const track = it.track;
       if (!track?.id || !playedAt) continue;
 
-      if (mode === 'song' || mode === 'both') {
-        candidates.push({ spotify_id: track.id, type: 'song', listened_at: playedAt, title: track.name ?? null });
-      }
-
-      const albumId = track.album?.id;
-      if ((mode === 'album' || mode === 'both') && albumId) {
-        candidates.push({ spotify_id: albumId, type: 'album', listened_at: playedAt, title: track.album?.name ?? null });
-      }
+      // song-only sync
+      candidates.push({ spotify_id: track.id, listened_at: playedAt });
     }
 
     if (candidates.length === 0) {
       return NextResponse.json({ inserted: 0, skipped: 0, mode } satisfies SyncResponse);
     }
 
-    // Deduplicate within this sync batch by (type, spotify_id), keeping the newest listened_at.
+    // Deduplicate within this sync batch by spotify_id, keeping the newest listened_at.
     const keyToItem = new Map<string, (typeof candidates)[number]>();
     for (const c of candidates) {
-      const key = `${c.type}:${c.spotify_id}`;
+      const key = c.spotify_id;
       const prev = keyToItem.get(key);
       if (!prev || Date.parse(c.listened_at) > Date.parse(prev.listened_at)) keyToItem.set(key, c);
     }
     const unique = [...keyToItem.values()];
 
-    // Fetch existing logs for these spotify_ids (any type), then we’ll filter by type in JS.
+    // Fetch existing logs for these spotify_ids
     const spotifyIds = [...new Set(unique.map((u) => u.spotify_id))];
     const { data: existing, error: existingError } = await supabase
       .from('logs')
-      .select('spotify_id, type')
+      .select('spotify_song_id')
       .eq('user_id', session.user.id)
-      .in('spotify_id', spotifyIds);
+      .in('spotify_song_id', spotifyIds);
     if (existingError) return apiInternalError(existingError);
 
     const existingSet = new Set(
-      (existing ?? []).map((l: { spotify_id: string; type: 'album' | 'song' }) => `${l.type}:${l.spotify_id}`)
+      (existing ?? []).map((l: { spotify_song_id: string }) => l.spotify_song_id),
     );
 
-    const toInsert = unique.filter((u) => !existingSet.has(`${u.type}:${u.spotify_id}`));
+    const toInsert = unique.filter((u) => !existingSet.has(u.spotify_id));
     if (toInsert.length === 0) {
       return NextResponse.json({ inserted: 0, skipped: unique.length, mode } satisfies SyncResponse);
     }
@@ -88,14 +77,10 @@ export async function POST(request: NextRequest) {
     const { error: insertError } = await supabase.from('logs').insert(
       toInsert.map((u) => ({
         user_id: session.user.id,
-        spotify_id: u.spotify_id,
-        type: u.type,
-        title: u.title ?? null,
-        rating: 3, // placeholder until ratings/reviews are added to sync flow
-        review: null,
-        listened_at: new Date(u.listened_at).toISOString(),
+        spotify_song_id: u.spotify_id,
+        played_at: new Date(u.listened_at).toISOString(),
         created_at: nowIso,
-      }))
+      })),
     );
     if (insertError) return apiInternalError(insertError);
 

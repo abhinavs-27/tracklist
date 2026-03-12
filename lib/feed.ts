@@ -2,7 +2,8 @@ import { createSupabaseServerClient } from './supabase';
 import type { LogWithUser } from '@/types';
 import { LIMITS } from './validation';
 
-const LOG_COLUMNS = 'id, user_id, spotify_id, type, title, rating, review, listened_at, created_at';
+const LOG_COLUMNS =
+  'id, user_id, spotify_song_id, played_at, created_at';
 
 export async function getFeedForUser(userId: string, limit = 50): Promise<LogWithUser[]> {
   const supabase = createSupabaseServerClient();
@@ -66,8 +67,15 @@ export async function getFeedForUser(userId: string, limit = 50): Promise<LogWit
   const likedSet = new Set((userLikes ?? []).map((l) => l.log_id));
 
   return logs.map((log) => ({
-    ...log,
-    title: log.title ?? null,
+    id: log.id,
+    user_id: log.user_id,
+    spotify_id: log.spotify_song_id,
+    type: 'song',
+    title: null,
+    rating: null,
+    review: null,
+    listened_at: log.played_at,
+    created_at: log.created_at,
     user: userMap.get(log.user_id) ?? null,
     like_count: likeCountMap.get(log.id) ?? 0,
     comment_count: commentCountMap.get(log.id) ?? 0,

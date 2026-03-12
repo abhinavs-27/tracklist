@@ -3,13 +3,11 @@ import { getAlbum } from '@/lib/spotify';
 import { apiBadRequest, apiInternalError } from '@/lib/api-response';
 import { isValidSpotifyId } from '@/lib/validation';
 
-type RouteParams = {
-  id: string;
-};
+type RouteParams = Promise<{ id: string }>;
 
 export async function GET(_request: NextRequest, ctx: { params: RouteParams }) {
   try {
-    const { id } = ctx.params;
+    const { id } = await ctx.params;
     if (!isValidSpotifyId(id)) return apiBadRequest('Invalid spotify id');
 
     const album = await getAlbum(id);

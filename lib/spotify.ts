@@ -161,6 +161,22 @@ export async function getAlbum(
   return spotifyFetch<SpotifyApi.AlbumObjectFull>(`/albums/${spotifyId}`);
 }
 
+/** Fetch up to 20 albums by Spotify ID. Returns only successfully resolved albums. */
+export async function getAlbums(
+  spotifyIds: string[],
+): Promise<SpotifyApi.AlbumObjectFull[]> {
+  const unique = [...new Set(spotifyIds)].slice(0, 20);
+  if (unique.length === 0) return [];
+  const ids = unique.join(",");
+  const data = (await spotifyFetch<{ albums: (SpotifyApi.AlbumObjectFull | null)[] }>(
+    "/albums",
+    { ids },
+  )) as { albums: (SpotifyApi.AlbumObjectFull | null)[] };
+  return (data.albums ?? []).filter(
+    (a): a is SpotifyApi.AlbumObjectFull => a != null,
+  );
+}
+
 export async function getAlbumTracks(
   spotifyId: string,
   limit = 50,

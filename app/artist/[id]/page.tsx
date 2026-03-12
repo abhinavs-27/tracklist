@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getArtist, getArtistAlbums, getArtistTopTracks } from "@/lib/spotify";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import {
+  upsertArtistFromSpotify,
+  upsertAlbumFromSpotify,
+  getOrFetchArtistTopTracks,
+} from "@/lib/spotify-cache";
+import { getValidSpotifyAccessToken, getUserArtist, getUserArtistAlbums } from "@/lib/spotify-user";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ArtistCard } from "@/components/artist-card";
 import { AlbumCard } from "@/components/album-card";
 import { TrackCard } from "@/components/track-card";
@@ -19,23 +27,172 @@ async function getLogsForSpotify(spotifyId: string): Promise<LogWithUser[]> {
   return res.json();
 }
 
-type PageParams = {
-  id: string;
-};
+type PageParams = Promise<{ id: string }>;
 
 export default async function ArtistPage({ params }: { params: PageParams }) {
-  const { id } = params;
+  const { id } = await params;
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id ?? null;
 
-  let artist;
-  let albums;
-  let topTracks;
+  let artist: SpotifyApi.ArtistObjectFull | null = null;
+  let albums: SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified> = {
+    items: [],
+    total: 0,
+    limit: 12,
+    offset: 0,
+    next: null,
+    previous: null,
+  };
+  let topTracks: { tracks: SpotifyApi.TrackObjectFull[] } = { tracks: [] };
+
+  const supabase = createSupabaseServerClient();
+
+  // --- 1) Try cached artist from DB
   try {
-    [artist, albums, topTracks] = await Promise.all([
-      getArtist(id),
-      getArtistAlbums(id, 12),
-      getArtistTopTracks(id),
-    ]);
-  } catch {
+    const { data: artistRow } = await supabase
+      .from("artists")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (artistRow) {
+      const a = artistRow as {
+        id: string;
+        name: string;
+        image_url: string | null;
+        genres: string[] | null;
+      };
+      artist = {
+        id: a.id,
+        name: a.name,
+        images: a.image_url ? [{ url: a.image_url }] : undefined,
+        genres: a.genres ?? undefined,
+        followers: { total: 0 },
+      };
+    }
+  } catch (e) {
+    console.error("[artist-page] failed to load cached artist", e);
+  }
+
+  // --- 2) If user has Spotify connected, try fresh data via user token
+  let accessToken: string | null = null;
+  if (userId) {
+    try {
+      accessToken = await getValidSpotifyAccessToken(userId);
+    } catch (e) {
+      console.warn(
+        "[artist-page] user has no valid Spotify token, falling back to cache",
+        e,
+      );
+    }
+  }
+
+  if (accessToken) {
+    // Artist metadata
+    try {
+      const freshArtist = await getUserArtist(accessToken, id);
+      artist = freshArtist;
+      await upsertArtistFromSpotify(supabase, freshArtist);
+    } catch (e) {
+      console.error("[artist-page] getUserArtist failed", e);
+    }
+
+    // Albums
+    try {
+      const freshAlbums = await getUserArtistAlbums(accessToken, id, 10);
+      albums = freshAlbums;
+      for (const a of freshAlbums.items ?? []) {
+        try {
+          await upsertAlbumFromSpotify(supabase, a);
+        } catch (e) {
+          console.error(
+            "[artist-page] upsertAlbumFromSpotify failed for album",
+            a.id,
+            e,
+          );
+        }
+      }
+    } catch {
+      console.warn("[artist-page] getUserArtistAlbums failed; using cached albums if available");
+    }
+
+  }
+
+  // --- 3) Top tracks from logs (no Spotify dependency)
+  try {
+    topTracks = await getOrFetchArtistTopTracks(id, 10);
+  } catch (e) {
+    console.error("[artist-page] getOrFetchArtistTopTracks failed", e);
+    topTracks = { tracks: [] };
+  }
+
+  // --- 4) If we still have gaps (no user or Spotify failed), fill from cache
+  if (!artist) {
+    try {
+      const { data: artistRow } = await supabase
+        .from("artists")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (artistRow) {
+        const a = artistRow as {
+          id: string;
+          name: string;
+          image_url: string | null;
+          genres: string[] | null;
+        };
+        artist = {
+          id: a.id,
+          name: a.name,
+          images: a.image_url ? [{ url: a.image_url }] : undefined,
+          genres: a.genres ?? undefined,
+          followers: { total: 0 },
+        };
+      }
+    } catch (e) {
+      console.error("[artist-page] second attempt cached artist failed", e);
+    }
+  }
+
+  if (albums.items.length === 0) {
+    try {
+      const { data: albumRows } = await supabase
+        .from("albums")
+        .select("*")
+        .eq("artist_id", id)
+        .order("release_date", { ascending: false });
+      const rows =
+        (albumRows as
+          | {
+              id: string;
+              name: string;
+              artist_id: string;
+              image_url: string | null;
+              release_date: string | null;
+            }[]
+          | null)
+        ?? [];
+      albums = {
+        items: rows.map((a) => ({
+          id: a.id,
+          name: a.name,
+          artists: artist
+            ? [{ id: artist.id, name: artist.name }]
+            : [{ id: a.artist_id, name: "" }],
+          images: a.image_url ? [{ url: a.image_url }] : undefined,
+          release_date: a.release_date ?? undefined,
+        })),
+        total: rows.length,
+        limit: 12,
+        offset: 0,
+        next: null,
+        previous: null,
+      };
+    } catch (e) {
+      console.error("[artist-page] cached albums fetch failed", e);
+    }
+  }
+
+  if (!artist) {
     notFound();
   }
 
