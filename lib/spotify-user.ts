@@ -1,5 +1,11 @@
-const SPOTIFY_ACCOUNTS_BASE = 'https://accounts.spotify.com';
-const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
+import "server-only";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+
+const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
+const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
+
+/** Buffer in ms before expiry to refresh early (e.g. 60s). */
+const EXPIRY_BUFFER_MS = 60_000;
 
 export type SpotifyTokenResponse = {
   access_token: string;
@@ -14,7 +20,7 @@ export type SpotifyRecentlyPlayedResponse = {
     played_at: string;
     track: {
       id: string;
-      type: 'track';
+      type: "track";
       name: string;
       album?: { id: string; name: string; images?: { url: string }[] };
     };
@@ -31,38 +37,40 @@ function buildRedirectUri(): string {
   // Prefer explicit URI because Spotify requires an exact match.
   const explicit = process.env.SPOTIFY_REDIRECT_URI;
   if (explicit) return explicit;
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  return `${base.replace(/\/$/, '')}/api/spotify/callback`;
+  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
+  return `${base.replace(/\/$/, "")}/api/spotify/callback`;
 }
 
 export function getSpotifyAuthorizeUrl(state: string): string {
-  const clientId = requiredEnv('SPOTIFY_CLIENT_ID');
+  const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
   const redirectUri = buildRedirectUri();
-  const scopes = ['user-read-recently-played'];
+  const scopes = ["user-read-recently-played"];
 
   const url = new URL(`${SPOTIFY_ACCOUNTS_BASE}/authorize`);
-  url.searchParams.set('response_type', 'code');
-  url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', redirectUri);
-  url.searchParams.set('scope', scopes.join(' '));
-  url.searchParams.set('state', state);
-  url.searchParams.set('show_dialog', 'true');
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("scope", scopes.join(" "));
+  url.searchParams.set("state", state);
+  url.searchParams.set("show_dialog", "true");
   return url.toString();
 }
 
-export async function exchangeSpotifyCode(code: string): Promise<SpotifyTokenResponse> {
-  const clientId = requiredEnv('SPOTIFY_CLIENT_ID');
-  const clientSecret = requiredEnv('SPOTIFY_CLIENT_SECRET');
+export async function exchangeSpotifyCode(
+  code: string,
+): Promise<SpotifyTokenResponse> {
+  const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
+  const clientSecret = requiredEnv("SPOTIFY_CLIENT_SECRET");
   const redirectUri = buildRedirectUri();
 
   const res = await fetch(`${SPOTIFY_ACCOUNTS_BASE}/api/token`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
     },
     body: new URLSearchParams({
-      grant_type: 'authorization_code',
+      grant_type: "authorization_code",
       code,
       redirect_uri: redirectUri,
     }).toString(),
@@ -75,18 +83,20 @@ export async function exchangeSpotifyCode(code: string): Promise<SpotifyTokenRes
   return (await res.json()) as SpotifyTokenResponse;
 }
 
-export async function refreshSpotifyAccessToken(refreshToken: string): Promise<SpotifyTokenResponse> {
-  const clientId = requiredEnv('SPOTIFY_CLIENT_ID');
-  const clientSecret = requiredEnv('SPOTIFY_CLIENT_SECRET');
+export async function refreshSpotifyAccessToken(
+  refreshToken: string,
+): Promise<SpotifyTokenResponse> {
+  const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
+  const clientSecret = requiredEnv("SPOTIFY_CLIENT_SECRET");
 
   const res = await fetch(`${SPOTIFY_ACCOUNTS_BASE}/api/token`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
     },
     body: new URLSearchParams({
-      grant_type: 'refresh_token',
+      grant_type: "refresh_token",
       refresh_token: refreshToken,
     }).toString(),
   });
@@ -98,14 +108,76 @@ export async function refreshSpotifyAccessToken(refreshToken: string): Promise<S
   return (await res.json()) as SpotifyTokenResponse;
 }
 
-export async function getRecentlyPlayed(accessToken: string, limit = 50): Promise<SpotifyRecentlyPlayedResponse> {
+/**
+ * Returns a valid Spotify access token for the user, refreshing from DB and
+ * calling Spotify refresh if expired. Use this before any Spotify API call.
+ * @throws Error "Spotify not connected" if no tokens stored, or rethrows on refresh failure.
+ */
+export async function getValidSpotifyAccessToken(userId: string): Promise<string> {
+  const supabase = createSupabaseAdminClient();
+  const { data: row, error: fetchError } = await supabase
+    .from("spotify_tokens")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
+    .single();
+
+  if (fetchError || !row?.access_token || !row?.refresh_token) {
+    console.warn("getValidSpotifyAccessToken: no tokens for user", { userId, fetchError: fetchError?.message });
+    throw new Error("Spotify not connected");
+  }
+
+  const expiresAt = row.expires_at ? new Date(row.expires_at).getTime() : 0;
+  const now = Date.now();
+  const stillValid = expiresAt > now + EXPIRY_BUFFER_MS;
+
+  if (stillValid) {
+    console.log("getValidSpotifyAccessToken: token still valid", { userId, expiresAt: row.expires_at });
+    return row.access_token;
+  }
+
+  console.log("getValidSpotifyAccessToken: token expired or expiring soon, refreshing", { userId });
+  let refreshed: SpotifyTokenResponse;
+  try {
+    refreshed = await refreshSpotifyAccessToken(row.refresh_token);
+  } catch (e) {
+    console.error("getValidSpotifyAccessToken: refresh failed", { userId, error: e });
+    if (e instanceof Error && e.message) console.error("Spotify refresh error response:", e.message);
+    throw e;
+  }
+
+  const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+  const updatedAt = new Date().toISOString();
+  const updatePayload: Record<string, string> = {
+    access_token: refreshed.access_token,
+    expires_at: newExpiresAt,
+    updated_at: updatedAt,
+  };
+  if (refreshed.refresh_token) updatePayload.refresh_token = refreshed.refresh_token;
+
+  const { error: updateError } = await supabase
+    .from("spotify_tokens")
+    .update(updatePayload)
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("getValidSpotifyAccessToken: database update failed", { userId, updateError });
+    throw new Error("Failed to save refreshed token");
+  }
+  console.log("getValidSpotifyAccessToken: database updated with new token", { userId });
+  return refreshed.access_token;
+}
+
+export async function getRecentlyPlayed(
+  accessToken: string,
+  limit = 50,
+): Promise<SpotifyRecentlyPlayedResponse> {
   const safeLimit = Math.min(Math.max(limit, 1), 50);
   const url = new URL(`${SPOTIFY_API_BASE}/me/player/recently-played`);
-  url.searchParams.set('limit', String(safeLimit));
+  url.searchParams.set("limit", String(safeLimit));
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` },
-    cache: 'no-store',
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -115,4 +187,3 @@ export async function getRecentlyPlayed(accessToken: string, limit = 50): Promis
 
   return (await res.json()) as SpotifyRecentlyPlayedResponse;
 }
-

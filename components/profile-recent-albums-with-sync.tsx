@@ -8,10 +8,13 @@ export function ProfileRecentAlbumsWithSync({
   userId,
   username,
   showSpotifyControls,
+  spotifyConnected = false,
 }: {
   userId: string;
   username: string;
   showSpotifyControls: boolean;
+  /** Server-derived: user has a row in spotify_tokens. Passed from profile page. */
+  spotifyConnected?: boolean;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -20,6 +23,7 @@ export function ProfileRecentAlbumsWithSync({
       {showSpotifyControls ? (
         <SpotifyConnectionCard
           username={username}
+          spotifyConnected={spotifyConnected}
           onSynced={() => setRefreshKey((k) => k + 1)}
         />
       ) : null}

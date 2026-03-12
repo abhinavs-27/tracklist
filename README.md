@@ -40,17 +40,17 @@ cp .env.example .env.local
 
 Required variables:
 
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `NEXTAUTH_SECRET` | Secret for NextAuth (e.g. `openssl rand -base64 32`) |
-| `NEXTAUTH_URL` | App URL (e.g. `http://localhost:3000`) |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Supabase anon/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only) |
-| `SPOTIFY_CLIENT_ID` | Spotify app client ID |
-| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret |
+| Variable                    | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`          | Google OAuth client ID                               |
+| `GOOGLE_CLIENT_SECRET`      | Google OAuth client secret                           |
+| `NEXTAUTH_SECRET`           | Secret for NextAuth (e.g. `openssl rand -base64 32`) |
+| `NEXTAUTH_URL`              | App URL (e.g. `http://127.0.0.1:3000`)               |
+| `SUPABASE_URL`              | Supabase project URL                                 |
+| `SUPABASE_ANON_KEY`         | Supabase anon/public key                             |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only)              |
+| `SPOTIFY_CLIENT_ID`         | Spotify app client ID                                |
+| `SPOTIFY_CLIENT_SECRET`     | Spotify app client secret                            |
 
 ### 3. Supabase setup
 
@@ -58,7 +58,7 @@ Required variables:
 2. In the **SQL Editor**, run the **migrations in order** (paste each file’s contents and run):
    - `supabase/migrations/001_initial_schema.sql` — tables and initial indexes
    - `supabase/migrations/002_audit_indexes.sql` — feed/comments indexes  
-   Run any newer migration files in numeric order if present.
+     Run any newer migration files in numeric order if present.
 3. Copy the project URL and keys from **Settings → API** into `.env.local`.
 
 ### 4. Google OAuth
@@ -66,8 +66,8 @@ Required variables:
 1. Open [Google Cloud Console](https://console.cloud.google.com/) and create or select a project.
 2. **APIs & Services → Credentials → Create credentials → OAuth client ID**.
 3. Application type: **Web application**.
-4. Authorized JavaScript origins: `http://localhost:3000` (and your production URL later).
-5. Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`.
+4. Authorized JavaScript origins: `http://127.0.0.1:3000` (and your production URL later).
+5. Authorized redirect URIs: `http://127.0.0.1:3000/api/auth/callback/google`.
 6. Copy Client ID and Client Secret into `.env.local`.
 
 ### 5. Spotify API
@@ -82,17 +82,17 @@ Required variables:
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Sign in with Google, search for music, and log listens.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Sign in with Google, search for music, and log listens.
 
 ## Scripts
 
-| Command | Description |
-|--------|-------------|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
+| Command            | Description              |
+| ------------------ | ------------------------ |
+| `npm run dev`      | Start dev server         |
+| `npm run build`    | Production build         |
+| `npm run start`    | Start production server  |
 | `npm run test:e2e` | Run Playwright E2E tests |
-| `npm run lint` | Run ESLint |
+| `npm run lint`     | Run ESLint               |
 
 ## E2E tests
 

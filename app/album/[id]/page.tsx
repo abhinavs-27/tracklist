@@ -1,18 +1,21 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getAlbum, getAlbumTracks } from '@/lib/spotify';
-import { AlbumLogButton } from './album-log-button';
-import { LogCard } from '@/components/log-card';
-import { TrackCard } from '@/components/track-card';
-import type { LogWithUser } from '@/types';
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getAlbum, getAlbumTracks } from "@/lib/spotify";
+import { AlbumLogButton } from "./album-log-button";
+import { LogCard } from "@/components/log-card";
+import { TrackCard } from "@/components/track-card";
+import type { LogWithUser } from "@/types";
 
 async function getLogsForSpotify(spotifyId: string): Promise<LogWithUser[]> {
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const res = await fetch(`${base}/api/logs?spotify_id=${encodeURIComponent(spotifyId)}&limit=30`, {
-    cache: 'no-store',
-  });
+  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
+  const res = await fetch(
+    `${base}/api/logs?spotify_id=${encodeURIComponent(spotifyId)}&limit=30`,
+    {
+      cache: "no-store",
+    },
+  );
   if (!res.ok) return [];
   return res.json();
 }
@@ -21,28 +24,21 @@ type PageParams = {
   id: string;
 };
 
-export default async function AlbumPage({
-  params,
-}: {
-  params: PageParams;
-}) {
+export default async function AlbumPage({ params }: { params: PageParams }) {
   const { id } = params;
   const session = await getServerSession(authOptions);
 
   let album;
   let tracks;
   try {
-    [album, tracks] = await Promise.all([
-      getAlbum(id),
-      getAlbumTracks(id),
-    ]);
+    [album, tracks] = await Promise.all([getAlbum(id), getAlbumTracks(id)]);
   } catch {
     notFound();
   }
 
   const logs = await getLogsForSpotify(id);
   const image = album.images?.[0]?.url;
-  const artistNames = album.artists?.map((a) => a.name).join(', ') ?? '';
+  const artistNames = album.artists?.map((a) => a.name).join(", ") ?? "";
 
   return (
     <div className="space-y-8">
@@ -51,7 +47,9 @@ export default async function AlbumPage({
           {image ? (
             <img src={image} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">♪</div>
+            <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">
+              ♪
+            </div>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -59,7 +57,7 @@ export default async function AlbumPage({
           <p className="mt-1 text-zinc-400">
             {album.artists?.map((a, i) => (
               <span key={a.id}>
-                {i > 0 && ', '}
+                {i > 0 && ", "}
                 <Link
                   href={`/artist/${a.id}`}
                   className="hover:text-emerald-400 hover:underline"
@@ -111,11 +109,17 @@ export default async function AlbumPage({
 
       {logs.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">Community logs</h2>
+          <h2 className="mb-3 text-lg font-semibold text-white">
+            Community logs
+          </h2>
           <ul className="space-y-4">
             {logs.map((log) => (
               <li key={log.id}>
-                <LogCard log={log} spotifyName={log.title ?? undefined} showComments={true} />
+                <LogCard
+                  log={log}
+                  spotifyName={log.title ?? undefined}
+                  showComments={true}
+                />
               </li>
             ))}
           </ul>

@@ -3,27 +3,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase';
 import { apiUnauthorized, apiBadRequest, apiInternalError } from '@/lib/api-response';
-import { getRecentlyPlayed, refreshSpotifyAccessToken } from '@/lib/spotify-user';
-
-type TokenRow = {
-  user_id: string;
-  access_token: string;
-  refresh_token: string;
-  expires_at: string;
-};
+import { getRecentlyPlayed, getValidSpotifyAccessToken } from '@/lib/spotify-user';
 
 type SyncResponse = {
   inserted: number;
   skipped: number;
   mode: 'album' | 'song' | 'both';
 };
-
-function isExpired(expiresAtIso: string) {
-  const t = Date.parse(expiresAtIso);
-  if (Number.isNaN(t)) return true;
-  // Refresh a minute early.
-  return Date.now() > t - 60_000;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,40 +23,15 @@ export async function POST(request: NextRequest) {
       | 'song'
       | 'both';
 
-    const supabase = createSupabaseServerClient();
-    const { data: tokenRow, error: tokenError } = await supabase
-      .from('spotify_tokens')
-      .select('user_id, access_token, refresh_token, expires_at')
-      .eq('user_id', session.user.id)
-      .single();
-
-    if (tokenError || !tokenRow) return apiBadRequest('Spotify not connected');
-    const row = tokenRow as TokenRow;
-
-    let accessToken = row.access_token;
-    let refreshToken = row.refresh_token;
-    let expiresAt = row.expires_at;
-
-    if (isExpired(expiresAt)) {
-      const refreshed = await refreshSpotifyAccessToken(refreshToken);
-      accessToken = refreshed.access_token;
-      if (!accessToken) return apiInternalError(new Error('Missing refreshed access_token'));
-      // Spotify may not return refresh_token on refresh; keep existing.
-      refreshToken = refreshed.refresh_token ?? refreshToken;
-      expiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
-
-      const { error: updateError } = await supabase
-        .from('spotify_tokens')
-        .update({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          expires_at: expiresAt,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', session.user.id);
-      if (updateError) return apiInternalError(updateError);
+    let accessToken: string;
+    try {
+      accessToken = await getValidSpotifyAccessToken(session.user.id);
+    } catch (e) {
+      if (e instanceof Error && e.message === 'Spotify not connected') return apiBadRequest('Spotify not connected');
+      return apiInternalError(e);
     }
 
+    const supabase = createSupabaseServerClient();
     const recent = await getRecentlyPlayed(accessToken, 50);
     const items = recent.items ?? [];
 

@@ -1,11 +1,14 @@
-import { createClient, type SupabaseClient as SupabaseClientType } from '@supabase/supabase-js';
+import {
+  createClient,
+  type SupabaseClient as SupabaseClientType,
+} from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl) {
-  throw new Error('Missing SUPABASE_URL');
+  throw new Error("Missing SUPABASE_URL");
 }
 
 /**
@@ -14,7 +17,7 @@ if (!supabaseUrl) {
  */
 export function createSupabaseClient(): SupabaseClientType {
   if (!supabaseAnonKey) {
-    throw new Error('Missing SUPABASE_ANON_KEY');
+    throw new Error("Missing SUPABASE_ANON_KEY");
   }
   return createClient(supabaseUrl, supabaseAnonKey);
 }
@@ -25,10 +28,12 @@ export function createSupabaseClient(): SupabaseClientType {
  */
 export function createSupabaseServerClient(): SupabaseClientType {
   if (!supabaseServiceRoleKey) {
-    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
   }
   return createClient(supabaseUrl, supabaseServiceRoleKey);
 }
 
 export type SupabaseClient = ReturnType<typeof createSupabaseClient>;
-export type SupabaseServerClient = ReturnType<typeof createSupabaseServerClient>;
+export type SupabaseServerClient = ReturnType<
+  typeof createSupabaseServerClient
+>;

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { apiUnauthorized, apiInternalError } from '@/lib/api-response';
 import { getSpotifyAuthorizeUrl } from '@/lib/spotify-user';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import crypto from 'crypto';
 
-function randomState() {
-  return `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
-}
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 10 * 60, // 10 minutes
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,26 +18,24 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) return apiUnauthorized();
 
     const url = new URL(request.url);
-    const returnTo = url.searchParams.get('returnTo') || '/profile';
-    const state = randomState();
+    const returnTo = url.searchParams.get('returnTo') ?? '/profile';
+    const state = crypto.randomBytes(32).toString('hex');
 
-    const res = NextResponse.redirect(getSpotifyAuthorizeUrl(state), { status: 302 });
+    const authorizeUrl = getSpotifyAuthorizeUrl(state);
+    console.log('Spotify connect: redirecting to authorize', { returnTo, stateLength: state.length });
+
+    const res = NextResponse.redirect(authorizeUrl, { status: 302 });
     res.cookies.set('spotify_oauth_state', state, {
-      httpOnly: true,
-      sameSite: 'lax',
+      ...COOKIE_OPTIONS,
       secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 10 * 60,
     });
     res.cookies.set('spotify_oauth_return_to', returnTo, {
-      httpOnly: true,
-      sameSite: 'lax',
+      ...COOKIE_OPTIONS,
       secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 10 * 60,
     });
     return res;
   } catch (e) {
+    console.error('Spotify connect error:', e);
     return apiInternalError(e);
   }
 }
