@@ -2,8 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/spotify-ingest",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
-
