@@ -3,7 +3,7 @@ import type { LogWithUser } from '@/types';
 import { LIMITS } from './validation';
 
 const LOG_COLUMNS =
-  'id, user_id, spotify_song_id, played_at, created_at';
+  'id, user_id, spotify_song_id, played_at, created_at, user:users(id, email, username, avatar_url, bio, created_at), likes(count), comments(count)';
 
 export async function getFeedForUser(userId: string, limit = 50): Promise<LogWithUser[]> {
   const supabase = createSupabaseServerClient();
@@ -23,6 +23,8 @@ export async function getFeedForUser(userId: string, limit = 50): Promise<LogWit
 
   const cappedLimit = Math.min(limit, LIMITS.FEED_LIMIT);
 
+  // BOLT OPTIMIZATION: Use resource embedding to fetch logs, authors, and aggregate counts in ONE query.
+  // This reduces what was 4+ sequential/parallel queries into 1 (after follow check), and offloads counting to the database.
   const { data: logs, error: logsError } = await supabase
     .from('logs')
     .select(LOG_COLUMNS)
@@ -33,40 +35,29 @@ export async function getFeedForUser(userId: string, limit = 50): Promise<LogWit
   if (logsError) throw logsError;
   if (!logs?.length) return [];
 
-  const userIds = [...new Set(logs.map((l) => l.user_id))];
-  const { data: users, error: usersError } = await supabase
-    .from('users')
-    .select('id, email, username, avatar_url, bio, created_at')
-    .in('id', userIds);
-
-  if (usersError) {
-    throw usersError;
-  }
-
-  const userMap = new Map((users ?? []).map((u) => [u.id, u]));
-
+  // BOLT OPTIMIZATION: Check if the user liked any of these logs in a single small query.
   const logIds = logs.map((l) => l.id);
-  const [likesRes, commentsRes, userLikesRes] = await Promise.all([
-    supabase.from('likes').select('log_id').in('log_id', logIds),
-    supabase.from('comments').select('log_id').in('log_id', logIds),
-    supabase.from('likes').select('log_id').eq('user_id', userId).in('log_id', logIds),
-  ]);
+  const { data: userLikes, error: userLikesError } = await supabase
+    .from('likes')
+    .select('log_id')
+    .eq('user_id', userId)
+    .in('log_id', logIds);
 
-  if (likesRes.error || commentsRes.error || userLikesRes.error) {
-    throw likesRes.error ?? commentsRes.error ?? userLikesRes.error;
-  }
-
-  const likeCounts = likesRes.data;
-  const commentCounts = commentsRes.data;
-  const userLikes = userLikesRes.data;
-
-  const likeCountMap = new Map<string, number>();
-  (likeCounts ?? []).forEach((l) => likeCountMap.set(l.log_id, (likeCountMap.get(l.log_id) ?? 0) + 1));
-  const commentCountMap = new Map<string, number>();
-  (commentCounts ?? []).forEach((c) => commentCountMap.set(c.log_id, (commentCountMap.get(c.log_id) ?? 0) + 1));
+  if (userLikesError) throw userLikesError;
   const likedSet = new Set((userLikes ?? []).map((l) => l.log_id));
 
-  return logs.map((log) => ({
+  interface SupabaseLogResponse {
+    id: string;
+    user_id: string;
+    spotify_song_id: string;
+    played_at: string;
+    created_at: string;
+    user: LogWithUser['user'];
+    likes: { count: number }[];
+    comments: { count: number }[];
+  }
+
+  return (logs as unknown as SupabaseLogResponse[]).map((log) => ({
     id: log.id,
     user_id: log.user_id,
     spotify_id: log.spotify_song_id,
@@ -76,9 +67,9 @@ export async function getFeedForUser(userId: string, limit = 50): Promise<LogWit
     review: null,
     listened_at: log.played_at,
     created_at: log.created_at,
-    user: userMap.get(log.user_id) ?? null,
-    like_count: likeCountMap.get(log.id) ?? 0,
-    comment_count: commentCountMap.get(log.id) ?? 0,
+    user: log.user,
+    like_count: log.likes?.[0]?.count ?? 0,
+    comment_count: log.comments?.[0]?.count ?? 0,
     liked: likedSet.has(log.id),
   }));
 }

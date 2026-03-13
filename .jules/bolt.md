@@ -1,0 +1,3 @@
+## 2025-05-14 - [Supabase Query Optimization]
+**Learning:** In Supabase (PostgREST), applying a filter to a joined/embedded resource using `.eq('embedded_table.column', 'value')` filters the *top-level* results. For example, filtering a feed's logs by whether the *current user* liked them will remove all logs the user hasn't liked from their feed.
+**Action:** Fetch aggregate counts using resource embedding (e.g., `likes(count)`), but handle user-specific status checks (like "is_liked") via a separate efficient `.in('id', [...ids])` query or a more complex RPC/View if needed, to avoid accidental filtering of the main dataset.
