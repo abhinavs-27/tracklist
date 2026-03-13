@@ -36,7 +36,7 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
   }
 
   const data = await getRecentlyPlayed(accessToken, 50);
-  const items = (data.items ?? []) as RecentlyPlayedItem[];
+  const items: RecentlyPlayedItem[] = data.items ?? [];
   if (!items.length) return { inserted: 0, skipped: 0 };
 
   const candidates = items
@@ -86,8 +86,19 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
 
   // Ensure tracks are present in cache
   for (const item of toInsert) {
+    const album = item.track.album;
+    const albumId = album?.id ?? item.track.id;
+    const albumName = album?.name ?? item.track.name;
+    const albumImageUrl = album?.images?.[0]?.url ?? null;
+
     try {
-      await upsertTrackFromSpotify(supabase, item.track);
+      await upsertTrackFromSpotify(
+        supabase,
+        item.track,
+        albumId,
+        albumName,
+        albumImageUrl,
+      );
     } catch (e) {
       console.error(
         "[logs-ingest] upsertTrackFromSpotify failed",

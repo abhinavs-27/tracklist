@@ -36,7 +36,7 @@ export async function getFeedForUser(userId: string, limit = 50): Promise<LogWit
   const userIds = [...new Set(logs.map((l) => l.user_id))];
   const { data: users, error: usersError } = await supabase
     .from('users')
-    .select('id, username, avatar_url')
+    .select('id, email, username, avatar_url, bio, created_at')
     .in('id', userIds);
 
   if (usersError) {

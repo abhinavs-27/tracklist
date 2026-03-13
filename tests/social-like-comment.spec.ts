@@ -2,6 +2,11 @@ import { test, expect } from '@playwright/test';
 
 // End-to-end like + comment interaction using the /e2e/social harness.
 
+type CommentPostBody = {
+  log_id?: string;
+  content?: string;
+};
+
 test.describe('Like and comment', () => {
   test('like toggles and comment posts when authenticated', async ({ page }) => {
     // Mock NextAuth session so the comment form is visible.
@@ -30,7 +35,7 @@ test.describe('Like and comment', () => {
 
     await page.route('**/api/comments', async (route) => {
       if (route.request().method() !== 'POST') return route.fallback();
-      const body = route.request().postDataJSON?.() as any;
+      const body = route.request().postDataJSON?.() as CommentPostBody | undefined;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

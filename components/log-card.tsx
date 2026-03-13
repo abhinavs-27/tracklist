@@ -14,6 +14,7 @@ interface LogCardProps {
 
 export function LogCard({ log, spotifyName, spotifyType, showComments = true }: LogCardProps) {
   const user = log.user;
+  const rating = log.rating ?? 0;
   const displayName = spotifyName ?? log.title ?? log.spotify_id;
   const typeLabel = log.type === 'album' ? 'Album' : 'Track';
 
@@ -46,8 +47,8 @@ export function LogCard({ log, spotifyName, spotifyType, showComments = true }: 
             <span className="text-zinc-500">{typeLabel}:</span> {displayName}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs sm:text-[13px]">
-            <span className="text-amber-400" aria-label={`Rating: ${log.rating} out of 5`}>
-              {'★'.repeat(log.rating)}{'☆'.repeat(5 - log.rating)}
+            <span className="text-amber-400" aria-label={`Rating: ${rating} out of 5`}>
+              {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
             </span>
             <span className="text-xs text-zinc-500">
               {new Date(log.listened_at).toLocaleDateString()}

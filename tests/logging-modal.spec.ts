@@ -1,16 +1,24 @@
 import { test, expect } from '@playwright/test';
 
+type LogPostBody = {
+  spotify_id?: string;
+  type?: 'album' | 'song';
+  title?: string;
+  rating?: number;
+  review?: string | null;
+  listened_at?: string;
+};
+
 test.describe('Logging albums/tracks (modal)', () => {
   test('album log modal submits to /api/logs', async ({ page }) => {
     // Prevent a full reload after success (the component reloads the page).
     await page.addInitScript(() => {
-      // @ts-expect-error override for test stability
       window.location.reload = () => {};
     });
 
     await page.route('**/api/logs', async (route) => {
       if (route.request().method() !== 'POST') return route.fallback();
-      const body = route.request().postDataJSON?.() as any;
+      const body = route.request().postDataJSON?.() as LogPostBody | undefined;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -37,7 +45,7 @@ test.describe('Logging albums/tracks (modal)', () => {
     await page.getByRole('button', { name: /^save log$/i }).click();
 
     const req = await page.waitForRequest((r) => r.url().includes('/api/logs') && r.method() === 'POST');
-    const posted = req.postDataJSON() as any;
+    const posted = req.postDataJSON() as LogPostBody;
     expect(posted.type).toBe('album');
     expect(posted.spotify_id).toBe('2nLhD10Z7Sb4RFyCX2ZCyx');
     expect(posted.rating).toBe(5);
@@ -45,7 +53,6 @@ test.describe('Logging albums/tracks (modal)', () => {
 
   test('track log modal submits to /api/logs', async ({ page }) => {
     await page.addInitScript(() => {
-      // @ts-expect-error override for test stability
       window.location.reload = () => {};
     });
 
@@ -68,7 +75,7 @@ test.describe('Logging albums/tracks (modal)', () => {
     await page.getByRole('button', { name: /^save log$/i }).click();
 
     const req = await page.waitForRequest((r) => r.url().includes('/api/logs') && r.method() === 'POST');
-    const posted = req.postDataJSON() as any;
+    const posted = req.postDataJSON() as LogPostBody;
     expect(posted.type).toBe('song');
     expect(posted.spotify_id).toBe('track_demo_1');
     expect(posted.rating).toBe(4);

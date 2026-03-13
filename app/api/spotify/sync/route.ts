@@ -11,13 +11,12 @@ type SyncResponse = {
   mode: 'song';
 };
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    const url = new URL(request.url);
-    const mode: 'song' = 'song';
+    const mode = 'song' as const;
 
     let accessToken: string;
     try {

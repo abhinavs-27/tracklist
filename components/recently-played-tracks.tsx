@@ -19,7 +19,6 @@ export function RecentlyPlayedTracks() {
 
   useEffect(() => {
     let cancelled = false;
-    setError(null);
     fetch('/api/spotify/recently-played', { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to load (${res.status})`);

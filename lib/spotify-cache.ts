@@ -386,7 +386,7 @@ export async function getArtistTopTracksFromLogs(
 
   // 3) Build tracks in popularity order, backfilling missing ones from Spotify
   for (const trackId of sortedIds) {
-    let song = songMap.get(trackId);
+    const song = songMap.get(trackId);
 
     // If we don't yet have this song cached, try to backfill from Spotify.
     if (!song) {

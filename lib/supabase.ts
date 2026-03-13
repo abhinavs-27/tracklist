@@ -11,6 +11,8 @@ if (!supabaseUrl) {
   throw new Error("Missing SUPABASE_URL");
 }
 
+const typedSupabaseUrl: string = supabaseUrl;
+
 /**
  * Client for browser and server with anon key (RLS applies).
  * Use for user-facing operations.
@@ -19,7 +21,7 @@ export function createSupabaseClient(): SupabaseClientType {
   if (!supabaseAnonKey) {
     throw new Error("Missing SUPABASE_ANON_KEY");
   }
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createClient(typedSupabaseUrl, supabaseAnonKey);
 }
 
 /**
@@ -30,7 +32,7 @@ export function createSupabaseServerClient(): SupabaseClientType {
   if (!supabaseServiceRoleKey) {
     throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
   }
-  return createClient(supabaseUrl, supabaseServiceRoleKey);
+  return createClient(typedSupabaseUrl, supabaseServiceRoleKey);
 }
 
 export type SupabaseClient = ReturnType<typeof createSupabaseClient>;

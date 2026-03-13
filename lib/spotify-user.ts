@@ -18,12 +18,7 @@ export type SpotifyTokenResponse = {
 export type SpotifyRecentlyPlayedResponse = {
   items: Array<{
     played_at: string;
-    track: {
-      id: string;
-      type: "track";
-      name: string;
-      album?: { id: string; name: string; images?: { url: string }[] };
-    };
+    track: SpotifyApi.TrackObjectFull;
   }>;
 };
 

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { Log } from '@/types';
 
 test.describe('Spotify integration (mocked)', () => {
   test('connect status + manual sync refreshes recent albums grid', async ({ page }) => {
@@ -30,8 +31,8 @@ test.describe('Spotify integration (mocked)', () => {
     let logsCall = 0;
     await page.route('**/api/logs?user_id=*&limit=50', async (route) => {
       logsCall += 1;
-      const empty = [];
-      const after = [
+      const empty: Log[] = [];
+      const after: Log[] = [
         {
           id: '11111111-1111-1111-1111-111111111111',
           user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',

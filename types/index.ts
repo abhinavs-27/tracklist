@@ -22,7 +22,7 @@ export interface Log {
   spotify_id: string;
   type: LogType;
   title: string | null;
-  rating: number;
+  rating: number | null;
   review: string | null;
   listened_at: string;
   created_at: string;
