@@ -15,12 +15,12 @@ export function apiError(
   return NextResponse.json(body, { status });
 }
 
-export function apiUnauthorized(): NextResponse {
-  return apiError('Unauthorized', 401);
+export function apiUnauthorized(message = 'Unauthorized'): NextResponse {
+  return apiError(message, 401);
 }
 
-export function apiForbidden(): NextResponse {
-  return apiError('Forbidden', 403);
+export function apiForbidden(message = 'Forbidden'): NextResponse {
+  return apiError(message, 403);
 }
 
 export function apiNotFound(message = 'Resource not found'): NextResponse {
