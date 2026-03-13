@@ -39,10 +39,13 @@ export function LikeButton({ logId, initialLiked, initialCount }: LikeButtonProp
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="flex items-center gap-1.5 text-sm text-zinc-400 transition hover:text-white disabled:opacity-50"
+      className="flex items-center gap-1.5 text-sm text-zinc-400 transition duration-200 hover:text-white active:scale-110 disabled:opacity-50"
       aria-pressed={liked}
+      aria-label="Like"
     >
-      <span className={liked ? 'text-red-400' : ''}>{liked ? '♥' : '♡'}</span>
+      <span className={liked ? 'text-red-400' : ''} aria-hidden="true">
+        {liked ? '♥' : '♡'}
+      </span>
       <span>{count}</span>
     </button>
   );
