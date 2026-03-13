@@ -17,17 +17,13 @@ import {
   validateAvatarUrl,
 } from "@/lib/validation";
 
-type RouteParams = {
-  username: string;
-};
-
 export async function GET(
   _request: NextRequest,
-  { params }: { params: RouteParams },
+  context: { params: Promise<{ username: string }> },
 ) {
   console.log("started");
   try {
-    const { username } = params;
+    const { username } = await context.params;
     console.log({ username });
     if (!username) return apiBadRequest("username is required");
     if (!isValidUsername(username))
@@ -95,13 +91,13 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: RouteParams },
+  context: { params: Promise<{ username: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    const { username } = params;
+    const { username } = await context.params;
     if (!username || !isValidUsername(username))
       return apiBadRequest("Invalid username");
 

@@ -188,6 +188,29 @@ export default async function ProfilePage({
 
       <section>
         <h2 className="mb-4 text-lg font-semibold text-white">
+          Recent Activity
+        </h2>
+        {logs.length === 0 ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
+            <p className="text-zinc-500">No activity yet.</p>
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {logs.map((log) => (
+              <li key={log.id}>
+                <LogCard
+                  log={log}
+                  spotifyName={log.title ?? undefined}
+                  showComments={true}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-white">
           Recent reviews
         </h2>
         {logs.length === 0 ? (
