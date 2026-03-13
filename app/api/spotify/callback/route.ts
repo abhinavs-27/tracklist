@@ -115,7 +115,11 @@ export async function GET(request: NextRequest) {
       "spotify_oauth_return_to",
     )?.value;
     const fallback = `/profile/${session.user.username ?? ""}`;
-    const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
+    const base =
+      process.env.NEXTAUTH_URL ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://127.0.0.1:3000");
     const returnToQuery =
       cookieReturnTo &&
       cookieReturnTo.startsWith("/") &&

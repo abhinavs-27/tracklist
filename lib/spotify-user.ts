@@ -29,10 +29,13 @@ function requiredEnv(name: string): string {
 }
 
 function buildRedirectUri(): string {
-  // Prefer explicit URI because Spotify requires an exact match.
   const explicit = process.env.SPOTIFY_REDIRECT_URI;
   if (explicit) return explicit;
-  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
+  const base =
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://127.0.0.1:3000");
   return `${base.replace(/\/$/, "")}/api/spotify/callback`;
 }
 

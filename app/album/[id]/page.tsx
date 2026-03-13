@@ -7,33 +7,7 @@ import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { LogCard } from "@/components/log-card";
 import { TrackCard } from "@/components/track-card";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
-import type { LogWithUser } from "@/types";
-import type { ReviewsResponse } from "@/components/entity-reviews-section";
-
-async function getLogsForSpotify(spotifyId: string): Promise<LogWithUser[]> {
-  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
-  const res = await fetch(
-    `${base}/api/logs?spotify_id=${encodeURIComponent(spotifyId)}&limit=30`,
-    {
-      cache: "no-store",
-    },
-  );
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function getReviewsForEntity(
-  entityType: "album" | "song",
-  entityId: string
-): Promise<ReviewsResponse | null> {
-  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
-  const res = await fetch(
-    `${base}/api/reviews?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}&limit=20`,
-    { cache: "no-store" },
-  );
-  if (!res.ok) return null;
-  return res.json();
-}
+import { getLogsForSpotifyId, getReviewsForEntity } from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -52,7 +26,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   }
 
   const [logs, reviewsData] = await Promise.all([
-    getLogsForSpotify(id),
+    getLogsForSpotifyId(id, 30),
     getReviewsForEntity("album", id),
   ]);
   const image = album.images?.[0]?.url;

@@ -5,20 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
-import type { ReviewsResponse } from "@/components/entity-reviews-section";
-
-async function getReviewsForEntity(
-  entityType: "album" | "song",
-  entityId: string
-): Promise<ReviewsResponse | null> {
-  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
-  const res = await fetch(
-    `${base}/api/reviews?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}&limit=20`,
-    { cache: "no-store" },
-  );
-  if (!res.ok) return null;
-  return res.json();
-}
+import { getReviewsForEntity } from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
 

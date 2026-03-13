@@ -8,39 +8,12 @@ import { TasteMatchSection } from "@/components/taste-match";
 import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-with-sync";
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
-import type { LogWithUser } from "@/types";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getLogsForUser } from "@/lib/queries";
 
-async function getLogs(userId: string): Promise<LogWithUser[]> {
-  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
-  const res = await fetch(
-    `${base}/api/logs?user_id=${encodeURIComponent(userId)}&limit=30`,
-    {
-      cache: "no-store",
-    },
-  );
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function getSpotifyStatus(): Promise<{ connected: boolean } | null> {
-  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
-  try {
-    const res = await fetch(`${base}/api/spotify/status`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as { connected: boolean };
-  } catch {
-    return null;
-  }
-}
-
-/** Server-side check: does the current user have a row in spotify_tokens? */
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = createSupabaseServerClient();
     const { data, error } = await supabase
       .from("spotify_tokens")
       .select("user_id")
@@ -124,9 +97,8 @@ export default async function ProfilePage({
     is_own_profile: !!session?.user?.id && session.user.id === user.id,
   };
 
-  const [logs, spotifyStatus, spotifyHasToken] = await Promise.all([
-    getLogs(profile.id),
-    profile.is_own_profile ? getSpotifyStatus() : Promise.resolve(null),
+  const [logs, spotifyHasToken] = await Promise.all([
+    getLogsForUser(profile.id, 30),
     profile.is_own_profile && session?.user?.id
       ? hasSpotifyToken(session.user.id)
       : Promise.resolve(false),
@@ -136,7 +108,7 @@ export default async function ProfilePage({
     (l) => typeof l.review === "string" && l.review.trim().length > 0,
   );
   const isOwnProfile = !!profile.is_own_profile;
-  const spotifyConnected = spotifyHasToken || (spotifyStatus?.connected ?? false);
+  const spotifyConnected = spotifyHasToken;
 
   return (
     <div className="space-y-8">

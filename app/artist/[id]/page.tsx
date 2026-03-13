@@ -13,19 +13,7 @@ import { ArtistCard } from "@/components/artist-card";
 import { AlbumCard } from "@/components/album-card";
 import { TrackCard } from "@/components/track-card";
 import { LogCard } from "@/components/log-card";
-import type { LogWithUser } from "@/types";
-
-async function getLogsForSpotify(spotifyId: string): Promise<LogWithUser[]> {
-  const base = process.env.NEXTAUTH_URL || "http://127.0.0.1:3000";
-  const res = await fetch(
-    `${base}/api/logs?spotify_id=${encodeURIComponent(spotifyId)}&limit=20`,
-    {
-      cache: "no-store",
-    },
-  );
-  if (!res.ok) return [];
-  return res.json();
-}
+import { getLogsForSpotifyId } from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -196,7 +184,7 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const logs = await getLogsForSpotify(id);
+  const logs = await getLogsForSpotifyId(id, 20);
   const image = artist.images?.[0]?.url;
 
   return (
