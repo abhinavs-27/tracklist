@@ -23,48 +23,60 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user }) {
-      if (!user?.email) return false;
-      const supabase = createSupabaseServerClient();
-      const { data: existing, error: existingError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', user.email)
-        .single();
-      if (existing) return true;
+      try {
+        if (!user?.email) return false;
+        const supabase = createSupabaseServerClient();
+        const { data: existing, error: existingError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', user.email)
+          .single();
+        if (existing) return true;
 
-      // If we got a real error (not "no rows"), fail sign-in.
-      if (existingError && existingError.code !== 'PGRST116') {
-        console.error('User lookup during sign-in failed:', existingError);
+        if (existingError && existingError.code !== 'PGRST116') {
+          console.error('[auth][signIn] User lookup failed:', existingError);
+          return false;
+        }
+        const username = generateUsernameFromEmail(user.email);
+        const { error } = await supabase.from('users').insert({
+          email: user.email,
+          username,
+          avatar_url: user.image ?? null,
+          bio: null,
+        });
+        if (error) {
+          if (error.code === '23505') {
+            return true;
+          }
+          console.error('[auth][signIn] Failed to create user:', error);
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.error('[auth][signIn] Unhandled error:', err);
         return false;
       }
-      const username = generateUsernameFromEmail(user.email);
-      const { error } = await supabase.from('users').insert({
-        email: user.email,
-        username,
-        avatar_url: user.image ?? null,
-        bio: null,
-      });
-      if (error) {
-        console.error('Failed to create user:', error);
-        return false;
-      }
-      return true;
     },
     async jwt({ token, user }) {
-      // On initial sign-in, attach DB user fields to the token.
       if (user?.email) {
-        const supabase = createSupabaseServerClient();
-        const { data: dbUser, error } = await supabase
-          .from('users')
-          .select('id, username, avatar_url, bio')
-          .eq('email', user.email)
-          .single<DbUser>();
+        try {
+          const supabase = createSupabaseServerClient();
+          const { data: dbUser, error } = await supabase
+            .from('users')
+            .select('id, username, avatar_url, bio')
+            .eq('email', user.email)
+            .single<DbUser>();
 
-        if (!error && dbUser) {
-          token.id = dbUser.id;
-          token.username = dbUser.username;
-          token.avatar_url = dbUser.avatar_url;
-          token.bio = dbUser.bio;
+          if (error) {
+            console.error('[auth][jwt] DB lookup failed:', error);
+          } else if (dbUser) {
+            token.id = dbUser.id;
+            token.username = dbUser.username;
+            token.avatar_url = dbUser.avatar_url;
+            token.bio = dbUser.bio;
+          }
+        } catch (err) {
+          console.error('[auth][jwt] Unhandled error:', err);
         }
       }
 
