@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { ListenLogWithUser, ReviewWithUser } from "@/types";
+import type { FeedActivity } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Passive listen logs (Spotify history)
@@ -659,7 +660,102 @@ export async function getAlbumListeners(
 }
 
 // ---------------------------------------------------------------------------
-// Social feed
+// Follow graph
+// ---------------------------------------------------------------------------
+
+/** Follower user IDs for a user (people who follow them). */
+export async function getFollowers(
+  userId: string,
+  limit = 100,
+): Promise<{ id: string; follower_id: string }[]> {
+  try {
+    const supabase = createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("follows")
+      .select("id, follower_id")
+      .eq("following_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []) as { id: string; follower_id: string }[];
+  } catch (e) {
+    console.error("[queries] getFollowers failed:", e);
+    return [];
+  }
+}
+
+/** Following user IDs for a user (people they follow). */
+export async function getFollowing(
+  userId: string,
+  limit = 100,
+): Promise<{ id: string; following_id: string }[]> {
+  try {
+    const supabase = createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("follows")
+      .select("id, following_id")
+      .eq("follower_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []) as { id: string; following_id: string }[];
+  } catch (e) {
+    console.error("[queries] getFollowing failed:", e);
+    return [];
+  }
+}
+
+/** Whether viewer follows target. */
+export async function isFollowing(
+  viewerUserId: string,
+  targetUserId: string,
+): Promise<boolean> {
+  if (viewerUserId === targetUserId) return false;
+  try {
+    const supabase = createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", viewerUserId)
+      .eq("following_id", targetUserId)
+      .maybeSingle();
+    if (error) throw error;
+    return !!data;
+  } catch (e) {
+    console.error("[queries] isFollowing failed:", e);
+    return false;
+  }
+}
+
+/** Follower and following counts for a user. */
+export async function getFollowCounts(userId: string): Promise<{
+  followers_count: number;
+  following_count: number;
+}> {
+  try {
+    const supabase = createSupabaseServerClient();
+    const [followersRes, followingRes] = await Promise.all([
+      supabase
+        .from("follows")
+        .select("id", { count: "exact", head: true })
+        .eq("following_id", userId),
+      supabase
+        .from("follows")
+        .select("id", { count: "exact", head: true })
+        .eq("follower_id", userId),
+    ]);
+    return {
+      followers_count: followersRes.count ?? 0,
+      following_count: followingRes.count ?? 0,
+    };
+  } catch (e) {
+    console.error("[queries] getFollowCounts failed:", e);
+    return { followers_count: 0, following_count: 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Social feed (reviews + follow activity)
 // ---------------------------------------------------------------------------
 
 /** Fetch recent reviews from followed users (for the social feed). */
@@ -717,6 +813,177 @@ export async function getReviewFeed(
     }));
   } catch (e) {
     console.error("[queries] getReviewFeed failed:", e);
+    return [];
+  }
+}
+
+/** Activity feed: reviews and follow events from users you follow, sorted by created_at DESC. */
+export async function getActivityFeed(
+  userId: string,
+  limit = 50,
+): Promise<FeedActivity[]> {
+  try {
+    const supabase = createSupabaseServerClient();
+
+    const { data: followings, error: followError } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", userId);
+    if (followError) throw followError;
+
+    const followingIds = (followings ?? []).map((f) => f.following_id).slice(0, 500);
+    if (followingIds.length === 0) return [];
+
+    const cappedLimit = Math.min(limit, 100);
+
+    const [reviewsRes, followsRes] = await Promise.all([
+      supabase
+        .from("reviews")
+        .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
+        .in("user_id", followingIds)
+        .order("created_at", { ascending: false })
+        .limit(cappedLimit),
+      supabase
+        .from("follows")
+        .select("id, follower_id, following_id, created_at")
+        .in("follower_id", followingIds)
+        .order("created_at", { ascending: false })
+        .limit(cappedLimit),
+    ]);
+
+    if (reviewsRes.error) throw reviewsRes.error;
+    if (followsRes.error) throw followsRes.error;
+
+    const reviewRows = reviewsRes.data ?? [];
+    const followRows = (followsRes.data ?? []) as {
+      id: string;
+      follower_id: string;
+      following_id: string;
+      created_at: string;
+    }[];
+
+    const userIds = new Set<string>();
+    reviewRows.forEach((r) => userIds.add(r.user_id));
+    followRows.forEach((f) => {
+      userIds.add(f.follower_id);
+      userIds.add(f.following_id);
+    });
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, email, username, avatar_url, bio, created_at")
+      .in("id", [...userIds]);
+    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+
+    const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
+      type: "review",
+      created_at: r.created_at,
+      review: {
+        id: r.id,
+        user_id: r.user_id,
+        entity_type: r.entity_type as "album" | "song",
+        entity_id: r.entity_id,
+        rating: r.rating,
+        review_text: r.review_text ?? null,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        user: userMap.get(r.user_id) ?? null,
+      },
+    }));
+
+    const followActivities: FeedActivity[] = followRows.map((f) => ({
+      type: "follow",
+      id: f.id,
+      created_at: f.created_at,
+      follower_id: f.follower_id,
+      following_id: f.following_id,
+      follower_username: userMap.get(f.follower_id)?.username ?? null,
+      following_username: userMap.get(f.following_id)?.username ?? null,
+    }));
+
+    const merged = [...reviewActivities, ...followActivities].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    return merged.slice(0, cappedLimit);
+  } catch (e) {
+    console.error("[queries] getActivityFeed failed:", e);
+    return [];
+  }
+}
+
+/** Profile activity: reviews and follow events by this user (no passive logs). */
+export async function getProfileActivity(
+  userId: string,
+  limit = 30,
+): Promise<FeedActivity[]> {
+  try {
+    const supabase = createSupabaseServerClient();
+
+    const [reviewsRes, followsRes] = await Promise.all([
+      supabase
+        .from("reviews")
+        .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabase
+        .from("follows")
+        .select("id, follower_id, following_id, created_at")
+        .eq("follower_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+    ]);
+
+    if (reviewsRes.error) throw reviewsRes.error;
+    if (followsRes.error) throw followsRes.error;
+
+    const reviewRows = reviewsRes.data ?? [];
+    const followRows = (followsRes.data ?? []) as {
+      id: string;
+      follower_id: string;
+      following_id: string;
+      created_at: string;
+    }[];
+
+    const userIds = new Set<string>([userId]);
+    followRows.forEach((f) => userIds.add(f.following_id));
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, email, username, avatar_url, bio, created_at")
+      .in("id", [...userIds]);
+    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+
+    const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
+      type: "review",
+      created_at: r.created_at,
+      review: {
+        id: r.id,
+        user_id: r.user_id,
+        entity_type: r.entity_type as "album" | "song",
+        entity_id: r.entity_id,
+        rating: r.rating,
+        review_text: r.review_text ?? null,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        user: userMap.get(r.user_id) ?? null,
+      },
+    }));
+
+    const followActivities: FeedActivity[] = followRows.map((f) => ({
+      type: "follow",
+      id: f.id,
+      created_at: f.created_at,
+      follower_id: f.follower_id,
+      following_id: f.following_id,
+      follower_username: userMap.get(f.follower_id)?.username ?? null,
+      following_username: userMap.get(f.following_id)?.username ?? null,
+    }));
+
+    const merged = [...reviewActivities, ...followActivities].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    return merged.slice(0, limit);
+  } catch (e) {
+    console.error("[queries] getProfileActivity failed:", e);
     return [];
   }
 }

@@ -1,11 +1,11 @@
 import "server-only";
 
-import { getReviewFeed } from "@/lib/queries";
-import type { ReviewWithUser } from "@/types";
+import { getActivityFeed } from "@/lib/queries";
+import type { FeedActivity } from "@/types";
 
 export async function getFeedForUser(
   userId: string,
   limit = 50,
-): Promise<ReviewWithUser[]> {
-  return getReviewFeed(userId, limit);
+): Promise<FeedActivity[]> {
+  return getActivityFeed(userId, limit);
 }

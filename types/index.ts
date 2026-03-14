@@ -44,6 +44,11 @@ export interface ReviewWithUser extends Review {
   user?: User | null;
 }
 
+/** Feed activity item: either a review or a follow event. */
+export type FeedActivity =
+  | { type: 'review'; created_at: string; review: ReviewWithUser }
+  | { type: 'follow'; id: string; created_at: string; follower_id: string; following_id: string; follower_username: string | null; following_username: string | null };
+
 export interface Like {
   id: string;
   user_id: string;

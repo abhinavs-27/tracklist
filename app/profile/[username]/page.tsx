@@ -9,7 +9,7 @@ import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getReviewsForUser } from "@/lib/queries";
+import { getFollowCounts, isFollowing, getProfileActivity } from "@/lib/queries";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -47,41 +47,16 @@ export default async function ProfilePage({
     notFound();
   }
 
-  const [followersRes, followingRes] = await Promise.all([
-    supabase
-      .from("follows")
-      .select("*", { count: "exact", head: true })
-      .eq("following_id", user.id),
-    supabase
-      .from("follows")
-      .select("*", { count: "exact", head: true })
-      .eq("follower_id", user.id),
+  const [counts, followingFlag] = await Promise.all([
+    getFollowCounts(user.id),
+    session?.user?.id && session.user.id !== user.id
+      ? isFollowing(session.user.id, user.id)
+      : Promise.resolve(false),
   ]);
 
-  if (followersRes.error || followingRes.error) {
-    console.error(
-      "ProfilePage followers/following count error:",
-      followersRes.error,
-      followingRes.error,
-    );
-  }
-
-  const followersCount = followersRes.count ?? 0;
-  const followingCount = followingRes.count ?? 0;
-
-  let isFollowing = false;
-  if (session?.user?.id && session.user.id !== user.id) {
-    const { data: follow, error: followError } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", session.user.id)
-      .eq("following_id", user.id)
-      .single();
-    if (followError && followError.code !== "PGRST116") {
-      console.error("ProfilePage isFollowing lookup error:", followError);
-    }
-    isFollowing = !!follow;
-  }
+  const followersCount = counts.followers_count;
+  const followingCount = counts.following_count;
+  const isFollowingUser = followingFlag;
 
   const profile = {
     id: user.id,
@@ -91,14 +66,14 @@ export default async function ProfilePage({
     created_at: user.created_at,
     followers_count: followersCount,
     following_count: followingCount,
-    is_following: isFollowing,
+    is_following: isFollowingUser,
     is_own_profile: !!session?.user?.id && session.user.id === user.id,
   };
 
   const isOwnProfile = !!profile.is_own_profile;
 
-  const [reviews, spotifyHasToken] = await Promise.all([
-    getReviewsForUser(profile.id, 20),
+  const [activity, spotifyHasToken] = await Promise.all([
+    getProfileActivity(profile.id, 30),
     isOwnProfile && session?.user?.id
       ? hasSpotifyToken(session.user.id)
       : Promise.resolve(false),
@@ -158,9 +133,9 @@ export default async function ProfilePage({
         <h2 className="mb-4 text-lg font-semibold text-white">
           Recent Activity
         </h2>
-        {reviews.length === 0 ? (
+        {activity.length === 0 ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-            <p className="text-zinc-500">No reviews yet.</p>
+            <p className="text-zinc-500">No reviews or follows yet.</p>
             {isOwnProfile && (
               <Link
                 href="/search"
@@ -172,11 +147,36 @@ export default async function ProfilePage({
           </div>
         ) : (
           <ul className="space-y-4">
-            {reviews.map((review) => (
-              <li key={review.id}>
-                <ReviewCard review={review} />
-              </li>
-            ))}
+            {activity.map((item) =>
+              item.type === "review" ? (
+                <li key={item.review.id}>
+                  <ReviewCard review={item.review} />
+                </li>
+              ) : (
+                <li key={item.id}>
+                  <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+                    <p className="text-sm text-zinc-300">
+                      <Link
+                        href={item.follower_username ? `/profile/${item.follower_username}` : "#"}
+                        className="font-medium text-white hover:text-emerald-400 hover:underline"
+                      >
+                        {item.follower_username ?? "Someone"}
+                      </Link>
+                      {" followed "}
+                      <Link
+                        href={item.following_username ? `/profile/${item.following_username}` : "#"}
+                        className="font-medium text-white hover:text-emerald-400 hover:underline"
+                      >
+                        {item.following_username ?? "someone"}
+                      </Link>
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </p>
+                  </article>
+                </li>
+              ),
+            )}
           </ul>
         )}
       </section>
