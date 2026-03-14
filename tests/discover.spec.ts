@@ -26,6 +26,9 @@ test.describe('Discover', () => {
         name: expect.any(String),
         growth: expect.any(Number),
       });
+      if (data[0].avatar_url != null) {
+        expect(typeof data[0].avatar_url).toBe('string');
+      }
     }
   });
 
@@ -67,6 +70,13 @@ test.describe('Discover', () => {
     const hasSuggested = await page.getByRole('heading', { name: /suggested users/i }).isVisible();
     const hasRecentlyActive = await page.getByRole('heading', { name: /recently active/i }).isVisible();
     expect(hasTrending || hasRising || hasHidden || hasSuggested || hasRecentlyActive).toBeTruthy();
+  });
+
+  test('discover page shows Trending, Rising artists, and Hidden gems sections even when empty', async ({ page }) => {
+    await page.goto('/discover');
+    await expect(page.getByRole('heading', { name: /trending \(last 24h\)/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /rising artists/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /hidden gems/i })).toBeVisible();
   });
 
   test('discover page has link to search users', async ({ page }) => {

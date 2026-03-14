@@ -6,11 +6,14 @@ type RisingArtistsSectionProps = {
 };
 
 export function RisingArtistsSection({ artists }: RisingArtistsSectionProps) {
-  if (artists.length === 0) return null;
-
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold text-white">Rising artists</h2>
+      {artists.length === 0 ? (
+        <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">
+          No rising artists this week. More listens over time will surface artists with growing buzz.
+        </p>
+      ) : (
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {artists.slice(0, 20).map((a) => (
           <Link
@@ -42,6 +45,7 @@ export function RisingArtistsSection({ artists }: RisingArtistsSectionProps) {
           </Link>
         ))}
       </div>
+      )}
     </section>
   );
 }

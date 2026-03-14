@@ -9,11 +9,14 @@ type TrendingSectionProps = {
 export function TrendingSection({ items }: TrendingSectionProps) {
   const valid = items.filter((x) => x.track != null);
 
-  if (valid.length === 0) return null;
-
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold text-white">Trending (last 24h)</h2>
+      {valid.length === 0 ? (
+        <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">
+          No trending tracks in the last 24 hours. Start logging listens to see what’s hot.
+        </p>
+      ) : (
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {valid.slice(0, 20).map(({ entity, track }) =>
           track ? (
@@ -33,6 +36,7 @@ export function TrendingSection({ items }: TrendingSectionProps) {
           ) : null
         )}
       </ul>
+      )}
     </section>
   );
 }

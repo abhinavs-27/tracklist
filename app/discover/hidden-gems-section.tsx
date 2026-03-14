@@ -13,14 +13,17 @@ type HiddenGemsSectionProps = {
 export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
   const valid = items.filter((x) => x.album != null || x.track != null);
 
-  if (valid.length === 0) return null;
-
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold text-white">Hidden gems</h2>
       <p className="mb-3 text-sm text-zinc-500">
         Highly rated with fewer listens
       </p>
+      {valid.length === 0 ? (
+        <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">
+          No hidden gems yet. Rate albums and songs to surface under-the-radar picks.
+        </p>
+      ) : (
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {valid.slice(0, 20).map(({ gem, album, track }) => (
           <li key={`${gem.entity_type}-${gem.entity_id}`}>
@@ -43,6 +46,7 @@ export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
           </li>
         ))}
       </ul>
+      )}
     </section>
   );
 }
