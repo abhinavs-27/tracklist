@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import type { DiscoverUser, DiscoverUsersResponse } from '@/types';
 import { FollowButton } from '@/components/follow-button';
@@ -118,9 +119,9 @@ export function DiscoverUsersGrid({ limit = 16 }: { limit?: number }) {
           <article key={u.id} className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
             <div className="flex items-start justify-between gap-3">
               <Link href={`/profile/${encodeURIComponent(u.username)}`} className="flex min-w-0 items-center gap-3">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800">
                   {u.avatar_url ? (
-                    <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                    <Image src={u.avatar_url} alt={u.username} fill className="object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">
                       {u.username?.[0]?.toUpperCase() ?? '?'}
@@ -137,9 +138,9 @@ export function DiscoverUsersGrid({ limit = 16 }: { limit?: number }) {
             </div>
 
             <div className="mt-4 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-              <div className="aspect-square">
+              <div className="relative aspect-square">
                 {cover ? (
-                  <img src={cover} alt="" className="h-full w-full object-cover" />
+                  <Image src={cover} alt={album?.name ?? ''} fill className="object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-5xl text-zinc-700">♪</div>
                 )}

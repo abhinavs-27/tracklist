@@ -6,7 +6,6 @@ import {
   getAlbumTracks,
   getArtist,
   getArtistAlbums,
-  getArtistTopTracks,
   getTrack,
 } from "@/lib/spotify";
 

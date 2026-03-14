@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Image from 'next/image';
 import type { TasteMatchResponse } from '@/types';
 
 type SpotifyAlbumLite = {
@@ -132,7 +133,9 @@ export function TasteMatchSection({
                     title={album?.name ?? id}
                   >
                     {img ? (
-                      <img src={img} alt="" className="h-full w-full object-cover" />
+                      <div className="relative h-full w-full">
+                        <Image src={img} alt={album?.name ?? id} fill className="object-cover" />
+                      </div>
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-xs text-zinc-600">♪</div>
                     )}

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import type { UserSearchResult as UserSearchResultType } from '@/types';
 import { FollowButton } from '@/components/follow-button';
 
@@ -18,11 +19,14 @@ export function UserSearchResult({ user, showFollowButton = true, onFollowChange
         className="flex min-w-0 flex-1 items-center gap-3"
       >
         {user.avatar_url ? (
-          <img
-            src={user.avatar_url}
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-full object-cover"
-          />
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
+            <Image
+              src={user.avatar_url}
+              alt={user.username}
+              fill
+              className="object-cover"
+            />
+          </div>
         ) : (
           <span
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm font-medium text-zinc-300"

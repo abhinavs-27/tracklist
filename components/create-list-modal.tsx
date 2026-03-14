@@ -45,7 +45,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
       onSuccess?.(data.id);
       router.push(`/lists/${data.id}`);
       onClose();
-    } catch (e) {
+    } catch {
       setError("Something went wrong");
     } finally {
       setLoading(false);

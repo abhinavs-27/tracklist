@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { ReviewCard } from "@/components/review-card";
 import type { ReviewWithUser } from "@/types";
 

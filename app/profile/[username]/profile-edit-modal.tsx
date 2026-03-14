@@ -9,7 +9,7 @@ interface ProfileEditModalProps {
   avatarUrl: string | null;
 }
 
-export function ProfileEditModal({ username, bio, avatarUrl }: ProfileEditModalProps) {
+export function ProfileEditModal({ username, bio }: ProfileEditModalProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [formUsername, setFormUsername] = useState(username);

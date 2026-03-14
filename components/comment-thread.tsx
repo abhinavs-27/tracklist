@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import type { CommentWithUser } from '@/types';
 
@@ -10,7 +10,7 @@ interface CommentThreadProps {
 }
 
 export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [count, setCount] = useState(initialCount);
   const [open, setOpen] = useState(false);
@@ -18,7 +18,7 @@ export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     setFetching(true);
     try {
       const res = await fetch(`/api/comments?review_id=${reviewId}`);
@@ -27,13 +27,13 @@ export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
     } finally {
       setFetching(false);
     }
-  };
+  }, [reviewId]);
 
   useEffect(() => {
     if (open && comments.length === 0 && !fetching) {
       fetchComments();
     }
-  }, [open, reviewId]);
+  }, [open, comments.length, fetching, fetchComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

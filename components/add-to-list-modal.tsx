@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { TrackCard } from "@/components/track-card";
 
 type AddToListModalProps = {
@@ -145,9 +146,9 @@ export function AddToListModal({ listId, onClose, onAdded }: AddToListModalProps
                           disabled={adding !== null}
                           className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 text-left transition hover:border-zinc-600 hover:bg-zinc-800/50"
                         >
-                          <div className="aspect-square w-full overflow-hidden bg-zinc-800">
+                          <div className="relative aspect-square w-full overflow-hidden bg-zinc-800">
                             {image ? (
-                              <img src={image} alt="" className="h-full w-full object-cover" />
+                              <Image src={image} alt={album.name} fill className="object-cover" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-4xl text-zinc-600">
                                 ♪
