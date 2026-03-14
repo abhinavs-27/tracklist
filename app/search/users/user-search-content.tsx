@@ -1,18 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import type { UserSearchResult } from '@/types';
+import { UserSearchInput } from '@/components/user-search-input';
+import { UserSearchResult as UserSearchResultComponent } from '@/components/user-search-result';
 
-type UserHit = { id: string; username: string; avatar_url: string | null };
+const DEBOUNCE_MS = 300;
+const MIN_QUERY_LENGTH = 2;
 
 export function UserSearchContent() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<UserHit[]>([]);
+  const [results, setResults] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   const search = useCallback(async (q: string) => {
     const trimmed = q.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < MIN_QUERY_LENGTH) {
       setResults([]);
       return;
     }
@@ -33,50 +36,48 @@ export function UserSearchContent() {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => search(query), 300);
+    const t = setTimeout(() => search(query), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query, search]);
 
+  const handleFollowChange = useCallback((userId: string) => {
+    setResults((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, is_following: !u.is_following } : u)),
+    );
+  }, []);
+
   return (
     <div className="space-y-4">
-      <input
-        type="search"
+      <UserSearchInput
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Username..."
-        className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        onChange={setQuery}
+        placeholder="Search by username..."
+        minLength={MIN_QUERY_LENGTH}
+        maxLength={50}
         autoFocus
       />
-      {query.trim().length > 0 && query.trim().length < 2 && (
+      {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH && (
         <p className="text-sm text-zinc-500">Type at least 2 characters.</p>
       )}
-      {loading && <p className="text-sm text-zinc-500">Searching...</p>}
+      {loading && (
+        <p className="text-sm text-zinc-500" role="status" aria-live="polite">
+          Searching...
+        </p>
+      )}
       {!loading && results.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-2" role="list">
           {results.map((u) => (
             <li key={u.id}>
-              <Link
-                href={`/profile/${u.username}`}
-                className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50"
-              >
-                {u.avatar_url ? (
-                  <img
-                    src={u.avatar_url}
-                    alt=""
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-700 text-sm font-medium text-zinc-300">
-                    {u.username[0]?.toUpperCase() ?? '?'}
-                  </span>
-                )}
-                <span className="font-medium text-white">{u.username}</span>
-              </Link>
+              <UserSearchResultComponent
+                user={u}
+                showFollowButton
+                onFollowChange={() => handleFollowChange(u.id)}
+              />
             </li>
           ))}
         </ul>
       )}
-      {!loading && query.trim().length >= 2 && results.length === 0 && (
+      {!loading && query.trim().length >= MIN_QUERY_LENGTH && results.length === 0 && (
         <p className="text-zinc-500">No users found.</p>
       )}
     </div>

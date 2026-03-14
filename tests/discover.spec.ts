@@ -1,6 +1,19 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Discover', () => {
+  test('discover page shows Discover heading and Suggested users or Recently active', async ({ page }) => {
+    await page.goto('/discover');
+    await expect(page.getByRole('heading', { name: /discover/i })).toBeVisible();
+    const hasSuggested = await page.getByRole('heading', { name: /suggested users/i }).isVisible();
+    const hasRecentlyActive = await page.getByRole('heading', { name: /recently active/i }).isVisible();
+    expect(hasSuggested || hasRecentlyActive).toBeTruthy();
+  });
+
+  test('discover page has link to search users', async ({ page }) => {
+    await page.goto('/discover');
+    await expect(page.getByRole('link', { name: /search users by username/i })).toBeVisible();
+  });
+
   test('follow/unfollow toggles state', async ({ page }) => {
     await page.route('**/api/discover**', async (route) => {
       await route.fulfill({

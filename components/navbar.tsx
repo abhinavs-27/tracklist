@@ -31,6 +31,14 @@ export function Navbar() {
           >
             Feed
           </Link>
+          {session && (
+            <Link
+              href="/search/users"
+              className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+            >
+              Find people
+            </Link>
+          )}
           {status === 'loading' ? (
             <span className="text-zinc-500">...</span>
           ) : session ? (

@@ -755,27 +755,57 @@ export async function getFollowCounts(userId: string): Promise<{
   }
 }
 
-/** User search by username (ILIKE). Sanitizes input, enforces min 2 chars, caps results at 50. */
+const USER_SEARCH_QUERY_MAX_LENGTH = 50;
+
+/** User search by username (ILIKE). Excludes excludeUserId, returns followers_count via RPC when available. */
 export async function searchUsers(
   query: string,
   limit = 20,
-): Promise<{ id: string; username: string; avatar_url: string | null }[]> {
+  excludeUserId: string | null = null,
+): Promise<{ id: string; username: string; avatar_url: string | null; followers_count: number }[]> {
   try {
     const supabase = await createSupabaseServerClient();
-    const sanitized = sanitizeString(query, 100) ?? "";
+    const sanitized = sanitizeString(query, USER_SEARCH_QUERY_MAX_LENGTH) ?? "";
     if (sanitized.length < 2) return [];
 
     const cappedLimit = Math.min(Math.max(1, limit), 50);
 
-    const { data, error } = await supabase
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_user_search", {
+      p_query: sanitized,
+      p_limit: cappedLimit,
+      p_exclude_user_id: excludeUserId || null,
+    });
+
+    if (!rpcError && Array.isArray(rpcData)) {
+      return (rpcData as { id: string; username: string; avatar_url: string | null; followers_count: number }[]).map(
+        (r) => ({
+          id: r.id,
+          username: r.username,
+          avatar_url: r.avatar_url ?? null,
+          followers_count: Number(r.followers_count) || 0,
+        }),
+      );
+    }
+
+    if (rpcError) {
+      console.warn("[queries] get_user_search RPC failed (migration 019 may not be applied), using fallback:", rpcError.message);
+    }
+
+    let q = supabase
       .from("users")
       .select("id, username, avatar_url")
       .ilike("username", `%${sanitized}%`)
       .order("username", { ascending: true })
       .limit(cappedLimit);
-
+    if (excludeUserId) q = q.neq("id", excludeUserId);
+    const { data, error } = await q;
     if (error) throw error;
-    return (data ?? []) as { id: string; username: string; avatar_url: string | null }[];
+    return (data ?? []).map((u) => ({
+      id: u.id,
+      username: u.username,
+      avatar_url: u.avatar_url ?? null,
+      followers_count: 0,
+    }));
   } catch (e) {
     console.error("[queries] searchUsers failed:", e);
     return [];

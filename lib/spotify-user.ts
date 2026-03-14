@@ -59,7 +59,10 @@ export function getSpotifyAuthorizeUrl(
   const redirectUri = requestOrigin
     ? buildRedirectUriFromOrigin(requestOrigin)
     : buildRedirectUri();
-  console.log("Spotify authorize: redirect_uri (add this exact URL in Spotify Dashboard):", redirectUri);
+  console.log(
+    "Spotify authorize: redirect_uri (add this exact URL in Spotify Dashboard):",
+    redirectUri,
+  );
   const scopes = [
     "user-read-recently-played",
     "user-read-email",
@@ -136,7 +139,9 @@ export async function refreshSpotifyAccessToken(
  * calling Spotify refresh if expired. Use this before any Spotify API call.
  * @throws Error "Spotify not connected" if no tokens stored, or rethrows on refresh failure.
  */
-export async function getValidSpotifyAccessToken(userId: string): Promise<string> {
+export async function getValidSpotifyAccessToken(
+  userId: string,
+): Promise<string> {
   const supabase = createSupabaseAdminClient();
   const { data: row, error: fetchError } = await supabase
     .from("spotify_tokens")
@@ -145,7 +150,10 @@ export async function getValidSpotifyAccessToken(userId: string): Promise<string
     .single();
 
   if (fetchError || !row?.access_token || !row?.refresh_token) {
-    console.warn("getValidSpotifyAccessToken: no tokens for user", { userId, fetchError: fetchError?.message });
+    console.warn("getValidSpotifyAccessToken: no tokens for user", {
+      userId,
+      fetchError: fetchError?.message,
+    });
     throw new Error("Spotify not connected");
   }
 
@@ -154,28 +162,41 @@ export async function getValidSpotifyAccessToken(userId: string): Promise<string
   const stillValid = expiresAt > now + EXPIRY_BUFFER_MS;
 
   if (stillValid) {
-    console.log("getValidSpotifyAccessToken: token still valid", { userId, expiresAt: row.expires_at });
+    console.log("getValidSpotifyAccessToken: token still valid", {
+      userId,
+      expiresAt: row.expires_at,
+    });
     return row.access_token;
   }
 
-  console.log("getValidSpotifyAccessToken: token expired or expiring soon, refreshing", { userId });
+  console.log(
+    "getValidSpotifyAccessToken: token expired or expiring soon, refreshing",
+    { userId },
+  );
   let refreshed: SpotifyTokenResponse;
   try {
     refreshed = await refreshSpotifyAccessToken(row.refresh_token);
   } catch (e) {
-    console.error("getValidSpotifyAccessToken: refresh failed", { userId, error: e });
-    if (e instanceof Error && e.message) console.error("Spotify refresh error response:", e.message);
+    console.error("getValidSpotifyAccessToken: refresh failed", {
+      userId,
+      error: e,
+    });
+    if (e instanceof Error && e.message)
+      console.error("Spotify refresh error response:", e.message);
     throw e;
   }
 
-  const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+  const newExpiresAt = new Date(
+    Date.now() + refreshed.expires_in * 1000,
+  ).toISOString();
   const updatedAt = new Date().toISOString();
   const updatePayload: Record<string, string> = {
     access_token: refreshed.access_token,
     expires_at: newExpiresAt,
     updated_at: updatedAt,
   };
-  if (refreshed.refresh_token) updatePayload.refresh_token = refreshed.refresh_token;
+  if (refreshed.refresh_token)
+    updatePayload.refresh_token = refreshed.refresh_token;
 
   const { error: updateError } = await supabase
     .from("spotify_tokens")
@@ -183,10 +204,15 @@ export async function getValidSpotifyAccessToken(userId: string): Promise<string
     .eq("user_id", userId);
 
   if (updateError) {
-    console.error("getValidSpotifyAccessToken: database update failed", { userId, updateError });
+    console.error("getValidSpotifyAccessToken: database update failed", {
+      userId,
+      updateError,
+    });
     throw new Error("Failed to save refreshed token");
   }
-  console.log("getValidSpotifyAccessToken: database updated with new token", { userId });
+  console.log("getValidSpotifyAccessToken: database updated with new token", {
+    userId,
+  });
   return refreshed.access_token;
 }
 
@@ -260,11 +286,9 @@ export async function getUserArtistAlbums(
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
   // Some environments enforce a maximum of 10 for this endpoint
   const safeLimit = Math.min(Math.max(limit, 1), 10);
-  return spotifyUserFetch<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>>(
-    accessToken,
-    `/artists/${artistId}/albums`,
-    { limit: String(safeLimit) },
-  );
+  return spotifyUserFetch<
+    SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>
+  >(accessToken, `/artists/${artistId}/albums`, { limit: String(safeLimit) });
 }
 
 export async function getUserArtistTopTracks(

@@ -143,3 +143,20 @@ export type DiscoverUser = {
 export type DiscoverUsersResponse = {
   users: DiscoverUser[];
 };
+
+// User search (GET /api/search/users)
+export type UserSearchResult = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  followers_count: number;
+  is_following: boolean;
+};
+
+// Suggested users (getSuggestedUsers / discover block)
+export type SuggestedUser = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  followers_count: number;
+};
