@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase';
 import { apiUnauthorized, apiBadRequest, apiInternalError } from '@/lib/api-response';
 import { getRecentlyPlayed, getValidSpotifyAccessToken } from '@/lib/spotify-user';
+import { checkSpotifyRateLimit } from '@/lib/rate-limit';
 
 type SyncResponse = {
   inserted: number;
@@ -11,7 +12,10 @@ type SyncResponse = {
   mode: 'song';
 };
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
+  if (!checkSpotifyRateLimit(request)) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();

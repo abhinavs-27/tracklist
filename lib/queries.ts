@@ -782,39 +782,31 @@ export async function searchUsers(
   }
 }
 
-/** Suggested users: by follower count (most followers first), exclude self and already followed. Limit 10. */
+/** Suggested users: by follower count (most followers first), exclude self and already followed. Limit 10. Uses DB RPC (migration 018). */
 export async function getSuggestedUsers(
   userId: string,
   limit = 10,
 ): Promise<{ id: string; username: string; avatar_url: string | null; followers_count: number }[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(limit, 1), 100);
 
-    const [myFollowsRes, followCountsRes, usersRes] = await Promise.all([
-      supabase.from("follows").select("following_id").eq("follower_id", userId),
-      supabase.from("follows").select("following_id"),
-      supabase.from("users").select("id, username, avatar_url"),
-    ]);
+    const { data: rows, error } = await supabase.rpc("get_suggested_users", {
+      p_user_id: userId,
+      p_limit: cappedLimit,
+    });
 
-    const myFollowing = new Set((myFollowsRes.data ?? []).map((r) => (r as { following_id: string }).following_id));
-    const followerCounts = new Map<string, number>();
-    for (const row of followCountsRes.data ?? []) {
-      const fid = (row as { following_id: string }).following_id;
-      followerCounts.set(fid, (followerCounts.get(fid) ?? 0) + 1);
+    if (error) {
+      console.warn("[queries] get_suggested_users RPC failed (migration 018 may not be applied):", error.message);
+      return [];
     }
 
-    const list = (usersRes.data ?? [])
-      .filter((u) => u.id !== userId && !myFollowing.has(u.id))
-      .map((u) => ({
-        id: u.id,
-        username: u.username,
-        avatar_url: u.avatar_url ?? null,
-        followers_count: followerCounts.get(u.id) ?? 0,
-      }))
-      .sort((a, b) => b.followers_count - a.followers_count)
-      .slice(0, limit);
-
-    return list;
+    return (rows ?? []).map((r: { id: string; username: string; avatar_url: string | null; followers_count: number }) => ({
+      id: r.id,
+      username: r.username,
+      avatar_url: r.avatar_url ?? null,
+      followers_count: Number(r.followers_count) || 0,
+    }));
   } catch (e) {
     console.error("[queries] getSuggestedUsers failed:", e);
     return [];

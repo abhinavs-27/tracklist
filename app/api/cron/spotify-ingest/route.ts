@@ -1,11 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { ingestRecentPlaysForUser } from "@/lib/logs-ingest";
 
 const BATCH_SIZE = 50;
 const MAX_USERS_PER_RUN = 500;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   const supabase = createSupabaseAdminClient();
 
   const { data: tokens, error } = await supabase

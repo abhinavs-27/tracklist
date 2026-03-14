@@ -69,27 +69,28 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return apiUnauthorized();
+
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const spotifyId = searchParams.get('spotify_id');
     const limit = clampLimit(searchParams.get('limit'), LIMITS.LOGS_LIMIT, 20);
 
-    if (userId && !isValidUuid(userId)) {
-      return apiBadRequest('Invalid user_id');
-    }
     if (spotifyId && !isValidSpotifyId(spotifyId)) {
       return apiBadRequest('Invalid spotify_id');
     }
+
+    const userId = session.user.id;
 
     const supabase = await createSupabaseServerClient();
 
     let query = supabase
       .from('logs')
       .select('id, user_id, track_id, listened_at, source, created_at')
+      .eq('user_id', userId)
       .order('listened_at', { ascending: false })
       .limit(limit);
 
-    if (userId) query = query.eq('user_id', userId);
     if (spotifyId) query = query.eq('track_id', spotifyId);
 
     const { data: logs, error: logsError } = await query;

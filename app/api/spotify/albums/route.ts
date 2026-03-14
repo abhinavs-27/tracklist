@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAlbums } from "@/lib/spotify";
 import { apiBadRequest, apiInternalError } from "@/lib/api-response";
 import { isValidSpotifyId } from "@/lib/validation";
+import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 
 const MAX_IDS = 20;
 
@@ -14,6 +15,9 @@ export type AlbumMetadataItem = {
 };
 
 export async function GET(request: NextRequest) {
+  if (!checkSpotifyRateLimit(request)) {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const idsParam = searchParams.get("ids");

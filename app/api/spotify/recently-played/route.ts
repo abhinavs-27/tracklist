@@ -1,15 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
 import { apiUnauthorized, apiInternalError } from "@/lib/api-response";
+import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_TRACKS = 50;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!checkSpotifyRateLimit(request)) {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();

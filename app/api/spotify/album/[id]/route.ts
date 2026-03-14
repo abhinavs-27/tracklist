@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAlbum } from '@/lib/spotify';
 import { apiBadRequest, apiInternalError } from '@/lib/api-response';
 import { isValidSpotifyId } from '@/lib/validation';
+import { checkSpotifyRateLimit } from '@/lib/rate-limit';
 
 type RouteParams = Promise<{ id: string }>;
 
-export async function GET(_request: NextRequest, ctx: { params: RouteParams }) {
+export async function GET(request: NextRequest, ctx: { params: RouteParams }) {
+  if (!checkSpotifyRateLimit(request)) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
   try {
     const { id } = await ctx.params;
     if (!isValidSpotifyId(id)) return apiBadRequest('Invalid spotify id');
