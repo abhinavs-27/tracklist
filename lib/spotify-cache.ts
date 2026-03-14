@@ -182,7 +182,7 @@ export async function getOrFetchArtist(
   // 1) try cache first
   const { data: row, error } = await supabase
     .from("artists")
-    .select("*")
+    .select("id, name, image_url, genres")
     .eq("id", id)
     .maybeSingle();
 
@@ -449,7 +449,7 @@ export async function getOrFetchAlbum(id: string): Promise<{
 
   const { data: albumRow, error: albumErr } = await supabase
     .from("albums")
-    .select("*")
+    .select("id, name, artist_id, image_url, release_date, total_tracks")
     .eq("id", id)
     .maybeSingle();
 
@@ -462,14 +462,14 @@ export async function getOrFetchAlbum(id: string): Promise<{
 
     const { data: artistRow } = await supabase
       .from("artists")
-      .select("*")
+      .select("id, name")
       .eq("id", album.artist_id)
       .maybeSingle();
     const artist = artistRow as unknown as ArtistRow | null;
 
     const { data: songRows, error: songsErr } = await supabase
       .from("songs")
-      .select("*")
+      .select("id, name, album_id, artist_id, duration_ms, track_number")
       .eq("album_id", id)
       .order("track_number", { ascending: true });
 
@@ -505,7 +505,7 @@ export async function getOrFetchAlbum(id: string): Promise<{
         }
         const { data: refetched } = await supabase
           .from("songs")
-          .select("*")
+          .select("id, name, album_id, artist_id, duration_ms, track_number")
           .eq("album_id", id)
           .order("track_number", { ascending: true });
         songs = (refetched ?? []) as unknown as SongRow[];
@@ -631,7 +631,7 @@ export async function getOrFetchTrack(
 
   const { data: songRow, error } = await supabase
     .from("songs")
-    .select("*")
+    .select("id, name, album_id, artist_id, duration_ms")
     .eq("id", id)
     .maybeSingle();
 
@@ -645,12 +645,12 @@ export async function getOrFetchTrack(
     const [{ data: albumRow }, { data: artistRow }] = await Promise.all([
       supabase
         .from("albums")
-        .select("*")
+        .select("id, name, artist_id, image_url, release_date")
         .eq("id", song.album_id)
         .maybeSingle(),
       supabase
         .from("artists")
-        .select("*")
+        .select("id, name")
         .eq("id", song.artist_id)
         .maybeSingle(),
     ]);

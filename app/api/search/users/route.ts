@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return apiBadRequest(`Query must be at least ${MIN_QUERY_LENGTH} characters`);
     }
 
-    const rows = await searchUsers(q, 20, session.user.id);
+    const rows = await searchUsers(q, { limit: 20, excludeUserId: session.user.id });
     if (rows.length === 0) return NextResponse.json([]);
 
     const supabase = await createSupabaseServerClient();
