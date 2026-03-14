@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { ReviewCard } from "@/components/review-card";
+import type { ReviewWithUser } from "@/types";
 
 export type ReviewItem = {
   id: string;
@@ -13,6 +15,7 @@ export type ReviewItem = {
   review_text: string | null;
   created_at: string;
   updated_at: string;
+  user?: { id: string; username: string; avatar_url: string | null } | null;
 };
 
 export type ReviewsResponse = {
@@ -233,30 +236,26 @@ export function EntityReviewsSection({
         <p className="text-sm text-zinc-500">No reviews yet. Be the first to rate and review.</p>
       ) : (
         <ul className="space-y-3">
-          {reviews.map((r) => (
-            <li
-              key={r.id}
-              className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3"
-            >
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-amber-400">{formatStars(r.rating)}</span>
-                <Link
-                  href={r.username ? `/profile/${r.username}` : "#"}
-                  className="font-medium text-white hover:underline"
-                >
-                  {r.username ?? "Unknown"}
-                </Link>
-                <span className="text-zinc-500">
-                  {new Date(r.created_at).toLocaleDateString()}
-                </span>
-              </div>
-              {r.review_text && (
-                <p className="mt-1 whitespace-pre-line text-sm text-zinc-300">
-                  {r.review_text}
-                </p>
-              )}
-            </li>
-          ))}
+          {reviews.map((r) => {
+            const reviewWithUser: ReviewWithUser = {
+              id: r.id,
+              user_id: r.user_id,
+              entity_type: r.entity_type as "album" | "song",
+              entity_id: r.entity_id,
+              rating: r.rating,
+              review_text: r.review_text,
+              created_at: r.created_at,
+              updated_at: r.updated_at,
+              user: r.user
+                ? { id: r.user.id, username: r.user.username, avatar_url: r.user.avatar_url, email: "", bio: null, created_at: "" }
+                : { id: r.user_id, username: r.username ?? "", avatar_url: null, email: "", bio: null, created_at: "" },
+            };
+            return (
+              <li key={r.id}>
+                <ReviewCard review={reviewWithUser} spotifyName={spotifyName} />
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

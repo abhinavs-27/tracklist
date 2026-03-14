@@ -11,6 +11,7 @@ import {
   getEntityStats,
   getAlbumListeners,
   getTrackStatsForTrackIds,
+  getListenLogsForAlbum,
 } from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
@@ -63,11 +64,12 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   }
 
   const trackIds = tracks.items?.map((t) => t.id) ?? [];
-  const [reviewsData, stats, listeners, trackStats] = await Promise.all([
-    getReviewsForEntity("album", id),
+  const [reviewsData, stats, listeners, trackStats, recentListens] = await Promise.all([
+    getReviewsForEntity("album", id, 20),
     getEntityStats("album", id),
-    getAlbumListeners(id, 8),
+    getAlbumListeners(id, 8, session?.user?.id ?? null),
     getTrackStatsForTrackIds(trackIds),
+    getListenLogsForAlbum(id, 15),
   ]);
 
   const image = album.images?.[0]?.url;
@@ -125,6 +127,33 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
             )}
           </div>
 
+          {/* Rating distribution */}
+          {stats.rating_distribution && stats.review_count > 0 && (() => {
+            const dist = stats.rating_distribution!;
+            return (
+            <div className="mt-3 flex flex-col gap-1">
+              <p className="text-xs text-zinc-500">Rating distribution</p>
+              <div className="flex items-end gap-1" role="img" aria-label="Rating distribution">
+                {([1, 2, 3, 4, 5] as const).map((star) => {
+                  const count = dist[star];
+                  const max = Math.max(...Object.values(dist));
+                  const height = max > 0 ? (count / max) * 32 : 0;
+                  return (
+                    <div key={star} className="flex flex-1 flex-col items-center gap-0.5">
+                      <div
+                        className="w-full rounded-t bg-amber-500/40"
+                        style={{ height: `${Math.max(height, 2)}px`, minHeight: "2px" }}
+                        title={`${star} star: ${count}`}
+                      />
+                      <span className="text-[10px] text-zinc-500">{star}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            );
+          })()}
+
           {session && (
             <div className="mt-4">
               <AlbumLogButton
@@ -179,6 +208,44 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         </section>
       ) : null}
 
+      {/* Recent listens */}
+      {recentListens.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-white">Recent listens</h2>
+          <ul className="space-y-2">
+            {recentListens.slice(0, 15).map((log) => (
+              <li
+                key={log.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {log.user?.avatar_url ? (
+                    <img
+                      src={log.user.avatar_url}
+                      alt=""
+                      className="h-8 w-8 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-xs text-zinc-300">
+                      {log.user?.username?.[0]?.toUpperCase() ?? "?"}
+                    </span>
+                  )}
+                  <Link
+                    href={log.user?.username ? `/profile/${log.user.username}` : "#"}
+                    className="truncate text-sm font-medium text-white hover:text-emerald-400 hover:underline"
+                  >
+                    {log.user?.username ?? "Unknown"}
+                  </Link>
+                </div>
+                <span className="shrink-0 text-xs text-zinc-500">
+                  {new Date(log.listened_at).toLocaleDateString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Reviews */}
       <EntityReviewsSection
         entityType="album"
@@ -187,11 +254,11 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         initialData={reviewsData}
       />
 
-      {/* Friends who listened */}
+      {/* Friends who listened (only shown when logged in; list is friends-only) */}
       {listeners.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">
-            Who listened
+            Friends who listened
           </h2>
           <div className="flex flex-wrap gap-3">
             {listeners.map((l) => (
@@ -212,6 +279,11 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
                   </span>
                 )}
                 <span className="text-zinc-200">{l.username}</span>
+                {l.listened_at && (
+                  <span className="text-xs text-zinc-500">
+                    · {new Date(l.listened_at).toLocaleDateString()}
+                  </span>
+                )}
               </Link>
             ))}
           </div>

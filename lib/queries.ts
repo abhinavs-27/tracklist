@@ -73,7 +73,7 @@ async function getListenLogsInternal(opts: {
 // Active reviews (ratings + optional text)
 // ---------------------------------------------------------------------------
 
-type EntityReviewItem = {
+export type EntityReviewItem = {
   id: string;
   user_id: string;
   username: string | null;
@@ -83,6 +83,8 @@ type EntityReviewItem = {
   review_text: string | null;
   created_at: string;
   updated_at: string;
+  /** Populated when user details are fetched (e.g. for ReviewCard). */
+  user?: { id: string; username: string; avatar_url: string | null } | null;
 };
 
 export type ReviewsResult = {
@@ -119,21 +121,25 @@ export async function getReviewsForEntity(
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
     const { data: users } = await supabase
       .from("users")
-      .select("id, username")
+      .select("id, username, avatar_url")
       .in("id", userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
-    const reviews: EntityReviewItem[] = reviewRows.map((r) => ({
-      id: r.id,
-      user_id: r.user_id,
-      username: userMap.get(r.user_id)?.username ?? null,
-      entity_type: r.entity_type,
-      entity_id: r.entity_id,
-      rating: r.rating,
-      review_text: r.review_text ?? null,
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    }));
+    const reviews: EntityReviewItem[] = reviewRows.map((r) => {
+      const u = userMap.get(r.user_id);
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        username: u?.username ?? null,
+        entity_type: r.entity_type,
+        entity_id: r.entity_id,
+        rating: r.rating,
+        review_text: r.review_text ?? null,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        user: u ? { id: u.id, username: u.username, avatar_url: u.avatar_url ?? null } : null,
+      };
+    });
 
     const count = reviews.length;
     const sum = reviews.reduce((a, r) => a + r.rating, 0);
@@ -237,6 +243,8 @@ export type EntityStats = {
   listen_count: number;
   average_rating: number | null;
   review_count: number;
+  /** Count of reviews per star 1–5 for histogram/bar chart. */
+  rating_distribution?: { 1: number; 2: number; 3: number; 4: number; 5: number };
 };
 
 export async function getEntityStats(
@@ -280,10 +288,23 @@ export async function getEntityStats(
     const average_rating =
       review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
 
-    return { listen_count, average_rating, review_count };
+    const rating_distribution: { 1: number; 2: number; 3: number; 4: number; 5: number } = {
+      1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
+    };
+    for (const r of ratings) {
+      const star = Math.max(1, Math.min(5, Math.floor(r)));
+      rating_distribution[star as 1 | 2 | 3 | 4 | 5]++;
+    }
+
+    return { listen_count, average_rating, review_count, rating_distribution };
   } catch (e) {
     console.error("[queries] getEntityStats failed:", e);
-    return { listen_count: 0, average_rating: null, review_count: 0 };
+    return {
+      listen_count: 0,
+      average_rating: null,
+      review_count: 0,
+      rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    };
   }
 }
 
@@ -513,6 +534,53 @@ export async function getListenLogsForArtist(
   }
 }
 
+/** Recent listen logs for tracks on an album (Spotify album id). */
+export async function getListenLogsForAlbum(
+  albumId: string,
+  limit = 20,
+): Promise<ListenLogWithUser[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data: songRows } = await supabase
+      .from("songs")
+      .select("id")
+      .eq("album_id", albumId);
+
+    const trackIds = (songRows ?? []).map((s) => s.id);
+    if (trackIds.length === 0) return [];
+
+    const { data: logs, error } = await supabase
+      .from("logs")
+      .select("id, user_id, track_id, listened_at, source, created_at")
+      .in("track_id", trackIds)
+      .order("listened_at", { ascending: false })
+      .limit(limit);
+
+    if (error || !logs?.length) return [];
+
+    const userIds = [...new Set(logs.map((l) => l.user_id))];
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, email, username, avatar_url, bio, created_at")
+      .in("id", userIds);
+    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+
+    return logs.map((log) => ({
+      id: log.id,
+      user_id: log.user_id,
+      track_id: log.track_id,
+      listened_at: log.listened_at,
+      source: log.source ?? null,
+      created_at: log.created_at,
+      user: userMap.get(log.user_id) ?? null,
+    }));
+  } catch (e) {
+    console.error("[queries] getListenLogsForAlbum failed:", e);
+    return [];
+  }
+}
+
 /** Albums by an artist with composite popularity score. */
 export async function getPopularAlbumsForArtist(
   artistId: string,
@@ -601,12 +669,15 @@ export async function getPopularAlbumsForArtist(
   }
 }
 
-/** Users who recently listened to tracks from an album. */
+/** Users who recently listened to tracks from an album. When viewerId is set, returns only users the viewer follows (friends). When viewerId is null, returns [] for privacy. */
 export async function getAlbumListeners(
   albumId: string,
   limit = 10,
+  viewerId: string | null = null,
 ): Promise<{ user_id: string; username: string; avatar_url: string | null; listened_at: string }[]> {
   try {
+    if (!viewerId) return [];
+
     const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
@@ -622,18 +693,27 @@ export async function getAlbumListeners(
       .select("user_id, listened_at")
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     if (error || !logs?.length) return [];
+
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", viewerId);
+    const followingSet = new Set((followRows ?? []).map((f) => f.following_id));
 
     const seen = new Set<string>();
     const unique: { user_id: string; listened_at: string }[] = [];
     for (const l of logs) {
+      if (!followingSet.has(l.user_id) || l.user_id === viewerId) continue;
       if (seen.has(l.user_id)) continue;
       seen.add(l.user_id);
       unique.push(l);
       if (unique.length >= limit) break;
     }
+
+    if (unique.length === 0) return [];
 
     const userIds = unique.map((u) => u.user_id);
     const { data: users } = await supabase

@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
     const { data: users } = await supabase
       .from("users")
-      .select("id, username")
+      .select("id, username, avatar_url")
       .in("id", userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
         review_text: r.review_text ?? null,
         created_at: r.created_at,
         updated_at: r.updated_at,
+        user: u ? { id: u.id, username: u.username, avatar_url: u.avatar_url ?? null } : null,
       };
     });
 
@@ -87,16 +88,20 @@ export async function GET(request: NextRequest) {
         .eq("user_id", userId)
         .maybeSingle();
       if (myRow) {
+        const sessionUser = session?.user as { id?: string; username?: string; image?: string | null } | undefined;
         my_review = {
           id: myRow.id,
           user_id: myRow.user_id,
-          username: session?.user?.username ?? null,
+          username: sessionUser?.username ?? null,
           entity_type: myRow.entity_type,
           entity_id: myRow.entity_id,
           rating: myRow.rating,
           review_text: myRow.review_text ?? null,
           created_at: myRow.created_at,
           updated_at: myRow.updated_at,
+          user: sessionUser
+            ? { id: sessionUser.id ?? myRow.user_id, username: sessionUser.username ?? "", avatar_url: sessionUser.image ?? null }
+            : null,
         };
       }
     }
