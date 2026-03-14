@@ -29,19 +29,25 @@ function requiredEnv(name: string): string {
   return v;
 }
 
+/** Builds the OAuth redirect URI (no trailing slash). Must match exactly in Spotify Dashboard. */
 function buildRedirectUri(): string {
   const explicit = process.env.SPOTIFY_REDIRECT_URI?.trim();
   // In production, never use a localhost redirect URI (e.g. SPOTIFY_REDIRECT_URI copied from .env.local).
   const isProduction = process.env.NODE_ENV === "production";
+  let uri: string;
   if (explicit && (!isProduction || !isLocalhostUrl(explicit))) {
-    return explicit;
+    uri = explicit;
+  } else {
+    const base = getAppBaseUrl();
+    uri = new URL("/api/spotify/callback", base).toString();
   }
-  return `${getAppBaseUrl()}/api/spotify/callback`;
+  return uri.replace(/\/$/, "");
 }
 
 export function getSpotifyAuthorizeUrl(state: string): string {
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
   const redirectUri = buildRedirectUri();
+  console.log("Spotify authorize: redirect_uri (add this exact URL in Spotify Dashboard):", redirectUri);
   const scopes = [
     "user-read-recently-played",
     "user-read-email",

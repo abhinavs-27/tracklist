@@ -197,7 +197,7 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 ## 9. Troubleshooting
 
 - **Spotify “redirect_uri_mismatch”**  
-  Redirect URI in Spotify Dashboard must match exactly what the app sends (no trailing slash, correct scheme/host/path). Default: `{NEXTAUTH_URL}/api/spotify/callback`. If you use `SPOTIFY_REDIRECT_URI`, set it to that exact value. For local dev use `http://127.0.0.1:3000` (and same in `NEXTAUTH_URL`) so cookies work.
+  Redirect URI in Spotify Dashboard must match **exactly** what the app sends (no trailing slash, correct scheme/host/path). For production, set `NEXTAUTH_URL` to your site URL (e.g. `https://tracklistsocial.com`); the app will use `{NEXTAUTH_URL}/api/spotify/callback`. Add that exact URL in [Spotify Dashboard](https://developer.spotify.com/dashboard) → your app → Redirect URIs. (Server logs log the redirect URI used when you click Connect—use that value if unsure.) For local dev use `http://127.0.0.1:3000/api/spotify/callback` and same base in `NEXTAUTH_URL`.
 
 - **Token saving / “new row violates row-level security”**  
   Writes to `spotify_tokens` (and `spotify_recent_tracks`) must use a Supabase client with the **service role key** (or an admin client that uses it), not the anon key. Ensure:
