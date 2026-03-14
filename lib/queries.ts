@@ -1275,3 +1275,287 @@ export async function getProfileActivity(
     return [];
   }
 }
+
+// ---------------------------------------------------------------------------
+// User lists (curated albums/songs)
+// ---------------------------------------------------------------------------
+
+export type ListRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ListItemRow = {
+  id: string;
+  list_id: string;
+  entity_type: "album" | "song";
+  entity_id: string;
+  position: number;
+  added_at: string;
+};
+
+export type UserListSummary = {
+  id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  item_count: number;
+};
+
+export async function getUserLists(
+  userId: string,
+  limit = 50,
+  offset = 0,
+): Promise<UserListSummary[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedOffset = Math.max(0, offset);
+
+    const { data: listRows, error: listError } = await supabase
+      .from("lists")
+      .select("id, title, description, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
+
+    if (listError) throw listError;
+    if (!listRows?.length) return [];
+
+    const listIds = listRows.map((l) => l.id);
+    const { data: countRows } = await supabase
+      .from("list_items")
+      .select("list_id")
+      .in("list_id", listIds);
+
+    const countByList = new Map<string, number>();
+    for (const row of countRows ?? []) {
+      countByList.set(row.list_id, (countByList.get(row.list_id) ?? 0) + 1);
+    }
+
+    return listRows.map((l) => ({
+      id: l.id,
+      title: l.title,
+      description: l.description ?? null,
+      created_at: l.created_at,
+      item_count: countByList.get(l.id) ?? 0,
+    }));
+  } catch (e) {
+    console.error("[queries] getUserLists failed:", e);
+    return [];
+  }
+}
+
+export type ListWithItems = {
+  list: ListRow;
+  items: ListItemRow[];
+  owner_username: string | null;
+};
+
+export async function getList(listId: string): Promise<ListWithItems | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data: listRow, error: listError } = await supabase
+      .from("lists")
+      .select("id, user_id, title, description, created_at, updated_at")
+      .eq("id", listId)
+      .maybeSingle();
+
+    if (listError || !listRow) return null;
+
+    const { data: itemRows, error: itemsError } = await supabase
+      .from("list_items")
+      .select("id, list_id, entity_type, entity_id, position, added_at")
+      .eq("list_id", listId)
+      .order("position", { ascending: true });
+
+    if (itemsError) throw itemsError;
+
+    const { data: owner } = await supabase
+      .from("users")
+      .select("username")
+      .eq("id", listRow.user_id)
+      .maybeSingle();
+
+    return {
+      list: listRow as ListRow,
+      items: (itemRows ?? []) as ListItemRow[],
+      owner_username: owner?.username ?? null,
+    };
+  } catch (e) {
+    console.error("[queries] getList failed:", e);
+    return null;
+  }
+}
+
+export async function createList(
+  userId: string,
+  title: string,
+  description: string | null = null,
+): Promise<ListRow | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("lists")
+      .insert({
+        user_id: userId,
+        title,
+        description: description || null,
+        updated_at: new Date().toISOString(),
+      })
+      .select("id, user_id, title, description, created_at, updated_at")
+      .single();
+
+    if (error) throw error;
+    return data as ListRow;
+  } catch (e) {
+    console.error("[queries] createList failed:", e);
+    return null;
+  }
+}
+
+export async function addListItem(
+  listId: string,
+  entityType: "album" | "song",
+  entityId: string,
+): Promise<ListItemRow | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data: maxRow } = await supabase
+      .from("list_items")
+      .select("position")
+      .eq("list_id", listId)
+      .order("position", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextPosition = maxRow?.position != null ? maxRow.position + 1 : 0;
+
+    const { data, error } = await supabase
+      .from("list_items")
+      .insert({
+        list_id: listId,
+        entity_type: entityType,
+        entity_id: entityId,
+        position: nextPosition,
+      })
+      .select("id, list_id, entity_type, entity_id, position, added_at")
+      .single();
+
+    if (error) throw error;
+    return data as ListItemRow;
+  } catch (e) {
+    console.error("[queries] addListItem failed:", e);
+    return null;
+  }
+}
+
+/** Delete list item; returns true only if the item belonged to listId. */
+export async function removeListItem(
+  itemId: string,
+  listId?: string,
+): Promise<boolean> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (listId) {
+      const { data, error: fetchError } = await supabase
+        .from("list_items")
+        .select("id")
+        .eq("id", itemId)
+        .eq("list_id", listId)
+        .maybeSingle();
+      if (fetchError || !data) return false;
+    }
+    const { error } = await supabase.from("list_items").delete().eq("id", itemId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error("[queries] removeListItem failed:", e);
+    return false;
+  }
+}
+
+/** Search lists by title (public). Returns list summary + owner_username. */
+export type ListSearchResult = {
+  id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  item_count: number;
+  owner_username: string | null;
+};
+
+export async function searchLists(
+  query: string,
+  limit = 20,
+): Promise<ListSearchResult[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const sanitized = sanitizeString(query, 100) ?? "";
+    const cappedLimit = Math.min(Math.max(1, limit), 50);
+
+    if (sanitized.length < 2) return [];
+
+    const { data: listRows, error: listError } = await supabase
+      .from("lists")
+      .select("id, user_id, title, description, created_at")
+      .ilike("title", `%${sanitized}%`)
+      .order("created_at", { ascending: false })
+      .limit(cappedLimit);
+
+    if (listError) throw listError;
+    if (!listRows?.length) return [];
+
+    const userIds = [...new Set(listRows.map((l) => l.user_id))];
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, username")
+      .in("id", userIds);
+    const userMap = new Map((users ?? []).map((u) => [u.id, u.username]));
+
+    const listIds = listRows.map((l) => l.id);
+    const { data: countRows } = await supabase
+      .from("list_items")
+      .select("list_id")
+      .in("list_id", listIds);
+    const countByList = new Map<string, number>();
+    for (const row of countRows ?? []) {
+      countByList.set(row.list_id, (countByList.get(row.list_id) ?? 0) + 1);
+    }
+
+    return listRows.map((l) => ({
+      id: l.id,
+      title: l.title,
+      description: l.description ?? null,
+      created_at: l.created_at,
+      item_count: countByList.get(l.id) ?? 0,
+      owner_username: userMap.get(l.user_id) ?? null,
+    }));
+  } catch (e) {
+    console.error("[queries] searchLists failed:", e);
+    return [];
+  }
+}
+
+/** Check if the user owns the list (for API auth). */
+export async function getListOwnerId(listId: string): Promise<string | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("lists")
+      .select("user_id")
+      .eq("id", listId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.user_id;
+  } catch (e) {
+    console.error("[queries] getListOwnerId failed:", e);
+    return null;
+  }
+}

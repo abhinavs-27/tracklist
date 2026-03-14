@@ -21,6 +21,8 @@ export const LIMITS = {
   LOGS_LIMIT: 100,
   SEARCH_LIMIT: 50,
   FOLLOWING_IDS_CAP: 500,
+  LIST_TITLE: 100,
+  LIST_DESCRIPTION: 2000,
 } as const;
 
 export function isValidUuid(value: unknown): value is string {
@@ -96,4 +98,15 @@ export function validateUsernameUpdate(username: unknown): { ok: true; value: st
   if (s.length === 0) return { ok: false, error: 'username cannot be empty' };
   if (!USERNAME_REGEX.test(s)) return { ok: false, error: 'username must be 3–30 characters, alphanumeric or underscore' };
   return { ok: true, value: s };
+}
+
+export function validateListTitle(title: unknown): { ok: true; value: string } | { ok: false; error: string } {
+  const s = sanitizeString(title, LIMITS.LIST_TITLE);
+  if (s === null || s.length === 0) return { ok: false, error: 'title is required' };
+  return { ok: true, value: s };
+}
+
+export function validateListDescription(description: unknown): string | null {
+  if (description == null || description === '') return null;
+  return sanitizeString(description, LIMITS.LIST_DESCRIPTION);
 }

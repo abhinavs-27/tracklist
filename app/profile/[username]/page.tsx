@@ -10,7 +10,9 @@ import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getFollowCounts, isFollowing, getProfileActivity } from "@/lib/queries";
+import { getFollowCounts, isFollowing, getProfileActivity, getUserLists } from "@/lib/queries";
+import { ListCard } from "@/components/list-card";
+import { ProfileListsSection } from "@/app/profile/[username]/profile-lists-section";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -73,11 +75,12 @@ export default async function ProfilePage({
 
   const isOwnProfile = !!profile.is_own_profile;
 
-  const [activity, spotifyHasToken] = await Promise.all([
+  const [activity, spotifyHasToken, userLists] = await Promise.all([
     getProfileActivity(profile.id, 30),
     isOwnProfile && session?.user?.id
       ? hasSpotifyToken(session.user.id)
       : Promise.resolve(false),
+    getUserLists(profile.id, 50, 0),
   ]);
 
   const spotifyConnected = spotifyHasToken;
@@ -128,6 +131,59 @@ export default async function ProfilePage({
         <p className="mt-2 text-sm text-zinc-500">
           This section will show the user&apos;s most listened artists.
         </p>
+      </section>
+
+      <section id="lists">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-white">Lists</h2>
+          {isOwnProfile && <ProfileListsSection />}
+        </div>
+        {userLists.length === 0 ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
+            <p className="text-zinc-500">
+              {isOwnProfile
+                ? "You haven't created any lists yet."
+                : "No lists yet."}
+            </p>
+            {isOwnProfile && (
+              <div className="mt-3">
+                <ProfileListsSection triggerLabel="Create your first list" />
+              </div>
+            )}
+            {!isOwnProfile && (
+              <Link
+                href="/search/users"
+                className="mt-2 inline-block text-sm text-emerald-400 hover:underline"
+              >
+                Find people to discover their lists
+              </Link>
+            )}
+          </div>
+        ) : (
+          <>
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {userLists.map((list) => (
+                <li key={list.id}>
+                  <ListCard
+                    id={list.id}
+                    title={list.title}
+                    description={list.description}
+                    created_at={list.created_at}
+                    item_count={list.item_count}
+                  />
+                </li>
+              ))}
+            </ul>
+            {isOwnProfile && (
+              <p className="mt-3 text-sm text-zinc-500">
+                <Link href="/search/users" className="text-emerald-400 hover:underline">
+                  Find people
+                </Link>
+                {" to discover more lists."}
+              </p>
+            )}
+          </>
+        )}
       </section>
 
       <section>
