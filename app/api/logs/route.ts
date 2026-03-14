@@ -8,7 +8,6 @@ import {
   apiInternalError,
 } from '@/lib/api-response';
 import {
-  isValidUuid,
   isValidSpotifyId,
   clampLimit,
   LIMITS,

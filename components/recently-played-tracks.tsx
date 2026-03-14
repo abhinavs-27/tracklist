@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 type RecentTrack = {
   track_id: string;
@@ -78,9 +79,9 @@ export function RecentlyPlayedTracks() {
             className="flex items-center gap-3 rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-2"
           >
             {t.album_image ? (
-              <img
+              <Image
                 src={t.album_image}
-                alt=""
+                alt={t.album_name ?? ''}
                 className="h-10 w-10 shrink-0 rounded object-cover"
                 width={40}
                 height={40}

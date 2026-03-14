@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import type { ListenLogWithUser } from '@/types';
 
 interface ListenCardProps {
@@ -20,11 +21,14 @@ export function ListenCard({ log, trackName }: ListenCardProps) {
           className="flex items-center gap-2 shrink-0"
         >
           {user?.avatar_url ? (
-            <img
-              src={user.avatar_url}
-              alt=""
-              className="h-8 w-8 rounded-full object-cover border border-zinc-700"
-            />
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-zinc-700">
+              <Image
+                src={user.avatar_url}
+                alt={user.username ?? ''}
+                fill
+                className="object-cover"
+              />
+            </div>
           ) : (
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-200 border border-zinc-700">
               {user?.username?.[0]?.toUpperCase() ?? '?'}

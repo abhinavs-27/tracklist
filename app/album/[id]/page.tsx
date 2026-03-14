@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -78,9 +79,15 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     <div className="space-y-8">
       {/* Album header */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-        <div className="h-48 w-48 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:h-56 sm:w-56">
+        <div className="relative h-48 w-48 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:h-56 sm:w-56">
           {image ? (
-            <img src={image} alt="" className="h-full w-full object-cover" />
+            <Image
+              src={image}
+              alt={album.name}
+              fill
+              className="object-cover"
+              priority
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">
               ♪
@@ -220,11 +227,14 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
               >
                 <div className="flex min-w-0 items-center gap-2">
                   {log.user?.avatar_url ? (
-                    <img
-                      src={log.user.avatar_url}
-                      alt=""
-                      className="h-8 w-8 shrink-0 rounded-full object-cover"
-                    />
+                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                      <Image
+                        src={log.user.avatar_url}
+                        alt={log.user.username ?? ""}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                   ) : (
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-xs text-zinc-300">
                       {log.user?.username?.[0]?.toUpperCase() ?? "?"}
@@ -268,11 +278,14 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
                 className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-sm transition hover:border-zinc-600"
               >
                 {l.avatar_url ? (
-                  <img
-                    src={l.avatar_url}
-                    alt=""
-                    className="h-6 w-6 rounded-full object-cover"
-                  />
+                  <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full">
+                    <Image
+                      src={l.avatar_url}
+                      alt={l.username}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                 ) : (
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-[10px] text-zinc-300">
                     {l.username[0]?.toUpperCase()}

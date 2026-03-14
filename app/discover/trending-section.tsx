@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { TrackCard } from "@/components/track-card";
 import type { TrendingEntity } from "@/lib/queries";
 

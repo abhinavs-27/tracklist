@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { DiscoverUsersGrid } from "@/components/discover-users-grid";
@@ -82,11 +83,14 @@ export default async function DiscoverPage() {
                       className="flex min-w-0 flex-1 items-center gap-3"
                     >
                       {u.avatar_url ? (
-                        <img
-                          src={u.avatar_url}
-                          alt=""
-                          className="h-10 w-10 shrink-0 rounded-full object-cover"
-                        />
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
+                          <Image
+                            src={u.avatar_url}
+                            alt={u.username}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
                       ) : (
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm font-medium text-zinc-300">
                           {u.username[0]?.toUpperCase() ?? "?"}

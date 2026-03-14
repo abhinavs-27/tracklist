@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface TrackCardProps {
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified;
@@ -20,9 +21,9 @@ export function TrackCard({ track, showAlbum = true, noLink = false, songPageLin
   const content = (
     <>
       {showThumbnail && (
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
           {image ? (
-            <img src={image} alt="" className="h-full w-full object-cover" />
+            <Image src={image} alt={track.name} fill className="object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xl text-zinc-600">♪</div>
           )}

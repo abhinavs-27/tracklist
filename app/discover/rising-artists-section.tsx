@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { RisingArtist } from "@/lib/queries";
 
 type RisingArtistsSectionProps = {
@@ -21,12 +22,13 @@ export function RisingArtistsSection({ artists }: RisingArtistsSectionProps) {
             href={`/artist/${a.artist_id}`}
             className="group flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition hover:border-zinc-600 hover:bg-zinc-800/50"
           >
-            <div className="aspect-square w-full overflow-hidden bg-zinc-800">
+            <div className="relative aspect-square w-full overflow-hidden bg-zinc-800">
               {a.avatar_url ? (
-                <img
+                <Image
                   src={a.avatar_url}
-                  alt=""
-                  className="h-full w-full object-cover transition group-hover:scale-105"
+                  alt={a.name}
+                  fill
+                  className="object-cover transition group-hover:scale-105"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-4xl text-zinc-600">

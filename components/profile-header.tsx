@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { FollowButton } from './follow-button';
 
 interface ProfileHeaderProps {
@@ -27,9 +28,9 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   return (
     <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-      <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-zinc-700 bg-zinc-800">
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-zinc-700 bg-zinc-800">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          <Image src={avatarUrl} alt={username} fill className="object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-3xl text-zinc-500">
             {username[0]?.toUpperCase() ?? '?'}

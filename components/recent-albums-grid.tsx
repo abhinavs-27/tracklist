@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 type RecentAlbumItem = {
@@ -99,10 +100,11 @@ export function RecentAlbumsGrid({
                 aria-label={album.album_name ?? "Album"}
               >
                 {album.album_image ? (
-                  <img
+                  <Image
                     src={album.album_image}
-                    alt=""
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    alt={album.album_name ?? ''}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-5xl text-zinc-600">

@@ -9,7 +9,7 @@ import {
 } from "@/lib/api-response";
 import { isValidSpotifyId } from "@/lib/validation";
 import { validateReviewContent } from "@/lib/validation";
-import { clampLimit, LIMITS } from "@/lib/validation";
+import { clampLimit } from "@/lib/validation";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_id>&limit= optional */
 export async function GET(request: NextRequest) {

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { SearchBar } from './search-bar';
 
@@ -62,11 +63,14 @@ export function Navbar() {
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
               >
                 {session.user?.image ? (
-                  <img
-                    src={session.user.image}
-                    alt=""
-                    className="h-7 w-7 rounded-full object-cover"
-                  />
+                  <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full">
+                    <Image
+                      src={session.user.image}
+                      alt={session.user.name ?? ''}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                 ) : (
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-xs text-zinc-300">
                     {(session.user?.name ?? '?')[0]}
