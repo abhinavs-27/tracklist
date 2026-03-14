@@ -4,16 +4,16 @@ import { apiBadRequest, apiInternalError } from '@/lib/api-response';
 import { isValidUuid } from '@/lib/validation';
 import type { TasteMatchResponse } from '@/types';
 
-type AlbumLogRow = {
-  spotify_id: string;
+type ReviewRow = {
+  entity_id: string;
   rating: number;
   created_at: string;
 };
 
-function uniqueLatestBySpotifyId(rows: AlbumLogRow[]) {
-  const map = new Map<string, AlbumLogRow>();
+function uniqueLatestByEntityId(rows: ReviewRow[]) {
+  const map = new Map<string, ReviewRow>();
   for (const row of rows) {
-    if (!map.has(row.spotify_id)) map.set(row.spotify_id, row);
+    if (!map.has(row.entity_id)) map.set(row.entity_id, row);
   }
   return map;
 }
@@ -39,17 +39,17 @@ export async function GET(request: NextRequest) {
 
     const [aRes, bRes] = await Promise.all([
       supabase
-        .from('logs')
-        .select('spotify_id, rating, created_at')
+        .from('reviews')
+        .select('entity_id, rating, created_at')
         .eq('user_id', userA)
-        .eq('type', 'album')
+        .eq('entity_type', 'album')
         .order('created_at', { ascending: false })
         .limit(1000),
       supabase
-        .from('logs')
-        .select('spotify_id, rating, created_at')
+        .from('reviews')
+        .select('entity_id, rating, created_at')
         .eq('user_id', userB)
-        .eq('type', 'album')
+        .eq('entity_type', 'album')
         .order('created_at', { ascending: false })
         .limit(1000),
     ]);
@@ -57,23 +57,23 @@ export async function GET(request: NextRequest) {
     if (aRes.error) return apiInternalError(aRes.error);
     if (bRes.error) return apiInternalError(bRes.error);
 
-    const aRows = (aRes.data ?? []) as AlbumLogRow[];
-    const bRows = (bRes.data ?? []) as AlbumLogRow[];
+    const aRows = (aRes.data ?? []) as ReviewRow[];
+    const bRows = (bRes.data ?? []) as ReviewRow[];
 
-    const aMap = uniqueLatestBySpotifyId(aRows);
-    const bMap = uniqueLatestBySpotifyId(bRows);
+    const aMap = uniqueLatestByEntityId(aRows);
+    const bMap = uniqueLatestByEntityId(bRows);
 
     const aTotal = aMap.size;
     const bTotal = bMap.size;
     const denom = Math.max(aTotal, bTotal, 1);
 
     const sharedAlbums: TasteMatchResponse['sharedAlbums'] = [];
-    for (const spotifyId of aMap.keys()) {
-      const b = bMap.get(spotifyId);
+    for (const entityId of aMap.keys()) {
+      const b = bMap.get(entityId);
       if (!b) continue;
-      const a = aMap.get(spotifyId)!;
+      const a = aMap.get(entityId)!;
       sharedAlbums.push({
-        spotify_id: spotifyId,
+        spotify_id: entityId,
         rating_userA: a.rating ?? null,
         rating_userB: b.rating ?? null,
       });
@@ -93,4 +93,3 @@ export async function GET(request: NextRequest) {
     return apiInternalError(e);
   }
 }
-

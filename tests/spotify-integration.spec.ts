@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import type { Log } from '@/types';
+import type { ListenLog } from '@/types';
 
 test.describe('Spotify integration (mocked)', () => {
   test('connect status + manual sync refreshes recent albums grid', async ({ page }) => {
@@ -31,28 +31,20 @@ test.describe('Spotify integration (mocked)', () => {
     let logsCall = 0;
     await page.route('**/api/logs?user_id=*&limit=50', async (route) => {
       logsCall += 1;
-      const empty: Log[] = [];
-      const after: Log[] = [
+      const empty: ListenLog[] = [];
+      const after: ListenLog[] = [
         {
           id: '11111111-1111-1111-1111-111111111111',
           user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-          spotify_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
-          type: 'album',
-          title: 'Album A',
-          rating: 4,
-          review: null,
-          listened_at: new Date().toISOString(),
+          spotify_song_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
+          played_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
         },
         {
           id: '22222222-2222-2222-2222-222222222222',
           user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-          spotify_id: '6ZG5lRT77aJ3btmArcykra',
-          type: 'album',
-          title: 'Album B',
-          rating: 5,
-          review: null,
-          listened_at: new Date().toISOString(),
+          spotify_song_id: '6ZG5lRT77aJ3btmArcykra',
+          played_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
         },
       ];

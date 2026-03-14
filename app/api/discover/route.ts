@@ -3,10 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { apiBadRequest, apiInternalError } from '@/lib/api-response';
-import { clampLimit, LIMITS } from '@/lib/validation';
+import { clampLimit } from '@/lib/validation';
 import type { DiscoverUsersResponse } from '@/types';
-
-type RecentLogRow = { user_id: string; spotify_id: string; created_at: string };
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,27 +13,26 @@ export async function GET(request: NextRequest) {
 
     const supabase = createSupabaseServerClient();
 
-    // Pull recent album logs, then dedupe by user to get "most recently active users".
-    const { data: logs, error: logsError } = await supabase
-      .from('logs')
-      .select('user_id, spotify_id, created_at')
-      .eq('type', 'album')
+    const { data: reviews, error: reviewsError } = await supabase
+      .from('reviews')
+      .select('user_id, entity_id, entity_type, created_at')
+      .eq('entity_type', 'album')
       .order('created_at', { ascending: false })
-      .limit(Math.min(Math.max(limit * 15, 50), LIMITS.LOGS_LIMIT));
+      .limit(Math.min(Math.max(limit * 15, 50), 100));
 
-    if (logsError) return apiInternalError(logsError);
+    if (reviewsError) return apiInternalError(reviewsError);
 
-    const recentLogs = (logs ?? []) as RecentLogRow[];
+    const recentReviews = reviews ?? [];
     const seen = new Set<string>();
     const userIds: string[] = [];
     const latestAlbumByUser = new Map<string, { spotify_id: string; created_at: string }>();
 
-    for (const l of recentLogs) {
-      if (!l?.user_id || !l?.spotify_id) continue;
-      if (seen.has(l.user_id)) continue;
-      seen.add(l.user_id);
-      userIds.push(l.user_id);
-      latestAlbumByUser.set(l.user_id, { spotify_id: l.spotify_id, created_at: l.created_at });
+    for (const r of recentReviews) {
+      if (!r?.user_id || !r?.entity_id) continue;
+      if (seen.has(r.user_id)) continue;
+      seen.add(r.user_id);
+      userIds.push(r.user_id);
+      latestAlbumByUser.set(r.user_id, { spotify_id: r.entity_id, created_at: r.created_at });
       if (userIds.length >= limit) break;
     }
 
@@ -88,9 +85,7 @@ export async function GET(request: NextRequest) {
     const body: DiscoverUsersResponse = { users: result };
     return NextResponse.json(body);
   } catch (e) {
-    // In case query params are malformed, treat as bad request.
     if (e instanceof TypeError) return apiBadRequest('Invalid request');
     return apiInternalError(e);
   }
 }
-

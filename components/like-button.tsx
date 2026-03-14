@@ -3,12 +3,12 @@
 import { useState } from 'react';
 
 interface LikeButtonProps {
-  logId: string;
+  reviewId: string;
   initialLiked: boolean;
   initialCount: number;
 }
 
-export function LikeButton({ logId, initialLiked, initialCount }: LikeButtonProps) {
+export function LikeButton({ reviewId, initialLiked, initialCount }: LikeButtonProps) {
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const [loading, setLoading] = useState(false);
@@ -20,10 +20,10 @@ export function LikeButton({ logId, initialLiked, initialCount }: LikeButtonProp
     setLiked(nextLiked);
     setCount((c) => c + (nextLiked ? 1 : -1));
     try {
-      const res = await fetch(nextLiked ? '/api/likes' : `/api/likes?log_id=${logId}`, {
+      const res = await fetch(nextLiked ? '/api/likes' : `/api/likes?review_id=${reviewId}`, {
         method: nextLiked ? 'POST' : 'DELETE',
         headers: nextLiked ? { 'Content-Type': 'application/json' } : undefined,
-        body: nextLiked ? JSON.stringify({ log_id: logId }) : undefined,
+        body: nextLiked ? JSON.stringify({ review_id: reviewId }) : undefined,
       });
       if (!res.ok) {
         setLiked(!nextLiked);
@@ -40,6 +40,7 @@ export function LikeButton({ logId, initialLiked, initialCount }: LikeButtonProp
       onClick={handleClick}
       disabled={loading}
       className="flex items-center gap-1.5 text-sm text-zinc-400 transition hover:text-white disabled:opacity-50"
+      aria-label="Like"
       aria-pressed={liked}
     >
       <span className={liked ? 'text-red-400' : ''}>{liked ? '♥' : '♡'}</span>

@@ -17,13 +17,13 @@ export default async function FeedPage() {
       <h1 className="mb-4 text-2xl font-bold text-white">Feed</h1>
       {feed.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-          <p className="text-zinc-400">Follow users to see their logs here.</p>
+          <p className="text-zinc-400">Follow users to see their reviews here.</p>
         </div>
       ) : (
         <ul className="space-y-4">
-          {feed.map((log) => (
-            <li key={log.id}>
-              <FeedItem log={log} spotifyName={log.title ?? undefined} />
+          {feed.map((review) => (
+            <li key={review.id}>
+              <FeedItem review={review} />
             </li>
           ))}
         </ul>

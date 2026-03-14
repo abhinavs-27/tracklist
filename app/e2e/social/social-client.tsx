@@ -1,18 +1,17 @@
 'use client';
 
-import { LogCard } from '@/components/log-card';
-import type { LogWithUser } from '@/types';
+import { ReviewCard } from '@/components/review-card';
+import type { ReviewWithUser } from '@/types';
 
-const demoLog: LogWithUser = {
-  id: 'log_demo_1',
+const demoReview: ReviewWithUser = {
+  id: 'review_demo_1',
   user_id: 'user_demo_1',
-  spotify_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
-  type: 'album',
-  title: 'Demo Album',
+  entity_type: 'album',
+  entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
   rating: 4,
-  review: 'Great record.',
-  listened_at: new Date('2026-01-02T00:00:00.000Z').toISOString(),
+  review_text: 'Great record.',
   created_at: new Date('2026-01-02T00:00:00.000Z').toISOString(),
+  updated_at: new Date('2026-01-02T00:00:00.000Z').toISOString(),
   user: {
     id: 'user_demo_1',
     email: 'alice@example.com',
@@ -21,17 +20,13 @@ const demoLog: LogWithUser = {
     bio: null,
     created_at: new Date('2026-01-01T00:00:00.000Z').toISOString(),
   },
-  like_count: 0,
-  comment_count: 0,
-  liked: false,
 };
 
 export function E2ESocialClient() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-white">E2E Social</h1>
-      <LogCard log={demoLog} spotifyName={demoLog.title ?? undefined} showComments />
+      <ReviewCard review={demoReview} spotifyName="Demo Album" />
     </div>
   );
 }
-

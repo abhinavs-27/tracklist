@@ -1,5 +1,3 @@
-export type LogType = 'song' | 'album';
-
 export interface User {
   id: string;
   email: string;
@@ -16,29 +14,46 @@ export interface Follow {
   created_at: string;
 }
 
-export interface Log {
+/** Passive Spotify listen — tracks only, no ratings or review text. */
+export interface ListenLog {
   id: string;
   user_id: string;
-  spotify_id: string;
-  type: LogType;
-  title: string | null;
-  rating: number | null;
-  review: string | null;
-  listened_at: string;
+  spotify_song_id: string;
+  played_at: string;
   created_at: string;
+}
+
+export interface ListenLogWithUser extends ListenLog {
+  user?: User | null;
+}
+
+/** Active user action — rating and/or review for an album or track. */
+export interface Review {
+  id: string;
+  user_id: string;
+  entity_type: 'album' | 'song';
+  entity_id: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewWithUser extends Review {
+  user?: User | null;
 }
 
 export interface Like {
   id: string;
   user_id: string;
-  log_id: string;
+  review_id: string;
   created_at: string;
 }
 
 export interface Comment {
   id: string;
   user_id: string;
-  log_id: string;
+  review_id: string;
   content: string;
   created_at: string;
 }
@@ -55,22 +70,14 @@ export interface ListItem {
   id: string;
   list_id: string;
   spotify_id: string;
-  type: LogType;
+  type: 'song' | 'album';
 }
 
 export interface Favorite {
   id: string;
   user_id: string;
   spotify_id: string;
-  type: LogType;
-}
-
-// API / joined types
-export interface LogWithUser extends Log {
-  user?: User | null;
-  like_count?: number;
-  comment_count?: number;
-  liked?: boolean;
+  type: 'song' | 'album';
 }
 
 export interface CommentWithUser extends Comment {

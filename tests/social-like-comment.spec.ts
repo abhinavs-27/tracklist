@@ -1,15 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-// End-to-end like + comment interaction using the /e2e/social harness.
-
 type CommentPostBody = {
-  log_id?: string;
+  review_id?: string;
   content?: string;
 };
 
 test.describe('Like and comment', () => {
   test('like toggles and comment posts when authenticated', async ({ page }) => {
-    // Mock NextAuth session so the comment form is visible.
     await page.route('**/api/auth/session', async (route) => {
       await route.fulfill({
         status: 200,
@@ -29,7 +26,7 @@ test.describe('Like and comment', () => {
       await route.fallback();
     });
 
-    await page.route('**/api/comments?log_id=*', async (route) => {
+    await page.route('**/api/comments?review_id=*', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
@@ -41,7 +38,7 @@ test.describe('Like and comment', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           id: 'comment_1',
-          log_id: body?.log_id ?? 'log_demo_1',
+          review_id: body?.review_id ?? 'review_demo_1',
           content: body?.content ?? 'Nice',
           created_at: new Date().toISOString(),
           user: { id: 'user_demo_1', username: 'alice', avatar_url: null },
@@ -51,13 +48,11 @@ test.describe('Like and comment', () => {
 
     await page.goto('/e2e/social');
 
-    // Like button starts at ♡ 0, becomes ♥ 1.
-    const likeButton = page.locator('button').filter({ hasText: /♡\s*0|♥\s*0/ }).first();
+    const likeButton = page.locator('button[aria-label="Like"]').first();
     await expect(likeButton).toContainText(/0/);
     await likeButton.click();
     await expect(likeButton).toContainText(/1/);
 
-    // Open comments, post a comment.
     const commentButton = page.locator('button').filter({ hasText: /💬/ }).first();
     await commentButton.click();
     await expect(page.getByText(/no comments yet/i)).toBeVisible();
@@ -67,4 +62,3 @@ test.describe('Like and comment', () => {
     await expect(page.getByText('Hello!')).toBeVisible();
   });
 });
-

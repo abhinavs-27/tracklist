@@ -4,10 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
-import { LogCard } from "@/components/log-card";
 import { TrackCard } from "@/components/track-card";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
-import { getLogsForSpotifyId, getReviewsForEntity } from "@/lib/queries";
+import { getReviewsForEntity } from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -25,10 +24,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const [logs, reviewsData] = await Promise.all([
-    getLogsForSpotifyId(id, 30),
-    getReviewsForEntity("album", id),
-  ]);
+  const reviewsData = await getReviewsForEntity("album", id);
   const image = album.images?.[0]?.url;
 
   return (
@@ -104,25 +100,6 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         spotifyName={album.name}
         initialData={reviewsData}
       />
-
-      {logs.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
-            Community logs
-          </h2>
-          <ul className="space-y-4">
-            {logs.map((log) => (
-              <li key={log.id}>
-                <LogCard
-                  log={log}
-                  spotifyName={log.title ?? undefined}
-                  showComments={true}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }

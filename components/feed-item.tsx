@@ -1,18 +1,11 @@
-import { LogCard } from './log-card';
-import type { LogWithUser } from '@/types';
+import { ReviewCard } from './review-card';
+import type { ReviewWithUser } from '@/types';
 
 interface FeedItemProps {
-  log: LogWithUser;
+  review: ReviewWithUser;
   spotifyName?: string;
 }
 
-export function FeedItem({ log, spotifyName }: FeedItemProps) {
-  return (
-    <LogCard
-      log={log}
-      spotifyName={spotifyName}
-      spotifyType={log.type}
-      showComments={true}
-    />
-  );
+export function FeedItem({ review, spotifyName }: FeedItemProps) {
+  return <ReviewCard review={review} spotifyName={spotifyName} />;
 }

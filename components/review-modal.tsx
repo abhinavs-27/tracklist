@@ -10,11 +10,9 @@ interface ReviewModalProps {
   onSuccess: () => void;
 }
 
-
 export function ReviewModal({ spotifyId, type, spotifyName, onClose, onSuccess }: ReviewModalProps) {
   const [rating, setRating] = useState(3);
-  const [review, setReview] = useState('');
-  const [listenedAt, setListenedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reviewText, setReviewText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,21 +21,19 @@ export function ReviewModal({ spotifyId, type, spotifyName, onClose, onSuccess }
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/logs', {
+      const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          spotify_id: spotifyId,
-          type,
-          title: spotifyName,
+          entity_type: type,
+          entity_id: spotifyId,
           rating,
-          review: review.trim() || null,
-          listened_at: new Date(listenedAt).toISOString(),
+          review_text: reviewText.trim() || null,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Failed to create log');
+        setError(data.error ?? 'Failed to save review');
         return;
       }
       onSuccess();
@@ -60,7 +56,7 @@ export function ReviewModal({ spotifyId, type, spotifyName, onClose, onSuccess }
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="review-modal-title" className="text-xl font-semibold text-white">
-          Log listen
+          Rate &amp; review
         </h2>
         <p className="mt-1 text-sm text-zinc-400 line-clamp-2" title={spotifyName}>
           {spotifyName}
@@ -85,19 +81,10 @@ export function ReviewModal({ spotifyId, type, spotifyName, onClose, onSuccess }
             </div>
           </div>
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-zinc-300">Listen date</label>
-            <input
-              type="date"
-              value={listenedAt}
-              onChange={(e) => setListenedAt(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </div>
-          <div className="space-y-1">
             <label className="block text-sm font-medium text-zinc-300">Review (optional)</label>
             <textarea
-              value={review}
-              onChange={(e) => setReview(e.target.value)}
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
               rows={3}
               className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               placeholder="What did you think?"
@@ -117,7 +104,7 @@ export function ReviewModal({ spotifyId, type, spotifyName, onClose, onSuccess }
               disabled={loading}
               className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Saving...' : 'Save log'}
+              {loading ? 'Saving...' : 'Save review'}
             </button>
           </div>
         </form>

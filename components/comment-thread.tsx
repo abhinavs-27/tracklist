@@ -5,11 +5,11 @@ import { useSession } from 'next-auth/react';
 import type { CommentWithUser } from '@/types';
 
 interface CommentThreadProps {
-  logId: string;
+  reviewId: string;
   initialCount: number;
 }
 
-export function CommentThread({ logId, initialCount }: CommentThreadProps) {
+export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
   const { data: session, status } = useSession();
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [count, setCount] = useState(initialCount);
@@ -21,7 +21,7 @@ export function CommentThread({ logId, initialCount }: CommentThreadProps) {
   const fetchComments = async () => {
     setFetching(true);
     try {
-      const res = await fetch(`/api/comments?log_id=${logId}`);
+      const res = await fetch(`/api/comments?review_id=${reviewId}`);
       const data = await res.json();
       if (Array.isArray(data)) setComments(data);
     } finally {
@@ -33,7 +33,7 @@ export function CommentThread({ logId, initialCount }: CommentThreadProps) {
     if (open && comments.length === 0 && !fetching) {
       fetchComments();
     }
-  }, [open, logId]);
+  }, [open, reviewId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +43,7 @@ export function CommentThread({ logId, initialCount }: CommentThreadProps) {
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ log_id: logId, content: content.trim() }),
+        body: JSON.stringify({ review_id: reviewId, content: content.trim() }),
       });
       const data = await res.json();
       if (res.ok) {

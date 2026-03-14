@@ -3,13 +3,13 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ProfileHeader } from "@/components/profile-header";
-import { LogCard } from "@/components/log-card";
+import { ReviewCard } from "@/components/review-card";
 import { TasteMatchSection } from "@/components/taste-match";
 import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-with-sync";
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getLogsForUser } from "@/lib/queries";
+import { getReviewsForUser } from "@/lib/queries";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -32,8 +32,6 @@ export default async function ProfilePage({
 }) {
   const { username } = await params;
   const session = await getServerSession(authOptions);
-
-  console.log("ProfilePage: fetching user", username);
 
   const supabase = createSupabaseServerClient();
   const { data: user, error: userError } = await supabase
@@ -97,17 +95,15 @@ export default async function ProfilePage({
     is_own_profile: !!session?.user?.id && session.user.id === user.id,
   };
 
-  const [logs, spotifyHasToken] = await Promise.all([
-    getLogsForUser(profile.id, 30),
-    profile.is_own_profile && session?.user?.id
+  const isOwnProfile = !!profile.is_own_profile;
+
+  const [reviews, spotifyHasToken] = await Promise.all([
+    getReviewsForUser(profile.id, 20),
+    isOwnProfile && session?.user?.id
       ? hasSpotifyToken(session.user.id)
       : Promise.resolve(false),
   ]);
 
-  const reviews = logs.filter(
-    (l) => typeof l.review === "string" && l.review.trim().length > 0,
-  );
-  const isOwnProfile = !!profile.is_own_profile;
   const spotifyConnected = spotifyHasToken;
 
   return (
@@ -154,7 +150,7 @@ export default async function ProfilePage({
           <span className="text-xs text-zinc-500">Coming soon</span>
         </div>
         <p className="mt-2 text-sm text-zinc-500">
-          This section will show the user’s most listened artists.
+          This section will show the user&apos;s most listened artists.
         </p>
       </section>
 
@@ -162,59 +158,29 @@ export default async function ProfilePage({
         <h2 className="mb-4 text-lg font-semibold text-white">
           Recent Activity
         </h2>
-        {logs.length === 0 ? (
+        {reviews.length === 0 ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-            <p className="text-zinc-500">No activity yet.</p>
+            <p className="text-zinc-500">No reviews yet.</p>
+            {isOwnProfile && (
+              <Link
+                href="/search"
+                className="mt-2 inline-block text-emerald-400 hover:underline"
+              >
+                Search for music to rate &amp; review
+              </Link>
+            )}
           </div>
         ) : (
           <ul className="space-y-4">
-            {logs.map((log) => (
-              <li key={log.id}>
-                <LogCard
-                  log={log}
-                  spotifyName={log.title ?? undefined}
-                  showComments={true}
-                />
+            {reviews.map((review) => (
+              <li key={review.id}>
+                <ReviewCard review={review} />
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section>
-        <h2 className="mb-4 text-lg font-semibold text-white">
-          Recent reviews
-        </h2>
-        {logs.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-            <p className="text-zinc-500">No logs yet.</p>
-            {isOwnProfile && (
-              <Link
-                href="/search"
-                className="mt-2 inline-block text-emerald-400 hover:underline"
-              >
-                Search for music to log
-              </Link>
-            )}
-          </div>
-        ) : reviews.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-            <p className="text-zinc-500">No reviews yet.</p>
-          </div>
-        ) : (
-          <ul className="space-y-4">
-            {reviews.map((log) => (
-              <li key={log.id}>
-                <LogCard
-                  log={log}
-                  spotifyName={log.title ?? undefined}
-                  showComments={true}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }

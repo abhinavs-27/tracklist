@@ -12,8 +12,6 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ArtistCard } from "@/components/artist-card";
 import { AlbumCard } from "@/components/album-card";
 import { TrackCard } from "@/components/track-card";
-import { LogCard } from "@/components/log-card";
-import { getLogsForSpotifyId } from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -184,7 +182,6 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const logs = await getLogsForSpotifyId(id, 20);
   const image = artist.images?.[0]?.url;
 
   return (
@@ -238,27 +235,6 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
         </section>
       ) : null}
 
-      {logs.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
-            Community logs
-          </h2>
-          <p className="mb-2 text-sm text-zinc-500">
-            Logs for this artist (albums/tracks).
-          </p>
-          <ul className="space-y-4">
-            {logs.map((log) => (
-              <li key={log.id}>
-                <LogCard
-                  log={log}
-                  spotifyName={log.title ?? undefined}
-                  showComments={true}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }

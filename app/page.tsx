@@ -39,7 +39,7 @@ export default async function HomePage() {
       <h1 className="mb-4 text-2xl font-bold text-white">Your feed</h1>
       {feed.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-          <p className="text-zinc-400">No activity yet. Follow users to see their logs here.</p>
+          <p className="text-zinc-400">No activity yet. Follow users to see their reviews here.</p>
           <Link
             href="/search"
             className="mt-4 inline-block text-emerald-400 hover:underline"
@@ -49,9 +49,9 @@ export default async function HomePage() {
         </div>
       ) : (
         <ul className="space-y-4">
-          {feed.map((log) => (
-            <li key={log.id}>
-              <FeedItem log={log} spotifyName={log.title ?? undefined} />
+          {feed.map((review) => (
+            <li key={review.id}>
+              <FeedItem review={review} />
             </li>
           ))}
         </ul>

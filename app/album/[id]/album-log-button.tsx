@@ -20,7 +20,7 @@ export function AlbumLogButton({ spotifyId, type, spotifyName, className = '' }:
         onClick={() => setOpen(true)}
         className={`rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 ${className}`}
       >
-        Log listen
+        Rate &amp; review
       </button>
       {open && (
         <ReviewModal

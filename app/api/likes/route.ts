@@ -21,19 +21,19 @@ export async function POST(request: NextRequest) {
     } catch {
       return apiBadRequest('Invalid JSON body');
     }
-    const logId = (body as Record<string, unknown>).log_id;
-    if (!logId) return apiBadRequest('log_id is required');
-    if (!isValidUuid(logId)) return apiBadRequest('Invalid log_id');
+    const reviewId = (body as Record<string, unknown>).review_id;
+    if (!reviewId) return apiBadRequest('review_id is required');
+    if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
     const supabase = createSupabaseServerClient();
     const { error } = await supabase.from('likes').insert({
       user_id: session.user.id,
-      log_id: logId,
+      review_id: reviewId,
     });
 
     if (error) {
       if (error.code === '23505') return apiConflict('Already liked');
-      if (error.code === '23503') return apiBadRequest('Log not found');
+      if (error.code === '23503') return apiBadRequest('Review not found');
       console.error('Like error:', error);
       return apiInternalError(error);
     }
@@ -49,16 +49,16 @@ export async function DELETE(request: NextRequest) {
     if (!session?.user?.id) return apiUnauthorized();
 
     const { searchParams } = new URL(request.url);
-    const logId = searchParams.get('log_id');
-    if (!logId) return apiBadRequest('log_id is required');
-    if (!isValidUuid(logId)) return apiBadRequest('Invalid log_id');
+    const reviewId = searchParams.get('review_id');
+    if (!reviewId) return apiBadRequest('review_id is required');
+    if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
     const supabase = createSupabaseServerClient();
     const { error } = await supabase
       .from('likes')
       .delete()
       .eq('user_id', session.user.id)
-      .eq('log_id', logId);
+      .eq('review_id', reviewId);
 
     if (error) {
       console.error('Unlike error:', error);

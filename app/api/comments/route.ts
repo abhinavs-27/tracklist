@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
       return apiBadRequest('Invalid JSON body');
     }
     const b = body as Record<string, unknown>;
-    const { log_id, content } = b;
+    const { review_id, content } = b;
 
-    if (!log_id) return apiBadRequest('log_id is required');
-    if (!isValidUuid(log_id)) return apiBadRequest('Invalid log_id');
+    if (!review_id) return apiBadRequest('review_id is required');
+    if (!isValidUuid(review_id)) return apiBadRequest('Invalid review_id');
 
     const contentResult = validateCommentContent(content);
     if (!contentResult.ok) return apiBadRequest(contentResult.error);
@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
       .from('comments')
       .insert({
         user_id: session.user.id,
-        log_id,
+        review_id,
         content: contentResult.value,
       })
       .select()
       .single();
 
     if (error) {
-      if (error.code === '23503') return apiBadRequest('Log not found');
+      if (error.code === '23503') return apiBadRequest('Review not found');
       console.error('Comment create error:', error);
       return apiInternalError(error);
     }
@@ -52,15 +52,15 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const logId = searchParams.get('log_id');
-    if (!logId) return apiBadRequest('log_id is required');
-    if (!isValidUuid(logId)) return apiBadRequest('Invalid log_id');
+    const reviewId = searchParams.get('review_id');
+    if (!reviewId) return apiBadRequest('review_id is required');
+    if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
     const supabase = createSupabaseServerClient();
     const { data: comments, error } = await supabase
       .from('comments')
-      .select('id, user_id, log_id, content, created_at')
-      .eq('log_id', logId)
+      .select('id, user_id, review_id, content, created_at')
+      .eq('review_id', reviewId)
       .order('created_at', { ascending: true });
 
     if (error) {
