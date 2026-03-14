@@ -2,9 +2,9 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { DiscoverUsersGrid } from "@/components/discover-users-grid";
-import { getSuggestedUsers, getTrendingEntities, getRisingArtists, getHiddenGems } from "@/lib/queries";
-import { getOrFetchTrack } from "@/lib/spotify-cache";
-import { getOrFetchAlbum } from "@/lib/spotify-cache";
+import { getSuggestedUsers } from "@/lib/queries";
+import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached } from "@/lib/discover-cache";
+import { getOrFetchTracksBatch, getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
 import { FollowButton } from "@/components/follow-button";
 import { TrendingSection } from "./trending-section";
 import { RisingArtistsSection } from "./rising-artists-section";
@@ -17,36 +17,36 @@ export default async function DiscoverPage() {
   const suggested = session?.user?.id ? await getSuggestedUsers(session.user.id, 10) : [];
 
   const [trendingRaw, risingArtists, hiddenGemsRaw] = await Promise.all([
-    getTrendingEntities(MAX_ITEMS),
-    getRisingArtists(MAX_ITEMS, 7),
-    getHiddenGems(MAX_ITEMS, 4, 50),
+    getTrendingEntitiesCached(MAX_ITEMS),
+    getRisingArtistsCached(MAX_ITEMS, 7),
+    getHiddenGemsCached(MAX_ITEMS, 4, 50),
   ]);
 
-  const trendingEnriched = await Promise.all(
-    trendingRaw.map(async (entity) => {
-      try {
-        const track = await getOrFetchTrack(entity.entity_id);
-        return { entity, track };
-      } catch {
-        return { entity, track: null };
-      }
-    })
-  );
+  const trendingTrackIds = trendingRaw.map((e) => e.entity_id);
+  const hiddenGemsByType = { song: [] as string[], album: [] as string[] };
+  for (const g of hiddenGemsRaw) {
+    if (g.entity_type === "album") hiddenGemsByType.album.push(g.entity_id);
+    else hiddenGemsByType.song.push(g.entity_id);
+  }
 
-  const hiddenGemsEnriched = await Promise.all(
-    hiddenGemsRaw.map(async (gem) => {
-      try {
-        if (gem.entity_type === "album") {
-          const { album } = await getOrFetchAlbum(gem.entity_id);
-          return { gem, album, track: null };
-        }
-        const track = await getOrFetchTrack(gem.entity_id);
-        return { gem, album: null, track };
-      } catch {
-        return { gem, album: null, track: null };
-      }
-    })
-  );
+  const [tracksMap, albumsMap] = await Promise.all([
+    getOrFetchTracksBatch([...trendingTrackIds, ...hiddenGemsByType.song]),
+    getOrFetchAlbumsBatch(hiddenGemsByType.album),
+  ]);
+
+  const trendingEnriched = trendingRaw.map((entity) => ({
+    entity,
+    track: tracksMap.get(entity.entity_id) ?? null,
+  }));
+
+  const hiddenGemsEnriched = hiddenGemsRaw.map((gem) => {
+    if (gem.entity_type === "album") {
+      const album = albumsMap.get(gem.entity_id) ?? null;
+      return { gem, album, track: null };
+    }
+    const track = tracksMap.get(gem.entity_id) ?? null;
+    return { gem, album: null, track };
+  });
 
   return (
     <div className="space-y-8">

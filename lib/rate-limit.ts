@@ -7,11 +7,14 @@ type Entry = { count: number; resetAt: number };
 
 const store = new Map<string, Entry>();
 
-function getKey(request: NextRequest): string {
+function getIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   const realIp = request.headers.get("x-real-ip");
-  const ip = forwarded?.split(",")[0]?.trim() ?? realIp ?? "unknown";
-  return `spotify:${ip}`;
+  return forwarded?.split(",")[0]?.trim() ?? realIp ?? "unknown";
+}
+
+function getKey(request: NextRequest): string {
+  return `spotify:${getIp(request)}`;
 }
 
 /**
@@ -32,6 +35,35 @@ export function checkSpotifyRateLimit(request: NextRequest): boolean {
   if (now >= entry.resetAt) {
     entry = { count: 1, resetAt: now + WINDOW_MS };
     store.set(key, entry);
+    return true;
+  }
+
+  entry.count += 1;
+  if (entry.count > MAX_REQUESTS) {
+    return false;
+  }
+  return true;
+}
+
+const discoverStore = new Map<string, Entry>();
+
+/**
+ * Returns true if the request is within limit, false if rate limited.
+ * Use for public discover API routes. 60 requests per minute per IP.
+ */
+export function checkDiscoverRateLimit(request: NextRequest): boolean {
+  const key = `discover:${getIp(request)}`;
+  const now = Date.now();
+  let entry = discoverStore.get(key);
+
+  if (!entry) {
+    discoverStore.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+
+  if (now >= entry.resetAt) {
+    entry = { count: 1, resetAt: now + WINDOW_MS };
+    discoverStore.set(key, entry);
     return true;
   }
 

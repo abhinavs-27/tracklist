@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { FeedItem } from './feed-item';
 import type { FeedActivity } from '@/types';
 
+/** Feed activity optionally enriched with entity display name (from API). */
+type EnrichedFeedActivity = FeedActivity & { spotifyName?: string };
+
 interface FeedLoadMoreProps {
   cursor: string;
   className?: string;
@@ -11,7 +14,7 @@ interface FeedLoadMoreProps {
 
 export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<FeedActivity[]>([]);
+  const [items, setItems] = useState<EnrichedFeedActivity[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(cursor);
   const [done, setDone] = useState(false);
 
@@ -22,7 +25,7 @@ export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
       // API uses created_at < cursor so the same item is never returned again.
       const res = await fetch(`/api/feed?cursor=${encodeURIComponent(nextCursor)}&limit=50`);
       if (!res.ok) return;
-      const data = await res.json();
+      const data = (await res.json()) as { items?: EnrichedFeedActivity[]; next_cursor?: string | null };
       setItems((prev) => [...prev, ...(data.items ?? [])]);
       setNextCursor(data.next_cursor ?? null);
       if (!data.next_cursor) setDone(true);
@@ -41,7 +44,7 @@ export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
             <li key={activity.type === 'review' ? activity.review.id : activity.id}>
               <FeedItem
                 activity={activity}
-                spotifyName={'spotifyName' in activity ? activity.spotifyName : undefined}
+                spotifyName={activity.spotifyName}
               />
             </li>
           ))}

@@ -708,3 +708,164 @@ export async function getOrFetchTrack(
     throw new Error(`Failed to fetch track ${id} from Spotify`);
   }
 }
+
+// --- Batch getOrFetch for discover (avoid N+1)
+
+function buildTrackFromRows(
+  song: SongRow,
+  album: AlbumRow | null,
+  artistName: string,
+): SpotifyApi.TrackObjectFull {
+  return {
+    id: song.id,
+    name: song.name,
+    artists: [{ id: song.artist_id, name: artistName }],
+    duration_ms: song.duration_ms ?? undefined,
+    album: album
+      ? {
+          id: album.id,
+          name: album.name,
+          artists: [{ id: album.artist_id, name: artistName }],
+          images: album.image_url ? [{ url: album.image_url }] : undefined,
+          release_date: album.release_date ?? undefined,
+        }
+      : undefined,
+  };
+}
+
+/** Batch fetch tracks from DB, then fetch missing from Spotify (parallel). Returns map id -> track or null. */
+export async function getOrFetchTracksBatch(
+  ids: string[],
+): Promise<Map<string, SpotifyApi.TrackObjectFull | null>> {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  if (uniqueIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+  const result = new Map<string, SpotifyApi.TrackObjectFull | null>();
+
+  const { data: songRows } = await supabase
+    .from("songs")
+    .select("*")
+    .in("id", uniqueIds);
+  const songs = (songRows ?? []) as unknown as SongRow[];
+  if (songs.length === 0) {
+    const settled = await Promise.allSettled(
+      uniqueIds.map((id) => getOrFetchTrack(id).catch(() => null)),
+    );
+      uniqueIds.forEach((id, i) => result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null));
+    return result;
+  }
+
+  const albumIds = [...new Set(songs.map((s) => s.album_id).filter(Boolean))];
+  const artistIds = [...new Set(songs.map((s) => s.artist_id).filter(Boolean))];
+
+  const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
+    albumIds.length
+      ? supabase.from("albums").select("*").in("id", albumIds)
+      : { data: [] },
+    artistIds.length
+      ? supabase.from("artists").select("id, name").in("id", artistIds)
+      : { data: [] },
+  ]);
+
+  const albumMap = new Map(
+    (albumRows ?? []).map((a: AlbumRow) => [a.id, a]),
+  );
+  const artistMap = new Map(
+    (artistRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
+  );
+
+  const foundIds = new Set<string>();
+  for (const song of songs) {
+    const album = albumMap.get(song.album_id) ?? null;
+    const artistName = artistMap.get(song.artist_id) ?? "";
+    result.set(
+      song.id,
+      buildTrackFromRows(song, album, artistName),
+    );
+    foundIds.add(song.id);
+  }
+
+  const missingIds = uniqueIds.filter((id) => !foundIds.has(id));
+  if (missingIds.length > 0) {
+    const settled = await Promise.allSettled(
+      missingIds.map((id) => getOrFetchTrack(id).catch(() => null)),
+    );
+    missingIds.forEach((id, i) =>
+      result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null),
+    );
+  }
+  return result;
+}
+
+/** Batch fetch albums (simplified) from DB, then fetch missing from Spotify. Returns map id -> album or null. */
+export async function getOrFetchAlbumsBatch(
+  ids: string[],
+): Promise<Map<string, SpotifyApi.AlbumObjectSimplified | null>> {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  if (uniqueIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+  const result = new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
+
+  const { data: albumRows } = await supabase
+    .from("albums")
+    .select("*")
+    .in("id", uniqueIds);
+  const albums = (albumRows ?? []) as unknown as AlbumRow[];
+  if (albums.length === 0) {
+    const settled = await Promise.allSettled(
+      uniqueIds.map(async (id) => {
+        try {
+          const { album } = await getOrFetchAlbum(id);
+          return { id: album.id, name: album.name, images: album.images, artists: album.artists };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    uniqueIds.forEach((id, i) =>
+      result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null),
+    );
+    return result;
+  }
+
+  const artistIds = [...new Set(albums.map((a) => a.artist_id).filter(Boolean))];
+  const { data: artistRows } = await supabase
+    .from("artists")
+    .select("id, name")
+    .in("id", artistIds);
+  const artistMap = new Map(
+    (artistRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
+  );
+
+  const foundIds = new Set<string>();
+  for (const album of albums) {
+    const artistName = artistMap.get(album.artist_id) ?? "";
+    result.set(album.id, {
+      id: album.id,
+      name: album.name,
+      artists: [{ id: album.artist_id, name: artistName }],
+      images: album.image_url ? [{ url: album.image_url }] : undefined,
+    });
+    foundIds.add(album.id);
+  }
+
+  const missingIds = uniqueIds.filter((id) => !foundIds.has(id));
+  if (missingIds.length > 0) {
+    const settled = await Promise.allSettled(
+      missingIds.map(async (id) => {
+        try {
+          const { album } = await getOrFetchAlbum(id);
+          return { id: album.id, name: album.name, images: album.images, artists: album.artists };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    missingIds.forEach((id, i) =>
+      result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null),
+    );
+  }
+  return result;
+}
