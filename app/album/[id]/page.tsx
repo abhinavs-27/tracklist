@@ -10,6 +10,7 @@ import {
   getReviewsForEntity,
   getEntityStats,
   getAlbumListeners,
+  getTrackStatsForTrackIds,
 } from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
@@ -19,6 +20,32 @@ function formatDuration(ms: number | undefined) {
   const min = Math.floor(ms / 60000);
   const sec = Math.floor((ms % 60000) / 1000);
   return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+function TrackStatsLine({
+  listen_count,
+  review_count,
+  average_rating,
+}: {
+  listen_count: number;
+  review_count: number;
+  average_rating: number | null;
+}) {
+  const hasAny = listen_count > 0 || review_count > 0;
+  if (!hasAny) {
+    return (
+      <span className="text-xs text-zinc-600">No listens or reviews yet</span>
+    );
+  }
+  const parts: string[] = [];
+  if (listen_count > 0) parts.push(`${listen_count} listen${listen_count !== 1 ? "s" : ""}`);
+  if (review_count > 0) parts.push(`${review_count} review${review_count !== 1 ? "s" : ""}`);
+  if (average_rating != null) parts.push(`${average_rating.toFixed(1)}★`);
+  return (
+    <span className="text-xs text-zinc-500">
+      {parts.join(" · ")}
+    </span>
+  );
 }
 
 export default async function AlbumPage({ params }: { params: PageParams }) {
@@ -35,10 +62,12 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const [reviewsData, stats, listeners] = await Promise.all([
+  const trackIds = tracks.items?.map((t) => t.id) ?? [];
+  const [reviewsData, stats, listeners, trackStats] = await Promise.all([
     getReviewsForEntity("album", id),
     getEntityStats("album", id),
     getAlbumListeners(id, 8),
+    getTrackStatsForTrackIds(trackIds),
   ]);
 
   const image = album.images?.[0]?.url;
@@ -113,27 +142,39 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">Tracks</h2>
           <div className="space-y-1">
-            {tracks.items.map((t, i) => (
-              <div key={t.id} className="flex items-center gap-3">
-                <span className="w-6 text-right text-xs text-zinc-600">
-                  {i + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <TrackCard track={t} showAlbum={false} songPageLink />
+            {tracks.items.map((t, i) => {
+              const songStats = trackStats[t.id] ?? { listen_count: 0, review_count: 0, average_rating: null };
+              return (
+                <div key={t.id} className="flex flex-col gap-0.5 py-1.5">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 text-right text-xs text-zinc-600">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <TrackCard track={t} showAlbum={false} songPageLink showThumbnail={false} />
+                    </div>
+                    <span className="hidden text-xs text-zinc-600 sm:block">
+                      {formatDuration(t.duration_ms)}
+                    </span>
+                    {session && (
+                      <AlbumLogButton
+                        spotifyId={t.id}
+                        type="song"
+                        spotifyName={t.name}
+                        className="shrink-0"
+                      />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 pl-9">
+                    <TrackStatsLine
+                      listen_count={songStats.listen_count}
+                      review_count={songStats.review_count}
+                      average_rating={songStats.average_rating}
+                    />
+                  </div>
                 </div>
-                <span className="hidden text-xs text-zinc-600 sm:block">
-                  {formatDuration(t.duration_ms)}
-                </span>
-                {session && (
-                  <AlbumLogButton
-                    spotifyId={t.id}
-                    type="song"
-                    spotifyName={t.name}
-                    className="shrink-0"
-                  />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}

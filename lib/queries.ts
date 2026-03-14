@@ -285,6 +285,56 @@ export async function getEntityStats(
   }
 }
 
+/** Per-track stats for multiple song IDs (listens + reviews). Returns a map of trackId -> stats. */
+export async function getTrackStatsForTrackIds(
+  trackIds: string[],
+): Promise<Record<string, EntityStats>> {
+  const empty: EntityStats = { listen_count: 0, average_rating: null, review_count: 0 };
+  if (trackIds.length === 0) return {};
+
+  try {
+    const supabase = createSupabaseServerClient();
+
+    const [logsRes, reviewsRes] = await Promise.all([
+      supabase.from("logs").select("track_id").in("track_id", trackIds),
+      supabase
+        .from("reviews")
+        .select("entity_id, rating")
+        .eq("entity_type", "song")
+        .in("entity_id", trackIds),
+    ]);
+
+    const listenCounts = new Map<string, number>();
+    for (const row of logsRes.data ?? []) {
+      listenCounts.set(row.track_id, (listenCounts.get(row.track_id) ?? 0) + 1);
+    }
+
+    const reviewCounts = new Map<string, number>();
+    const ratingSums = new Map<string, number>();
+    for (const row of reviewsRes.data ?? []) {
+      reviewCounts.set(row.entity_id, (reviewCounts.get(row.entity_id) ?? 0) + 1);
+      ratingSums.set(
+        row.entity_id,
+        (ratingSums.get(row.entity_id) ?? 0) + row.rating,
+      );
+    }
+
+    const result: Record<string, EntityStats> = {};
+    for (const trackId of trackIds) {
+      const listen_count = listenCounts.get(trackId) ?? 0;
+      const review_count = reviewCounts.get(trackId) ?? 0;
+      const sum = ratingSums.get(trackId) ?? 0;
+      const average_rating =
+        review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
+      result[trackId] = { listen_count, average_rating, review_count };
+    }
+    return result;
+  } catch (e) {
+    console.error("[queries] getTrackStatsForTrackIds failed:", e);
+    return Object.fromEntries(trackIds.map((id) => [id, empty]));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Artist-scoped queries
 // ---------------------------------------------------------------------------
