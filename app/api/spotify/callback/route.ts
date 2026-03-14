@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { exchangeSpotifyCode } from "@/lib/spotify-user";
+import { getAppBaseUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
   try {
@@ -115,11 +116,7 @@ export async function GET(request: NextRequest) {
       "spotify_oauth_return_to",
     )?.value;
     const fallback = `/profile/${session.user.username ?? ""}`;
-    const base =
-      process.env.NEXTAUTH_URL ||
-      (process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://127.0.0.1:3000");
+    const base = getAppBaseUrl();
     const returnToQuery =
       cookieReturnTo &&
       cookieReturnTo.startsWith("/") &&

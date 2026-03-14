@@ -1,5 +1,6 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getAppBaseUrl } from "@/lib/app-url";
 
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
@@ -31,12 +32,7 @@ function requiredEnv(name: string): string {
 function buildRedirectUri(): string {
   const explicit = process.env.SPOTIFY_REDIRECT_URI;
   if (explicit) return explicit;
-  const base =
-    process.env.NEXTAUTH_URL ||
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://127.0.0.1:3000");
-  return `${base.replace(/\/$/, "")}/api/spotify/callback`;
+  return `${getAppBaseUrl()}/api/spotify/callback`;
 }
 
 export function getSpotifyAuthorizeUrl(state: string): string {
