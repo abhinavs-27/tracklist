@@ -19,19 +19,16 @@ test.describe("Spotify sync / automatic ingestion", () => {
 
     await page.goto(`/profile/${username}`);
 
+    // Check if the sync button exists and click it
     const syncButton = page.getByRole('button', { name: /sync recently played/i });
     if (await syncButton.isVisible()) {
       await syncButton.click();
-
-      // Look for indicators of success.
-      // Based on common patterns in this app, it might reload the page.
-      // We expect the button to remain or some text to confirm status.
+      // Verify button is still there or state is updated
       await expect(syncButton).toBeVisible();
     }
   });
 
-  test("API handles sync request correctly", async ({ request }) => {
-    // We test the unauthorized case as a baseline
+  test("API handles unauthorized sync request", async ({ request }) => {
     const response = await request.post('/api/spotify/sync');
     expect(response.status()).toBe(401);
   });
