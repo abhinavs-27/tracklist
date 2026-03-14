@@ -13,7 +13,7 @@ interface LogCardProps {
  */
 export function LogCard({ log, trackName }: LogCardProps) {
   const user = log.user;
-  const displayName = trackName ?? log.spotify_song_id;
+  const displayName = trackName ?? log.track_id;
 
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
@@ -35,7 +35,7 @@ export function LogCard({ log, trackName }: LogCardProps) {
           <span className="text-zinc-500">Track:</span> {displayName}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          {new Date(log.played_at).toLocaleDateString()}
+          {new Date(log.listened_at).toLocaleDateString()}
         </p>
       </div>
     </article>

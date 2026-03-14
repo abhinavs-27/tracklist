@@ -26,13 +26,14 @@ export async function POST(request: NextRequest) {
       return apiBadRequest('Invalid JSON body');
     }
     const b = body as Record<string, unknown>;
-    const { spotify_id, listened_at } = b;
+    const { track_id: bodyTrackId, spotify_id, listened_at } = b;
+    const trackId = (bodyTrackId ?? spotify_id) as string | undefined;
 
-    if (!spotify_id) {
-      return apiBadRequest('Missing required field: spotify_id');
+    if (!trackId) {
+      return apiBadRequest('Missing required field: track_id or spotify_id');
     }
-    if (!isValidSpotifyId(spotify_id)) {
-      return apiBadRequest('Invalid spotify_id format');
+    if (!isValidSpotifyId(trackId)) {
+      return apiBadRequest('Invalid track_id format');
     }
     let listenedAt: string;
     try {
@@ -49,8 +50,9 @@ export async function POST(request: NextRequest) {
       .from('logs')
       .insert({
         user_id: session.user.id,
-        spotify_song_id: spotify_id,
-        played_at: listenedAt,
+        track_id: trackId,
+        listened_at: listenedAt,
+        source: 'manual_import',
       })
       .select()
       .single();
@@ -83,12 +85,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('logs')
-      .select('id, user_id, spotify_song_id, played_at, created_at')
-      .order('played_at', { ascending: false })
+      .select('id, user_id, track_id, listened_at, source, created_at')
+      .order('listened_at', { ascending: false })
       .limit(limit);
 
     if (userId) query = query.eq('user_id', userId);
-    if (spotifyId) query = query.eq('spotify_song_id', spotifyId);
+    if (spotifyId) query = query.eq('track_id', spotifyId);
 
     const { data: logs, error: logsError } = await query;
 
@@ -115,8 +117,9 @@ export async function GET(request: NextRequest) {
     const result = logs.map((log) => ({
       id: log.id,
       user_id: log.user_id,
-      spotify_song_id: log.spotify_song_id,
-      played_at: log.played_at,
+      track_id: log.track_id,
+      listened_at: log.listened_at,
+      source: log.source ?? null,
       created_at: log.created_at,
       user: userMap.get(log.user_id) ?? null,
     }));

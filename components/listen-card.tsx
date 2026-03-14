@@ -10,7 +10,7 @@ interface ListenCardProps {
 
 export function ListenCard({ log, trackName }: ListenCardProps) {
   const user = log.user;
-  const displayName = trackName ?? log.spotify_song_id;
+  const displayName = trackName ?? log.track_id;
 
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 transition-colors hover:bg-zinc-900/70">
@@ -35,12 +35,12 @@ export function ListenCard({ log, trackName }: ListenCardProps) {
           <p className="truncate text-sm text-zinc-200">
             <span className="font-medium text-white">{user?.username ?? 'Unknown'}</span>
             {' listened to '}
-            <Link href={`/song/${log.spotify_song_id}`} className="text-emerald-400 hover:underline">
+            <Link href={`/song/${log.track_id}`} className="text-emerald-400 hover:underline">
               {displayName}
             </Link>
           </p>
           <p className="text-xs text-zinc-500">
-            {new Date(log.played_at).toLocaleDateString()}
+            {new Date(log.listened_at).toLocaleDateString()}
           </p>
         </div>
       </div>

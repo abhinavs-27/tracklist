@@ -14,12 +14,13 @@ export interface Follow {
   created_at: string;
 }
 
-/** Passive Spotify listen — tracks only, no ratings or review text. */
+/** Passive listen — tracks only, no ratings or review text. */
 export interface ListenLog {
   id: string;
   user_id: string;
-  spotify_song_id: string;
-  played_at: string;
+  track_id: string;
+  listened_at: string;
+  source: string | null;
   created_at: string;
 }
 

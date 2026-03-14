@@ -191,6 +191,20 @@ export async function getOrFetchArtist(
 
   if (row) {
     const a = row as unknown as ArtistRow;
+    // If we have a cached artist but no image, try Spotify to backfill the image
+    if (!a.image_url) {
+      try {
+        const artist = await getArtist(id);
+        try {
+          await upsertArtistFromSpotify(supabase, artist);
+        } catch (e) {
+          console.error(`${LOG_PREFIX} upsertArtistFromSpotify (backfill image) error`, e);
+        }
+        return artist;
+      } catch (e) {
+        console.warn(`${LOG_PREFIX} getArtist (image backfill) failed, using cached data`, e);
+      }
+    }
     const result: SpotifyApi.ArtistObjectFull = {
       id: a.id,
       name: a.name,
@@ -265,12 +279,12 @@ export async function getArtistTopTracksFromLogs(
 ): Promise<SpotifyApi.TrackObjectFull[]> {
   const supabase = createSupabaseServerClient();
 
-  // 1) Pull a recent window of song logs and aggregate by spotify_song_id in code
+  // 1) Pull a recent window of song logs and aggregate by track_id in code
   const { data: logRows, error: logsError } = await supabase
     .from("logs")
-    .select("spotify_song_id")
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .select("track_id")
+    .order("listened_at", { ascending: false })
+    .limit(500);
 
   if (logsError) {
     console.error(
@@ -280,7 +294,7 @@ export async function getArtistTopTracksFromLogs(
     return [];
   }
 
-  const logs = (logRows as { spotify_song_id: string }[] | null) ?? [];
+  const logs = (logRows as { track_id: string }[] | null) ?? [];
 
   if (logs.length === 0) {
     console.log(
@@ -292,13 +306,10 @@ export async function getArtistTopTracksFromLogs(
 
   const counts = new Map<string, number>();
   for (const l of logs) {
-    counts.set(
-      l.spotify_song_id,
-      (counts.get(l.spotify_song_id) ?? 0) + 1,
-    );
+    counts.set(l.track_id, (counts.get(l.track_id) ?? 0) + 1);
   }
 
-  // Sort spotify_ids by count desc and take a bit more than limit to allow filtering
+  // Sort track_ids by count desc and take a bit more than limit to allow filtering
   const sortedIds = [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([id]) => id)
@@ -384,52 +395,9 @@ export async function getArtistTopTracksFromLogs(
 
   const tracks: SpotifyApi.TrackObjectFull[] = [];
 
-  // 3) Build tracks in popularity order, backfilling missing ones from Spotify
+  // 3) Build tracks in popularity order from local cache only (no Spotify top-tracks API)
   for (const trackId of sortedIds) {
     const song = songMap.get(trackId);
-
-    // If we don't yet have this song cached, try to backfill from Spotify.
-    if (!song) {
-      try {
-        const trackFromSpotify = await getTrack(trackId);
-        const primaryArtist = trackFromSpotify.artists?.[0];
-        if (!primaryArtist || primaryArtist.id !== artistId) {
-          // Skip if this track doesn't actually belong to this artist
-          continue;
-        }
-
-        const alb = trackFromSpotify.album;
-        if (alb) {
-          try {
-            await upsertTrackFromSpotify(
-              supabase,
-              trackFromSpotify,
-              alb.id,
-              alb.name,
-              alb.images?.[0]?.url ?? null,
-              "release_date" in alb ? alb.release_date : undefined,
-            );
-          } catch (e) {
-            console.error(
-              `${LOG_PREFIX} upsertTrackFromSpotify (logs backfill) failed for track ${trackFromSpotify.id}`,
-              e,
-            );
-          }
-        }
-
-        // Use Spotify track payload directly
-        tracks.push(trackFromSpotify);
-        continue;
-      } catch (e) {
-        console.error(
-          `${LOG_PREFIX} getTrack failed while backfilling logs top tracks`,
-          e,
-        );
-        continue;
-      }
-    }
-
-    // If song is still missing or not for this artist, skip
     if (!song || song.artist_id !== artistId) continue;
 
     const alb = albumsMap.get(song.album_id);
@@ -508,7 +476,42 @@ export async function getOrFetchAlbum(id: string): Promise<{
       console.error(`${LOG_PREFIX} songs select failed`, songsErr);
     }
 
-    const songs = (songRows ?? []) as unknown as SongRow[];
+    let songs = (songRows ?? []) as unknown as SongRow[];
+
+    // If album is cached but tracklist is incomplete, backfill from Spotify so we show the full tracklist
+    const totalTracks = album.total_tracks ?? 0;
+    const needBackfill =
+      songs.length === 0 ||
+      (totalTracks > 0 && songs.length < totalTracks) ||
+      (songs.length > 0 && totalTracks === 0); // total_tracks unknown → fetch full list
+    if (needBackfill) {
+      try {
+        const [albumResp, tracksResp] = await Promise.all([
+          getAlbum(id),
+          getAlbumTracks(id, 50, 0),
+        ]);
+        await upsertAlbumFromSpotify(supabase, albumResp);
+        const albumImage = albumResp.images?.[0]?.url ?? null;
+        for (const t of tracksResp.items ?? []) {
+          await upsertTrackFromSpotify(
+            supabase,
+            t,
+            albumResp.id,
+            albumResp.name,
+            albumImage,
+            albumResp.release_date,
+          );
+        }
+        const { data: refetched } = await supabase
+          .from("songs")
+          .select("*")
+          .eq("album_id", id)
+          .order("track_number", { ascending: true });
+        songs = (refetched ?? []) as unknown as SongRow[];
+      } catch (e) {
+        console.warn(`${LOG_PREFIX} album tracks backfill failed for ${id}`, e);
+      }
+    }
 
     const artistIds = [...new Set(songs.map((s) => s.artist_id))];
     const { data: artistRows, error: artistsErr } = await supabase

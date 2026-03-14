@@ -78,14 +78,15 @@ export async function syncRecentlyPlayed(
   // Also insert passive song logs into logs table (songs only), skipping duplicates
   const passiveLogs = rows.map((r) => ({
     user_id: userId,
-    spotify_song_id: r.track_id,
-    played_at: r.played_at,
+    track_id: r.track_id,
+    listened_at: r.played_at,
+    source: "spotify",
   }));
 
   const { error: logsError } = await supabase
     .from("logs")
     .upsert(passiveLogs, {
-      onConflict: "user_id,spotify_song_id,played_at",
+      onConflict: "user_id,track_id,listened_at",
     });
 
   if (logsError) {

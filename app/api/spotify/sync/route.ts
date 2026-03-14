@@ -30,44 +30,41 @@ export async function POST(_request: NextRequest) {
     const recent = await getRecentlyPlayed(accessToken, 50);
     const items = recent.items ?? [];
 
-    const candidates: Array<{ spotify_id: string; listened_at: string }> = [];
+    const candidates: Array<{ track_id: string; listened_at: string }> = [];
 
     for (const it of items) {
       const playedAt = it.played_at;
       const track = it.track;
       if (!track?.id || !playedAt) continue;
 
-      // song-only sync
-      candidates.push({ spotify_id: track.id, listened_at: playedAt });
+      candidates.push({ track_id: track.id, listened_at: playedAt });
     }
 
     if (candidates.length === 0) {
       return NextResponse.json({ inserted: 0, skipped: 0, mode } satisfies SyncResponse);
     }
 
-    // Deduplicate within this sync batch by spotify_id, keeping the newest listened_at.
     const keyToItem = new Map<string, (typeof candidates)[number]>();
     for (const c of candidates) {
-      const key = c.spotify_id;
+      const key = c.track_id;
       const prev = keyToItem.get(key);
       if (!prev || Date.parse(c.listened_at) > Date.parse(prev.listened_at)) keyToItem.set(key, c);
     }
     const unique = [...keyToItem.values()];
 
-    // Fetch existing logs for these spotify_ids
-    const spotifyIds = [...new Set(unique.map((u) => u.spotify_id))];
+    const trackIds = [...new Set(unique.map((u) => u.track_id))];
     const { data: existing, error: existingError } = await supabase
       .from('logs')
-      .select('spotify_song_id')
+      .select('track_id')
       .eq('user_id', session.user.id)
-      .in('spotify_song_id', spotifyIds);
+      .in('track_id', trackIds);
     if (existingError) return apiInternalError(existingError);
 
     const existingSet = new Set(
-      (existing ?? []).map((l: { spotify_song_id: string }) => l.spotify_song_id),
+      (existing ?? []).map((l: { track_id: string }) => l.track_id),
     );
 
-    const toInsert = unique.filter((u) => !existingSet.has(u.spotify_id));
+    const toInsert = unique.filter((u) => !existingSet.has(u.track_id));
     if (toInsert.length === 0) {
       return NextResponse.json({ inserted: 0, skipped: unique.length, mode } satisfies SyncResponse);
     }
@@ -76,8 +73,9 @@ export async function POST(_request: NextRequest) {
     const { error: insertError } = await supabase.from('logs').insert(
       toInsert.map((u) => ({
         user_id: session.user.id,
-        spotify_song_id: u.spotify_id,
-        played_at: new Date(u.listened_at).toISOString(),
+        track_id: u.track_id,
+        listened_at: new Date(u.listened_at).toISOString(),
+        source: 'spotify',
         created_at: nowIso,
       })),
     );

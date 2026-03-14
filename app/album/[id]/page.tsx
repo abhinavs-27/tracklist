@@ -6,9 +6,20 @@ import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { TrackCard } from "@/components/track-card";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
-import { getReviewsForEntity } from "@/lib/queries";
+import {
+  getReviewsForEntity,
+  getEntityStats,
+  getAlbumListeners,
+} from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
+
+function formatDuration(ms: number | undefined) {
+  if (!ms) return null;
+  const min = Math.floor(ms / 60000);
+  const sec = Math.floor((ms % 60000) / 1000);
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
 
 export default async function AlbumPage({ params }: { params: PageParams }) {
   const { id } = await params;
@@ -24,11 +35,17 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const reviewsData = await getReviewsForEntity("album", id);
+  const [reviewsData, stats, listeners] = await Promise.all([
+    getReviewsForEntity("album", id),
+    getEntityStats("album", id),
+    getAlbumListeners(id, 8),
+  ]);
+
   const image = album.images?.[0]?.url;
 
   return (
     <div className="space-y-8">
+      {/* Album header */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
         <div className="h-48 w-48 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:h-56 sm:w-56">
           {image ? (
@@ -59,6 +76,26 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
               {new Date(album.release_date).getFullYear()}
             </p>
           )}
+
+          {/* Stats bar */}
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+            {stats.listen_count > 0 && (
+              <span className="text-zinc-400">
+                {stats.listen_count.toLocaleString()} listen{stats.listen_count !== 1 ? "s" : ""}
+              </span>
+            )}
+            {stats.average_rating != null && (
+              <span className="text-amber-400">
+                ★ {stats.average_rating.toFixed(1)}
+              </span>
+            )}
+            {stats.review_count > 0 && (
+              <span className="text-zinc-400">
+                {stats.review_count} review{stats.review_count !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
           {session && (
             <div className="mt-4">
               <AlbumLogButton
@@ -71,15 +108,22 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         </div>
       </div>
 
+      {/* Tracklist */}
       {tracks.items?.length ? (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">Tracks</h2>
-          <div className="space-y-2">
-            {tracks.items.map((t) => (
+          <div className="space-y-1">
+            {tracks.items.map((t, i) => (
               <div key={t.id} className="flex items-center gap-3">
+                <span className="w-6 text-right text-xs text-zinc-600">
+                  {i + 1}
+                </span>
                 <div className="min-w-0 flex-1">
                   <TrackCard track={t} showAlbum={false} songPageLink />
                 </div>
+                <span className="hidden text-xs text-zinc-600 sm:block">
+                  {formatDuration(t.duration_ms)}
+                </span>
                 {session && (
                   <AlbumLogButton
                     spotifyId={t.id}
@@ -94,12 +138,44 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         </section>
       ) : null}
 
+      {/* Reviews */}
       <EntityReviewsSection
         entityType="album"
         entityId={id}
         spotifyName={album.name}
         initialData={reviewsData}
       />
+
+      {/* Friends who listened */}
+      {listeners.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-white">
+            Who listened
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            {listeners.map((l) => (
+              <Link
+                key={l.user_id}
+                href={`/profile/${l.username}`}
+                className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-sm transition hover:border-zinc-600"
+              >
+                {l.avatar_url ? (
+                  <img
+                    src={l.avatar_url}
+                    alt=""
+                    className="h-6 w-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-[10px] text-zinc-300">
+                    {l.username[0]?.toUpperCase()}
+                  </span>
+                )}
+                <span className="text-zinc-200">{l.username}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

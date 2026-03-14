@@ -1,191 +1,40 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import {
-  upsertArtistFromSpotify,
-  upsertAlbumFromSpotify,
-  getOrFetchArtistTopTracks,
-} from "@/lib/spotify-cache";
-import { getValidSpotifyAccessToken, getUserArtist, getUserArtistAlbums } from "@/lib/spotify-user";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { ArtistCard } from "@/components/artist-card";
-import { AlbumCard } from "@/components/album-card";
+import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { TrackCard } from "@/components/track-card";
+import { ListenCard } from "@/components/listen-card";
+import {
+  getTopTracksForArtist,
+  getReviewsForArtist,
+  getListenLogsForArtist,
+  getPopularAlbumsForArtist,
+} from "@/lib/queries";
 
 type PageParams = Promise<{ id: string }>;
 
 export default async function ArtistPage({ params }: { params: PageParams }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id ?? null;
 
-  let artist: SpotifyApi.ArtistObjectFull | null = null;
-  let albums: SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified> = {
-    items: [],
-    total: 0,
-    limit: 12,
-    offset: 0,
-    next: null,
-    previous: null,
-  };
-  let topTracks: { tracks: SpotifyApi.TrackObjectFull[] } = { tracks: [] };
-
-  const supabase = createSupabaseServerClient();
-
-  // --- 1) Try cached artist from DB
+  let artist: SpotifyApi.ArtistObjectFull;
   try {
-    const { data: artistRow } = await supabase
-      .from("artists")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    if (artistRow) {
-      const a = artistRow as {
-        id: string;
-        name: string;
-        image_url: string | null;
-        genres: string[] | null;
-      };
-      artist = {
-        id: a.id,
-        name: a.name,
-        images: a.image_url ? [{ url: a.image_url }] : undefined,
-        genres: a.genres ?? undefined,
-        followers: { total: 0 },
-      };
-    }
-  } catch (e) {
-    console.error("[artist-page] failed to load cached artist", e);
-  }
-
-  // --- 2) If user has Spotify connected, try fresh data via user token
-  let accessToken: string | null = null;
-  if (userId) {
-    try {
-      accessToken = await getValidSpotifyAccessToken(userId);
-    } catch (e) {
-      console.warn(
-        "[artist-page] user has no valid Spotify token, falling back to cache",
-        e,
-      );
-    }
-  }
-
-  if (accessToken) {
-    // Artist metadata
-    try {
-      const freshArtist = await getUserArtist(accessToken, id);
-      artist = freshArtist;
-      await upsertArtistFromSpotify(supabase, freshArtist);
-    } catch (e) {
-      console.error("[artist-page] getUserArtist failed", e);
-    }
-
-    // Albums
-    try {
-      const freshAlbums = await getUserArtistAlbums(accessToken, id, 10);
-      albums = freshAlbums;
-      for (const a of freshAlbums.items ?? []) {
-        try {
-          await upsertAlbumFromSpotify(supabase, a);
-        } catch (e) {
-          console.error(
-            "[artist-page] upsertAlbumFromSpotify failed for album",
-            a.id,
-            e,
-          );
-        }
-      }
-    } catch {
-      console.warn("[artist-page] getUserArtistAlbums failed; using cached albums if available");
-    }
-
-  }
-
-  // --- 3) Top tracks from logs (no Spotify dependency)
-  try {
-    topTracks = await getOrFetchArtistTopTracks(id, 10);
-  } catch (e) {
-    console.error("[artist-page] getOrFetchArtistTopTracks failed", e);
-    topTracks = { tracks: [] };
-  }
-
-  // --- 4) If we still have gaps (no user or Spotify failed), fill from cache
-  if (!artist) {
-    try {
-      const { data: artistRow } = await supabase
-        .from("artists")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-      if (artistRow) {
-        const a = artistRow as {
-          id: string;
-          name: string;
-          image_url: string | null;
-          genres: string[] | null;
-        };
-        artist = {
-          id: a.id,
-          name: a.name,
-          images: a.image_url ? [{ url: a.image_url }] : undefined,
-          genres: a.genres ?? undefined,
-          followers: { total: 0 },
-        };
-      }
-    } catch (e) {
-      console.error("[artist-page] second attempt cached artist failed", e);
-    }
-  }
-
-  if (albums.items.length === 0) {
-    try {
-      const { data: albumRows } = await supabase
-        .from("albums")
-        .select("*")
-        .eq("artist_id", id)
-        .order("release_date", { ascending: false });
-      const rows =
-        (albumRows as
-          | {
-              id: string;
-              name: string;
-              artist_id: string;
-              image_url: string | null;
-              release_date: string | null;
-            }[]
-          | null)
-        ?? [];
-      albums = {
-        items: rows.map((a) => ({
-          id: a.id,
-          name: a.name,
-          artists: artist
-            ? [{ id: artist.id, name: artist.name }]
-            : [{ id: a.artist_id, name: "" }],
-          images: a.image_url ? [{ url: a.image_url }] : undefined,
-          release_date: a.release_date ?? undefined,
-        })),
-        total: rows.length,
-        limit: 12,
-        offset: 0,
-        next: null,
-        previous: null,
-      };
-    } catch (e) {
-      console.error("[artist-page] cached albums fetch failed", e);
-    }
-  }
-
-  if (!artist) {
+    artist = await getOrFetchArtist(id);
+  } catch {
     notFound();
   }
+
+  const [topTracks, popularAlbums, recentReviews, recentListens] =
+    await Promise.all([
+      getTopTracksForArtist(id, 10),
+      getPopularAlbumsForArtist(id, 12),
+      getReviewsForArtist(id, 8),
+      getListenLogsForArtist(id, 10),
+    ]);
 
   const image = artist.images?.[0]?.url;
 
   return (
     <div className="space-y-8">
+      {/* Artist header */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
         <div className="h-48 w-48 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:h-56 sm:w-56">
           {image ? (
@@ -203,7 +52,7 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
               {artist.genres.slice(0, 5).join(" · ")}
             </p>
           ) : null}
-          {artist.followers != null && (
+          {artist.followers != null && artist.followers.total > 0 && (
             <p className="mt-1 text-sm text-zinc-500">
               {artist.followers.total.toLocaleString()} followers on Spotify
             </p>
@@ -211,30 +60,118 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
         </div>
       </div>
 
-      {topTracks.tracks?.length ? (
+      {/* Popular tracks from logs */}
+      {topTracks?.length ? (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">
             Popular tracks
           </h2>
           <div className="space-y-2">
-            {topTracks.tracks.slice(0, 10).map((t) => (
-              <TrackCard key={t.id} track={t} showAlbum={true} />
+            {topTracks.slice(0, 10).map((t) => (
+              <TrackCard key={t.id} track={t} showAlbum songPageLink />
             ))}
           </div>
         </section>
       ) : null}
 
-      {albums.items?.length ? (
+      {/* Popular albums from logs + reviews */}
+      {popularAlbums.length > 0 ? (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">Albums</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {albums.items.map((a) => (
-              <AlbumCard key={a.id} album={a} />
+            {popularAlbums.map((a) => (
+              <Link
+                key={a.id}
+                href={`/album/${a.id}`}
+                className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 transition hover:border-zinc-600"
+              >
+                <div className="aspect-square bg-zinc-800">
+                  {a.image_url ? (
+                    <img
+                      src={a.image_url}
+                      alt=""
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-4xl text-zinc-600">
+                      ♪
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <p className="truncate text-sm font-medium text-white">
+                    {a.name}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {a.listen_count > 0 && (
+                      <span>{a.listen_count} listen{a.listen_count !== 1 ? "s" : ""}</span>
+                    )}
+                    {a.listen_count > 0 && a.review_count > 0 && " · "}
+                    {a.review_count > 0 && (
+                      <span>{a.review_count} review{a.review_count !== 1 ? "s" : ""}</span>
+                    )}
+                    {a.listen_count === 0 && a.review_count === 0 && "No activity yet"}
+                  </p>
+                </div>
+              </Link>
             ))}
           </div>
         </section>
       ) : null}
 
+      {/* Recent reviews */}
+      {recentReviews.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-white">
+            Recent reviews
+          </h2>
+          <ul className="space-y-3">
+            {recentReviews.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3"
+              >
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-amber-400">
+                    {"★".repeat(Math.min(5, Math.max(1, r.rating)))}
+                    {"☆".repeat(5 - Math.min(5, Math.max(1, r.rating)))}
+                  </span>
+                  <Link
+                    href={r.username ? `/profile/${r.username}` : "#"}
+                    className="font-medium text-white hover:underline"
+                  >
+                    {r.username ?? "Unknown"}
+                  </Link>
+                  <span className="text-zinc-500">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                {r.review_text && (
+                  <p className="mt-1 whitespace-pre-line text-sm text-zinc-300">
+                    {r.review_text}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Recent listens */}
+      {recentListens.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-white">
+            Recent listens
+          </h2>
+          <ul className="space-y-2">
+            {recentListens.map((log) => (
+              <li key={log.id}>
+                <ListenCard log={log} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@ type RecentlyPlayedItem = {
  * - spotify_recent_tracks (handled elsewhere)
  * - logs (passive song logs; songs only, no ratings/text)
  *
- * Idempotent: logs table enforces UNIQUE(user_id, spotify_song_id, played_at).
+ * Idempotent: logs table enforces UNIQUE(user_id, track_id, listened_at).
  */
 export async function ingestRecentPlaysForUser(userId: string): Promise<{
   inserted: number;
@@ -42,28 +42,28 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
   const candidates = items
     .filter((i) => i.track?.id && i.played_at)
     .map((i) => ({
-      spotify_song_id: i.track.id,
-      played_at: new Date(i.played_at).toISOString(),
+      track_id: i.track.id,
+      listened_at: new Date(i.played_at).toISOString(),
       track: i.track,
     }));
 
   if (!candidates.length) return { inserted: 0, skipped: 0 };
 
-  // Deduplicate within this batch by (song, played_at)
+  // Deduplicate within this batch by (track_id, listened_at)
   const keyToItem = new Map<string, (typeof candidates)[number]>();
   for (const c of candidates) {
-    const key = `${c.spotify_song_id}:${c.played_at}`;
+    const key = `${c.track_id}:${c.listened_at}`;
     keyToItem.set(key, c);
   }
   const unique = [...keyToItem.values()];
 
   const { data: existing, error: existingError } = await supabase
     .from("logs")
-    .select("spotify_song_id, played_at")
+    .select("track_id, listened_at")
     .eq("user_id", userId)
     .in(
-      "spotify_song_id",
-      unique.map((u) => u.spotify_song_id),
+      "track_id",
+      unique.map((u) => u.track_id),
     );
 
   if (existingError) {
@@ -73,14 +73,14 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
 
   const existingSet = new Set(
     (existing ?? []).map(
-      (l: { spotify_song_id: string; played_at: string }) =>
-        `${l.spotify_song_id}:${new Date(l.played_at).toISOString()}`,
+      (l: { track_id: string; listened_at: string }) =>
+        `${l.track_id}:${new Date(l.listened_at).toISOString()}`,
     ),
   );
 
   const toInsert = unique.filter(
     (u) =>
-      !existingSet.has(`${u.spotify_song_id}:${u.played_at}`),
+      !existingSet.has(`${u.track_id}:${u.listened_at}`),
   );
   if (!toInsert.length) return { inserted: 0, skipped: unique.length };
 
@@ -102,7 +102,7 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
     } catch (e) {
       console.error(
         "[logs-ingest] upsertTrackFromSpotify failed",
-        item.spotify_song_id,
+        item.track_id,
         e,
       );
     }
@@ -111,10 +111,11 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
   const { error: insertError } = await supabase.from("logs").upsert(
     toInsert.map((u) => ({
       user_id: userId,
-      spotify_song_id: u.spotify_song_id,
-      played_at: u.played_at,
+      track_id: u.track_id,
+      listened_at: u.listened_at,
+      source: "spotify",
     })),
-    { onConflict: "user_id,spotify_song_id,played_at" },
+    { onConflict: "user_id,track_id,listened_at" },
   );
 
   if (insertError) {

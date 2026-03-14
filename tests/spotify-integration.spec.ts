@@ -36,15 +36,17 @@ test.describe('Spotify integration (mocked)', () => {
         {
           id: '11111111-1111-1111-1111-111111111111',
           user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-          spotify_song_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
-          played_at: new Date().toISOString(),
+          track_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
+          listened_at: new Date().toISOString(),
+          source: 'spotify',
           created_at: new Date().toISOString(),
         },
         {
           id: '22222222-2222-2222-2222-222222222222',
           user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-          spotify_song_id: '6ZG5lRT77aJ3btmArcykra',
-          played_at: new Date().toISOString(),
+          track_id: '6ZG5lRT77aJ3btmArcykra',
+          listened_at: new Date().toISOString(),
+          source: 'spotify',
           created_at: new Date().toISOString(),
         },
       ];
