@@ -1,6 +1,6 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getAppBaseUrl } from "@/lib/app-url";
+import { getAppBaseUrl, isLocalhostUrl } from "@/lib/app-url";
 
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
@@ -30,8 +30,12 @@ function requiredEnv(name: string): string {
 }
 
 function buildRedirectUri(): string {
-  const explicit = process.env.SPOTIFY_REDIRECT_URI;
-  if (explicit) return explicit;
+  const explicit = process.env.SPOTIFY_REDIRECT_URI?.trim();
+  // In production, never use a localhost redirect URI (e.g. SPOTIFY_REDIRECT_URI copied from .env.local).
+  const isProduction = process.env.NODE_ENV === "production";
+  if (explicit && (!isProduction || !isLocalhostUrl(explicit))) {
+    return explicit;
+  }
   return `${getAppBaseUrl()}/api/spotify/callback`;
 }
 

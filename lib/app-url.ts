@@ -3,7 +3,8 @@
  * uses localhost (e.g. when NEXTAUTH_URL is mistakenly set to 127.0.0.1).
  */
 
-function isLocalhostUrl(url: string): boolean {
+/** Exported for use in Spotify redirect URI logic (never use localhost in prod). */
+export function isLocalhostUrl(url: string): boolean {
   if (!url || typeof url !== "string") return true;
   try {
     const u = new URL(url);
