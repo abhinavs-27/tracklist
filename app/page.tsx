@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getFeedForUser } from '@/lib/feed';
 import { FeedItem } from '@/components/feed-item';
+import { FeedLoadMore } from '@/components/feed-load-more';
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -32,12 +33,12 @@ export default async function HomePage() {
     );
   }
 
-  const feed = await getFeedForUser(session.user.id, 30);
+  const { items: feedItems, next_cursor: feedNextCursor } = await getFeedForUser(session.user.id, 30, null);
 
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold text-white">Your feed</h1>
-      {feed.length === 0 ? (
+      {feedItems.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
           <p className="text-zinc-400">No activity yet. Follow users to see their reviews and follow activity.</p>
           <Link
@@ -48,13 +49,18 @@ export default async function HomePage() {
           </Link>
         </div>
       ) : (
-        <ul className="space-y-4">
-          {feed.map((activity) => (
-            <li key={activity.type === 'review' ? activity.review.id : activity.id}>
-              <FeedItem activity={activity} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-4">
+            {feedItems.map((activity) => (
+              <li key={activity.type === 'review' ? activity.review.id : activity.id}>
+                <FeedItem activity={activity} />
+              </li>
+            ))}
+          </ul>
+          {feedNextCursor && (
+            <FeedLoadMore cursor={feedNextCursor} className="mt-6" />
+          )}
+        </>
       )}
     </div>
   );

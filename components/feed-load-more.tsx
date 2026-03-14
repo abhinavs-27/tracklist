@@ -19,6 +19,7 @@ export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
     if (!nextCursor || loading) return;
     setLoading(true);
     try {
+      // API uses created_at < cursor so the same item is never returned again.
       const res = await fetch(`/api/feed?cursor=${encodeURIComponent(nextCursor)}&limit=50`);
       if (!res.ok) return;
       const data = await res.json();

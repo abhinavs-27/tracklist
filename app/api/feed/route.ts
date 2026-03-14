@@ -12,9 +12,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const limit = clampLimit(searchParams.get('limit'), LIMITS.FEED_LIMIT, 50);
+    const cursor = searchParams.get('cursor')?.trim() || null;
 
-    const feed = await getFeedForUser(session.user.id, limit);
-    return NextResponse.json(feed);
+    const { items, next_cursor } = await getFeedForUser(session.user.id, limit, cursor);
+    return NextResponse.json({ items, next_cursor });
   } catch (e) {
     return apiInternalError(e);
   }

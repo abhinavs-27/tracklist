@@ -1,5 +1,12 @@
 -- 017_feed_rpc_and_user_search.sql
 -- Feed via JOIN (index-friendly), user search index, and suggested users.
+--
+-- REQUIRED FOR PRODUCTION: Apply this migration so get_feed_reviews and get_feed_follows
+-- are available. Without it, the app falls back to IN-list queries (slower).
+-- Indexes that should exist for feed/search performance:
+--   idx_reviews_user_id, idx_reviews_created_at (016)
+--   idx_follows_follower, idx_follows_following (001)
+--   idx_users_username (this migration)
 
 -- Index for user search (ILIKE on username)
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);

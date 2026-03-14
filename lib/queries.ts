@@ -3,6 +3,7 @@ import "server-only";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { sanitizeString } from "@/lib/validation";
 import type { ListenLogWithUser, ReviewWithUser } from "@/types";
 import type { FeedActivity } from "@/types";
 
@@ -754,11 +755,80 @@ export async function getFollowCounts(userId: string): Promise<{
   }
 }
 
+/** User search by username (ILIKE). Sanitizes input, enforces min 2 chars, caps results at 50. */
+export async function searchUsers(
+  query: string,
+  limit = 20,
+): Promise<{ id: string; username: string; avatar_url: string | null }[]> {
+  try {
+    const supabase = createSupabaseServerClient();
+    const sanitized = sanitizeString(query, 100) ?? "";
+    if (sanitized.length < 2) return [];
+
+    const cappedLimit = Math.min(Math.max(1, limit), 50);
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .ilike("username", `%${sanitized}%`)
+      .order("username", { ascending: true })
+      .limit(cappedLimit);
+
+    if (error) throw error;
+    return (data ?? []) as { id: string; username: string; avatar_url: string | null }[];
+  } catch (e) {
+    console.error("[queries] searchUsers failed:", e);
+    return [];
+  }
+}
+
+/** Suggested users: by follower count (most followers first), exclude self and already followed. Limit 10. */
+export async function getSuggestedUsers(
+  userId: string,
+  limit = 10,
+): Promise<{ id: string; username: string; avatar_url: string | null; followers_count: number }[]> {
+  try {
+    const supabase = createSupabaseServerClient();
+
+    const [myFollowsRes, followCountsRes, usersRes] = await Promise.all([
+      supabase.from("follows").select("following_id").eq("follower_id", userId),
+      supabase.from("follows").select("following_id"),
+      supabase.from("users").select("id, username, avatar_url"),
+    ]);
+
+    const myFollowing = new Set((myFollowsRes.data ?? []).map((r) => (r as { following_id: string }).following_id));
+    const followerCounts = new Map<string, number>();
+    for (const row of followCountsRes.data ?? []) {
+      const fid = (row as { following_id: string }).following_id;
+      followerCounts.set(fid, (followerCounts.get(fid) ?? 0) + 1);
+    }
+
+    const list = (usersRes.data ?? [])
+      .filter((u) => u.id !== userId && !myFollowing.has(u.id))
+      .map((u) => ({
+        id: u.id,
+        username: u.username,
+        avatar_url: u.avatar_url ?? null,
+        followers_count: followerCounts.get(u.id) ?? 0,
+      }))
+      .sort((a, b) => b.followers_count - a.followers_count)
+      .slice(0, limit);
+
+    return list;
+  } catch (e) {
+    console.error("[queries] getSuggestedUsers failed:", e);
+    return [];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Social feed (reviews + follow activity)
 // ---------------------------------------------------------------------------
 
-/** Fetch recent reviews from followed users (for the social feed). */
+/**
+ * @deprecated Use getActivityFeed for the unified feed (reviews + follows). Kept for backward compatibility.
+ * Fetch recent reviews from followed users (IN-list query).
+ */
 export async function getReviewFeed(
   userId: string,
   limit = 50,
@@ -817,14 +887,123 @@ export async function getReviewFeed(
   }
 }
 
-/** Activity feed: reviews and follow events from users you follow, sorted by created_at DESC. */
+export type ActivityFeedPage = {
+  items: FeedActivity[];
+  next_cursor: string | null;
+};
+
+/** Activity feed using JOIN-based RPC (index-friendly). Cursor is created_at (ISO string); pass to get next page. */
 export async function getActivityFeed(
   userId: string,
   limit = 50,
-): Promise<FeedActivity[]> {
+  cursor: string | null = null,
+): Promise<ActivityFeedPage> {
   try {
     const supabase = createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const fetchLimit = cappedLimit * 2;
 
+    const cursorTs = cursor ? (cursor as string) : null;
+
+    const [reviewsRes, followsRes] = await Promise.all([
+      supabase.rpc("get_feed_reviews", {
+        p_follower_id: userId,
+        p_cursor: cursorTs,
+        p_limit: fetchLimit,
+      }),
+      supabase.rpc("get_feed_follows", {
+        p_follower_id: userId,
+        p_cursor: cursorTs,
+        p_limit: fetchLimit,
+      }),
+    ]);
+
+    if (reviewsRes.error) {
+      console.warn("[queries] get_feed_reviews RPC failed (migration 017 may not be applied), using fallback", reviewsRes.error);
+      return getActivityFeedFallback(userId, cappedLimit, cursor);
+    }
+    if (followsRes.error) {
+      console.warn("[queries] get_feed_follows RPC failed (migration 017 may not be applied), using fallback", followsRes.error);
+      return getActivityFeedFallback(userId, cappedLimit, cursor);
+    }
+
+    const reviewRows = (reviewsRes.data ?? []) as {
+      id: string;
+      user_id: string;
+      entity_type: string;
+      entity_id: string;
+      rating: number;
+      review_text: string | null;
+      created_at: string;
+      updated_at: string;
+    }[];
+    const followRows = (followsRes.data ?? []) as {
+      id: string;
+      follower_id: string;
+      following_id: string;
+      created_at: string;
+    }[];
+
+    const userIds = new Set<string>();
+    reviewRows.forEach((r) => userIds.add(r.user_id));
+    followRows.forEach((f) => {
+      userIds.add(f.follower_id);
+      userIds.add(f.following_id);
+    });
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, email, username, avatar_url, bio, created_at")
+      .in("id", [...userIds]);
+    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+
+    const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
+      type: "review",
+      created_at: r.created_at,
+      review: {
+        id: r.id,
+        user_id: r.user_id,
+        entity_type: r.entity_type as "album" | "song",
+        entity_id: r.entity_id,
+        rating: r.rating,
+        review_text: r.review_text ?? null,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        user: userMap.get(r.user_id) ?? null,
+      },
+    }));
+
+    const followActivities: FeedActivity[] = followRows.map((f) => ({
+      type: "follow",
+      id: f.id,
+      created_at: f.created_at,
+      follower_id: f.follower_id,
+      following_id: f.following_id,
+      follower_username: userMap.get(f.follower_id)?.username ?? null,
+      following_username: userMap.get(f.following_id)?.username ?? null,
+    }));
+
+    const merged = [...reviewActivities, ...followActivities].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    const items = merged.slice(0, cappedLimit);
+    const next_cursor =
+      items.length === cappedLimit ? items[items.length - 1].created_at : null;
+
+    return { items, next_cursor };
+  } catch (e) {
+    console.error("[queries] getActivityFeed failed:", e);
+    return getActivityFeedFallback(userId, Math.min(limit, 100), cursor);
+  }
+}
+
+/** Fallback when migration 017 is not applied (e.g. local/dev). Uses IN-list + cursor. */
+async function getActivityFeedFallback(
+  userId: string,
+  limit: number,
+  cursor: string | null,
+): Promise<ActivityFeedPage> {
+  try {
+    const supabase = createSupabaseServerClient();
     const { data: followings, error: followError } = await supabase
       .from("follows")
       .select("following_id")
@@ -832,24 +1011,27 @@ export async function getActivityFeed(
     if (followError) throw followError;
 
     const followingIds = (followings ?? []).map((f) => f.following_id).slice(0, 500);
-    if (followingIds.length === 0) return [];
+    if (followingIds.length === 0) return { items: [], next_cursor: null };
 
-    const cappedLimit = Math.min(limit, 100);
+    const fetchLimit = limit * 2;
 
-    const [reviewsRes, followsRes] = await Promise.all([
-      supabase
-        .from("reviews")
-        .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
-        .in("user_id", followingIds)
-        .order("created_at", { ascending: false })
-        .limit(cappedLimit),
-      supabase
-        .from("follows")
-        .select("id, follower_id, following_id, created_at")
-        .in("follower_id", followingIds)
-        .order("created_at", { ascending: false })
-        .limit(cappedLimit),
-    ]);
+    let reviewsQuery = supabase
+      .from("reviews")
+      .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
+      .in("user_id", followingIds)
+      .order("created_at", { ascending: false })
+      .limit(fetchLimit);
+    if (cursor) reviewsQuery = reviewsQuery.lt("created_at", cursor);
+
+    let followsQuery = supabase
+      .from("follows")
+      .select("id, follower_id, following_id, created_at")
+      .in("follower_id", followingIds)
+      .order("created_at", { ascending: false })
+      .limit(fetchLimit);
+    if (cursor) followsQuery = followsQuery.lt("created_at", cursor);
+
+    const [reviewsRes, followsRes] = await Promise.all([reviewsQuery, followsQuery]);
 
     if (reviewsRes.error) throw reviewsRes.error;
     if (followsRes.error) throw followsRes.error;
@@ -903,10 +1085,14 @@ export async function getActivityFeed(
     const merged = [...reviewActivities, ...followActivities].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
-    return merged.slice(0, cappedLimit);
+    const items = merged.slice(0, limit);
+    const next_cursor =
+      items.length === limit ? items[items.length - 1].created_at : null;
+
+    return { items, next_cursor };
   } catch (e) {
-    console.error("[queries] getActivityFeed failed:", e);
-    return [];
+    console.error("[queries] getActivityFeedFallback failed:", e);
+    return { items: [], next_cursor: null };
   }
 }
 
