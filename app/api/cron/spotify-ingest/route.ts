@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
   console.log(
     "[cron] spotify-ingest complete",
-    JSON.stringify({ processed, totalInserted, totalSkipped }),
+    { processed, totalInserted, totalSkipped },
   );
 
   return NextResponse.json({

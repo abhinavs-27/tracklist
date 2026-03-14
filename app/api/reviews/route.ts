@@ -9,7 +9,7 @@ import {
 } from "@/lib/api-response";
 import { isValidSpotifyId } from "@/lib/validation";
 import { validateReviewContent } from "@/lib/validation";
-import { clampLimit, LIMITS } from "@/lib/validation";
+import { clampLimit } from "@/lib/validation";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_id>&limit= optional */
 export async function GET(request: NextRequest) {
@@ -166,6 +166,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return apiInternalError(error);
+    console.log("[reviews] review created/updated", {
+      userId: session.user.id,
+      reviewId: data.id,
+      entityType: data.entity_type,
+      entityId: data.entity_id,
+    });
     return NextResponse.json(data);
   } catch (e) {
     return apiInternalError(e);

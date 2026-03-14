@@ -67,6 +67,10 @@ export async function PATCH(
       .single();
 
     if (error) return apiInternalError(error);
+    console.log("[reviews] review updated", {
+      userId: session.user.id,
+      reviewId: data.id,
+    });
     return NextResponse.json(data);
   } catch (e) {
     return apiInternalError(e);
@@ -97,6 +101,10 @@ export async function DELETE(
 
     const { error } = await supabase.from("reviews").delete().eq("id", id);
     if (error) return apiInternalError(error);
+    console.log("[reviews] review deleted", {
+      userId: session.user.id,
+      reviewId: id,
+    });
     return new NextResponse(null, { status: 204 });
   } catch (e) {
     return apiInternalError(e);
