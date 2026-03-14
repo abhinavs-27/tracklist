@@ -23,7 +23,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid log id' }, { status: 400 });
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: log, error: fetchError } = await supabase
       .from('logs')
       .select('user_id')

@@ -25,7 +25,7 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       try {
         if (!user?.email) return false;
-        const supabase = createSupabaseServerClient();
+        const supabase = await createSupabaseServerClient();
         const { data: existing, error: existingError } = await supabase
           .from('users')
           .select('id')
@@ -60,7 +60,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user?.email) {
         try {
-          const supabase = createSupabaseServerClient();
+          const supabase = await createSupabaseServerClient();
           const { data: dbUser, error } = await supabase
             .from('users')
             .select('id, username, avatar_url, bio')

@@ -26,7 +26,7 @@ export async function POST(_request: NextRequest) {
       return apiInternalError(e);
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const recent = await getRecentlyPlayed(accessToken, 50);
     const items = recent.items ?? [];
 

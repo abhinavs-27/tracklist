@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!isValidUuid(followingId)) return apiBadRequest('Invalid following_id');
     if (followingId === session.user.id) return apiBadRequest('Cannot follow yourself');
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('follows').insert({
       follower_id: session.user.id,
       following_id: followingId,
@@ -54,7 +54,7 @@ export async function DELETE(request: NextRequest) {
     if (!followingId) return apiBadRequest('following_id is required');
     if (!isValidUuid(followingId)) return apiBadRequest('Invalid following_id');
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('follows')
       .delete()

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = clampLimit(searchParams.get('limit'), 20, 16);
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: reviews, error: reviewsError } = await supabase
       .from('reviews')

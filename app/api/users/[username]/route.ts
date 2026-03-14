@@ -29,7 +29,7 @@ export async function GET(
     if (!isValidUsername(username))
       return apiBadRequest("Invalid username format");
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: user, error } = await supabase
       .from("users")
       .select("id, username, avatar_url, bio, created_at")
@@ -101,7 +101,7 @@ export async function PATCH(
     if (!username || !isValidUsername(username))
       return apiBadRequest("Invalid username");
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: user } = await supabase
       .from("users")
       .select("id")

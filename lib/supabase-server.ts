@@ -1,23 +1,43 @@
-import 'server-only';
+import "server-only";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
 
 /**
- * Server-only client with service role (bypasses RLS).
- *
- * IMPORTANT:
- * - Never import this module from client components.
- * - Prefer using the anon client + RLS for user-facing operations when possible.
+ * Server Supabase client with cookie-based session support (anon key).
+ * Use in Server Components, Route Handlers, and Server Actions.
+ * When Supabase Auth is used, auth.uid() resolves from the session so RLS works.
  */
-export function createSupabaseServerClient() {
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+export async function createSupabaseServerClient() {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)"
+    );
   }
-  return createClient(supabaseUrl, supabaseServiceRoleKey);
+
+  const cookieStore = await cookies();
+
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // Ignore in Server Components where set is not allowed
+        }
+      },
+    },
+  });
 }
 
-export type SupabaseServerClient = ReturnType<typeof createSupabaseServerClient>;
-
+export type SupabaseServerClient = Awaited<
+  ReturnType<typeof createSupabaseServerClient>
+>;

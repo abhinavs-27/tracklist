@@ -174,9 +174,11 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 
 ### RLS and client usage
 
-- **spotify_tokens**: RLS enabled. No anon policies; all access is via server using **service role** (e.g. `createSupabaseServerClient` in `lib/supabase.ts` / `lib/supabase-server.ts`) or **admin client** (`lib/supabase-admin.ts`). Callback and token refresh write with admin/server client so `auth.uid()` is not required.
-- **spotify_recent_tracks**: RLS enabled; server uses admin (or service role) to read/write; no anon policies.
-- Other tables: Server-side code typically uses `createSupabaseServerClient()` (service role) for feed, logs, follow, discover, taste-match, etc. Client-side Supabase usage (if any) would use anon key and RLS; current app does most data access via API routes.
+- **Public client** (`lib/supabase-client.ts`): **anon key** (`NEXT_PUBLIC_SUPABASE_ANON_KEY`). Safe for browser and server. RLS applies. Use for all normal application queries.
+- **Server client** (`lib/supabase-server.ts`): **anon key** with cookie-based session support (`@supabase/ssr`). Use in Server Components, Route Handlers, Server Actions. When Supabase Auth is used, `auth.uid()` resolves so RLS works. Call with `await createSupabaseServerClient()`.
+- **Admin client** (`lib/supabase-admin.ts`): **service role key** only. Use for cron jobs, `spotify_tokens`, ingestion, and other backend tasks that must bypass RLS. Never expose to the browser.
+- **spotify_tokens** / **spotify_recent_tracks**: RLS enabled; no anon policies. All access via **admin client** (callback, token refresh, status, profile check, cron).
+- **Other tables**: Use **server client** (anon + cookies) for feed, logs, follow, discover, taste-match, etc., so RLS can apply when Supabase Auth is in use.
 
 ---
 

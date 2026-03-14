@@ -31,7 +31,7 @@ async function getListenLogsInternal(opts: {
   limit: number;
 }): Promise<ListenLogWithUser[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     let query = supabase
       .from("logs")
@@ -98,7 +98,7 @@ export async function getReviewsForEntity(
   limit = 20,
 ): Promise<ReviewsResult | null> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: rows, error } = await supabase
       .from("reviews")
@@ -192,7 +192,7 @@ export async function getReviewsForUser(
   limit = 30,
 ): Promise<ReviewWithUser[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: rows, error } = await supabase
       .from("reviews")
@@ -244,7 +244,7 @@ export async function getEntityStats(
   entityId: string,
 ): Promise<EntityStats> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     let listen_count = 0;
     if (entityType === "song") {
@@ -295,7 +295,7 @@ export async function getTrackStatsForTrackIds(
   if (trackIds.length === 0) return {};
 
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const [logsRes, reviewsRes] = await Promise.all([
       supabase.from("logs").select("track_id").in("track_id", trackIds),
@@ -347,7 +347,7 @@ export async function getReviewsForArtist(
   limit = 10,
 ): Promise<EntityReviewItem[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const [{ data: albumRows }, { data: songRows }] = await Promise.all([
       supabase.from("albums").select("id").eq("artist_id", artistId),
@@ -401,7 +401,7 @@ export async function getTopTracksForArtist(
   limit = 10,
 ): Promise<SpotifyApi.TrackObjectSimplified[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
       .from("songs")
@@ -472,7 +472,7 @@ export async function getListenLogsForArtist(
   limit = 20,
 ): Promise<ListenLogWithUser[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
       .from("songs")
@@ -521,7 +521,7 @@ export async function getPopularAlbumsForArtist(
   { id: string; name: string; image_url: string | null; listen_count: number; review_count: number; average_rating: number | null }[]
 > {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: albumRows } = await supabase
       .from("albums")
@@ -607,7 +607,7 @@ export async function getAlbumListeners(
   limit = 10,
 ): Promise<{ user_id: string; username: string; avatar_url: string | null; listened_at: string }[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
       .from("songs")
@@ -670,7 +670,7 @@ export async function getFollowers(
   limit = 100,
 ): Promise<{ id: string; follower_id: string }[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("follows")
       .select("id, follower_id")
@@ -691,7 +691,7 @@ export async function getFollowing(
   limit = 100,
 ): Promise<{ id: string; following_id: string }[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("follows")
       .select("id, following_id")
@@ -713,7 +713,7 @@ export async function isFollowing(
 ): Promise<boolean> {
   if (viewerUserId === targetUserId) return false;
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("follows")
       .select("id")
@@ -734,7 +734,7 @@ export async function getFollowCounts(userId: string): Promise<{
   following_count: number;
 }> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const [followersRes, followingRes] = await Promise.all([
       supabase
         .from("follows")
@@ -761,7 +761,7 @@ export async function searchUsers(
   limit = 20,
 ): Promise<{ id: string; username: string; avatar_url: string | null }[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const sanitized = sanitizeString(query, 100) ?? "";
     if (sanitized.length < 2) return [];
 
@@ -788,7 +788,7 @@ export async function getSuggestedUsers(
   limit = 10,
 ): Promise<{ id: string; username: string; avatar_url: string | null; followers_count: number }[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const [myFollowsRes, followCountsRes, usersRes] = await Promise.all([
       supabase.from("follows").select("following_id").eq("follower_id", userId),
@@ -834,7 +834,7 @@ export async function getReviewFeed(
   limit = 50,
 ): Promise<ReviewWithUser[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: followings, error: followError } = await supabase
       .from("follows")
@@ -899,7 +899,7 @@ export async function getActivityFeed(
   cursor: string | null = null,
 ): Promise<ActivityFeedPage> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const cappedLimit = Math.min(Math.max(1, limit), 100);
     const fetchLimit = cappedLimit * 2;
 
@@ -1003,7 +1003,7 @@ async function getActivityFeedFallback(
   cursor: string | null,
 ): Promise<ActivityFeedPage> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: followings, error: followError } = await supabase
       .from("follows")
       .select("following_id")
@@ -1102,7 +1102,7 @@ export async function getProfileActivity(
   limit = 30,
 ): Promise<FeedActivity[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const [reviewsRes, followsRes] = await Promise.all([
       supabase

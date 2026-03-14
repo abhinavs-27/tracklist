@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return apiBadRequest('Invalid listened_at date');
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from('logs')
       .insert({
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       return apiBadRequest('Invalid spotify_id');
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     let query = supabase
       .from('logs')

@@ -35,7 +35,7 @@ export async function PATCH(
     const b = body as Record<string, unknown>;
     const { rating, review_text } = b;
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: existing, error: fetchErr } = await supabase
       .from("reviews")
       .select("id, user_id")
@@ -85,7 +85,7 @@ export async function DELETE(
     const { id } = await ctx.params;
     if (!isValidUuid(id)) return apiBadRequest("Invalid review id");
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: existing, error: fetchErr } = await supabase
       .from("reviews")
       .select("id, user_id")

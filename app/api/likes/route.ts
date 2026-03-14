@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (!reviewId) return apiBadRequest('review_id is required');
     if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('likes').insert({
       user_id: session.user.id,
       review_id: reviewId,
@@ -53,7 +53,7 @@ export async function DELETE(request: NextRequest) {
     if (!reviewId) return apiBadRequest('review_id is required');
     if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('likes')
       .delete()

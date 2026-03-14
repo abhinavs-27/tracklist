@@ -9,11 +9,12 @@ import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getFollowCounts, isFollowing, getProfileActivity } from "@/lib/queries";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
       .from("spotify_tokens")
       .select("user_id")
@@ -33,7 +34,7 @@ export default async function ProfilePage({
   const { username } = await params;
   const session = await getServerSession(authOptions);
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data: user, error: userError } = await supabase
     .from("users")
     .select("id, username, avatar_url, bio, created_at")

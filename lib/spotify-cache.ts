@@ -1,4 +1,5 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   getAlbum,
@@ -55,7 +56,7 @@ type SongRow = {
 // --- Helpers: upsert from Spotify payloads
 
 export async function upsertArtistFromSpotify(
-  supabase: ReturnType<typeof createSupabaseServerClient>,
+  supabase: SupabaseClient,
   a: SpotifyApi.ArtistObjectFull | SpotifyApi.ArtistObjectSimplified,
 ) {
   const row = {
@@ -79,7 +80,7 @@ export async function upsertArtistFromSpotify(
 }
 
 export async function upsertAlbumFromSpotify(
-  supabase: ReturnType<typeof createSupabaseServerClient>,
+  supabase: SupabaseClient,
   album: SpotifyApi.AlbumObjectFull | SpotifyApi.AlbumObjectSimplified,
 ) {
   const first = album.artists?.[0];
@@ -111,7 +112,7 @@ export async function upsertAlbumFromSpotify(
 }
 
 export async function upsertTrackFromSpotify(
-  supabase: ReturnType<typeof createSupabaseServerClient>,
+  supabase: SupabaseClient,
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified,
   albumId: string,
   albumName: string,
@@ -176,7 +177,7 @@ export async function upsertTrackFromSpotify(
 export async function getOrFetchArtist(
   id: string,
 ): Promise<SpotifyApi.ArtistObjectFull> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
   // 1) try cache first
   const { data: row, error } = await supabase
@@ -241,7 +242,7 @@ export async function getOrFetchArtistAlbums(
   artistId: string,
   limit = 20,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const res = await getArtistAlbums(artistId, limit);
@@ -277,7 +278,7 @@ export async function getArtistTopTracksFromLogs(
   artistId: string,
   limit = 10,
 ): Promise<SpotifyApi.TrackObjectFull[]> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
   // 1) Pull a recent window of song logs and aggregate by track_id in code
   const { data: logRows, error: logsError } = await supabase
@@ -444,7 +445,7 @@ export async function getOrFetchAlbum(id: string): Promise<{
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
   const { data: albumRow, error: albumErr } = await supabase
     .from("albums")
@@ -626,7 +627,7 @@ export async function getOrFetchAlbum(id: string): Promise<{
 export async function getOrFetchTrack(
   id: string,
 ): Promise<SpotifyApi.TrackObjectFull> {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
   const { data: songRow, error } = await supabase
     .from("songs")

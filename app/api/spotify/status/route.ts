@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { apiUnauthorized, apiInternalError } from '@/lib/api-response';
 
 export type SpotifyStatusResponse = {
@@ -14,7 +14,7 @@ export async function GET(_request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    const supabase = createSupabaseServerClient();
+    const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
       .from('spotify_tokens')
       .select('expires_at')

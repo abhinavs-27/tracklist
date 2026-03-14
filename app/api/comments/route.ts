@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const contentResult = validateCommentContent(content);
     if (!contentResult.ok) return apiBadRequest(contentResult.error);
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from('comments')
       .insert({
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (!reviewId) return apiBadRequest('review_id is required');
     if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: comments, error } = await supabase
       .from('comments')
       .select('id, user_id, review_id, content, created_at')

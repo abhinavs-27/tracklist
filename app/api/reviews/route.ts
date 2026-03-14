@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       return apiBadRequest("Invalid entity_id (Spotify ID)");
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const { data: rows, error } = await supabase
       .from("reviews")
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     }
     const reviewText = validateReviewContent(review_text);
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const row = {
       user_id: session.user.id,
       entity_type: entity_type as string,

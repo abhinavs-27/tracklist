@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(body);
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     const [aRes, bRes] = await Promise.all([
       supabase
