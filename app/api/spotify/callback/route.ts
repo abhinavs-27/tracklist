@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { exchangeSpotifyCode } from "@/lib/spotify-user";
-import { getAppBaseUrl } from "@/lib/app-url";
+import { exchangeSpotifyCode, buildRedirectUriFromOrigin } from "@/lib/spotify-user";
+import { getRequestOrigin } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const token = await exchangeSpotifyCode(code);
+    const requestOrigin = getRequestOrigin(request);
+    const redirectUri = buildRedirectUriFromOrigin(requestOrigin);
+    const token = await exchangeSpotifyCode(code, redirectUri);
 
     if (!token.access_token || !token.expires_in) {
       return NextResponse.json(
@@ -116,7 +118,7 @@ export async function GET(request: NextRequest) {
       "spotify_oauth_return_to",
     )?.value;
     const fallback = `/profile/${session.user.username ?? ""}`;
-    const base = getAppBaseUrl();
+    const base = requestOrigin;
     const returnToQuery =
       cookieReturnTo &&
       cookieReturnTo.startsWith("/") &&

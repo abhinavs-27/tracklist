@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { apiUnauthorized, apiInternalError } from '@/lib/api-response';
 import { getSpotifyAuthorizeUrl } from '@/lib/spotify-user';
+import { getRequestOrigin } from '@/lib/app-url';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import crypto from 'crypto';
 
@@ -20,9 +21,10 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const returnTo = url.searchParams.get('returnTo') ?? '/profile';
     const state = crypto.randomBytes(32).toString('hex');
+    const origin = getRequestOrigin(request);
 
-    const authorizeUrl = getSpotifyAuthorizeUrl(state);
-    console.log('Spotify connect: redirecting to authorize', { returnTo, stateLength: state.length });
+    const authorizeUrl = getSpotifyAuthorizeUrl(state, origin);
+    console.log('Spotify connect: redirecting to authorize', { returnTo, origin, stateLength: state.length });
 
     const res = NextResponse.redirect(authorizeUrl, { status: 302 });
     res.cookies.set('spotify_oauth_state', state, {

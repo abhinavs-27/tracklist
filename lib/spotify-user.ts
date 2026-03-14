@@ -44,9 +44,21 @@ function buildRedirectUri(): string {
   return uri.replace(/\/$/, "");
 }
 
-export function getSpotifyAuthorizeUrl(state: string): string {
+/** Build redirect URI from request origin so it always matches the URL the user is on (e.g. tracklistsocial.com). */
+export function buildRedirectUriFromOrigin(origin: string): string {
+  const base = origin.replace(/\/$/, "");
+  return `${base}/api/spotify/callback`;
+}
+
+export function getSpotifyAuthorizeUrl(
+  state: string,
+  /** When provided (e.g. from request), ensures redirect_uri matches the host the user is visiting. */
+  requestOrigin?: string,
+): string {
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
-  const redirectUri = buildRedirectUri();
+  const redirectUri = requestOrigin
+    ? buildRedirectUriFromOrigin(requestOrigin)
+    : buildRedirectUri();
   console.log("Spotify authorize: redirect_uri (add this exact URL in Spotify Dashboard):", redirectUri);
   const scopes = [
     "user-read-recently-played",
@@ -67,10 +79,12 @@ export function getSpotifyAuthorizeUrl(state: string): string {
 
 export async function exchangeSpotifyCode(
   code: string,
+  /** Must match the redirect_uri used in the authorize request (e.g. from callback request origin). */
+  redirectUriOverride?: string,
 ): Promise<SpotifyTokenResponse> {
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
   const clientSecret = requiredEnv("SPOTIFY_CLIENT_SECRET");
-  const redirectUri = buildRedirectUri();
+  const redirectUri = redirectUriOverride ?? buildRedirectUri();
 
   const res = await fetch(`${SPOTIFY_ACCOUNTS_BASE}/api/token`, {
     method: "POST",

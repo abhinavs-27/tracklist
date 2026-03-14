@@ -1,7 +1,25 @@
+import type { NextRequest } from "next/server";
+
 /**
  * Single source of truth for the app's base URL. Ensures production never
  * uses localhost (e.g. when NEXTAUTH_URL is mistakenly set to 127.0.0.1).
  */
+
+/**
+ * Get the origin (scheme + host) from the incoming request. Prefers
+ * x-forwarded-host / x-forwarded-proto so the public URL is used (e.g.
+ * https://tracklistsocial.com when behind Vercel).
+ */
+export function getRequestOrigin(request: NextRequest): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedHost) {
+    const proto = (forwardedProto ?? "https").replace(/:$/, "") || "https";
+    const host = forwardedHost.split(",")[0].trim();
+    return `${proto}://${host}`.replace(/\/$/, "");
+  }
+  return new URL(request.url).origin;
+}
 
 /** Exported for use in Spotify redirect URI logic (never use localhost in prod). */
 export function isLocalhostUrl(url: string): boolean {
