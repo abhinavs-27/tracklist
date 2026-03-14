@@ -41,11 +41,11 @@ export async function GET(
     const [followersRes, followingRes] = await Promise.all([
       supabase
         .from("follows")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("following_id", user.id),
       supabase
         .from("follows")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("follower_id", user.id),
     ]);
 
@@ -141,7 +141,7 @@ export async function PATCH(
       .from("users")
       .update(updates)
       .eq("id", session.user.id)
-      .select()
+      .select("id, username, avatar_url, bio, created_at")
       .single();
 
     if (error) {

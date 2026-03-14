@@ -14,30 +14,35 @@ import type { FeedActivity } from "@/types";
 export async function getListenLogsForUser(
   userId: string,
   limit = 30,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
-  return getListenLogsInternal({ userId, limit });
+  return getListenLogsInternal({ userId, limit, offset });
 }
 
 export async function getListenLogsForTrack(
   spotifyTrackId: string,
   limit = 30,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
-  return getListenLogsInternal({ spotifyTrackId, limit });
+  return getListenLogsInternal({ spotifyTrackId, limit, offset });
 }
 
 async function getListenLogsInternal(opts: {
   userId?: string;
   spotifyTrackId?: string;
   limit: number;
+  offset?: number;
 }): Promise<ListenLogWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, opts.limit), 100);
+    const cappedOffset = Math.max(0, opts.offset ?? 0);
 
     let query = supabase
       .from("logs")
       .select("id, user_id, track_id, listened_at, source, created_at")
       .order("listened_at", { ascending: false })
-      .limit(opts.limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
     if (opts.userId) query = query.eq("user_id", opts.userId);
     if (opts.spotifyTrackId)
@@ -98,9 +103,12 @@ export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
+  offset = 0,
 ): Promise<ReviewsResult | null> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedOffset = Math.max(0, offset);
 
     const { data: rows, error } = await supabase
       .from("reviews")
@@ -110,7 +118,7 @@ export async function getReviewsForEntity(
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
     if (error) return null;
 
@@ -196,9 +204,12 @@ export async function getReviewsForEntity(
 export async function getReviewsForUser(
   userId: string,
   limit = 30,
+  offset = 0,
 ): Promise<ReviewWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedOffset = Math.max(0, offset);
 
     const { data: rows, error } = await supabase
       .from("reviews")
@@ -207,7 +218,7 @@ export async function getReviewsForUser(
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
     if (error || !rows?.length) return [];
 
@@ -366,9 +377,12 @@ export async function getTrackStatsForTrackIds(
 export async function getReviewsForArtist(
   artistId: string,
   limit = 10,
+  offset = 0,
 ): Promise<EntityReviewItem[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedOffset = Math.max(0, offset);
 
     const [{ data: albumRows }, { data: songRows }] = await Promise.all([
       supabase.from("albums").select("id").eq("artist_id", artistId),
@@ -388,7 +402,7 @@ export async function getReviewsForArtist(
       )
       .in("entity_id", entityIds)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
     if (error || !rows?.length) return [];
 
@@ -491,9 +505,12 @@ export async function getTopTracksForArtist(
 export async function getListenLogsForArtist(
   artistId: string,
   limit = 20,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedOffset = Math.max(0, offset);
 
     const { data: songRows } = await supabase
       .from("songs")
@@ -508,7 +525,7 @@ export async function getListenLogsForArtist(
       .select("id, user_id, track_id, listened_at, source, created_at")
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
-      .limit(limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
     if (error || !logs?.length) return [];
 
@@ -538,9 +555,12 @@ export async function getListenLogsForArtist(
 export async function getListenLogsForAlbum(
   albumId: string,
   limit = 20,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedOffset = Math.max(0, offset);
 
     const { data: songRows } = await supabase
       .from("songs")
@@ -555,7 +575,7 @@ export async function getListenLogsForAlbum(
       .select("id, user_id, track_id, listened_at, source, created_at")
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
-      .limit(limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
     if (error || !logs?.length) return [];
 
@@ -748,15 +768,19 @@ export async function getAlbumListeners(
 export async function getFollowers(
   userId: string,
   limit = 100,
+  offset = 0,
 ): Promise<{ id: string; follower_id: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 1000);
+    const cappedOffset = Math.max(0, offset);
+
     const { data, error } = await supabase
       .from("follows")
       .select("id, follower_id")
       .eq("following_id", userId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
     if (error) throw error;
     return (data ?? []) as { id: string; follower_id: string }[];
   } catch (e) {
@@ -769,15 +793,19 @@ export async function getFollowers(
 export async function getFollowing(
   userId: string,
   limit = 100,
+  offset = 0,
 ): Promise<{ id: string; following_id: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 1000);
+    const cappedOffset = Math.max(0, offset);
+
     const { data, error } = await supabase
       .from("follows")
       .select("id, following_id")
       .eq("follower_id", userId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
     if (error) throw error;
     return (data ?? []) as { id: string; following_id: string }[];
   } catch (e) {
@@ -840,20 +868,21 @@ const USER_SEARCH_QUERY_MAX_LENGTH = 50;
 /** User search by username (ILIKE). Excludes excludeUserId, returns followers_count via RPC when available. */
 export async function searchUsers(
   query: string,
-  limit = 20,
-  excludeUserId: string | null = null,
+  opts: { limit?: number; offset?: number; excludeUserId?: string | null } = {},
 ): Promise<{ id: string; username: string; avatar_url: string | null; followers_count: number }[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const sanitized = sanitizeString(query, USER_SEARCH_QUERY_MAX_LENGTH) ?? "";
     if (sanitized.length < 2) return [];
 
-    const cappedLimit = Math.min(Math.max(1, limit), 50);
+    const cappedLimit = Math.min(Math.max(1, opts.limit ?? 20), 50);
+    const cappedOffset = Math.max(0, opts.offset ?? 0);
 
     const { data: rpcData, error: rpcError } = await supabase.rpc("get_user_search", {
       p_query: sanitized,
       p_limit: cappedLimit,
-      p_exclude_user_id: excludeUserId || null,
+      p_offset: cappedOffset,
+      p_exclude_user_id: opts.excludeUserId || null,
     });
 
     if (!rpcError && Array.isArray(rpcData)) {
@@ -876,8 +905,8 @@ export async function searchUsers(
       .select("id, username, avatar_url")
       .ilike("username", `%${sanitized}%`)
       .order("username", { ascending: true })
-      .limit(cappedLimit);
-    if (excludeUserId) q = q.neq("id", excludeUserId);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
+    if (opts.excludeUserId) q = q.neq("id", opts.excludeUserId);
     const { data, error } = await q;
     if (error) throw error;
     return (data ?? []).map((u) => ({
@@ -1202,9 +1231,12 @@ async function getActivityFeedFallback(
 export async function getProfileActivity(
   userId: string,
   limit = 30,
+  offset = 0,
 ): Promise<FeedActivity[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedOffset = Math.max(0, offset);
 
     const [reviewsRes, followsRes] = await Promise.all([
       supabase
@@ -1212,13 +1244,13 @@ export async function getProfileActivity(
         .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
-        .limit(limit),
+        .range(cappedOffset, cappedOffset + cappedLimit - 1),
       supabase
         .from("follows")
         .select("id, follower_id, following_id, created_at")
         .eq("follower_id", userId)
         .order("created_at", { ascending: false })
-        .limit(limit),
+        .range(cappedOffset, cappedOffset + cappedLimit - 1),
     ]);
 
     if (reviewsRes.error) throw reviewsRes.error;
@@ -1494,11 +1526,13 @@ export type ListSearchResult = {
 export async function searchLists(
   query: string,
   limit = 20,
+  offset = 0,
 ): Promise<ListSearchResult[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const sanitized = sanitizeString(query, 100) ?? "";
     const cappedLimit = Math.min(Math.max(1, limit), 50);
+    const cappedOffset = Math.max(0, offset);
 
     if (sanitized.length < 2) return [];
 
@@ -1507,7 +1541,7 @@ export async function searchLists(
       .select("id, user_id, title, description, created_at")
       .ilike("title", `%${sanitized}%`)
       .order("created_at", { ascending: false })
-      .limit(cappedLimit);
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
     if (listError) throw listError;
     if (!listRows?.length) return [];
