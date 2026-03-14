@@ -1,19 +1,60 @@
-import Link from 'next/link';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { DiscoverUsersGrid } from '@/components/discover-users-grid';
-import { getSuggestedUsers } from '@/lib/queries';
-import { FollowButton } from '@/components/follow-button';
+import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { DiscoverUsersGrid } from "@/components/discover-users-grid";
+import { getSuggestedUsers, getTrendingEntities, getRisingArtists, getHiddenGems } from "@/lib/queries";
+import { getOrFetchTrack } from "@/lib/spotify-cache";
+import { getOrFetchAlbum } from "@/lib/spotify-cache";
+import { FollowButton } from "@/components/follow-button";
+import { TrendingSection } from "./trending-section";
+import { RisingArtistsSection } from "./rising-artists-section";
+import { HiddenGemsSection } from "./hidden-gems-section";
+
+const MAX_ITEMS = 20;
 
 export default async function DiscoverPage() {
   const session = await getServerSession(authOptions);
   const suggested = session?.user?.id ? await getSuggestedUsers(session.user.id, 10) : [];
 
+  const [trendingRaw, risingArtists, hiddenGemsRaw] = await Promise.all([
+    getTrendingEntities(MAX_ITEMS),
+    getRisingArtists(MAX_ITEMS, 7),
+    getHiddenGems(MAX_ITEMS, 4, 50),
+  ]);
+
+  const trendingEnriched = await Promise.all(
+    trendingRaw.map(async (entity) => {
+      try {
+        const track = await getOrFetchTrack(entity.entity_id);
+        return { entity, track };
+      } catch {
+        return { entity, track: null };
+      }
+    })
+  );
+
+  const hiddenGemsEnriched = await Promise.all(
+    hiddenGemsRaw.map(async (gem) => {
+      try {
+        if (gem.entity_type === "album") {
+          const { album } = await getOrFetchAlbum(gem.entity_id);
+          return { gem, album, track: null };
+        }
+        const track = await getOrFetchTrack(gem.entity_id);
+        return { gem, album: null, track };
+      } catch {
+        return { gem, album: null, track: null };
+      }
+    })
+  );
+
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-bold text-white">Discover</h1>
-        <p className="mt-1 text-zinc-400">Find people who are listening right now.</p>
+        <p className="mt-1 text-zinc-400">
+          Trending tracks, rising artists, hidden gems, and people to follow.
+        </p>
         <Link
           href="/search/users"
           className="mt-2 inline-block text-sm text-emerald-400 hover:underline"
@@ -21,6 +62,12 @@ export default async function DiscoverPage() {
           Search users by username →
         </Link>
       </header>
+
+      <TrendingSection items={trendingEnriched} />
+
+      <RisingArtistsSection artists={risingArtists} />
+
+      <HiddenGemsSection items={hiddenGemsEnriched} />
 
       {session?.user?.id && (
         <section>
@@ -42,13 +89,13 @@ export default async function DiscoverPage() {
                         />
                       ) : (
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm font-medium text-zinc-300">
-                          {u.username[0]?.toUpperCase() ?? '?'}
+                          {u.username[0]?.toUpperCase() ?? "?"}
                         </span>
                       )}
                       <div className="min-w-0">
                         <p className="font-medium text-white">{u.username}</p>
                         <p className="text-xs text-zinc-500">
-                          {u.followers_count} follower{u.followers_count !== 1 ? 's' : ''}
+                          {u.followers_count} follower{u.followers_count !== 1 ? "s" : ""}
                         </p>
                       </div>
                     </Link>
@@ -72,4 +119,3 @@ export default async function DiscoverPage() {
     </div>
   );
 }
-

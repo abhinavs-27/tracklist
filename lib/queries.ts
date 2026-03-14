@@ -1559,3 +1559,108 @@ export async function getListOwnerId(listId: string): Promise<string | null> {
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Discovery (trending, rising artists, hidden gems)
+// ---------------------------------------------------------------------------
+
+export type TrendingEntity = {
+  entity_id: string;
+  entity_type: string;
+  listen_count: number;
+};
+
+export async function getTrendingEntities(
+  limit = 20,
+): Promise<TrendingEntity[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const capped = Math.min(Math.max(1, limit), 50);
+    const { data, error } = await supabase.rpc("get_trending_entities", {
+      p_limit: capped,
+    });
+    if (error) {
+      console.warn("[queries] get_trending_entities RPC failed (migration 021):", error.message);
+      return [];
+    }
+    return (data ?? []).map((r: { entity_id: string; entity_type: string; listen_count: number }) => ({
+      entity_id: r.entity_id,
+      entity_type: r.entity_type ?? "song",
+      listen_count: Number(r.listen_count) || 0,
+    }));
+  } catch (e) {
+    console.error("[queries] getTrendingEntities failed:", e);
+    return [];
+  }
+}
+
+export type RisingArtist = {
+  artist_id: string;
+  name: string;
+  avatar_url: string | null;
+  growth: number;
+};
+
+export async function getRisingArtists(
+  limit = 20,
+  windowDays = 7,
+): Promise<RisingArtist[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 50);
+    const cappedWindow = Math.min(Math.max(1, windowDays), 90);
+    const { data, error } = await supabase.rpc("get_rising_artists", {
+      p_limit: cappedLimit,
+      p_window_days: cappedWindow,
+    });
+    if (error) {
+      console.warn("[queries] get_rising_artists RPC failed (migration 021):", error.message);
+      return [];
+    }
+    return (data ?? []).map((r: { artist_id: string; name: string; avatar_url: string | null; growth: number }) => ({
+      artist_id: r.artist_id,
+      name: r.name ?? "",
+      avatar_url: r.avatar_url ?? null,
+      growth: Number(r.growth) || 0,
+    }));
+  } catch (e) {
+    console.error("[queries] getRisingArtists failed:", e);
+    return [];
+  }
+}
+
+export type HiddenGem = {
+  entity_id: string;
+  entity_type: string;
+  avg_rating: number;
+  listen_count: number;
+};
+
+export async function getHiddenGems(
+  limit = 20,
+  minRating = 4,
+  maxListens = 50,
+): Promise<HiddenGem[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const cappedLimit = Math.min(Math.max(1, limit), 50);
+    const { data, error } = await supabase.rpc("get_hidden_gems", {
+      p_limit: cappedLimit,
+      p_min_rating: minRating,
+      p_max_listens: maxListens,
+    });
+    if (error) {
+      console.warn("[queries] get_hidden_gems RPC failed (migration 021):", error.message);
+      return [];
+    }
+    return (data ?? []).map((r: { entity_id: string; entity_type: string; avg_rating: number; listen_count: number }) => ({
+      entity_id: r.entity_id,
+      entity_type: r.entity_type ?? "song",
+      avg_rating: Number(r.avg_rating) || 0,
+      listen_count: Number(r.listen_count) || 0,
+    }));
+  } catch (e) {
+    console.error("[queries] getHiddenGems failed:", e);
+    return [];
+  }
+}

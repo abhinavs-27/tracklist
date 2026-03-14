@@ -1,12 +1,72 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Discover', () => {
-  test('discover page shows Discover heading and Suggested users or Recently active', async ({ page }) => {
+  test('GET /api/discover/trending returns 200 and array', async ({ request }) => {
+    const res = await request.get('/api/discover/trending');
+    expect(res.status()).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      expect(data[0]).toMatchObject({
+        entity_id: expect.any(String),
+        entity_type: expect.any(String),
+        listen_count: expect.any(Number),
+      });
+    }
+  });
+
+  test('GET /api/discover/rising-artists returns 200 and array', async ({ request }) => {
+    const res = await request.get('/api/discover/rising-artists');
+    expect(res.status()).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      expect(data[0]).toMatchObject({
+        artist_id: expect.any(String),
+        name: expect.any(String),
+        growth: expect.any(Number),
+      });
+    }
+  });
+
+  test('GET /api/discover/hidden-gems returns 200 and array', async ({ request }) => {
+    const res = await request.get('/api/discover/hidden-gems');
+    expect(res.status()).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      expect(data[0]).toMatchObject({
+        entity_id: expect.any(String),
+        entity_type: expect.any(String),
+        avg_rating: expect.any(Number),
+        listen_count: expect.any(Number),
+      });
+    }
+  });
+
+  test('discover API endpoints return empty array when no data', async ({ request }) => {
+    const [trending, rising, gems] = await Promise.all([
+      request.get('/api/discover/trending'),
+      request.get('/api/discover/rising-artists'),
+      request.get('/api/discover/hidden-gems'),
+    ]);
+    expect(trending.status()).toBe(200);
+    expect(rising.status()).toBe(200);
+    expect(gems.status()).toBe(200);
+    expect(Array.isArray(await trending.json())).toBe(true);
+    expect(Array.isArray(await rising.json())).toBe(true);
+    expect(Array.isArray(await gems.json())).toBe(true);
+  });
+
+  test('discover page shows Discover heading and discovery sections', async ({ page }) => {
     await page.goto('/discover');
     await expect(page.getByRole('heading', { name: /discover/i })).toBeVisible();
+    const hasTrending = await page.getByRole('heading', { name: /trending/i }).isVisible();
+    const hasRising = await page.getByRole('heading', { name: /rising artists/i }).isVisible();
+    const hasHidden = await page.getByRole('heading', { name: /hidden gems/i }).isVisible();
     const hasSuggested = await page.getByRole('heading', { name: /suggested users/i }).isVisible();
     const hasRecentlyActive = await page.getByRole('heading', { name: /recently active/i }).isVisible();
-    expect(hasSuggested || hasRecentlyActive).toBeTruthy();
+    expect(hasTrending || hasRising || hasHidden || hasSuggested || hasRecentlyActive).toBeTruthy();
   });
 
   test('discover page has link to search users', async ({ page }) => {

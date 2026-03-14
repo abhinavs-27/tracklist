@@ -31,6 +31,12 @@ export function Navbar() {
           >
             Feed
           </Link>
+          <Link
+            href="/discover"
+            className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+          >
+            Discover
+          </Link>
           {session && (
             <>
               <Link
