@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ProfileHeader } from "@/components/profile-header";
-import { ReviewCard } from "@/components/review-card";
+import { FeedItem } from "@/components/feed-item";
 import { TasteMatchSection } from "@/components/taste-match";
 import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-with-sync";
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
@@ -132,11 +132,11 @@ export default async function ProfilePage({
 
       <section>
         <h2 className="mb-4 text-lg font-semibold text-white">
-          Recent Activity
+          Recent activity
         </h2>
         {activity.length === 0 ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-            <p className="text-zinc-500">No reviews or follows yet.</p>
+            <p className="text-zinc-500">No recent activity yet.</p>
             {isOwnProfile && (
               <Link
                 href="/search"
@@ -148,36 +148,11 @@ export default async function ProfilePage({
           </div>
         ) : (
           <ul className="space-y-4">
-            {activity.map((item) =>
-              item.type === "review" ? (
-                <li key={item.review.id}>
-                  <ReviewCard review={item.review} />
-                </li>
-              ) : (
-                <li key={item.id}>
-                  <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                    <p className="text-sm text-zinc-300">
-                      <Link
-                        href={item.follower_username ? `/profile/${item.follower_username}` : "#"}
-                        className="font-medium text-white hover:text-emerald-400 hover:underline"
-                      >
-                        {item.follower_username ?? "Someone"}
-                      </Link>
-                      {" followed "}
-                      <Link
-                        href={item.following_username ? `/profile/${item.following_username}` : "#"}
-                        className="font-medium text-white hover:text-emerald-400 hover:underline"
-                      >
-                        {item.following_username ?? "someone"}
-                      </Link>
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      {new Date(item.created_at).toLocaleDateString()}
-                    </p>
-                  </article>
-                </li>
-              ),
-            )}
+            {activity.map((item) => (
+              <li key={item.type === "review" ? item.review.id : item.id}>
+                <FeedItem activity={item} />
+              </li>
+            ))}
           </ul>
         )}
       </section>

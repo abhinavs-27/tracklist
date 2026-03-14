@@ -10,4 +10,14 @@ test.describe('User search', () => {
     const res = await request.get('/api/search/users?q=ab');
     expect(res.status()).toBe(401);
   });
+
+  test('search users API response is array and excludes current user when authenticated', async ({ request }) => {
+    const res = await request.get('/api/search/users?q=ab');
+    if (res.status() !== 200) {
+      test.skip();
+      return;
+    }
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
 });

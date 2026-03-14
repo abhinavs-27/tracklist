@@ -5,6 +5,7 @@ import { getFeedForUser } from '@/lib/feed';
 import { apiUnauthorized, apiInternalError } from '@/lib/api-response';
 import { clampLimit, LIMITS } from '@/lib/validation';
 
+/** GET /api/feed?limit=<1-100>&cursor=<ISO timestamp>. Returns { items: FeedActivity[], next_cursor: string | null }. */
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
