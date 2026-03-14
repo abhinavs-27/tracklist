@@ -1276,6 +1276,39 @@ export async function getProfileActivity(
   }
 }
 
+/** Batch-fetch display names for review entities from songs and albums tables. */
+export async function getEntityDisplayNames(
+  items: { entity_type: "album" | "song"; entity_id: string }[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (items.length === 0) return map;
+
+  const songIds = items.filter((i) => i.entity_type === "song").map((i) => i.entity_id);
+  const albumIds = items.filter((i) => i.entity_type === "album").map((i) => i.entity_id);
+
+  const supabase = await createSupabaseServerClient();
+
+  if (songIds.length > 0) {
+    const { data: songs } = await supabase
+      .from("songs")
+      .select("id, name")
+      .in("id", songIds);
+    for (const s of songs ?? []) {
+      if (s.name) map.set(s.id, s.name);
+    }
+  }
+  if (albumIds.length > 0) {
+    const { data: albums } = await supabase
+      .from("albums")
+      .select("id, name")
+      .in("id", albumIds);
+    for (const a of albums ?? []) {
+      if (a.name) map.set(a.id, a.name);
+    }
+  }
+  return map;
+}
+
 // ---------------------------------------------------------------------------
 // User lists (curated albums/songs)
 // ---------------------------------------------------------------------------

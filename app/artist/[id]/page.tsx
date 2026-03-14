@@ -9,6 +9,7 @@ import {
   getListenLogsForArtist,
   getPopularAlbumsForArtist,
 } from "@/lib/queries";
+import { getOrFetchTrack } from "@/lib/spotify-cache";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -22,13 +23,24 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const [topTracks, popularAlbums, recentReviews, recentListens] =
+  const [topTracks, popularAlbums, recentReviews, recentListensRaw] =
     await Promise.all([
       getTopTracksForArtist(id, 10),
       getPopularAlbumsForArtist(id, 12),
       getReviewsForArtist(id, 8),
       getListenLogsForArtist(id, 10),
     ]);
+
+  const recentListens = await Promise.all(
+    recentListensRaw.map(async (log) => {
+      try {
+        const track = await getOrFetchTrack(log.track_id);
+        return { log, trackName: track?.name ?? undefined };
+      } catch {
+        return { log, trackName: undefined };
+      }
+    }),
+  );
 
   const image = artist.images?.[0]?.url;
 
@@ -164,9 +176,9 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
             Recent listens
           </h2>
           <ul className="space-y-2">
-            {recentListens.map((log) => (
+            {recentListens.map(({ log, trackName }) => (
               <li key={log.id}>
-                <ListenCard log={log} />
+                <ListenCard log={log} trackName={trackName} />
               </li>
             ))}
           </ul>

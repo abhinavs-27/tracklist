@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getFeedForUser } from '@/lib/feed';
+import { getFeedForUser, enrichFeedActivitiesWithEntityNames } from '@/lib/feed';
 import { FeedItem } from '@/components/feed-item';
 import { FeedLoadMore } from '@/components/feed-load-more';
 
@@ -12,6 +12,7 @@ export default async function FeedPage() {
   }
 
   const { items, next_cursor } = await getFeedForUser(session.user.id, 50, null);
+  const enriched = await enrichFeedActivitiesWithEntityNames(items);
 
   return (
     <div>
@@ -23,9 +24,12 @@ export default async function FeedPage() {
       ) : (
         <>
           <ul className="space-y-4">
-            {items.map((activity) => (
+            {enriched.map((activity) => (
               <li key={activity.type === 'review' ? activity.review.id : activity.id}>
-                <FeedItem activity={activity} />
+                <FeedItem
+                  activity={activity}
+                  spotifyName={'spotifyName' in activity ? activity.spotifyName : undefined}
+                />
               </li>
             ))}
           </ul>

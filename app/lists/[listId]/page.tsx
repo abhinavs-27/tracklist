@@ -105,7 +105,7 @@ export default async function ListDetailPage({ params }: { params: PageParams })
                   ) : (
                     <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
                       <p className="text-zinc-400">
-                        {item.entity_type} {item.entity_id}
+                        {item.entity_type === 'album' ? 'Unknown album' : 'Unknown track'}
                       </p>
                     </div>
                   )}

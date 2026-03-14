@@ -11,6 +11,7 @@ import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getFollowCounts, isFollowing, getProfileActivity, getUserLists } from "@/lib/queries";
+import { enrichFeedActivitiesWithEntityNames } from "@/lib/feed";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[username]/profile-lists-section";
 
@@ -75,7 +76,7 @@ export default async function ProfilePage({
 
   const isOwnProfile = !!profile.is_own_profile;
 
-  const [activity, spotifyHasToken, userLists] = await Promise.all([
+  const [activityRaw, spotifyHasToken, userLists] = await Promise.all([
     getProfileActivity(profile.id, 30),
     isOwnProfile && session?.user?.id
       ? hasSpotifyToken(session.user.id)
@@ -83,6 +84,7 @@ export default async function ProfilePage({
     getUserLists(profile.id, 50, 0),
   ]);
 
+  const activity = await enrichFeedActivitiesWithEntityNames(activityRaw);
   const spotifyConnected = spotifyHasToken;
 
   return (
@@ -206,7 +208,10 @@ export default async function ProfilePage({
           <ul className="space-y-4">
             {activity.map((item) => (
               <li key={item.type === "review" ? item.review.id : item.id}>
-                <FeedItem activity={item} />
+                <FeedItem
+                  activity={item}
+                  spotifyName={"spotifyName" in item ? item.spotifyName : undefined}
+                />
               </li>
             ))}
           </ul>

@@ -39,7 +39,10 @@ export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
         <ul className="space-y-4">
           {items.map((activity) => (
             <li key={activity.type === 'review' ? activity.review.id : activity.id}>
-              <FeedItem activity={activity} />
+              <FeedItem
+                activity={activity}
+                spotifyName={'spotifyName' in activity ? activity.spotifyName : undefined}
+              />
             </li>
           ))}
         </ul>

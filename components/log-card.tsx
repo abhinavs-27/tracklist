@@ -13,7 +13,7 @@ interface LogCardProps {
  */
 export function LogCard({ log, trackName }: LogCardProps) {
   const user = log.user;
-  const displayName = trackName ?? log.track_id;
+  const displayName = trackName ?? 'Unknown track';
 
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">

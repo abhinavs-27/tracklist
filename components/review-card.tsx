@@ -24,7 +24,12 @@ export function ReviewCard({
 }: ReviewCardProps) {
   const user = review.user;
   const rating = Math.max(0, Math.min(5, Math.floor(review.rating)));
-  const displayName = spotifyName ?? review.entity_id;
+  const fallback = review.entity_type === 'album' ? 'Unknown album' : 'Unknown track';
+  const rawName = spotifyName ?? fallback;
+  const displayName =
+    typeof rawName === 'string' && rawName.trim() && !/^[a-zA-Z0-9]{22}$/.test(rawName.trim())
+      ? rawName.trim()
+      : fallback;
   const typeLabel = review.entity_type === 'album' ? 'Album' : 'Track';
   const entityHref =
     review.entity_type === 'album'

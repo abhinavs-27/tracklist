@@ -10,7 +10,7 @@ interface ListenCardProps {
 
 export function ListenCard({ log, trackName }: ListenCardProps) {
   const user = log.user;
-  const displayName = trackName ?? log.track_id;
+  const displayName = trackName ?? 'Unknown track';
 
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 transition-colors hover:bg-zinc-900/70">
