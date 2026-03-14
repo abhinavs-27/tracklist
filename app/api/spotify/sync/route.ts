@@ -102,6 +102,12 @@ export async function POST(request: NextRequest) {
     );
     if (insertError) return apiInternalError(insertError);
 
+    console.log("[spotify-sync] spotify sync complete", {
+      userId: session.user.id,
+      inserted: toInsert.length,
+      skipped: unique.length - toInsert.length,
+    });
+
     return NextResponse.json({
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,

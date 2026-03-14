@@ -149,6 +149,10 @@ export async function PATCH(
       console.error("User update error:", error);
       return apiInternalError(error);
     }
+    console.log("[users] user profile updated", {
+      userId: session.user.id,
+      fields: Object.keys(updates),
+    });
     return NextResponse.json(data);
   } catch (e) {
     return apiInternalError(e);

@@ -38,6 +38,10 @@ export async function POST(request: NextRequest) {
       console.error('Follow error:', error);
       return apiInternalError(error);
     }
+    console.log("[follow] user followed", {
+      followerId: session.user.id,
+      followingId,
+    });
     return NextResponse.json({ success: true });
   } catch (e) {
     return apiInternalError(e);
@@ -65,6 +69,10 @@ export async function DELETE(request: NextRequest) {
       console.error('Unfollow error:', error);
       return apiInternalError(error);
     }
+    console.log("[follow] user unfollowed", {
+      followerId: session.user.id,
+      followingId,
+    });
     return NextResponse.json({ success: true });
   } catch (e) {
     return apiInternalError(e);

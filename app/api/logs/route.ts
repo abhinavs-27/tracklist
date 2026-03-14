@@ -8,7 +8,6 @@ import {
   apiInternalError,
 } from '@/lib/api-response';
 import {
-  isValidUuid,
   isValidSpotifyId,
   clampLimit,
   LIMITS,
@@ -61,6 +60,10 @@ export async function POST(request: NextRequest) {
       console.error('Log create error:', error);
       return apiInternalError(error);
     }
+    console.log("[logs] manual log created", {
+      userId: session.user.id,
+      trackId,
+    });
     return NextResponse.json(data);
   } catch (e) {
     return apiInternalError(e);

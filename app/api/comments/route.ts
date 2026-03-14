@@ -42,6 +42,12 @@ export async function POST(request: NextRequest) {
       return apiInternalError(error);
     }
 
+    console.log("[comments] comment created", {
+      userId: session.user.id,
+      commentId: data.id,
+      reviewId: data.review_id,
+    });
+
     const { data: user } = await supabase.from('users').select('id, username, avatar_url').eq('id', session.user.id).single();
     return NextResponse.json({ ...data, user: user ?? null });
   } catch (e) {

@@ -44,6 +44,11 @@ export async function POST(request: NextRequest) {
     const list = await createList(session.user.id, titleResult.value, description);
     if (!list) return apiInternalError(new Error("createList returned null"));
 
+    console.log("[lists] list created", {
+      userId: session.user.id,
+      listId: list.id,
+    });
+
     return NextResponse.json(list);
   } catch (e) {
     return apiInternalError(e);
