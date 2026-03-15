@@ -51,16 +51,22 @@ export default async function ProfilePage({
     notFound();
   }
 
-  const [counts, followingFlag] = await Promise.all([
+  const profileSettled = await Promise.allSettled([
     getFollowCounts(user.id),
     session?.user?.id && session.user.id !== user.id
       ? isFollowing(session.user.id, user.id)
       : Promise.resolve(false),
+    getProfileActivity(user.id, 30),
+    session?.user?.id === user.id ? hasSpotifyToken(user.id) : Promise.resolve(false),
+    getUserLists(user.id, 50, 0),
+    getUserStreak(user.id),
+    getUserAchievements(user.id),
   ]);
 
-  const followersCount = counts.followers_count;
-  const followingCount = counts.following_count;
-  const isFollowingUser = followingFlag;
+  const counts = profileSettled[0].status === "fulfilled" ? profileSettled[0].value : { followers_count: 0, following_count: 0 };
+  if (profileSettled[0].status === "rejected") console.error("[profile] getFollowCounts failed:", profileSettled[0].reason);
+  const isFollowingUser = profileSettled[1].status === "fulfilled" ? profileSettled[1].value : false;
+  if (profileSettled[1].status === "rejected") console.error("[profile] isFollowing failed:", profileSettled[1].reason);
 
   const profile = {
     id: user.id,
@@ -68,26 +74,26 @@ export default async function ProfilePage({
     avatar_url: user.avatar_url ?? null,
     bio: user.bio ?? null,
     created_at: user.created_at,
-    followers_count: followersCount,
-    following_count: followingCount,
+    followers_count: counts.followers_count,
+    following_count: counts.following_count,
     is_following: isFollowingUser,
     is_own_profile: !!session?.user?.id && session.user.id === user.id,
   };
 
   const isOwnProfile = !!profile.is_own_profile;
 
-  const [activityRaw, spotifyHasToken, userLists, streak, achievements] = await Promise.all([
-    getProfileActivity(profile.id, 30),
-    isOwnProfile && session?.user?.id
-      ? hasSpotifyToken(session.user.id)
-      : Promise.resolve(false),
-    getUserLists(profile.id, 50, 0),
-    getUserStreak(profile.id),
-    getUserAchievements(profile.id),
-  ]);
+  const activityRaw = profileSettled[2].status === "fulfilled" ? profileSettled[2].value : [];
+  if (profileSettled[2].status === "rejected") console.error("[profile] getProfileActivity failed:", profileSettled[2].reason);
+  const spotifyConnected = profileSettled[3].status === "fulfilled" ? profileSettled[3].value : false;
+  if (profileSettled[3].status === "rejected") console.error("[profile] hasSpotifyToken failed:", profileSettled[3].reason);
+  const userLists = profileSettled[4].status === "fulfilled" ? profileSettled[4].value : [];
+  if (profileSettled[4].status === "rejected") console.error("[profile] getUserLists failed:", profileSettled[4].reason);
+  const streak = profileSettled[5].status === "fulfilled" ? profileSettled[5].value : null;
+  if (profileSettled[5].status === "rejected") console.error("[profile] getUserStreak failed:", profileSettled[5].reason);
+  const achievements = profileSettled[6].status === "fulfilled" ? profileSettled[6].value : [];
+  if (profileSettled[6].status === "rejected") console.error("[profile] getUserAchievements failed:", profileSettled[6].reason);
 
   const activity = await enrichFeedActivitiesWithEntityNames(activityRaw);
-  const spotifyConnected = spotifyHasToken;
 
   return (
     <div className="space-y-8">

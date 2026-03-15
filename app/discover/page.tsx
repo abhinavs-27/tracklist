@@ -14,13 +14,28 @@ const MAX_ITEMS = 20;
 
 export default async function DiscoverPage() {
   const session = await getServerSession(authOptions);
-  const suggested = session?.user?.id ? await getSuggestedUsers(session.user.id, 10) : [];
+  const suggestedPromise = session?.user?.id
+    ? getSuggestedUsers(session.user.id, 10)
+    : Promise.resolve([]);
 
-  const [trendingRaw, risingArtists, hiddenGemsRaw] = await Promise.all([
+  const discoverSettled = await Promise.allSettled([
+    suggestedPromise,
     getTrendingEntitiesCached(MAX_ITEMS),
     getRisingArtistsCached(MAX_ITEMS, 7),
     getHiddenGemsCached(MAX_ITEMS, 4, 50),
   ]);
+
+  const suggested = discoverSettled[0].status === "fulfilled" ? discoverSettled[0].value : [];
+  if (discoverSettled[0].status === "rejected") console.error("[discover] getSuggestedUsers failed:", discoverSettled[0].reason);
+
+  const trendingRaw = discoverSettled[1].status === "fulfilled" ? discoverSettled[1].value : [];
+  if (discoverSettled[1].status === "rejected") console.error("[discover] getTrendingEntitiesCached failed:", discoverSettled[1].reason);
+
+  const risingArtists = discoverSettled[2].status === "fulfilled" ? discoverSettled[2].value : [];
+  if (discoverSettled[2].status === "rejected") console.error("[discover] getRisingArtistsCached failed:", discoverSettled[2].reason);
+
+  const hiddenGemsRaw = discoverSettled[3].status === "fulfilled" ? discoverSettled[3].value : [];
+  if (discoverSettled[3].status === "rejected") console.error("[discover] getHiddenGemsCached failed:", discoverSettled[3].reason);
 
   const trendingTrackIds = trendingRaw.map((e) => e.entity_id);
   const hiddenGemsByType = { song: [] as string[], album: [] as string[] };

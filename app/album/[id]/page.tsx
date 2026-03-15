@@ -70,7 +70,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
 
   const trackIds = tracks.items?.map((t) => t.id) ?? [];
   const viewerId = session?.user?.id ?? null;
-  const [reviewsData, stats, engagementStats, friendActivity, trackStats, recentListens, recommendationsRaw] = await Promise.all([
+
+  const settled = await Promise.allSettled([
     getReviewsForEntity("album", id, 20),
     getEntityStats("album", id),
     getAlbumEngagementStats(id),
@@ -79,6 +80,35 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     getListenLogsForAlbum(id, 15),
     getAlbumRecommendations(id, 10),
   ]);
+
+  const defaultStats = {
+    listen_count: 0,
+    average_rating: null as number | null,
+    review_count: 0,
+    rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as const,
+  };
+  const defaultEngagement = { listen_count: 0, review_count: 0, avg_rating: null as number | null };
+
+  const reviewsData = settled[0].status === "fulfilled" ? settled[0].value : { reviews: [], average_rating: null, count: 0, my_review: null };
+  if (settled[0].status === "rejected") console.error("[album] getReviewsForEntity failed:", settled[0].reason);
+
+  const stats = settled[1].status === "fulfilled" ? settled[1].value : defaultStats;
+  if (settled[1].status === "rejected") console.error("[album] getEntityStats failed:", settled[1].reason);
+
+  const engagementStats = settled[2].status === "fulfilled" ? settled[2].value : defaultEngagement;
+  if (settled[2].status === "rejected") console.error("[album] getAlbumEngagementStats failed:", settled[2].reason);
+
+  const friendActivity = settled[3].status === "fulfilled" ? settled[3].value : [];
+  if (settled[3].status === "rejected") console.error("[album] getFriendsAlbumActivity failed:", settled[3].reason);
+
+  const trackStats = settled[4].status === "fulfilled" ? settled[4].value : {} as Record<string, { listen_count: number; average_rating: number | null; review_count: number }>;
+  if (settled[4].status === "rejected") console.error("[album] getTrackStatsForTrackIds failed:", settled[4].reason);
+
+  const recentListens = settled[5].status === "fulfilled" ? settled[5].value : [];
+  if (settled[5].status === "rejected") console.error("[album] getListenLogsForAlbum failed:", settled[5].reason);
+
+  const recommendationsRaw = settled[6].status === "fulfilled" ? settled[6].value : [];
+  if (settled[6].status === "rejected") console.error("[album] getAlbumRecommendations failed:", settled[6].reason);
 
   const recommendationAlbumIds = recommendationsRaw.map((r) => r.album_id);
   const recommendationAlbumResults =

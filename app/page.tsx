@@ -42,8 +42,15 @@ export default async function HomePage() {
   }
 
   const { items: feedItems, next_cursor: feedNextCursor } = await getFeedForUser(session.user.id, 30, null);
-  const withNames = await enrichFeedActivitiesWithEntityNames(feedItems);
-  const enrichedItems = await enrichListenSessionsWithAlbums(withNames);
+  const [withNames, withAlbums] = await Promise.all([
+    enrichFeedActivitiesWithEntityNames(feedItems),
+    enrichListenSessionsWithAlbums(feedItems),
+  ]);
+  const enrichedItems = withAlbums.map((activity, i) =>
+    activity.type === "review" && withNames[i]
+      ? { ...activity, spotifyName: (withNames[i] as { spotifyName?: string }).spotifyName }
+      : activity,
+  );
 
   return (
     <div>
