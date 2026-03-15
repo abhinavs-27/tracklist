@@ -5,7 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { DiscoverUsersGrid } from "@/components/discover-users-grid";
 import { getSuggestedUsers } from "@/lib/queries";
 import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached } from "@/lib/discover-cache";
-import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, batchResultsToMap } from "@/lib/spotify-cache";
+import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, getOrFetchArtistsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import { FollowButton } from "@/components/follow-button";
 
 const DiscoverSectionSkeleton = () => (
@@ -61,16 +61,27 @@ export default async function DiscoverPage() {
 
   const discoverTrackIds = [...trendingTrackIds, ...hiddenGemsByType.song];
   const discoverAlbumIds = hiddenGemsByType.album;
-  const [trackArr, albumArr] = await Promise.all([
+  const risingArtistIds = risingArtists.map((a) => a.artist_id);
+  const [trackArr, albumArr, artistArr] = await Promise.all([
     getOrFetchTracksBatch(discoverTrackIds),
     getOrFetchAlbumsBatch(discoverAlbumIds),
+    risingArtistIds.length > 0 ? getOrFetchArtistsBatch(risingArtistIds) : Promise.resolve([]),
   ]);
   const tracksMap = batchResultsToMap(discoverTrackIds, trackArr);
   const albumsMap = batchResultsToMap(discoverAlbumIds, albumArr);
+  const artistImageMap = new Map<string, string | null>();
+  artistArr.forEach((a, i) => {
+    if (a?.images?.[0]?.url && risingArtistIds[i]) artistImageMap.set(risingArtistIds[i], a.images[0].url);
+  });
 
   const trendingEnriched = trendingRaw.map((entity) => ({
     entity,
     track: tracksMap.get(entity.entity_id) ?? null,
+  }));
+
+  const risingArtistsWithImages = risingArtists.map((a) => ({
+    ...a,
+    avatar_url: artistImageMap.get(a.artist_id) ?? a.avatar_url,
   }));
 
   const hiddenGemsEnriched = hiddenGemsRaw.map((gem) => {
@@ -103,7 +114,7 @@ export default async function DiscoverPage() {
 
       <TrendingSection items={trendingEnriched} />
 
-      <RisingArtistsSection artists={risingArtists} />
+      <RisingArtistsSection artists={risingArtistsWithImages} />
 
       <HiddenGemsSection items={hiddenGemsEnriched} />
 

@@ -960,13 +960,15 @@ export async function getOrFetchArtistsBatch(
     .select("*")
     .in("id", uniqueIds);
   const allArtists = (artistRows ?? []) as unknown as ArtistRow[];
-  const artists = allArtists.filter((a) => !isCacheStale(a.cached_at ?? a.updated_at));
+  const artistsWithImage = allArtists.filter(
+    (a) => !isCacheStale(a.cached_at ?? a.updated_at) && a.image_url,
+  );
 
-  for (const a of artists) {
+  for (const a of artistsWithImage) {
     lookup.set(a.id, {
       id: a.id,
       name: a.name,
-      images: a.image_url ? [{ url: a.image_url }] : undefined,
+      images: [{ url: a.image_url! }],
       genres: a.genres ?? undefined,
       followers: { total: 0 },
     });

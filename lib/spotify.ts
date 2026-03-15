@@ -74,12 +74,13 @@ async function spotifyFetch<T>(
     const res = await withTimeout(
       url.toString(),
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
       },
       DEFAULT_TIMEOUT_MS,
     );
-
-    console.log({ res });
 
     if (res.ok) {
       return res.json() as Promise<T>;
@@ -107,8 +108,46 @@ async function spotifyFetch<T>(
       continue;
     }
 
-    const text = await res.text();
-    lastError = new Error(`Spotify API error: ${res.status} ${path} ${text}`);
+    // 403 Forbidden: often app in Development Mode or quota/access restricted. Retry once with fresh token.
+    if (res.status === 403) {
+      cachedAccessToken = null;
+      tokenExpiresAt = 0;
+      const raw = await res.text();
+      let hint = "";
+      try {
+        const json =
+          raw.length > 0
+            ? (JSON.parse(raw) as { error?: { message?: string } })
+            : null;
+        const msg = json?.error?.message ?? "";
+        if (msg) hint = ` — ${msg}`;
+      } catch {
+        if (raw.length > 0 && raw.length < 200) hint = ` — ${raw}`;
+      }
+      lastError = new Error(
+        `Spotify API 403 Forbidden for ${path}${hint}. Check Spotify Developer Dashboard: ensure your app is not restricted (Development Mode may limit some endpoints), or request extended quota.`,
+      );
+      continue;
+    }
+
+    const raw = await res.text();
+    const text = raw.length > 500 ? `${raw.slice(0, 500)}…` : raw;
+    let message = `Spotify API error: ${res.status} ${path}`;
+    try {
+      const json =
+        raw.length > 0
+          ? (JSON.parse(raw) as {
+              error?: { message?: string };
+              error_description?: string;
+            })
+          : null;
+      const detail = json?.error?.message ?? json?.error_description;
+      if (detail) message += ` — ${detail}`;
+      else if (text) message += ` — ${text}`;
+    } catch {
+      if (text) message += ` — ${text}`;
+    }
+    lastError = new Error(message);
     break;
   }
 
@@ -172,10 +211,11 @@ export async function getAlbums(
   for (let i = 0; i < unique.length; i += CHUNK) {
     const chunk = unique.slice(i, i + CHUNK);
     const ids = chunk.join(",");
-    const data = (await spotifyFetch<{ albums: (SpotifyApi.AlbumObjectFull | null)[] }>(
-      "/albums",
-      { ids },
-    )) as { albums: (SpotifyApi.AlbumObjectFull | null)[] };
+    const data = (await spotifyFetch<{
+      albums: (SpotifyApi.AlbumObjectFull | null)[];
+    }>("/albums", { ids })) as {
+      albums: (SpotifyApi.AlbumObjectFull | null)[];
+    };
     const resolved = (data.albums ?? []).filter(
       (a): a is SpotifyApi.AlbumObjectFull => a != null,
     );
@@ -201,7 +241,7 @@ export async function getTrack(
   return spotifyFetch<SpotifyApi.TrackObjectFull>(`/tracks/${spotifyId}`);
 }
 
-/** Spotify limit: 50 tracks per request. Chunks and merges. */
+/** Spotify limit: 50 tracks per request. Chunks and merges. Falls back to single getTrack() if batch returns 403. */
 export async function getTracks(
   spotifyIds: string[],
 ): Promise<SpotifyApi.TrackObjectFull[]> {
@@ -212,19 +252,36 @@ export async function getTracks(
   for (let i = 0; i < unique.length; i += CHUNK) {
     const chunk = unique.slice(i, i + CHUNK);
     const ids = chunk.join(",");
-    const data = (await spotifyFetch<{ tracks: (SpotifyApi.TrackObjectFull | null)[] }>(
-      "/tracks",
-      { ids },
-    )) as { tracks: (SpotifyApi.TrackObjectFull | null)[] };
-    const resolved = (data.tracks ?? []).filter(
-      (t): t is SpotifyApi.TrackObjectFull => t != null,
-    );
-    out.push(...resolved);
+    try {
+      const data = (await spotifyFetch<{
+        tracks: (SpotifyApi.TrackObjectFull | null)[];
+      }>("/tracks", { ids })) as {
+        tracks: (SpotifyApi.TrackObjectFull | null)[];
+      };
+      const resolved = (data.tracks ?? []).filter(
+        (t): t is SpotifyApi.TrackObjectFull => t != null,
+      );
+      out.push(...resolved);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("403")) {
+        for (const id of chunk) {
+          try {
+            const t = await getTrack(id);
+            out.push(t);
+          } catch {
+            // skip failed single fetch
+          }
+          await new Promise((r) => setTimeout(r, 80));
+        }
+      } else {
+        throw err;
+      }
+    }
   }
   return out;
 }
 
-/** Spotify limit: 50 artists per request. Chunks and merges. */
+/** Spotify limit: 50 artists per request. Chunks and merges. Falls back to single getArtist() if batch returns 403. */
 export async function getArtists(
   spotifyIds: string[],
 ): Promise<SpotifyApi.ArtistObjectFull[]> {
@@ -235,14 +292,31 @@ export async function getArtists(
   for (let i = 0; i < unique.length; i += CHUNK) {
     const chunk = unique.slice(i, i + CHUNK);
     const ids = chunk.join(",");
-    const data = (await spotifyFetch<{ artists: (SpotifyApi.ArtistObjectFull | null)[] }>(
-      "/artists",
-      { ids },
-    )) as { artists: (SpotifyApi.ArtistObjectFull | null)[] };
-    const resolved = (data.artists ?? []).filter(
-      (a): a is SpotifyApi.ArtistObjectFull => a != null,
-    );
-    out.push(...resolved);
+    try {
+      const data = (await spotifyFetch<{
+        artists: (SpotifyApi.ArtistObjectFull | null)[];
+      }>("/artists", { ids })) as {
+        artists: (SpotifyApi.ArtistObjectFull | null)[];
+      };
+      const resolved = (data.artists ?? []).filter(
+        (a): a is SpotifyApi.ArtistObjectFull => a != null,
+      );
+      out.push(...resolved);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("403")) {
+        for (const id of chunk) {
+          try {
+            const a = await getArtist(id);
+            out.push(a);
+          } catch {
+            // skip failed single fetch
+          }
+          await new Promise((r) => setTimeout(r, 80));
+        }
+      } else {
+        throw err;
+      }
+    }
   }
   return out;
 }
