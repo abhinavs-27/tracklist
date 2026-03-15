@@ -5,7 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { sanitizeString } from "@/lib/validation";
 import type { ListenLogWithUser, ReviewWithUser } from "@/types";
-import type { FeedActivity } from "@/types";
+import type { FeedActivity, FeedListenSession } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Passive listen logs (Spotify history)
@@ -994,7 +994,61 @@ export type ActivityFeedPage = {
   next_cursor: string | null;
 };
 
-/** Activity feed using JOIN-based RPC (index-friendly). Cursor is created_at (ISO string); pass to get next page. */
+export type FeedListenSessionRow = {
+  type: string;
+  user_id: string;
+  track_id: string;
+  album_id: string;
+  track_name: string | null;
+  artist_name: string | null;
+  song_count: number;
+  first_listened_at: string;
+  created_at: string;
+};
+
+/** Fetch listen sessions for the feed (track-level, 30-min bucket). Returns [] if RPC missing. */
+export async function getFeedListenSessions(
+  followerId: string,
+  limit: number,
+  cursor?: string | null,
+): Promise<FeedListenSessionRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const capped = Math.min(Math.max(1, limit), 100);
+    const { data, error } = await supabase.rpc("get_feed_listen_sessions", {
+      p_follower_id: followerId,
+      p_cursor: cursor ?? null,
+      p_limit: capped,
+    });
+    if (error) {
+      console.warn("[queries] get_feed_listen_sessions RPC failed (migration 023 may not be applied):", error.message);
+      return [];
+    }
+    return (data ?? []).map((r: { type: string; user_id: string; track_id: string; album_id: string; track_name: string | null; artist_name: string | null; song_count: number; first_listened_at: string; created_at: string }) => ({
+      type: r.type,
+      user_id: r.user_id,
+      track_id: r.track_id,
+      album_id: r.album_id,
+      track_name: r.track_name ?? null,
+      artist_name: r.artist_name ?? null,
+      song_count: Number(r.song_count) || 0,
+      first_listened_at: r.first_listened_at,
+      created_at: r.created_at,
+    }));
+  } catch (e) {
+    console.error("[queries] getFeedListenSessions failed:", e);
+    return [];
+  }
+}
+
+/**
+ * Activity feed: reviews, follows, and listen sessions.
+ *
+ * Listen sessions (get_feed_listen_sessions):
+ * - Source: spotify_recent_tracks from users you follow (last 7 days), track-level.
+ * - Grouped by: user_id, track_id, 30-min bucket; max 3 per user per hour.
+ * - Merge: priority sort (reviews > follows > listens), then collapse consecutive same-user into "N songs" with expand showing up to 10 songs.
+ */
 export async function getActivityFeed(
   userId: string,
   limit = 50,
@@ -1007,7 +1061,7 @@ export async function getActivityFeed(
 
     const cursorTs = cursor ? (cursor as string) : null;
 
-    const [reviewsRes, followsRes] = await Promise.all([
+    const [reviewsRes, followsRes, listenSessions] = await Promise.all([
       supabase.rpc("get_feed_reviews", {
         p_follower_id: userId,
         p_cursor: cursorTs,
@@ -1018,6 +1072,7 @@ export async function getActivityFeed(
         p_cursor: cursorTs,
         p_limit: fetchLimit,
       }),
+      getFeedListenSessions(userId, fetchLimit, cursorTs),
     ]);
 
     if (reviewsRes.error) {
@@ -1052,6 +1107,7 @@ export async function getActivityFeed(
       userIds.add(f.follower_id);
       userIds.add(f.following_id);
     });
+    listenSessions.forEach((s) => userIds.add(s.user_id));
     const { data: users } = await supabase
       .from("users")
       .select("id, email, username, avatar_url, bio, created_at")
@@ -1084,10 +1140,63 @@ export async function getActivityFeed(
       following_username: userMap.get(f.following_id)?.username ?? null,
     }));
 
-    const merged = [...reviewActivities, ...followActivities].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    const listenActivities: FeedActivity[] = listenSessions.map((s) => ({
+      type: "listen_session" as const,
+      user_id: s.user_id,
+      track_id: s.track_id,
+      album_id: s.album_id,
+      song_count: s.song_count,
+      first_listened_at: s.first_listened_at,
+      created_at: s.created_at,
+      user: userMap.get(s.user_id) ?? null,
+      track_name: s.track_name ?? null,
+      artist_name: s.artist_name ?? null,
+    }));
+
+    // Priority ranking: reviews > follows > listens when times are close
+    const PRIORITY_BONUS_MS = { review: 0, follow: 30 * 60 * 1000, listen: 2 * 60 * 60 * 1000 };
+    const sortKey = (item: FeedActivity): number => {
+      const t = new Date(item.created_at).getTime();
+      if (item.type === "review") return t - PRIORITY_BONUS_MS.review;
+      if (item.type === "follow") return t - PRIORITY_BONUS_MS.follow;
+      return t - PRIORITY_BONUS_MS.listen;
+    };
+    const merged = [...reviewActivities, ...followActivities, ...listenActivities].sort(
+      (a, b) => sortKey(b) - sortKey(a),
     );
-    const items = merged.slice(0, cappedLimit);
+
+    // Collapse consecutive listen_sessions from same user into "N songs" with up to 10 in expand
+    const collapsed: FeedActivity[] = [];
+    let i = 0;
+    while (i < merged.length) {
+      const item = merged[i];
+      if (item.type !== "listen_session") {
+        collapsed.push(item);
+        i++;
+        continue;
+      }
+      const run: FeedActivity[] = [item];
+      while (i + 1 < merged.length && merged[i + 1].type === "listen_session" && (merged[i + 1] as FeedListenSession).user_id === item.user_id) {
+        run.push(merged[i + 1] as FeedListenSession);
+        i++;
+      }
+      i++;
+      if (run.length === 1) {
+        collapsed.push(run[0]);
+      } else {
+        const latest = run.reduce((best, r) => (r.created_at > best.created_at ? r : best), run[0] as FeedListenSession);
+        collapsed.push({
+          type: "listen_sessions_summary",
+          user_id: item.user_id,
+          song_count: run.length,
+          created_at: latest.created_at,
+          user: (item as FeedListenSession).user ?? null,
+          sessions: run.slice(0, 10) as FeedListenSession[],
+        });
+      }
+    }
+
+    const items = collapsed.slice(0, cappedLimit);
     const next_cursor =
       items.length === cappedLimit ? items[items.length - 1].created_at : null;
 

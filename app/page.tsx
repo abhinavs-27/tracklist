@@ -1,9 +1,17 @@
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getFeedForUser, enrichFeedActivitiesWithEntityNames } from '@/lib/feed';
+import { getFeedForUser, enrichFeedActivitiesWithEntityNames, enrichListenSessionsWithAlbums } from '@/lib/feed';
 import { FeedItem } from '@/components/feed-item';
 import { FeedLoadMore } from '@/components/feed-load-more';
+import type { FeedActivity } from '@/types';
+
+function feedActivityKey(activity: FeedActivity): string {
+  if (activity.type === 'review') return activity.review.id;
+  if (activity.type === 'follow') return activity.id;
+  if (activity.type === 'listen_sessions_summary') return `summary-${activity.user_id}-${activity.created_at}`;
+  return `${activity.user_id}-${activity.album_id}-${activity.created_at}`;
+}
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -34,7 +42,8 @@ export default async function HomePage() {
   }
 
   const { items: feedItems, next_cursor: feedNextCursor } = await getFeedForUser(session.user.id, 30, null);
-  const enrichedItems = await enrichFeedActivitiesWithEntityNames(feedItems);
+  const withNames = await enrichFeedActivitiesWithEntityNames(feedItems);
+  const enrichedItems = await enrichListenSessionsWithAlbums(withNames);
 
   return (
     <div>
@@ -53,7 +62,7 @@ export default async function HomePage() {
         <>
           <ul className="space-y-4">
             {enrichedItems.map((activity) => (
-              <li key={activity.type === 'review' ? activity.review.id : activity.id}>
+              <li key={feedActivityKey(activity)}>
                 <FeedItem
                   activity={activity}
                   spotifyName={'spotifyName' in activity ? activity.spotifyName : undefined}

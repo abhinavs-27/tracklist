@@ -1,9 +1,17 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getFeedForUser, enrichFeedActivitiesWithEntityNames } from '@/lib/feed';
+import { getFeedForUser, enrichFeedActivitiesWithEntityNames, enrichListenSessionsWithAlbums } from '@/lib/feed';
 import { FeedItem } from '@/components/feed-item';
 import { FeedLoadMore } from '@/components/feed-load-more';
+import type { FeedActivity } from '@/types';
+
+function feedActivityKey(activity: FeedActivity): string {
+  if (activity.type === 'review') return activity.review.id;
+  if (activity.type === 'follow') return activity.id;
+  if (activity.type === 'listen_sessions_summary') return `summary-${activity.user_id}-${activity.created_at}`;
+  return `${activity.user_id}-${activity.album_id}-${activity.created_at}`;
+}
 
 export default async function FeedPage() {
   const session = await getServerSession(authOptions);
@@ -12,7 +20,8 @@ export default async function FeedPage() {
   }
 
   const { items, next_cursor } = await getFeedForUser(session.user.id, 50, null);
-  const enriched = await enrichFeedActivitiesWithEntityNames(items);
+  const withNames = await enrichFeedActivitiesWithEntityNames(items);
+  const enriched = await enrichListenSessionsWithAlbums(withNames);
 
   return (
     <div>
@@ -25,7 +34,7 @@ export default async function FeedPage() {
         <>
           <ul className="space-y-4">
             {enriched.map((activity) => (
-              <li key={activity.type === 'review' ? activity.review.id : activity.id}>
+              <li key={feedActivityKey(activity)}>
                 <FeedItem
                   activity={activity}
                   spotifyName={'spotifyName' in activity ? activity.spotifyName : undefined}

@@ -12,6 +12,7 @@ import {
   getValidSpotifyAccessToken,
 } from "@/lib/spotify-user";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
+import { getOrFetchTracksBatch } from "@/lib/spotify-cache";
 
 type SyncResponse = {
   inserted: number;
@@ -101,6 +102,14 @@ export async function POST(request: NextRequest) {
       })),
     );
     if (insertError) return apiInternalError(insertError);
+
+    // Warm songs/albums cache so feed listen-sessions RPC can join logs → songs and show sessions
+    const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
+    try {
+      await getOrFetchTracksBatch(idsToWarm);
+    } catch (e) {
+      console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
+    }
 
     console.log("[spotify-sync] spotify sync complete", {
       userId: session.user.id,

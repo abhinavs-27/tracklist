@@ -4,8 +4,15 @@ import { useState } from 'react';
 import { FeedItem } from './feed-item';
 import type { FeedActivity } from '@/types';
 
-/** Feed activity optionally enriched with entity display name (from API). */
+/** Feed activity optionally enriched with entity display name and listen_session album (from API). */
 type EnrichedFeedActivity = FeedActivity & { spotifyName?: string };
+
+function feedItemKey(activity: EnrichedFeedActivity): string {
+  if (activity.type === 'review') return activity.review.id;
+  if (activity.type === 'follow') return activity.id;
+  if (activity.type === 'listen_sessions_summary') return `summary-${activity.user_id}-${activity.created_at}`;
+  return `${activity.user_id}-${activity.album_id}-${activity.created_at}`;
+}
 
 interface FeedLoadMoreProps {
   cursor: string;
@@ -41,7 +48,7 @@ export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
       {items.length > 0 && (
         <ul className="space-y-4">
           {items.map((activity) => (
-            <li key={activity.type === 'review' ? activity.review.id : activity.id}>
+            <li key={feedItemKey(activity)}>
               <FeedItem
                 activity={activity}
                 spotifyName={activity.spotifyName}

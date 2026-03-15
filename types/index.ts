@@ -44,10 +44,41 @@ export interface ReviewWithUser extends Review {
   user?: User | null;
 }
 
-/** Feed activity item: either a review or a follow event. */
+/** Listen session: one track in a 30-min window (or aggregated). */
+export interface FeedListenSession {
+  type: 'listen_session';
+  user_id: string;
+  track_id: string;
+  album_id: string;
+  song_count: number;
+  first_listened_at: string;
+  created_at: string;
+  user?: User | null;
+  /** From RPC (spotify_recent_tracks). */
+  track_name?: string | null;
+  artist_name?: string | null;
+  /** Enriched by server for display. */
+  album?: SpotifyApi.AlbumObjectSimplified | null;
+}
+
+/** Collapsed summary when same user has multiple listen_session items in a row. Expand shows up to 10 songs. */
+export interface FeedListenSessionsSummary {
+  type: 'listen_sessions_summary';
+  user_id: string;
+  /** Number of songs in this run (for "N songs" label). */
+  song_count: number;
+  created_at: string;
+  user?: User | null;
+  /** Up to 10 track-level sessions for expand view. */
+  sessions: FeedListenSession[];
+}
+
+/** Feed activity item: review, follow, listen session, or collapsed listen summary. */
 export type FeedActivity =
   | { type: 'review'; created_at: string; review: ReviewWithUser }
-  | { type: 'follow'; id: string; created_at: string; follower_id: string; following_id: string; follower_username: string | null; following_username: string | null };
+  | { type: 'follow'; id: string; created_at: string; follower_id: string; following_id: string; follower_username: string | null; following_username: string | null }
+  | FeedListenSession
+  | FeedListenSessionsSummary;
 
 export interface Like {
   id: string;

@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getRecentlyPlayed } from "@/lib/spotify-user";
+import { getOrFetchTracksBatch } from "@/lib/spotify-cache";
 
 /** Spotify recently-played item with track.artists (API returns this; our export type is minimal). */
 type RecentlyPlayedItem = {
@@ -100,6 +101,16 @@ export async function syncRecentlyPlayed(
       userId,
       passiveLogs.length,
     );
+    // Warm songs cache so feed listen-sessions (logs INNER JOIN songs) show this user's listens
+    const trackIds = [...new Set(passiveLogs.map((l) => l.track_id))];
+    try {
+      await getOrFetchTracksBatch(trackIds);
+    } catch (e) {
+      console.warn(
+        "spotify-sync: cache warm failed (feed may show fewer listens until tracks are loaded):",
+        e,
+      );
+    }
   }
 
   console.log(
