@@ -794,6 +794,150 @@ export async function getUserRecommendations(
 }
 
 // ---------------------------------------------------------------------------
+// Engagement: streaks, weekly reports, notifications, achievements
+// ---------------------------------------------------------------------------
+
+export type UserStreak = { current_streak: number; longest_streak: number; last_listen_date: string | null };
+
+export async function getUserStreak(userId: string): Promise<UserStreak | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("user_streaks")
+      .select("current_streak, longest_streak, last_listen_date")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      current_streak: Number(data.current_streak) ?? 0,
+      longest_streak: Number(data.longest_streak) ?? 0,
+      last_listen_date: data.last_listen_date ?? null,
+    };
+  } catch (e) {
+    console.error("[queries] getUserStreak failed:", e);
+    return null;
+  }
+}
+
+export type WeeklyReportRow = {
+  id: string;
+  user_id: string;
+  week_start: string;
+  listen_count: number;
+  top_artist_id: string | null;
+  top_album_id: string | null;
+  top_track_id: string | null;
+  created_at: string;
+};
+
+export async function generateWeeklyReport(userId: string): Promise<WeeklyReportRow | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("generate_weekly_report", { p_user_id: userId });
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    const row = data[0] as { id: string; user_id: string; week_start: string; listen_count: number; top_artist_id: string | null; top_album_id: string | null; top_track_id: string | null; created_at: string };
+    return { ...row, listen_count: Number(row.listen_count) ?? 0 };
+  } catch (e) {
+    console.error("[queries] generateWeeklyReport failed:", e);
+    return null;
+  }
+}
+
+export type NotificationRow = {
+  id: string;
+  user_id: string;
+  actor_user_id: string | null;
+  type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  read: boolean;
+  created_at: string;
+};
+
+export async function getNotifications(userId: string, limit = 50): Promise<NotificationRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("id, user_id, actor_user_id, type, entity_type, entity_id, read, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) return [];
+    return (data ?? []) as NotificationRow[];
+  } catch (e) {
+    console.error("[queries] getNotifications failed:", e);
+    return [];
+  }
+}
+
+export async function markNotificationsRead(userId: string, notificationIds?: string[]): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    let q = supabase.from("notifications").update({ read: true }).eq("user_id", userId);
+    if (notificationIds?.length) q = q.in("id", notificationIds);
+    await q;
+  } catch (e) {
+    console.error("[queries] markNotificationsRead failed:", e);
+  }
+}
+
+export type AchievementRow = { id: string; name: string; description: string | null; icon: string | null };
+export type UserAchievementRow = { achievement_id: string; earned_at: string };
+
+export async function getUserAchievements(userId: string): Promise<{ achievement: AchievementRow; earned_at: string }[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: ua, error: uaError } = await supabase
+      .from("user_achievements")
+      .select("achievement_id, earned_at")
+      .eq("user_id", userId);
+    if (uaError || !ua?.length) return [];
+    const ids = (ua as UserAchievementRow[]).map((u) => u.achievement_id);
+    const { data: achievements, error: aError } = await supabase
+      .from("achievements")
+      .select("id, name, description, icon")
+      .in("id", ids);
+    if (aError || !achievements?.length) return [];
+    const aMap = new Map((achievements as AchievementRow[]).map((a) => [a.id, a]));
+    return (ua as UserAchievementRow[]).map((u) => ({
+      achievement: aMap.get(u.achievement_id)!,
+      earned_at: u.earned_at,
+    })).filter((x) => x.achievement);
+  } catch (e) {
+    console.error("[queries] getUserAchievements failed:", e);
+    return [];
+  }
+}
+
+export async function grantAchievementsOnListen(userId: string): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase.rpc("grant_achievements_on_listen", { p_user_id: userId });
+  } catch (e) {
+    console.warn("[queries] grantAchievementsOnListen failed:", e);
+  }
+}
+
+export async function grantAchievementOnReview(userId: string): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase.rpc("grant_achievement_on_review", { p_user_id: userId });
+  } catch (e) {
+    console.warn("[queries] grantAchievementOnReview failed:", e);
+  }
+}
+
+export async function grantAchievementOnList(userId: string): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase.rpc("grant_achievement_on_list", { p_user_id: userId });
+  } catch (e) {
+    console.warn("[queries] grantAchievementOnList failed:", e);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Follow graph
 // ---------------------------------------------------------------------------
 

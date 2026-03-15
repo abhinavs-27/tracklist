@@ -103,6 +103,9 @@ export async function POST(request: NextRequest) {
     );
     if (insertError) return apiInternalError(insertError);
 
+    const { grantAchievementsOnListen } = await import("@/lib/queries");
+    await grantAchievementsOnListen(session.user.id);
+
     // Warm songs/albums cache so feed listen-sessions RPC can join logs → songs and show sessions
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
     try {

@@ -38,6 +38,11 @@ export async function POST(request: NextRequest) {
       console.error('Follow error:', error);
       return apiInternalError(error);
     }
+    await supabase.from('notifications').insert({
+      user_id: followingId,
+      actor_user_id: session.user.id,
+      type: 'follow',
+    });
     console.log("[follow] user followed", {
       followerId: session.user.id,
       followingId,

@@ -166,6 +166,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return apiInternalError(error);
+    const { grantAchievementOnReview } = await import("@/lib/queries");
+    await grantAchievementOnReview(session.user.id);
     console.log("[reviews] review created/updated", {
       userId: session.user.id,
       reviewId: data.id,

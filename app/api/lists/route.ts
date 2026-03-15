@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { createList, searchLists } from "@/lib/queries";
+import { createList, searchLists, grantAchievementOnList } from "@/lib/queries";
 import {
   apiUnauthorized,
   apiBadRequest,
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
 
     const list = await createList(session.user.id, titleResult.value, description);
     if (!list) return apiInternalError(new Error("createList returned null"));
+    await grantAchievementOnList(session.user.id);
 
     console.log("[lists] list created", {
       userId: session.user.id,

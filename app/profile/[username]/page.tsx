@@ -10,7 +10,7 @@ import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getFollowCounts, isFollowing, getProfileActivity, getUserLists } from "@/lib/queries";
+import { getFollowCounts, isFollowing, getProfileActivity, getUserLists, getUserStreak, getUserAchievements } from "@/lib/queries";
 import { enrichFeedActivitiesWithEntityNames } from "@/lib/feed";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[username]/profile-lists-section";
@@ -76,12 +76,14 @@ export default async function ProfilePage({
 
   const isOwnProfile = !!profile.is_own_profile;
 
-  const [activityRaw, spotifyHasToken, userLists] = await Promise.all([
+  const [activityRaw, spotifyHasToken, userLists, streak, achievements] = await Promise.all([
     getProfileActivity(profile.id, 30),
     isOwnProfile && session?.user?.id
       ? hasSpotifyToken(session.user.id)
       : Promise.resolve(false),
     getUserLists(profile.id, 50, 0),
+    getUserStreak(profile.id),
+    getUserAchievements(profile.id),
   ]);
 
   const activity = await enrichFeedActivitiesWithEntityNames(activityRaw);
@@ -90,16 +92,26 @@ export default async function ProfilePage({
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <ProfileHeader
-          username={profile.username}
-          avatarUrl={profile.avatar_url}
-          bio={profile.bio}
-          followersCount={profile.followers_count ?? 0}
-          followingCount={profile.following_count ?? 0}
-          isOwnProfile={isOwnProfile}
-          isFollowing={profile.is_following ?? false}
-          userId={profile.id}
-        />
+        <div className="min-w-0 flex-1">
+          <ProfileHeader
+            username={profile.username}
+            avatarUrl={profile.avatar_url}
+            bio={profile.bio}
+            followersCount={profile.followers_count ?? 0}
+            followingCount={profile.following_count ?? 0}
+            isOwnProfile={isOwnProfile}
+            isFollowing={profile.is_following ?? false}
+            userId={profile.id}
+          />
+          {streak && streak.current_streak > 0 && (
+            <p className="mt-2 text-sm text-zinc-400">
+              🔥 <span className="font-medium text-amber-400">{streak.current_streak}</span> day listening streak
+              {streak.longest_streak > streak.current_streak && (
+                <span className="ml-1 text-zinc-500">(best: {streak.longest_streak})</span>
+              )}
+            </p>
+          )}
+        </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
           {isOwnProfile && (
             <ProfileEditModal
@@ -134,6 +146,27 @@ export default async function ProfilePage({
           This section will show the user&apos;s most listened artists.
         </p>
       </section>
+
+      {achievements.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-white">Achievements</h2>
+          <div className="flex flex-wrap gap-3">
+            {achievements.map(({ achievement, earned_at }) => (
+              <div
+                key={achievement.id}
+                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
+                title={achievement.description ?? achievement.name}
+              >
+                <span className="text-xl">{achievement.icon ?? "🏅"}</span>
+                <div>
+                  <p className="font-medium text-white">{achievement.name}</p>
+                  <p className="text-xs text-zinc-500">{new Date(earned_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section id="lists">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -207,10 +240,20 @@ export default async function ProfilePage({
         ) : (
           <ul className="space-y-4">
             {activity.map((item) => (
-              <li key={item.type === "review" ? item.review.id : item.id}>
+              <li
+                key={
+                  item.type === "review"
+                    ? `review-${item.review.id}`
+                    : item.type === "follow"
+                      ? item.id
+                      : item.type === "listen_session"
+                        ? `listen-${item.user_id}-${item.track_id}-${item.first_listened_at}`
+                        : `summary-${item.user_id}-${item.created_at}`
+                }
+              >
                 <FeedItem
                   activity={item}
-                  spotifyName={"spotifyName" in item ? item.spotifyName : undefined}
+                  spotifyName={item.type === "review" ? (item as { spotifyName?: string }).spotifyName : undefined}
                 />
               </li>
             ))}

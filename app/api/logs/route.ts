@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase';
+import { grantAchievementsOnListen } from '@/lib/queries';
 import {
   apiUnauthorized,
   apiBadRequest,
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       console.error('Log create error:', error);
       return apiInternalError(error);
     }
+    await grantAchievementsOnListen(session.user.id);
     console.log("[logs] manual log created", {
       userId: session.user.id,
       trackId,
