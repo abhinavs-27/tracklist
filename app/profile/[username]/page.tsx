@@ -111,6 +111,7 @@ export default async function ProfilePage({
             isOwnProfile={isOwnProfile}
             isFollowing={profile.is_following ?? false}
             userId={profile.id}
+            viewerUserId={session?.user?.id ?? null}
           />
           {streak && streak.current_streak > 0 && (
             <p className="mt-2 text-sm text-zinc-400">

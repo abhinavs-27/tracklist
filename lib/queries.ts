@@ -1500,6 +1500,88 @@ export async function getFollowCounts(userId: string): Promise<{
   }
 }
 
+/** Users who follow the given user (followers), ordered by username. */
+export async function getFollowerUsers(userId: string): Promise<
+  {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+  }[]
+> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: followRows, error: followError } = await supabase
+      .from("follows")
+      .select("follower_id")
+      .eq("following_id", userId);
+
+    if (followError || !followRows?.length) return [];
+
+    const followerIds = [
+      ...new Set((followRows as { follower_id: string }[]).map((r) => r.follower_id)),
+    ];
+
+    const { data: users, error: usersError } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .in("id", followerIds);
+
+    if (usersError || !users?.length) return [];
+
+    return (users as { id: string; username: string; avatar_url: string | null }[])
+      .map((u) => ({
+        id: u.id,
+        username: u.username,
+        avatar_url: u.avatar_url ?? null,
+      }))
+      .sort((a, b) => a.username.localeCompare(b.username));
+  } catch (e) {
+    console.error("[queries] getFollowerUsers failed:", e);
+    return [];
+  }
+}
+
+/** Users the given user is following, ordered by username. */
+export async function getFollowingUsers(userId: string): Promise<
+  {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+  }[]
+> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: followRows, error: followError } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", userId);
+
+    if (followError || !followRows?.length) return [];
+
+    const followingIds = [
+      ...new Set((followRows as { following_id: string }[]).map((r) => r.following_id)),
+    ];
+
+    const { data: users, error: usersError } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .in("id", followingIds);
+
+    if (usersError || !users?.length) return [];
+
+    return (users as { id: string; username: string; avatar_url: string | null }[])
+      .map((u) => ({
+        id: u.id,
+        username: u.username,
+        avatar_url: u.avatar_url ?? null,
+      }))
+      .sort((a, b) => a.username.localeCompare(b.username));
+  } catch (e) {
+    console.error("[queries] getFollowingUsers failed:", e);
+    return [];
+  }
+}
+
 const USER_SEARCH_QUERY_MAX_LENGTH = 50;
 
 /** User search by username (ILIKE). Excludes excludeUserId, returns followers_count via RPC when available. */

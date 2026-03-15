@@ -1,6 +1,8 @@
 'use client';
 
 import { FollowButton } from './follow-button';
+import { FollowersModal } from "./followers-modal";
+import { useState } from "react";
 
 interface ProfileHeaderProps {
   username: string;
@@ -11,6 +13,7 @@ interface ProfileHeaderProps {
   isOwnProfile: boolean;
   isFollowing: boolean;
   userId: string;
+  viewerUserId?: string | null;
   onProfileUpdated?: () => void;
 }
 
@@ -23,8 +26,14 @@ export function ProfileHeader({
   isOwnProfile,
   isFollowing,
   userId,
+  viewerUserId = null,
   onProfileUpdated,
 }: ProfileHeaderProps) {
+  const [followersOpen, setFollowersOpen] = useState(false);
+  const [initialTab, setInitialTab] = useState<"followers" | "following">(
+    "followers",
+  );
+
   return (
     <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-zinc-700 bg-zinc-800">
@@ -40,8 +49,28 @@ export function ProfileHeader({
         <h1 className="text-2xl font-bold text-white">{username}</h1>
         {bio && <p className="mt-1 text-zinc-400">{bio}</p>}
         <div className="mt-2 flex items-center gap-4 text-sm text-zinc-500">
-          <span>{followersCount} followers</span>
-          <span>{followingCount} following</span>
+          <button
+            type="button"
+            onClick={() => {
+              setInitialTab("followers");
+              setFollowersOpen(true);
+            }}
+            className="flex items-center gap-1 rounded-full px-0.5 py-0.5 text-zinc-400 hover:text-zinc-200"
+          >
+            <span className="font-semibold text-white">{followersCount}</span>
+            <span>followers</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setInitialTab("following");
+              setFollowersOpen(true);
+            }}
+            className="flex items-center gap-1 rounded-full px-0.5 py-0.5 text-zinc-400 hover:text-zinc-200"
+          >
+            <span className="font-semibold text-white">{followingCount}</span>
+            <span>following</span>
+          </button>
         </div>
         {!isOwnProfile && (
           <div className="mt-3">
@@ -53,6 +82,14 @@ export function ProfileHeader({
           </div>
         )}
       </div>
+      <FollowersModal
+        userId={userId}
+        username={username}
+        isOpen={followersOpen}
+        initialTab={initialTab}
+        onClose={() => setFollowersOpen(false)}
+        viewerUserId={viewerUserId ?? null}
+      />
     </div>
   );
 }
