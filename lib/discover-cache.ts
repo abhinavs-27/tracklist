@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   getTrendingEntities,
   getRisingArtists,
@@ -9,7 +10,7 @@ import {
   type HiddenGem,
 } from "@/lib/queries";
 
-const TTL_MS = 10 * 60 * 1000; // 10 minutes
+const TTL_MS = 15 * 60 * 1000; // 15 min (server-side cache; MVs refreshed every 5–15 min)
 
 type CacheEntry<T> = { data: T; expiresAt: number };
 
@@ -24,6 +25,76 @@ function prune<T>(map: Map<string, CacheEntry<T>>) {
   }
 }
 
+/** Read from MV first; fallback to live RPC. Never throws – returns [] on failure. */
+async function getTrendingFromMvOrLive(limit: number): Promise<TrendingEntity[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("get_trending_entities_from_mv", {
+      p_limit: limit,
+    });
+    if (!error && data?.length) {
+      return (data as { entity_id: string; entity_type: string; listen_count: number }[]).map(
+        (r) => ({
+          entity_id: r.entity_id,
+          entity_type: r.entity_type ?? "song",
+          listen_count: Number(r.listen_count) || 0,
+        }),
+      );
+    }
+  } catch {
+    // fallback to live
+  }
+  return getTrendingEntities(limit);
+}
+
+/** Read from MV first (7-day window only); fallback to live RPC. Never throws. */
+async function getRisingFromMvOrLive(limit: number, windowDays: number): Promise<RisingArtist[]> {
+  if (windowDays !== 7) return getRisingArtists(limit, windowDays);
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("get_rising_artists_from_mv", { p_limit: limit });
+    if (!error && data?.length) {
+      return (data as { artist_id: string; name: string; avatar_url: string | null; growth: number }[]).map(
+        (r) => ({
+          artist_id: r.artist_id,
+          name: r.name ?? "",
+          avatar_url: r.avatar_url ?? null,
+          growth: Number(r.growth) || 0,
+        }),
+      );
+    }
+  } catch {
+    // fallback to live
+  }
+  return getRisingArtists(limit, windowDays);
+}
+
+/** Read from MV first (minRating=4, maxListens=50 only); fallback to live RPC. Never throws. */
+async function getHiddenFromMvOrLive(
+  limit: number,
+  minRating: number,
+  maxListens: number,
+): Promise<HiddenGem[]> {
+  if (minRating !== 4 || maxListens !== 50) return getHiddenGems(limit, minRating, maxListens);
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("get_hidden_gems_from_mv", { p_limit: limit });
+    if (!error && data?.length) {
+      return (data as { entity_id: string; entity_type: string; avg_rating: number; listen_count: number }[]).map(
+        (r) => ({
+          entity_id: r.entity_id,
+          entity_type: r.entity_type ?? "song",
+          avg_rating: Number(r.avg_rating) || 0,
+          listen_count: Number(r.listen_count) || 0,
+        }),
+      );
+    }
+  } catch {
+    // fallback to live
+  }
+  return getHiddenGems(limit, minRating, maxListens);
+}
+
 export async function getTrendingEntitiesCached(
   limit = 20,
 ): Promise<TrendingEntity[]> {
@@ -32,7 +103,7 @@ export async function getTrendingEntitiesCached(
   const hit = trendingCache.get(key);
   if (hit && hit.expiresAt > now) return hit.data;
   prune(trendingCache);
-  const data = await getTrendingEntities(limit);
+  const data = await getTrendingFromMvOrLive(limit);
   trendingCache.set(key, { data, expiresAt: now + TTL_MS });
   return data;
 }
@@ -46,7 +117,7 @@ export async function getRisingArtistsCached(
   const hit = risingCache.get(key);
   if (hit && hit.expiresAt > now) return hit.data;
   prune(risingCache);
-  const data = await getRisingArtists(limit, windowDays);
+  const data = await getRisingFromMvOrLive(limit, windowDays);
   risingCache.set(key, { data, expiresAt: now + TTL_MS });
   return data;
 }
@@ -61,7 +132,7 @@ export async function getHiddenGemsCached(
   const hit = hiddenCache.get(key);
   if (hit && hit.expiresAt > now) return hit.data;
   prune(hiddenCache);
-  const data = await getHiddenGems(limit, minRating, maxListens);
+  const data = await getHiddenFromMvOrLive(limit, minRating, maxListens);
   hiddenCache.set(key, { data, expiresAt: now + TTL_MS });
   return data;
 }

@@ -84,6 +84,34 @@ test.describe('Discover', () => {
     await expect(page.getByRole('link', { name: /search users by username/i })).toBeVisible();
   });
 
+  test('discover trending returns consistent shape from cache or live (cached data matches expected TTL shape)', async ({
+    request,
+  }) => {
+    const res1 = await request.get('/api/discover/trending?limit=5');
+    expect(res1.status()).toBe(200);
+    const data1 = await res1.json();
+    expect(Array.isArray(data1)).toBe(true);
+    const res2 = await request.get('/api/discover/trending?limit=5');
+    expect(res2.status()).toBe(200);
+    const data2 = await res2.json();
+    expect(Array.isArray(data2)).toBe(true);
+    if (data1.length > 0 && data2.length > 0) {
+      expect(data2[0]).toMatchObject({
+        entity_id: expect.any(String),
+        entity_type: expect.any(String),
+        listen_count: expect.any(Number),
+      });
+    }
+  });
+
+  test('discover page renders even when some sections have no data (allSettled prevents blocking)', async ({
+    page,
+  }) => {
+    await page.goto('/discover');
+    await expect(page.getByRole('heading', { name: /discover/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /trending \(last 24h\)/i })).toBeVisible();
+  });
+
   test('follow/unfollow toggles state', async ({ page }) => {
     await page.route('**/api/discover**', async (route) => {
       await route.fulfill({

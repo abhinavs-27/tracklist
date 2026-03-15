@@ -343,12 +343,38 @@ async function getEntityStatsLive(
   return { listen_count, average_rating, review_count, rating_distribution };
 }
 
+// In-memory cache for entity stats (hot album/track pages). TTL 10 min.
+const ENTITY_STATS_TTL_MS = 10 * 60 * 1000;
+const entityStatsMemoryCache = new Map<string, { data: EntityStats; expiresAt: number }>();
+
+function getEntityStatsFromMemory(entityType: "album" | "song", entityId: string): EntityStats | null {
+  const key = `${entityType}:${entityId}`;
+  const entry = entityStatsMemoryCache.get(key);
+  if (!entry || entry.expiresAt <= Date.now()) return null;
+  return entry.data;
+}
+
+function setEntityStatsMemory(entityType: "album" | "song", entityId: string, data: EntityStats) {
+  const key = `${entityType}:${entityId}`;
+  entityStatsMemoryCache.set(key, { data, expiresAt: Date.now() + ENTITY_STATS_TTL_MS });
+  if (entityStatsMemoryCache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of entityStatsMemoryCache.entries()) {
+      if (v.expiresAt <= now) entityStatsMemoryCache.delete(k);
+    }
+  }
+}
+
 export async function getEntityStats(
   entityType: "album" | "song",
   entityId: string,
 ): Promise<EntityStats> {
+  const mem = getEntityStatsFromMemory(entityType, entityId);
+  if (mem) return mem;
+
   try {
     const supabase = await createSupabaseServerClient();
+    let result: EntityStats | null = null;
 
     if (entityType === "album") {
       const { data: row, error } = await supabase
@@ -358,7 +384,7 @@ export async function getEntityStats(
         .maybeSingle();
 
       if (!error && row) {
-        return mapAlbumStatsRow(row as { listen_count: number; review_count: number; avg_rating: number | null; rating_distribution: unknown });
+        result = mapAlbumStatsRow(row as { listen_count: number; review_count: number; avg_rating: number | null; rating_distribution: unknown });
       }
       if (!error && !row) {
         console.warn("[queries] getEntityStats cache miss (album):", entityId);
@@ -371,14 +397,16 @@ export async function getEntityStats(
         .maybeSingle();
 
       if (!error && row) {
-        return mapTrackStatsRow(row as { listen_count: number; review_count: number; avg_rating: number | null });
+        result = mapTrackStatsRow(row as { listen_count: number; review_count: number; avg_rating: number | null });
       }
       if (!error && !row) {
         console.warn("[queries] getEntityStats cache miss (track):", entityId);
       }
     }
 
-    return getEntityStatsLive(entityType, entityId);
+    if (!result) result = await getEntityStatsLive(entityType, entityId);
+    setEntityStatsMemory(entityType, entityId, result);
+    return result;
   } catch (e) {
     console.error("[queries] getEntityStats failed:", e);
     return { ...DEFAULT_ENTITY_STATS };
