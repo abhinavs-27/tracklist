@@ -15,30 +15,36 @@ import type { AlbumRecommendation } from "@/types";
 export async function getListenLogsForUser(
   userId: string,
   limit = 30,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
-  return getListenLogsInternal({ userId, limit });
+  return getListenLogsInternal({ userId, limit, offset });
 }
 
 export async function getListenLogsForTrack(
   spotifyTrackId: string,
   limit = 30,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
-  return getListenLogsInternal({ spotifyTrackId, limit });
+  return getListenLogsInternal({ spotifyTrackId, limit, offset });
 }
 
 async function getListenLogsInternal(opts: {
   userId?: string;
   spotifyTrackId?: string;
   limit: number;
+  offset?: number;
 }): Promise<ListenLogWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
+
+    const from = opts.offset ?? 0;
+    const to = from + opts.limit - 1;
 
     let query = supabase
       .from("logs")
       .select("id, user_id, track_id, listened_at, source, created_at")
       .order("listened_at", { ascending: false })
-      .limit(opts.limit);
+      .range(from, to);
 
     if (opts.userId) query = query.eq("user_id", opts.userId);
     if (opts.spotifyTrackId)
@@ -199,9 +205,12 @@ export async function getReviewsForEntity(
 export async function getReviewsForUser(
   userId: string,
   limit = 30,
+  offset = 0,
 ): Promise<ReviewWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const from = offset;
+    const to = offset + limit - 1;
 
     const { data: rows, error } = await supabase
       .from("reviews")
@@ -210,7 +219,7 @@ export async function getReviewsForUser(
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
 
     if (error || !rows?.length) return [];
 
@@ -1088,15 +1097,18 @@ export type NotificationRow = {
   created_at: string;
 };
 
-export async function getNotifications(userId: string, limit = 50): Promise<NotificationRow[]> {
+export async function getNotifications(userId: string, limit = 50, offset = 0): Promise<NotificationRow[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const from = offset;
+    const to = offset + limit - 1;
+
     const { data, error } = await supabase
       .from("notifications")
       .select("id, user_id, actor_user_id, type, entity_type, entity_id, read, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
     if (error) return [];
     return (data ?? []) as NotificationRow[];
   } catch (e) {
@@ -1179,15 +1191,19 @@ export async function grantAchievementOnList(userId: string): Promise<void> {
 export async function getFollowers(
   userId: string,
   limit = 100,
+  offset = 0,
 ): Promise<{ id: string; follower_id: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const from = offset;
+    const to = offset + limit - 1;
+
     const { data, error } = await supabase
       .from("follows")
       .select("id, follower_id")
       .eq("following_id", userId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
     if (error) throw error;
     return (data ?? []) as { id: string; follower_id: string }[];
   } catch (e) {
@@ -1200,15 +1216,19 @@ export async function getFollowers(
 export async function getFollowing(
   userId: string,
   limit = 100,
+  offset = 0,
 ): Promise<{ id: string; following_id: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
+    const from = offset;
+    const to = offset + limit - 1;
+
     const { data, error } = await supabase
       .from("follows")
       .select("id, following_id")
       .eq("follower_id", userId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
     if (error) throw error;
     return (data ?? []) as { id: string; following_id: string }[];
   } catch (e) {

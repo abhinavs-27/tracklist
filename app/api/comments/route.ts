@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         review_id,
         content: contentResult.value,
       })
-      .select()
+      .select('id, user_id, review_id, content, created_at')
       .single();
 
     if (error) {

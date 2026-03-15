@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         listened_at: listenedAt,
         source: 'manual_import',
       })
-      .select()
+      .select('id, user_id, track_id, listened_at, source, created_at')
       .single();
 
     if (error) {

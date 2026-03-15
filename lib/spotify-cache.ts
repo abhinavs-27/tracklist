@@ -259,7 +259,7 @@ async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjec
 
   const { data: row, error } = await supabase
     .from("artists")
-    .select("*")
+    .select("id, name, image_url, genres, created_at, updated_at, cached_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -538,7 +538,7 @@ async function getOrFetchAlbumInner(id: string): Promise<{
 
   const { data: albumRow, error: albumErr } = await supabase
     .from("albums")
-    .select("*")
+    .select("id, name, artist_id, image_url, release_date, total_tracks, created_at, updated_at, cached_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -554,14 +554,14 @@ async function getOrFetchAlbumInner(id: string): Promise<{
     if (!stale) {
       const { data: artistRow } = await supabase
         .from("artists")
-        .select("*")
+        .select("id, name, image_url, genres, created_at, updated_at, cached_at")
         .eq("id", album.artist_id)
         .maybeSingle();
       const artist = artistRow as unknown as ArtistRow | null;
 
       const { data: songRows, error: songsErr } = await supabase
         .from("songs")
-        .select("*")
+        .select("id, name, album_id, artist_id, duration_ms, track_number, created_at, updated_at, cached_at")
         .eq("album_id", id)
         .order("track_number", { ascending: true });
 
@@ -583,7 +583,7 @@ async function getOrFetchAlbumInner(id: string): Promise<{
             return { album: result.album, tracks: result.tracks };
           const { data: refetched } = await supabase
             .from("songs")
-            .select("*")
+            .select("id, name, album_id, artist_id, duration_ms, track_number, created_at, updated_at, cached_at")
             .eq("album_id", id)
             .order("track_number", { ascending: true });
           songs = (refetched ?? []) as unknown as SongRow[];
@@ -668,13 +668,13 @@ async function getOrFetchAlbumInner(id: string): Promise<{
     // Stale cache: return cached data immediately and refresh in background so the page loads fast
     const { data: artistRowStale } = await supabase
       .from("artists")
-      .select("*")
+      .select("id, name, image_url, genres, created_at, updated_at, cached_at")
       .eq("id", album.artist_id)
       .maybeSingle();
     const artistStale = artistRowStale as unknown as ArtistRow | null;
     const { data: songRowsStale } = await supabase
       .from("songs")
-      .select("*")
+      .select("id, name, album_id, artist_id, duration_ms, track_number, created_at, updated_at, cached_at")
       .eq("album_id", id)
       .order("track_number", { ascending: true });
     const songsStale = (songRowsStale ?? []) as unknown as SongRow[];
@@ -791,7 +791,7 @@ async function getOrFetchTrackInner(id: string): Promise<SpotifyApi.TrackObjectF
 
   const { data: songRow, error } = await supabase
     .from("songs")
-    .select("*")
+    .select("id, name, album_id, artist_id, duration_ms, track_number, created_at, updated_at, cached_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -806,12 +806,12 @@ async function getOrFetchTrackInner(id: string): Promise<SpotifyApi.TrackObjectF
       const [{ data: albumRow }, { data: artistRow }] = await Promise.all([
         supabase
           .from("albums")
-          .select("*")
+          .select("id, name, artist_id, image_url, release_date, total_tracks, created_at, updated_at, cached_at")
           .eq("id", song.album_id)
           .maybeSingle(),
         supabase
           .from("artists")
-          .select("*")
+          .select("id, name, image_url, genres, created_at, updated_at, cached_at")
           .eq("id", song.artist_id)
           .maybeSingle(),
       ]);
@@ -925,7 +925,7 @@ async function getOrFetchTracksBatchInner(
 
   const { data: songRows } = await supabase
     .from("songs")
-    .select("*")
+    .select("id, name, album_id, artist_id, duration_ms, track_number, created_at, updated_at, cached_at")
     .in("id", uniqueIds);
   const allSongs = (songRows ?? []) as unknown as SongRow[];
   const songs = allSongs.filter((s) => !isCacheStale(s.cached_at ?? s.updated_at));
@@ -934,8 +934,18 @@ async function getOrFetchTracksBatchInner(
   const artistIds = [...new Set(songs.map((s) => s.artist_id).filter(Boolean))];
 
   const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
-    albumIds.length ? supabase.from("albums").select("*").in("id", albumIds) : { data: [] },
-    artistIds.length ? supabase.from("artists").select("id, name").in("id", artistIds) : { data: [] },
+    albumIds.length
+      ? supabase
+          .from("albums")
+          .select("id, name, artist_id, image_url, release_date, total_tracks, created_at, updated_at, cached_at")
+          .in("id", albumIds)
+      : { data: [] },
+    artistIds.length
+      ? supabase
+          .from("artists")
+          .select("id, name, image_url, genres, created_at, updated_at, cached_at")
+          .in("id", artistIds)
+      : { data: [] },
   ]);
 
   const albumMap = new Map((albumRows ?? []).map((a: AlbumRow) => [a.id, a]));
@@ -1005,7 +1015,7 @@ async function getOrFetchAlbumsBatchInner(
 
   const { data: albumRows } = await supabase
     .from("albums")
-    .select("*")
+    .select("id, name, artist_id, image_url, release_date, total_tracks, created_at, updated_at, cached_at")
     .in("id", uniqueIds);
   const allAlbums = (albumRows ?? []) as unknown as AlbumRow[];
   const albums = allAlbums.filter((a) => !isCacheStale(a.cached_at ?? a.updated_at));
@@ -1082,7 +1092,7 @@ async function getOrFetchArtistsBatchInner(
 
   const { data: artistRows } = await supabase
     .from("artists")
-    .select("*")
+    .select("id, name, image_url, genres, created_at, updated_at, cached_at")
     .in("id", uniqueIds);
   const allArtists = (artistRows ?? []) as unknown as ArtistRow[];
   const artistsWithImage = allArtists.filter(
