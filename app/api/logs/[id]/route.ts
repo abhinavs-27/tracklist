@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -7,6 +7,8 @@ import {
   apiForbidden,
   apiNotFound,
   apiInternalError,
+  apiBadRequest,
+  apiOk,
 } from '@/lib/api-response';
 import { isValidUuid } from '@/lib/validation';
 
@@ -20,7 +22,7 @@ export async function DELETE(
 
     const { id } = await params;
     if (!isValidUuid(id)) {
-      return NextResponse.json({ error: 'Invalid log id' }, { status: 400 });
+      return apiBadRequest('Invalid log id');
     }
 
     const supabase = await createSupabaseServerClient();
@@ -42,7 +44,7 @@ export async function DELETE(
       userId: session.user.id,
       logId: id,
     });
-    return NextResponse.json({ success: true });
+    return apiOk({ success: true });
   } catch (e) {
     return apiInternalError(e);
   }

@@ -4,13 +4,14 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { exchangeSpotifyCode, buildRedirectUriFromOrigin } from "@/lib/spotify-user";
 import { getRequestOrigin } from "@/lib/app-url";
+import { apiUnauthorized, apiBadRequest, apiError, apiOk } from "@/lib/api-response";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiUnauthorized();
     }
 
     const url = new URL(request.url);
@@ -20,17 +21,11 @@ export async function GET(request: NextRequest) {
 
     if (errorParam) {
       console.error("Spotify OAuth error:", errorParam);
-      return NextResponse.json(
-        { error: `Spotify OAuth error: ${errorParam}` },
-        { status: 400 },
-      );
+      return apiBadRequest(`Spotify OAuth error: ${errorParam}`);
     }
 
     if (!code || !state) {
-      return NextResponse.json(
-        { error: "Missing code or state" },
-        { status: 400 },
-      );
+      return apiBadRequest("Missing code or state");
     }
 
     const cookieState = request.cookies.get("spotify_oauth_state")?.value;
@@ -39,10 +34,7 @@ export async function GET(request: NextRequest) {
         hasCookie: !!cookieState,
         match: cookieState === state,
       });
-      return NextResponse.json(
-        { error: "Invalid OAuth state" },
-        { status: 400 },
-      );
+      return apiBadRequest("Invalid OAuth state");
     }
 
     const requestOrigin = getRequestOrigin(request);
@@ -50,19 +42,13 @@ export async function GET(request: NextRequest) {
     const token = await exchangeSpotifyCode(code, redirectUri);
 
     if (!token.access_token || !token.expires_in) {
-      return NextResponse.json(
-        { error: "Invalid token response" },
-        { status: 400 },
-      );
+      return apiBadRequest("Invalid token response");
     }
 
     const refreshToken = token.refresh_token;
     if (!refreshToken) {
       console.error("Spotify callback missing refresh_token");
-      return NextResponse.json(
-        { error: "Missing refresh_token (check Spotify app settings)" },
-        { status: 400 },
-      );
+      return apiBadRequest("Missing refresh_token (check Spotify app settings)");
     }
 
     const supabase = createSupabaseAdminClient();
@@ -77,10 +63,7 @@ export async function GET(request: NextRequest) {
       console.log("Spotify callback: user already has token, skipping upsert", {
         user_id: session.user.id,
       });
-      const res = NextResponse.json(
-        { connected: true, message: "Spotify is already connected" },
-        { status: 200 },
-      );
+      const res = apiOk({ connected: true, message: "Spotify is already connected" });
       res.cookies.set("spotify_oauth_state", "", { path: "/", maxAge: 0 });
       res.cookies.set("spotify_oauth_return_to", "", { path: "/", maxAge: 0 });
       return res;
@@ -103,10 +86,7 @@ export async function GET(request: NextRequest) {
 
     if (upsertError) {
       console.error("Spotify callback Supabase upsert error:", upsertError);
-      return NextResponse.json(
-        { error: "Failed to save Spotify token" },
-        { status: 500 },
-      );
+      return apiError("Failed to save Spotify token", 500);
     }
 
     console.log(
@@ -136,9 +116,6 @@ export async function GET(request: NextRequest) {
     return res;
   } catch (e) {
     console.error("Spotify callback unexpected error:", e);
-    return NextResponse.json(
-      { error: "Spotify callback failed" },
-      { status: 500 },
-    );
+    return apiError("Spotify callback failed", 500);
   }
 }

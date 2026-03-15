@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -7,7 +7,9 @@ import {
   apiBadRequest,
   apiConflict,
   apiInternalError,
+  apiOk,
 } from '@/lib/api-response';
+import { parseBody } from '@/lib/api-utils';
 import { isValidUuid } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -15,13 +17,10 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest('Invalid JSON body');
-    }
-    const reviewId = (body as Record<string, unknown>).review_id;
+    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    if (parseErr) return parseErr;
+
+    const reviewId = body!.review_id as string;
     if (!reviewId) return apiBadRequest('review_id is required');
     if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       reviewId,
     });
-    return NextResponse.json({ success: true });
+    return apiOk({ success: true });
   } catch (e) {
     return apiInternalError(e);
   }
@@ -72,7 +71,7 @@ export async function DELETE(request: NextRequest) {
       userId: session.user.id,
       reviewId,
     });
-    return NextResponse.json({ success: true });
+    return apiOk({ success: true });
   } catch (e) {
     return apiInternalError(e);
   }

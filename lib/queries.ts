@@ -4,9 +4,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { sanitizeString } from "@/lib/validation";
-import type { ListenLogWithUser, ReviewWithUser } from "@/types";
-import type { FeedActivity, FeedListenSession } from "@/types";
-import type { AlbumRecommendation } from "@/types";
+import type {
+  ListenLogWithUser,
+  ReviewWithUser,
+  FeedActivity,
+  FeedListenSession,
+  AlbumRecommendation,
+  EntityReviewItem,
+  ReviewsResult,
+} from "@/types";
 
 // ---------------------------------------------------------------------------
 // Passive listen logs (Spotify history)
@@ -79,27 +85,6 @@ async function getListenLogsInternal(opts: {
 // ---------------------------------------------------------------------------
 // Active reviews (ratings + optional text)
 // ---------------------------------------------------------------------------
-
-export type EntityReviewItem = {
-  id: string;
-  user_id: string;
-  username: string | null;
-  entity_type: string;
-  entity_id: string;
-  rating: number;
-  review_text: string | null;
-  created_at: string;
-  updated_at: string;
-  /** Populated when user details are fetched (e.g. for ReviewCard). */
-  user?: { id: string; username: string; avatar_url: string | null } | null;
-};
-
-export type ReviewsResult = {
-  reviews: EntityReviewItem[];
-  average_rating: number | null;
-  count: number;
-  my_review: EntityReviewItem | null;
-};
 
 /** Reviews for an entity. Capped at 20 for performance. */
 export async function getReviewsForEntity(

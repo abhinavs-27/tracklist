@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { apiUnauthorized, apiInternalError } from '@/lib/api-response';
+import { apiUnauthorized, apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
 import { checkSpotifyRateLimit } from '@/lib/rate-limit';
 
 export type SpotifyStatusResponse = {
@@ -12,7 +12,7 @@ export type SpotifyStatusResponse = {
 
 export async function GET(request: NextRequest) {
   if (!checkSpotifyRateLimit(request)) {
-    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+    return apiTooManyRequests();
   }
   try {
     const session = await getServerSession(authOptions);
@@ -27,10 +27,10 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       // If not found, treat as not connected.
-      return NextResponse.json({ connected: false } satisfies SpotifyStatusResponse);
+      return apiOk({ connected: false } satisfies SpotifyStatusResponse);
     }
 
-    return NextResponse.json({
+    return apiOk({
       connected: true,
       expires_at: data?.expires_at ?? null,
     } satisfies SpotifyStatusResponse);

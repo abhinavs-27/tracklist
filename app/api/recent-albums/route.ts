@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
-import { apiBadRequest, apiInternalError } from "@/lib/api-response";
+import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       if (albums.length >= MAX_ALBUMS) break;
     }
 
-    return NextResponse.json({ albums });
+    return apiOk({ albums });
   } catch (e) {
     return apiInternalError(e);
   }

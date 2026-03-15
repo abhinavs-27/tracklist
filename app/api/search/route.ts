@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { searchSpotify } from '@/lib/spotify';
-import { apiBadRequest, apiInternalError } from '@/lib/api-response';
+import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { validateSearchQuery, clampLimit, LIMITS } from '@/lib/validation';
 
 type SearchType = 'artist' | 'album' | 'track';
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     // Delegate to the Spotify helper, which correctly encodes and calls the Spotify API.
     const result = await searchSpotify(queryResult.value, searchTypes, limit);
 
-    return NextResponse.json(result);
+    return apiOk(result);
   } catch (e) {
     return apiInternalError(e);
   }

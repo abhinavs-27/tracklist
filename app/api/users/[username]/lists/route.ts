@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserLists } from "@/lib/queries";
-import { apiBadRequest, apiNotFound, apiInternalError } from "@/lib/api-response";
+import { apiBadRequest, apiNotFound, apiInternalError, apiOk } from "@/lib/api-response";
 import { isValidUsername } from "@/lib/validation";
 import { clampLimit } from "@/lib/validation";
 
@@ -29,7 +29,7 @@ export async function GET(
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
     const lists = await getUserLists(user.id, limit, offset);
-    return NextResponse.json(lists);
+    return apiOk(lists);
   } catch (e) {
     return apiInternalError(e);
   }

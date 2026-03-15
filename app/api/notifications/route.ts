@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getNotifications } from "@/lib/queries";
-import { apiUnauthorized, apiInternalError } from "@/lib/api-response";
+import { apiUnauthorized, apiInternalError, apiOk } from "@/lib/api-response";
 
 /** GET /api/notifications. Returns { notifications: NotificationRow[] }. Auth required. */
 export async function GET() {
@@ -10,7 +9,7 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
     const notifications = await getNotifications(session.user.id, 50);
-    return NextResponse.json({ notifications });
+    return apiOk({ notifications });
   } catch (e) {
     return apiInternalError(e);
   }
