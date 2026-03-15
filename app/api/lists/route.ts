@@ -8,12 +8,11 @@ import {
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
-<<<<<<< HEAD
-import { parseBody } from "@/lib/api-utils";
-import { validateListTitle, validateListDescription } from "@/lib/validation";
-=======
-import { validateListTitle, validateListDescription, validateListType } from "@/lib/validation";
->>>>>>> 7bfb6ca (add list page, list visibilty, list album vs song and more)
+import {
+  validateListTitle,
+  validateListDescription,
+  validateListType,
+} from "@/lib/validation";
 import { clampLimit } from "@/lib/validation";
 
 /** GET – search lists by title. ?q=...&limit= (public). Returns [] when q is missing or &lt; 2 chars. */
@@ -36,10 +35,6 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-<<<<<<< HEAD
-    const { data: body, error: parseErr } = await parseBody<{ title?: unknown; description?: unknown }>(request);
-    if (parseErr) return parseErr;
-=======
     let body: {
       title?: unknown;
       description?: unknown;
@@ -53,7 +48,6 @@ export async function POST(request: NextRequest) {
     } catch {
       return apiBadRequest("Invalid JSON body");
     }
->>>>>>> 7bfb6ca (add list page, list visibilty, list album vs song and more)
 
     const titleResult = validateListTitle(body?.title);
     if (!titleResult.ok) return apiBadRequest(titleResult.error);
