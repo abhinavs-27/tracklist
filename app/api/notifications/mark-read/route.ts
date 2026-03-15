@@ -16,6 +16,10 @@ export async function POST(request: NextRequest) {
       // optional body
     }
     await markNotificationsRead(session.user.id, body.notification_ids);
+    console.log("[notifications] notifications marked read", {
+      userId: session.user.id,
+      count: body.notification_ids?.length ?? "all",
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return apiInternalError(e);

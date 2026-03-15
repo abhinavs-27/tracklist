@@ -28,7 +28,7 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
   try {
     accessToken = await getValidSpotifyAccessToken(userId);
   } catch (e) {
-    console.warn("[logs-ingest] user has no valid Spotify token", {
+    console.warn("[spotify-ingest] user has no valid Spotify token", {
       userId,
       error: e instanceof Error ? e.message : String(e),
     });
@@ -67,7 +67,7 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
     );
 
   if (existingError) {
-    console.error("[logs-ingest] existing logs check failed", existingError);
+    console.error("[spotify-ingest] existing logs check failed", { userId, error: existingError });
     return { inserted: 0, skipped: 0 };
   }
 
@@ -101,9 +101,8 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
       );
     } catch (e) {
       console.error(
-        "[logs-ingest] upsertTrackFromSpotify failed",
-        item.track_id,
-        e,
+        "[spotify-ingest] upsertTrackFromSpotify failed",
+        { userId, trackId: item.track_id, error: e },
       );
     }
   }
@@ -119,7 +118,7 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
   );
 
   if (insertError) {
-    console.error("[logs-ingest] insert logs failed", insertError);
+    console.error("[spotify-ingest] insert logs failed", { userId, error: insertError });
     toInsert.forEach((u) => {
       console.log("[spotify-ingest] track ingestion failed", {
         userId,
@@ -138,11 +137,10 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
     });
   });
 
-  console.log(
-    "[logs] Passive log added: user=%s, songs=%d",
+  console.log("[spotify-ingest] passive log added", {
     userId,
-    toInsert.length,
-  );
+    count: toInsert.length,
+  });
 
   return { inserted: toInsert.length, skipped: unique.length - toInsert.length };
 }

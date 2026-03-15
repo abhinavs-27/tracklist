@@ -74,8 +74,8 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (existingToken) {
-      console.log("Spotify callback: user already has token, skipping upsert", {
-        user_id: session.user.id,
+      console.log("[spotify] spotify callback: user already has token, skipping upsert", {
+        userId: session.user.id,
       });
       const res = NextResponse.json(
         { connected: true, message: "Spotify is already connected" },
@@ -109,10 +109,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(
-      "Spotify callback upsert success for user_id:",
-      session.user.id,
-    );
+    console.log("[spotify] spotify callback upsert success", {
+      userId: session.user.id,
+    });
 
     const cookieReturnTo = request.cookies.get(
       "spotify_oauth_return_to",
@@ -128,7 +127,7 @@ export async function GET(request: NextRequest) {
 
     const returnTo = base + returnToQuery;
 
-    console.log("Spotify callback redirecting to:", returnTo);
+    console.log("[spotify] spotify callback redirecting", { userId: session.user.id, returnTo });
 
     const res = NextResponse.redirect(returnTo, { status: 302 });
     res.cookies.set("spotify_oauth_state", "", { path: "/", maxAge: 0 });

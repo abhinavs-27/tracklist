@@ -28,5 +28,6 @@ export async function GET(request: NextRequest) {
     console.warn("[cron] refresh_discover_mvs skipped (apply migration 038 for discover cache):", discoverError.message);
   }
 
+  console.log("[cron] refresh-stats complete");
   return NextResponse.json({ ok: true });
 }
