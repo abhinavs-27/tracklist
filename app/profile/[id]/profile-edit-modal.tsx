@@ -36,11 +36,7 @@ export function ProfileEditModal({ username, bio, avatarUrl }: ProfileEditModalP
         return;
       }
       setOpen(false);
-      if (data.username !== username) {
-        router.push(`/profile/${data.username}`);
-      } else {
-        router.refresh();
-      }
+      router.refresh();
     } finally {
       setLoading(false);
     }

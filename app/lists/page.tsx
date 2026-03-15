@@ -8,7 +8,7 @@ import { ListsSearchContent } from "./lists-search-content";
  */
 export default async function ListsPage() {
   const session = await getServerSession(authOptions);
-  const username = session?.user ? (session.user as { username?: string }).username : null;
+  const userId = session?.user ? (session.user as { id?: string }).id : null;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -17,10 +17,10 @@ export default async function ListsPage() {
         Search lists by title. Create and manage your own lists on your profile.
       </p>
 
-      {username && (
+      {userId && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
           <Link
-            href={`/profile/${username}#lists`}
+            href={`/profile/${userId}#lists`}
             className="text-emerald-400 hover:underline"
           >
             Your lists →

@@ -38,8 +38,8 @@ export default async function NotificationsPage() {
                 <span>
                   {n.type === "follow" && n.actor_user_id && (
                     <>
-                      <Link href={`/profile/${actorMap.get(n.actor_user_id) ?? ""}`} className="font-medium text-white hover:text-emerald-400 hover:underline">
-                        {actorMap.get(n.actor_user_id) ?? "Someone"}
+                      <Link href={`/profile/${n.actor_user_id ?? ""}`} className="font-medium text-white hover:text-emerald-400 hover:underline">
+                        {actorMap.get(n.actor_user_id ?? "") ?? "Someone"}
                       </Link>
                       {" started following you"}
                     </>

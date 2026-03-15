@@ -43,7 +43,7 @@ function ReviewCardInner({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Link
-            href={user?.username ? `/profile/${user.username}` : '#'}
+            href={user?.id ? `/profile/${user.id}` : '#'}
             className="flex items-center gap-2 shrink-0"
           >
             {user?.avatar_url ? (

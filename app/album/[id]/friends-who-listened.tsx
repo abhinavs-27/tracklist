@@ -22,7 +22,7 @@ export function FriendsWhoListened({ activity }: { activity: FriendActivityItem[
         {activity.map((l, i) => (
           <li key={`${l.user_id}-${l.listened_at}-${i}`}>
             <Link
-              href={`/profile/${l.username}`}
+              href={`/profile/${l.user_id}`}
               className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm transition hover:border-zinc-600"
             >
               {l.avatar_url ? (

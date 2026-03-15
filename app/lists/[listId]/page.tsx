@@ -71,7 +71,7 @@ export default async function ListDetailPage({ params }: { params: PageParams })
               <>
                 By{" "}
                 <Link
-                  href={`/profile/${data.owner_username}`}
+                  href={`/profile/${data.list.user_id}`}
                   className="text-emerald-400 hover:underline"
                 >
                   {data.owner_username}

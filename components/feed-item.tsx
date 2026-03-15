@@ -55,7 +55,7 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
       >
         <div className="flex items-center gap-3">
           <Link
-            href={activity.user?.username ? `/profile/${activity.user.username}` : '#'}
+            href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
             onClick={(e) => e.stopPropagation()}
             className="shrink-0"
           >
@@ -74,7 +74,7 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
           <div className="min-w-0 flex-1">
             <p className="text-sm text-zinc-300">
               <Link
-                href={activity.user?.username ? `/profile/${activity.user.username}` : '#'}
+                href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
                 onClick={(e) => e.stopPropagation()}
                 className="font-medium text-white hover:text-emerald-400 hover:underline"
               >
@@ -132,7 +132,7 @@ function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
       <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
         <div className="flex items-center gap-3">
           <Link
-            href={activity.user?.username ? `/profile/${activity.user.username}` : '#'}
+            href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
             className="shrink-0"
           >
             {activity.user?.avatar_url ? (
@@ -150,7 +150,7 @@ function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
           <div className="min-w-0 flex-1">
             <p className="text-sm text-zinc-300">
               <Link
-                href={activity.user?.username ? `/profile/${activity.user.username}` : '#'}
+                href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
                 className="font-medium text-white hover:text-emerald-400 hover:underline"
               >
                 {username}
@@ -191,14 +191,14 @@ function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
       <p className="text-sm text-zinc-300">
         <Link
-          href={activity.follower_username ? `/profile/${activity.follower_username}` : '#'}
+          href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
           className="font-medium text-white hover:text-emerald-400 hover:underline"
         >
           {follower}
         </Link>
         {' followed '}
         <Link
-          href={activity.following_username ? `/profile/${activity.following_username}` : '#'}
+          href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
           className="font-medium text-white hover:text-emerald-400 hover:underline"
         >
           {following}

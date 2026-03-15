@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     const cookieReturnTo = request.cookies.get(
       "spotify_oauth_return_to",
     )?.value;
-    const fallback = `/profile/${session.user.username ?? ""}`;
+    const fallback = `/profile/${session.user.id ?? ""}`;
     const base = requestOrigin;
     const returnToQuery =
       cookieReturnTo &&

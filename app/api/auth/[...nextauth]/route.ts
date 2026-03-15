@@ -61,14 +61,15 @@ export const authOptions: NextAuthOptions = {
       }
     },
     async jwt({ token, user }) {
-      if (user?.email) {
+      const email = (user?.email ?? token?.email) as string | undefined;
+      if (email && typeof token.id !== 'string') {
         try {
           const supabase = await createSupabaseServerClient();
           const { data: dbUser, error } = await supabase
             .from('users')
             .select('id, username, avatar_url, bio')
-            .eq('email', user.email)
-            .single<DbUser>();
+            .eq('email', email)
+            .maybeSingle();
 
           if (error) {
             console.error('[auth][jwt] DB lookup failed:', error);

@@ -67,7 +67,7 @@ export function Navbar() {
           ) : session ? (
             <>
               <Link
-                href={`/profile/${(session.user as { username?: string }).username ?? ""}`}
+                href={`/profile/${(session.user as { id?: string }).id ?? ""}`}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
               >
                 {session.user?.image ? (

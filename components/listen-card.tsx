@@ -17,7 +17,7 @@ export function ListenCard({ log, trackName }: ListenCardProps) {
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 transition-colors hover:bg-zinc-900/70">
       <div className="flex items-center gap-3">
         <Link
-          href={user?.username ? `/profile/${user.username}` : '#'}
+          href={user?.id ? `/profile/${user.id}` : '#'}
           className="flex items-center gap-2 shrink-0"
         >
           {user?.avatar_url ? (

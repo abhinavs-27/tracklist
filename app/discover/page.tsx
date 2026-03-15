@@ -134,7 +134,7 @@ export default async function DiscoverPage() {
                 <li key={u.id}>
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50">
                     <Link
-                      href={`/profile/${u.username}`}
+                      href={`/profile/${u.id}`}
                       className="flex min-w-0 flex-1 items-center gap-3"
                     >
                       {u.avatar_url ? (

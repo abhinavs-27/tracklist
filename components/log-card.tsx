@@ -21,7 +21,7 @@ export function LogCard({ log, trackName }: LogCardProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Link
-            href={user?.username ? `/profile/${user.username}` : '#'}
+            href={user?.id ? `/profile/${user.id}` : '#'}
             className="flex items-center gap-2 shrink-0"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-200 border border-zinc-700">

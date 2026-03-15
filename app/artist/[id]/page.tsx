@@ -149,7 +149,7 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
                     {"☆".repeat(5 - Math.min(5, Math.max(1, r.rating)))}
                   </span>
                   <Link
-                    href={r.username ? `/profile/${r.username}` : "#"}
+                    href={r.user_id ? `/profile/${r.user_id}` : "#"}
                     className="font-medium text-white hover:underline"
                   >
                     {r.username ?? "Unknown"}

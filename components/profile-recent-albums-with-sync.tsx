@@ -22,7 +22,7 @@ export function ProfileRecentAlbumsWithSync({
     <div className="space-y-6">
       {showSpotifyControls ? (
         <SpotifyConnectionCard
-          username={username}
+          userId={userId}
           spotifyConnected={spotifyConnected}
           onSynced={() => setRefreshKey((k) => k + 1)}
         />

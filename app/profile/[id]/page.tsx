@@ -1,10 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ProfileHeader } from "@/components/profile-header";
 import { FeedItem } from "@/components/feed-item";
 import { TasteMatchSection } from "@/components/taste-match";
+import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albums-section";
 import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-with-sync";
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
@@ -13,7 +14,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getFollowCounts, isFollowing, getProfileActivity, getUserLists, getUserStreak, getUserAchievements, getUserFavoriteAlbums } from "@/lib/queries";
 import { enrichFeedActivitiesWithEntityNames } from "@/lib/feed";
 import { ListCard } from "@/components/list-card";
-import { ProfileListsSection } from "@/app/profile/[username]/profile-lists-section";
+import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
+import { isValidUuid } from "@/lib/validation";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -32,23 +34,46 @@ async function hasSpotifyToken(userId: string): Promise<boolean> {
 export default async function ProfilePage({
   params,
 }: {
-  params: Promise<{ username: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const { username } = await params;
+  const paramsResolved = await params;
+  const segment = typeof paramsResolved?.id === "string" ? paramsResolved.id.trim() : "";
+  if (!segment) notFound();
+
   const session = await getServerSession(authOptions);
 
-  const supabase = await createSupabaseServerClient();
-  const { data: user, error: userError } = await supabase
-    .from("users")
-    .select("id, username, avatar_url, bio, created_at")
-    .eq("username", username)
-    .single();
+  const supabase = createSupabaseAdminClient();
+  let user: { id: string; username: string; avatar_url: string | null; bio: string | null; created_at: string } | null = null;
+  let userError: unknown = null;
 
-  if (!user || userError) {
-    if (userError) {
-      console.error("ProfilePage user fetch error:", userError);
-    }
+  if (segment && isValidUuid(segment)) {
+    const result = await supabase
+      .from("users")
+      .select("id, username, avatar_url, bio, created_at")
+      .eq("id", segment)
+      .maybeSingle();
+    user = result.data;
+    userError = result.error;
+  } else if (segment) {
+    const result = await supabase
+      .from("users")
+      .select("id, username, avatar_url, bio, created_at")
+      .eq("username", String(segment).trim())
+      .maybeSingle();
+    user = result.data;
+    userError = result.error;
+  }
+
+  if (userError) {
+    console.error("ProfilePage user fetch error:", userError);
     notFound();
+  }
+  if (!user) {
+    notFound();
+  }
+
+  if (!isValidUuid(segment)) {
+    redirect(`/profile/${user.id}`);
   }
 
   const profileSettled = await Promise.allSettled([
@@ -133,10 +158,17 @@ export default async function ProfilePage({
         </div>
       </header>
 
-      <TasteMatchSection
-        profileUserId={profile.id}
-        viewerUserId={session?.user?.id ?? null}
+      <ProfileFavoriteAlbumsSection
+        favoriteAlbums={favoriteAlbums}
+        isOwnProfile={isOwnProfile}
       />
+
+      {!isOwnProfile && (
+        <TasteMatchSection
+          profileUserId={profile.id}
+          viewerUserId={session?.user?.id ?? null}
+        />
+      )}
 
       <ProfileRecentAlbumsWithSync
         userId={profile.id}
@@ -146,52 +178,6 @@ export default async function ProfilePage({
       />
 
       {isOwnProfile ? <RecentlyPlayedTracks /> : null}
-
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">Favorite albums</h2>
-          {isOwnProfile && (
-            <span className="text-xs text-zinc-500">
-              Edit in onboarding/favorites (API: /api/users/me/favorites)
-            </span>
-          )}
-        </div>
-        {favoriteAlbums.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            {isOwnProfile
-              ? "Pick up to 4 favorite albums to feature here."
-              : "No favorite albums yet."}
-          </p>
-        ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {favoriteAlbums.map((fav) => (
-              <li key={fav.album_id}>
-                <Link
-                  href={`/album/${fav.album_id}`}
-                  className="block rounded-lg border border-zinc-800 bg-zinc-900/60 p-2 hover:border-emerald-500 hover:bg-zinc-900"
-                >
-                  <div className="aspect-square w-full overflow-hidden rounded-md bg-zinc-800">
-                    {fav.image_url ? (
-                      <img
-                        src={fav.image_url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-2xl text-zinc-500">
-                        ♪
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-2 truncate text-xs font-medium text-white">
-                    {fav.name}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
         <div className="flex items-center justify-between gap-3">
