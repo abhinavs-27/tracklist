@@ -1,5 +1,18 @@
 "use client";
 
+/** Base skeleton element for loading placeholders. */
+export function Skeleton({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-muted ${className}`}
+    />
+  );
+}
+
 export function SkeletonBlock({
   className = "",
   style,
