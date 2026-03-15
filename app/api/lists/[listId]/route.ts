@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-import { NextRequest } from "next/server";
-import { getList } from "@/lib/queries";
-import { getOrFetchAlbum } from "@/lib/spotify-cache";
-import { getOrFetchTrack } from "@/lib/spotify-cache";
-import { apiNotFound, apiInternalError, apiOk } from "@/lib/api-response";
-import { isValidUuid } from "@/lib/validation";
-=======
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -19,13 +11,13 @@ import {
   apiUnauthorized,
   apiForbidden,
   apiBadRequest,
+  apiOk,
 } from "@/lib/api-response";
 import {
   isValidUuid,
   validateListTitle,
   validateListDescription,
 } from "@/lib/validation";
->>>>>>> 7bfb6ca (add list page, list visibilty, list album vs song and more)
 
 export type ListItemEnriched = {
   id: string;

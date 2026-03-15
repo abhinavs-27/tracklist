@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import type { SpotifyApi } from "spotify-types";
+import type { SpotifySearchResponse } from "@/lib/spotify";
 import { useRouter } from "next/navigation";
 
 type CreateListModalProps = {
@@ -21,7 +21,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
   const [visibility, setVisibility] = useState<
     "public" | "friends" | "private"
   >("private");
-  const [searchResults, setSearchResults] = useState<SpotifyApi.SearchResponse | null>(null);
+  const [searchResults, setSearchResults] = useState<SpotifySearchResponse | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,7 +45,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
           setSearchResults(null);
           return;
         }
-        const data = (await res.json()) as SpotifyApi.SearchResponse;
+        const data = (await res.json()) as SpotifySearchResponse;
         setSearchResults(data);
       } catch {
         setSearchResults(null);
@@ -245,7 +245,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
                   const imageUrl =
                     type === "album"
                       ? (item as SpotifyApi.AlbumObjectSimplified).images?.[0]?.url
-                      : (item as SpotifyApi.TrackObjectSimplified).album?.images?.[0]?.url;
+                      : (item as SpotifyApi.TrackObjectFull).album?.images?.[0]?.url;
                   return (
                     <li key={item.id}>
                       <button

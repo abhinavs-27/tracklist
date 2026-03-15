@@ -1221,6 +1221,66 @@ export async function getPeriodReport(
   }
 }
 
+// ---------------------------------------------------------------------------
+// User favorites (albums)
+// ---------------------------------------------------------------------------
+
+export type FavoriteAlbum = {
+  album_id: string;
+  position: number;
+  name: string;
+  image_url: string | null;
+};
+
+export async function getUserFavoriteAlbums(
+  userId: string,
+): Promise<FavoriteAlbum[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data: rows, error } = await supabase
+      .from("user_favorite_albums")
+      .select("album_id, position")
+      .eq("user_id", userId)
+      .order("position", { ascending: true });
+
+    if (error || !rows?.length) return [];
+
+    const albumIds = rows.map((r) => r.album_id);
+    const { data: albums, error: albumsError } = await supabase
+      .from("albums")
+      .select("id, name, image_url")
+      .in("id", albumIds);
+
+    if (albumsError) return [];
+
+    const albumMap = new Map<
+      string,
+      { id: string; name: string; image_url: string | null }
+    >((albums ?? []).map((a) => [a.id as string, {
+      id: a.id as string,
+      name: a.name as string,
+      image_url: (a.image_url as string | null) ?? null,
+    }]));
+
+    return rows
+      .map((r) => {
+        const album = albumMap.get(r.album_id as string);
+        if (!album) return null;
+        return {
+          album_id: r.album_id as string,
+          position: r.position as number,
+          name: album.name,
+          image_url: album.image_url,
+        };
+      })
+      .filter((x): x is FavoriteAlbum => x != null);
+  } catch (e) {
+    console.error("[queries] getUserFavoriteAlbums failed:", e);
+    return [];
+  }
+}
+
 export type NotificationRow = {
   id: string;
   user_id: string;
@@ -2180,9 +2240,9 @@ export async function getUserLists(
       title: l.title,
       description: l.description ?? null,
       type: l.type as "album" | "song",
-      visibility: (l as any).visibility ?? "private",
-      emoji: (l as any).emoji ?? null,
-      image_url: (l as any).image_url ?? null,
+      visibility: (l.visibility as "public" | "friends" | "private") ?? "private",
+      emoji: (l.emoji as string | null) ?? null,
+      image_url: (l.image_url as string | null) ?? null,
       created_at: l.created_at,
       item_count: countByList.get(l.id) ?? 0,
     }));
@@ -2213,7 +2273,7 @@ export async function getList(listId: string): Promise<ListWithItems | null> {
     let itemRows: { id: string; list_id: string; entity_type: string; entity_id: string; position: number; added_at?: string }[] | null = null;
     let itemsError: { code?: string } | null = null;
 
-    let itemsResult = await supabase
+    const itemsResult = await supabase
       .from("list_items")
       .select("id, list_id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)

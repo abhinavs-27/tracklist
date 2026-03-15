@@ -22,7 +22,7 @@ export function ProfileEditModal({ username, bio, avatarUrl }: ProfileEditModalP
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+      const res = await fetch(`/api/users/me`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

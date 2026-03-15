@@ -8,8 +8,8 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 /** Spotify IDs are 22-char alphanumeric (base62) */
 const SPOTIFY_ID_REGEX = /^[a-zA-Z0-9]{22}$/;
 
-/** Username: alphanumeric and underscore, 3–30 chars */
-const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+/** Username: lowercase letters, numbers, underscore, 3–20 chars */
+const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 
 export const LIMITS = {
   COMMENT_CONTENT: 2000,
@@ -92,11 +92,24 @@ export function validateSearchQuery(q: unknown): { ok: true; value: string } | {
   return { ok: true, value: s };
 }
 
-export function validateUsernameUpdate(username: unknown): { ok: true; value: string } | { ok: false; error: string } {
-  if (username == null) return { ok: false, error: 'username is required' };
-  const s = typeof username === 'string' ? username.trim() : String(username).trim();
-  if (s.length === 0) return { ok: false, error: 'username cannot be empty' };
-  if (!USERNAME_REGEX.test(s)) return { ok: false, error: 'username must be 3–30 characters, alphanumeric or underscore' };
+export function validateUsernameUpdate(
+  username: unknown,
+): { ok: true; value: string } | { ok: false; error: string } {
+  if (username == null)
+    return { ok: false, error: "username is required" };
+  const s =
+    typeof username === "string"
+      ? username.trim()
+      : String(username).trim().toLowerCase();
+  if (s.length === 0)
+    return { ok: false, error: "username cannot be empty" };
+  if (!USERNAME_REGEX.test(s)) {
+    return {
+      ok: false,
+      error:
+        "username must be 3–20 characters, lowercase letters, numbers, or underscore",
+    };
+  }
   return { ok: true, value: s };
 }
 

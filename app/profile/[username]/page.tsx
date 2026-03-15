@@ -10,7 +10,7 @@ import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getFollowCounts, isFollowing, getProfileActivity, getUserLists, getUserStreak, getUserAchievements } from "@/lib/queries";
+import { getFollowCounts, isFollowing, getProfileActivity, getUserLists, getUserStreak, getUserAchievements, getUserFavoriteAlbums } from "@/lib/queries";
 import { enrichFeedActivitiesWithEntityNames } from "@/lib/feed";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[username]/profile-lists-section";
@@ -61,6 +61,7 @@ export default async function ProfilePage({
     getUserLists(user.id, 50, 0),
     getUserStreak(user.id),
     getUserAchievements(user.id),
+    getUserFavoriteAlbums(user.id),
   ]);
 
   const counts = profileSettled[0].status === "fulfilled" ? profileSettled[0].value : { followers_count: 0, following_count: 0 };
@@ -92,6 +93,8 @@ export default async function ProfilePage({
   if (profileSettled[5].status === "rejected") console.error("[profile] getUserStreak failed:", profileSettled[5].reason);
   const achievements = profileSettled[6].status === "fulfilled" ? profileSettled[6].value : [];
   if (profileSettled[6].status === "rejected") console.error("[profile] getUserAchievements failed:", profileSettled[6].reason);
+  const favoriteAlbums = profileSettled[7].status === "fulfilled" ? profileSettled[7].value : [];
+  if (profileSettled[7].status === "rejected") console.error("[profile] getUserFavoriteAlbums failed:", profileSettled[7].reason);
 
   const activity = await enrichFeedActivitiesWithEntityNames(activityRaw);
 
@@ -142,6 +145,52 @@ export default async function ProfilePage({
       />
 
       {isOwnProfile ? <RecentlyPlayedTracks /> : null}
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-white">Favorite albums</h2>
+          {isOwnProfile && (
+            <span className="text-xs text-zinc-500">
+              Edit in onboarding/favorites (API: /api/users/me/favorites)
+            </span>
+          )}
+        </div>
+        {favoriteAlbums.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            {isOwnProfile
+              ? "Pick up to 4 favorite albums to feature here."
+              : "No favorite albums yet."}
+          </p>
+        ) : (
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {favoriteAlbums.map((fav) => (
+              <li key={fav.album_id}>
+                <Link
+                  href={`/album/${fav.album_id}`}
+                  className="block rounded-lg border border-zinc-800 bg-zinc-900/60 p-2 hover:border-emerald-500 hover:bg-zinc-900"
+                >
+                  <div className="aspect-square w-full overflow-hidden rounded-md bg-zinc-800">
+                    {fav.image_url ? (
+                      <img
+                        src={fav.image_url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-2xl text-zinc-500">
+                        ♪
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2 truncate text-xs font-medium text-white">
+                    {fav.name}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
         <div className="flex items-center justify-between gap-3">
