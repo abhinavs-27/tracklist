@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Query limits and performance caps", () => {
-  test("reviews API returns at most 30 items when limit param is higher", async ({
+  test("reviews API returns at most 20 items when limit param is higher", async ({
     request,
   }) => {
     const res = await request.get(
@@ -10,6 +10,6 @@ test.describe("Query limits and performance caps", () => {
     expect(res.status()).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data.reviews)).toBe(true);
-    expect(data.reviews.length).toBeLessThanOrEqual(30);
+    expect(data.reviews.length).toBeLessThanOrEqual(20);
   });
 });

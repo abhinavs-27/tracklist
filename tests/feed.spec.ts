@@ -36,6 +36,17 @@ test.describe('Feed', () => {
     }
   });
 
+  test('feed API caps limit at 100 when requested higher', async ({ request }) => {
+    const res = await request.get('/api/feed?limit=150');
+    if (res.status() !== 200) {
+      test.skip();
+      return;
+    }
+    const data = await res.json();
+    expect(Array.isArray(data.items)).toBe(true);
+    expect(data.items.length).toBeLessThanOrEqual(100);
+  });
+
   test('feed page renders within expected time (virtualized list)', async ({ page }) => {
     const start = Date.now();
     await page.goto('/feed');

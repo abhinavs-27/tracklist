@@ -25,7 +25,7 @@ export async function GET(
     if (!user) return apiNotFound("User not found");
 
     const { searchParams } = new URL(request.url);
-    const limit = clampLimit(searchParams.get("limit"), 100, 50);
+    const limit = clampLimit(searchParams.get("limit"), 50, 20);
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
     const lists = await getUserLists(user.id, limit, offset);

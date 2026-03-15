@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       .select('user_id, entity_id, entity_type, created_at')
       .eq('entity_type', 'album')
       .order('created_at', { ascending: false })
-      .limit(Math.min(Math.max(limit * 15, 50), 100));
+      .limit(Math.min(Math.max(limit * 10, 50), 80));
 
     if (reviewsError) return apiInternalError(reviewsError);
 

@@ -32,7 +32,7 @@ export default async function HomePage() {
     );
   }
 
-  const { items: feedItems, next_cursor: feedNextCursor } = await getFeedForUser(session.user.id, 30, null);
+  const { items: feedItems, next_cursor: feedNextCursor } = await getFeedForUser(session.user.id, 50, null);
   const [withNames, withAlbums] = await Promise.all([
     enrichFeedActivitiesWithEntityNames(feedItems),
     enrichListenSessionsWithAlbums(feedItems),

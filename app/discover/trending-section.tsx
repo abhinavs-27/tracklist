@@ -18,7 +18,7 @@ export function TrendingSection({ items }: TrendingSectionProps) {
         </p>
       ) : (
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {valid.slice(0, 21).map(({ entity, track }) =>
+        {valid.slice(0, 20).map(({ entity, track }) =>
           track ? (
             <li key={entity.entity_id}>
               <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">

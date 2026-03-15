@@ -95,13 +95,13 @@ export type ReviewsResult = {
   my_review: EntityReviewItem | null;
 };
 
-/** Reviews for an entity. Capped at 30 for performance. */
+/** Reviews for an entity. Capped at 20 for performance. */
 export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
 ): Promise<ReviewsResult | null> {
-  const cappedLimit = Math.min(Math.max(1, limit), 30);
+  const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -1886,7 +1886,7 @@ export async function getUserLists(
 ): Promise<UserListSummary[]> {
   try {
     const supabase = await createSupabaseServerClient();
-    const cappedLimit = Math.min(Math.max(1, limit), 100);
+    const cappedLimit = Math.min(Math.max(1, limit), 50);
     const cappedOffset = Math.max(0, offset);
 
     const { data: listRows, error: listError } = await supabase

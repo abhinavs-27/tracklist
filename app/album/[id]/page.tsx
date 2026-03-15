@@ -93,7 +93,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     getAlbumEngagementStats(id),
     viewerId ? getFriendsAlbumActivity(viewerId, id, 10) : Promise.resolve([]),
     getTrackStatsForTrackIds(trackIds),
-    getAlbumRecommendations(id, 10),
+    getAlbumRecommendations(id, 15),
   ]);
 
   const defaultStats = {
