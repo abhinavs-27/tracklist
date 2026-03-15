@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { sanitizeString } from "@/lib/validation";
 import type { ListenLogWithUser, ReviewWithUser } from "@/types";
 import type { FeedActivity, FeedListenSession } from "@/types";
+import type { AlbumRecommendation } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Passive listen logs (Spotify history)
@@ -736,6 +737,58 @@ export async function getAlbumListeners(
       .filter((x): x is NonNullable<typeof x> => !!x);
   } catch (e) {
     console.error("[queries] getAlbumListeners failed:", e);
+    return [];
+  }
+}
+
+/** Album recommendations: "Because you listened to X" — albums co-listened by users who listened to this album. */
+export async function getAlbumRecommendations(
+  albumId: string,
+  limit = 10,
+): Promise<AlbumRecommendation[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const capped = Math.min(Math.max(1, limit), 20);
+    const { data, error } = await supabase.rpc("get_album_recommendations", {
+      p_album_id: albumId,
+      p_limit: capped,
+    });
+    if (error) {
+      console.warn("[queries] get_album_recommendations RPC failed:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r: { album_id: string; score: number }) => ({
+      album_id: r.album_id,
+      score: Number(r.score) || 0,
+    }));
+  } catch (e) {
+    console.error("[queries] getAlbumRecommendations failed:", e);
+    return [];
+  }
+}
+
+/** Personalized recommendations: albums listened to by users with similar taste; excludes albums user already listened to. */
+export async function getUserRecommendations(
+  userId: string,
+  limit = 20,
+): Promise<AlbumRecommendation[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const capped = Math.min(Math.max(1, limit), 20);
+    const { data, error } = await supabase.rpc("get_user_recommendations", {
+      p_user_id: userId,
+      p_limit: capped,
+    });
+    if (error) {
+      console.warn("[queries] get_user_recommendations RPC failed:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r: { album_id: string; score: number }) => ({
+      album_id: r.album_id,
+      score: Number(r.score) || 0,
+    }));
+  } catch (e) {
+    console.error("[queries] getUserRecommendations failed:", e);
     return [];
   }
 }

@@ -55,12 +55,16 @@ export default async function DiscoverPage() {
         <p className="mt-1 text-zinc-400">
           Trending tracks, rising artists, hidden gems, and people to follow.
         </p>
-        <Link
-          href="/search/users"
-          className="mt-2 inline-block text-sm text-emerald-400 hover:underline"
-        >
-          Search users by username →
-        </Link>
+        <div className="mt-2 flex flex-wrap gap-4 text-sm">
+          <Link href="/search/users" className="text-emerald-400 hover:underline">
+            Search users by username →
+          </Link>
+          {session?.user?.id && (
+            <Link href="/discover/recommended" className="text-emerald-400 hover:underline">
+              Recommended for you →
+            </Link>
+          )}
+        </div>
       </header>
 
       <TrendingSection items={trendingEnriched} />

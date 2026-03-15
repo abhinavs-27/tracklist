@@ -12,7 +12,10 @@ import {
   getAlbumListeners,
   getTrackStatsForTrackIds,
   getListenLogsForAlbum,
+  getAlbumRecommendations,
 } from "@/lib/queries";
+import { getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
+import { AlbumCard } from "@/components/album-card";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -64,13 +67,22 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   }
 
   const trackIds = tracks.items?.map((t) => t.id) ?? [];
-  const [reviewsData, stats, listeners, trackStats, recentListens] = await Promise.all([
+  const [reviewsData, stats, listeners, trackStats, recentListens, recommendationsRaw] = await Promise.all([
     getReviewsForEntity("album", id, 20),
     getEntityStats("album", id),
     getAlbumListeners(id, 8, session?.user?.id ?? null),
     getTrackStatsForTrackIds(trackIds),
     getListenLogsForAlbum(id, 15),
+    getAlbumRecommendations(id, 10),
   ]);
+
+  const recommendationAlbumIds = recommendationsRaw.map((r) => r.album_id);
+  const recommendationAlbumsMap = recommendationAlbumIds.length > 0
+    ? await getOrFetchAlbumsBatch(recommendationAlbumIds)
+    : new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
+  const recommendedAlbums = recommendationAlbumIds
+    .map((aid) => recommendationAlbumsMap.get(aid) ?? null)
+    .filter((a): a is SpotifyApi.AlbumObjectSimplified => a != null);
 
   const image = album.images?.[0]?.url;
 
@@ -207,6 +219,19 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           </div>
         </section>
       ) : null}
+
+      {/* Recommended Albums — "Because you listened to X" */}
+      {recommendedAlbums.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-white">Recommended Albums</h2>
+          <p className="mb-3 text-sm text-zinc-400">Because you listened to {album.name}</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {recommendedAlbums.map((rec) => (
+              <AlbumCard key={rec.id} album={rec} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recent listens */}
       {recentListens.length > 0 && (

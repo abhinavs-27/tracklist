@@ -65,7 +65,7 @@ export default async function HomePage() {
               <li key={feedActivityKey(activity)}>
                 <FeedItem
                   activity={activity}
-                  spotifyName={'spotifyName' in activity ? activity.spotifyName : undefined}
+                  spotifyName={activity.type === 'review' ? (activity as FeedActivity & { spotifyName?: string }).spotifyName : undefined}
                 />
               </li>
             ))}

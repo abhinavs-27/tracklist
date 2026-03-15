@@ -80,6 +80,12 @@ export type FeedActivity =
   | FeedListenSession
   | FeedListenSessionsSummary;
 
+/** Recommendation from co-listening: album_id and co-occurrence score. */
+export interface AlbumRecommendation {
+  album_id: string;
+  score: number;
+}
+
 export interface Like {
   id: string;
   user_id: string;
