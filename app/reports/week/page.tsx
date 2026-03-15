@@ -24,22 +24,22 @@ export default async function WeeklyReportPage() {
     );
   }
 
-  let topArtistName: string | null = null;
-  let topAlbum: { name: string; id: string } | null = null;
-  let topTrack: { name: string; id: string } | null = null;
+  let topArtist: { name: string; id: string; imageUrl: string | null } | null = null;
+  let topAlbum: { name: string; id: string; imageUrl: string | null } | null = null;
+  let topTrack: { name: string; id: string; imageUrl: string | null } | null = null;
 
   if (report.top_artist_id) {
     try {
       const artist = await getArtist(report.top_artist_id);
-      topArtistName = artist?.name ?? null;
+      topArtist = artist ? { name: artist.name, id: artist.id, imageUrl: artist.images?.[0]?.url ?? null } : null;
     } catch {
-      topArtistName = null;
+      topArtist = null;
     }
   }
   if (report.top_album_id) {
     try {
       const data = await getOrFetchAlbum(report.top_album_id);
-      topAlbum = data?.album ? { name: data.album.name, id: data.album.id } : null;
+      topAlbum = data?.album ? { name: data.album.name, id: data.album.id, imageUrl: data.album.images?.[0]?.url ?? null } : null;
     } catch {
       topAlbum = null;
     }
@@ -47,7 +47,7 @@ export default async function WeeklyReportPage() {
   if (report.top_track_id) {
     try {
       const track = await getOrFetchTrack(report.top_track_id);
-      topTrack = track ? { name: track.name, id: track.id } : null;
+      topTrack = track ? { name: track.name, id: track.id, imageUrl: track.album?.images?.[0]?.url ?? null } : null;
     } catch {
       topTrack = null;
     }
@@ -68,39 +68,66 @@ export default async function WeeklyReportPage() {
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Top artist</p>
-          <p className="mt-1 text-lg font-medium text-white">
-            {topArtistName ? (
-              <Link href={`/artist/${report.top_artist_id}`} className="hover:text-emerald-400 hover:underline">
-                {topArtistName}
-              </Link>
+          <div className="mt-2 flex items-center gap-3">
+            {topArtist ? (
+              <>
+                <Link href={`/artist/${topArtist.id}`} className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-zinc-800">
+                  {topArtist.imageUrl ? (
+                    <img src={topArtist.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">♪</div>
+                  )}
+                </Link>
+                <Link href={`/artist/${topArtist.id}`} className="text-lg font-medium text-white hover:text-emerald-400 hover:underline">
+                  {topArtist.name}
+                </Link>
+              </>
             ) : (
               <span className="text-zinc-500">—</span>
             )}
-          </p>
+          </div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Top album</p>
-          <p className="mt-1 text-lg font-medium text-white">
+          <div className="mt-2 flex items-center gap-3">
             {topAlbum ? (
-              <Link href={`/album/${topAlbum.id}`} className="hover:text-emerald-400 hover:underline">
-                {topAlbum.name}
-              </Link>
+              <>
+                <Link href={`/album/${topAlbum.id}`} className="h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
+                  {topAlbum.imageUrl ? (
+                    <img src={topAlbum.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">♪</div>
+                  )}
+                </Link>
+                <Link href={`/album/${topAlbum.id}`} className="text-lg font-medium text-white hover:text-emerald-400 hover:underline">
+                  {topAlbum.name}
+                </Link>
+              </>
             ) : (
               <span className="text-zinc-500">—</span>
             )}
-          </p>
+          </div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Top track</p>
-          <p className="mt-1 text-lg font-medium text-white">
+          <div className="mt-2 flex items-center gap-3">
             {topTrack ? (
-              <Link href={`/song/${topTrack.id}`} className="hover:text-emerald-400 hover:underline">
-                {topTrack.name}
-              </Link>
+              <>
+                <Link href={`/song/${topTrack.id}`} className="h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
+                  {topTrack.imageUrl ? (
+                    <img src={topTrack.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">♪</div>
+                  )}
+                </Link>
+                <Link href={`/song/${topTrack.id}`} className="text-lg font-medium text-white hover:text-emerald-400 hover:underline">
+                  {topTrack.name}
+                </Link>
+              </>
             ) : (
               <span className="text-zinc-500">—</span>
             )}
-          </p>
+          </div>
         </div>
       </div>
     </div>
