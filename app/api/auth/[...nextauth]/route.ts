@@ -44,6 +44,9 @@ export const authOptions: NextAuthOptions = {
           avatar_url: user.image ?? null,
           bio: null,
         });
+        if (!error) {
+          console.log("[auth] user created", { email: user.email, username });
+        }
         if (error) {
           if (error.code === '23505') {
             return true;
