@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createList, searchLists, grantAchievementOnList } from "@/lib/queries";
@@ -6,7 +6,9 @@ import {
   apiUnauthorized,
   apiBadRequest,
   apiInternalError,
+  apiOk,
 } from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 import { validateListTitle, validateListDescription } from "@/lib/validation";
 import { clampLimit } from "@/lib/validation";
 
@@ -16,9 +18,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q")?.trim() ?? "";
     const limit = clampLimit(searchParams.get("limit"), 50, 20);
-    if (q.length < 2) return NextResponse.json([]);
+    if (q.length < 2) return apiOk([]);
     const lists = await searchLists(q, limit);
-    return NextResponse.json(lists);
+    return apiOk(lists);
   } catch (e) {
     return apiInternalError(e);
   }
@@ -30,14 +32,10 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    let body: { title?: unknown; description?: unknown };
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest("Invalid JSON body");
-    }
+    const { data: body, error: parseErr } = await parseBody<{ title?: unknown; description?: unknown }>(request);
+    if (parseErr) return parseErr;
 
-    const titleResult = validateListTitle(body.title);
+    const titleResult = validateListTitle(body?.title);
     if (!titleResult.ok) return apiBadRequest(titleResult.error);
     const description = validateListDescription(body.description);
 
@@ -50,7 +48,7 @@ export async function POST(request: NextRequest) {
       listId: list.id,
     });
 
-    return NextResponse.json(list);
+    return apiOk(list);
   } catch (e) {
     return apiInternalError(e);
   }

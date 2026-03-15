@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { searchUsers } from '@/lib/queries';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { apiUnauthorized, apiBadRequest, apiInternalError } from '@/lib/api-response';
+import { apiUnauthorized, apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { sanitizeString } from '@/lib/validation';
 
 const MIN_QUERY_LENGTH = 2;
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     const rows = await searchUsers(q, 20, session.user.id);
-    if (rows.length === 0) return NextResponse.json([]);
+    if (rows.length === 0) return apiOk([]);
 
     const supabase = await createSupabaseServerClient();
     const { data: followRows } = await supabase
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       followers_count: r.followers_count,
       is_following: followingSet.has(r.id),
     }));
-    return NextResponse.json(users);
+    return apiOk(users);
   } catch (e) {
     return apiInternalError(e);
   }

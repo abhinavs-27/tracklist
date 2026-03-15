@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getFeedForUser, enrichFeedActivitiesWithEntityNames, enrichListenSessionsWithAlbums } from '@/lib/feed';
-import { apiUnauthorized, apiInternalError } from '@/lib/api-response';
+import { apiUnauthorized, apiInternalError, apiOk } from '@/lib/api-response';
 import { clampLimit, LIMITS } from '@/lib/validation';
 
 /** GET /api/feed?limit=<1-100>&cursor=<ISO timestamp>. Returns { items with spotifyName for reviews, next_cursor }. */
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { items, next_cursor } = await getFeedForUser(session.user.id, limit, cursor);
     const withNames = await enrichFeedActivitiesWithEntityNames(items);
     const enriched = await enrichListenSessionsWithAlbums(withNames);
-    return NextResponse.json({ items: enriched, next_cursor });
+    return apiOk({ items: enriched, next_cursor });
   } catch (e) {
     return apiInternalError(e);
   }

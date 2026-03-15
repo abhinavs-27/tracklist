@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getList } from "@/lib/queries";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
-import { apiNotFound, apiInternalError } from "@/lib/api-response";
+import { apiNotFound, apiInternalError, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 
 export type ListItemEnriched = {
@@ -47,7 +47,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
+    return apiOk({
       list: data.list,
       owner_username: data.owner_username,
       items: enriched,

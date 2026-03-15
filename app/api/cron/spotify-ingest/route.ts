@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { ingestRecentPlaysForUser } from "@/lib/logs-ingest";
+import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
 
 const BATCH_SIZE = 50;
 const MAX_USERS_PER_RUN = 500;
@@ -8,7 +9,7 @@ const MAX_USERS_PER_RUN = 500;
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return apiUnauthorized();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -21,10 +22,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("[cron] spotify_tokens query failed", error);
-    return NextResponse.json(
-      { ok: false, error: "spotify_tokens query failed" },
-      { status: 500 },
-    );
+    return apiError("spotify_tokens query failed", 500);
   }
 
   const userIds = [...new Set((tokens ?? []).map((t) => t.user_id as string))];
@@ -59,7 +57,7 @@ export async function GET(request: NextRequest) {
     { processed, totalInserted, totalSkipped },
   );
 
-  return NextResponse.json({
+  return apiOk({
     ok: true,
     processed,
     inserted: totalInserted,

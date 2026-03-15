@@ -8,7 +8,9 @@ import {
   apiNotFound,
   apiForbidden,
   apiInternalError,
+  apiOk,
 } from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 import { isValidUuid } from "@/lib/validation";
 import { validateReviewContent } from "@/lib/validation";
 
@@ -26,14 +28,10 @@ export async function PATCH(
     const { id } = await ctx.params;
     if (!isValidUuid(id)) return apiBadRequest("Invalid review id");
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest("Invalid JSON");
-    }
-    const b = body as Record<string, unknown>;
-    const { rating, review_text } = b;
+    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    if (parseErr) return parseErr;
+
+    const { rating, review_text } = body!;
 
     const supabase = await createSupabaseServerClient();
     const { data: existing, error: fetchErr } = await supabase
@@ -71,7 +69,7 @@ export async function PATCH(
       userId: session.user.id,
       reviewId: data.id,
     });
-    return NextResponse.json(data);
+    return apiOk(data);
   } catch (e) {
     return apiInternalError(e);
   }

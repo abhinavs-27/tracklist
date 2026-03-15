@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getAlbums } from "@/lib/spotify";
-import { apiBadRequest, apiInternalError } from "@/lib/api-response";
+import { apiBadRequest, apiInternalError, apiTooManyRequests, apiOk } from "@/lib/api-response";
 import { isValidSpotifyId } from "@/lib/validation";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 
@@ -16,7 +16,7 @@ export type AlbumMetadataItem = {
 
 export async function GET(request: NextRequest) {
   if (!checkSpotifyRateLimit(request)) {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+    return apiTooManyRequests();
   }
   try {
     const { searchParams } = new URL(request.url);
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       release_date: a.release_date ?? null,
     }));
 
-    return NextResponse.json(result, {
+    return apiOk(result, {
       headers: {
         "Cache-Control":
           "public, max-age=300, s-maxage=300, stale-while-revalidate=86400",

@@ -6,6 +6,8 @@ import {
   apiUnauthorized,
   apiBadRequest,
   apiInternalError,
+  apiOk,
+  apiTooManyRequests,
 } from "@/lib/api-response";
 import {
   getRecentlyPlayed,
@@ -22,7 +24,7 @@ type SyncResponse = {
 
 export async function POST(request: NextRequest) {
   if (!checkSpotifyRateLimit(request)) {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+    return apiTooManyRequests();
   }
   try {
     const session = await getServerSession(authOptions);
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (candidates.length === 0) {
-      return NextResponse.json({
+      return apiOk({
         inserted: 0,
         skipped: 0,
         mode,
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     const toInsert = unique.filter((u) => !existingSet.has(u.track_id));
     if (toInsert.length === 0) {
-      return NextResponse.json({
+      return apiOk({
         inserted: 0,
         skipped: unique.length,
         mode,
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
       skipped: unique.length - toInsert.length,
     });
 
-    return NextResponse.json({
+    return apiOk({
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,
       mode,

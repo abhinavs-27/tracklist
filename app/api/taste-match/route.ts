@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { apiBadRequest, apiInternalError } from '@/lib/api-response';
+import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { isValidUuid } from '@/lib/validation';
 import type { TasteMatchResponse } from '@/types';
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         sharedAlbumCount: 0,
         sharedAlbums: [],
       };
-      return NextResponse.json(body);
+      return apiOk(body);
     }
 
     const supabase = await createSupabaseServerClient();
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       sharedAlbums,
     };
 
-    return NextResponse.json(body);
+    return apiOk(body);
   } catch (e) {
     return apiInternalError(e);
   }
