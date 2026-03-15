@@ -95,11 +95,13 @@ export type ReviewsResult = {
   my_review: EntityReviewItem | null;
 };
 
+/** Reviews for an entity. Capped at 30 for performance. */
 export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
 ): Promise<ReviewsResult | null> {
+  const cappedLimit = Math.min(Math.max(1, limit), 30);
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -111,7 +113,7 @@ export async function getReviewsForEntity(
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .limit(cappedLimit);
 
     if (error) return null;
 

@@ -45,6 +45,14 @@ test.describe('Recommendations', () => {
     expect(data.recommendations.length).toBe(0);
   });
 
+  test('Album recommendations cap at 20 even when limit param is higher', async ({ request }) => {
+    const res = await request.get('/api/recommendations/album?album_id=2UJcKSJbAUH7k2qOuc3H3K&limit=50');
+    expect(res.status()).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data.recommendations)).toBe(true);
+    expect(data.recommendations.length).toBeLessThanOrEqual(20);
+  });
+
   test('Album recommendations without album_id returns 400', async ({ request }) => {
     const res = await request.get('/api/recommendations/album?limit=10');
     expect(res.status()).toBe(400);

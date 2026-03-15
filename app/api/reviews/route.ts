@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const entityType = searchParams.get("entity_type");
     const entityId = searchParams.get("entity_id");
-    const limit = clampLimit(searchParams.get("limit"), 50, 10);
+    const limit = clampLimit(searchParams.get("limit"), 30, 10);
 
     if (!entityType || !entityId) {
       return apiBadRequest("entity_type and entity_id required");
