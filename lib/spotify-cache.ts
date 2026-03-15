@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { logPerf, timeAsync } from "@/lib/profiling";
 import {
   getAlbum,
   getAlbumTracks,
@@ -253,9 +254,7 @@ async function upsertSongRowOnly(
 
 // --- getOrFetchArtist (DB-first cache + TTL)
 
-export async function getOrFetchArtist(
-  id: string,
-): Promise<SpotifyApi.ArtistObjectFull> {
+async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjectFull> {
   const supabase = await createSupabaseServerClient();
 
   const { data: row, error } = await supabase
@@ -306,6 +305,7 @@ export async function getOrFetchArtist(
 
   logCacheMiss("artist", id);
 
+  const missStart = performance.now();
   try {
     const artist = await getArtist(id);
     try {
@@ -313,11 +313,16 @@ export async function getOrFetchArtist(
     } catch (e) {
       console.error(`${LOG_PREFIX} upsertArtistFromSpotify error`, e);
     }
+    logPerf("cache_miss", "artist", performance.now() - missStart, { id });
     return artist;
   } catch (e) {
     console.error(`${LOG_PREFIX} getArtist failed`, e);
     throw new Error(`Failed to fetch artist ${id} from Spotify`);
   }
+}
+
+export async function getOrFetchArtist(id: string): Promise<SpotifyApi.ArtistObjectFull> {
+  return timeAsync("cache", "getOrFetchArtist", () => getOrFetchArtistInner(id), { id });
 }
 
 // --- getOrFetchArtistAlbums: fetch from Spotify, upsert albums (and artists)
@@ -525,7 +530,7 @@ export async function getOrFetchArtistTopTracks(
 
 // --- getOrFetchAlbum (lazy cache with tracks)
 
-export async function getOrFetchAlbum(id: string): Promise<{
+async function getOrFetchAlbumInner(id: string): Promise<{
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }> {
@@ -723,15 +728,24 @@ export async function getOrFetchAlbum(id: string): Promise<{
 
   logCacheMiss("album", id);
 
+  const missStart = performance.now();
   try {
     const { album: albumResp, tracks: tracksResp } =
       await refreshAlbumFromSpotify(supabase, id);
     if (!albumResp || !tracksResp) throw new Error("Refresh returned no data");
+    logPerf("cache_miss", "album", performance.now() - missStart, { id });
     return { album: albumResp, tracks: tracksResp };
   } catch (e) {
     console.error(`${LOG_PREFIX} getAlbum/getAlbumTracks failed`, e);
     throw new Error(`Failed to fetch album ${id} from Spotify`);
   }
+}
+
+export async function getOrFetchAlbum(id: string): Promise<{
+  album: SpotifyApi.AlbumObjectFull;
+  tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
+}> {
+  return timeAsync("cache", "getOrFetchAlbum", () => getOrFetchAlbumInner(id), { id });
 }
 
 /** Fetch album + tracks from Spotify and upsert (album once, each artist once, each song once). Returns the fetched data or null on error. */
@@ -772,9 +786,7 @@ async function refreshAlbumFromSpotify(
 
 // --- getOrFetchTrack (DB-first cache + TTL)
 
-export async function getOrFetchTrack(
-  id: string,
-): Promise<SpotifyApi.TrackObjectFull> {
+async function getOrFetchTrackInner(id: string): Promise<SpotifyApi.TrackObjectFull> {
   const supabase = await createSupabaseServerClient();
 
   const { data: songRow, error } = await supabase
@@ -832,6 +844,7 @@ export async function getOrFetchTrack(
 
   logCacheMiss("song", id);
 
+  const missStart = performance.now();
   try {
     const track = await getTrack(id);
     const alb = track.album;
@@ -850,11 +863,16 @@ export async function getOrFetchTrack(
       console.error(`${LOG_PREFIX} upsertTrackFromSpotify error`, e);
     }
 
+    logPerf("cache_miss", "song", performance.now() - missStart, { id });
     return track;
   } catch (e) {
     console.error(`${LOG_PREFIX} getTrack failed`, e);
     throw new Error(`Failed to fetch track ${id} from Spotify`);
   }
+}
+
+export async function getOrFetchTrack(id: string): Promise<SpotifyApi.TrackObjectFull> {
+  return timeAsync("cache", "getOrFetchTrack", () => getOrFetchTrackInner(id), { id });
 }
 
 // --- Batch getOrFetch: DB-first, then single batch Spotify API (chunked), merge, preserve order
@@ -892,7 +910,7 @@ function buildTrackFromRows(
 }
 
 /** Batch fetch tracks: DB first, then single getTracks() for missing (chunked 50). Returns array in input order. */
-export async function getOrFetchTracksBatch(
+async function getOrFetchTracksBatchInner(
   ids: string[],
 ): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
   const uniqueIds = [...new Set(ids)].filter(Boolean);
@@ -965,8 +983,14 @@ export async function getOrFetchTracksBatch(
   return ids.map((id) => lookup.get(id) ?? null);
 }
 
+export async function getOrFetchTracksBatch(
+  ids: string[],
+): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
+  return timeAsync("cache", "getOrFetchTracksBatch", () => getOrFetchTracksBatchInner(ids), { n: ids.length });
+}
+
 /** Batch fetch albums: DB first, then single getAlbums() for missing (chunked 20). Returns array in input order. */
-export async function getOrFetchAlbumsBatch(
+async function getOrFetchAlbumsBatchInner(
   ids: string[],
 ): Promise<(SpotifyApi.AlbumObjectSimplified | null)[]> {
   const uniqueIds = [...new Set(ids)].filter(Boolean);
@@ -1036,8 +1060,14 @@ export async function getOrFetchAlbumsBatch(
   return ids.map((id) => lookup.get(id) ?? null);
 }
 
+export async function getOrFetchAlbumsBatch(
+  ids: string[],
+): Promise<(SpotifyApi.AlbumObjectSimplified | null)[]> {
+  return timeAsync("cache", "getOrFetchAlbumsBatch", () => getOrFetchAlbumsBatchInner(ids), { n: ids.length });
+}
+
 /** Batch fetch artists: DB first, then single getArtists() for missing (chunked 50). Returns array in input order. */
-export async function getOrFetchArtistsBatch(
+async function getOrFetchArtistsBatchInner(
   ids: string[],
 ): Promise<(SpotifyApi.ArtistObjectFull | null)[]> {
   const uniqueIds = [...new Set(ids)].filter(Boolean);
@@ -1092,4 +1122,10 @@ export async function getOrFetchArtistsBatch(
 
   setBatchMemoryMap(memKey, lookup as Map<string, unknown>);
   return ids.map((id) => lookup.get(id) ?? null);
+}
+
+export async function getOrFetchArtistsBatch(
+  ids: string[],
+): Promise<(SpotifyApi.ArtistObjectFull | null)[]> {
+  return timeAsync("cache", "getOrFetchArtistsBatch", () => getOrFetchArtistsBatchInner(ids), { n: ids.length });
 }

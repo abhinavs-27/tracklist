@@ -3,7 +3,6 @@ import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { TrackCard } from "@/components/track-card";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
@@ -15,7 +14,8 @@ import {
   getTrackStatsForTrackIds,
   getAlbumRecommendations,
 } from "@/lib/queries";
-import { getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
+import { timeAsync } from "@/lib/profiling";
+import { getOrFetchAlbum, getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
 
 function AlbumLazySectionSkeleton() {
   return (
@@ -74,20 +74,24 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
 
-  let album: SpotifyApi.AlbumObjectFull;
-  let tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
+  const { album, tracks, settled, recommendedAlbums } = await timeAsync(
+    "page",
+    "albumPage",
+    async () => {
+  let albumInner: SpotifyApi.AlbumObjectFull;
+  let tracksInner: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
   try {
     const data = await getOrFetchAlbum(id);
-    album = data.album;
-    tracks = data.tracks;
+    albumInner = data.album;
+    tracksInner = data.tracks;
   } catch {
     notFound();
   }
 
-  const trackIds = tracks.items?.map((t) => t.id) ?? [];
+  const trackIds = tracksInner.items?.map((t) => t.id) ?? [];
   const viewerId = session?.user?.id ?? null;
 
-  const settled = await Promise.allSettled([
+  const settledInner = await Promise.allSettled([
     getReviewsForEntity("album", id, 20),
     getEntityStats("album", id),
     getAlbumEngagementStats(id),
@@ -95,6 +99,25 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     getTrackStatsForTrackIds(trackIds),
     getAlbumRecommendations(id, 15),
   ]);
+
+  const recommendationAlbumIds = (settledInner[5].status === "fulfilled" ? settledInner[5].value : []).map((r: { album_id: string }) => r.album_id);
+  const recommendationAlbumResults =
+    recommendationAlbumIds.length > 0
+      ? await getOrFetchAlbumsBatch(recommendationAlbumIds)
+      : [];
+  const recommendedAlbumsInner = recommendationAlbumResults.filter(
+    (a): a is SpotifyApi.AlbumObjectSimplified => a != null,
+  );
+
+  return {
+    album: albumInner,
+    tracks: tracksInner,
+    settled: settledInner,
+    recommendedAlbums: recommendedAlbumsInner,
+  };
+  },
+  { id },
+  );
 
   const defaultStats = {
     listen_count: 0,
@@ -119,17 +142,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const trackStats = settled[4].status === "fulfilled" ? settled[4].value : {} as Record<string, { listen_count: number; average_rating: number | null; review_count: number }>;
   if (settled[4].status === "rejected") console.error("[album] getTrackStatsForTrackIds failed:", settled[4].reason);
 
-  const recommendationsRaw = settled[5].status === "fulfilled" ? settled[5].value : [];
   if (settled[5].status === "rejected") console.error("[album] getAlbumRecommendations failed:", settled[5].reason);
-
-  const recommendationAlbumIds = recommendationsRaw.map((r) => r.album_id);
-  const recommendationAlbumResults =
-    recommendationAlbumIds.length > 0
-      ? await getOrFetchAlbumsBatch(recommendationAlbumIds)
-      : [];
-  const recommendedAlbums = recommendationAlbumResults.filter(
-    (a): a is SpotifyApi.AlbumObjectSimplified => a != null,
-  );
 
   const image = album.images?.[0]?.url;
 

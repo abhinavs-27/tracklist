@@ -2,6 +2,7 @@ import "server-only";
 
 import { getActivityFeed, getEntityDisplayNames } from "@/lib/queries";
 import type { ActivityFeedPage } from "@/lib/queries";
+import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum, getOrFetchTrack, getOrFetchAlbumsBatch, getOrFetchTracksBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import type { FeedActivity } from "@/types";
 
@@ -10,13 +11,14 @@ export async function getFeedForUser(
   limit = 50,
   cursor: string | null = null,
 ): Promise<ActivityFeedPage> {
-  return getActivityFeed(userId, limit, cursor);
+  return timeAsync("db", "getFeedForUser", () => getActivityFeed(userId, limit, cursor), { limit, hasCursor: !!cursor });
 }
 
 /** Enrich review activities with entity names (album/track) for display. Uses DB first, then spotify-cache for missing. */
 export async function enrichFeedActivitiesWithEntityNames(
   activities: FeedActivity[],
 ): Promise<(FeedActivity & { spotifyName?: string })[]> {
+  return timeAsync("enrich", "enrichFeedActivitiesWithEntityNames", async () => {
   const reviewItems = activities
     .filter((a): a is FeedActivity & { type: "review" } => a.type === "review")
     .map((a) => ({ entity_type: a.review.entity_type, entity_id: a.review.entity_id }));
@@ -40,12 +42,14 @@ export async function enrichFeedActivitiesWithEntityNames(
       return { ...activity, spotifyName: name ?? undefined };
     }),
   );
+  }, { n: activities.length });
 }
 
 /** Enrich listen_session activities with album metadata and track names for display. */
 export async function enrichListenSessionsWithAlbums(
   activities: FeedActivity[],
 ): Promise<FeedActivity[]> {
+  return timeAsync("enrich", "enrichListenSessionsWithAlbums", async () => {
   const sessionActivities = activities.filter(
     (a): a is FeedActivity & { type: "listen_session" } => a.type === "listen_session",
   );
@@ -98,4 +102,5 @@ export async function enrichListenSessionsWithAlbums(
     }
     return activity;
   });
+  }, { n: activities.length });
 }

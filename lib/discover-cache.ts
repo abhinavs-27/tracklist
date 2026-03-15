@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { logPerf } from "@/lib/profiling";
 import {
   getTrendingEntities,
   getRisingArtists,
@@ -27,12 +28,15 @@ function prune<T>(map: Map<string, CacheEntry<T>>) {
 
 /** Read from MV first; fallback to live RPC. Never throws – returns [] on failure. */
 async function getTrendingFromMvOrLive(limit: number): Promise<TrendingEntity[]> {
+  const start = performance.now();
   try {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.rpc("get_trending_entities_from_mv", {
       p_limit: limit,
     });
+    const ms = performance.now() - start;
     if (!error && data?.length) {
+      logPerf("mv_hit", "trending", ms, { limit });
       return (data as { entity_id: string; entity_type: string; listen_count: number }[]).map(
         (r) => ({
           entity_id: r.entity_id,
@@ -41,8 +45,9 @@ async function getTrendingFromMvOrLive(limit: number): Promise<TrendingEntity[]>
         }),
       );
     }
+    logPerf("mv_miss", "trending", ms, { limit });
   } catch {
-    // fallback to live
+    logPerf("mv_miss", "trending", performance.now() - start, { limit });
   }
   return getTrendingEntities(limit);
 }
@@ -50,10 +55,13 @@ async function getTrendingFromMvOrLive(limit: number): Promise<TrendingEntity[]>
 /** Read from MV first (7-day window only); fallback to live RPC. Never throws. */
 async function getRisingFromMvOrLive(limit: number, windowDays: number): Promise<RisingArtist[]> {
   if (windowDays !== 7) return getRisingArtists(limit, windowDays);
+  const start = performance.now();
   try {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.rpc("get_rising_artists_from_mv", { p_limit: limit });
+    const ms = performance.now() - start;
     if (!error && data?.length) {
+      logPerf("mv_hit", "rising_artists", ms, { limit });
       return (data as { artist_id: string; name: string; avatar_url: string | null; growth: number }[]).map(
         (r) => ({
           artist_id: r.artist_id,
@@ -63,8 +71,9 @@ async function getRisingFromMvOrLive(limit: number, windowDays: number): Promise
         }),
       );
     }
+    logPerf("mv_miss", "rising_artists", ms, { limit });
   } catch {
-    // fallback to live
+    logPerf("mv_miss", "rising_artists", performance.now() - start, { limit });
   }
   return getRisingArtists(limit, windowDays);
 }
@@ -76,10 +85,13 @@ async function getHiddenFromMvOrLive(
   maxListens: number,
 ): Promise<HiddenGem[]> {
   if (minRating !== 4 || maxListens !== 50) return getHiddenGems(limit, minRating, maxListens);
+  const start = performance.now();
   try {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.rpc("get_hidden_gems_from_mv", { p_limit: limit });
+    const ms = performance.now() - start;
     if (!error && data?.length) {
+      logPerf("mv_hit", "hidden_gems", ms, { limit });
       return (data as { entity_id: string; entity_type: string; avg_rating: number; listen_count: number }[]).map(
         (r) => ({
           entity_id: r.entity_id,
@@ -89,8 +101,9 @@ async function getHiddenFromMvOrLive(
         }),
       );
     }
+    logPerf("mv_miss", "hidden_gems", ms, { limit });
   } catch {
-    // fallback to live
+    logPerf("mv_miss", "hidden_gems", performance.now() - start, { limit });
   }
   return getHiddenGems(limit, minRating, maxListens);
 }

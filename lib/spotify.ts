@@ -1,3 +1,5 @@
+import { logPerf } from "@/lib/profiling";
+
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
@@ -61,6 +63,7 @@ async function spotifyFetch<T>(
   path: string,
   params?: Record<string, string>,
 ): Promise<T> {
+  const start = performance.now();
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -83,7 +86,9 @@ async function spotifyFetch<T>(
     );
 
     if (res.ok) {
-      return res.json() as Promise<T>;
+      const data = (await res.json()) as T;
+      logPerf("spotify", path, performance.now() - start, { path: path.slice(0, 100) });
+      return data;
     }
 
     // Handle rate limiting with simple bounded backoff.
