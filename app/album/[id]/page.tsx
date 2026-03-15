@@ -16,13 +16,28 @@ import {
   getListenLogsForAlbum,
   getAlbumRecommendations,
 } from "@/lib/queries";
-import { formatRelativeTime } from "@/lib/time";
 import { getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
-import { AlbumCard } from "@/components/album-card";
+
+function AlbumLazySectionSkeleton() {
+  return (
+    <section>
+      <div className="mb-3 h-6 w-48 animate-pulse rounded bg-zinc-800/50" />
+      <div className="min-h-[80px] animate-pulse rounded-xl bg-zinc-800/30" />
+    </section>
+  );
+}
 
 const FriendsWhoListened = dynamic(
   () => import("./friends-who-listened").then((m) => ({ default: m.FriendsWhoListened })),
-  { loading: () => <section><div className="mb-3 h-6 w-48 animate-pulse rounded bg-zinc-800/50" /><div className="min-h-[80px] animate-pulse rounded-xl bg-zinc-800/30" /></section> },
+  { loading: AlbumLazySectionSkeleton },
+);
+const AlbumRecommendationsSection = dynamic(
+  () => import("./album-recommendations-section").then((m) => ({ default: m.AlbumRecommendationsSection })),
+  { loading: AlbumLazySectionSkeleton },
+);
+const AlbumRecentListensSection = dynamic(
+  () => import("./album-recent-listens-section").then((m) => ({ default: m.AlbumRecentListensSection })),
+  { loading: AlbumLazySectionSkeleton },
 );
 
 type PageParams = Promise<{ id: string }>;
@@ -264,55 +279,14 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         </section>
       ) : null}
 
-      {/* Recommended Albums — "Because you listened to X" */}
+      {/* Recommended Albums — lazy loaded */}
       {recommendedAlbums.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">Recommended Albums</h2>
-          <p className="mb-3 text-sm text-zinc-400">Because you listened to {album.name}</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {recommendedAlbums.map((rec) => (
-              <AlbumCard key={rec.id} album={rec} />
-            ))}
-          </div>
-        </section>
+        <AlbumRecommendationsSection albums={recommendedAlbums} albumName={album.name} />
       )}
 
-      {/* Recent listens */}
+      {/* Recent listens — lazy loaded */}
       {recentListens.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">Recent listens</h2>
-          <ul className="space-y-2">
-            {recentListens.slice(0, 15).map((log) => (
-              <li
-                key={log.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2"
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  {log.user?.avatar_url ? (
-                    <img
-                      src={log.user.avatar_url}
-                      alt=""
-                      className="h-8 w-8 shrink-0 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-xs text-zinc-300">
-                      {log.user?.username?.[0]?.toUpperCase() ?? "?"}
-                    </span>
-                  )}
-                  <Link
-                    href={log.user?.username ? `/profile/${log.user.username}` : "#"}
-                    className="truncate text-sm font-medium text-white hover:text-emerald-400 hover:underline"
-                  >
-                    {log.user?.username ?? "Unknown"}
-                  </Link>
-                </div>
-                <span className="shrink-0 text-xs text-zinc-500">
-                  {formatRelativeTime(log.listened_at)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <AlbumRecentListensSection logs={recentListens} />
       )}
 
       {/* Reviews */}

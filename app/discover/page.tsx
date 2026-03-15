@@ -2,15 +2,18 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { DiscoverUsersGrid } from "@/components/discover-users-grid";
 import { getSuggestedUsers } from "@/lib/queries";
 import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached } from "@/lib/discover-cache";
 import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, getOrFetchArtistsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import { FollowButton } from "@/components/follow-button";
 
-const DiscoverSectionSkeleton = () => (
-  <div className="min-h-[140px] animate-pulse rounded-xl bg-zinc-800/30" />
-);
+function DiscoverSectionSkeleton() {
+  return <div className="min-h-[140px] animate-pulse rounded-xl bg-zinc-800/30" />;
+}
+
+function DiscoverUsersGridSkeleton() {
+  return <div className="min-h-[120px] animate-pulse rounded-xl bg-zinc-800/30" />;
+}
 
 const TrendingSection = dynamic(
   () => import("./trending-section").then((m) => ({ default: m.TrendingSection })),
@@ -23,6 +26,10 @@ const RisingArtistsSection = dynamic(
 const HiddenGemsSection = dynamic(
   () => import("./hidden-gems-section").then((m) => ({ default: m.HiddenGemsSection })),
   { loading: DiscoverSectionSkeleton },
+);
+const DiscoverUsersGridDynamic = dynamic(
+  () => import("@/components/discover-users-grid").then((m) => ({ default: m.DiscoverUsersGrid })),
+  { loading: DiscoverUsersGridSkeleton },
 );
 
 const MAX_ITEMS = 20;
@@ -163,7 +170,7 @@ export default async function DiscoverPage() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold text-white">Recently active</h2>
-        <DiscoverUsersGrid limit={18} />
+        <DiscoverUsersGridDynamic limit={18} />
       </section>
     </div>
   );
