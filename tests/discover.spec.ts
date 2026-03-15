@@ -112,6 +112,24 @@ test.describe('Discover', () => {
     await expect(page.getByRole('heading', { name: /trending \(last 24h\)/i })).toBeVisible();
   });
 
+  test('discover page renders within expected time (deferred sections)', async ({ page }) => {
+    const start = Date.now();
+    await page.goto('/discover');
+    await expect(page.getByRole('heading', { name: /discover/i })).toBeVisible({ timeout: 10000 });
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(10000);
+    await expect(page.getByRole('heading', { name: /trending \(last 24h\)/i })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('deferred discover sections: trending links are clickable', async ({ page }) => {
+    await page.goto('/discover');
+    await expect(page.getByRole('heading', { name: /trending \(last 24h\)/i })).toBeVisible({ timeout: 8000 });
+    const songLink = page.locator('a[href^="/song/"]').first();
+    if (await songLink.isVisible()) {
+      await expect(songLink).toBeEnabled();
+    }
+  });
+
   test('follow/unfollow toggles state', async ({ page }) => {
     await page.route('**/api/discover**', async (route) => {
       await route.fulfill({

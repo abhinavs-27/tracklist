@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -18,6 +19,11 @@ import {
 import { formatRelativeTime } from "@/lib/time";
 import { getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
 import { AlbumCard } from "@/components/album-card";
+
+const FriendsWhoListened = dynamic(
+  () => import("./friends-who-listened").then((m) => ({ default: m.FriendsWhoListened })),
+  { loading: () => <section><div className="mb-3 h-6 w-48 animate-pulse rounded bg-zinc-800/50" /><div className="min-h-[80px] animate-pulse rounded-xl bg-zinc-800/30" /></section> },
+);
 
 type PageParams = Promise<{ id: string }>;
 
@@ -317,43 +323,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         initialData={reviewsData}
       />
 
-      {/* Friends who listened (only shown when logged in; list is friends-only) */}
-      {friendActivity.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
-            Friends who listened
-          </h2>
-          <ul className="space-y-2">
-            {friendActivity.map((l, i) => (
-              <li key={`${l.user_id}-${l.listened_at}-${i}`}>
-                <Link
-                  href={`/profile/${l.username}`}
-                  className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm transition hover:border-zinc-600"
-                >
-                  {l.avatar_url ? (
-                    <img
-                      src={l.avatar_url}
-                      alt=""
-                      className="h-8 w-8 shrink-0 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs text-zinc-300">
-                      {l.username[0]?.toUpperCase()}
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-zinc-200">{l.username}</span>
-                  <span className="shrink-0 text-xs text-zinc-500">
-                    {formatRelativeTime(l.listened_at)}
-                  </span>
-                  {l.rating != null && (
-                    <span className="shrink-0 text-amber-400">★ {l.rating}</span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Friends who listened (deferred so main content paints first) */}
+      {friendActivity.length > 0 && <FriendsWhoListened activity={friendActivity} />}
     </div>
   );
 }

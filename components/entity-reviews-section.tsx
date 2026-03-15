@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ReviewCard } from "@/components/review-card";
+import { VirtualReviewList } from "@/components/virtual-review-list";
 import type { ReviewWithUser } from "@/types";
 
 export type ReviewItem = {
@@ -236,6 +237,8 @@ export function EntityReviewsSection({
         <p className="text-sm text-zinc-500">
           {entityType === "album" ? "No reviews yet. Be the first to review this album." : "No reviews yet. Be the first to review this track."}
         </p>
+      ) : reviews.length > 10 ? (
+        <VirtualReviewList reviews={reviews} spotifyName={spotifyName} maxHeight="min(400px, 60vh)" />
       ) : (
         <ul className="space-y-3">
           {reviews.map((r) => {

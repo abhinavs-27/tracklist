@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { memo } from 'react';
 
 interface AlbumCardProps {
   album: SpotifyApi.AlbumObjectSimplified;
 }
 
-export function AlbumCard({ album }: AlbumCardProps) {
+function AlbumCardInner({ album }: AlbumCardProps) {
   const image = album.images?.[0]?.url;
   const artistNames = album.artists?.map((a) => a.name).join(', ') ?? '';
 
@@ -33,3 +34,5 @@ export function AlbumCard({ album }: AlbumCardProps) {
     </Link>
   );
 }
+
+export const AlbumCard = memo(AlbumCardInner);

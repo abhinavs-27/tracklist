@@ -35,4 +35,35 @@ test.describe('Feed', () => {
       }
     }
   });
+
+  test('feed page renders within expected time (virtualized list)', async ({ page }) => {
+    const start = Date.now();
+    await page.goto('/feed');
+    const feedHeading = page.getByRole('heading', { name: /feed/i });
+    const signIn = page.getByRole('button', { name: /sign in with google/i });
+    await feedHeading.waitFor({ state: 'visible', timeout: 15000 }).catch(() => signIn.waitFor({ state: 'visible', timeout: 5000 }));
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(20000);
+    if (await feedHeading.isVisible()) {
+      const hasContent =
+        (await page.getByText(/your feed is empty/i).isVisible()) ||
+        (await page.locator('[data-index]').first().isVisible().catch(() => false)) ||
+        (await page.getByRole('button', { name: /load more/i }).isVisible().catch(() => false));
+      expect(hasContent).toBeTruthy();
+    }
+  });
+
+  test('virtualized feed shows list or Load more or empty state when signed in', async ({ page }) => {
+    await page.goto('/feed');
+    const feedHeading = page.getByRole('heading', { name: /feed/i });
+    const signIn = page.getByRole('button', { name: /sign in with google/i });
+    await feedHeading.waitFor({ state: 'visible', timeout: 10000 }).catch(() => signIn.waitFor({ state: 'visible', timeout: 5000 }));
+    if (await feedHeading.isVisible()) {
+      const loadMore = page.getByRole('button', { name: /load more/i });
+      const empty = page.getByText(/your feed is empty/i);
+      const hasList = await page.locator('[data-index]').first().isVisible().catch(() => false);
+      const hasListOrEmpty = (await loadMore.isVisible()) || (await empty.isVisible()) || hasList;
+      expect(hasListOrEmpty).toBeTruthy();
+    }
+  });
 });

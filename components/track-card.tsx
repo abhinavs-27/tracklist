@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { memo } from 'react';
 
 interface TrackCardProps {
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified;
@@ -10,7 +11,7 @@ interface TrackCardProps {
   showThumbnail?: boolean;
 }
 
-export function TrackCard({ track, showAlbum = true, noLink = false, songPageLink = false, showThumbnail = true }: TrackCardProps) {
+function TrackCardInner({ track, showAlbum = true, noLink = false, songPageLink = false, showThumbnail = true }: TrackCardProps) {
   const artistNames = track.artists?.map((a) => a.name).join(', ') ?? '';
   const album = 'album' in track ? track.album : null;
   const image = album?.images?.[0]?.url;
@@ -46,3 +47,5 @@ export function TrackCard({ track, showAlbum = true, noLink = false, songPageLin
 
   return <Link href={href} className={className}>{content}</Link>;
 }
+
+export const TrackCard = memo(TrackCardInner);

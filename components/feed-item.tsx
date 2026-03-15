@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import Link from 'next/link';
 import { ReviewCard } from './review-card';
 import { formatRelativeTime } from '@/lib/time';
@@ -8,7 +8,7 @@ import type { FeedActivity, FeedListenSession } from '@/types';
 
 const DISPLAY_CAP = 10;
 
-function ListenSessionRow({ session }: { session: FeedListenSession }) {
+const ListenSessionRow = memo(function ListenSessionRow({ session }: { session: FeedListenSession }) {
   const album = session.album;
   const image = album?.images?.[0]?.url;
   const trackName = session.track_name ?? album?.name ?? 'Track';
@@ -31,9 +31,9 @@ function ListenSessionRow({ session }: { session: FeedListenSession }) {
       </div>
     </Link>
   );
-}
+});
 
-function ListenSessionsSummaryBlock({
+const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   activity,
 }: {
   activity: Extract<FeedActivity, { type: 'listen_sessions_summary' }>;
@@ -105,14 +105,14 @@ function ListenSessionsSummaryBlock({
       )}
     </article>
   );
-}
+});
 
 interface FeedItemProps {
   activity: FeedActivity;
   spotifyName?: string;
 }
 
-export function FeedItem({ activity, spotifyName }: FeedItemProps) {
+function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
   if (activity.type === 'review') {
     return <ReviewCard review={activity.review} spotifyName={spotifyName} />;
   }
@@ -210,3 +210,5 @@ export function FeedItem({ activity, spotifyName }: FeedItemProps) {
     </article>
   );
 }
+
+export const FeedItem = memo(FeedItemInner);

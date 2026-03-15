@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { memo } from 'react';
 import type { ReviewWithUser } from '@/types';
 import { formatRelativeTime } from '@/lib/time';
 import { LikeButton } from './like-button';
@@ -15,7 +16,7 @@ interface ReviewCardProps {
   showComments?: boolean;
 }
 
-export function ReviewCard({
+function ReviewCardInner({
   review,
   spotifyName,
   likeCount = 0,
@@ -90,3 +91,5 @@ export function ReviewCard({
     </article>
   );
 }
+
+export const ReviewCard = memo(ReviewCardInner);

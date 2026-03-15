@@ -2,16 +2,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getFeedForUser, enrichFeedActivitiesWithEntityNames, enrichListenSessionsWithAlbums } from '@/lib/feed';
-import { FeedItem } from '@/components/feed-item';
-import { FeedLoadMore } from '@/components/feed-load-more';
-import type { FeedActivity } from '@/types';
-
-function feedActivityKey(activity: FeedActivity): string {
-  if (activity.type === 'review') return activity.review.id;
-  if (activity.type === 'follow') return activity.id;
-  if (activity.type === 'listen_sessions_summary') return `summary-${activity.user_id}-${activity.created_at}`;
-  return `${activity.user_id}-${activity.album_id}-${activity.created_at}`;
-}
+import { FeedListVirtual } from '@/components/feed-list-virtual';
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -66,21 +57,12 @@ export default async function HomePage() {
           </Link>
         </div>
       ) : (
-        <>
-          <ul className="space-y-4">
-            {enrichedItems.map((activity) => (
-              <li key={feedActivityKey(activity)}>
-                <FeedItem
-                  activity={activity}
-                  spotifyName={activity.type === 'review' ? (activity as FeedActivity & { spotifyName?: string }).spotifyName : undefined}
-                />
-              </li>
-            ))}
-          </ul>
-          {feedNextCursor && (
-            <FeedLoadMore cursor={feedNextCursor} className="mt-6" />
-          )}
-        </>
+        <FeedListVirtual
+          initialItems={enrichedItems}
+          initialCursor={feedNextCursor}
+          className="pr-1"
+          maxHeight="70vh"
+        />
       )}
     </div>
   );

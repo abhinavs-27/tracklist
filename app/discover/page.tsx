@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { DiscoverUsersGrid } from "@/components/discover-users-grid";
@@ -6,9 +7,23 @@ import { getSuggestedUsers } from "@/lib/queries";
 import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached } from "@/lib/discover-cache";
 import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import { FollowButton } from "@/components/follow-button";
-import { TrendingSection } from "./trending-section";
-import { RisingArtistsSection } from "./rising-artists-section";
-import { HiddenGemsSection } from "./hidden-gems-section";
+
+const DiscoverSectionSkeleton = () => (
+  <div className="min-h-[140px] animate-pulse rounded-xl bg-zinc-800/30" />
+);
+
+const TrendingSection = dynamic(
+  () => import("./trending-section").then((m) => ({ default: m.TrendingSection })),
+  { loading: DiscoverSectionSkeleton },
+);
+const RisingArtistsSection = dynamic(
+  () => import("./rising-artists-section").then((m) => ({ default: m.RisingArtistsSection })),
+  { loading: DiscoverSectionSkeleton },
+);
+const HiddenGemsSection = dynamic(
+  () => import("./hidden-gems-section").then((m) => ({ default: m.HiddenGemsSection })),
+  { loading: DiscoverSectionSkeleton },
+);
 
 const MAX_ITEMS = 20;
 
