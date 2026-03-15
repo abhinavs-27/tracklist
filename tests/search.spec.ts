@@ -21,10 +21,11 @@ test.describe('Search', () => {
     });
 
     await page.goto('/search');
-    await page.getByPlaceholder(/search/i).fill('radiohead');
-    await page.getByPlaceholder(/search/i).press('Enter');
+    const searchInput = page.getByRole('searchbox').first();
+    await searchInput.fill('radiohead');
+    await searchInput.press('Enter');
     await page.waitForURL(/\/search\?q=radiohead/);
-    await expect(page.getByPlaceholder(/search/i)).toHaveValue('radiohead');
+    await expect(searchInput).toHaveValue('radiohead');
     const hasResults = await page.getByText(/artists|albums|tracks|no results/i).isVisible();
     const hasError = await page.getByText(/search failed|error/i).isVisible();
     expect(hasResults || hasError).toBeTruthy();
