@@ -81,12 +81,13 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   ]);
 
   const recommendationAlbumIds = recommendationsRaw.map((r) => r.album_id);
-  const recommendationAlbumsMap = recommendationAlbumIds.length > 0
-    ? await getOrFetchAlbumsBatch(recommendationAlbumIds)
-    : new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
-  const recommendedAlbums = recommendationAlbumIds
-    .map((aid) => recommendationAlbumsMap.get(aid) ?? null)
-    .filter((a): a is SpotifyApi.AlbumObjectSimplified => a != null);
+  const recommendationAlbumResults =
+    recommendationAlbumIds.length > 0
+      ? await getOrFetchAlbumsBatch(recommendationAlbumIds)
+      : [];
+  const recommendedAlbums = recommendationAlbumResults.filter(
+    (a): a is SpotifyApi.AlbumObjectSimplified => a != null,
+  );
 
   const image = album.images?.[0]?.url;
 

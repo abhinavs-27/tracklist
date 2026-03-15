@@ -161,20 +161,27 @@ export async function getAlbum(
   return spotifyFetch<SpotifyApi.AlbumObjectFull>(`/albums/${spotifyId}`);
 }
 
-/** Fetch up to 20 albums by Spotify ID. Returns only successfully resolved albums. */
+/** Spotify limit: 20 albums per request. Chunks and merges. */
 export async function getAlbums(
   spotifyIds: string[],
 ): Promise<SpotifyApi.AlbumObjectFull[]> {
-  const unique = [...new Set(spotifyIds)].slice(0, 20);
+  const unique = [...new Set(spotifyIds)].filter(Boolean);
   if (unique.length === 0) return [];
-  const ids = unique.join(",");
-  const data = (await spotifyFetch<{ albums: (SpotifyApi.AlbumObjectFull | null)[] }>(
-    "/albums",
-    { ids },
-  )) as { albums: (SpotifyApi.AlbumObjectFull | null)[] };
-  return (data.albums ?? []).filter(
-    (a): a is SpotifyApi.AlbumObjectFull => a != null,
-  );
+  const CHUNK = 20;
+  const out: SpotifyApi.AlbumObjectFull[] = [];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const ids = chunk.join(",");
+    const data = (await spotifyFetch<{ albums: (SpotifyApi.AlbumObjectFull | null)[] }>(
+      "/albums",
+      { ids },
+    )) as { albums: (SpotifyApi.AlbumObjectFull | null)[] };
+    const resolved = (data.albums ?? []).filter(
+      (a): a is SpotifyApi.AlbumObjectFull => a != null,
+    );
+    out.push(...resolved);
+  }
+  return out;
 }
 
 export async function getAlbumTracks(
@@ -192,4 +199,50 @@ export async function getTrack(
   spotifyId: string,
 ): Promise<SpotifyApi.TrackObjectFull> {
   return spotifyFetch<SpotifyApi.TrackObjectFull>(`/tracks/${spotifyId}`);
+}
+
+/** Spotify limit: 50 tracks per request. Chunks and merges. */
+export async function getTracks(
+  spotifyIds: string[],
+): Promise<SpotifyApi.TrackObjectFull[]> {
+  const unique = [...new Set(spotifyIds)].filter(Boolean);
+  if (unique.length === 0) return [];
+  const CHUNK = 50;
+  const out: SpotifyApi.TrackObjectFull[] = [];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const ids = chunk.join(",");
+    const data = (await spotifyFetch<{ tracks: (SpotifyApi.TrackObjectFull | null)[] }>(
+      "/tracks",
+      { ids },
+    )) as { tracks: (SpotifyApi.TrackObjectFull | null)[] };
+    const resolved = (data.tracks ?? []).filter(
+      (t): t is SpotifyApi.TrackObjectFull => t != null,
+    );
+    out.push(...resolved);
+  }
+  return out;
+}
+
+/** Spotify limit: 50 artists per request. Chunks and merges. */
+export async function getArtists(
+  spotifyIds: string[],
+): Promise<SpotifyApi.ArtistObjectFull[]> {
+  const unique = [...new Set(spotifyIds)].filter(Boolean);
+  if (unique.length === 0) return [];
+  const CHUNK = 50;
+  const out: SpotifyApi.ArtistObjectFull[] = [];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const ids = chunk.join(",");
+    const data = (await spotifyFetch<{ artists: (SpotifyApi.ArtistObjectFull | null)[] }>(
+      "/artists",
+      { ids },
+    )) as { artists: (SpotifyApi.ArtistObjectFull | null)[] };
+    const resolved = (data.artists ?? []).filter(
+      (a): a is SpotifyApi.ArtistObjectFull => a != null,
+    );
+    out.push(...resolved);
+  }
+  return out;
 }

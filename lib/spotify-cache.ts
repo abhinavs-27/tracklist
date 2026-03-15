@@ -4,16 +4,43 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   getAlbum,
   getAlbumTracks,
+  getAlbums,
   getArtist,
   getArtistAlbums,
   getArtistTopTracks,
+  getArtists,
   getTrack,
+  getTracks,
 } from "@/lib/spotify";
 
 const LOG_PREFIX = "[spotify-cache]";
 
 /** TTL for cached Spotify data: refresh if older than this (default 30 days). */
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** In-memory dedupe: same batch requested again within 5s returns cached (e.g. during one render). */
+const BATCH_MEMORY_TTL_MS = 5000;
+const batchMemoryCache = new Map<string, { data: Map<string, unknown>; at: number }>();
+function getBatchCacheKey(prefix: string, ids: string[]): string {
+  return `${prefix}:${[...new Set(ids)].filter(Boolean).sort().join(",")}`;
+}
+function getFromBatchMemoryMap(key: string): Map<string, unknown> | null {
+  const entry = batchMemoryCache.get(key);
+  if (!entry || Date.now() - entry.at > BATCH_MEMORY_TTL_MS) {
+    if (entry) batchMemoryCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+function setBatchMemoryMap(key: string, data: Map<string, unknown>): void {
+  batchMemoryCache.set(key, { data, at: Date.now() });
+  if (batchMemoryCache.size > 200) {
+    const now = Date.now();
+    for (const [k, v] of batchMemoryCache.entries()) {
+      if (now - v.at > BATCH_MEMORY_TTL_MS) batchMemoryCache.delete(k);
+    }
+  }
+}
 
 function logCacheMiss(entity: string, id: string) {
   console.log(`${LOG_PREFIX} cache miss: ${entity} id=${id}`);
@@ -735,7 +762,17 @@ export async function getOrFetchTrack(
   }
 }
 
-// --- Batch getOrFetch for discover (avoid N+1)
+// --- Batch getOrFetch: DB-first, then single batch Spotify API (chunked), merge, preserve order
+
+/** Build a Map from (ids, results) for backward-compatible Map-based call sites. */
+export function batchResultsToMap<T>(
+  ids: string[],
+  results: (T | null)[],
+): Map<string, T | null> {
+  const map = new Map<string, T | null>();
+  ids.forEach((id, i) => map.set(id, results[i] ?? null));
+  return map;
+}
 
 function buildTrackFromRows(
   song: SongRow,
@@ -759,15 +796,19 @@ function buildTrackFromRows(
   };
 }
 
-/** Batch fetch tracks from DB, then fetch missing from Spotify (parallel). Returns map id -> track or null. */
+/** Batch fetch tracks: DB first, then single getTracks() for missing (chunked 50). Returns array in input order. */
 export async function getOrFetchTracksBatch(
   ids: string[],
-): Promise<Map<string, SpotifyApi.TrackObjectFull | null>> {
+): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
   const uniqueIds = [...new Set(ids)].filter(Boolean);
-  if (uniqueIds.length === 0) return new Map();
+  if (uniqueIds.length === 0) return ids.map(() => null);
+
+  const memKey = getBatchCacheKey("tracks", ids);
+  const cached = getFromBatchMemoryMap(memKey);
+  if (cached) return ids.map((id) => (cached.get(id) as SpotifyApi.TrackObjectFull | null) ?? null);
 
   const supabase = await createSupabaseServerClient();
-  const result = new Map<string, SpotifyApi.TrackObjectFull | null>();
+  const lookup = new Map<string, SpotifyApi.TrackObjectFull | null>();
 
   const { data: songRows } = await supabase
     .from("songs")
@@ -775,65 +816,73 @@ export async function getOrFetchTracksBatch(
     .in("id", uniqueIds);
   const allSongs = (songRows ?? []) as unknown as SongRow[];
   const songs = allSongs.filter((s) => !isCacheStale(s.cached_at ?? s.updated_at));
-  if (songs.length === 0) {
-    const settled = await Promise.allSettled(
-      uniqueIds.map((id) => getOrFetchTrack(id).catch(() => null)),
-    );
-    uniqueIds.forEach((id, i) => result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null));
-    return result;
-  }
 
   const albumIds = [...new Set(songs.map((s) => s.album_id).filter(Boolean))];
   const artistIds = [...new Set(songs.map((s) => s.artist_id).filter(Boolean))];
 
   const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
-    albumIds.length
-      ? supabase.from("albums").select("*").in("id", albumIds)
-      : { data: [] },
-    artistIds.length
-      ? supabase.from("artists").select("id, name").in("id", artistIds)
-      : { data: [] },
+    albumIds.length ? supabase.from("albums").select("*").in("id", albumIds) : { data: [] },
+    artistIds.length ? supabase.from("artists").select("id, name").in("id", artistIds) : { data: [] },
   ]);
 
-  const albumMap = new Map(
-    (albumRows ?? []).map((a: AlbumRow) => [a.id, a]),
-  );
+  const albumMap = new Map((albumRows ?? []).map((a: AlbumRow) => [a.id, a]));
   const artistMap = new Map(
     (artistRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
   );
 
-  const foundIds = new Set<string>();
   for (const song of songs) {
     const album = albumMap.get(song.album_id) ?? null;
     const artistName = artistMap.get(song.artist_id) ?? "";
-    result.set(
-      song.id,
-      buildTrackFromRows(song, album, artistName),
-    );
-    foundIds.add(song.id);
+    lookup.set(song.id, buildTrackFromRows(song, album, artistName));
   }
 
-  const missingIds = uniqueIds.filter((id) => !foundIds.has(id));
+  const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0) {
-    const settled = await Promise.allSettled(
-      missingIds.map((id) => getOrFetchTrack(id).catch(() => null)),
-    );
-    missingIds.forEach((id, i) =>
-      result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null),
-    );
+    try {
+      const fetched = await getTracks(missingIds);
+      for (const track of fetched) {
+        const alb = track.album;
+        if (!alb) continue;
+        try {
+          await upsertTrackFromSpotify(
+            supabase,
+            track,
+            alb.id,
+            alb.name,
+            alb.images?.[0]?.url ?? null,
+            "release_date" in alb ? alb.release_date : undefined,
+          );
+        } catch (e) {
+          console.warn(`${LOG_PREFIX} upsertTrackFromSpotify (batch) failed for ${track.id}`, e);
+        }
+        lookup.set(track.id, track);
+      }
+      missingIds.forEach((id) => {
+        if (!lookup.has(id)) lookup.set(id, null);
+      });
+    } catch (e) {
+      console.error(`${LOG_PREFIX} getTracks batch failed`, e);
+      missingIds.forEach((id) => lookup.set(id, null));
+    }
   }
-  return result;
+
+  setBatchMemoryMap(memKey, lookup as Map<string, unknown>);
+  return ids.map((id) => lookup.get(id) ?? null);
 }
 
-/** Batch fetch albums (simplified) from DB, then fetch missing from Spotify. Returns map id -> album or null. */
+/** Batch fetch albums: DB first, then single getAlbums() for missing (chunked 20). Returns array in input order. */
 export async function getOrFetchAlbumsBatch(
   ids: string[],
-): Promise<Map<string, SpotifyApi.AlbumObjectSimplified | null>> {
+): Promise<(SpotifyApi.AlbumObjectSimplified | null)[]> {
   const uniqueIds = [...new Set(ids)].filter(Boolean);
-  if (uniqueIds.length === 0) return new Map();
+  if (uniqueIds.length === 0) return ids.map(() => null);
+
+  const memKey = getBatchCacheKey("albums", ids);
+  const cached = getFromBatchMemoryMap(memKey);
+  if (cached) return ids.map((id) => (cached.get(id) as SpotifyApi.AlbumObjectSimplified | null) ?? null);
 
   const supabase = await createSupabaseServerClient();
-  const result = new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
+  const lookup = new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
 
   const { data: albumRows } = await supabase
     .from("albums")
@@ -841,22 +890,6 @@ export async function getOrFetchAlbumsBatch(
     .in("id", uniqueIds);
   const allAlbums = (albumRows ?? []) as unknown as AlbumRow[];
   const albums = allAlbums.filter((a) => !isCacheStale(a.cached_at ?? a.updated_at));
-  if (albums.length === 0) {
-    const settled = await Promise.allSettled(
-      uniqueIds.map(async (id) => {
-        try {
-          const { album } = await getOrFetchAlbum(id);
-          return { id: album.id, name: album.name, images: album.images, artists: album.artists };
-        } catch {
-          return null;
-        }
-      }),
-    );
-    uniqueIds.forEach((id, i) =>
-      result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null),
-    );
-    return result;
-  }
 
   const artistIds = [...new Set(albums.map((a) => a.artist_id).filter(Boolean))];
   const { data: artistRows } = await supabase
@@ -867,33 +900,99 @@ export async function getOrFetchAlbumsBatch(
     (artistRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
   );
 
-  const foundIds = new Set<string>();
   for (const album of albums) {
     const artistName = artistMap.get(album.artist_id) ?? "";
-    result.set(album.id, {
+    lookup.set(album.id, {
       id: album.id,
       name: album.name,
       artists: [{ id: album.artist_id, name: artistName }],
       images: album.image_url ? [{ url: album.image_url }] : undefined,
     });
-    foundIds.add(album.id);
   }
 
-  const missingIds = uniqueIds.filter((id) => !foundIds.has(id));
+  const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0) {
-    const settled = await Promise.allSettled(
-      missingIds.map(async (id) => {
+    try {
+      const fetched = await getAlbums(missingIds);
+      for (const album of fetched) {
         try {
-          const { album } = await getOrFetchAlbum(id);
-          return { id: album.id, name: album.name, images: album.images, artists: album.artists };
-        } catch {
-          return null;
+          await upsertAlbumFromSpotify(supabase, album);
+        } catch (e) {
+          console.warn(`${LOG_PREFIX} upsertAlbumFromSpotify (batch) failed for ${album.id}`, e);
         }
-      }),
-    );
-    missingIds.forEach((id, i) =>
-      result.set(id, settled[i].status === "fulfilled" ? settled[i].value : null),
-    );
+        const first = album.artists?.[0];
+        lookup.set(album.id, {
+          id: album.id,
+          name: album.name,
+          artists: first ? [{ id: first.id, name: first.name }] : [],
+          images: album.images,
+        });
+      }
+      missingIds.forEach((id) => {
+        if (!lookup.has(id)) lookup.set(id, null);
+      });
+    } catch (e) {
+      console.error(`${LOG_PREFIX} getAlbums batch failed`, e);
+      missingIds.forEach((id) => lookup.set(id, null));
+    }
   }
-  return result;
+
+  setBatchMemoryMap(memKey, lookup as Map<string, unknown>);
+  return ids.map((id) => lookup.get(id) ?? null);
+}
+
+/** Batch fetch artists: DB first, then single getArtists() for missing (chunked 50). Returns array in input order. */
+export async function getOrFetchArtistsBatch(
+  ids: string[],
+): Promise<(SpotifyApi.ArtistObjectFull | null)[]> {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  if (uniqueIds.length === 0) return ids.map(() => null);
+
+  const memKey = getBatchCacheKey("artists", ids);
+  const cached = getFromBatchMemoryMap(memKey);
+  if (cached) return ids.map((id) => (cached.get(id) as SpotifyApi.ArtistObjectFull | null) ?? null);
+
+  const supabase = await createSupabaseServerClient();
+  const lookup = new Map<string, SpotifyApi.ArtistObjectFull | null>();
+
+  const { data: artistRows } = await supabase
+    .from("artists")
+    .select("*")
+    .in("id", uniqueIds);
+  const allArtists = (artistRows ?? []) as unknown as ArtistRow[];
+  const artists = allArtists.filter((a) => !isCacheStale(a.cached_at ?? a.updated_at));
+
+  for (const a of artists) {
+    lookup.set(a.id, {
+      id: a.id,
+      name: a.name,
+      images: a.image_url ? [{ url: a.image_url }] : undefined,
+      genres: a.genres ?? undefined,
+      followers: { total: 0 },
+    });
+  }
+
+  const missingIds = uniqueIds.filter((id) => !lookup.has(id));
+  if (missingIds.length > 0) {
+    try {
+      const fetched = await getArtists(missingIds);
+      for (const artist of fetched) {
+        try {
+          await upsertArtistFromSpotify(supabase, artist);
+        } catch (e) {
+          console.warn(`${LOG_PREFIX} upsertArtistFromSpotify (batch) failed for ${artist.id}`, e);
+        }
+        lookup.set(artist.id, artist);
+      }
+      missingIds.forEach((id) => {
+        if (!lookup.has(id)) lookup.set(id, null);
+      });
+    } catch (e) {
+      console.error(`${LOG_PREFIX} getArtists batch failed`, e);
+      missingIds.forEach((id) => lookup.set(id, null));
+    }
+  }
+
+  setBatchMemoryMap(memKey, lookup as Map<string, unknown>);
+  return ids.map((id) => lookup.get(id) ?? null);
 }

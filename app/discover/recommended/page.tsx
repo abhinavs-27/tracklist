@@ -14,10 +14,11 @@ export default async function RecommendedPage() {
 
   const raw = await getUserRecommendations(session.user.id, 20);
   const albumIds = raw.map((r) => r.album_id);
-  const albumsMap = albumIds.length > 0 ? await getOrFetchAlbumsBatch(albumIds) : new Map();
-  const albums = albumIds
-    .map((id) => albumsMap.get(id) ?? null)
-    .filter((a): a is NonNullable<typeof a> => a != null);
+  const albumResults =
+    albumIds.length > 0 ? await getOrFetchAlbumsBatch(albumIds) : [];
+  const albums = albumResults.filter(
+    (a): a is NonNullable<typeof a> => a != null,
+  );
 
   return (
     <div className="space-y-6">

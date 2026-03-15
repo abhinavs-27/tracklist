@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { DiscoverUsersGrid } from "@/components/discover-users-grid";
 import { getSuggestedUsers } from "@/lib/queries";
 import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached } from "@/lib/discover-cache";
-import { getOrFetchTracksBatch, getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
+import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import { FollowButton } from "@/components/follow-button";
 import { TrendingSection } from "./trending-section";
 import { RisingArtistsSection } from "./rising-artists-section";
@@ -29,10 +29,14 @@ export default async function DiscoverPage() {
     else hiddenGemsByType.song.push(g.entity_id);
   }
 
-  const [tracksMap, albumsMap] = await Promise.all([
-    getOrFetchTracksBatch([...trendingTrackIds, ...hiddenGemsByType.song]),
-    getOrFetchAlbumsBatch(hiddenGemsByType.album),
+  const discoverTrackIds = [...trendingTrackIds, ...hiddenGemsByType.song];
+  const discoverAlbumIds = hiddenGemsByType.album;
+  const [trackArr, albumArr] = await Promise.all([
+    getOrFetchTracksBatch(discoverTrackIds),
+    getOrFetchAlbumsBatch(discoverAlbumIds),
   ]);
+  const tracksMap = batchResultsToMap(discoverTrackIds, trackArr);
+  const albumsMap = batchResultsToMap(discoverAlbumIds, albumArr);
 
   const trendingEnriched = trendingRaw.map((entity) => ({
     entity,

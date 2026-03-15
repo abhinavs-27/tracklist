@@ -2,7 +2,7 @@ import "server-only";
 
 import { getActivityFeed, getEntityDisplayNames } from "@/lib/queries";
 import type { ActivityFeedPage } from "@/lib/queries";
-import { getOrFetchAlbum, getOrFetchTrack } from "@/lib/spotify-cache";
+import { getOrFetchAlbum, getOrFetchTrack, getOrFetchAlbumsBatch, getOrFetchTracksBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import type { FeedActivity } from "@/types";
 
 export async function getFeedForUser(
@@ -61,13 +61,14 @@ export async function enrichListenSessionsWithAlbums(
   summaryActivities.forEach((s) => s.sessions.forEach(collectTrackIds));
   summaryActivities.forEach((s) => s.sessions.forEach((sess) => albumIds.add(sess.album_id)));
 
-  const [{ getOrFetchAlbumsBatch, getOrFetchTracksBatch }] = await Promise.all([
-    import("@/lib/spotify-cache"),
+  const albumIdList = [...albumIds];
+  const trackIdList = [...trackIdsNeedingName];
+  const [albumArr, trackArr] = await Promise.all([
+    albumIdList.length > 0 ? getOrFetchAlbumsBatch(albumIdList) : Promise.resolve([]),
+    trackIdList.length > 0 ? getOrFetchTracksBatch(trackIdList) : Promise.resolve([]),
   ]);
-  const [albumMap, trackMap] = await Promise.all([
-    albumIds.size > 0 ? getOrFetchAlbumsBatch([...albumIds]) : Promise.resolve(new Map()),
-    trackIdsNeedingName.size > 0 ? getOrFetchTracksBatch([...trackIdsNeedingName]) : Promise.resolve(new Map()),
-  ]);
+  const albumMap = batchResultsToMap(albumIdList, albumArr);
+  const trackMap = batchResultsToMap(trackIdList, trackArr);
 
   const applyTrackName = <T extends { track_id?: string; track_name?: string | null; artist_name?: string | null }>(
     s: T,
