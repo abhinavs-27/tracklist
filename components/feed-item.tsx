@@ -3,16 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ReviewCard } from './review-card';
+import { formatRelativeTime } from '@/lib/time';
 import type { FeedActivity, FeedListenSession } from '@/types';
-
-function formatRelativeTime(iso: string): string {
-  const sec = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (sec < 60) return 'just now';
-  if (sec < 3600) return `${Math.floor(sec / 60)} min ago`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)} hr ago`;
-  if (sec < 604800) return `${Math.floor(sec / 86400)} days ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
 const DISPLAY_CAP = 10;
 
@@ -43,10 +35,8 @@ function ListenSessionRow({ session }: { session: FeedListenSession }) {
 
 function ListenSessionsSummaryBlock({
   activity,
-  formatRelativeTime,
 }: {
   activity: Extract<FeedActivity, { type: 'listen_sessions_summary' }>;
-  formatRelativeTime: (iso: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const username = activity.user?.username ?? 'Someone';
@@ -128,9 +118,7 @@ export function FeedItem({ activity, spotifyName }: FeedItemProps) {
   }
 
   if (activity.type === 'listen_sessions_summary') {
-    return (
-      <ListenSessionsSummaryBlock activity={activity} formatRelativeTime={formatRelativeTime} />
-    );
+    return <ListenSessionsSummaryBlock activity={activity} />;
   }
 
   if (activity.type === 'listen_session') {
@@ -188,7 +176,7 @@ export function FeedItem({ activity, spotifyName }: FeedItemProps) {
               </div>
             </Link>
             <p className="mt-1 text-xs text-zinc-500">
-              {new Date(activity.created_at).toLocaleDateString()}
+              {formatRelativeTime(activity.created_at)}
             </p>
           </div>
         </div>
@@ -217,7 +205,7 @@ export function FeedItem({ activity, spotifyName }: FeedItemProps) {
         </Link>
       </p>
       <p className="mt-0.5 text-xs text-zinc-500">
-        {new Date(activity.created_at).toLocaleDateString()}
+        {formatRelativeTime(activity.created_at)}
       </p>
     </article>
   );

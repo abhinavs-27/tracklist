@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { ListenLogWithUser } from '@/types';
+import { formatRelativeTime } from '@/lib/time';
 
 interface LogCardProps {
   log: ListenLogWithUser;
@@ -35,7 +36,7 @@ export function LogCard({ log, trackName }: LogCardProps) {
           <span className="text-zinc-500">Track:</span> {displayName}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          {new Date(log.listened_at).toLocaleDateString()}
+          {formatRelativeTime(log.listened_at)}
         </p>
       </div>
     </article>

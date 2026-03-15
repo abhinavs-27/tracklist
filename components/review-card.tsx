@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { ReviewWithUser } from '@/types';
+import { formatRelativeTime } from '@/lib/time';
 import { LikeButton } from './like-button';
 import { CommentThread } from './comment-thread';
 
@@ -71,7 +72,7 @@ export function ReviewCard({
             {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
           </span>
           <span className="text-xs text-zinc-500">
-            {new Date(review.created_at).toLocaleDateString()}
+            {formatRelativeTime(review.created_at)}
           </span>
         </div>
         {review.review_text && (

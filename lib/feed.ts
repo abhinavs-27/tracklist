@@ -69,18 +69,20 @@ export async function enrichListenSessionsWithAlbums(
     trackIdsNeedingName.size > 0 ? getOrFetchTracksBatch([...trackIdsNeedingName]) : Promise.resolve(new Map()),
   ]);
 
-  const applyTrackName = (s: { track_id?: string; track_name?: string | null; artist_name?: string | null }) => {
+  const applyTrackName = <T extends { track_id?: string; track_name?: string | null; artist_name?: string | null }>(
+    s: T,
+  ): T => {
     if (s.track_name) return s;
     const track = s.track_id ? trackMap.get(s.track_id) : null;
     if (!track) return s;
     return {
       ...s,
       track_name: track.name ?? null,
-      artist_name: track.artists?.map((a) => a.name).join(", ") ?? null,
-    };
+      artist_name: track.artists?.map((a: { name: string }) => a.name).join(", ") ?? null,
+    } as T;
   };
 
-  return activities.map((activity) => {
+  return activities.map((activity): FeedActivity => {
     if (activity.type === "listen_session") {
       const withTrack = applyTrackName(activity);
       const album = albumMap.get(activity.album_id) ?? null;

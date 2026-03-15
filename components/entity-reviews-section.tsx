@@ -233,7 +233,9 @@ export function EntityReviewsSection({
       )}
 
       {reviews.length === 0 ? (
-        <p className="text-sm text-zinc-500">No reviews yet. Be the first to rate and review.</p>
+        <p className="text-sm text-zinc-500">
+          {entityType === "album" ? "No reviews yet. Be the first to review this album." : "No reviews yet. Be the first to review this track."}
+        </p>
       ) : (
         <ul className="space-y-3">
           {reviews.map((r) => {

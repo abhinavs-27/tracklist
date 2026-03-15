@@ -670,6 +670,88 @@ export async function getPopularAlbumsForArtist(
   }
 }
 
+/** Album engagement: listen count, review count, average rating. */
+export async function getAlbumEngagementStats(
+  albumId: string,
+): Promise<{ listen_count: number; review_count: number; avg_rating: number | null }> {
+  const stats = await getEntityStats("album", albumId);
+  return {
+    listen_count: stats.listen_count,
+    review_count: stats.review_count,
+    avg_rating: stats.average_rating,
+  };
+}
+
+export type FriendAlbumActivityRow = {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  listened_at: string;
+  rating: number | null;
+};
+
+/** Friends (users the viewer follows) who listened to this album: logs JOIN songs JOIN follows. Optional rating from their review. */
+export async function getFriendsAlbumActivity(
+  viewerId: string,
+  albumId: string,
+  limit = 10,
+): Promise<FriendAlbumActivityRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data: songRows } = await supabase.from("songs").select("id").eq("album_id", albumId);
+    const trackIds = (songRows ?? []).map((s) => s.id);
+    if (trackIds.length === 0) return [];
+
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", viewerId);
+    const followingIds = (followRows ?? []).map((f) => f.following_id);
+    if (followingIds.length === 0) return [];
+
+    const { data: logs, error } = await supabase
+      .from("logs")
+      .select("user_id, listened_at")
+      .in("track_id", trackIds)
+      .in("user_id", followingIds)
+      .order("listened_at", { ascending: false })
+      .limit(limit);
+
+    if (error || !logs?.length) return [];
+
+    const userIds = [...new Set(logs.map((l) => l.user_id))];
+    const [usersRes, reviewsRes] = await Promise.all([
+      supabase.from("users").select("id, username, avatar_url").in("id", userIds),
+      supabase
+        .from("reviews")
+        .select("user_id, rating")
+        .eq("entity_type", "album")
+        .eq("entity_id", albumId)
+        .in("user_id", userIds),
+    ]);
+    const userMap = new Map((usersRes.data ?? []).map((u) => [u.id, u]));
+    const ratingMap = new Map((reviewsRes.data ?? []).map((r) => [r.user_id, r.rating]));
+
+    return logs
+      .map((l) => {
+        const user = userMap.get(l.user_id);
+        if (!user) return null;
+        return {
+          user_id: l.user_id,
+          username: user.username,
+          avatar_url: user.avatar_url ?? null,
+          listened_at: l.listened_at,
+          rating: ratingMap.get(l.user_id) ?? null,
+        };
+      })
+      .filter((x): x is FriendAlbumActivityRow => x != null);
+  } catch (e) {
+    console.error("[queries] getFriendsAlbumActivity failed:", e);
+    return [];
+  }
+}
+
 /** Users who recently listened to tracks from an album. When viewerId is set, returns only users the viewer follows (friends). When viewerId is null, returns [] for privacy. */
 export async function getAlbumListeners(
   albumId: string,

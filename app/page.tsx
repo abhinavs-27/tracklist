@@ -50,12 +50,12 @@ export default async function HomePage() {
       <h1 className="mb-4 text-2xl font-bold text-white">Your feed</h1>
       {feedItems.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-          <p className="text-zinc-400">No activity yet. Follow users to see their reviews and follow activity.</p>
+          <p className="text-zinc-400">Your feed is empty. Follow people to see what they&apos;re listening to.</p>
           <Link
             href="/search"
             className="mt-4 inline-block text-emerald-400 hover:underline"
           >
-            Search for music
+            Find people to follow
           </Link>
         </div>
       ) : (

@@ -9,11 +9,13 @@ import { EntityReviewsSection } from "@/components/entity-reviews-section";
 import {
   getReviewsForEntity,
   getEntityStats,
-  getAlbumListeners,
+  getAlbumEngagementStats,
+  getFriendsAlbumActivity,
   getTrackStatsForTrackIds,
   getListenLogsForAlbum,
   getAlbumRecommendations,
 } from "@/lib/queries";
+import { formatRelativeTime } from "@/lib/time";
 import { getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
 import { AlbumCard } from "@/components/album-card";
 
@@ -67,10 +69,12 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   }
 
   const trackIds = tracks.items?.map((t) => t.id) ?? [];
-  const [reviewsData, stats, listeners, trackStats, recentListens, recommendationsRaw] = await Promise.all([
+  const viewerId = session?.user?.id ?? null;
+  const [reviewsData, stats, engagementStats, friendActivity, trackStats, recentListens, recommendationsRaw] = await Promise.all([
     getReviewsForEntity("album", id, 20),
     getEntityStats("album", id),
-    getAlbumListeners(id, 8, session?.user?.id ?? null),
+    getAlbumEngagementStats(id),
+    viewerId ? getFriendsAlbumActivity(viewerId, id, 10) : Promise.resolve([]),
     getTrackStatsForTrackIds(trackIds),
     getListenLogsForAlbum(id, 15),
     getAlbumRecommendations(id, 10),
@@ -120,22 +124,25 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
             </p>
           )}
 
-          {/* Stats bar */}
+          {/* Engagement stats under album title */}
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-            {stats.listen_count > 0 && (
-              <span className="text-zinc-400">
-                {stats.listen_count.toLocaleString()} listen{stats.listen_count !== 1 ? "s" : ""}
-              </span>
-            )}
-            {stats.average_rating != null && (
+            {engagementStats.avg_rating != null && (
               <span className="text-amber-400">
-                ★ {stats.average_rating.toFixed(1)}
+                ★ {engagementStats.avg_rating.toFixed(1)} average rating
               </span>
             )}
-            {stats.review_count > 0 && (
+            {engagementStats.listen_count > 0 && (
               <span className="text-zinc-400">
-                {stats.review_count} review{stats.review_count !== 1 ? "s" : ""}
+                {engagementStats.listen_count.toLocaleString()} listen{engagementStats.listen_count !== 1 ? "s" : ""}
               </span>
+            )}
+            {engagementStats.review_count > 0 && (
+              <span className="text-zinc-400">
+                {engagementStats.review_count} review{engagementStats.review_count !== 1 ? "s" : ""}
+              </span>
+            )}
+            {engagementStats.listen_count === 0 && engagementStats.review_count === 0 && (
+              <span className="text-zinc-500">No listens or reviews yet</span>
             )}
           </div>
 
@@ -263,7 +270,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
                   </Link>
                 </div>
                 <span className="shrink-0 text-xs text-zinc-500">
-                  {new Date(log.listened_at).toLocaleDateString()}
+                  {formatRelativeTime(log.listened_at)}
                 </span>
               </li>
             ))}
@@ -280,38 +287,40 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
       />
 
       {/* Friends who listened (only shown when logged in; list is friends-only) */}
-      {listeners.length > 0 && (
+      {friendActivity.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">
             Friends who listened
           </h2>
-          <div className="flex flex-wrap gap-3">
-            {listeners.map((l) => (
-              <Link
-                key={l.user_id}
-                href={`/profile/${l.username}`}
-                className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-sm transition hover:border-zinc-600"
-              >
-                {l.avatar_url ? (
-                  <img
-                    src={l.avatar_url}
-                    alt=""
-                    className="h-6 w-6 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-[10px] text-zinc-300">
-                    {l.username[0]?.toUpperCase()}
+          <ul className="space-y-2">
+            {friendActivity.map((l, i) => (
+              <li key={`${l.user_id}-${l.listened_at}-${i}`}>
+                <Link
+                  href={`/profile/${l.username}`}
+                  className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm transition hover:border-zinc-600"
+                >
+                  {l.avatar_url ? (
+                    <img
+                      src={l.avatar_url}
+                      alt=""
+                      className="h-8 w-8 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs text-zinc-300">
+                      {l.username[0]?.toUpperCase()}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-zinc-200">{l.username}</span>
+                  <span className="shrink-0 text-xs text-zinc-500">
+                    {formatRelativeTime(l.listened_at)}
                   </span>
-                )}
-                <span className="text-zinc-200">{l.username}</span>
-                {l.listened_at && (
-                  <span className="text-xs text-zinc-500">
-                    · {new Date(l.listened_at).toLocaleDateString()}
-                  </span>
-                )}
-              </Link>
+                  {l.rating != null && (
+                    <span className="shrink-0 text-amber-400">★ {l.rating}</span>
+                  )}
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       )}
     </div>
