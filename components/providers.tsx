@@ -2,6 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react';
 import type { Session } from 'next-auth';
+import { ToastProvider } from '@/components/toast';
 
 export function Providers({
   children,
@@ -12,7 +13,9 @@ export function Providers({
 }) {
   return (
     <SessionProvider session={session}>
-      {children}
+      <ToastProvider>
+        {children}
+      </ToastProvider>
     </SessionProvider>
   );
 }

@@ -2,12 +2,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { TrackCard } from "@/components/track-card";
+import { useToast } from "@/components/toast";
 
 type AddToListModalProps = {
   listId: string;
   listType: "album" | "song";
   onClose: () => void;
   onAdded?: () => void;
+  onOptimisticAdd?: (
+    entityType: "album" | "song",
+    entityId: string,
+    album?: SpotifyApi.AlbumObjectSimplified,
+    track?: SpotifyApi.TrackObjectSimplified | SpotifyApi.TrackObjectFull
+  ) => void;
+  onAddFailed?: () => void;
 };
 
 type SearchResult = {
@@ -20,12 +28,15 @@ export function AddToListModal({
   listType,
   onClose,
   onAdded,
+  onOptimisticAdd,
+  onAddFailed,
 }: AddToListModalProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const toast = useToast();
 
   const search = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -65,6 +76,7 @@ export function AddToListModal({
   const addAlbum = async (album: SpotifyApi.AlbumObjectSimplified) => {
     setAdding(album.id);
     setError("");
+    onOptimisticAdd?.("album", album.id, album);
     try {
       const res = await fetch(`/api/lists/${listId}/items`, {
         method: "POST",
@@ -74,12 +86,16 @@ export function AddToListModal({
       if (!res.ok) {
         const data = await res.json();
         setError(data.error ?? "Failed to add");
+        onAddFailed?.();
+        toast("Action failed, please try again.");
         return;
       }
       onAdded?.();
       onClose();
     } catch {
       setError("Failed to add");
+      onAddFailed?.();
+      toast("Action failed, please try again.");
     } finally {
       setAdding(null);
     }
@@ -88,6 +104,7 @@ export function AddToListModal({
   const addTrack = async (track: SpotifyApi.TrackObjectSimplified) => {
     setAdding(track.id);
     setError("");
+    onOptimisticAdd?.("song", track.id, undefined, track);
     try {
       const res = await fetch(`/api/lists/${listId}/items`, {
         method: "POST",
@@ -97,12 +114,16 @@ export function AddToListModal({
       if (!res.ok) {
         const data = await res.json();
         setError(data.error ?? "Failed to add");
+        onAddFailed?.();
+        toast("Action failed, please try again.");
         return;
       }
       onAdded?.();
       onClose();
     } catch {
       setError("Failed to add");
+      onAddFailed?.();
+      toast("Action failed, please try again.");
     } finally {
       setAdding(null);
     }

@@ -2,7 +2,7 @@
 
 import { FollowButton } from './follow-button';
 import { FollowersModal } from "./followers-modal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ProfileHeaderProps {
   username: string;
@@ -33,6 +33,16 @@ export function ProfileHeader({
   const [initialTab, setInitialTab] = useState<"followers" | "following">(
     "followers",
   );
+  const [optimisticFollowerCount, setOptimisticFollowerCount] = useState(followersCount);
+
+  useEffect(() => {
+    setOptimisticFollowerCount(followersCount);
+  }, [followersCount]);
+
+  const handleFollowChange = (isFollowingNow: boolean) => {
+    setOptimisticFollowerCount((prev) => prev + (isFollowingNow ? 1 : -1));
+    onProfileUpdated?.();
+  };
 
   return (
     <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -57,7 +67,7 @@ export function ProfileHeader({
             }}
             className="flex items-center gap-1 rounded-full px-0.5 py-0.5 text-zinc-400 hover:text-zinc-200"
           >
-            <span className="font-semibold text-white">{followersCount}</span>
+            <span className="font-semibold text-white">{optimisticFollowerCount}</span>
             <span>followers</span>
           </button>
           <button
@@ -77,7 +87,7 @@ export function ProfileHeader({
             <FollowButton
               userId={userId}
               initialFollowing={isFollowing}
-              onFollowChange={onProfileUpdated}
+              onFollowChange={handleFollowChange}
             />
           </div>
         )}

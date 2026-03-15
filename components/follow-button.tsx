@@ -1,39 +1,51 @@
 'use client';
 
 import { useState } from 'react';
+import { useToast } from '@/components/toast';
 
 interface FollowButtonProps {
   userId: string;
   initialFollowing: boolean;
-  onFollowChange?: () => void;
+  onFollowChange?: (isFollowing: boolean) => void;
 }
 
 export function FollowButton({ userId, initialFollowing, onFollowChange }: FollowButtonProps) {
   const [following, setFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   const handleClick = async () => {
+    const nextFollowing = !following;
+    setFollowing(nextFollowing);
+    onFollowChange?.(nextFollowing);
+
     setLoading(true);
     try {
-      if (following) {
-        const res = await fetch(`/api/follow?following_id=${encodeURIComponent(userId)}`, {
-          method: 'DELETE',
-        });
-        if (res.ok) {
-          setFollowing(false);
-          onFollowChange?.();
-        }
-      } else {
+      if (nextFollowing) {
         const res = await fetch('/api/follow', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ following_id: userId }),
         });
-        if (res.ok) {
+        if (!res.ok) {
+          setFollowing(false);
+          onFollowChange?.(false);
+          toast('Action failed, please try again.');
+        }
+      } else {
+        const res = await fetch(`/api/follow?following_id=${encodeURIComponent(userId)}`, {
+          method: 'DELETE',
+        });
+        if (!res.ok) {
           setFollowing(true);
-          onFollowChange?.();
+          onFollowChange?.(true);
+          toast('Action failed, please try again.');
         }
       }
+    } catch {
+      setFollowing(!nextFollowing);
+      onFollowChange?.(!nextFollowing);
+      toast('Action failed, please try again.');
     } finally {
       setLoading(false);
     }

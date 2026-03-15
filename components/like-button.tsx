@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useToast } from '@/components/toast';
 
 interface LikeButtonProps {
   reviewId: string;
@@ -12,13 +13,14 @@ export function LikeButton({ reviewId, initialLiked, initialCount }: LikeButtonP
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   const handleClick = async () => {
     if (loading) return;
-    setLoading(true);
     const nextLiked = !liked;
     setLiked(nextLiked);
     setCount((c) => c + (nextLiked ? 1 : -1));
+    setLoading(true);
     try {
       const res = await fetch(nextLiked ? '/api/likes' : `/api/likes?review_id=${reviewId}`, {
         method: nextLiked ? 'POST' : 'DELETE',
@@ -28,7 +30,12 @@ export function LikeButton({ reviewId, initialLiked, initialCount }: LikeButtonP
       if (!res.ok) {
         setLiked(!nextLiked);
         setCount((c) => c - (nextLiked ? 1 : -1));
+        toast('Action failed, please try again.');
       }
+    } catch {
+      setLiked(!nextLiked);
+      setCount((c) => c - (nextLiked ? 1 : -1));
+      toast('Action failed, please try again.');
     } finally {
       setLoading(false);
     }

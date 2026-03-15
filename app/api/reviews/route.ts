@@ -88,13 +88,35 @@ export async function POST(request: NextRequest) {
     if (error) return apiInternalError(error);
     const { grantAchievementOnReview } = await import("@/lib/queries");
     await grantAchievementOnReview(session.user.id);
+
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .eq("id", session.user.id)
+      .single();
+
+    const reviewWithUser = {
+      id: data.id,
+      user_id: data.user_id,
+      username: userRow?.username ?? null,
+      entity_type: data.entity_type,
+      entity_id: data.entity_id,
+      rating: data.rating,
+      review_text: data.review_text ?? null,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      user: userRow
+        ? { id: userRow.id, username: userRow.username, avatar_url: userRow.avatar_url ?? null }
+        : null,
+    };
+
     console.log("[reviews] review created/updated", {
       userId: session.user.id,
       reviewId: data.id,
       entityType: data.entity_type,
       entityId: data.entity_id,
     });
-    return apiOk(data);
+    return apiOk(reviewWithUser);
   } catch (e) {
     return apiInternalError(e);
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ReviewCard } from "@/components/review-card";
 import { VirtualReviewList } from "@/components/virtual-review-list";
@@ -51,6 +51,7 @@ export function EntityReviewsSection({
   const [editText, setEditText] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
+  const previousMyReviewRef = useRef<ReviewItem | null>(null);
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -85,6 +86,32 @@ export function EntityReviewsSection({
     e.preventDefault();
     setSubmitLoading(true);
     setError("");
+    const tempId = `opt-${Date.now()}`;
+    const tempReview: ReviewItem = {
+      id: tempId,
+      user_id: "",
+      username: "You",
+      entity_type,
+      entity_id,
+      rating: editRating,
+      review_text: editText.trim() || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setData((prev) => {
+      if (!prev) return prev;
+      previousMyReviewRef.current = prev.my_review ?? null;
+      const withoutOldMine = prev.my_review
+        ? prev.reviews.filter((r) => r.id !== prev.my_review!.id)
+        : prev.reviews;
+      return {
+        ...prev,
+        reviews: [tempReview, ...withoutOldMine],
+        my_review: tempReview,
+        count: prev.my_review ? (prev.count ?? prev.reviews.length) : (prev.count ?? prev.reviews.length) + 1,
+        average_rating: prev.average_rating,
+      };
+    });
     try {
       const res = await fetch("/api/reviews", {
         method: "POST",
@@ -96,13 +123,46 @@ export function EntityReviewsSection({
           review_text: editText.trim() || null,
         }),
       });
-      const json = await res.json();
+      const newReview = (await res.json()) as ReviewItem | { error?: string };
       if (!res.ok) {
-        setError(json.error ?? "Failed to save review");
+        setError((newReview as { error?: string }).error ?? "Failed to save review");
+        setData((prev) => {
+          if (!prev) return prev;
+          const previousMyReview = previousMyReviewRef.current;
+          const withoutTemp = prev.reviews.filter((r) => r.id !== tempId);
+          const nextReviews = previousMyReview ? [previousMyReview, ...withoutTemp] : withoutTemp;
+          return {
+            ...prev,
+            reviews: nextReviews,
+            my_review: previousMyReview,
+            count: previousMyReview ? (prev.count ?? prev.reviews.length) : Math.max(0, (prev.count ?? prev.reviews.length) - 1),
+            average_rating: prev.average_rating,
+          };
+        });
         return;
       }
       setFormOpen(false);
-      await fetchReviews();
+      setData((prev) => {
+        if (!prev) return prev;
+        const review = newReview as ReviewItem;
+        const hadRealMyReview = prev.my_review && prev.my_review.id !== tempId;
+        const prevReviews = prev.reviews.filter((r) => r.id !== tempId && r.id !== review.id && r.user_id !== review.user_id);
+        const nextReviews = [review, ...prevReviews];
+        const count = prev.count ?? prev.reviews.length;
+        const nextAverage =
+          count === 0
+            ? null
+            : hadRealMyReview && prev.my_review
+              ? (count * (prev.average_rating ?? 0) - prev.my_review.rating + review.rating) / count
+              : ((count - 1) * (prev.average_rating ?? 0) + review.rating) / count;
+        return {
+          ...prev,
+          reviews: nextReviews,
+          my_review: review,
+          count,
+          average_rating: nextAverage != null ? Math.round(nextAverage * 10) / 10 : null,
+        };
+      });
     } finally {
       setSubmitLoading(false);
     }
@@ -111,6 +171,7 @@ export function EntityReviewsSection({
   const handleDelete = async () => {
     if (!data?.my_review) return;
     if (!confirm("Remove your review?")) return;
+    const deletedReview = data.my_review;
     setSubmitLoading(true);
     setError("");
     try {
@@ -122,7 +183,28 @@ export function EntityReviewsSection({
         return;
       }
       setFormOpen(false);
-      await fetchReviews();
+      setData((prev) => {
+        if (!prev) return prev;
+        const nextReviews = prev.reviews.filter((r) => r.id !== deletedReview.id);
+        const nextCount = Math.max(0, (prev.count ?? prev.reviews.length) - 1);
+        const nextAverage =
+          nextCount === 0
+            ? null
+            : nextCount === 1
+              ? nextReviews[0]?.rating ?? null
+              : (prev.count ?? 0) > 0 && prev.average_rating != null
+                ? (prev.average_rating * (prev.count ?? 0) - deletedReview.rating) / nextCount
+                : nextReviews.length > 0
+                  ? nextReviews.reduce((a, r) => a + r.rating, 0) / nextReviews.length
+                  : null;
+        return {
+          ...prev,
+          reviews: nextReviews,
+          my_review: null,
+          count: nextCount,
+          average_rating: nextAverage != null ? Math.round(nextAverage * 10) / 10 : null,
+        };
+      });
     } finally {
       setSubmitLoading(false);
     }

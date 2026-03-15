@@ -5,10 +5,9 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getList } from "@/lib/queries";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
-import { AlbumCard } from "@/components/album-card";
-import { TrackCard } from "@/components/track-card";
 import { ListDetailClient } from "./list-detail-client";
 import { ListHeaderClient } from "./list-header-client";
+import { ListItemsClient } from "./list-items-client";
 
 type PageParams = Promise<{ listId: string }>;
 
@@ -109,51 +108,12 @@ export default async function ListDetailPage({ params }: { params: PageParams })
           )}
         </div>
       ) : (
-        <section>
-          <ul className="space-y-3">
-            {enriched.map((item, index) => (
-              <li key={item.id} className="flex items-center gap-3">
-                <span className="w-8 shrink-0 text-right text-sm text-zinc-500">
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  {item.entity_type === "album" && item.album ? (
-                    <AlbumCard album={item.album} />
-                  ) : item.entity_type === "song" && item.track ? (
-                    <TrackCard
-                      track={item.track}
-                      showAlbum={true}
-                      songPageLink
-                      showThumbnail={true}
-                    />
-                  ) : (
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
-                      <p className="text-zinc-400">
-                        {item.entity_type === 'album' ? 'Unknown album' : 'Unknown track'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {isOwner && (
-                  <ListDetailClient
-                    listId={listId}
-                    listType={data.list.type}
-                    itemId={item.id}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-          {isOwner && (
-            <div className="mt-4">
-              <ListDetailClient
-                listId={listId}
-                listType={data.list.type}
-                triggerLabel="Add another item"
-              />
-            </div>
-          )}
-        </section>
+        <ListItemsClient
+          initialItems={enriched}
+          listId={listId}
+          listType={data.list.type}
+          isOwner={isOwner}
+        />
       )}
     </div>
   );
