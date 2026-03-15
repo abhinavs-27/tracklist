@@ -6,16 +6,16 @@ import { AddToListModal } from "@/components/add-to-list-modal";
 
 type ListDetailClientProps = {
   listId: string;
+  listType: "album" | "song";
   itemId?: string;
   triggerLabel?: string;
-  onRemoved?: () => void;
 };
 
 export function ListDetailClient({
   listId,
+  listType,
   itemId,
   triggerLabel,
-  onRemoved,
 }: ListDetailClientProps) {
   const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -30,7 +30,6 @@ export function ListDetailClient({
         method: "DELETE",
       });
       if (res.ok) {
-        onRemoved?.();
         router.refresh();
       }
     } finally {
@@ -67,6 +66,7 @@ export function ListDetailClient({
       {showAddModal && (
         <AddToListModal
           listId={listId}
+          listType={listType}
           onClose={() => setShowAddModal(false)}
           onAdded={handleAdded}
         />

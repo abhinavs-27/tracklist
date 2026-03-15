@@ -53,8 +53,7 @@ async function getListenLogsInternal(opts: {
       .range(from, to);
 
     if (opts.userId) query = query.eq("user_id", opts.userId);
-    if (opts.spotifyTrackId)
-      query = query.eq("track_id", opts.spotifyTrackId);
+    if (opts.spotifyTrackId) query = query.eq("track_id", opts.spotifyTrackId);
 
     const { data: logs, error } = await query;
     if (error || !logs?.length) return [];
@@ -131,7 +130,9 @@ export async function getReviewsForEntity(
         review_text: r.review_text ?? null,
         created_at: r.created_at,
         updated_at: r.updated_at,
-        user: u ? { id: u.id, username: u.username, avatar_url: u.avatar_url ?? null } : null,
+        user: u
+          ? { id: u.id, username: u.username, avatar_url: u.avatar_url ?? null }
+          : null,
       };
     });
 
@@ -159,7 +160,8 @@ export async function getReviewsForEntity(
         .maybeSingle();
       if (myRow) {
         const sessionUsername =
-          (session?.user as { username?: string } | undefined)?.username ?? null;
+          (session?.user as { username?: string } | undefined)?.username ??
+          null;
         my_review = {
           id: myRow.id,
           user_id: myRow.user_id,
@@ -241,7 +243,13 @@ export type EntityStats = {
   average_rating: number | null;
   review_count: number;
   /** Count of reviews per star 1–5 for histogram/bar chart. */
-  rating_distribution?: { 1: number; 2: number; 3: number; 4: number; 5: number };
+  rating_distribution?: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
 };
 
 const DEFAULT_ENTITY_STATS: EntityStats = {
@@ -258,7 +266,13 @@ function mapAlbumStatsRow(row: {
   rating_distribution: unknown;
 }): EntityStats {
   const dist = row.rating_distribution as Record<string, number> | null;
-  const rating_distribution: { 1: number; 2: number; 3: number; 4: number; 5: number } = {
+  const rating_distribution: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  } = {
     1: dist?.["1"] ?? 0,
     2: dist?.["2"] ?? 0,
     3: dist?.["3"] ?? 0,
@@ -326,8 +340,18 @@ async function getEntityStatsLive(
   const average_rating =
     review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
 
-  const rating_distribution: { 1: number; 2: number; 3: number; 4: number; 5: number } = {
-    1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
+  const rating_distribution: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  } = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
   };
   for (const r of ratings) {
     const star = Math.max(1, Math.min(5, Math.floor(r)));
@@ -339,18 +363,31 @@ async function getEntityStatsLive(
 
 // In-memory cache for entity stats (hot album/track pages). TTL 10 min.
 const ENTITY_STATS_TTL_MS = 10 * 60 * 1000;
-const entityStatsMemoryCache = new Map<string, { data: EntityStats; expiresAt: number }>();
+const entityStatsMemoryCache = new Map<
+  string,
+  { data: EntityStats; expiresAt: number }
+>();
 
-function getEntityStatsFromMemory(entityType: "album" | "song", entityId: string): EntityStats | null {
+function getEntityStatsFromMemory(
+  entityType: "album" | "song",
+  entityId: string,
+): EntityStats | null {
   const key = `${entityType}:${entityId}`;
   const entry = entityStatsMemoryCache.get(key);
   if (!entry || entry.expiresAt <= Date.now()) return null;
   return entry.data;
 }
 
-function setEntityStatsMemory(entityType: "album" | "song", entityId: string, data: EntityStats) {
+function setEntityStatsMemory(
+  entityType: "album" | "song",
+  entityId: string,
+  data: EntityStats,
+) {
   const key = `${entityType}:${entityId}`;
-  entityStatsMemoryCache.set(key, { data, expiresAt: Date.now() + ENTITY_STATS_TTL_MS });
+  entityStatsMemoryCache.set(key, {
+    data,
+    expiresAt: Date.now() + ENTITY_STATS_TTL_MS,
+  });
   if (entityStatsMemoryCache.size > 1000) {
     const now = Date.now();
     for (const [k, v] of entityStatsMemoryCache.entries()) {
@@ -378,7 +415,14 @@ export async function getEntityStats(
         .maybeSingle();
 
       if (!error && row) {
-        result = mapAlbumStatsRow(row as { listen_count: number; review_count: number; avg_rating: number | null; rating_distribution: unknown });
+        result = mapAlbumStatsRow(
+          row as {
+            listen_count: number;
+            review_count: number;
+            avg_rating: number | null;
+            rating_distribution: unknown;
+          },
+        );
       }
       if (!error && !row) {
         console.warn("[queries] getEntityStats cache miss (album):", entityId);
@@ -391,7 +435,13 @@ export async function getEntityStats(
         .maybeSingle();
 
       if (!error && row) {
-        result = mapTrackStatsRow(row as { listen_count: number; review_count: number; avg_rating: number | null });
+        result = mapTrackStatsRow(
+          row as {
+            listen_count: number;
+            review_count: number;
+            avg_rating: number | null;
+          },
+        );
       }
       if (!error && !row) {
         console.warn("[queries] getEntityStats cache miss (track):", entityId);
@@ -411,7 +461,11 @@ export async function getEntityStats(
 export async function getTrackStatsForTrackIds(
   trackIds: string[],
 ): Promise<Record<string, EntityStats>> {
-  const empty: EntityStats = { listen_count: 0, average_rating: null, review_count: 0 };
+  const empty: EntityStats = {
+    listen_count: 0,
+    average_rating: null,
+    review_count: 0,
+  };
   if (trackIds.length === 0) return {};
 
   try {
@@ -425,7 +479,12 @@ export async function getTrackStatsForTrackIds(
       .in("track_id", uniqueIds);
 
     if (!error && rows?.length) {
-      for (const row of rows as { track_id: string; listen_count: number; review_count: number; avg_rating: number | null }[]) {
+      for (const row of rows as {
+        track_id: string;
+        listen_count: number;
+        review_count: number;
+        avg_rating: number | null;
+      }[]) {
         result[row.track_id] = mapTrackStatsRow(row);
       }
     }
@@ -443,12 +502,18 @@ export async function getTrackStatsForTrackIds(
 
       const listenCounts = new Map<string, number>();
       for (const row of logsRes.data ?? []) {
-        listenCounts.set(row.track_id, (listenCounts.get(row.track_id) ?? 0) + 1);
+        listenCounts.set(
+          row.track_id,
+          (listenCounts.get(row.track_id) ?? 0) + 1,
+        );
       }
       const reviewCounts = new Map<string, number>();
       const ratingSums = new Map<string, number>();
       for (const row of reviewsRes.data ?? []) {
-        reviewCounts.set(row.entity_id, (reviewCounts.get(row.entity_id) ?? 0) + 1);
+        reviewCounts.set(
+          row.entity_id,
+          (reviewCounts.get(row.entity_id) ?? 0) + 1,
+        );
         ratingSums.set(
           row.entity_id,
           (ratingSums.get(row.entity_id) ?? 0) + row.rating,
@@ -555,14 +620,16 @@ export async function getTopTracksForArtist(
       counts.set(l.track_id, (counts.get(l.track_id) ?? 0) + 1);
     }
     // Sort: logged tracks by count desc, then all others (by name) so we show a full list
-    const sortedIds = [...trackIds].sort((a, b) => {
-      const countA = counts.get(a) ?? 0;
-      const countB = counts.get(b) ?? 0;
-      if (countB !== countA) return countB - countA;
-      const nameA = songRows.find((s) => s.id === a)?.name ?? "";
-      const nameB = songRows.find((s) => s.id === b)?.name ?? "";
-      return nameA.localeCompare(nameB);
-    }).slice(0, limit);
+    const sortedIds = [...trackIds]
+      .sort((a, b) => {
+        const countA = counts.get(a) ?? 0;
+        const countB = counts.get(b) ?? 0;
+        if (countB !== countA) return countB - countA;
+        const nameA = songRows.find((s) => s.id === a)?.name ?? "";
+        const nameB = songRows.find((s) => s.id === b)?.name ?? "";
+        return nameA.localeCompare(nameB);
+      })
+      .slice(0, limit);
 
     const songMap = new Map(songRows.map((s) => [s.id, s]));
     const albumIds = [...new Set(songRows.map((s) => s.album_id))];
@@ -583,13 +650,20 @@ export async function getTopTracksForArtist(
         return {
           id: song.id,
           name: song.name,
-          artists: [{ id: song.artist_id, name: artistMap.get(song.artist_id)?.name ?? "" }],
+          artists: [
+            {
+              id: song.artist_id,
+              name: artistMap.get(song.artist_id)?.name ?? "",
+            },
+          ],
           duration_ms: song.duration_ms ?? undefined,
           album: album
             ? {
                 id: album.id,
                 name: album.name,
-                images: album.image_url ? [{ url: album.image_url }] : undefined,
+                images: album.image_url
+                  ? [{ url: album.image_url }]
+                  : undefined,
               }
             : undefined,
         } as SpotifyApi.TrackObjectSimplified;
@@ -700,7 +774,14 @@ export async function getPopularAlbumsForArtist(
   artistId: string,
   limit = 10,
 ): Promise<
-  { id: string; name: string; image_url: string | null; listen_count: number; review_count: number; average_rating: number | null }[]
+  {
+    id: string;
+    name: string;
+    image_url: string | null;
+    listen_count: number;
+    review_count: number;
+    average_rating: number | null;
+  }[]
 > {
   try {
     const supabase = await createSupabaseServerClient();
@@ -724,7 +805,9 @@ export async function getPopularAlbumsForArtist(
     ]);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
-    const trackToAlbum = new Map((songRows ?? []).map((s) => [s.id, s.album_id]));
+    const trackToAlbum = new Map(
+      (songRows ?? []).map((s) => [s.id, s.album_id]),
+    );
 
     const listensByAlbum = new Map<string, number>();
     if (trackIds.length > 0) {
@@ -734,14 +817,18 @@ export async function getPopularAlbumsForArtist(
         .in("track_id", trackIds);
       for (const l of logRows ?? []) {
         const albumId = trackToAlbum.get(l.track_id);
-        if (albumId) listensByAlbum.set(albumId, (listensByAlbum.get(albumId) ?? 0) + 1);
+        if (albumId)
+          listensByAlbum.set(albumId, (listensByAlbum.get(albumId) ?? 0) + 1);
       }
     }
 
     const reviewsByAlbum = new Map<string, number>();
     const ratingSumByAlbum = new Map<string, number>();
     for (const r of reviewRows ?? []) {
-      reviewsByAlbum.set(r.entity_id, (reviewsByAlbum.get(r.entity_id) ?? 0) + 1);
+      reviewsByAlbum.set(
+        r.entity_id,
+        (reviewsByAlbum.get(r.entity_id) ?? 0) + 1,
+      );
       ratingSumByAlbum.set(
         r.entity_id,
         (ratingSumByAlbum.get(r.entity_id) ?? 0) + r.rating,
@@ -769,14 +856,23 @@ export async function getPopularAlbumsForArtist(
       })
       .sort((a, b) => b._score - a._score)
       .slice(0, limit)
-      .map(({ id, name, image_url, listen_count, review_count, average_rating }) => ({
-        id,
-        name,
-        image_url,
-        listen_count,
-        review_count,
-        average_rating,
-      }));
+      .map(
+        ({
+          id,
+          name,
+          image_url,
+          listen_count,
+          review_count,
+          average_rating,
+        }) => ({
+          id,
+          name,
+          image_url,
+          listen_count,
+          review_count,
+          average_rating,
+        }),
+      );
   } catch (e) {
     console.error("[queries] getPopularAlbumsForArtist failed:", e);
     return [];
@@ -786,7 +882,11 @@ export async function getPopularAlbumsForArtist(
 /** Album engagement: listen count, review count, average rating. */
 export async function getAlbumEngagementStats(
   albumId: string,
-): Promise<{ listen_count: number; review_count: number; avg_rating: number | null }> {
+): Promise<{
+  listen_count: number;
+  review_count: number;
+  avg_rating: number | null;
+}> {
   const stats = await getEntityStats("album", albumId);
   return {
     listen_count: stats.listen_count,
@@ -812,7 +912,10 @@ export async function getFriendsAlbumActivity(
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: songRows } = await supabase.from("songs").select("id").eq("album_id", albumId);
+    const { data: songRows } = await supabase
+      .from("songs")
+      .select("id")
+      .eq("album_id", albumId);
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
 
@@ -823,7 +926,9 @@ export async function getFriendsAlbumActivity(
     const followingIds = (followRows ?? []).map((f) => f.following_id);
     if (followingIds.length === 0) return [];
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const thirtyDaysAgo = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const { data: logs, error } = await supabase
       .from("logs")
       .select("user_id, listened_at")
@@ -837,7 +942,10 @@ export async function getFriendsAlbumActivity(
 
     const userIds = [...new Set(logs.map((l) => l.user_id))];
     const [usersRes, reviewsRes] = await Promise.all([
-      supabase.from("users").select("id, username, avatar_url").in("id", userIds),
+      supabase
+        .from("users")
+        .select("id, username, avatar_url")
+        .in("id", userIds),
       supabase
         .from("reviews")
         .select("user_id, rating")
@@ -846,7 +954,9 @@ export async function getFriendsAlbumActivity(
         .in("user_id", userIds),
     ]);
     const userMap = new Map((usersRes.data ?? []).map((u) => [u.id, u]));
-    const ratingMap = new Map((reviewsRes.data ?? []).map((r) => [r.user_id, r.rating]));
+    const ratingMap = new Map(
+      (reviewsRes.data ?? []).map((r) => [r.user_id, r.rating]),
+    );
 
     return logs
       .map((l) => {
@@ -872,7 +982,14 @@ export async function getAlbumListeners(
   albumId: string,
   limit = 10,
   viewerId: string | null = null,
-): Promise<{ user_id: string; username: string; avatar_url: string | null; listened_at: string }[]> {
+): Promise<
+  {
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    listened_at: string;
+  }[]
+> {
   try {
     if (!viewerId) return [];
 
@@ -951,7 +1068,10 @@ export async function getAlbumRecommendations(
       p_limit: capped,
     });
     if (error) {
-      console.warn("[queries] get_album_recommendations RPC failed:", error.message);
+      console.warn(
+        "[queries] get_album_recommendations RPC failed:",
+        error.message,
+      );
       return [];
     }
     return (data ?? []).map((r: { album_id: string; score: number }) => ({
@@ -977,7 +1097,10 @@ export async function getUserRecommendations(
       p_limit: capped,
     });
     if (error) {
-      console.warn("[queries] get_user_recommendations RPC failed:", error.message);
+      console.warn(
+        "[queries] get_user_recommendations RPC failed:",
+        error.message,
+      );
       return [];
     }
     return (data ?? []).map((r: { album_id: string; score: number }) => ({
@@ -994,9 +1117,15 @@ export async function getUserRecommendations(
 // Engagement: streaks, weekly reports, notifications, achievements
 // ---------------------------------------------------------------------------
 
-export type UserStreak = { current_streak: number; longest_streak: number; last_listen_date: string | null };
+export type UserStreak = {
+  current_streak: number;
+  longest_streak: number;
+  last_listen_date: string | null;
+};
 
-export async function getUserStreak(userId: string): Promise<UserStreak | null> {
+export async function getUserStreak(
+  userId: string,
+): Promise<UserStreak | null> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
@@ -1027,12 +1156,25 @@ export type WeeklyReportRow = {
   created_at: string;
 };
 
-export async function generateWeeklyReport(userId: string): Promise<WeeklyReportRow | null> {
+export async function generateWeeklyReport(
+  userId: string,
+): Promise<WeeklyReportRow | null> {
   try {
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.rpc("generate_weekly_report", { p_user_id: userId });
+    const { data, error } = await supabase.rpc("generate_weekly_report", {
+      p_user_id: userId,
+    });
     if (error || !Array.isArray(data) || data.length === 0) return null;
-    const row = data[0] as { id: string; user_id: string; week_start: string; listen_count: number; top_artist_id: string | null; top_album_id: string | null; top_track_id: string | null; created_at: string };
+    const row = data[0] as {
+      id: string;
+      user_id: string;
+      week_start: string;
+      listen_count: number;
+      top_artist_id: string | null;
+      top_album_id: string | null;
+      top_track_id: string | null;
+      created_at: string;
+    };
     return { ...row, listen_count: Number(row.listen_count) ?? 0 };
   } catch (e) {
     console.error("[queries] generateWeeklyReport failed:", e);
@@ -1063,7 +1205,15 @@ export async function getPeriodReport(
       p_offset: Math.max(0, offset),
     });
     if (error || !Array.isArray(data) || data.length === 0) return null;
-    const row = data[0] as { period_start: string; period_end: string; period_label: string; listen_count: number; top_artist_id: string | null; top_album_id: string | null; top_track_id: string | null };
+    const row = data[0] as {
+      period_start: string;
+      period_end: string;
+      period_label: string;
+      listen_count: number;
+      top_artist_id: string | null;
+      top_album_id: string | null;
+      top_track_id: string | null;
+    };
     return { ...row, listen_count: Number(row.listen_count) ?? 0 };
   } catch (e) {
     console.error("[queries] getPeriodReport failed:", e);
@@ -1090,7 +1240,9 @@ export async function getNotifications(userId: string, limit = 50, offset = 0): 
 
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, user_id, actor_user_id, type, entity_type, entity_id, read, created_at")
+      .select(
+        "id, user_id, actor_user_id, type, entity_type, entity_id, read, created_at",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -1102,10 +1254,16 @@ export async function getNotifications(userId: string, limit = 50, offset = 0): 
   }
 }
 
-export async function markNotificationsRead(userId: string, notificationIds?: string[]): Promise<void> {
+export async function markNotificationsRead(
+  userId: string,
+  notificationIds?: string[],
+): Promise<void> {
   try {
     const supabase = await createSupabaseServerClient();
-    let q = supabase.from("notifications").update({ read: true }).eq("user_id", userId);
+    let q = supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("user_id", userId);
     if (notificationIds?.length) q = q.in("id", notificationIds);
     await q;
   } catch (e) {
@@ -1113,10 +1271,17 @@ export async function markNotificationsRead(userId: string, notificationIds?: st
   }
 }
 
-export type AchievementRow = { id: string; name: string; description: string | null; icon: string | null };
+export type AchievementRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+};
 export type UserAchievementRow = { achievement_id: string; earned_at: string };
 
-export async function getUserAchievements(userId: string): Promise<{ achievement: AchievementRow; earned_at: string }[]> {
+export async function getUserAchievements(
+  userId: string,
+): Promise<{ achievement: AchievementRow; earned_at: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: ua, error: uaError } = await supabase
@@ -1130,11 +1295,15 @@ export async function getUserAchievements(userId: string): Promise<{ achievement
       .select("id, name, description, icon")
       .in("id", ids);
     if (aError || !achievements?.length) return [];
-    const aMap = new Map((achievements as AchievementRow[]).map((a) => [a.id, a]));
-    return (ua as UserAchievementRow[]).map((u) => ({
-      achievement: aMap.get(u.achievement_id)!,
-      earned_at: u.earned_at,
-    })).filter((x) => x.achievement);
+    const aMap = new Map(
+      (achievements as AchievementRow[]).map((a) => [a.id, a]),
+    );
+    return (ua as UserAchievementRow[])
+      .map((u) => ({
+        achievement: aMap.get(u.achievement_id)!,
+        earned_at: u.earned_at,
+      }))
+      .filter((x) => x.achievement);
   } catch (e) {
     console.error("[queries] getUserAchievements failed:", e);
     return [];
@@ -1278,7 +1447,14 @@ export async function searchUsers(
   query: string,
   limit = 20,
   excludeUserId: string | null = null,
-): Promise<{ id: string; username: string; avatar_url: string | null; followers_count: number }[]> {
+): Promise<
+  {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    followers_count: number;
+  }[]
+> {
   try {
     const supabase = await createSupabaseServerClient();
     const sanitized = sanitizeString(query, USER_SEARCH_QUERY_MAX_LENGTH) ?? "";
@@ -1286,25 +1462,36 @@ export async function searchUsers(
 
     const cappedLimit = Math.min(Math.max(1, limit), 50);
 
-    const { data: rpcData, error: rpcError } = await supabase.rpc("get_user_search", {
-      p_query: sanitized,
-      p_limit: cappedLimit,
-      p_exclude_user_id: excludeUserId || null,
-    });
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "get_user_search",
+      {
+        p_query: sanitized,
+        p_limit: cappedLimit,
+        p_exclude_user_id: excludeUserId || null,
+      },
+    );
 
     if (!rpcError && Array.isArray(rpcData)) {
-      return (rpcData as { id: string; username: string; avatar_url: string | null; followers_count: number }[]).map(
-        (r) => ({
-          id: r.id,
-          username: r.username,
-          avatar_url: r.avatar_url ?? null,
-          followers_count: Number(r.followers_count) || 0,
-        }),
-      );
+      return (
+        rpcData as {
+          id: string;
+          username: string;
+          avatar_url: string | null;
+          followers_count: number;
+        }[]
+      ).map((r) => ({
+        id: r.id,
+        username: r.username,
+        avatar_url: r.avatar_url ?? null,
+        followers_count: Number(r.followers_count) || 0,
+      }));
     }
 
     if (rpcError) {
-      console.warn("[queries] get_user_search RPC failed (migration 019 may not be applied), using fallback:", rpcError.message);
+      console.warn(
+        "[queries] get_user_search RPC failed (migration 019 may not be applied), using fallback:",
+        rpcError.message,
+      );
     }
 
     let q = supabase
@@ -1332,7 +1519,14 @@ export async function searchUsers(
 export async function getSuggestedUsers(
   userId: string,
   limit = 10,
-): Promise<{ id: string; username: string; avatar_url: string | null; followers_count: number }[]> {
+): Promise<
+  {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    followers_count: number;
+  }[]
+> {
   try {
     const supabase = await createSupabaseServerClient();
     const cappedLimit = Math.min(Math.max(limit, 1), 100);
@@ -1343,16 +1537,26 @@ export async function getSuggestedUsers(
     });
 
     if (error) {
-      console.warn("[queries] get_suggested_users RPC failed (migration 018 may not be applied):", error.message);
+      console.warn(
+        "[queries] get_suggested_users RPC failed (migration 018 may not be applied):",
+        error.message,
+      );
       return [];
     }
 
-    return (rows ?? []).map((r: { id: string; username: string; avatar_url: string | null; followers_count: number }) => ({
-      id: r.id,
-      username: r.username,
-      avatar_url: r.avatar_url ?? null,
-      followers_count: Number(r.followers_count) || 0,
-    }));
+    return (rows ?? []).map(
+      (r: {
+        id: string;
+        username: string;
+        avatar_url: string | null;
+        followers_count: number;
+      }) => ({
+        id: r.id,
+        username: r.username,
+        avatar_url: r.avatar_url ?? null,
+        followers_count: Number(r.followers_count) || 0,
+      }),
+    );
   } catch (e) {
     console.error("[queries] getSuggestedUsers failed:", e);
     return [];
@@ -1457,20 +1661,35 @@ export async function getFeedListenSessions(
       p_limit: capped,
     });
     if (error) {
-      console.warn("[queries] get_feed_listen_sessions RPC failed (migration 023 may not be applied):", error.message);
+      console.warn(
+        "[queries] get_feed_listen_sessions RPC failed (migration 023 may not be applied):",
+        error.message,
+      );
       return [];
     }
-    return (data ?? []).map((r: { type: string; user_id: string; track_id: string; album_id: string; track_name: string | null; artist_name: string | null; song_count: number; first_listened_at: string; created_at: string }) => ({
-      type: r.type,
-      user_id: r.user_id,
-      track_id: r.track_id,
-      album_id: r.album_id,
-      track_name: r.track_name ?? null,
-      artist_name: r.artist_name ?? null,
-      song_count: Number(r.song_count) || 0,
-      first_listened_at: r.first_listened_at,
-      created_at: r.created_at,
-    }));
+    return (data ?? []).map(
+      (r: {
+        type: string;
+        user_id: string;
+        track_id: string;
+        album_id: string;
+        track_name: string | null;
+        artist_name: string | null;
+        song_count: number;
+        first_listened_at: string;
+        created_at: string;
+      }) => ({
+        type: r.type,
+        user_id: r.user_id,
+        track_id: r.track_id,
+        album_id: r.album_id,
+        track_name: r.track_name ?? null,
+        artist_name: r.artist_name ?? null,
+        song_count: Number(r.song_count) || 0,
+        first_listened_at: r.first_listened_at,
+        created_at: r.created_at,
+      }),
+    );
   } catch (e) {
     console.error("[queries] getFeedListenSessions failed:", e);
     return [];
@@ -1512,11 +1731,17 @@ export async function getActivityFeed(
     ]);
 
     if (reviewsRes.error) {
-      console.warn("[queries] get_feed_reviews RPC failed (migration 017 may not be applied), using fallback", reviewsRes.error);
+      console.warn(
+        "[queries] get_feed_reviews RPC failed (migration 017 may not be applied), using fallback",
+        reviewsRes.error,
+      );
       return getActivityFeedFallback(userId, cappedLimit, cursor);
     }
     if (followsRes.error) {
-      console.warn("[queries] get_feed_follows RPC failed (migration 017 may not be applied), using fallback", followsRes.error);
+      console.warn(
+        "[queries] get_feed_follows RPC failed (migration 017 may not be applied), using fallback",
+        followsRes.error,
+      );
       return getActivityFeedFallback(userId, cappedLimit, cursor);
     }
 
@@ -1590,16 +1815,22 @@ export async function getActivityFeed(
     }));
 
     // Priority ranking: reviews > follows > listens when times are close
-    const PRIORITY_BONUS_MS = { review: 0, follow: 30 * 60 * 1000, listen: 2 * 60 * 60 * 1000 };
+    const PRIORITY_BONUS_MS = {
+      review: 0,
+      follow: 30 * 60 * 1000,
+      listen: 2 * 60 * 60 * 1000,
+    };
     const sortKey = (item: FeedActivity): number => {
       const t = new Date(item.created_at).getTime();
       if (item.type === "review") return t - PRIORITY_BONUS_MS.review;
       if (item.type === "follow") return t - PRIORITY_BONUS_MS.follow;
       return t - PRIORITY_BONUS_MS.listen;
     };
-    const merged = [...reviewActivities, ...followActivities, ...listenActivities].sort(
-      (a, b) => sortKey(b) - sortKey(a),
-    );
+    const merged = [
+      ...reviewActivities,
+      ...followActivities,
+      ...listenActivities,
+    ].sort((a, b) => sortKey(b) - sortKey(a));
 
     // Collapse consecutive listen_sessions from same user into "N songs" with up to 10 in expand
     const collapsed: FeedActivity[] = [];
@@ -1612,7 +1843,11 @@ export async function getActivityFeed(
         continue;
       }
       const run: FeedActivity[] = [item];
-      while (i + 1 < merged.length && merged[i + 1].type === "listen_session" && (merged[i + 1] as FeedListenSession).user_id === item.user_id) {
+      while (
+        i + 1 < merged.length &&
+        merged[i + 1].type === "listen_session" &&
+        (merged[i + 1] as FeedListenSession).user_id === item.user_id
+      ) {
         run.push(merged[i + 1] as FeedListenSession);
         i++;
       }
@@ -1620,7 +1855,10 @@ export async function getActivityFeed(
       if (run.length === 1) {
         collapsed.push(run[0]);
       } else {
-        const latest = run.reduce((best, r) => (r.created_at > best.created_at ? r : best), run[0] as FeedListenSession);
+        const latest = run.reduce(
+          (best, r) => (r.created_at > best.created_at ? r : best),
+          run[0] as FeedListenSession,
+        );
         collapsed.push({
           type: "listen_sessions_summary",
           user_id: item.user_id,
@@ -1657,14 +1895,18 @@ async function getActivityFeedFallback(
       .eq("follower_id", userId);
     if (followError) throw followError;
 
-    const followingIds = (followings ?? []).map((f) => f.following_id).slice(0, 500);
+    const followingIds = (followings ?? [])
+      .map((f) => f.following_id)
+      .slice(0, 500);
     if (followingIds.length === 0) return { items: [], next_cursor: null };
 
     const fetchLimit = limit * 2;
 
     let reviewsQuery = supabase
       .from("reviews")
-      .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
+      .select(
+        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+      )
       .in("user_id", followingIds)
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
@@ -1678,7 +1920,10 @@ async function getActivityFeedFallback(
       .limit(fetchLimit);
     if (cursor) followsQuery = followsQuery.lt("created_at", cursor);
 
-    const [reviewsRes, followsRes] = await Promise.all([reviewsQuery, followsQuery]);
+    const [reviewsRes, followsRes] = await Promise.all([
+      reviewsQuery,
+      followsQuery,
+    ]);
 
     if (reviewsRes.error) throw reviewsRes.error;
     if (followsRes.error) throw followsRes.error;
@@ -1730,7 +1975,8 @@ async function getActivityFeedFallback(
     }));
 
     const merged = [...reviewActivities, ...followActivities].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
     const items = merged.slice(0, limit);
     const next_cursor =
@@ -1754,7 +2000,9 @@ export async function getProfileActivity(
     const [reviewsRes, followsRes] = await Promise.all([
       supabase
         .from("reviews")
-        .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
+        .select(
+          "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        )
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit),
@@ -1812,7 +2060,8 @@ export async function getProfileActivity(
     }));
 
     const merged = [...reviewActivities, ...followActivities].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
     return merged.slice(0, limit);
   } catch (e) {
@@ -1828,8 +2077,12 @@ export async function getEntityDisplayNames(
   const map = new Map<string, string>();
   if (items.length === 0) return map;
 
-  const songIds = items.filter((i) => i.entity_type === "song").map((i) => i.entity_id);
-  const albumIds = items.filter((i) => i.entity_type === "album").map((i) => i.entity_id);
+  const songIds = items
+    .filter((i) => i.entity_type === "song")
+    .map((i) => i.entity_id);
+  const albumIds = items
+    .filter((i) => i.entity_type === "album")
+    .map((i) => i.entity_id);
 
   const supabase = await createSupabaseServerClient();
 
@@ -1863,8 +2116,11 @@ export type ListRow = {
   user_id: string;
   title: string;
   description: string | null;
+  type: "album" | "song";
+  visibility: "public" | "friends" | "private";
+  emoji: string | null;
+  image_url: string | null;
   created_at: string;
-  updated_at: string;
 };
 
 export type ListItemRow = {
@@ -1880,6 +2136,10 @@ export type UserListSummary = {
   id: string;
   title: string;
   description: string | null;
+  type: "album" | "song";
+  visibility: "public" | "friends" | "private";
+  emoji: string | null;
+  image_url: string | null;
   created_at: string;
   item_count: number;
 };
@@ -1896,7 +2156,7 @@ export async function getUserLists(
 
     const { data: listRows, error: listError } = await supabase
       .from("lists")
-      .select("id, title, description, created_at")
+      .select("id, title, description, type, visibility, emoji, image_url, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .range(cappedOffset, cappedOffset + cappedLimit - 1);
@@ -1919,6 +2179,10 @@ export async function getUserLists(
       id: l.id,
       title: l.title,
       description: l.description ?? null,
+      type: l.type as "album" | "song",
+      visibility: (l as any).visibility ?? "private",
+      emoji: (l as any).emoji ?? null,
+      image_url: (l as any).image_url ?? null,
       created_at: l.created_at,
       item_count: countByList.get(l.id) ?? 0,
     }));
@@ -1940,19 +2204,40 @@ export async function getList(listId: string): Promise<ListWithItems | null> {
 
     const { data: listRow, error: listError } = await supabase
       .from("lists")
-      .select("id, user_id, title, description, created_at, updated_at")
+      .select("id, user_id, title, description, type, visibility, emoji, image_url, created_at")
       .eq("id", listId)
       .maybeSingle();
 
     if (listError || !listRow) return null;
 
-    const { data: itemRows, error: itemsError } = await supabase
+    let itemRows: { id: string; list_id: string; entity_type: string; entity_id: string; position: number; added_at?: string }[] | null = null;
+    let itemsError: { code?: string } | null = null;
+
+    let itemsResult = await supabase
       .from("list_items")
       .select("id, list_id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)
       .order("position", { ascending: true });
+    itemRows = itemsResult.data;
+    itemsError = itemsResult.error;
 
-    if (itemsError) throw itemsError;
+    // If column missing (e.g. added_at), retry with minimal columns and default added_at.
+    if (itemsError?.code === "42703") {
+      const fallback = await supabase
+        .from("list_items")
+        .select("id, list_id, entity_type, entity_id, position")
+        .eq("list_id", listId)
+        .order("position", { ascending: true });
+      if (!fallback.error) {
+        itemRows = (fallback.data ?? []).map((r) => ({ ...r, added_at: new Date().toISOString() }));
+        itemsError = null;
+      }
+    }
+
+    const safeItemRows = itemsError ? [] : (itemRows ?? []);
+    if (itemsError) {
+      console.error("[queries] getList itemsError:", itemsError);
+    }
 
     const { data: owner } = await supabase
       .from("users")
@@ -1962,7 +2247,7 @@ export async function getList(listId: string): Promise<ListWithItems | null> {
 
     return {
       list: listRow as ListRow,
-      items: (itemRows ?? []) as ListItemRow[],
+      items: safeItemRows as ListItemRow[],
       owner_username: owner?.username ?? null,
     };
   } catch (e) {
@@ -1975,6 +2260,8 @@ export async function createList(
   userId: string,
   title: string,
   description: string | null = null,
+  type: "album" | "song" = "album",
+  visibility: "public" | "friends" | "private" = "private",
 ): Promise<ListRow | null> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -1984,9 +2271,12 @@ export async function createList(
         user_id: userId,
         title,
         description: description || null,
-        updated_at: new Date().toISOString(),
+        type,
+        visibility,
+        emoji: null,
+        image_url: null,
       })
-      .select("id, user_id, title, description, created_at, updated_at")
+      .select("id, user_id, title, description, type, visibility, emoji, image_url, created_at")
       .single();
 
     if (error) throw error;
@@ -2005,6 +2295,20 @@ export async function addListItem(
   try {
     const supabase = await createSupabaseServerClient();
 
+    // Enforce list type: items must match the list's type.
+    const { data: listRow, error: listError } = await supabase
+      .from("lists")
+      .select("type")
+      .eq("id", listId)
+      .maybeSingle();
+    if (listError || !listRow) {
+      throw listError || new Error("List not found");
+    }
+    const listType = (listRow.type ?? "album") as "album" | "song";
+    if (entityType !== listType) {
+      throw new Error("Item type does not match list type");
+    }
+
     const { data: maxRow } = await supabase
       .from("list_items")
       .select("position")
@@ -2015,7 +2319,7 @@ export async function addListItem(
 
     const nextPosition = maxRow?.position != null ? maxRow.position + 1 : 0;
 
-    const { data, error } = await supabase
+    const insertResult = await supabase
       .from("list_items")
       .insert({
         list_id: listId,
@@ -2026,8 +2330,23 @@ export async function addListItem(
       .select("id, list_id, entity_type, entity_id, position, added_at")
       .single();
 
-    if (error) throw error;
-    return data as ListItemRow;
+    if (!insertResult.error) {
+      return insertResult.data as ListItemRow;
+    }
+    if (insertResult.error.code === "42703") {
+      const fallback = await supabase
+        .from("list_items")
+        .select("id, list_id, entity_type, entity_id, position")
+        .eq("list_id", listId)
+        .eq("position", nextPosition)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!fallback.error && fallback.data) {
+        return { ...fallback.data, added_at: new Date().toISOString() } as ListItemRow;
+      }
+    }
+    throw insertResult.error;
   } catch (e) {
     console.error("[queries] addListItem failed:", e);
     return null;
@@ -2050,7 +2369,10 @@ export async function removeListItem(
         .maybeSingle();
       if (fetchError || !data) return false;
     }
-    const { error } = await supabase.from("list_items").delete().eq("id", itemId);
+    const { error } = await supabase
+      .from("list_items")
+      .delete()
+      .eq("id", itemId);
     if (error) throw error;
     return true;
   } catch (e) {
@@ -2064,6 +2386,7 @@ export type ListSearchResult = {
   id: string;
   title: string;
   description: string | null;
+  type: "album" | "song";
   created_at: string;
   item_count: number;
   owner_username: string | null;
@@ -2082,7 +2405,7 @@ export async function searchLists(
 
     const { data: listRows, error: listError } = await supabase
       .from("lists")
-      .select("id, user_id, title, description, created_at")
+      .select("id, user_id, title, description, type, created_at")
       .ilike("title", `%${sanitized}%`)
       .order("created_at", { ascending: false })
       .limit(cappedLimit);
@@ -2111,6 +2434,7 @@ export async function searchLists(
       id: l.id,
       title: l.title,
       description: l.description ?? null,
+      type: l.type as "album" | "song",
       created_at: l.created_at,
       item_count: countByList.get(l.id) ?? 0,
       owner_username: userMap.get(l.user_id) ?? null,
@@ -2158,14 +2482,23 @@ export async function getTrendingEntities(
       p_limit: capped,
     });
     if (error) {
-      console.warn("[queries] get_trending_entities RPC failed (migration 021):", error.message);
+      console.warn(
+        "[queries] get_trending_entities RPC failed (migration 021):",
+        error.message,
+      );
       return [];
     }
-    return (data ?? []).map((r: { entity_id: string; entity_type: string; listen_count: number }) => ({
-      entity_id: r.entity_id,
-      entity_type: r.entity_type ?? "song",
-      listen_count: Number(r.listen_count) || 0,
-    }));
+    return (data ?? []).map(
+      (r: {
+        entity_id: string;
+        entity_type: string;
+        listen_count: number;
+      }) => ({
+        entity_id: r.entity_id,
+        entity_type: r.entity_type ?? "song",
+        listen_count: Number(r.listen_count) || 0,
+      }),
+    );
   } catch (e) {
     console.error("[queries] getTrendingEntities failed:", e);
     return [];
@@ -2192,15 +2525,25 @@ export async function getRisingArtists(
       p_window_days: cappedWindow,
     });
     if (error) {
-      console.warn("[queries] get_rising_artists RPC failed (migration 021):", error.message);
+      console.warn(
+        "[queries] get_rising_artists RPC failed (migration 021):",
+        error.message,
+      );
       return [];
     }
-    return (data ?? []).map((r: { artist_id: string; name: string; avatar_url: string | null; growth: number }) => ({
-      artist_id: r.artist_id,
-      name: r.name ?? "",
-      avatar_url: r.avatar_url ?? null,
-      growth: Number(r.growth) || 0,
-    }));
+    return (data ?? []).map(
+      (r: {
+        artist_id: string;
+        name: string;
+        avatar_url: string | null;
+        growth: number;
+      }) => ({
+        artist_id: r.artist_id,
+        name: r.name ?? "",
+        avatar_url: r.avatar_url ?? null,
+        growth: Number(r.growth) || 0,
+      }),
+    );
   } catch (e) {
     console.error("[queries] getRisingArtists failed:", e);
     return [];
@@ -2228,15 +2571,25 @@ export async function getHiddenGems(
       p_max_listens: maxListens,
     });
     if (error) {
-      console.warn("[queries] get_hidden_gems RPC failed (migration 021):", error.message);
+      console.warn(
+        "[queries] get_hidden_gems RPC failed (migration 021):",
+        error.message,
+      );
       return [];
     }
-    return (data ?? []).map((r: { entity_id: string; entity_type: string; avg_rating: number; listen_count: number }) => ({
-      entity_id: r.entity_id,
-      entity_type: r.entity_type ?? "song",
-      avg_rating: Number(r.avg_rating) || 0,
-      listen_count: Number(r.listen_count) || 0,
-    }));
+    return (data ?? []).map(
+      (r: {
+        entity_id: string;
+        entity_type: string;
+        avg_rating: number;
+        listen_count: number;
+      }) => ({
+        entity_id: r.entity_id,
+        entity_type: r.entity_type ?? "song",
+        avg_rating: Number(r.avg_rating) || 0,
+        listen_count: Number(r.listen_count) || 0,
+      }),
+    );
   } catch (e) {
     console.error("[queries] getHiddenGems failed:", e);
     return [];

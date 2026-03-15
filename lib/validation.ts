@@ -110,3 +110,11 @@ export function validateListDescription(description: unknown): string | null {
   if (description == null || description === '') return null;
   return sanitizeString(description, LIMITS.LIST_DESCRIPTION);
 }
+
+export function validateListType(type: unknown): { ok: true; value: 'album' | 'song' } | { ok: false; error: string } {
+  if (type !== 'album' && type !== 'song') {
+    return { ok: false, error: "type must be 'album' or 'song'" };
+  }
+  return { ok: true, value: type };
+}
+

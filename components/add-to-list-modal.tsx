@@ -5,6 +5,7 @@ import { TrackCard } from "@/components/track-card";
 
 type AddToListModalProps = {
   listId: string;
+  listType: "album" | "song";
   onClose: () => void;
   onAdded?: () => void;
 };
@@ -14,7 +15,12 @@ type SearchResult = {
   tracks?: { items?: SpotifyApi.TrackObjectSimplified[] };
 };
 
-export function AddToListModal({ listId, onClose, onAdded }: AddToListModalProps) {
+export function AddToListModal({
+  listId,
+  listType,
+  onClose,
+  onAdded,
+}: AddToListModalProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,12 +33,15 @@ export function AddToListModal({ listId, onClose, onAdded }: AddToListModalProps
       setResults(null);
       return;
     }
-    setLoading(true);
+      setLoading(true);
     setError("");
     try {
-      const res = await fetch(
-        `/api/search?q=${encodeURIComponent(trimmed)}&type=album,track&limit=15`
-      );
+        const typeParam = listType === "album" ? "album" : "track";
+        const res = await fetch(
+          `/api/search?q=${encodeURIComponent(
+            trimmed,
+          )}&type=${typeParam}&limit=15`,
+        );
       if (!res.ok) {
         setResults(null);
         setError("Search failed");
@@ -118,7 +127,11 @@ export function AddToListModal({ listId, onClose, onAdded }: AddToListModalProps
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search albums or tracks..."
+          placeholder={
+            listType === "album"
+              ? "Search albums..."
+              : "Search tracks..."
+          }
           className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           autoFocus
         />
@@ -126,11 +139,15 @@ export function AddToListModal({ listId, onClose, onAdded }: AddToListModalProps
           {loading && <p className="text-sm text-zinc-500">Searching…</p>}
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
           {!loading && query.trim() && !hasResults && (
-            <p className="text-sm text-zinc-500">No albums or tracks found.</p>
+            <p className="text-sm text-zinc-500">
+              {listType === "album"
+                ? "No albums found."
+                : "No tracks found."}
+            </p>
           )}
           {!loading && hasResults && (
             <div className="space-y-4">
-              {albums.length > 0 && (
+              {listType === "album" && albums.length > 0 && (
                 <div>
                   <p className="mb-2 text-xs font-medium text-zinc-500">Albums</p>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -167,7 +184,7 @@ export function AddToListModal({ listId, onClose, onAdded }: AddToListModalProps
                   </div>
                 </div>
               )}
-              {tracks.length > 0 && (
+              {listType === "song" && tracks.length > 0 && (
                 <div>
                   <p className="mb-2 text-xs font-medium text-zinc-500">Tracks</p>
                   <ul className="space-y-1">

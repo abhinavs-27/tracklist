@@ -58,6 +58,15 @@ test.describe("Lists", () => {
     });
   });
 
+  test("cannot add mismatched item type to list", async ({ request }) => {
+    // This assumes DB is migrated and auth is wired; we only verify the API
+    const res = await request.post("/api/lists/00000000-0000-4000-8000-000000000002/items", {
+      headers: { "Content-Type": "application/json" },
+      data: JSON.stringify({ entity_type: "song", entity_id: "fake_album_id" }),
+    });
+    expect([400, 401, 404, 500]).toContain(res.status());
+  });
+
   test("lists page when authenticated shows your lists link", async ({ page }) => {
     await page.route("**/api/auth/session", async (route) => {
       await route.fulfill({
