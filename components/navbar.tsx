@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
-import { SearchBar } from './search-bar';
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { SearchBar } from "./search-bar";
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -10,7 +10,10 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="shrink-0 text-lg font-bold tracking-tight text-white">
+        <Link
+          href="/"
+          className="shrink-0 text-lg font-bold tracking-tight text-white"
+        >
           Tracklist
         </Link>
 
@@ -55,16 +58,16 @@ export function Navbar() {
                 href="/reports/week"
                 className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
               >
-                Weekly report
+                Listening reports
               </Link>
             </>
           )}
-          {status === 'loading' ? (
+          {status === "loading" ? (
             <span className="text-zinc-500">...</span>
           ) : session ? (
             <>
               <Link
-                href={`/profile/${(session.user as { username?: string }).username ?? ''}`}
+                href={`/profile/${(session.user as { username?: string }).username ?? ""}`}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
               >
                 {session.user?.image ? (
@@ -75,7 +78,7 @@ export function Navbar() {
                   />
                 ) : (
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-xs text-zinc-300">
-                    {(session.user?.name ?? '?')[0]}
+                    {(session.user?.name ?? "?")[0]}
                   </span>
                 )}
                 <span className="hidden sm:inline">Profile</span>
@@ -86,13 +89,24 @@ export function Navbar() {
                 title="Notifications"
                 aria-label="Notifications"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
                 </svg>
               </Link>
               <button
                 type="button"
-                onClick={() => signOut({ callbackUrl: '/' })}
+                onClick={() => signOut({ callbackUrl: "/" })}
                 className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
               >
                 Sign out

@@ -843,6 +843,37 @@ export async function generateWeeklyReport(userId: string): Promise<WeeklyReport
   }
 }
 
+export type PeriodReportRow = {
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  listen_count: number;
+  top_artist_id: string | null;
+  top_album_id: string | null;
+  top_track_id: string | null;
+};
+
+export async function getPeriodReport(
+  userId: string,
+  periodType: "week" | "month" | "year",
+  offset = 0,
+): Promise<PeriodReportRow | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("get_period_report", {
+      p_user_id: userId,
+      p_period_type: periodType,
+      p_offset: Math.max(0, offset),
+    });
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    const row = data[0] as { period_start: string; period_end: string; period_label: string; listen_count: number; top_artist_id: string | null; top_album_id: string | null; top_track_id: string | null };
+    return { ...row, listen_count: Number(row.listen_count) ?? 0 };
+  } catch (e) {
+    console.error("[queries] getPeriodReport failed:", e);
+    return null;
+  }
+}
+
 export type NotificationRow = {
   id: string;
   user_id: string;

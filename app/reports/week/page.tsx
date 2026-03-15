@@ -2,22 +2,42 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { generateWeeklyReport } from "@/lib/queries";
+import { getPeriodReport } from "@/lib/queries";
 import { getOrFetchAlbum, getOrFetchTrack } from "@/lib/spotify-cache";
 import { getArtist } from "@/lib/spotify";
 
-export default async function WeeklyReportPage() {
+type PeriodType = "week" | "month" | "year";
+
+function parsePeriod(s: string | null): PeriodType {
+  if (s === "month" || s === "year") return s;
+  return "week";
+}
+
+function parseOffset(s: string | null): number {
+  const n = parseInt(s ?? "0", 10);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+export default async function WeeklyReportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; offset?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/auth/signin");
 
-  const report = await generateWeeklyReport(session.user.id);
+  const params = await searchParams;
+  const period = parsePeriod(params.period ?? null);
+  const offset = parseOffset(params.offset ?? null);
+
+  const report = await getPeriodReport(session.user.id, period, offset);
   if (!report) {
     return (
       <div className="space-y-6">
         <Link href="/" className="text-sm text-emerald-400 hover:underline">← Home</Link>
-        <h1 className="text-2xl font-bold text-white">Weekly report</h1>
+        <h1 className="text-2xl font-bold text-white">Listening report</h1>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-          <p className="text-zinc-400">No listening data in the last 7 days.</p>
+          <p className="text-zinc-400">No listening data for this period.</p>
           <Link href="/search" className="mt-3 inline-block text-emerald-400 hover:underline">Search for music</Link>
         </div>
       </div>
@@ -53,13 +73,56 @@ export default async function WeeklyReportPage() {
     }
   }
 
+  const base = "/reports/week";
+  const prevUrl = `${base}?period=${period}&offset=${offset + 1}`;
+  const nextUrl = offset > 0 ? `${base}?period=${period}&offset=${offset - 1}` : null;
+
   return (
     <div className="space-y-6">
       <Link href="/" className="text-sm text-emerald-400 hover:underline">← Home</Link>
-      <h1 className="text-2xl font-bold text-white">Your week in music</h1>
-      <p className="text-zinc-400">
-        Last 7 days · week starting {new Date(report.week_start).toLocaleDateString()}
-      </p>
+      <h1 className="text-2xl font-bold text-white">Listening report</h1>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-zinc-500">Period:</span>
+        <Link
+          href={`${base}?period=week&offset=0`}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${period === "week" ? "bg-emerald-600 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+        >
+          Week
+        </Link>
+        <Link
+          href={`${base}?period=month&offset=0`}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${period === "month" ? "bg-emerald-600 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+        >
+          Month
+        </Link>
+        <Link
+          href={`${base}?period=year&offset=0`}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${period === "year" ? "bg-emerald-600 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+        >
+          Year
+        </Link>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-zinc-400">{report.period_label}</p>
+        <nav className="flex gap-2" aria-label="Previous or next period">
+          <Link
+            href={prevUrl}
+            className="rounded-lg border border-zinc-600 bg-zinc-800/50 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+          >
+            ← Previous
+          </Link>
+          {nextUrl && (
+            <Link
+              href={nextUrl}
+              className="rounded-lg border border-zinc-600 bg-zinc-800/50 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+            >
+              Next →
+            </Link>
+          )}
+        </nav>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
