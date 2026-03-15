@@ -97,7 +97,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     getAlbumEngagementStats(id),
     viewerId ? getFriendsAlbumActivity(viewerId, id, 10) : Promise.resolve([]),
     getTrackStatsForTrackIds(trackIds),
-    getAlbumRecommendations(id, 15),
+    getAlbumRecommendations(id, 10),
   ]);
 
   const recommendationAlbumIds = (settledInner[5].status === "fulfilled" ? settledInner[5].value : []).map((r: { album_id: string }) => r.album_id);

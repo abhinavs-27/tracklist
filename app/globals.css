@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
