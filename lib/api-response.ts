@@ -3,6 +3,19 @@ import { NextResponse } from 'next/server';
 const GENERIC_ERROR = 'An unexpected error occurred. Please try again.';
 
 /**
+ * Standard API success response.
+ */
+export function apiOk<T>(
+  data: T,
+  options: { status?: number; headers?: HeadersInit } = {}
+): NextResponse {
+  return NextResponse.json(data, {
+    status: options.status ?? 200,
+    headers: options.headers,
+  });
+}
+
+/**
  * Standard API error responses. Avoid leaking internal details to the client.
  */
 export function apiError(
@@ -33,6 +46,10 @@ export function apiBadRequest(message: string): NextResponse {
 
 export function apiConflict(message: string): NextResponse {
   return apiError(message, 409);
+}
+
+export function apiTooManyRequests(message = 'Too many requests'): NextResponse {
+  return apiError(message, 429);
 }
 
 /**

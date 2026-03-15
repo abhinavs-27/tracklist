@@ -182,6 +182,27 @@ export type DiscoverUsersResponse = {
 };
 
 // User search (GET /api/search/users)
+export interface EntityReviewItem {
+  id: string;
+  user_id: string;
+  username: string | null;
+  entity_type: string;
+  entity_id: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Populated when user details are fetched (e.g. for ReviewCard). */
+  user?: { id: string; username: string; avatar_url: string | null } | null;
+}
+
+export interface ReviewsResult {
+  reviews: EntityReviewItem[];
+  average_rating: number | null;
+  count: number;
+  my_review: EntityReviewItem | null;
+}
+
 export type UserSearchResult = {
   id: string;
   username: string;

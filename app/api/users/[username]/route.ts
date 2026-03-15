@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase";
@@ -9,7 +9,9 @@ import {
   apiForbidden,
   apiConflict,
   apiInternalError,
+  apiOk,
 } from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 import {
   isValidUsername,
   validateUsernameUpdate,
@@ -41,11 +43,11 @@ export async function GET(
     const [followersRes, followingRes] = await Promise.all([
       supabase
         .from("follows")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("following_id", user.id),
       supabase
         .from("follows")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("follower_id", user.id),
     ]);
 
@@ -77,7 +79,7 @@ export async function GET(
       isFollowing = !!follow;
     }
 
-    return NextResponse.json({
+    return apiOk({
       ...user,
       followers_count: followers ?? 0,
       following_count: following ?? 0,
@@ -110,13 +112,10 @@ export async function PATCH(
 
     if (!user || user.id !== session.user.id) return apiForbidden();
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest("Invalid JSON body");
-    }
-    const b = body as Record<string, unknown>;
+    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    if (parseErr) return parseErr;
+
+    const b = body!;
     const updates: {
       username?: string;
       bio?: string | null;
@@ -141,7 +140,7 @@ export async function PATCH(
       .from("users")
       .update(updates)
       .eq("id", session.user.id)
-      .select()
+      .select("id, username, avatar_url, bio, created_at")
       .single();
 
     if (error) {
@@ -153,7 +152,7 @@ export async function PATCH(
       userId: session.user.id,
       fields: Object.keys(updates),
     });
-    return NextResponse.json(data);
+    return apiOk(data);
   } catch (e) {
     return apiInternalError(e);
   }

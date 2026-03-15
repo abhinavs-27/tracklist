@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase';
@@ -7,7 +7,9 @@ import {
   apiUnauthorized,
   apiBadRequest,
   apiInternalError,
+  apiOk,
 } from '@/lib/api-response';
+import { parseBody } from '@/lib/api-utils';
 import {
   isValidSpotifyId,
   clampLimit,
@@ -19,13 +21,10 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest('Invalid JSON body');
-    }
-    const b = body as Record<string, unknown>;
+    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    if (parseErr) return parseErr;
+
+    const b = body!;
     const { track_id: bodyTrackId, spotify_id, listened_at } = b;
     const trackId = (bodyTrackId ?? spotify_id) as string | undefined;
 
@@ -54,7 +53,7 @@ export async function POST(request: NextRequest) {
         listened_at: listenedAt,
         source: 'manual_import',
       })
-      .select()
+      .select('id, user_id, track_id, listened_at, source, created_at')
       .single();
 
     if (error) {
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       trackId,
     });
-    return NextResponse.json(data);
+    return apiOk(data);
   } catch (e) {
     return apiInternalError(e);
   }
@@ -105,7 +104,7 @@ export async function GET(request: NextRequest) {
       return apiInternalError(logsError);
     }
 
-    if (!logs?.length) return NextResponse.json([]);
+    if (!logs?.length) return apiOk([]);
 
     const userIds = [...new Set(logs.map((l) => l.user_id))];
     const { data: users, error: usersError } = await supabase
@@ -130,7 +129,7 @@ export async function GET(request: NextRequest) {
       user: userMap.get(log.user_id) ?? null,
     }));
 
-    return NextResponse.json(result);
+    return apiOk(result);
   } catch (e) {
     return apiInternalError(e);
   }

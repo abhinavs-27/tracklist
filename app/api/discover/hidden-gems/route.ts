@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getHiddenGemsCached } from "@/lib/discover-cache";
-import { apiInternalError } from "@/lib/api-response";
+import { apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
 import { checkDiscoverRateLimit } from "@/lib/rate-limit";
 import { clampLimit } from "@/lib/validation";
 
 /** GET – hidden gems (high rating, low listens). Public. ?limit= & ?minRating= & ?maxListens= Rate limited 60/min per IP; cached ~10 min. */
 export async function GET(request: NextRequest) {
   if (!checkDiscoverRateLimit(request)) {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+    return apiTooManyRequests();
   }
   try {
     const { searchParams } = new URL(request.url);
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       10000
     );
     const items = await getHiddenGemsCached(limit, minRating, maxListens);
-    return NextResponse.json(items);
+    return apiOk(items);
   } catch (e) {
     return apiInternalError(e);
   }

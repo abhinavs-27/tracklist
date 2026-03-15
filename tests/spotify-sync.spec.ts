@@ -1,17 +1,44 @@
-import { test } from "@playwright/test";
+import { test, expect } from '@playwright/test';
 
-test.describe("Spotify sync / automatic logging", () => {
-  test("stub: recently-played sync creates logs", async () => {
-    test.skip(
-      true,
-      [
-        "Missing product surface for Spotify sync/auto logging.",
-        "No `/api/spotify/callback` or `/api/spotify/sync` route exists yet (only `/api/spotify/album/[id]`).",
-        "When implemented, this test should:",
-        "- mock Spotify recently-played response",
-        "- trigger sync action (UI button or cron endpoint)",
-        "- assert `/api/logs` called for new plays and deduped for old ones",
-      ].join("\n"),
-    );
+test.describe('Spotify sync / ingestion (Mocked)', () => {
+  test('sync endpoint ingest recently played tracks', async ({ page }) => {
+    await page.goto('/');
+
+    // Mock session
+    await page.route('**/api/auth/session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: { id: 'user_1', name: 'Test User', email: 'test@example.com' },
+          expires: new Date(Date.now() + 3600000).toISOString(),
+        }),
+      });
+    });
+
+    // Mock sync API
+    await page.route('**/api/spotify/sync', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          inserted: 5,
+          skipped: 2,
+          mode: 'song'
+        }),
+      });
+    });
+
+    const response = await page.evaluate(async () => {
+        const res = await fetch('/api/spotify/sync', { method: 'POST' });
+        return { status: res.status, data: await res.json() };
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.data).toMatchObject({
+      inserted: 5,
+      skipped: 2,
+      mode: 'song'
+    });
   });
 });

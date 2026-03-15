@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { apiUnauthorized, apiBadRequest, apiInternalError } from '@/lib/api-response';
+import { apiUnauthorized, apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
+import { parseBody } from '@/lib/api-utils';
 import { isValidUuid, validateCommentContent } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -10,14 +11,10 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest('Invalid JSON body');
-    }
-    const b = body as Record<string, unknown>;
-    const { review_id, content } = b;
+    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    if (parseErr) return parseErr;
+
+    const { review_id, content } = body!;
 
     if (!review_id) return apiBadRequest('review_id is required');
     if (!isValidUuid(review_id)) return apiBadRequest('Invalid review_id');
@@ -33,7 +30,7 @@ export async function POST(request: NextRequest) {
         review_id,
         content: contentResult.value,
       })
-      .select()
+      .select('id, user_id, review_id, content, created_at')
       .single();
 
     if (error) {
@@ -49,7 +46,7 @@ export async function POST(request: NextRequest) {
     });
 
     const { data: user } = await supabase.from('users').select('id, username, avatar_url').eq('id', session.user.id).single();
-    return NextResponse.json({ ...data, user: user ?? null });
+    return apiOk({ ...data, user: user ?? null });
   } catch (e) {
     return apiInternalError(e);
   }
@@ -74,14 +71,14 @@ export async function GET(request: NextRequest) {
       return apiInternalError(error);
     }
 
-    if (!comments?.length) return NextResponse.json([]);
+    if (!comments?.length) return apiOk([]);
 
     const userIds = [...new Set(comments.map((c) => c.user_id))];
     const { data: users } = await supabase.from('users').select('id, username, avatar_url').in('id', userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
     const result = comments.map((c) => ({ ...c, user: userMap.get(c.user_id) ?? null }));
-    return NextResponse.json(result);
+    return apiOk(result);
   } catch (e) {
     return apiInternalError(e);
   }

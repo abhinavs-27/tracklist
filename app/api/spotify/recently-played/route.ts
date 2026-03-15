@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
-import { apiUnauthorized, apiInternalError } from "@/lib/api-response";
+import { apiUnauthorized, apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -12,7 +12,7 @@ const MAX_TRACKS = 50;
 
 export async function GET(request: NextRequest) {
   if (!checkSpotifyRateLimit(request)) {
-    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+    return apiTooManyRequests();
   }
   try {
     const session = await getServerSession(authOptions);
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         accessToken = await getValidSpotifyAccessToken(userId);
       } catch (e) {
         if (e instanceof Error && e.message === "Spotify not connected") {
-          return NextResponse.json({ items: [] }, { status: 200 });
+          return apiOk({ items: [] });
         }
         return apiInternalError(e);
       }
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     if (error) return apiInternalError(error);
 
-    return NextResponse.json({
+    return apiOk({
       items: tracks ?? [],
     });
   } catch (e) {

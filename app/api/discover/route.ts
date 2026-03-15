@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { apiBadRequest, apiInternalError } from '@/lib/api-response';
+import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { clampLimit } from '@/lib/validation';
 import type { DiscoverUsersResponse } from '@/types';
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     if (userIds.length === 0) {
       const body: DiscoverUsersResponse = { users: [] };
-      return NextResponse.json(body);
+      return apiOk(body);
     }
 
     const { data: users, error: usersError } = await supabase
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       .filter((x): x is NonNullable<typeof x> => !!x);
 
     const body: DiscoverUsersResponse = { users: result };
-    return NextResponse.json(body);
+    return apiOk(body);
   } catch (e) {
     if (e instanceof TypeError) return apiBadRequest('Invalid request');
     return apiInternalError(e);

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
 
 /**
  * Cron: refresh precomputed entity stats (album_stats, track_stats) and discovery MVs.
@@ -9,7 +10,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return apiUnauthorized();
   }
 
   const supabase = createSupabaseAdminClient();
@@ -17,10 +18,7 @@ export async function GET(request: NextRequest) {
   const { error: statsError } = await supabase.rpc("refresh_entity_stats");
   if (statsError) {
     console.error("[cron] refresh_entity_stats RPC failed", statsError);
-    return NextResponse.json(
-      { ok: false, error: statsError.message },
-      { status: 500 },
-    );
+    return apiError(statsError.message, 500);
   }
 
   const { error: discoverError } = await supabase.rpc("refresh_discover_mvs");
@@ -29,5 +27,5 @@ export async function GET(request: NextRequest) {
   }
 
   console.log("[cron] refresh-stats complete");
-  return NextResponse.json({ ok: true });
+  return apiOk({ ok: true });
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getListOwnerId, removeListItem } from "@/lib/queries";
@@ -7,6 +7,7 @@ import {
   apiForbidden,
   apiNotFound,
   apiInternalError,
+  apiOk,
 } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 
@@ -36,7 +37,7 @@ export async function DELETE(
       itemId,
     });
 
-    return NextResponse.json({ success: true, deleted_id: itemId });
+    return apiOk({ success: true, deleted_id: itemId });
   } catch (e) {
     return apiInternalError(e);
   }
