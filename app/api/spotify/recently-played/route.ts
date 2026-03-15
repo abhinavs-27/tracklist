@@ -8,7 +8,7 @@ import { apiUnauthorized, apiInternalError, apiOk, apiTooManyRequests } from "@/
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_TRACKS = 50;
+const MAX_LIMIT = 50;
 
 export async function GET(request: NextRequest) {
   if (!checkSpotifyRateLimit(request)) {
@@ -17,6 +17,13 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
+
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(
+      Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10) || 50),
+      MAX_LIMIT,
+    );
+    const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
     const userId = session.user.id;
     const supabase = createSupabaseAdminClient();
@@ -40,7 +47,7 @@ export async function GET(request: NextRequest) {
         accessToken = await getValidSpotifyAccessToken(userId);
       } catch (e) {
         if (e instanceof Error && e.message === "Spotify not connected") {
-          return apiOk({ items: [] });
+          return apiOk({ items: [], hasMore: false });
         }
         return apiInternalError(e);
       }
@@ -52,13 +59,14 @@ export async function GET(request: NextRequest) {
       .select("track_id, track_name, artist_name, album_id, album_name, album_image, played_at")
       .eq("user_id", userId)
       .order("played_at", { ascending: false })
-      .limit(MAX_TRACKS);
+      .range(offset, offset + limit - 1);
 
     if (error) return apiInternalError(error);
 
-    return apiOk({
-      items: tracks ?? [],
-    });
+    const items = tracks ?? [];
+    const hasMore = items.length === limit;
+
+    return apiOk({ items, hasMore });
   } catch (e) {
     return apiInternalError(e);
   }

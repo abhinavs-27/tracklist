@@ -1,6 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
+
+const PROFILE_LIMIT = 10;
 
 type RecentTrack = {
   track_id: string;
@@ -11,26 +14,31 @@ type RecentTrack = {
   played_at: string;
 };
 
-type ApiResponse = { items: RecentTrack[] };
+type ApiResponse = { items: RecentTrack[]; hasMore?: boolean };
 
 export function RecentlyPlayedTracks() {
   const [items, setItems] = useState<RecentTrack[] | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/spotify/recently-played', { cache: 'no-store' })
+    fetch(`/api/spotify/recently-played?limit=${PROFILE_LIMIT}&offset=0`, { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to load (${res.status})`);
         return res.json() as Promise<ApiResponse>;
       })
       .then((data) => {
-        if (!cancelled) setItems(data.items ?? []);
+        if (!cancelled) {
+          setItems(data.items ?? []);
+          setHasMore(data.hasMore ?? false);
+        }
       })
       .catch((e) => {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed to load');
           setItems([]);
+          setHasMore(false);
         }
       });
     return () => {
@@ -69,10 +77,17 @@ export function RecentlyPlayedTracks() {
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-white">Recently played</h2>
-        <span className="text-xs text-zinc-500">Last {items.length}</span>
+        {(hasMore || items.length >= PROFILE_LIMIT) && (
+          <Link
+            href="/recently-played"
+            className="text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+          >
+            See more
+          </Link>
+        )}
       </div>
       <ul className="space-y-2">
-        {items.slice(0, 50).map((t) => (
+        {items.map((t) => (
           <li
             key={`${t.track_id}-${t.played_at}`}
             className="flex items-center gap-3 rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-2"
