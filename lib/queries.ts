@@ -829,11 +829,13 @@ export async function getFriendsAlbumActivity(
     const followingIds = (followRows ?? []).map((f) => f.following_id);
     if (followingIds.length === 0) return [];
 
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: logs, error } = await supabase
       .from("logs")
       .select("user_id, listened_at")
       .in("track_id", trackIds)
       .in("user_id", followingIds)
+      .gte("listened_at", thirtyDaysAgo)
       .order("listened_at", { ascending: false })
       .limit(limit);
 

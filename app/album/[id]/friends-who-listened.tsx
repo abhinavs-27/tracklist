@@ -16,7 +16,7 @@ export function FriendsWhoListened({ activity }: { activity: FriendActivityItem[
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold text-white">
-        Friends who listened
+        Following who listened in the last month
       </h2>
       <ul className="space-y-2">
         {activity.map((l, i) => (

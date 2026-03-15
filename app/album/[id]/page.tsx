@@ -13,7 +13,6 @@ import {
   getAlbumEngagementStats,
   getFriendsAlbumActivity,
   getTrackStatsForTrackIds,
-  getListenLogsForAlbum,
   getAlbumRecommendations,
 } from "@/lib/queries";
 import { getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
@@ -33,10 +32,6 @@ const FriendsWhoListened = dynamic(
 );
 const AlbumRecommendationsSection = dynamic(
   () => import("./album-recommendations-section").then((m) => ({ default: m.AlbumRecommendationsSection })),
-  { loading: AlbumLazySectionSkeleton },
-);
-const AlbumRecentListensSection = dynamic(
-  () => import("./album-recent-listens-section").then((m) => ({ default: m.AlbumRecentListensSection })),
   { loading: AlbumLazySectionSkeleton },
 );
 
@@ -98,7 +93,6 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     getAlbumEngagementStats(id),
     viewerId ? getFriendsAlbumActivity(viewerId, id, 10) : Promise.resolve([]),
     getTrackStatsForTrackIds(trackIds),
-    getListenLogsForAlbum(id, 15),
     getAlbumRecommendations(id, 10),
   ]);
 
@@ -125,11 +119,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const trackStats = settled[4].status === "fulfilled" ? settled[4].value : {} as Record<string, { listen_count: number; average_rating: number | null; review_count: number }>;
   if (settled[4].status === "rejected") console.error("[album] getTrackStatsForTrackIds failed:", settled[4].reason);
 
-  const recentListens = settled[5].status === "fulfilled" ? settled[5].value : [];
-  if (settled[5].status === "rejected") console.error("[album] getListenLogsForAlbum failed:", settled[5].reason);
-
-  const recommendationsRaw = settled[6].status === "fulfilled" ? settled[6].value : [];
-  if (settled[6].status === "rejected") console.error("[album] getAlbumRecommendations failed:", settled[6].reason);
+  const recommendationsRaw = settled[5].status === "fulfilled" ? settled[5].value : [];
+  if (settled[5].status === "rejected") console.error("[album] getAlbumRecommendations failed:", settled[5].reason);
 
   const recommendationAlbumIds = recommendationsRaw.map((r) => r.album_id);
   const recommendationAlbumResults =
@@ -237,6 +228,9 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         </div>
       </div>
 
+      {/* Following who listened in the last month — near top so it’s visible */}
+      {friendActivity.length > 0 && <FriendsWhoListened activity={friendActivity} />}
+
       {/* Tracklist */}
       {tracks.items?.length ? (
         <section>
@@ -284,11 +278,6 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         <AlbumRecommendationsSection albums={recommendedAlbums} albumName={album.name} />
       )}
 
-      {/* Recent listens — lazy loaded */}
-      {recentListens.length > 0 && (
-        <AlbumRecentListensSection logs={recentListens} />
-      )}
-
       {/* Reviews */}
       <EntityReviewsSection
         entityType="album"
@@ -296,9 +285,6 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         spotifyName={album.name}
         initialData={reviewsData}
       />
-
-      {/* Friends who listened (deferred so main content paints first) */}
-      {friendActivity.length > 0 && <FriendsWhoListened activity={friendActivity} />}
     </div>
   );
 }
