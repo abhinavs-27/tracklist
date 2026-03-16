@@ -31,7 +31,18 @@ export async function getListenLogsForTrack(
   limit = 30,
   offset = 0,
 ): Promise<ListenLogWithUser[]> {
-  return getListenLogsInternal({ spotifyTrackId, limit, offset });
+  const raw = await getListenLogsInternal({
+    spotifyTrackId,
+    limit: Math.max(limit * 5, 50),
+    offset,
+  });
+  const seen = new Set<string>();
+  const onePerUser = raw.filter((log) => {
+    if (seen.has(log.user_id)) return false;
+    seen.add(log.user_id);
+    return true;
+  });
+  return onePerUser.slice(0, limit);
 }
 
 async function getListenLogsInternal(opts: {
@@ -936,11 +947,19 @@ export async function getFriendsAlbumActivity(
       .in("user_id", followingIds)
       .gte("listened_at", thirtyDaysAgo)
       .order("listened_at", { ascending: false })
-      .limit(limit);
+      .limit(100);
 
     if (error || !logs?.length) return [];
 
-    const userIds = [...new Set(logs.map((l) => l.user_id))];
+    const seen = new Set<string>();
+    const onePerUser = logs.filter((l) => {
+      if (seen.has(l.user_id)) return false;
+      seen.add(l.user_id);
+      return true;
+    });
+    const limited = onePerUser.slice(0, limit);
+
+    const userIds = limited.map((l) => l.user_id);
     const [usersRes, reviewsRes] = await Promise.all([
       supabase
         .from("users")
@@ -958,7 +977,7 @@ export async function getFriendsAlbumActivity(
       (reviewsRes.data ?? []).map((r) => [r.user_id, r.rating]),
     );
 
-    return logs
+    return limited
       .map((l) => {
         const user = userMap.get(l.user_id);
         if (!user) return null;
