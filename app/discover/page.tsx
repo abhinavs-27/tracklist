@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getSuggestedUsers } from "@/lib/queries";
 import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached } from "@/lib/discover-cache";
+import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, getOrFetchArtistsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import { FollowButton } from "@/components/follow-button";
 
@@ -32,11 +33,15 @@ export default async function DiscoverPage() {
     ? getSuggestedUsers(session.user.id, 10)
     : Promise.resolve([]);
 
+  const hiddenGemsConfig = getChartConfig("hidden_gems");
+  const hiddenGemsMinRating = hiddenGemsConfig?.filters?.min_rating ?? 4;
+  const hiddenGemsMaxListens = hiddenGemsConfig?.filters?.max_plays ?? 50;
+
   const discoverSettled = await Promise.allSettled([
     suggestedPromise,
     getTrendingEntitiesCached(MAX_ITEMS),
     getRisingArtistsCached(MAX_ITEMS, 7),
-    getHiddenGemsCached(MAX_ITEMS, 4, 50),
+    getHiddenGemsCached(MAX_ITEMS, hiddenGemsMinRating, hiddenGemsMaxListens),
   ]);
 
   const suggested = discoverSettled[0].status === "fulfilled" ? discoverSettled[0].value : [];

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TrackCard } from "@/components/track-card";
 import type { HiddenGem } from "@/lib/queries";
+import { getChartConfig } from "@/lib/discovery/chartConfigs";
 
 type HiddenGemsSectionProps = {
   items: {
@@ -39,10 +40,12 @@ function AlbumRowCard({ album, gem }: { album: SpotifyApi.AlbumObjectSimplified;
 
 export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
   const valid = items.filter((x) => x.album != null || x.track != null);
+  const config = getChartConfig("hidden_gems");
+  const title = config?.label ?? "Hidden gems";
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-semibold text-white">Hidden gems</h2>
+      <h2 className="mb-3 text-lg font-semibold text-white">{title}</h2>
       <p className="mb-3 text-sm text-zinc-500">
         Highly rated with fewer listens
       </p>

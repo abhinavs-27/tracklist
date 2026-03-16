@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLeaderboard } from "@/lib/hooks/use-leaderboard";
 import type { LeaderboardFilters } from "@/lib/hooks/use-leaderboard";
 import { YearRangeFilter, type YearRange } from "@/components/year-range-filter";
+import { getChartConfig } from "@/lib/discovery/chartConfigs";
 
 function LeaderboardSkeleton() {
   return (
@@ -134,7 +135,7 @@ export default function LeaderboardPage() {
                 : "text-zinc-400 hover:text-white"
             }`}
           >
-            Most Popular
+            {getChartConfig("popular")?.label ?? "Most Popular"}
           </button>
           <button
             type="button"
@@ -145,7 +146,7 @@ export default function LeaderboardPage() {
                 : "text-zinc-400 hover:text-white"
             }`}
           >
-            Top Rated
+            {getChartConfig("top_rated")?.label ?? "Top Rated"}
           </button>
           {/* Only allow "Most Favorited" when viewing albums, since only albums can be favorited. */}
           {entity === "album" && (
@@ -158,7 +159,7 @@ export default function LeaderboardPage() {
                   : "text-zinc-400 hover:text-white"
               }`}
             >
-              Most Favorited
+              {getChartConfig("favorited")?.label ?? "Most Favorited"}
             </button>
           )}
         </div>
