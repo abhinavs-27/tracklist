@@ -169,18 +169,12 @@ export function useReviews(
       const previous = queryClient.getQueryData<ReviewsResponse>(reviewsKey);
       queryClient.setQueryData<ReviewsResponse>(reviewsKey, (prev) => {
         if (!prev) return prev;
-        const deleted = prev.reviews.find((r) => r.id === reviewId);
-        if (!deleted) return prev;
         const nextReviews = prev.reviews.filter((r) => r.id !== reviewId);
-        const nextCount = Math.max(0, (prev.count ?? prev.reviews.length) - 1);
+        const nextCount = nextReviews.length;
         const nextAverage =
           nextCount === 0
             ? null
-            : (prev.count ?? 0) > 0 && prev.average_rating != null
-              ? (prev.average_rating * (prev.count ?? 0) - deleted.rating) / nextCount
-              : nextReviews.length > 0
-                ? nextReviews.reduce((a, r) => a + r.rating, 0) / nextReviews.length
-                : null;
+            : nextReviews.reduce((sum, r) => sum + r.rating, 0) / nextCount;
         return {
           ...prev,
           reviews: nextReviews,

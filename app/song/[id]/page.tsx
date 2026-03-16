@@ -5,6 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
+import { SongStatsBar } from "@/app/song/[id]/song-stats-bar";
 import { ListenCard } from "@/components/listen-card";
 import {
   getReviewsForEntity,
@@ -105,25 +106,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
           )}
           {duration && <p className="mt-1 text-xs text-zinc-600">{duration}</p>}
 
-          {/* Stats bar */}
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-            {stats.listen_count > 0 && (
-              <span className="text-zinc-400">
-                {stats.listen_count.toLocaleString()} listen
-                {stats.listen_count !== 1 ? "s" : ""}
-              </span>
-            )}
-            {stats.average_rating != null && (
-              <span className="text-amber-400">
-                ★ {stats.average_rating.toFixed(1)}
-              </span>
-            )}
-            {stats.review_count > 0 && (
-              <span className="text-zinc-400">
-                {stats.review_count} review{stats.review_count !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
+          <SongStatsBar songId={id} serverStats={stats} />
 
           {session && (
             <div className="mt-4">
