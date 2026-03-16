@@ -21,7 +21,7 @@ test.describe('Critical UI Flows (Mocked API Interception)', () => {
     });
 
     // 2. Mock the reviews POST API
-    let capturedBody: any = null;
+    let capturedBody: Record<string, unknown> | null = null;
     await page.route('**/api/reviews', async (route) => {
       if (route.request().method() === 'POST') {
         capturedBody = route.request().postDataJSON();
