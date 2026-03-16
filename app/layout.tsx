@@ -7,6 +7,7 @@ import { Navbar } from "@/components/navbar";
 import { ProfilingHydrationMarker } from "@/components/profiling-hydration-marker";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +40,7 @@ export default async function RootLayout({
           <Navbar />
           <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
           <Analytics />
+          <SpeedInsights />
         </Providers>
       </body>
     </html>
