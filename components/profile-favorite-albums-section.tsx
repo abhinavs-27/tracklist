@@ -83,7 +83,10 @@ export function ProfileFavoriteAlbumsSection({
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}
         onSaved={() => {
-          if (userId) queryClient.invalidateQueries({ queryKey: queryKeys.favorites(userId) });
+          if (userId)
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.favorites(userId),
+            });
           router.refresh();
         }}
       />

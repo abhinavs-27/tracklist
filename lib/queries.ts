@@ -3,6 +3,9 @@ import "server-only";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getAlbums } from "@/lib/spotify";
+import { upsertAlbumFromSpotify } from "@/lib/spotify-cache";
 import { sanitizeString } from "@/lib/validation";
 import type {
   ListenLogWithUser,
@@ -554,8 +557,10 @@ export async function getTrackStatsForTrackIds(
 
 export type LeaderboardEntry = {
   id: string;
+  entity_type: "song" | "album";
   name: string;
   artist: string;
+  artwork_url: string | null;
   total_plays: number;
   average_rating: number | null;
   weighted_score?: number;
@@ -572,6 +577,7 @@ export type LeaderboardFilters = {
 export async function getLeaderboard(
   type: "popular" | "topRated" | "mostFavorited",
   filters: LeaderboardFilters,
+  entity: "song" | "album" = "song",
   limit = 50,
 ): Promise<LeaderboardEntry[]> {
   try {
@@ -603,7 +609,9 @@ export async function getLeaderboard(
       const yearNum = decade + 10;
       albumIds = (albums ?? [])
         .filter((a) => {
-          const y = a.release_date ? parseInt(a.release_date.slice(0, 4), 10) : NaN;
+          const y = a.release_date
+            ? parseInt(a.release_date.slice(0, 4), 10)
+            : NaN;
           return !isNaN(y) && y >= decade && y < yearNum;
         })
         .map((a) => a.id);
@@ -611,82 +619,87 @@ export async function getLeaderboard(
 
     if (albumIds !== null && albumIds.length === 0) return [];
 
-    // ------------------------ Most Favorited ------------------------
+    // ------------------------ Most Favorited (albums via user_favorite_albums) ------------------------
+    // Currently only supports albums; ignore entity parameter for this type.
     if (type === "mostFavorited") {
-      let allowedSongIds: string[] | null = null;
+      let allowedAlbumIds: string[] | null = null;
       if (albumIds && albumIds.length > 0) {
-        const { data: songs } = await supabase
-          .from("songs")
-          .select("id")
-          .in("album_id", albumIds);
-        allowedSongIds = (songs ?? []).map((s) => s.id);
-        if (allowedSongIds.length === 0) return [];
+        allowedAlbumIds = albumIds;
+        if (allowedAlbumIds.length === 0) return [];
       }
 
       let favQuery = supabase
-        .from("user_favorites")
-        .select("song_id, user_id");
+        .from("user_favorite_albums")
+        .select("album_id, user_id");
 
-      if (allowedSongIds) {
-        favQuery = favQuery.in("song_id", allowedSongIds);
+      if (allowedAlbumIds) {
+        favQuery = favQuery.in("album_id", allowedAlbumIds);
       }
 
       const { data: favRows, error: favError } = await favQuery;
       if (favError || !favRows?.length) return [];
 
       const favoriteCounts = new Map<string, number>();
-      for (const row of favRows as { song_id: string; user_id: string }[]) {
-        const current = favoriteCounts.get(row.song_id) ?? 0;
-        favoriteCounts.set(row.song_id, current + 1);
+      for (const row of favRows as { album_id: string; user_id: string }[]) {
+        const current = favoriteCounts.get(row.album_id) ?? 0;
+        favoriteCounts.set(row.album_id, current + 1);
       }
-      const songIds = Array.from(favoriteCounts.keys());
+      const favAlbumIds = Array.from(favoriteCounts.keys());
 
-      const { data: songRows } = await supabase
-        .from("songs")
-        .select("id, name, artist_id")
-        .in("id", songIds);
-      const artistIds = [...new Set((songRows ?? []).map((s) => s.artist_id))];
+      const [{ data: albumRows }, { data: statsRows }] = await Promise.all([
+        supabase
+          .from("albums")
+          .select("id, name, artist_id, image_url")
+          .in("id", favAlbumIds),
+        supabase
+          .from("album_stats")
+          .select("album_id, listen_count, avg_rating")
+          .in("album_id", favAlbumIds),
+      ]);
 
-      const [{ data: statsRows }, { data: artistRows }] =
-        await Promise.all([
-          supabase
-            .from("track_stats")
-            .select("track_id, listen_count, avg_rating")
-            .in("track_id", songIds),
-          supabase
-            .from("artists")
-            .select("id, name")
-            .in("id", artistIds),
-        ]);
-
-      type StatsRow = { track_id: string; listen_count: number; avg_rating: number | null };
-      type SongRow = { id: string; name: string; artist_id: string };
+      type StatsRow = {
+        album_id: string;
+        listen_count: number;
+        avg_rating: number | null;
+      };
+      type AlbumRow = {
+        id: string;
+        name: string;
+        artist_id: string;
+        image_url: string | null;
+      };
       type ArtistRow = { id: string; name: string };
 
       const statsMap = new Map(
-        (statsRows ?? []).map((r: StatsRow) => [r.track_id, r]),
+        (statsRows ?? []).map((r: StatsRow) => [r.album_id, r]),
       );
-      const songMap = new Map(
-        (songRows ?? []).map((s: SongRow) => [s.id, s]),
-      );
+      const albumArray = (albumRows ?? []) as AlbumRow[];
+      const albumMap = new Map(albumArray.map((a) => [a.id, a]));
+      const artistIds = [...new Set(albumArray.map((a) => a.artist_id))];
+      const { data: artistRows } = await supabase
+        .from("artists")
+        .select("id, name")
+        .in("id", artistIds);
       const artistMap = new Map(
-        (artistRows ?? []).map((a: ArtistRow) => [a.id, a.name]),
+        ((artistRows ?? []) as ArtistRow[]).map((a) => [a.id, a.name]),
       );
 
-      const entries: LeaderboardEntry[] = songIds
+      const entries: LeaderboardEntry[] = favAlbumIds
         .map((id): LeaderboardEntry | null => {
-          const song = songMap.get(id);
-          if (!song) return null;
+          const album = albumMap.get(id);
+          if (!album) return null;
           const stats = statsMap.get(id);
           const total_plays = stats?.listen_count ?? 0;
           const average_rating =
             stats?.avg_rating != null ? Number(stats.avg_rating) : null;
-          const artistName = artistMap.get(song.artist_id) ?? "Unknown";
+          const artistName = artistMap.get(album.artist_id) ?? "Unknown";
           const favorite_count = favoriteCounts.get(id) ?? 0;
           return {
+            entity_type: "album",
             id,
-            name: song.name,
+            name: album.name,
             artist: artistName,
+            artwork_url: album.image_url ?? null,
             total_plays,
             average_rating,
             favorite_count,
@@ -704,59 +717,189 @@ export async function getLeaderboard(
       return entries.slice(0, limit);
     }
 
-    // ---------------- Popular / Top Rated (existing) ----------------
-    let statsRows: { track_id: string; listen_count: number; avg_rating: number | null }[];
+    // ---------------- Popular / Top Rated ----------------
+    if (entity === "song") {
+      let statsRows: {
+        track_id: string;
+        listen_count: number;
+        avg_rating: number | null;
+      }[];
+
+      if (albumIds && albumIds.length > 0) {
+        const { data: songs } = await supabase
+          .from("songs")
+          .select("id")
+          .in("album_id", albumIds);
+        const trackIds = (songs ?? []).map((s) => s.id);
+        if (trackIds.length === 0) return [];
+        const { data: rows, error: statsError } = await supabase
+          .from("track_stats")
+          .select("track_id, listen_count, avg_rating")
+          .in("track_id", trackIds);
+        if (statsError || !rows?.length) return [];
+        statsRows = rows as {
+          track_id: string;
+          listen_count: number;
+          avg_rating: number | null;
+        }[];
+      } else {
+        const { data: rows, error: statsError } = await supabase
+          .from("track_stats")
+          .select("track_id, listen_count, avg_rating")
+          .order("listen_count", { ascending: false })
+          .limit(500);
+        if (statsError || !rows?.length) return [];
+        statsRows = rows as {
+          track_id: string;
+          listen_count: number;
+          avg_rating: number | null;
+        }[];
+      }
+
+      const { data: songRows } = await supabase
+        .from("songs")
+        .select("id, name, album_id, artist_id")
+        .in(
+          "id",
+          statsRows.map((r) => r.track_id),
+        );
+
+      const songArray =
+        (songRows ?? []) as {
+          id: string;
+          name: string;
+          album_id: string;
+          artist_id: string;
+        }[];
+      const songMap = new Map(songArray.map((s) => [s.id, s]));
+      const albumIdsForSongs = [...new Set(songArray.map((s) => s.album_id))];
+      const artistIds = [...new Set(songArray.map((s) => s.artist_id))];
+
+      const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
+        supabase
+          .from("albums")
+          .select("id, image_url")
+          .in("id", albumIdsForSongs),
+        supabase
+          .from("artists")
+          .select("id, name")
+          .in("id", artistIds),
+      ]);
+
+      const albumMap = new Map(
+        (albumRows ?? []).map((a: { id: string; image_url: string | null }) => [
+          a.id,
+          a.image_url ?? null,
+        ]),
+      );
+      const artistMap = new Map(
+        (artistRows ?? []).map(
+          (a: { id: string; name: string }) => [a.id, a.name] as const,
+        ),
+      );
+
+      const entries: LeaderboardEntry[] = statsRows
+        .map((row) => {
+          const song = songMap.get(row.track_id);
+          if (!song) return null;
+          const artistName = artistMap.get(song.artist_id) ?? "Unknown";
+          const total_plays = row.listen_count ?? 0;
+          const average_rating =
+            row.avg_rating != null ? Number(row.avg_rating) : null;
+          const weighted_score =
+            type === "topRated" && average_rating != null
+              ? average_rating * Math.log10(1 + total_plays)
+              : undefined;
+          const artwork_url = albumMap.get(song.album_id) ?? null;
+          return {
+            entity_type: "song",
+            id: song.id,
+            name: song.name,
+            artist: artistName,
+            artwork_url,
+            total_plays,
+            average_rating,
+            ...(weighted_score !== undefined && { weighted_score }),
+          };
+        })
+        .filter((x): x is LeaderboardEntry => x != null);
+
+      if (type === "popular") {
+        entries.sort((a, b) => b.total_plays - a.total_plays);
+      } else {
+        entries.sort((a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0));
+      }
+
+      return entries.slice(0, limit);
+    }
+
+    // entity === "album"
+    // Use album_stats for popularity / rating.
+    const albumStatsLimit = 500;
+    let albumStatsRows:
+      | {
+          album_id: string;
+          listen_count: number;
+          avg_rating: number | null;
+        }[]
+      | null = null;
 
     if (albumIds && albumIds.length > 0) {
-      const { data: songs } = await supabase
-        .from("songs")
-        .select("id")
-        .in("album_id", albumIds);
-      const trackIds = (songs ?? []).map((s) => s.id);
-      if (trackIds.length === 0) return [];
       const { data: rows, error: statsError } = await supabase
-        .from("track_stats")
-        .select("track_id, listen_count, avg_rating")
-        .in("track_id", trackIds);
+        .from("album_stats")
+        .select("album_id, listen_count, avg_rating")
+        .in("album_id", albumIds);
       if (statsError || !rows?.length) return [];
-      statsRows = rows as {
-        track_id: string;
+      albumStatsRows = rows as {
+        album_id: string;
         listen_count: number;
         avg_rating: number | null;
       }[];
     } else {
       const { data: rows, error: statsError } = await supabase
-        .from("track_stats")
-        .select("track_id, listen_count, avg_rating")
+        .from("album_stats")
+        .select("album_id, listen_count, avg_rating")
         .order("listen_count", { ascending: false })
-        .limit(500);
+        .limit(albumStatsLimit);
       if (statsError || !rows?.length) return [];
-      statsRows = rows as {
-        track_id: string;
+      albumStatsRows = rows as {
+        album_id: string;
         listen_count: number;
         avg_rating: number | null;
       }[];
     }
 
-    const { data: songRows } = await supabase
-      .from("songs")
-      .select("id, name, album_id, artist_id")
-      .in("id", statsRows.map((r) => r.track_id));
+    const albumIdsFromStats = albumStatsRows.map((r) => r.album_id);
+    const { data: albumRows } = await supabase
+      .from("albums")
+      .select("id, name, artist_id, image_url")
+      .in("id", albumIdsFromStats);
 
-    const songMap = new Map((songRows ?? []).map((s) => [s.id, s]));
-    const artistIds = [...new Set((songRows ?? []).map((s) => s.artist_id))];
+    const albumsArray =
+      (albumRows ?? []) as {
+        id: string;
+        name: string;
+        artist_id: string;
+        image_url: string | null;
+      }[];
+    const albumMapFull = new Map(albumsArray.map((a) => [a.id, a]));
+    const artistIdsForAlbums = [...new Set(albumsArray.map((a) => a.artist_id))];
 
     const { data: artistRows } = await supabase
       .from("artists")
       .select("id, name")
-      .in("id", artistIds);
-    const artistMap = new Map((artistRows ?? []).map((a) => [a.id, a.name]));
+      .in("id", artistIdsForAlbums);
+    const artistMap = new Map(
+      (artistRows ?? []).map(
+        (a: { id: string; name: string }) => [a.id, a.name] as const,
+      ),
+    );
 
-    const entries: LeaderboardEntry[] = statsRows
+    const albumEntries: LeaderboardEntry[] = albumStatsRows
       .map((row) => {
-        const song = songMap.get(row.track_id);
-        if (!song) return null;
-        const artistName = artistMap.get(song.artist_id) ?? "Unknown";
+        const album = albumMapFull.get(row.album_id);
+        if (!album) return null;
+        const artistName = artistMap.get(album.artist_id) ?? "Unknown";
         const total_plays = row.listen_count ?? 0;
         const average_rating =
           row.avg_rating != null ? Number(row.avg_rating) : null;
@@ -765,9 +908,11 @@ export async function getLeaderboard(
             ? average_rating * Math.log10(1 + total_plays)
             : undefined;
         return {
-          id: song.id,
-          name: song.name,
+          entity_type: "album",
+          id: album.id,
+          name: album.name,
           artist: artistName,
+          artwork_url: album.image_url ?? null,
           total_plays,
           average_rating,
           ...(weighted_score !== undefined && { weighted_score }),
@@ -776,14 +921,14 @@ export async function getLeaderboard(
       .filter((x): x is LeaderboardEntry => x != null);
 
     if (type === "popular") {
-      entries.sort((a, b) => b.total_plays - a.total_plays);
+      albumEntries.sort((a, b) => b.total_plays - a.total_plays);
     } else {
-      entries.sort(
+      albumEntries.sort(
         (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
       );
     }
 
-    return entries.slice(0, limit);
+    return albumEntries.slice(0, limit);
   } catch (e) {
     console.error("[queries] getLeaderboard failed:", e);
     return [];
@@ -890,7 +1035,10 @@ export async function getTopTracksForArtist(
 
     const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
       supabase.from("albums").select("id, name, image_url").in("id", albumIds),
-      supabase.from("artists").select("id, name").in("id", artistIds.filter(Boolean) as string[]),
+      supabase
+        .from("artists")
+        .select("id, name")
+        .in("id", artistIds.filter(Boolean) as string[]),
     ]);
     const albumMap = new Map((albumRows ?? []).map((a) => [a.id, a]));
     const artistMap = new Map((artistRows ?? []).map((a) => [a.id, a]));
@@ -1133,9 +1281,7 @@ export async function getPopularAlbumsForArtist(
 }
 
 /** Album engagement: listen count, review count, average rating. */
-export async function getAlbumEngagementStats(
-  albumId: string,
-): Promise<{
+export async function getAlbumEngagementStats(albumId: string): Promise<{
   listen_count: number;
   review_count: number;
   avg_rating: number | null;
@@ -1497,7 +1643,7 @@ export async function getUserFavoriteAlbums(
   userId: string,
 ): Promise<FavoriteAlbum[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseAdminClient();
 
     const { data: rows, error } = await supabase
       .from("user_favorite_albums")
@@ -1507,26 +1653,65 @@ export async function getUserFavoriteAlbums(
 
     if (error || !rows?.length) return [];
 
-    const albumIds = rows.map((r) => r.album_id);
+    const albumIds = rows.map((r) => r.album_id as string);
+
+    // First read whatever albums we already have cached.
     const { data: albums, error: albumsError } = await supabase
       .from("albums")
       .select("id, name, image_url")
       .in("id", albumIds);
 
-    if (albumsError) return [];
+    if (albumsError) {
+      console.error("[queries] getUserFavoriteAlbums albumsError:", albumsError);
+      return [];
+    }
 
-    const albumMap = new Map<
+    const cachedAlbumMap = new Map<
       string,
       { id: string; name: string; image_url: string | null }
-    >((albums ?? []).map((a) => [a.id as string, {
-      id: a.id as string,
-      name: a.name as string,
-      image_url: (a.image_url as string | null) ?? null,
-    }]));
+    >(
+      (albums ?? []).map((a) => [
+        a.id as string,
+        {
+          id: a.id as string,
+          name: a.name as string,
+          image_url: (a.image_url as string | null) ?? null,
+        },
+      ]),
+    );
+
+    // Determine which favorite album IDs are missing from the cache.
+    const missingIds = albumIds.filter((id) => !cachedAlbumMap.has(id));
+
+    if (missingIds.length > 0) {
+      try {
+        // Fetch missing albums from Spotify and upsert into our albums table.
+        const spotifyAlbums: SpotifyApi.AlbumObjectFull[] = await getAlbums(
+          missingIds,
+        );
+        for (const a of spotifyAlbums) {
+          try {
+            await upsertAlbumFromSpotify(
+              supabase as unknown as import("@supabase/supabase-js").SupabaseClient,
+              a,
+            );
+            cachedAlbumMap.set(a.id, {
+              id: a.id,
+              name: a.name,
+              image_url: a.images?.[0]?.url ?? null,
+            });
+          } catch (e) {
+            console.error("[queries] getUserFavoriteAlbums upsertAlbumFromSpotify failed:", e);
+          }
+        }
+      } catch (e) {
+        console.error("[queries] getUserFavoriteAlbums Spotify fetch failed:", e);
+      }
+    }
 
     return rows
       .map((r) => {
-        const album = albumMap.get(r.album_id as string);
+        const album = cachedAlbumMap.get(r.album_id as string);
         if (!album) return null;
         return {
           album_id: r.album_id as string,
@@ -1553,7 +1738,11 @@ export type NotificationRow = {
   created_at: string;
 };
 
-export async function getNotifications(userId: string, limit = 50, offset = 0): Promise<NotificationRow[]> {
+export async function getNotifications(
+  userId: string,
+  limit = 50,
+  offset = 0,
+): Promise<NotificationRow[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const from = offset;
@@ -1782,7 +1971,11 @@ export async function getFollowerUsers(
 
     if (error || !users?.length) return [];
 
-    return (users as unknown as { users: { id: string; username: string; avatar_url: string | null } }[])
+    return (
+      users as unknown as {
+        users: { id: string; username: string; avatar_url: string | null };
+      }[]
+    )
       .map((row) => row.users)
       .filter((u) => u !== null)
       .map((u) => ({
@@ -1816,7 +2009,11 @@ export async function getFollowingUsers(
 
     if (error || !users?.length) return [];
 
-    return (users as unknown as { users: { id: string; username: string; avatar_url: string | null } }[])
+    return (
+      users as unknown as {
+        users: { id: string; username: string; avatar_url: string | null };
+      }[]
+    )
       .map((row) => row.users)
       .filter((u) => u !== null)
       .map((u) => ({
@@ -2546,7 +2743,9 @@ export async function getUserLists(
 
     const { data: listRows, error: listError } = await supabase
       .from("lists")
-      .select("id, title, description, type, visibility, emoji, image_url, created_at")
+      .select(
+        "id, title, description, type, visibility, emoji, image_url, created_at",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .range(cappedOffset, cappedOffset + cappedLimit - 1);
@@ -2560,7 +2759,10 @@ export async function getUserLists(
     });
 
     const countByList = new Map<string, number>();
-    for (const row of (countData ?? []) as { list_id: string; item_count: number }[]) {
+    for (const row of (countData ?? []) as {
+      list_id: string;
+      item_count: number;
+    }[]) {
       countByList.set(row.list_id, Number(row.item_count) || 0);
     }
 
@@ -2569,7 +2771,8 @@ export async function getUserLists(
       title: l.title,
       description: l.description ?? null,
       type: l.type as "album" | "song",
-      visibility: (l.visibility as "public" | "friends" | "private") ?? "private",
+      visibility:
+        (l.visibility as "public" | "friends" | "private") ?? "private",
       emoji: (l.emoji as string | null) ?? null,
       image_url: (l.image_url as string | null) ?? null,
       created_at: l.created_at,
@@ -2593,13 +2796,24 @@ export async function getList(listId: string): Promise<ListWithItems | null> {
 
     const { data: listRow, error: listError } = await supabase
       .from("lists")
-      .select("id, user_id, title, description, type, visibility, emoji, image_url, created_at")
+      .select(
+        "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+      )
       .eq("id", listId)
       .maybeSingle();
 
     if (listError || !listRow) return null;
 
-    let itemRows: { id: string; list_id: string; entity_type: string; entity_id: string; position: number; added_at?: string }[] | null = null;
+    let itemRows:
+      | {
+          id: string;
+          list_id: string;
+          entity_type: string;
+          entity_id: string;
+          position: number;
+          added_at?: string;
+        }[]
+      | null = null;
     let itemsError: { code?: string } | null = null;
 
     const itemsResult = await supabase
@@ -2618,7 +2832,10 @@ export async function getList(listId: string): Promise<ListWithItems | null> {
         .eq("list_id", listId)
         .order("position", { ascending: true });
       if (!fallback.error) {
-        itemRows = (fallback.data ?? []).map((r) => ({ ...r, added_at: new Date().toISOString() }));
+        itemRows = (fallback.data ?? []).map((r) => ({
+          ...r,
+          added_at: new Date().toISOString(),
+        }));
         itemsError = null;
       }
     }
@@ -2665,7 +2882,9 @@ export async function createList(
         emoji: null,
         image_url: null,
       })
-      .select("id, user_id, title, description, type, visibility, emoji, image_url, created_at")
+      .select(
+        "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+      )
       .single();
 
     if (error) throw error;
@@ -2732,7 +2951,10 @@ export async function addListItem(
         .limit(1)
         .maybeSingle();
       if (!fallback.error && fallback.data) {
-        return { ...fallback.data, added_at: new Date().toISOString() } as ListItemRow;
+        return {
+          ...fallback.data,
+          added_at: new Date().toISOString(),
+        } as ListItemRow;
       }
     }
     throw insertResult.error;
@@ -2814,7 +3036,10 @@ export async function searchLists(
       p_list_ids: listIds,
     });
     const countByList = new Map<string, number>();
-    for (const row of (countData ?? []) as { list_id: string; item_count: number }[]) {
+    for (const row of (countData ?? []) as {
+      list_id: string;
+      item_count: number;
+    }[]) {
       countByList.set(row.list_id, Number(row.item_count) || 0);
     }
 

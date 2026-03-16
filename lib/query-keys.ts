@@ -15,7 +15,7 @@ export const queryKeys = {
   /** Leaderboard: type "popular" | "topRated" | "mostFavorited", filters { startYear?, endYear? }. */
   leaderboard: (
     type: string,
-    filters: { startYear?: number; endYear?: number },
+    filters: { startYear?: number; endYear?: number; entity?: string },
   ) =>
     ["leaderboard", type, filters] as const,
 };

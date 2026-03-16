@@ -2,13 +2,14 @@ import { NextRequest } from "next/server";
 import { apiOk, apiBadRequest, apiInternalError } from "@/lib/api-response";
 import { getLeaderboard } from "@/lib/queries";
 
-/** GET ?type=popular|topRated|mostFavorited&startYear=optional&endYear=optional */
+/** GET ?type=popular|topRated|mostFavorited&startYear=optional&endYear=optional&entity=song|album */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const typeParam = searchParams.get("type");
     const startYearParam = searchParams.get("startYear");
     const endYearParam = searchParams.get("endYear");
+    const entityParam = searchParams.get("entity");
 
     const validTypes = ["popular", "topRated", "mostFavorited"] as const;
     if (!typeParam || !(validTypes as readonly string[]).includes(typeParam)) {
@@ -34,7 +35,10 @@ export async function GET(request: NextRequest) {
       filters.endYear = endYear;
     }
 
-    const data = await getLeaderboard(type, filters, 50);
+    const entity: "song" | "album" =
+      entityParam === "album" || entityParam === "song" ? entityParam : "song";
+
+    const data = await getLeaderboard(type, filters, entity, 50);
     return apiOk(data);
   } catch (e) {
     return apiInternalError(e);

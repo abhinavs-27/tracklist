@@ -32,6 +32,8 @@ function LeaderboardRow({
   id,
   name,
   artist,
+  entity,
+  artwork_url,
   total_plays,
   average_rating,
   favorite_count,
@@ -41,19 +43,35 @@ function LeaderboardRow({
   id: string;
   name: string;
   artist: string;
+  entity: "song" | "album";
+  artwork_url: string | null;
   total_plays: number;
   average_rating: number | null;
   favorite_count?: number;
   showFavoriteCount?: boolean;
 }) {
+  const href = entity === "album" ? `/album/${id}` : `/song/${id}`;
   return (
     <Link
-      href={`/song/${id}`}
+      href={href}
       className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50"
     >
       <span className="w-6 shrink-0 text-right text-sm font-medium text-zinc-500 tabular-nums">
         {rank}
       </span>
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
+        {artwork_url ? (
+          <img
+            src={artwork_url}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">
+            ♪
+          </div>
+        )}
+      </div>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-white">{name}</p>
         <p className="truncate text-sm text-zinc-500">{artist}</p>
@@ -83,6 +101,7 @@ export default function LeaderboardPage() {
   const [type, setType] = useState<"popular" | "topRated" | "mostFavorited">(
     "popular",
   );
+  const [entity, setEntity] = useState<"song" | "album">("song");
   const [yearRange, setYearRange] = useState<YearRange>({});
 
   const filters: LeaderboardFilters = useMemo(
@@ -93,14 +112,14 @@ export default function LeaderboardPage() {
     [yearRange.startYear, yearRange.endYear],
   );
 
-  const { data, isLoading, error } = useLeaderboard(type, filters);
+  const { data, isLoading, error } = useLeaderboard(type, filters, entity);
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
         <p className="mt-1 text-zinc-400">
-          Most popular and top rated songs. Adjust filters to change the time period.
+          Most popular and top rated {entity === "album" ? "albums" : "songs"}. Adjust filters to change the time period.
         </p>
       </header>
 
@@ -128,19 +147,50 @@ export default function LeaderboardPage() {
           >
             Top Rated
           </button>
-          <button
-            type="button"
-            onClick={() => setType("mostFavorited")}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-              type === "mostFavorited"
-                ? "bg-zinc-700 text-white"
-                : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            Most Favorited
-          </button>
+          {/* Only allow "Most Favorited" when viewing albums, since only albums can be favorited. */}
+          {entity === "album" && (
+            <button
+              type="button"
+              onClick={() => setType("mostFavorited")}
+              className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+                type === "mostFavorited"
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              Most Favorited
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                setEntity("song");
+                // If we were on "Most Favorited" (albums-only), switch back to a valid type.
+                if (type === "mostFavorited") setType("popular");
+              }}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                entity === "song"
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              Songs
+            </button>
+            <button
+              type="button"
+              onClick={() => setEntity("album")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                entity === "album"
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              Albums
+            </button>
+          </div>
           <YearRangeFilter value={yearRange} onChange={setYearRange} />
         </div>
       </div>
@@ -158,7 +208,9 @@ export default function LeaderboardPage() {
 
         {!error && !isLoading && data.length === 0 && (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-            <p className="text-zinc-500">No tracks found for this filter.</p>
+            <p className="text-zinc-500">
+              No {entity === "album" ? "albums" : "tracks"} found for this filter.
+            </p>
             <p className="mt-1 text-sm text-zinc-600">
               Try another time period or check back later.
             </p>
@@ -174,6 +226,8 @@ export default function LeaderboardPage() {
                 id={entry.id}
                 name={entry.name}
                 artist={entry.artist}
+                entity={entry.entity_type}
+                artwork_url={entry.artwork_url}
                 total_plays={entry.total_plays}
                 average_rating={entry.average_rating}
                 favorite_count={entry.favorite_count}

@@ -170,7 +170,8 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 - **comments**: `user_id`, `log_id`, `content`, `created_at`.
 - **spotify_tokens**: `user_id` (PK, FK → users), `access_token`, `refresh_token`, `expires_at`, `created_at`, `updated_at`. Used only by server (service role / admin client).
 - **spotify_recent_tracks**: `user_id`, `track_id`, `track_name`, `artist_name`, `album_name`, `album_image`, `played_at`, `created_at`. Unique (user_id, track_id, played_at). Index (user_id, played_at DESC).
-- **lists**, **list_items**, **favorites**: Present in 001 for future use.
+- **lists**, **list_items**: Present in 001 for future use.
+- **user_favorite_albums**: Per-user ordered album favorites for profiles and “most favorited” leaderboard.
 
 ### RLS and client usage
 
@@ -219,7 +220,7 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 
 ## 10. Optional features / future improvements
 
-- **Lists / list_items / favorites**: Tables exist in schema; no UI or API yet.
+- **Lists / list_items**: Tables exist in schema; no UI or API yet.
 - **Ratings on sync**: “Sync recently played” currently inserts logs with a placeholder rating; could add a flow to set rating/review on sync.
 - **Top artists**: Profile has a “Top artists” placeholder; could derive from logs or Spotify API.
 - **Notifications**: No in-app notifications for likes/comments/follows.

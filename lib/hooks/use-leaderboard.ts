@@ -9,8 +9,9 @@ export type { LeaderboardEntry, LeaderboardFilters } from "@/lib/queries";
 async function fetchLeaderboard(
   type: "popular" | "topRated" | "mostFavorited",
   filters: LeaderboardFilters,
+  entity: "song" | "album",
 ): Promise<LeaderboardEntry[]> {
-  const params = new URLSearchParams({ type });
+  const params = new URLSearchParams({ type, entity });
   if (filters.startYear != null) {
     params.set("startYear", String(filters.startYear));
   }
@@ -26,11 +27,12 @@ async function fetchLeaderboard(
 export function useLeaderboard(
   type: "popular" | "topRated" | "mostFavorited",
   filters: LeaderboardFilters,
+  entity: "song" | "album",
 ) {
-  const key = queryKeys.leaderboard(type, filters);
+  const key = queryKeys.leaderboard(type, { ...filters, entity });
   const { data, isLoading, error } = useQuery({
     queryKey: key,
-    queryFn: () => fetchLeaderboard(type, filters),
+    queryFn: () => fetchLeaderboard(type, filters, entity),
     staleTime: 60 * 1000,
   });
 

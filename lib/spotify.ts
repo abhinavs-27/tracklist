@@ -205,7 +205,7 @@ export async function getAlbum(
   return spotifyFetch<SpotifyApi.AlbumObjectFull>(`/albums/${spotifyId}`);
 }
 
-/** Spotify limit: 20 albums per request. Chunks and merges. */
+/** Spotify limit: 20 albums per request. Chunks and merges. Falls back to single getAlbum() if batch returns 403. */
 export async function getAlbums(
   spotifyIds: string[],
 ): Promise<SpotifyApi.AlbumObjectFull[]> {
@@ -216,15 +216,33 @@ export async function getAlbums(
   for (let i = 0; i < unique.length; i += CHUNK) {
     const chunk = unique.slice(i, i + CHUNK);
     const ids = chunk.join(",");
-    const data = (await spotifyFetch<{
-      albums: (SpotifyApi.AlbumObjectFull | null)[];
-    }>("/albums", { ids })) as {
-      albums: (SpotifyApi.AlbumObjectFull | null)[];
-    };
-    const resolved = (data.albums ?? []).filter(
-      (a): a is SpotifyApi.AlbumObjectFull => a != null,
-    );
-    out.push(...resolved);
+    try {
+      const data = (await spotifyFetch<{
+        albums: (SpotifyApi.AlbumObjectFull | null)[];
+      }>("/albums", { ids })) as {
+        albums: (SpotifyApi.AlbumObjectFull | null)[];
+      };
+      const resolved = (data.albums ?? []).filter(
+        (a): a is SpotifyApi.AlbumObjectFull => a != null,
+      );
+      out.push(...resolved);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("403")) {
+        // Fallback: fetch each album individually when batch endpoint is restricted.
+        for (const id of chunk) {
+          try {
+            const a = await getAlbum(id);
+            out.push(a);
+          } catch {
+            // skip failed single fetch
+          }
+          // Small delay to avoid hammering the API.
+          await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+      } else {
+        throw err;
+      }
+    }
   }
   return out;
 }

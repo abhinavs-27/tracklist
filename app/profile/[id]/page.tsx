@@ -10,7 +10,14 @@ import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getFollowCounts, isFollowing, getUserLists, getUserStreak, getUserAchievements, getUserFavoriteAlbums } from "@/lib/queries";
+import {
+  getFollowCounts,
+  isFollowing,
+  getUserLists,
+  getUserStreak,
+  getUserAchievements,
+  getUserFavoriteAlbums,
+} from "@/lib/queries";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
 import { isValidUuid } from "@/lib/validation";
@@ -35,13 +42,20 @@ export default async function ProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const paramsResolved = await params;
-  const segment = typeof paramsResolved?.id === "string" ? paramsResolved.id.trim() : "";
+  const segment =
+    typeof paramsResolved?.id === "string" ? paramsResolved.id.trim() : "";
   if (!segment) notFound();
 
   const session = await getServerSession(authOptions);
 
   const supabase = createSupabaseAdminClient();
-  let user: { id: string; username: string; avatar_url: string | null; bio: string | null; created_at: string } | null = null;
+  let user: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    bio: string | null;
+    created_at: string;
+  } | null = null;
   let userError: unknown = null;
 
   if (segment && isValidUuid(segment)) {
@@ -79,17 +93,28 @@ export default async function ProfilePage({
     session?.user?.id && session.user.id !== user.id
       ? isFollowing(session.user.id, user.id)
       : Promise.resolve(false),
-    session?.user?.id === user.id ? hasSpotifyToken(user.id) : Promise.resolve(false),
+    session?.user?.id === user.id
+      ? hasSpotifyToken(user.id)
+      : Promise.resolve(false),
     getUserLists(user.id, 50, 0),
     getUserStreak(user.id),
     getUserAchievements(user.id),
     getUserFavoriteAlbums(user.id),
   ]);
 
-  const counts = profileSettled[0].status === "fulfilled" ? profileSettled[0].value : { followers_count: 0, following_count: 0 };
-  if (profileSettled[0].status === "rejected") console.error("[profile] getFollowCounts failed:", profileSettled[0].reason);
-  const isFollowingUser = profileSettled[1].status === "fulfilled" ? profileSettled[1].value : false;
-  if (profileSettled[1].status === "rejected") console.error("[profile] isFollowing failed:", profileSettled[1].reason);
+  const counts =
+    profileSettled[0].status === "fulfilled"
+      ? profileSettled[0].value
+      : { followers_count: 0, following_count: 0 };
+  if (profileSettled[0].status === "rejected")
+    console.error(
+      "[profile] getFollowCounts failed:",
+      profileSettled[0].reason,
+    );
+  const isFollowingUser =
+    profileSettled[1].status === "fulfilled" ? profileSettled[1].value : false;
+  if (profileSettled[1].status === "rejected")
+    console.error("[profile] isFollowing failed:", profileSettled[1].reason);
 
   const profile = {
     id: user.id,
@@ -105,16 +130,35 @@ export default async function ProfilePage({
 
   const isOwnProfile = !!profile.is_own_profile;
 
-  const spotifyConnected = profileSettled[2].status === "fulfilled" ? profileSettled[2].value : false;
-  if (profileSettled[2].status === "rejected") console.error("[profile] hasSpotifyToken failed:", profileSettled[2].reason);
-  const userLists = profileSettled[3].status === "fulfilled" ? profileSettled[3].value : [];
-  if (profileSettled[3].status === "rejected") console.error("[profile] getUserLists failed:", profileSettled[3].reason);
-  const streak = profileSettled[4].status === "fulfilled" ? profileSettled[4].value : null;
-  if (profileSettled[4].status === "rejected") console.error("[profile] getUserStreak failed:", profileSettled[4].reason);
-  const achievements = profileSettled[5].status === "fulfilled" ? profileSettled[5].value : [];
-  if (profileSettled[5].status === "rejected") console.error("[profile] getUserAchievements failed:", profileSettled[5].reason);
-  const favoriteAlbums = profileSettled[6].status === "fulfilled" ? profileSettled[6].value : [];
-  if (profileSettled[6].status === "rejected") console.error("[profile] getUserFavoriteAlbums failed:", profileSettled[6].reason);
+  const spotifyConnected =
+    profileSettled[2].status === "fulfilled" ? profileSettled[2].value : false;
+  if (profileSettled[2].status === "rejected")
+    console.error(
+      "[profile] hasSpotifyToken failed:",
+      profileSettled[2].reason,
+    );
+  const userLists =
+    profileSettled[3].status === "fulfilled" ? profileSettled[3].value : [];
+  if (profileSettled[3].status === "rejected")
+    console.error("[profile] getUserLists failed:", profileSettled[3].reason);
+  const streak =
+    profileSettled[4].status === "fulfilled" ? profileSettled[4].value : null;
+  if (profileSettled[4].status === "rejected")
+    console.error("[profile] getUserStreak failed:", profileSettled[4].reason);
+  const achievements =
+    profileSettled[5].status === "fulfilled" ? profileSettled[5].value : [];
+  if (profileSettled[5].status === "rejected")
+    console.error(
+      "[profile] getUserAchievements failed:",
+      profileSettled[5].reason,
+    );
+  const favoriteAlbums =
+    profileSettled[6].status === "fulfilled" ? profileSettled[6].value : [];
+  if (profileSettled[6].status === "rejected")
+    console.error(
+      "[profile] getUserFavoriteAlbums failed:",
+      profileSettled[6].reason,
+    );
 
   return (
     <div className="space-y-8">
@@ -133,9 +177,15 @@ export default async function ProfilePage({
           />
           {streak && streak.current_streak > 0 && (
             <p className="mt-2 text-sm text-zinc-400">
-              🔥 <span className="font-medium text-amber-400">{streak.current_streak}</span> day listening streak
+              🔥{" "}
+              <span className="font-medium text-amber-400">
+                {streak.current_streak}
+              </span>{" "}
+              day listening streak
               {streak.longest_streak > streak.current_streak && (
-                <span className="ml-1 text-zinc-500">(best: {streak.longest_streak})</span>
+                <span className="ml-1 text-zinc-500">
+                  (best: {streak.longest_streak})
+                </span>
               )}
             </p>
           )}
@@ -186,7 +236,9 @@ export default async function ProfilePage({
 
       {achievements.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">Achievements</h2>
+          <h2 className="mb-3 text-lg font-semibold text-white">
+            Achievements
+          </h2>
           <div className="flex flex-wrap gap-3">
             {achievements.map(({ achievement, earned_at }) => (
               <div
@@ -197,7 +249,9 @@ export default async function ProfilePage({
                 <span className="text-xl">{achievement.icon ?? "🏅"}</span>
                 <div>
                   <p className="font-medium text-white">{achievement.name}</p>
-                  <p className="text-xs text-zinc-500">{new Date(earned_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-zinc-500">
+                    {new Date(earned_at).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
             ))}
@@ -248,7 +302,10 @@ export default async function ProfilePage({
             </ul>
             {isOwnProfile && (
               <p className="mt-3 text-sm text-zinc-500">
-                <Link href="/search/users" className="text-emerald-400 hover:underline">
+                <Link
+                  href="/search/users"
+                  className="text-emerald-400 hover:underline"
+                >
                   Find people
                 </Link>
                 {" to discover more lists."}
@@ -257,7 +314,6 @@ export default async function ProfilePage({
           </>
         )}
       </section>
-
     </div>
   );
 }
