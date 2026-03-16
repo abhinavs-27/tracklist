@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getFollowingUsers } from "@/lib/queries";
+import { getFollowListWithStatus } from "@/lib/queries";
 import {
   apiBadRequest,
   apiInternalError,
   apiNotFound,
+  apiOk,
 } from "@/lib/api-response";
 
 export async function GET(
@@ -40,44 +41,13 @@ export async function GET(
     }
     limit = Math.min(Math.max(1, limit), 50);
 
-    const allFollowing = await getFollowingUsers(userId);
+    const result = await getFollowListWithStatus(userId, "following", {
+      viewerId,
+      limit,
+      cursor,
+    });
 
-    let startIndex = 0;
-    if (cursor) {
-      const idx = allFollowing.findIndex((u) => u.username === cursor);
-      if (idx >= 0) startIndex = idx + 1;
-    }
-
-    const page = allFollowing.slice(startIndex, startIndex + limit);
-
-    let followingSet = new Set<string>();
-    if (viewerId && page.length > 0) {
-      const { data: followingRows, error: followingError } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", viewerId)
-        .in(
-          "following_id",
-          page.map((u) => u.id),
-        );
-
-      if (!followingError && followingRows) {
-        followingSet = new Set(
-          (followingRows as { following_id: string }[]).map((r) => r.following_id),
-        );
-      } else if (followingError) {
-        console.error("[following] is_following lookup failed:", followingError);
-      }
-    }
-
-    const result = page.map((u) => ({
-      id: u.id,
-      username: u.username,
-      avatar_url: u.avatar_url,
-      is_following: viewerId ? followingSet.has(u.id) : false,
-    }));
-
-    return NextResponse.json(result);
+    return apiOk(result);
   } catch (e) {
     return apiInternalError(e);
   }

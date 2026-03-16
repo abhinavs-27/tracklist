@@ -13,6 +13,7 @@ import {
   apiBadRequest,
   apiOk,
 } from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 import {
   isValidUuid,
   validateListTitle,
@@ -88,22 +89,18 @@ export async function PATCH(
       return apiForbidden("You do not own this list");
     }
 
-    let body: {
+    const { data: body, error: parseErr } = await parseBody<{
       title?: unknown;
       description?: unknown;
       visibility?: unknown;
       emoji?: unknown;
       image_url?: unknown;
-    };
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest("Invalid JSON body");
-    }
+    }>(request);
+    if (parseErr) return parseErr;
 
     const updates: Record<string, unknown> = {};
 
-    if (body.title !== undefined) {
+    if (body!.title !== undefined) {
       const titleResult = validateListTitle(body.title);
       if (!titleResult.ok) return apiBadRequest(titleResult.error);
       updates.title = titleResult.value;
@@ -140,7 +137,7 @@ export async function PATCH(
       .maybeSingle();
 
     if (error || !data) return apiInternalError(error ?? new Error("Update failed"));
-    return NextResponse.json(data);
+    return apiOk(data);
   } catch (e) {
     return apiInternalError(e);
   }
@@ -167,7 +164,7 @@ export async function DELETE(
     const { error } = await supabase.from("lists").delete().eq("id", listId);
     if (error) return apiInternalError(error);
 
-    return NextResponse.json({ success: true });
+    return apiOk({ success: true });
   } catch (e) {
     return apiInternalError(e);
   }

@@ -10,7 +10,7 @@ test.describe('Feed listen sessions', () => {
     const data = await res.json();
     expect(Array.isArray(data.items)).toBe(true);
 
-    const listenSessions = data.items.filter((a: { type?: string }) => a.type === 'listen_session');
+    const listenSessions = data.items.filter((a: Record<string, unknown>) => a.type === 'listen_session');
     for (const item of listenSessions) {
       expect(item).toMatchObject({
         type: 'listen_session',

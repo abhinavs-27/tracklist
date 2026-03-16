@@ -8,6 +8,7 @@ import {
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 
 type Body = {
   albums?: unknown;
@@ -18,14 +19,10 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    let body: Body;
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest("Invalid JSON body");
-    }
+    const { data: body, error: parseErr } = await parseBody<Body>(request);
+    if (parseErr) return parseErr;
 
-    const raw = Array.isArray(body.albums) ? body.albums : [];
+    const raw = Array.isArray(body!.albums) ? body!.albums : [];
     const albumIds = raw
       .map((v) => (typeof v === "string" ? v.trim() : ""))
       .filter((id) => id.length > 0)

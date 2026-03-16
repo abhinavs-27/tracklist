@@ -8,6 +8,7 @@ import {
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 import {
   validateListTitle,
   validateListDescription,
@@ -35,19 +36,15 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    let body: {
+    const { data: body, error: parseErr } = await parseBody<{
       title?: unknown;
       description?: unknown;
       type?: unknown;
       visibility?: unknown;
       first_item?: { entity_type?: unknown; entity_id?: unknown };
       initial_items?: { entity_type?: unknown; entity_id?: unknown }[];
-    };
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest("Invalid JSON body");
-    }
+    }>(request);
+    if (parseErr) return parseErr;
 
     const titleResult = validateListTitle(body?.title);
     if (!titleResult.ok) return apiBadRequest(titleResult.error);

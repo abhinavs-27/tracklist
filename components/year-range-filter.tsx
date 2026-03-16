@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 
 export type YearRange = {
   startYear?: number;
@@ -17,10 +17,12 @@ export function YearRangeFilter({ value, onChange }: Props) {
   const [startInput, setStartInput] = useState<string>("");
   const [endInput, setEndInput] = useState<string>("");
 
-  useEffect(() => {
+  const [prevValue, setPrevValue] = useState(value);
+  if (value.startYear !== prevValue.startYear || value.endYear !== prevValue.endYear) {
+    setPrevValue(value);
     setStartInput(value.startYear ? String(value.startYear) : "");
     setEndInput(value.endYear ? String(value.endYear) : "");
-  }, [value.startYear, value.endYear]);
+  }
 
   const label = useMemo(() => {
     const { startYear, endYear } = value;

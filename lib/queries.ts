@@ -1840,6 +1840,73 @@ export async function getFollowingUsers(userId: string): Promise<
   }
 }
 
+export type FollowUserWithStatus = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  is_following: boolean;
+};
+
+/**
+ * Generic helper for paginated follow lists (followers or following) with is_following enrichment.
+ */
+export async function getFollowListWithStatus(
+  userId: string,
+  type: "followers" | "following",
+  {
+    viewerId,
+    limit = 20,
+    cursor,
+  }: {
+    viewerId?: string | null;
+    limit?: number;
+    cursor?: string | null;
+  },
+): Promise<FollowUserWithStatus[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const allUsers =
+      type === "followers"
+        ? await getFollowerUsers(userId)
+        : await getFollowingUsers(userId);
+
+    let startIndex = 0;
+    if (cursor) {
+      const idx = allUsers.findIndex((u) => u.username === cursor);
+      if (idx >= 0) startIndex = idx + 1;
+    }
+
+    const page = allUsers.slice(startIndex, startIndex + limit);
+    if (page.length === 0) return [];
+
+    let followingSet = new Set<string>();
+    if (viewerId) {
+      const { data: followingRows, error: followingError } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", viewerId)
+        .in(
+          "following_id",
+          page.map((u) => u.id),
+        );
+
+      if (!followingError && followingRows) {
+        followingSet = new Set(
+          (followingRows as { following_id: string }[]).map((r) => r.following_id),
+        );
+      }
+    }
+
+    return page.map((u) => ({
+      ...u,
+      is_following: viewerId ? followingSet.has(u.id) : false,
+    }));
+  } catch (e) {
+    console.error(`[queries] getFollowListWithStatus (${type}) failed:`, e);
+    return [];
+  }
+}
+
 const USER_SEARCH_QUERY_MAX_LENGTH = 50;
 
 /** User search by username (ILIKE). Excludes excludeUserId, returns followers_count via RPC when available. */
@@ -2035,7 +2102,7 @@ export type ActivityFeedPage = {
 };
 
 export type FeedListenSessionRow = {
-  type: string;
+  type: 'listen_session';
   user_id: string;
   track_id: string;
   album_id: string;
@@ -2067,18 +2134,8 @@ export async function getFeedListenSessions(
       );
       return [];
     }
-    return (data ?? []).map(
-      (r: {
-        type: string;
-        user_id: string;
-        track_id: string;
-        album_id: string;
-        track_name: string | null;
-        artist_name: string | null;
-        song_count: number;
-        first_listened_at: string;
-        created_at: string;
-      }) => ({
+    return (data as FeedListenSessionRow[] ?? []).map(
+      (r) => ({
         type: r.type,
         user_id: r.user_id,
         track_id: r.track_id,
