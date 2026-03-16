@@ -11,7 +11,10 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    const { data: body, error: parseErr } = await parseBody<{
+      review_id?: string;
+      content?: string;
+    }>(request);
     if (parseErr) return parseErr;
 
     const { review_id, content } = body!;

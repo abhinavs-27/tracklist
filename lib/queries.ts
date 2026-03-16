@@ -1830,6 +1830,64 @@ export async function getFollowingUsers(
   }
 }
 
+/**
+ * Enriches a list of users with their "is_following" status relative to a viewer.
+ */
+export async function enrichUsersWithFollowStatus<T extends { id: string }>(
+  users: T[],
+  viewerId: string | null,
+): Promise<(T & { is_following: boolean })[]> {
+  if (!viewerId || users.length === 0) {
+    return users.map((u) => ({ ...u, is_following: false }));
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: followingRows, error } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", viewerId)
+      .in(
+        "following_id",
+        users.map((u) => u.id),
+      );
+
+    if (error) {
+      console.error("[queries] enrichUsersWithFollowStatus lookup failed:", error);
+      return users.map((u) => ({ ...u, is_following: false }));
+    }
+
+    const followingSet = new Set((followingRows || []).map((r) => r.following_id));
+    return users.map((u) => ({
+      ...u,
+      is_following: followingSet.has(u.id),
+    }));
+  } catch (e) {
+    console.error("[queries] enrichUsersWithFollowStatus failed:", e);
+    return users.map((u) => ({ ...u, is_following: false }));
+  }
+}
+
+/**
+ * Common logic for fetching a follow list (followers or following) with status enrichment.
+ */
+export async function getFollowListWithStatus(
+  userId: string,
+  type: "followers" | "following",
+  viewerId: string | null,
+  options: { limit?: number; offset?: number } = {},
+): Promise<{ id: string; username: string; avatar_url: string | null; is_following: boolean }[]> {
+  const limit = options.limit ?? 20;
+  const offset = options.offset ?? 0;
+
+  const users =
+    type === "followers"
+      ? await getFollowerUsers(userId, limit, offset)
+      : await getFollowingUsers(userId, limit, offset);
+
+  return enrichUsersWithFollowStatus(users, viewerId);
+}
+
 const USER_SEARCH_QUERY_MAX_LENGTH = 50;
 
 /** User search by username (ILIKE). Excludes excludeUserId, returns followers_count via RPC when available. */

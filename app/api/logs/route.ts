@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { createSupabaseServerClient } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen } from '@/lib/queries';
 import {
   apiUnauthorized,
@@ -21,7 +21,11 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    const { data: body, error: parseErr } = await parseBody<{
+      track_id?: string;
+      spotify_id?: string;
+      listened_at?: string | number;
+    }>(request);
     if (parseErr) return parseErr;
 
     const b = body!;

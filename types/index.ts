@@ -106,15 +106,26 @@ export interface List {
   user_id: string;
   title: string;
   description: string | null;
+  type: "album" | "song";
+  visibility: "public" | "friends" | "private";
+  emoji: string | null;
+  image_url: string | null;
   created_at: string;
 }
 
 export interface ListItem {
   id: string;
   list_id: string;
-  spotify_id: string;
-  type: 'song' | 'album';
+  entity_type: "album" | "song";
+  entity_id: string;
+  position: number;
+  added_at: string;
 }
+
+export type ListItemEnriched = ListItem & {
+  album?: SpotifyApi.AlbumObjectSimplified | SpotifyApi.AlbumObjectFull;
+  track?: SpotifyApi.TrackObjectSimplified | SpotifyApi.TrackObjectFull;
+};
 
 export interface Favorite {
   id: string;

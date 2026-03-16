@@ -18,17 +18,7 @@ import {
   validateListTitle,
   validateListDescription,
 } from "@/lib/validation";
-
-export type ListItemEnriched = {
-  id: string;
-  list_id: string;
-  entity_type: "album" | "song";
-  entity_id: string;
-  position: number;
-  added_at: string;
-  album?: SpotifyApi.AlbumObjectSimplified | SpotifyApi.AlbumObjectFull;
-  track?: SpotifyApi.TrackObjectSimplified | SpotifyApi.TrackObjectFull;
-};
+import { ListItemEnriched } from "@/types";
 
 /** GET – list details + ordered items with album/song info. Public. */
 export async function GET(
@@ -140,7 +130,7 @@ export async function PATCH(
       .maybeSingle();
 
     if (error || !data) return apiInternalError(error ?? new Error("Update failed"));
-    return NextResponse.json(data);
+    return apiOk(data);
   } catch (e) {
     return apiInternalError(e);
   }
@@ -167,7 +157,7 @@ export async function DELETE(
     const { error } = await supabase.from("lists").delete().eq("id", listId);
     if (error) return apiInternalError(error);
 
-    return NextResponse.json({ success: true });
+    return apiOk({ success: true });
   } catch (e) {
     return apiInternalError(e);
   }
