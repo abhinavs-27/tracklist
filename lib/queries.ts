@@ -549,6 +549,245 @@ export async function getTrackStatsForTrackIds(
 }
 
 // ---------------------------------------------------------------------------
+// Leaderboard
+// ---------------------------------------------------------------------------
+
+export type LeaderboardEntry = {
+  id: string;
+  name: string;
+  artist: string;
+  total_plays: number;
+  average_rating: number | null;
+  weighted_score?: number;
+  favorite_count?: number;
+};
+
+export type LeaderboardFilters = {
+  year?: number;
+  decade?: number;
+  startYear?: number;
+  endYear?: number;
+};
+
+export async function getLeaderboard(
+  type: "popular" | "topRated" | "mostFavorited",
+  filters: LeaderboardFilters,
+  limit = 50,
+): Promise<LeaderboardEntry[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { year, decade, startYear, endYear } = filters;
+
+    let albumIds: string[] | null = null;
+
+    // Prefer explicit year range if provided
+    if (startYear != null || endYear != null) {
+      const from = startYear ?? endYear!;
+      const to = endYear ?? startYear!;
+      const { data: albums } = await supabase
+        .from("albums")
+        .select("id, release_date")
+        .gte("release_date", `${from}-01-01`)
+        .lte("release_date", `${to}-12-31`);
+      albumIds = (albums ?? []).map((a) => a.id);
+    } else if (year != null) {
+      const { data: albums } = await supabase
+        .from("albums")
+        .select("id")
+        .like("release_date", `${year}%`);
+      albumIds = (albums ?? []).map((a) => a.id);
+    } else if (decade != null) {
+      const { data: albums } = await supabase
+        .from("albums")
+        .select("id, release_date");
+      const yearNum = decade + 10;
+      albumIds = (albums ?? [])
+        .filter((a) => {
+          const y = a.release_date ? parseInt(a.release_date.slice(0, 4), 10) : NaN;
+          return !isNaN(y) && y >= decade && y < yearNum;
+        })
+        .map((a) => a.id);
+    }
+
+    if (albumIds !== null && albumIds.length === 0) return [];
+
+    // ------------------------ Most Favorited ------------------------
+    if (type === "mostFavorited") {
+      let allowedSongIds: string[] | null = null;
+      if (albumIds && albumIds.length > 0) {
+        const { data: songs } = await supabase
+          .from("songs")
+          .select("id")
+          .in("album_id", albumIds);
+        allowedSongIds = (songs ?? []).map((s) => s.id);
+        if (allowedSongIds.length === 0) return [];
+      }
+
+      let favQuery = supabase
+        .from("user_favorites")
+        .select("song_id, user_id");
+
+      if (allowedSongIds) {
+        favQuery = favQuery.in("song_id", allowedSongIds);
+      }
+
+      const { data: favRows, error: favError } = await favQuery;
+      if (favError || !favRows?.length) return [];
+
+      const favoriteCounts = new Map<string, number>();
+      for (const row of favRows as { song_id: string; user_id: string }[]) {
+        const current = favoriteCounts.get(row.song_id) ?? 0;
+        favoriteCounts.set(row.song_id, current + 1);
+      }
+      const songIds = Array.from(favoriteCounts.keys());
+
+      const [{ data: statsRows }, { data: songRows }, { data: artistRows }] =
+        await Promise.all([
+          supabase
+            .from("track_stats")
+            .select("track_id, listen_count, avg_rating")
+            .in("track_id", songIds),
+          supabase
+            .from("songs")
+            .select("id, name, artist_id")
+            .in("id", songIds),
+          supabase
+            .from("artists")
+            .select("id, name"),
+        ]);
+
+      type StatsRow = { track_id: string; listen_count: number; avg_rating: number | null };
+      type SongRow = { id: string; name: string; artist_id: string };
+      type ArtistRow = { id: string; name: string };
+
+      const statsMap = new Map(
+        (statsRows ?? []).map((r: StatsRow) => [r.track_id, r]),
+      );
+      const songMap = new Map(
+        (songRows ?? []).map((s: SongRow) => [s.id, s]),
+      );
+      const artistMap = new Map(
+        (artistRows ?? []).map((a: ArtistRow) => [a.id, a.name]),
+      );
+
+      const entries: LeaderboardEntry[] = songIds
+        .map((id): LeaderboardEntry | null => {
+          const song = songMap.get(id);
+          if (!song) return null;
+          const stats = statsMap.get(id);
+          const total_plays = stats?.listen_count ?? 0;
+          const average_rating =
+            stats?.avg_rating != null ? Number(stats.avg_rating) : null;
+          const artistName = artistMap.get(song.artist_id) ?? "Unknown";
+          const favorite_count = favoriteCounts.get(id) ?? 0;
+          return {
+            id,
+            name: song.name,
+            artist: artistName,
+            total_plays,
+            average_rating,
+            favorite_count,
+          };
+        })
+        .filter((x): x is LeaderboardEntry => x != null);
+
+      entries.sort((a, b) => {
+        if ((b.favorite_count ?? 0) !== (a.favorite_count ?? 0)) {
+          return (b.favorite_count ?? 0) - (a.favorite_count ?? 0);
+        }
+        return b.total_plays - a.total_plays;
+      });
+
+      return entries.slice(0, limit);
+    }
+
+    // ---------------- Popular / Top Rated (existing) ----------------
+    let statsRows: { track_id: string; listen_count: number; avg_rating: number | null }[];
+
+    if (albumIds && albumIds.length > 0) {
+      const { data: songs } = await supabase
+        .from("songs")
+        .select("id")
+        .in("album_id", albumIds);
+      const trackIds = (songs ?? []).map((s) => s.id);
+      if (trackIds.length === 0) return [];
+      const { data: rows, error: statsError } = await supabase
+        .from("track_stats")
+        .select("track_id, listen_count, avg_rating")
+        .in("track_id", trackIds);
+      if (statsError || !rows?.length) return [];
+      statsRows = rows as {
+        track_id: string;
+        listen_count: number;
+        avg_rating: number | null;
+      }[];
+    } else {
+      const { data: rows, error: statsError } = await supabase
+        .from("track_stats")
+        .select("track_id, listen_count, avg_rating")
+        .order("listen_count", { ascending: false })
+        .limit(500);
+      if (statsError || !rows?.length) return [];
+      statsRows = rows as {
+        track_id: string;
+        listen_count: number;
+        avg_rating: number | null;
+      }[];
+    }
+
+    const { data: songRows } = await supabase
+      .from("songs")
+      .select("id, name, album_id, artist_id")
+      .in("id", statsRows.map((r) => r.track_id));
+
+    const songMap = new Map((songRows ?? []).map((s) => [s.id, s]));
+    const artistIds = [...new Set((songRows ?? []).map((s) => s.artist_id))];
+
+    const { data: artistRows } = await supabase
+      .from("artists")
+      .select("id, name")
+      .in("id", artistIds);
+    const artistMap = new Map((artistRows ?? []).map((a) => [a.id, a.name]));
+
+    const entries: LeaderboardEntry[] = statsRows
+      .map((row) => {
+        const song = songMap.get(row.track_id);
+        if (!song) return null;
+        const artistName = artistMap.get(song.artist_id) ?? "Unknown";
+        const total_plays = row.listen_count ?? 0;
+        const average_rating =
+          row.avg_rating != null ? Number(row.avg_rating) : null;
+        const weighted_score =
+          type === "topRated" && average_rating != null
+            ? average_rating * Math.log10(1 + total_plays)
+            : undefined;
+        return {
+          id: song.id,
+          name: song.name,
+          artist: artistName,
+          total_plays,
+          average_rating,
+          ...(weighted_score !== undefined && { weighted_score }),
+        };
+      })
+      .filter((x): x is LeaderboardEntry => x != null);
+
+    if (type === "popular") {
+      entries.sort((a, b) => b.total_plays - a.total_plays);
+    } else {
+      entries.sort(
+        (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
+      );
+    }
+
+    return entries.slice(0, limit);
+  } catch (e) {
+    console.error("[queries] getLeaderboard failed:", e);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Artist-scoped queries
 // ---------------------------------------------------------------------------
 

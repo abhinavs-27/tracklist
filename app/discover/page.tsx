@@ -11,10 +11,6 @@ function DiscoverSectionSkeleton() {
   return <div className="min-h-[140px] animate-pulse rounded-xl bg-zinc-800/30" />;
 }
 
-function DiscoverUsersGridSkeleton() {
-  return <div className="min-h-[120px] animate-pulse rounded-xl bg-zinc-800/30" />;
-}
-
 const TrendingSection = dynamic(
   () => import("./trending-section").then((m) => ({ default: m.TrendingSection })),
   { loading: DiscoverSectionSkeleton },
@@ -26,10 +22,6 @@ const RisingArtistsSection = dynamic(
 const HiddenGemsSection = dynamic(
   () => import("./hidden-gems-section").then((m) => ({ default: m.HiddenGemsSection })),
   { loading: DiscoverSectionSkeleton },
-);
-const DiscoverUsersGridDynamic = dynamic(
-  () => import("@/components/discover-users-grid").then((m) => ({ default: m.DiscoverUsersGrid })),
-  { loading: DiscoverUsersGridSkeleton },
 );
 
 const MAX_ITEMS = 20;
@@ -167,11 +159,6 @@ export default async function DiscoverPage() {
           )}
         </section>
       )}
-
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-white">Recently active</h2>
-        <DiscoverUsersGridDynamic limit={18} />
-      </section>
     </div>
   );
 }

@@ -40,6 +40,12 @@ export function Navbar() {
           >
             Discover
           </Link>
+          <Link
+            href="/leaderboard"
+            className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+          >
+            Leaderboard
+          </Link>
           {session && (
             <>
               <Link

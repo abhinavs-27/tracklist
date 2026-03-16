@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ProfileHeader } from "@/components/profile-header";
-import { FeedItem } from "@/components/feed-item";
 import { TasteMatchSection } from "@/components/taste-match";
 import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albums-section";
 import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-with-sync";
@@ -11,8 +10,7 @@ import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getFollowCounts, isFollowing, getProfileActivity, getUserLists, getUserStreak, getUserAchievements, getUserFavoriteAlbums } from "@/lib/queries";
-import { enrichFeedActivitiesWithEntityNames } from "@/lib/feed";
+import { getFollowCounts, isFollowing, getUserLists, getUserStreak, getUserAchievements, getUserFavoriteAlbums } from "@/lib/queries";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
 import { isValidUuid } from "@/lib/validation";
@@ -81,7 +79,6 @@ export default async function ProfilePage({
     session?.user?.id && session.user.id !== user.id
       ? isFollowing(session.user.id, user.id)
       : Promise.resolve(false),
-    getProfileActivity(user.id, 30),
     session?.user?.id === user.id ? hasSpotifyToken(user.id) : Promise.resolve(false),
     getUserLists(user.id, 50, 0),
     getUserStreak(user.id),
@@ -108,20 +105,16 @@ export default async function ProfilePage({
 
   const isOwnProfile = !!profile.is_own_profile;
 
-  const activityRaw = profileSettled[2].status === "fulfilled" ? profileSettled[2].value : [];
-  if (profileSettled[2].status === "rejected") console.error("[profile] getProfileActivity failed:", profileSettled[2].reason);
-  const spotifyConnected = profileSettled[3].status === "fulfilled" ? profileSettled[3].value : false;
-  if (profileSettled[3].status === "rejected") console.error("[profile] hasSpotifyToken failed:", profileSettled[3].reason);
-  const userLists = profileSettled[4].status === "fulfilled" ? profileSettled[4].value : [];
-  if (profileSettled[4].status === "rejected") console.error("[profile] getUserLists failed:", profileSettled[4].reason);
-  const streak = profileSettled[5].status === "fulfilled" ? profileSettled[5].value : null;
-  if (profileSettled[5].status === "rejected") console.error("[profile] getUserStreak failed:", profileSettled[5].reason);
-  const achievements = profileSettled[6].status === "fulfilled" ? profileSettled[6].value : [];
-  if (profileSettled[6].status === "rejected") console.error("[profile] getUserAchievements failed:", profileSettled[6].reason);
-  const favoriteAlbums = profileSettled[7].status === "fulfilled" ? profileSettled[7].value : [];
-  if (profileSettled[7].status === "rejected") console.error("[profile] getUserFavoriteAlbums failed:", profileSettled[7].reason);
-
-  const activity = await enrichFeedActivitiesWithEntityNames(activityRaw);
+  const spotifyConnected = profileSettled[2].status === "fulfilled" ? profileSettled[2].value : false;
+  if (profileSettled[2].status === "rejected") console.error("[profile] hasSpotifyToken failed:", profileSettled[2].reason);
+  const userLists = profileSettled[3].status === "fulfilled" ? profileSettled[3].value : [];
+  if (profileSettled[3].status === "rejected") console.error("[profile] getUserLists failed:", profileSettled[3].reason);
+  const streak = profileSettled[4].status === "fulfilled" ? profileSettled[4].value : null;
+  if (profileSettled[4].status === "rejected") console.error("[profile] getUserStreak failed:", profileSettled[4].reason);
+  const achievements = profileSettled[5].status === "fulfilled" ? profileSettled[5].value : [];
+  if (profileSettled[5].status === "rejected") console.error("[profile] getUserAchievements failed:", profileSettled[5].reason);
+  const favoriteAlbums = profileSettled[6].status === "fulfilled" ? profileSettled[6].value : [];
+  if (profileSettled[6].status === "rejected") console.error("[profile] getUserFavoriteAlbums failed:", profileSettled[6].reason);
 
   return (
     <div className="space-y-8">
@@ -262,46 +255,6 @@ export default async function ProfilePage({
               </p>
             )}
           </>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-lg font-semibold text-white">
-          Recent activity
-        </h2>
-        {activity.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-            <p className="text-zinc-500">No recent activity yet.</p>
-            {isOwnProfile && (
-              <Link
-                href="/search"
-                className="mt-2 inline-block text-emerald-400 hover:underline"
-              >
-                Search for music to rate &amp; review
-              </Link>
-            )}
-          </div>
-        ) : (
-          <ul className="space-y-4">
-            {activity.map((item) => (
-              <li
-                key={
-                  item.type === "review"
-                    ? `review-${item.review.id}`
-                    : item.type === "follow"
-                      ? item.id
-                      : item.type === "listen_session"
-                        ? `listen-${item.user_id}-${item.track_id}-${item.first_listened_at}`
-                        : `summary-${item.user_id}-${item.created_at}`
-                }
-              >
-                <FeedItem
-                  activity={item}
-                  spotifyName={item.type === "review" ? (item as { spotifyName?: string }).spotifyName : undefined}
-                />
-              </li>
-            ))}
-          </ul>
         )}
       </section>
 

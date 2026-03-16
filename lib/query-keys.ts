@@ -12,4 +12,10 @@ export const queryKeys = {
   discover: () => ["discover"] as const,
   feed: () => ["feed"] as const,
   favorites: (userId: string) => ["favorites", userId] as const,
+  /** Leaderboard: type "popular" | "topRated" | "mostFavorited", filters { startYear?, endYear? }. */
+  leaderboard: (
+    type: string,
+    filters: { startYear?: number; endYear?: number },
+  ) =>
+    ["leaderboard", type, filters] as const,
 };
