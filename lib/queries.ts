@@ -641,19 +641,22 @@ export async function getLeaderboard(
       }
       const songIds = Array.from(favoriteCounts.keys());
 
-      const [{ data: statsRows }, { data: songRows }, { data: artistRows }] =
+      const { data: songRows } = await supabase
+        .from("songs")
+        .select("id, name, artist_id")
+        .in("id", songIds);
+      const artistIds = [...new Set((songRows ?? []).map((s) => s.artist_id))];
+
+      const [{ data: statsRows }, { data: artistRows }] =
         await Promise.all([
           supabase
             .from("track_stats")
             .select("track_id, listen_count, avg_rating")
             .in("track_id", songIds),
           supabase
-            .from("songs")
-            .select("id, name, artist_id")
-            .in("id", songIds),
-          supabase
             .from("artists")
-            .select("id, name"),
+            .select("id, name")
+            .in("id", artistIds),
         ]);
 
       type StatsRow = { track_id: string; listen_count: number; avg_rating: number | null };
@@ -860,14 +863,14 @@ export async function getTopTracksForArtist(
     if (!songRows?.length) return [];
 
     const trackIds = songRows.map((s) => s.id);
-    const { data: logRows } = await supabase
-      .from("logs")
-      .select("track_id")
+    const { data: statsRows } = await supabase
+      .from("track_stats")
+      .select("track_id, listen_count")
       .in("track_id", trackIds);
 
     const counts = new Map<string, number>();
-    for (const l of logRows ?? []) {
-      counts.set(l.track_id, (counts.get(l.track_id) ?? 0) + 1);
+    for (const s of statsRows ?? []) {
+      counts.set(s.track_id, s.listen_count ?? 0);
     }
     // Sort: logged tracks by count desc, then all others (by name) so we show a full list
     const sortedIds = [...trackIds]
@@ -887,7 +890,7 @@ export async function getTopTracksForArtist(
 
     const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
       supabase.from("albums").select("id, name, image_url").in("id", albumIds),
-      supabase.from("artists").select("id, name").in("id", artistIds),
+      supabase.from("artists").select("id, name").in("id", artistIds.filter(Boolean) as string[]),
     ]);
     const albumMap = new Map((albumRows ?? []).map((a) => [a.id, a]));
     const artistMap = new Map((artistRows ?? []).map((a) => [a.id, a]));
@@ -1759,40 +1762,34 @@ export async function getFollowCounts(userId: string): Promise<{
 }
 
 /** Users who follow the given user (followers), ordered by username. */
-export async function getFollowerUsers(userId: string): Promise<
-  {
-    id: string;
-    username: string;
-    avatar_url: string | null;
-  }[]
-> {
+export async function getFollowerUsers(
+  userId: string,
+  limit = 100,
+  offset = 0,
+): Promise<{ id: string; username: string; avatar_url: string | null }[]> {
   try {
     const supabase = await createSupabaseServerClient();
-    const { data: followRows, error: followError } = await supabase
+    const from = offset;
+    const to = offset + limit - 1;
+
+    // We join follows and users to allow ordering by username and pagination at the database level.
+    const { data: users, error } = await supabase
       .from("follows")
-      .select("follower_id")
-      .eq("following_id", userId);
+      .select("users:users!follower_id (id, username, avatar_url)")
+      .eq("following_id", userId)
+      .order("users(username)", { ascending: true })
+      .range(from, to);
 
-    if (followError || !followRows?.length) return [];
+    if (error || !users?.length) return [];
 
-    const followerIds = [
-      ...new Set((followRows as { follower_id: string }[]).map((r) => r.follower_id)),
-    ];
-
-    const { data: users, error: usersError } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", followerIds);
-
-    if (usersError || !users?.length) return [];
-
-    return (users as { id: string; username: string; avatar_url: string | null }[])
+    return (users as unknown as { users: { id: string; username: string; avatar_url: string | null } }[])
+      .map((row) => row.users)
+      .filter((u) => u !== null)
       .map((u) => ({
         id: u.id,
         username: u.username,
         avatar_url: u.avatar_url ?? null,
-      }))
-      .sort((a, b) => a.username.localeCompare(b.username));
+      }));
   } catch (e) {
     console.error("[queries] getFollowerUsers failed:", e);
     return [];
@@ -1800,40 +1797,33 @@ export async function getFollowerUsers(userId: string): Promise<
 }
 
 /** Users the given user is following, ordered by username. */
-export async function getFollowingUsers(userId: string): Promise<
-  {
-    id: string;
-    username: string;
-    avatar_url: string | null;
-  }[]
-> {
+export async function getFollowingUsers(
+  userId: string,
+  limit = 100,
+  offset = 0,
+): Promise<{ id: string; username: string; avatar_url: string | null }[]> {
   try {
     const supabase = await createSupabaseServerClient();
-    const { data: followRows, error: followError } = await supabase
+    const from = offset;
+    const to = offset + limit - 1;
+
+    const { data: users, error } = await supabase
       .from("follows")
-      .select("following_id")
-      .eq("follower_id", userId);
+      .select("users:users!following_id (id, username, avatar_url)")
+      .eq("follower_id", userId)
+      .order("users(username)", { ascending: true })
+      .range(from, to);
 
-    if (followError || !followRows?.length) return [];
+    if (error || !users?.length) return [];
 
-    const followingIds = [
-      ...new Set((followRows as { following_id: string }[]).map((r) => r.following_id)),
-    ];
-
-    const { data: users, error: usersError } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", followingIds);
-
-    if (usersError || !users?.length) return [];
-
-    return (users as { id: string; username: string; avatar_url: string | null }[])
+    return (users as unknown as { users: { id: string; username: string; avatar_url: string | null } }[])
+      .map((row) => row.users)
+      .filter((u) => u !== null)
       .map((u) => ({
         id: u.id,
         username: u.username,
         avatar_url: u.avatar_url ?? null,
-      }))
-      .sort((a, b) => a.username.localeCompare(b.username));
+      }));
   } catch (e) {
     console.error("[queries] getFollowingUsers failed:", e);
     return [];
@@ -2565,14 +2555,13 @@ export async function getUserLists(
     if (!listRows?.length) return [];
 
     const listIds = listRows.map((l) => l.id);
-    const { data: countRows } = await supabase
-      .from("list_items")
-      .select("list_id")
-      .in("list_id", listIds);
+    const { data: countData } = await supabase.rpc("get_list_item_counts", {
+      p_list_ids: listIds,
+    });
 
     const countByList = new Map<string, number>();
-    for (const row of countRows ?? []) {
-      countByList.set(row.list_id, (countByList.get(row.list_id) ?? 0) + 1);
+    for (const row of (countData ?? []) as { list_id: string; item_count: number }[]) {
+      countByList.set(row.list_id, Number(row.item_count) || 0);
     }
 
     return listRows.map((l) => ({
@@ -2821,13 +2810,12 @@ export async function searchLists(
     const userMap = new Map((users ?? []).map((u) => [u.id, u.username]));
 
     const listIds = listRows.map((l) => l.id);
-    const { data: countRows } = await supabase
-      .from("list_items")
-      .select("list_id")
-      .in("list_id", listIds);
+    const { data: countData } = await supabase.rpc("get_list_item_counts", {
+      p_list_ids: listIds,
+    });
     const countByList = new Map<string, number>();
-    for (const row of countRows ?? []) {
-      countByList.set(row.list_id, (countByList.get(row.list_id) ?? 0) + 1);
+    for (const row of (countData ?? []) as { list_id: string; item_count: number }[]) {
+      countByList.set(row.list_id, Number(row.item_count) || 0);
     }
 
     return listRows.map((l) => ({

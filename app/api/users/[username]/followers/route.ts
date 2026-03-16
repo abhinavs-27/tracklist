@@ -40,15 +40,9 @@ export async function GET(
     }
     limit = Math.min(Math.max(1, limit), 50);
 
-    const allFollowers = await getFollowerUsers(userId);
+    const offset = Number(searchParams.get("offset")) || 0;
 
-    let startIndex = 0;
-    if (cursor) {
-      const idx = allFollowers.findIndex((u) => u.username === cursor);
-      if (idx >= 0) startIndex = idx + 1;
-    }
-
-    const page = allFollowers.slice(startIndex, startIndex + limit);
+    const page = await getFollowerUsers(userId, limit, offset);
 
     let followingSet = new Set<string>();
     if (viewerId && page.length > 0) {
