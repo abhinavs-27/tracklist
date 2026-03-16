@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const endYearParam = searchParams.get("endYear");
 
     const validTypes = ["popular", "topRated", "mostFavorited"] as const;
-    if (!typeParam || !validTypes.includes(typeParam as any)) {
+    if (!typeParam || !(validTypes as readonly string[]).includes(typeParam)) {
       return apiBadRequest(
         "type must be 'popular', 'topRated', or 'mostFavorited'",
       );

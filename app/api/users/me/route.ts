@@ -71,6 +71,11 @@ export async function PATCH(request: NextRequest) {
       return apiInternalError(updateError ?? new Error("Update failed"));
     }
 
+    console.log("[users] user profile updated", {
+      userId: session.user.id,
+      fields: Object.keys(updates),
+    });
+
     return apiOk(updated);
   } catch (e) {
     return apiInternalError(e);

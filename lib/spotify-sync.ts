@@ -95,12 +95,21 @@ export async function syncRecentlyPlayed(
       "spotify-sync: upsert logs passive entries failed",
       logsError,
     );
+    passiveLogs.forEach((l) => {
+      console.log("[spotify-ingest] track ingestion failed", {
+        userId: l.user_id,
+        trackId: l.track_id,
+        success: false,
+      });
+    });
   } else {
-    console.log(
-      "[logs] Passive log added: user=%s, songs=%d",
-      userId,
-      passiveLogs.length,
-    );
+    passiveLogs.forEach((l) => {
+      console.log("[spotify-ingest] track ingestion successful", {
+        userId: l.user_id,
+        trackId: l.track_id,
+        success: true,
+      });
+    });
     // Warm songs cache so feed listen-sessions (logs INNER JOIN songs) show this user's listens
     const trackIds = [...new Set(passiveLogs.map((l) => l.track_id))];
     try {
@@ -113,10 +122,8 @@ export async function syncRecentlyPlayed(
     }
   }
 
-  console.log(
-    "spotify-sync: upserted",
-    rows.length,
-    "recent tracks for user",
+  console.log("[spotify-ingest] spotify sync complete", {
     userId,
-  );
+    inserted: rows.length,
+  });
 }

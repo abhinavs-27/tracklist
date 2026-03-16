@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
     const { data: body } = await parseBody<{ notification_ids?: string[] }>(request);
 
     await markNotificationsRead(session.user.id, body?.notification_ids);
+    console.log("[notifications] notifications marked read", {
+      userId: session.user.id,
+      count: body?.notification_ids?.length ?? "all",
+    });
     return apiOk({ ok: true });
   } catch (e) {
     return apiInternalError(e);

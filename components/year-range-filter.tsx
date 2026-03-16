@@ -17,10 +17,16 @@ export function YearRangeFilter({ value, onChange }: Props) {
   const [startInput, setStartInput] = useState<string>("");
   const [endInput, setEndInput] = useState<string>("");
 
-  useEffect(() => {
+  // Adjust local state when prop changes (pattern: Adjusting state when a prop changes)
+  const [prevStart, setPrevStart] = useState(value.startYear);
+  const [prevEnd, setPrevEnd] = useState(value.endYear);
+
+  if (value.startYear !== prevStart || value.endYear !== prevEnd) {
+    setPrevStart(value.startYear);
+    setPrevEnd(value.endYear);
     setStartInput(value.startYear ? String(value.startYear) : "");
     setEndInput(value.endYear ? String(value.endYear) : "");
-  }, [value.startYear, value.endYear]);
+  }
 
   const label = useMemo(() => {
     const { startYear, endYear } = value;
