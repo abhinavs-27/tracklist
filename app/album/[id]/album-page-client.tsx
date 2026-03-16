@@ -7,6 +7,7 @@ import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
 import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
+import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
 
 function AlbumLazySectionSkeleton() {
   return (
@@ -86,7 +87,7 @@ export type AlbumPageClientProps = {
   session: boolean;
   stats: { listen_count: number; average_rating: number | null; review_count: number; rating_distribution?: Record<number, number> };
   engagementStats: { listen_count: number; review_count: number; avg_rating: number | null };
-  friendActivity: unknown[];
+  friendActivity: FriendActivityItem[];
   trackStats: Record<string, { listen_count: number; review_count: number; average_rating: number | null }>;
   recommendedAlbums: SpotifyApi.AlbumObjectSimplified[];
 };
