@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Logging music', () => {
   test('logging CTA renders (via E2E harness)', async ({ page }) => {
     await page.goto('/e2e/logging');
-    await expect(page.getByRole('button', { name: /^log listen$/i })).toHaveCount(2);
+    await expect(page.getByRole('button', { name: /rate.*review/i })).toHaveCount(2);
   });
 
   test('album page renders when Spotify creds configured', async ({ page }) => {
