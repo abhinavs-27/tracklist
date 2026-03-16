@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useReviews } from '@/lib/hooks/use-reviews';
 import { ReviewModal } from '@/components/review-modal';
+import { useAlbumReviewsContext } from '@/app/album/[id]/album-reviews-context';
 
 interface AlbumLogButtonProps {
   spotifyId: string;
@@ -12,6 +14,12 @@ interface AlbumLogButtonProps {
 
 export function AlbumLogButton({ spotifyId, type, spotifyName, className = '' }: AlbumLogButtonProps) {
   const [open, setOpen] = useState(false);
+  const albumReviews = useAlbumReviewsContext();
+  const useReviewsResult = useReviews(type, spotifyId);
+  const createReview =
+    type === 'album' && albumReviews?.albumId === spotifyId
+      ? albumReviews.createReview
+      : useReviewsResult.createReview;
 
   return (
     <>
@@ -28,7 +36,8 @@ export function AlbumLogButton({ spotifyId, type, spotifyName, className = '' }:
           type={type}
           spotifyName={spotifyName}
           onClose={() => setOpen(false)}
-          onSuccess={() => window.location.reload()}
+          onSuccess={() => setOpen(false)}
+          createReview={createReview}
         />
       )}
     </>

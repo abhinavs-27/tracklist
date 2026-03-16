@@ -38,13 +38,28 @@ export default async function SongPage({ params }: { params: PageParams }) {
     getListenLogsForTrack(id, 10),
   ]);
 
-  const defaultStats = { listen_count: 0, average_rating: null as number | null, review_count: 0 };
-  const reviewsData = songSettled[0].status === "fulfilled" ? songSettled[0].value : { reviews: [], average_rating: null, count: 0, my_review: null };
-  if (songSettled[0].status === "rejected") console.error("[song] getReviewsForEntity failed:", songSettled[0].reason);
-  const stats = songSettled[1].status === "fulfilled" ? songSettled[1].value : defaultStats;
-  if (songSettled[1].status === "rejected") console.error("[song] getEntityStats failed:", songSettled[1].reason);
-  const recentListens = songSettled[2].status === "fulfilled" ? songSettled[2].value : [];
-  if (songSettled[2].status === "rejected") console.error("[song] getListenLogsForTrack failed:", songSettled[2].reason);
+  const defaultStats = {
+    listen_count: 0,
+    average_rating: null as number | null,
+    review_count: 0,
+  };
+  const reviewsData =
+    songSettled[0].status === "fulfilled"
+      ? songSettled[0].value
+      : { reviews: [], average_rating: null, count: 0, my_review: null };
+  if (songSettled[0].status === "rejected")
+    console.error("[song] getReviewsForEntity failed:", songSettled[0].reason);
+  const stats =
+    songSettled[1].status === "fulfilled" ? songSettled[1].value : defaultStats;
+  if (songSettled[1].status === "rejected")
+    console.error("[song] getEntityStats failed:", songSettled[1].reason);
+  const recentListens =
+    songSettled[2].status === "fulfilled" ? songSettled[2].value : [];
+  if (songSettled[2].status === "rejected")
+    console.error(
+      "[song] getListenLogsForTrack failed:",
+      songSettled[2].reason,
+    );
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
@@ -88,15 +103,14 @@ export default async function SongPage({ params }: { params: PageParams }) {
               </Link>
             </p>
           )}
-          {duration && (
-            <p className="mt-1 text-xs text-zinc-600">{duration}</p>
-          )}
+          {duration && <p className="mt-1 text-xs text-zinc-600">{duration}</p>}
 
           {/* Stats bar */}
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
             {stats.listen_count > 0 && (
               <span className="text-zinc-400">
-                {stats.listen_count.toLocaleString()} listen{stats.listen_count !== 1 ? "s" : ""}
+                {stats.listen_count.toLocaleString()} listen
+                {stats.listen_count !== 1 ? "s" : ""}
               </span>
             )}
             {stats.average_rating != null && (

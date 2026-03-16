@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ReviewCard } from './review-card';
 import type { ReviewWithUser } from '@/types';
@@ -52,11 +52,13 @@ export function VirtualReviewList({
   className = '',
 }: VirtualReviewListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const getItemKey = useCallback((index: number) => reviews[index]?.id ?? index, [reviews]);
   const virtualizer = useVirtualizer({
     count: reviews.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_ESTIMATE,
     overscan: OVERSCAN,
+    getItemKey,
   });
   const virtualItems = virtualizer.getVirtualItems();
 
@@ -71,10 +73,12 @@ export function VirtualReviewList({
       >
         {virtualItems.map((virtualRow) => {
           const review = reviews[virtualRow.index];
+          if (!review) return null;
           const reviewWithUser = toReviewWithUser(review);
           return (
             <div
-              key={review.id}
+              key={virtualRow.key}
+              data-index={virtualRow.index}
               style={{
                 position: 'absolute',
                 top: 0,

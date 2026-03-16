@@ -1,46 +1,58 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlbumCard } from "@/components/album-card";
 import { TrackCard } from "@/components/track-card";
 import { AddToListModal } from "@/components/add-to-list-modal";
 import { useToast } from "@/components/toast";
+import { queryKeys } from "@/lib/query-keys";
 import type { ListItemEnriched } from "./page";
 
-type OptimisticItem = {
-  id: string;
-  entity_type: "album" | "song";
-  entity_id: string;
-  album?: SpotifyApi.AlbumObjectSimplified;
-  track?: SpotifyApi.TrackObjectSimplified | SpotifyApi.TrackObjectFull;
-  _optimistic: true;
+type ListData = {
+  list: Record<string, unknown>;
+  owner_username: string | null;
+  items: ListItemEnriched[];
 };
+
+type OptimisticItem = ListItemEnriched & { _optimistic?: true };
 
 type ListItemsClientProps = {
   initialItems: ListItemEnriched[];
+  initialListData?: ListData | null;
   listId: string;
   listType: "album" | "song";
   isOwner: boolean;
 };
 
+async function fetchList(listId: string): Promise<ListData> {
+  const res = await fetch(`/api/lists/${listId}`);
+  if (!res.ok) throw new Error("Failed to load list");
+  return res.json();
+}
+
 export function ListItemsClient({
   initialItems,
+  initialListData,
   listId,
   listType,
   isOwner,
 }: ListItemsClientProps) {
-  const router = useRouter();
-  const toast = useToast();
-  const [items, setItems] = useState<ListItemEnriched[]>(initialItems);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const listItemsKey = queryKeys.listItems(listId);
   const [pendingAdd, setPendingAdd] = useState<OptimisticItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
+  const { data: listData } = useQuery({
+    queryKey: listItemsKey,
+    queryFn: () => fetchList(listId),
+    initialData: initialListData ?? undefined,
+    staleTime: 30 * 1000,
+  });
 
+  const items = listData?.items ?? initialItems;
   const displayItems = pendingAdd ? [...items, pendingAdd] : items;
 
   const handleOptimisticAdd = (
@@ -49,48 +61,65 @@ export function ListItemsClient({
     album?: SpotifyApi.AlbumObjectSimplified,
     track?: SpotifyApi.TrackObjectSimplified | SpotifyApi.TrackObjectFull
   ) => {
-    setPendingAdd({
+    const opt: OptimisticItem = {
       id: `opt-${entityId}`,
+      list_id: listId,
       entity_type: entityType,
       entity_id: entityId,
+      position: items.length + 1,
+      added_at: new Date().toISOString(),
       ...(album && { album }),
       ...(track && { track }),
       _optimistic: true,
-    });
+    };
+    setPendingAdd(opt);
+    queryClient.setQueryData<ListData>(listItemsKey, (prev) =>
+      prev ? { ...prev, items: [...prev.items, opt] } : prev
+    );
   };
 
   const handleAddFailed = () => {
     setPendingAdd(null);
+    queryClient.invalidateQueries({ queryKey: listItemsKey });
     toast("Action failed, please try again.");
   };
 
   const handleAdded = () => {
     setPendingAdd(null);
-    router.refresh();
+    queryClient.invalidateQueries({ queryKey: listItemsKey });
   };
 
-  const handleRemove = async (item: ListItemEnriched) => {
-    if (item.id.startsWith("opt-")) return;
-    if (!confirm("Remove this item from the list?")) return;
-    const removed = item;
-    setItems((prev) => prev.filter((i) => i.id !== item.id));
-    setRemovingId(item.id);
-    try {
-      const res = await fetch(`/api/lists/${listId}/items/${item.id}`, {
+  const removeMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        setItems((prev) => [...prev, removed]);
-        toast("Action failed, please try again.");
-      } else {
-        router.refresh();
-      }
-    } catch {
-      setItems((prev) => [...prev, removed]);
+      if (!res.ok) throw new Error("Remove failed");
+    },
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: listItemsKey });
+      const previous = queryClient.getQueryData<ListData>(listItemsKey);
+      queryClient.setQueryData<ListData>(listItemsKey, (prev) =>
+        prev ? { ...prev, items: prev.items.filter((i) => i.id !== itemId) } : prev
+      );
+      return { previous };
+    },
+    onError: (_err, _itemId, context) => {
+      if (context?.previous) queryClient.setQueryData(listItemsKey, context.previous);
       toast("Action failed, please try again.");
-    } finally {
-      setRemovingId(null);
-    }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listItemsKey });
+    },
+  });
+
+  const handleRemove = (item: ListItemEnriched) => {
+    if (item.id.startsWith("opt-")) return;
+    if (!confirm("Remove this item from the list?")) return;
+    setRemovingId(item.id);
+    removeMutation.mutate(item.id, {
+      onSettled: () => setRemovingId(null),
+    });
   };
 
   return (

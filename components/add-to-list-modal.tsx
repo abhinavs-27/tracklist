@@ -36,7 +36,7 @@ export function AddToListModal({
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const toast = useToast();
+  const { toast } = useToast();
 
   const search = useCallback(async (q: string) => {
     const trimmed = q.trim();

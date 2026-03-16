@@ -3,19 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { FavoriteAlbumsEditModal } from "./favorite-albums-edit-modal";
+import { queryKeys } from "@/lib/query-keys";
 import type { FavoriteAlbum } from "@/lib/queries";
 
 type ProfileFavoriteAlbumsSectionProps = {
+  userId?: string;
   favoriteAlbums: FavoriteAlbum[];
   isOwnProfile: boolean;
 };
 
 export function ProfileFavoriteAlbumsSection({
+  userId,
   favoriteAlbums,
   isOwnProfile,
 }: ProfileFavoriteAlbumsSectionProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 
   const items = favoriteAlbums.map((a) => ({
@@ -77,7 +82,10 @@ export function ProfileFavoriteAlbumsSection({
         initialAlbums={items}
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}
-        onSaved={() => router.refresh()}
+        onSaved={() => {
+          if (userId) queryClient.invalidateQueries({ queryKey: queryKeys.favorites(userId) });
+          router.refresh();
+        }}
       />
     </section>
   );

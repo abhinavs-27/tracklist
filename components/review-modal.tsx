@@ -2,15 +2,22 @@
 
 import { useState } from 'react';
 
+export type CreateReviewPayload = {
+  rating: number;
+  review_text: string | null;
+};
+
 interface ReviewModalProps {
   spotifyId: string;
   type: 'song' | 'album';
   spotifyName: string;
   onClose: () => void;
   onSuccess: () => void;
+  /** From useReviews hook – modal must not call queryClient.setQueryData or invalidateQueries */
+  createReview: (payload: CreateReviewPayload) => Promise<unknown>;
 }
 
-export function ReviewModal({ spotifyId, type, spotifyName, onClose, onSuccess }: ReviewModalProps) {
+export function ReviewModal({ spotifyName, onClose, onSuccess, createReview }: ReviewModalProps) {
   const [rating, setRating] = useState(3);
   const [reviewText, setReviewText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,23 +28,14 @@ export function ReviewModal({ spotifyId, type, spotifyName, onClose, onSuccess }
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entity_type: type,
-          entity_id: spotifyId,
-          rating,
-          review_text: reviewText.trim() || null,
-        }),
+      await createReview({
+        rating,
+        review_text: reviewText.trim() || null,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? 'Failed to save review');
-        return;
-      }
       onSuccess();
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save review');
     } finally {
       setLoading(false);
     }

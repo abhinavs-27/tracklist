@@ -2,26 +2,26 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 
 interface ProfileEditModalProps {
+  userId: string;
   username: string;
   bio: string | null;
   avatarUrl: string | null;
 }
 
-export function ProfileEditModal({ username, bio, avatarUrl }: ProfileEditModalProps) {
+export function ProfileEditModal({ userId, username, bio, avatarUrl }: ProfileEditModalProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [formUsername, setFormUsername] = useState(username);
   const [formBio, setFormBio] = useState(bio ?? '');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
+  const updateMutation = useMutation({
+    mutationFn: async () => {
       const res = await fetch(`/api/users/me`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -31,15 +31,22 @@ export function ProfileEditModal({ username, bio, avatarUrl }: ProfileEditModalP
         }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? 'Update failed');
-        return;
-      }
+      if (!res.ok) throw new Error(data.error ?? 'Update failed');
+    },
+    onSuccess: () => {
       setOpen(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
       router.refresh();
-    } finally {
-      setLoading(false);
-    }
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Update failed');
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    updateMutation.mutate();
   };
 
   return (
@@ -91,10 +98,10 @@ export function ProfileEditModal({ username, bio, avatarUrl }: ProfileEditModalP
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={updateMutation.isPending}
                   className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
                 >
-                  {loading ? 'Saving...' : 'Save'}
+                  {updateMutation.isPending ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>

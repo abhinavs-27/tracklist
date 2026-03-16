@@ -150,6 +150,7 @@ export default async function ProfilePage({
         <div className="flex flex-col items-start gap-3 sm:items-end">
           {isOwnProfile && (
             <ProfileEditModal
+              userId={profile.id}
               username={profile.username}
               bio={profile.bio}
               avatarUrl={profile.avatar_url}
@@ -159,6 +160,7 @@ export default async function ProfilePage({
       </header>
 
       <ProfileFavoriteAlbumsSection
+        userId={profile.id}
         favoriteAlbums={favoriteAlbums}
         isOwnProfile={isOwnProfile}
       />

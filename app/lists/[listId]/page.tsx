@@ -110,6 +110,7 @@ export default async function ListDetailPage({ params }: { params: PageParams })
       ) : (
         <ListItemsClient
           initialItems={enriched}
+          initialListData={{ list: data.list, owner_username: data.owner_username, items: enriched }}
           listId={listId}
           listType={data.list.type}
           isOwner={isOwner}

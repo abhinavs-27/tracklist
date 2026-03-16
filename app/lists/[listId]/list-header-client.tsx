@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 type ListHeaderClientProps = {
   listId: string;
@@ -17,19 +19,15 @@ export function ListHeaderClient({
   initialVisibility,
 }: ListHeaderClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription ?? "");
   const [visibility, setVisibility] = useState(initialVisibility);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
-  const save = async () => {
-    if (!editing) return;
-    setSaving(true);
-    setError("");
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       const res = await fetch(`/api/lists/${listId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -39,36 +37,45 @@ export function ListHeaderClient({
           visibility,
         }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Failed to save changes");
-        return;
-      }
-      router.refresh();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to save changes");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listItems(listId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.list(listId) });
       setEditing(false);
-    } finally {
-      setSaving(false);
-    }
+      router.refresh();
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : "Failed to save changes");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/lists/${listId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to delete list");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listItems(listId) });
+      router.push("/feed");
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : "Failed to delete list");
+    },
+  });
+
+  const save = () => {
+    if (!editing) return;
+    setError("");
+    saveMutation.mutate();
   };
 
-  const remove = async () => {
+  const remove = () => {
     if (!confirm("Delete this list? This cannot be undone.")) return;
-    setDeleting(true);
     setError("");
-    try {
-      const res = await fetch(`/api/lists/${listId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Failed to delete list");
-        return;
-      }
-      // After delete, go back in history or to profile.
-      router.push("/feed");
-    } finally {
-      setDeleting(false);
-    }
+    deleteMutation.mutate();
   };
 
   return (
@@ -91,10 +98,10 @@ export function ListHeaderClient({
           <button
             type="button"
             onClick={remove}
-            disabled={deleting}
+            disabled={deleteMutation.isPending}
             className="rounded-lg border border-red-600 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-900/40 disabled:opacity-50"
           >
-            {deleting ? "Deleting…" : "Delete"}
+            {deleteMutation.isPending ? "Deleting…" : "Delete"}
           </button>
         </div>
       )}
@@ -158,10 +165,10 @@ export function ListHeaderClient({
                 <button
                   type="button"
                   onClick={save}
-                  disabled={saving}
+                  disabled={saveMutation.isPending}
                   className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
                 >
-                  {saving ? "Saving…" : "Save changes"}
+                  {saveMutation.isPending ? "Saving…" : "Save changes"}
                 </button>
                 <button
                   type="button"

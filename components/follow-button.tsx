@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/toast';
+import { queryKeys } from '@/lib/query-keys';
 
 interface FollowButtonProps {
   userId: string;
@@ -11,58 +13,56 @@ interface FollowButtonProps {
 
 export function FollowButton({ userId, initialFollowing, onFollowChange }: FollowButtonProps) {
   const [following, setFollowing] = useState(initialFollowing);
-  const [loading, setLoading] = useState(false);
-  const toast = useToast();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const handleClick = async () => {
-    const nextFollowing = !following;
-    setFollowing(nextFollowing);
-    onFollowChange?.(nextFollowing);
-
-    setLoading(true);
-    try {
+  const followMutation = useMutation({
+    mutationFn: async (nextFollowing: boolean) => {
       if (nextFollowing) {
         const res = await fetch('/api/follow', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ following_id: userId }),
         });
-        if (!res.ok) {
-          setFollowing(false);
-          onFollowChange?.(false);
-          toast('Action failed, please try again.');
-        }
+        if (!res.ok) throw new Error('Follow failed');
       } else {
         const res = await fetch(`/api/follow?following_id=${encodeURIComponent(userId)}`, {
           method: 'DELETE',
         });
-        if (!res.ok) {
-          setFollowing(true);
-          onFollowChange?.(true);
-          toast('Action failed, please try again.');
-        }
+        if (!res.ok) throw new Error('Unfollow failed');
       }
-    } catch {
+    },
+    onMutate: (nextFollowing) => {
+      setFollowing(nextFollowing);
+      onFollowChange?.(nextFollowing);
+    },
+    onError: (_err, nextFollowing) => {
       setFollowing(!nextFollowing);
       onFollowChange?.(!nextFollowing);
       toast('Action failed, please try again.');
-    } finally {
-      setLoading(false);
-    }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.discover() });
+    },
+  });
+
+  const handleClick = () => {
+    followMutation.mutate(!following);
   };
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      disabled={loading}
+      disabled={followMutation.isPending}
       className={`rounded-full px-4 py-2 text-sm font-medium transition ${
         following
           ? 'border border-zinc-600 bg-transparent text-zinc-300 hover:border-zinc-500'
           : 'bg-emerald-600 text-white hover:bg-emerald-500'
       } disabled:opacity-50`}
     >
-      {loading ? '...' : following ? 'Following' : 'Follow'}
+      {followMutation.isPending ? '...' : following ? 'Following' : 'Follow'}
     </button>
   );
 }

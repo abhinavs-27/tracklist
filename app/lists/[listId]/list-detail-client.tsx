@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AddToListModal } from "@/components/add-to-list-modal";
+import { queryKeys } from "@/lib/query-keys";
 
 type ListDetailClientProps = {
   listId: string;
@@ -18,26 +20,24 @@ export function ListDetailClient({
   triggerLabel,
 }: ListDetailClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [removing, setRemoving] = useState(false);
 
-  const handleRemove = async () => {
-    if (!itemId) return;
-    if (!confirm("Remove this item from the list?")) return;
-    setRemoving(true);
-    try {
-      const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/lists/${listId}/items/${itemId!}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        router.refresh();
-      }
-    } finally {
-      setRemoving(false);
-    }
-  };
+      if (!res.ok) throw new Error("Remove failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listItems(listId) });
+      router.refresh();
+    },
+  });
 
   const handleAdded = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.listItems(listId) });
     router.refresh();
   };
 
@@ -45,11 +45,14 @@ export function ListDetailClient({
     return (
       <button
         type="button"
-        onClick={handleRemove}
-        disabled={removing}
+        onClick={() => {
+          if (!confirm("Remove this item from the list?")) return;
+          removeMutation.mutate();
+        }}
+        disabled={removeMutation.isPending}
         className="shrink-0 rounded-lg border border-zinc-600 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-800 hover:text-red-400 disabled:opacity-50"
       >
-        {removing ? "Removing…" : "Remove"}
+        {removeMutation.isPending ? "Removing…" : "Remove"}
       </button>
     );
   }
