@@ -4,6 +4,7 @@ import {
   computeSongCooccurrence,
   computeAlbumCooccurrence,
 } from "@/lib/discovery/computeCooccurrence";
+import { isProd } from "@/lib/env";
 
 /**
  * Cron: recompute media co-occurrence (songs + albums) for recommendations.
@@ -11,10 +12,14 @@ import {
  * Schedule periodically (e.g. daily or a few times per day).
  */
 export async function GET(request: NextRequest) {
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return apiUnauthorized();
-  // }
+  if (!isProd()) {
+    return apiOk({ ok: false, message: "cron disabled outside prod" });
+  }
+
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return apiUnauthorized();
+  }
 
   try {
     const [songResult, albumResult] = await Promise.all([
@@ -40,7 +45,9 @@ export async function GET(request: NextRequest) {
       songs: songResult,
       albums: albumResult,
     });
-  } catch (e: any) {
-    return apiError(e?.message ?? "compute-cooccurrence cron failed", 500);
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : "compute-cooccurrence cron failed";
+    return apiError(message, 500);
   }
 }

@@ -2,11 +2,16 @@ import { NextRequest } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { ingestRecentPlaysForUser } from "@/lib/logs-ingest";
 import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
+import { isProd } from "@/lib/env";
 
 const BATCH_SIZE = 50;
 const MAX_USERS_PER_RUN = 500;
 
 export async function GET(request: NextRequest) {
+  if (!isProd()) {
+    return apiOk({ ok: false, message: "cron disabled outside prod" });
+  }
+
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return apiUnauthorized();
