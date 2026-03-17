@@ -40,8 +40,7 @@ export async function GET(request: NextRequest) {
       songs: songResult,
       albums: albumResult,
     });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return apiError(message || "compute-cooccurrence cron failed", 500);
+  } catch (e: any) {
+    return apiError(e?.message ?? "compute-cooccurrence cron failed", 500);
   }
 }

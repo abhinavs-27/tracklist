@@ -33,7 +33,7 @@ export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
       type: "song" as const,
       title: t.name,
       artist: t.artists?.map((a) => a.name).join(", ") ?? "",
-      artworkUrl: ("album" in t ? t.album?.images?.[0]?.url : null) ?? null,
+      artworkUrl: ("album" in t && t.album?.images?.[0]?.url) ?? null,
       avgRating: gem.avg_rating,
       totalPlays: gem.listen_count,
     };
