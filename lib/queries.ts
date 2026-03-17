@@ -2027,6 +2027,58 @@ export async function getFollowingUsers(
   }
 }
 
+/** Enrich a list of users with is_following status for a viewer. */
+export async function enrichUsersWithFollowStatus<T extends { id: string }>(
+  users: T[],
+  viewerId: string | null,
+): Promise<(T & { is_following: boolean })[]> {
+  if (!viewerId || users.length === 0) {
+    return users.map((u) => ({ ...u, is_following: false }));
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: follows, error } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", viewerId)
+      .in(
+        "following_id",
+        users.map((u) => u.id),
+      );
+
+    if (error) {
+      console.error("[queries] enrichUsersWithFollowStatus failed:", error);
+      return users.map((u) => ({ ...u, is_following: false }));
+    }
+
+    const followingSet = new Set((follows ?? []).map((f) => f.following_id));
+    return users.map((u) => ({
+      ...u,
+      is_following: followingSet.has(u.id),
+    }));
+  } catch (e) {
+    console.error("[queries] enrichUsersWithFollowStatus failed:", e);
+    return users.map((u) => ({ ...u, is_following: false }));
+  }
+}
+
+/** Unified helper for fetching a user's follow network with is_following status. */
+export async function getFollowListWithStatus(
+  userId: string,
+  viewerId: string | null,
+  type: "followers" | "following",
+  options: { limit?: number; offset?: number } = {},
+) {
+  const { limit = 20, offset = 0 } = options;
+  const users =
+    type === "followers"
+      ? await getFollowerUsers(userId, limit, offset)
+      : await getFollowingUsers(userId, limit, offset);
+
+  return enrichUsersWithFollowStatus(users, viewerId);
+}
+
 const USER_SEARCH_QUERY_MAX_LENGTH = 50;
 
 /** User search by username (ILIKE). Excludes excludeUserId, returns followers_count via RPC when available. */

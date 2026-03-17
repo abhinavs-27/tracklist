@@ -1,13 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getFollowingUsers } from "@/lib/queries";
+import { getFollowListWithStatus } from "@/lib/queries";
 import {
   apiBadRequest,
   apiInternalError,
   apiNotFound,
+  apiOk,
 } from "@/lib/api-response";
+import { clampLimit } from "@/lib/validation";
 
 export async function GET(
   request: NextRequest,
@@ -31,47 +33,16 @@ export async function GET(
     const viewerId = session?.user?.id ?? null;
 
     const { searchParams } = new URL(request.url);
-    const limitParam = searchParams.get("limit");
-    const cursor = searchParams.get("cursor");
-
-    let limit = Number(limitParam) || 20;
-    if (!Number.isFinite(limit) || limit <= 0) {
-      return apiBadRequest("limit must be a positive number");
-    }
-    limit = Math.min(Math.max(1, limit), 50);
-
+    const limit = clampLimit(searchParams.get("limit"), 50, 20);
     const offset = Number(searchParams.get("offset")) || 0;
+    if (offset < 0) return apiBadRequest("offset must be >= 0");
 
-    const page = await getFollowingUsers(userId, limit, offset);
+    const result = await getFollowListWithStatus(userId, viewerId, "following", {
+      limit,
+      offset,
+    });
 
-    let followingSet = new Set<string>();
-    if (viewerId && page.length > 0) {
-      const { data: followingRows, error: followingError } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", viewerId)
-        .in(
-          "following_id",
-          page.map((u) => u.id),
-        );
-
-      if (!followingError && followingRows) {
-        followingSet = new Set(
-          (followingRows as { following_id: string }[]).map((r) => r.following_id),
-        );
-      } else if (followingError) {
-        console.error("[following] is_following lookup failed:", followingError);
-      }
-    }
-
-    const result = page.map((u) => ({
-      id: u.id,
-      username: u.username,
-      avatar_url: u.avatar_url,
-      is_following: viewerId ? followingSet.has(u.id) : false,
-    }));
-
-    return NextResponse.json(result);
+    return apiOk(result);
   } catch (e) {
     return apiInternalError(e);
   }
