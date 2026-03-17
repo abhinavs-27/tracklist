@@ -28,12 +28,14 @@ export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
       };
     }
     const t = track!;
+    const artworkUrl = "album" in t ? t.album?.images?.[0]?.url : null;
+
     return {
       id: t.id,
       type: "song" as const,
       title: t.name,
       artist: t.artists?.map((a) => a.name).join(", ") ?? "",
-      artworkUrl: t.album?.images?.[0]?.url ?? null,
+      artworkUrl: artworkUrl ?? null,
       avgRating: gem.avg_rating,
       totalPlays: gem.listen_count,
     };
