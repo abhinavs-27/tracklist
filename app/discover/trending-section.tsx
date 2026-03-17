@@ -28,7 +28,7 @@ export function TrendingSection({ items }: TrendingSectionProps) {
       <h2 className="mb-3 text-lg font-semibold text-white">{title} (last 24h)</h2>
       {mediaItems.length === 0 ? (
         <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">
-          No trending tracks in the last 24 hours. Start logging listens to see what's hot.
+          No trending tracks in the last 24 hours. Start logging listens to see what&apos;s hot.
         </p>
       ) : (
         <MediaGrid items={mediaItems} />
