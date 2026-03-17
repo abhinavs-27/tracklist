@@ -17,23 +17,34 @@ export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
 
   const mediaItems: MediaItem[] = valid.slice(0, 20).map(({ gem, album, track }) => {
     if (album) {
+      const artworkUrl: string | null =
+        Array.isArray(album.images) && album.images.length > 0
+          ? album.images[0]!.url
+          : null;
       return {
         id: album.id,
         type: "album" as const,
         title: album.name,
         artist: album.artists?.map((a) => a.name).join(", ") ?? "",
-        artworkUrl: album.images?.[0]?.url ?? null,
+        artworkUrl,
         avgRating: gem.avg_rating,
         totalPlays: gem.listen_count,
       };
     }
     const t = track!;
+    const artworkUrl: string | null =
+      "album" in t &&
+      t.album &&
+      Array.isArray(t.album.images) &&
+      t.album.images.length > 0
+        ? t.album.images[0]!.url
+        : null;
     return {
       id: t.id,
       type: "song" as const,
       title: t.name,
       artist: t.artists?.map((a) => a.name).join(", ") ?? "",
-      artworkUrl: ("album" in t && t.album?.images?.[0]?.url) ?? null,
+      artworkUrl,
       avgRating: gem.avg_rating,
       totalPlays: gem.listen_count,
     };
