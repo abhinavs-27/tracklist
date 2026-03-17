@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (existingToken) {
-      console.log("[spotify] spotify callback: user already has token, skipping upsert", {
+      console.log("[spotify-ingest] spotify callback: user already has token, skipping upsert", {
         userId: session.user.id,
       });
       const res = apiOk({ connected: true, message: "Spotify is already connected" });
@@ -85,11 +85,11 @@ export async function GET(request: NextRequest) {
     );
 
     if (upsertError) {
-      console.error("Spotify callback Supabase upsert error:", upsertError);
+      console.error("[spotify-ingest] spotify callback Supabase upsert error:", upsertError);
       return apiError("Failed to save Spotify token", 500);
     }
 
-    console.log("[spotify] spotify callback upsert success", {
+    console.log("[spotify-ingest] spotify callback upsert success", {
       userId: session.user.id,
     });
 
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     const returnTo = base + returnToQuery;
 
-    console.log("[spotify] spotify callback redirecting", { userId: session.user.id, returnTo });
+    console.log("[spotify-ingest] spotify callback redirecting", { userId: session.user.id, returnTo });
 
     const res = NextResponse.redirect(returnTo, { status: 302 });
     res.cookies.set("spotify_oauth_state", "", { path: "/", maxAge: 0 });

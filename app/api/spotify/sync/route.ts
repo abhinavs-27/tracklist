@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     try {
       await getOrFetchTracksBatch(idsToWarm);
     } catch (e) {
-      console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
+      console.warn("[spotify-ingest] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
     }
 
     console.log("[spotify-ingest] spotify sync complete", {

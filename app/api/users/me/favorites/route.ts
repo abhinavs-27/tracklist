@@ -52,6 +52,11 @@ export async function POST(request: NextRequest) {
       if (insertError) return apiInternalError(insertError);
     }
 
+    console.log("[users] favorites updated", {
+      userId: session.user.id,
+      count: albumIds.length,
+    });
+
     return apiOk({ albums: albumIds });
   } catch (e) {
     return apiInternalError(e);

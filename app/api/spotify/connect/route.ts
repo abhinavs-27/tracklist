@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const origin = getRequestOrigin(request);
 
     const authorizeUrl = getSpotifyAuthorizeUrl(state, origin);
-    console.log('[spotify] spotify connect: redirecting to authorize', { userId: session.user.id, returnTo, origin });
+    console.log('[spotify-ingest] spotify connect: redirecting to authorize', { userId: session.user.id, returnTo, origin });
 
     const res = NextResponse.redirect(authorizeUrl, { status: 302 });
     res.cookies.set('spotify_oauth_state', state, {
