@@ -10,7 +10,7 @@ export async function parseBody<T>(
   try {
     const data = await request.json();
     return { data, error: null };
-  } catch (e) {
+  } catch {
     return { data: null, error: apiBadRequest('Invalid JSON body') };
   }
 }
