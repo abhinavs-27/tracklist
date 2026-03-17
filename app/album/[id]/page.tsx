@@ -7,8 +7,8 @@ import {
   getAlbumEngagementStats,
   getFriendsAlbumActivity,
   getTrackStatsForTrackIds,
-  getAlbumRecommendations,
 } from "@/lib/queries";
+import { getRelatedMedia } from "@/lib/discovery/getRelatedMedia";
 import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum, getOrFetchAlbumsBatch } from "@/lib/spotify-cache";
 
@@ -40,10 +40,17 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     getAlbumEngagementStats(id),
     viewerId ? getFriendsAlbumActivity(viewerId, id, 10) : Promise.resolve([]),
     getTrackStatsForTrackIds(trackIds),
-    getAlbumRecommendations(id, 10),
+    getRelatedMedia("album", id, 10),
   ]);
 
-  const recommendationAlbumIds = (settledInner[4].status === "fulfilled" ? settledInner[4].value : []).map((r: { album_id: string }) => r.album_id);
+  const relatedFromCooccurrence =
+    settledInner[4].status === "fulfilled" ? settledInner[4].value : [];
+  if (settledInner[4].status === "rejected")
+    console.error("[album] getRelatedMedia failed:", settledInner[4].reason);
+
+  const recommendationAlbumIds = relatedFromCooccurrence.map(
+    (r: { contentId: string }) => r.contentId,
+  );
   const recommendationAlbumResults =
     recommendationAlbumIds.length > 0
       ? await getOrFetchAlbumsBatch(recommendationAlbumIds)
@@ -82,7 +89,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const trackStats = settled[3].status === "fulfilled" ? settled[3].value : {} as Record<string, { listen_count: number; average_rating: number | null; review_count: number }>;
   if (settled[3].status === "rejected") console.error("[album] getTrackStatsForTrackIds failed:", settled[3].reason);
 
-  if (settled[4].status === "rejected") console.error("[album] getAlbumRecommendations failed:", settled[4].reason);
+  if (settled[4].status === "rejected") console.error("[album] getRelatedMedia failed:", settled[4].reason);
 
   return (
     <AlbumPageClient

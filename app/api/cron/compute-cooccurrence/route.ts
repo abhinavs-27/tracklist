@@ -1,0 +1,46 @@
+import { NextRequest } from "next/server";
+import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
+import {
+  computeSongCooccurrence,
+  computeAlbumCooccurrence,
+} from "@/lib/discovery/computeCooccurrence";
+
+/**
+ * Cron: recompute media co-occurrence (songs + albums) for recommendations.
+ * Call with: Authorization: Bearer <CRON_SECRET>
+ * Schedule periodically (e.g. daily or a few times per day).
+ */
+export async function GET(request: NextRequest) {
+  // const authHeader = request.headers.get("authorization");
+  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  //   return apiUnauthorized();
+  // }
+
+  try {
+    const [songResult, albumResult] = await Promise.all([
+      computeSongCooccurrence().catch((e) => {
+        console.error("[cron] computeSongCooccurrence failed", e);
+        throw e;
+      }),
+      computeAlbumCooccurrence().catch((e) => {
+        console.error("[cron] computeAlbumCooccurrence failed", e);
+        throw e;
+      }),
+    ]);
+
+    console.log("[cron] compute-cooccurrence complete", {
+      songUsers: songResult.usersProcessed,
+      songPairs: songResult.pairsStored,
+      albumUsers: albumResult.usersProcessed,
+      albumPairs: albumResult.pairsStored,
+    });
+
+    return apiOk({
+      ok: true,
+      songs: songResult,
+      albums: albumResult,
+    });
+  } catch (e: any) {
+    return apiError(e?.message ?? "compute-cooccurrence cron failed", 500);
+  }
+}

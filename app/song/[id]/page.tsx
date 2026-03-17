@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getOrFetchTrack } from "@/lib/spotify-cache";
+import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
 import { SongStatsBar } from "@/app/song/[id]/song-stats-bar";
 import { ListenCard } from "@/components/listen-card";
+import { MediaGrid } from "@/components/media/MediaGrid";
+import { getRelatedMedia } from "@/lib/discovery/getRelatedMedia";
 import {
   getReviewsForEntity,
   getEntityStats,
@@ -37,6 +39,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
     getReviewsForEntity("song", id),
     getEntityStats("song", id),
     getListenLogsForTrack(id, 10),
+    getRelatedMedia("song", id, 12),
   ]);
 
   const defaultStats = {
@@ -61,6 +64,18 @@ export default async function SongPage({ params }: { params: PageParams }) {
       "[song] getListenLogsForTrack failed:",
       songSettled[2].reason,
     );
+  const relatedSongsRaw =
+    songSettled[3].status === "fulfilled" ? songSettled[3].value : [];
+  if (songSettled[3].status === "rejected")
+    console.error("[song] getRelatedMedia failed:", songSettled[3].reason);
+
+  const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
+  const relatedTracks =
+    relatedTrackIds.length > 0
+      ? (await getOrFetchTracksBatch(relatedTrackIds)).filter(
+          (t): t is SpotifyApi.TrackObjectFull => t != null,
+        )
+      : [];
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
@@ -119,6 +134,27 @@ export default async function SongPage({ params }: { params: PageParams }) {
           )}
         </div>
       </div>
+
+      {/* Fans also like (co-occurrence) */}
+      {relatedTracks.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-white">
+            Fans also like
+          </h2>
+          <p className="mb-3 text-sm text-zinc-400">
+            Other songs listeners of this track also played
+          </p>
+          <MediaGrid
+            items={relatedTracks.map((t) => ({
+              id: t.id,
+              type: "song",
+              title: t.name,
+              artist: t.artists?.map((a) => a.name).join(", ") ?? "",
+              artworkUrl: t.album?.images?.[0]?.url ?? null,
+            }))}
+          />
+        </section>
+      )}
 
       {/* Reviews */}
       <EntityReviewsSection
