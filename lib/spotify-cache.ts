@@ -925,7 +925,7 @@ async function getOrFetchTracksBatchInner(
 
   const { data: songRows } = await supabase
     .from("songs")
-    .select("id, name, album_id, artist_id, duration_ms, track_number, created_at, updated_at, cached_at")
+    .select("id, name, album_id, artist_id, duration_ms, updated_at, cached_at")
     .in("id", uniqueIds);
   const allSongs = (songRows ?? []) as unknown as SongRow[];
   const songs = allSongs.filter((s) => !isCacheStale(s.cached_at ?? s.updated_at));
@@ -937,18 +937,18 @@ async function getOrFetchTracksBatchInner(
     albumIds.length
       ? supabase
           .from("albums")
-          .select("id, name, artist_id, image_url, release_date, total_tracks, created_at, updated_at, cached_at")
+          .select("id, name, artist_id, image_url, release_date, updated_at, cached_at")
           .in("id", albumIds)
       : { data: [] },
     artistIds.length
       ? supabase
           .from("artists")
-          .select("id, name, image_url, genres, created_at, updated_at, cached_at")
+          .select("id, name")
           .in("id", artistIds)
       : { data: [] },
   ]);
 
-  const albumMap = new Map((albumRows ?? []).map((a: AlbumRow) => [a.id, a]));
+  const albumMap = new Map((albumRows ?? []).map((a) => [a.id, a as unknown as AlbumRow]));
   const artistMap = new Map(
     (artistRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
   );
@@ -1092,7 +1092,7 @@ async function getOrFetchArtistsBatchInner(
 
   const { data: artistRows } = await supabase
     .from("artists")
-    .select("id, name, image_url, genres, created_at, updated_at, cached_at")
+    .select("id, name, image_url, genres, updated_at, cached_at")
     .in("id", uniqueIds);
   const allArtists = (artistRows ?? []) as unknown as ArtistRow[];
   const artistsWithImage = allArtists.filter(

@@ -75,7 +75,7 @@ async function getListenLogsInternal(opts: {
     const userIds = [...new Set(logs.map((l) => l.user_id))];
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .in("id", userIds);
 
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
@@ -226,7 +226,7 @@ export async function getReviewsForUser(
 
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .eq("id", userId);
 
     const user = users?.[0] ?? null;
@@ -943,6 +943,7 @@ export async function getLeaderboard(
 export async function getReviewsForArtist(
   artistId: string,
   limit = 10,
+  offset = 0,
 ): Promise<EntityReviewItem[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -958,6 +959,9 @@ export async function getReviewsForArtist(
     ];
     if (entityIds.length === 0) return [];
 
+    const from = offset;
+    const to = offset + limit - 1;
+
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
@@ -965,7 +969,7 @@ export async function getReviewsForArtist(
       )
       .in("entity_id", entityIds)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
 
     if (error || !rows?.length) return [];
 
@@ -1104,7 +1108,7 @@ export async function getListenLogsForArtist(
     const userIds = [...new Set(logs.map((l) => l.user_id))];
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .in("id", userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
@@ -1151,7 +1155,7 @@ export async function getListenLogsForAlbum(
     const userIds = [...new Set(logs.map((l) => l.user_id))];
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .in("id", userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
@@ -1187,93 +1191,62 @@ export async function getPopularAlbumsForArtist(
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: albumRows } = await supabase
-      .from("albums")
-      .select("id, name, image_url")
-      .eq("artist_id", artistId);
-
-    if (!albumRows?.length) return [];
-
-    const albumIds = albumRows.map((a) => a.id);
-
-    const [{ data: songRows }, { data: reviewRows }] = await Promise.all([
-      supabase.from("songs").select("id, album_id").in("album_id", albumIds),
-      supabase
-        .from("reviews")
-        .select("entity_id, rating")
-        .eq("entity_type", "album")
-        .in("entity_id", albumIds),
-    ]);
-
-    const trackIds = (songRows ?? []).map((s) => s.id);
-    const trackToAlbum = new Map(
-      (songRows ?? []).map((s) => [s.id, s.album_id]),
-    );
-
-    const listensByAlbum = new Map<string, number>();
-    if (trackIds.length > 0) {
-      const { data: logRows } = await supabase
-        .from("logs")
-        .select("track_id")
-        .in("track_id", trackIds);
-      for (const l of logRows ?? []) {
-        const albumId = trackToAlbum.get(l.track_id);
-        if (albumId)
-          listensByAlbum.set(albumId, (listensByAlbum.get(albumId) ?? 0) + 1);
-      }
-    }
-
-    const reviewsByAlbum = new Map<string, number>();
-    const ratingSumByAlbum = new Map<string, number>();
-    for (const r of reviewRows ?? []) {
-      reviewsByAlbum.set(
-        r.entity_id,
-        (reviewsByAlbum.get(r.entity_id) ?? 0) + 1,
-      );
-      ratingSumByAlbum.set(
-        r.entity_id,
-        (ratingSumByAlbum.get(r.entity_id) ?? 0) + r.rating,
-      );
-    }
-
-    return albumRows
-      .map((a) => {
-        const listen_count = listensByAlbum.get(a.id) ?? 0;
-        const review_count = reviewsByAlbum.get(a.id) ?? 0;
-        const sum = ratingSumByAlbum.get(a.id) ?? 0;
-        const average_rating =
-          review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
-        const popularity_score =
-          listen_count * 1 + review_count * 5 + (average_rating ?? 0) * 3;
-        return {
-          id: a.id,
-          name: a.name,
-          image_url: a.image_url ?? null,
-          listen_count,
-          review_count,
-          average_rating,
-          _score: popularity_score,
-        };
-      })
-      .sort((a, b) => b._score - a._score)
-      .slice(0, limit)
-      .map(
-        ({
+    const { data: statsRows, error: statsError } = await supabase
+      .from("album_stats")
+      .select(`
+        album_id,
+        listen_count,
+        review_count,
+        avg_rating,
+        albums!inner (
           id,
           name,
           image_url,
-          listen_count,
-          review_count,
-          average_rating,
-        }) => ({
-          id,
-          name,
-          image_url,
-          listen_count,
-          review_count,
-          average_rating,
-        }),
-      );
+          artist_id
+        )
+      `)
+      .eq("albums.artist_id", artistId)
+      .order("listen_count", { ascending: false })
+      .limit(limit);
+
+    if (statsError || !statsRows?.length) {
+      // Fallback: if no stats, return basic album list sorted by name
+      const { data: albumRows } = await supabase
+        .from("albums")
+        .select("id, name, image_url")
+        .eq("artist_id", artistId)
+        .order("name", { ascending: true })
+        .limit(limit);
+
+      return (albumRows ?? []).map((a) => ({
+        id: a.id,
+        name: a.name,
+        image_url: a.image_url ?? null,
+        listen_count: 0,
+        review_count: 0,
+        average_rating: null,
+      }));
+    }
+
+    return (statsRows as unknown as {
+      album_id: string;
+      listen_count: number;
+      review_count: number;
+      avg_rating: number | null;
+      albums: {
+        id: string;
+        name: string;
+        image_url: string | null;
+        artist_id: string;
+      };
+    }[]).map((row) => ({
+      id: row.album_id,
+      name: row.albums.name,
+      image_url: row.albums.image_url ?? null,
+      listen_count: row.listen_count ?? 0,
+      review_count: row.review_count ?? 0,
+      average_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
+    }));
   } catch (e) {
     console.error("[queries] getPopularAlbumsForArtist failed:", e);
     return [];
@@ -2161,6 +2134,7 @@ export async function getSuggestedUsers(
 export async function getReviewFeed(
   userId: string,
   limit = 50,
+  offset = 0,
 ): Promise<ReviewWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -2178,6 +2152,8 @@ export async function getReviewFeed(
     if (followingIds.length === 0) return [];
 
     const cappedLimit = Math.min(limit, 100);
+    const from = offset;
+    const to = offset + cappedLimit - 1;
 
     const { data: rows, error: reviewsError } = await supabase
       .from("reviews")
@@ -2186,7 +2162,7 @@ export async function getReviewFeed(
       )
       .in("user_id", followingIds)
       .order("created_at", { ascending: false })
-      .limit(cappedLimit);
+      .range(from, to);
 
     if (reviewsError) throw reviewsError;
     if (!rows?.length) return [];
@@ -2194,7 +2170,7 @@ export async function getReviewFeed(
     const userIds = [...new Set(rows.map((r) => r.user_id))];
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .in("id", userIds);
 
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
@@ -2358,7 +2334,7 @@ export async function getActivityFeed(
     listenSessions.forEach((s) => userIds.add(s.user_id));
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .in("id", [...userIds]);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
@@ -2531,7 +2507,7 @@ async function getActivityFeedFallback(
     });
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .in("id", [...userIds]);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
@@ -2616,7 +2592,7 @@ export async function getProfileActivity(
     followRows.forEach((f) => userIds.add(f.following_id));
     const { data: users } = await supabase
       .from("users")
-      .select("id, email, username, avatar_url, bio, created_at")
+      .select("id, username, avatar_url")
       .in("id", [...userIds]);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
@@ -2790,7 +2766,11 @@ export type ListWithItems = {
   owner_username: string | null;
 };
 
-export async function getList(listId: string): Promise<ListWithItems | null> {
+export async function getList(
+  listId: string,
+  limit = 100,
+  offset = 0,
+): Promise<ListWithItems | null> {
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -2816,11 +2796,15 @@ export async function getList(listId: string): Promise<ListWithItems | null> {
       | null = null;
     let itemsError: { code?: string } | null = null;
 
+    const from = offset;
+    const to = offset + limit - 1;
+
     const itemsResult = await supabase
       .from("list_items")
       .select("id, list_id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)
-      .order("position", { ascending: true });
+      .order("position", { ascending: true })
+      .range(from, to);
     itemRows = itemsResult.data;
     itemsError = itemsResult.error;
 
@@ -2830,7 +2814,8 @@ export async function getList(listId: string): Promise<ListWithItems | null> {
         .from("list_items")
         .select("id, list_id, entity_type, entity_id, position")
         .eq("list_id", listId)
-        .order("position", { ascending: true });
+        .order("position", { ascending: true })
+        .range(from, to);
       if (!fallback.error) {
         itemRows = (fallback.data ?? []).map((r) => ({
           ...r,
