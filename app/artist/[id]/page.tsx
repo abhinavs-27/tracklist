@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { TrackCard } from "@/components/track-card";
 import { ListenCard } from "@/components/listen-card";
+import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import {
   getTopTracksForArtist,
   getReviewsForArtist,
@@ -90,44 +91,20 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
       {popularAlbums.length > 0 ? (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">Albums</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {popularAlbums.map((a) => (
-              <Link
-                key={a.id}
-                href={`/album/${a.id}`}
-                className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 transition hover:border-zinc-600"
-              >
-                <div className="aspect-square bg-zinc-800">
-                  {a.image_url ? (
-                    <img
-                      src={a.image_url}
-                      alt=""
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl text-zinc-600">
-                      ♪
-                    </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p className="truncate text-sm font-medium text-white">
-                    {a.name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    {a.listen_count > 0 && (
-                      <span>{a.listen_count} listen{a.listen_count !== 1 ? "s" : ""}</span>
-                    )}
-                    {a.listen_count > 0 && a.review_count > 0 && " · "}
-                    {a.review_count > 0 && (
-                      <span>{a.review_count} review{a.review_count !== 1 ? "s" : ""}</span>
-                    )}
-                    {a.listen_count === 0 && a.review_count === 0 && "No activity yet"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <MediaGrid
+            items={popularAlbums.map(
+              (a): MediaItem => ({
+                id: a.id,
+                type: "album",
+                title: a.name,
+                artist: artist.name,
+                artworkUrl: a.image_url ?? null,
+                avgRating: a.average_rating ?? undefined,
+                totalPlays: a.listen_count,
+              }),
+            )}
+            columns={4}
+          />
         </section>
       ) : null}
 

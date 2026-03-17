@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { FavoriteAlbumsEditModal } from "./favorite-albums-edit-modal";
+import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import { queryKeys } from "@/lib/query-keys";
 import type { FavoriteAlbum } from "@/lib/queries";
 
@@ -50,33 +50,18 @@ export function ProfileFavoriteAlbumsSection({
             : "No favorite albums yet."}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {favoriteAlbums.map((fav) => (
-            <li key={fav.album_id}>
-              <Link
-                href={`/album/${fav.album_id}`}
-                className="block rounded-lg border border-zinc-800 bg-zinc-900/60 p-2 hover:border-emerald-500 hover:bg-zinc-900"
-              >
-                <div className="aspect-square w-full overflow-hidden rounded-md bg-zinc-800">
-                  {fav.image_url ? (
-                    <img
-                      src={fav.image_url}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-2xl text-zinc-500">
-                      ♪
-                    </div>
-                  )}
-                </div>
-                <p className="mt-2 truncate text-xs font-medium text-white">
-                  {fav.name}
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <MediaGrid
+          items={favoriteAlbums.map(
+            (fav): MediaItem => ({
+              id: fav.album_id,
+              type: "album",
+              title: fav.name,
+              artist: "",
+              artworkUrl: fav.image_url ?? null,
+            }),
+          )}
+          columns={4}
+        />
       )}
       <FavoriteAlbumsEditModal
         initialAlbums={items}

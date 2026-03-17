@@ -2,10 +2,117 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useLeaderboard } from "@/lib/hooks/use-leaderboard";
-import type { LeaderboardFilters } from "@/lib/hooks/use-leaderboard";
+import {
+  useLeaderboard,
+  type LeaderboardEntry,
+  type LeaderboardFilters,
+} from "@/lib/hooks/use-leaderboard";
 import { YearRangeFilter, type YearRange } from "@/components/year-range-filter";
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
+import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+
+function LeaderboardListRow({
+  rank,
+  entry,
+  showFavoriteCount,
+}: {
+  rank: number;
+  entry: LeaderboardEntry;
+  showFavoriteCount: boolean;
+}) {
+  const href =
+    entry.entity_type === "album" ? `/album/${entry.id}` : `/song/${entry.id}`;
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50"
+    >
+      <span className="w-6 shrink-0 text-right text-sm font-medium text-zinc-500 tabular-nums">
+        {rank}
+      </span>
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
+        {entry.artwork_url ? (
+          <img
+            src={entry.artwork_url}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">
+            ♪
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-white">{entry.name}</p>
+        <p className="truncate text-sm text-zinc-500">{entry.artist}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="text-sm text-zinc-400 tabular-nums">
+          {entry.total_plays.toLocaleString()} plays
+        </span>
+        {entry.average_rating != null ? (
+          <span className="text-sm text-amber-400">
+            ★ {entry.average_rating.toFixed(1)}
+          </span>
+        ) : (
+          <span className="text-sm text-zinc-500">—</span>
+        )}
+        {showFavoriteCount && (
+          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400 tabular-nums">
+            {(entry.favorite_count ?? 0).toLocaleString()} favorited
+          </span>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function GridIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="7" height="7" x="3" y="3" rx="1" />
+      <rect width="7" height="7" x="14" y="3" rx="1" />
+      <rect width="7" height="7" x="14" y="14" rx="1" />
+      <rect width="7" height="7" x="3" y="14" rx="1" />
+    </svg>
+  );
+}
+
+function ListIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="8" x2="21" y1="6" y2="6" />
+      <line x1="8" x2="21" y1="12" y2="12" />
+      <line x1="8" x2="21" y1="18" y2="18" />
+      <line x1="3" x2="3.01" y1="6" y2="6" />
+      <line x1="3" x2="3.01" y1="12" y2="12" />
+      <line x1="3" x2="3.01" y1="18" y2="18" />
+    </svg>
+  );
+}
 
 function LeaderboardSkeleton() {
   return (
@@ -28,82 +135,13 @@ function LeaderboardSkeleton() {
   );
 }
 
-function LeaderboardRow({
-  rank,
-  id,
-  name,
-  artist,
-  entity,
-  artwork_url,
-  total_plays,
-  average_rating,
-  favorite_count,
-  showFavoriteCount,
-}: {
-  rank: number;
-  id: string;
-  name: string;
-  artist: string;
-  entity: "song" | "album";
-  artwork_url: string | null;
-  total_plays: number;
-  average_rating: number | null;
-  favorite_count?: number;
-  showFavoriteCount?: boolean;
-}) {
-  const href = entity === "album" ? `/album/${id}` : `/song/${id}`;
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50"
-    >
-      <span className="w-6 shrink-0 text-right text-sm font-medium text-zinc-500 tabular-nums">
-        {rank}
-      </span>
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
-        {artwork_url ? (
-          <img
-            src={artwork_url}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">
-            ♪
-          </div>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-white">{name}</p>
-        <p className="truncate text-sm text-zinc-500">{artist}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="text-sm text-zinc-400 tabular-nums">
-          {total_plays.toLocaleString()} plays
-        </span>
-        {average_rating != null ? (
-          <span className="text-sm text-amber-400">
-            ★ {average_rating.toFixed(1)}
-          </span>
-        ) : (
-          <span className="text-sm text-zinc-500">—</span>
-        )}
-        {showFavoriteCount && (
-          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400 tabular-nums">
-            {(favorite_count ?? 0).toLocaleString()} favorited
-          </span>
-        )}
-      </div>
-    </Link>
-  );
-}
-
 export default function LeaderboardPage() {
   const [type, setType] = useState<"popular" | "topRated" | "mostFavorited">(
     "popular",
   );
   const [entity, setEntity] = useState<"song" | "album">("song");
   const [yearRange, setYearRange] = useState<YearRange>({});
+  const [view, setView] = useState<"grid" | "list">("grid");
 
   const filters: LeaderboardFilters = useMemo(
     () => ({
@@ -193,6 +231,38 @@ export default function LeaderboardPage() {
             </button>
           </div>
           <YearRangeFilter value={yearRange} onChange={setYearRange} />
+          <div
+            className="flex rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5"
+            role="group"
+            aria-label="View"
+          >
+            <button
+              type="button"
+              onClick={() => setView("grid")}
+              className={`rounded-md p-2 transition ${
+                view === "grid"
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+              title="Grid view"
+              aria-pressed={view === "grid"}
+            >
+              <GridIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`rounded-md p-2 transition ${
+                view === "list"
+                  ? "bg-zinc-700 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+              title="List view"
+              aria-pressed={view === "list"}
+            >
+              <ListIcon />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -218,20 +288,34 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {!error && !isLoading && data.length > 0 && (
+        {!error && !isLoading && data.length > 0 && view === "grid" && (
+          <MediaGrid
+            items={data.map(
+              (entry, i): MediaItem => ({
+                id: entry.id,
+                type: entry.entity_type,
+                title: entry.name,
+                artist: entry.artist,
+                artworkUrl: entry.artwork_url ?? null,
+                avgRating: entry.average_rating ?? undefined,
+                totalPlays: entry.total_plays,
+                rank: i + 1,
+                ...(type === "mostFavorited" &&
+                  entry.favorite_count != null && {
+                    favoriteCount: entry.favorite_count,
+                  }),
+              }),
+            )}
+          />
+        )}
+
+        {!error && !isLoading && data.length > 0 && view === "list" && (
           <div className="space-y-2" role="list">
             {data.map((entry, i) => (
-              <LeaderboardRow
+              <LeaderboardListRow
                 key={entry.id}
                 rank={i + 1}
-                id={entry.id}
-                name={entry.name}
-                artist={entry.artist}
-                entity={entry.entity_type}
-                artwork_url={entry.artwork_url}
-                total_plays={entry.total_plays}
-                average_rating={entry.average_rating}
-                favorite_count={entry.favorite_count}
+                entry={entry}
                 showFavoriteCount={type === "mostFavorited"}
               />
             ))}
