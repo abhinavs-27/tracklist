@@ -1,16 +1,22 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { LeaderboardEntry, LeaderboardFilters } from "@/lib/queries";
 
 export type { LeaderboardEntry, LeaderboardFilters } from "@/lib/queries";
 
-async function fetchLeaderboard(
+type LeaderboardPage = {
+  items: LeaderboardEntry[];
+  nextCursor: number | null;
+};
+
+async function fetchLeaderboardPage(
   type: "popular" | "topRated" | "mostFavorited",
   filters: LeaderboardFilters,
   entity: "song" | "album",
-): Promise<LeaderboardEntry[]> {
+  cursor: number | undefined,
+): Promise<LeaderboardPage> {
   const params = new URLSearchParams({ type, entity });
   if (filters.startYear != null) {
     params.set("startYear", String(filters.startYear));
@@ -18,10 +24,13 @@ async function fetchLeaderboard(
   if (filters.endYear != null) {
     params.set("endYear", String(filters.endYear));
   }
+  if (cursor && cursor > 0) {
+    params.set("cursor", String(cursor));
+  }
   const res = await fetch(`/api/leaderboard?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to load leaderboard");
-  const data = await res.json();
-  return data as LeaderboardEntry[];
+  const data = (await res.json()) as LeaderboardPage;
+  return data;
 }
 
 export function useLeaderboard(
@@ -30,15 +39,29 @@ export function useLeaderboard(
   entity: "song" | "album",
 ) {
   const key = queryKeys.leaderboard(type, { ...filters, entity });
-  const { data, isLoading, error } = useQuery({
+  const infiniteQuery = useInfiniteQuery({
     queryKey: key,
-    queryFn: () => fetchLeaderboard(type, filters, entity),
+    queryFn: ({ pageParam }) =>
+      fetchLeaderboardPage(
+        type,
+        filters,
+        entity,
+        (pageParam as number | undefined) ?? 0,
+      ),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    initialPageParam: 0,
     staleTime: 60 * 1000,
   });
 
+  const flatItems =
+    infiniteQuery.data?.pages.flatMap((page) => page.items) ?? [];
+
   return {
-    data: data ?? [],
-    isLoading,
-    error,
+    data: flatItems,
+    isLoading: infiniteQuery.isLoading,
+    error: infiniteQuery.error,
+    fetchNextPage: infiniteQuery.fetchNextPage,
+    hasNextPage: infiniteQuery.hasNextPage,
+    isFetchingNextPage: infiniteQuery.isFetchingNextPage,
   };
 }
