@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
       .select("album_id, album_name, artist_name, album_image, played_at")
       .eq("user_id", userId)
       .not("album_id", "is", null)
-      .order("played_at", { ascending: false });
+      .order("played_at", { ascending: false })
+      .limit(200);
 
     if (error) return apiInternalError(error);
 
