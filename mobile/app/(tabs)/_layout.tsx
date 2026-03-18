@@ -7,18 +7,19 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#111827",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: "#10b981", // emerald-500
+        tabBarInactiveTintColor: "#a1a1aa", // zinc-400
         tabBarStyle: {
           position: "absolute",
-          borderTopWidth: Platform.OS === "ios" ? 0 : 1,
-          borderTopColor: "#E5E7EB",
-          backgroundColor: "transparent",
+          borderTopWidth: 0,
+          backgroundColor: Platform.OS === "ios" ? "transparent" : "#09090b",
           elevation: 0,
+          height: 60,
+          paddingBottom: 8,
         },
         tabBarBackground:
           Platform.OS === "ios"
-            ? () => <BlurView intensity={40} tint="light" style={{ flex: 1 }} />
+            ? () => <BlurView intensity={80} tint="dark" style={{ flex: 1 }} />
             : undefined,
       }}
     >
@@ -55,4 +56,3 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-
