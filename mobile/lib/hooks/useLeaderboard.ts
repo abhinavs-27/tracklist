@@ -1,79 +1,96 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../query-keys";
 import { fetcher } from "../api";
 
-export type LeaderboardType = "popular" | "topRated" | "mostFavorited";
-export type LeaderboardEntity = "song" | "album";
+export type LeaderboardTypeInput = "songs" | "albums";
+export type LeaderboardMetricInput = "popular" | "top_rated" | "favorited";
 
-export type LeaderboardEntry = {
+export type LeaderboardItem = {
   id: string;
-  rank: number;
+  entityType: "song" | "album";
   title: string;
   artist: string;
   artworkUrl: string | null;
+  rating: number | null;
+  playCount: number;
+  favoriteCount?: number;
 };
 
-export type LeaderboardFilters = {
-  startYear?: number;
-  endYear?: number;
-  entity?: LeaderboardEntity;
+type LeaderboardEntryFromApi = {
+  id: string;
+  entity_type: "song" | "album";
+  name: string;
+  artist: string;
+  artwork_url: string | null;
+  total_plays: number;
+  average_rating: number | null;
+  favorite_count?: number;
 };
 
-type LeaderboardPage = {
-  items: LeaderboardEntry[];
+type LeaderboardResponse = {
+  items: LeaderboardEntryFromApi[];
   nextCursor: number | null;
 };
 
-async function fetchLeaderboardPage(
-  type: LeaderboardType,
-  filters: LeaderboardFilters,
-  entity: LeaderboardEntity,
-  cursor: number | undefined,
-): Promise<LeaderboardPage> {
-  const params = new URLSearchParams({ type, entity });
-  if (filters.startYear != null) {
-    params.set("startYear", String(filters.startYear));
-  }
-  if (filters.endYear != null) {
-    params.set("endYear", String(filters.endYear));
-  }
-  if (cursor && cursor > 0) {
-    params.set("cursor", String(cursor));
-  }
+export type UseLeaderboardParams = {
+  type: LeaderboardTypeInput;
+  metric: LeaderboardMetricInput;
+  startYear?: number;
+  endYear?: number;
+};
 
-  return fetcher<LeaderboardPage>(`/api/leaderboard?${params.toString()}`);
-}
+const metricToBackendType = {
+  popular: "popular",
+  top_rated: "topRated",
+  favorited: "mostFavorited",
+} as const satisfies Record<LeaderboardMetricInput, "popular" | "topRated" | "mostFavorited">;
 
-export function useLeaderboard(
-  type: LeaderboardType,
-  filters: LeaderboardFilters,
-  entity: LeaderboardEntity,
-) {
-  const key = queryKeys.leaderboard(type, { ...filters, entity });
-  const infiniteQuery = useInfiniteQuery({
+const typeToBackendEntity = {
+  albums: "album",
+  songs: "song",
+} as const satisfies Record<LeaderboardTypeInput, "album" | "song">;
+
+export function useLeaderboard(params: UseLeaderboardParams) {
+  const entity = typeToBackendEntity[params.type];
+  const backendType = metricToBackendType[params.metric];
+
+  const key = queryKeys.leaderboard(backendType, {
+    startYear: params.startYear,
+    endYear: params.endYear,
+    entity,
+  });
+
+  const { data, isLoading, error } = useQuery({
     queryKey: key,
-    queryFn: ({ pageParam }) =>
-      fetchLeaderboardPage(
-        type,
-        filters,
+    queryFn: () => {
+      // Note: backend uses `type` for the metric and `entity` for songs/albums.
+      // We keep your hook signature (`type`=songs|albums, `metric`=popular|top_rated|favorited)
+      // by mapping them here.
+      const qp = new URLSearchParams({
+        type: backendType,
         entity,
-        (pageParam as number | undefined) ?? 0,
-      ),
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    initialPageParam: 0,
+        metric: params.metric,
+      });
+      if (params.startYear != null) qp.set("startYear", String(params.startYear));
+      if (params.endYear != null) qp.set("endYear", String(params.endYear));
+
+      return fetcher<LeaderboardResponse>(`/api/leaderboard?${qp.toString()}`);
+    },
     staleTime: 60 * 1000,
   });
 
-  const flatItems =
-    infiniteQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const items: LeaderboardItem[] =
+    data?.items.map((e) => ({
+      id: e.id,
+      entityType: e.entity_type,
+      title: e.name,
+      artist: e.artist,
+      artworkUrl: e.artwork_url,
+      rating: e.average_rating,
+      playCount: e.total_plays,
+      favoriteCount: e.favorite_count,
+    })) ?? [];
 
-  return {
-    data: flatItems,
-    isLoading: infiniteQuery.isLoading,
-    error: infiniteQuery.error,
-    fetchNextPage: infiniteQuery.fetchNextPage,
-    hasNextPage: infiniteQuery.hasNextPage,
-    isFetchingNextPage: infiniteQuery.isFetchingNextPage,
-  };
+  return { data: items, isLoading, error };
 }
 

@@ -1,91 +1,115 @@
-import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { useState } from "react";
-import { ActivityIndicator, SafeAreaView, Text, View } from "react-native";
-import { MediaGrid, MediaItem } from "../../components/media/MediaGrid";
-import {
-  LeaderboardEntity,
-  LeaderboardType,
-  useLeaderboard,
-} from "../../lib/hooks/useLeaderboard";
 import { ViewToggle } from "../../components/ui/ViewToggle";
+import { LeaderboardRow } from "../../components/leaderboard/LeaderboardRow";
+import type {
+  LeaderboardItem,
+  LeaderboardMetricInput,
+  LeaderboardTypeInput,
+} from "../../lib/hooks/useLeaderboard";
+import { useLeaderboard } from "../../lib/hooks/useLeaderboard";
+import { YearRangeFilter, type YearRange } from "../../components/filters/YearRangeFilter";
+import { theme } from "../../lib/theme";
 
 export default function LeaderboardScreen() {
-  const router = useRouter();
-  const [entity, setEntity] = useState<LeaderboardEntity>("album");
-  const [type, setType] = useState<LeaderboardType>("popular");
+  const [type, setType] = useState<LeaderboardTypeInput>("albums");
+  const [metric, setMetric] = useState<LeaderboardMetricInput>("popular");
+  const [yearRange, setYearRange] = useState<YearRange>({});
 
-  const { data, isLoading } = useLeaderboard(type, {}, entity);
+  const metricOptions = type === "albums"
+    ? ([
+        { value: "popular", label: "Popular" },
+        { value: "top_rated", label: "Top Rated" },
+        { value: "favorited", label: "Favorited" },
+      ] as const)
+    : ([
+        { value: "popular", label: "Popular" },
+        { value: "top_rated", label: "Top Rated" },
+      ] as const);
 
-  const mediaItems: MediaItem[] =
-    data?.map((item) => ({
-      id: item.id,
-      title: item.title,
-      artist: item.artist,
-      artworkUrl: item.artworkUrl,
-      rank: item.rank,
-    })) ?? [];
+  const { data, isLoading, error } = useLeaderboard({
+    type,
+    metric,
+    startYear: yearRange.startYear,
+    endYear: yearRange.endYear,
+  });
+
+  const entries: LeaderboardItem[] = data ?? [];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: 4,
-          gap: 12,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 24,
-            fontWeight: "700",
-            color: "#111827",
-          }}
-        >
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+      <View style={{ padding: 16, gap: 12 }}>
+        <Text style={{ fontSize: theme.text.title.fontSize, fontWeight: theme.text.title.fontWeight, color: theme.colors.text }}>
           Leaderboard
         </Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <ViewToggle
-              value={entity}
-              onChange={(val) => setEntity(val as LeaderboardEntity)}
-              options={[
-                { value: "album", label: "Albums" },
-                { value: "song", label: "Songs" },
-              ]}
-            />
-          </View>
+
+        <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
             <ViewToggle
               value={type}
-              onChange={(val) => setType(val as LeaderboardType)}
+              onChange={(val) => setType(val as LeaderboardTypeInput)}
               options={[
-                { value: "popular", label: "Popular" },
-                { value: "topRated", label: "Top Rated" },
+                { value: "albums", label: "Albums" },
+                { value: "songs", label: "Songs" },
               ]}
             />
           </View>
+          <View style={{ flex: 1 }}>
+            <ViewToggle
+              value={metric}
+              onChange={(val) => {
+                const next = val as LeaderboardMetricInput;
+                // Prevent "favorited" when showing songs (backend supports mostFavorited for albums only).
+                if (type === "songs" && next === "favorited") {
+                  setMetric("popular");
+                  return;
+                }
+                setMetric(next);
+              }}
+              options={metricOptions as any}
+            />
+          </View>
+        </View>
+
+        <View style={{ marginTop: -4 }}>
+          <YearRangeFilter value={yearRange} onChange={setYearRange} />
         </View>
       </View>
 
       {isLoading ? (
         <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
           <ActivityIndicator size="small" color="#111827" />
         </View>
+      ) : error ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <Text style={{ color: theme.colors.danger, fontWeight: "600" }}>
+            Failed to load leaderboard.
+          </Text>
+          <Text style={{ color: theme.colors.muted, marginTop: 8 }}>
+            {(error as Error)?.message ?? String(error)}
+          </Text>
+        </View>
       ) : (
-        <MediaGrid
-          data={mediaItems}
-          numColumns={2}
-          onPressItem={(item) => {
-            const base = entity === "album" ? "/album" : "/song";
-            router.push(`${base}/${item.id}` as const);
+        <FlatList
+          data={entries}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: 24,
+            paddingTop: 8,
           }}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          renderItem={({ item, index }) => (
+            <LeaderboardRow entry={item} rank={index + 1} />
+          )}
+          ListEmptyComponent={() => (
+            <View style={{ paddingTop: 24, alignItems: "center" }}>
+              <Text style={{ color: theme.colors.muted }}>No results.</Text>
+            </View>
+          )}
         />
       )}
     </SafeAreaView>

@@ -1,4 +1,5 @@
 import { Image, ImageStyle, StyleSheet } from "react-native";
+import { theme } from "../../lib/theme";
 
 type ArtworkSize = "sm" | "md" | "lg";
 
@@ -34,7 +35,7 @@ export function Artwork({ src, size = "md", style }: Props) {
 
 const styles = StyleSheet.create({
   image: {
-    backgroundColor: "#111827",
+    backgroundColor: theme.colors.border, // fallback background
   },
 });
 

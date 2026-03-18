@@ -14,16 +14,14 @@ import { Artwork } from "../../components/media/Artwork";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { data: popularAlbums, isLoading: isLoadingPopular } = useLeaderboard(
-    "popular",
-    {},
-    "album",
-  );
-  const { data: topRatedAlbums, isLoading: isLoadingTopRated } = useLeaderboard(
-    "topRated",
-    {},
-    "album",
-  );
+  const { data: popularAlbums, isLoading: isLoadingPopular } = useLeaderboard({
+    type: "albums",
+    metric: "popular",
+  });
+  const { data: topRatedAlbums, isLoading: isLoadingTopRated } = useLeaderboard({
+    type: "albums",
+    metric: "top_rated",
+  });
   const { data: risingArtists, isLoading: isLoadingRising } = useRisingArtists(10);
 
   const isLoading = isLoadingPopular || isLoadingTopRated || isLoadingRising;
