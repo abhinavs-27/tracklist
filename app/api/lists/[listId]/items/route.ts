@@ -44,7 +44,7 @@ export async function POST(
     const item = await addListItem(listId, entityType, entityId);
     if (!item) return apiInternalError(new Error("addListItem returned null"));
 
-    console.log("[lists] list item added", {
+    console.log("[lists] list-item-added", {
       userId: session.user.id,
       listId,
       itemId: item.id,

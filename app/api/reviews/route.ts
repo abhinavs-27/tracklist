@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         : null,
     };
 
-    console.log("[reviews] review created/updated", {
+    console.log("[reviews] review-created-upserted", {
       userId: session.user.id,
       reviewId: data.id,
       entityType: data.entity_type,

@@ -137,6 +137,12 @@ export async function PATCH(
       .maybeSingle();
 
     if (error || !data) return apiInternalError(error ?? new Error("Update failed"));
+
+    console.log("[lists] list-updated", {
+      userId: session.user.id,
+      listId,
+    });
+
     return apiOk(data);
   } catch (e) {
     return apiInternalError(e);
@@ -163,6 +169,11 @@ export async function DELETE(
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from("lists").delete().eq("id", listId);
     if (error) return apiInternalError(error);
+
+    console.log("[lists] list-deleted", {
+      userId: session.user.id,
+      listId,
+    });
 
     return apiOk({ success: true });
   } catch (e) {

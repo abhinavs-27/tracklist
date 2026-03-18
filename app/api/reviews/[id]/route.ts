@@ -65,7 +65,7 @@ export async function PATCH(
       .single();
 
     if (error) return apiInternalError(error);
-    console.log("[reviews] review updated", {
+    console.log("[reviews] review-updated", {
       userId: session.user.id,
       reviewId: data.id,
     });
@@ -99,7 +99,7 @@ export async function DELETE(
 
     const { error } = await supabase.from("reviews").delete().eq("id", id);
     if (error) return apiInternalError(error);
-    console.log("[reviews] review deleted", {
+    console.log("[reviews] review-deleted", {
       userId: session.user.id,
       reviewId: id,
     });

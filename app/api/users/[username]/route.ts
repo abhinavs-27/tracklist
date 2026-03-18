@@ -148,7 +148,7 @@ export async function PATCH(
       console.error("User update error:", error);
       return apiInternalError(error);
     }
-    console.log("[users] user profile updated", {
+    console.log("[users] profile-updated", {
       userId: session.user.id,
       fields: Object.keys(updates),
     });

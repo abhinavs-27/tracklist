@@ -104,23 +104,23 @@ export async function POST(request: NextRequest) {
       })),
     );
     if (insertError) {
-      toInsert.forEach((u) => {
-        console.log("[spotify-ingest] track ingestion failed", {
+      for (const u of toInsert) {
+        console.log("[spotify-ingest] ingest", {
           userId: session.user.id,
           trackId: u.track_id,
           success: false,
         });
-      });
+      }
       return apiInternalError(insertError);
     }
 
-    toInsert.forEach((u) => {
-      console.log("[spotify-ingest] track ingestion successful", {
+    for (const u of toInsert) {
+      console.log("[spotify-ingest] ingest", {
         userId: session.user.id,
         trackId: u.track_id,
         success: true,
       });
-    });
+    }
 
     const { grantAchievementsOnListen } = await import("@/lib/queries");
     await grantAchievementsOnListen(session.user.id);
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
     }
 
-    console.log("[spotify-ingest] spotify sync complete", {
+    console.log("[spotify-ingest] manual-sync complete", {
       userId: session.user.id,
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       console.error('Like error:', error);
       return apiInternalError(error);
     }
-    console.log("[likes] review liked", {
+    console.log("[likes] review-liked", {
       userId: session.user.id,
       reviewId,
     });
@@ -67,7 +67,7 @@ export async function DELETE(request: NextRequest) {
       console.error('Unlike error:', error);
       return apiInternalError(error);
     }
-    console.log("[likes] review unliked", {
+    console.log("[likes] review-unliked", {
       userId: session.user.id,
       reviewId,
     });

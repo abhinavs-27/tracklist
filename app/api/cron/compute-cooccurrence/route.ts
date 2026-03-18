@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     console.log("[cron] compute-cooccurrence complete", {
+      success: true,
       songUsers: songResult.usersProcessed,
       songPairs: songResult.pairsStored,
       albumUsers: albumResult.usersProcessed,

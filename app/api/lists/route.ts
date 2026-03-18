@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
     await grantAchievementOnList(session.user.id);
 
-    console.log("[lists] list created", {
+    console.log("[lists] list-created", {
       userId: session.user.id,
       listId: list.id,
     });
