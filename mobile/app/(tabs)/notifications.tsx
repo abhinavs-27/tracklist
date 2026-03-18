@@ -6,13 +6,13 @@ export default function NotificationsScreen() {
   const { notifications, isLoading } = useNotifications();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b" }}>
+      <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: "#18181b" }}>
         <Text
           style={{
             fontSize: 24,
             fontWeight: "700",
-            color: "#111827",
+            color: "#f4f4f5",
           }}
         >
           Notifications
@@ -21,16 +21,16 @@ export default function NotificationsScreen() {
 
       {isLoading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="small" color="#111827" />
+          <ActivityIndicator size="small" color="#10b981" />
         </View>
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: { id: string }) => item.id}
           ItemSeparatorComponent={() => (
-            <View style={{ height: 1, backgroundColor: "#E5E7EB" }} />
+            <View style={{ height: 1, backgroundColor: "#18181b" }} />
           )}
-          renderItem={({ item }) => (
+          renderItem={({ item }: { item: { id: string; type: string; created_at: string } }) => (
             <View
               style={{
                 paddingHorizontal: 16,
@@ -42,12 +42,12 @@ export default function NotificationsScreen() {
                 style={{
                   fontSize: 14,
                   fontWeight: "500",
-                  color: "#111827",
+                  color: "#f4f4f5",
                 }}
               >
                 {item.type}
               </Text>
-              <Text style={{ fontSize: 12, color: "#6B7280" }}>
+              <Text style={{ fontSize: 12, color: "#a1a1aa" }}>
                 {new Date(item.created_at).toLocaleString()}
               </Text>
             </View>
@@ -57,4 +57,3 @@ export default function NotificationsScreen() {
     </SafeAreaView>
   );
 }
-

@@ -19,11 +19,11 @@ export function MediaGrid({ data, numColumns = 2, onPressItem }: Props) {
   return (
     <FlatList
       data={data}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item: MediaItem) => item.id}
       numColumns={numColumns}
       contentContainerStyle={{ padding: 16, gap: 16 }}
       columnWrapperStyle={numColumns > 1 ? { gap: 16 } : undefined}
-      renderItem={({ item }) => (
+      renderItem={({ item }: { item: MediaItem }) => (
         <TouchableOpacity
           style={{ flex: 1 }}
           activeOpacity={0.8}
@@ -36,7 +36,7 @@ export function MediaGrid({ data, numColumns = 2, onPressItem }: Props) {
                 <Text
                   style={{
                     fontSize: 12,
-                    color: "#6B7280",
+                    color: "#a1a1aa", // zinc-400
                     marginBottom: 2,
                   }}
                 >
@@ -45,13 +45,13 @@ export function MediaGrid({ data, numColumns = 2, onPressItem }: Props) {
               )}
               <Text
                 numberOfLines={1}
-                style={{ fontSize: 14, fontWeight: "600", color: "#111827" }}
+                style={{ fontSize: 14, fontWeight: "600", color: "#f4f4f5" }} // zinc-100
               >
                 {item.title}
               </Text>
               <Text
                 numberOfLines={1}
-                style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}
+                style={{ fontSize: 12, color: "#a1a1aa", marginTop: 2 }} // zinc-400
               >
                 {item.artist}
               </Text>
@@ -62,4 +62,3 @@ export function MediaGrid({ data, numColumns = 2, onPressItem }: Props) {
     />
   );
 }
-
