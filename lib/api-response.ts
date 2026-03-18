@@ -44,6 +44,10 @@ export function apiBadRequest(message: string): NextResponse {
   return apiError(message, 400);
 }
 
+export function apiNoContent(): NextResponse {
+  return new NextResponse(null, { status: 204 });
+}
+
 export function apiConflict(message: string): NextResponse {
   return apiError(message, 409);
 }

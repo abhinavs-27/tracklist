@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { createSupabaseServerClient } from '@/lib/supabase';
-import { grantAchievementsOnListen } from '@/lib/queries';
+import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
 import {
   apiUnauthorized,
   apiBadRequest,
@@ -84,52 +84,15 @@ export async function GET(request: NextRequest) {
       return apiBadRequest('Invalid spotify_id');
     }
 
-    const userId = session.user.id;
+    // Reuse shared query logic for fetching logs with user data
+    const logs = await getListenLogsForUser(
+      session.user.id,
+      limit,
+      0,
+      spotifyId || undefined
+    );
 
-    const supabase = await createSupabaseServerClient();
-
-    let query = supabase
-      .from('logs')
-      .select('id, user_id, track_id, listened_at, source, created_at')
-      .eq('user_id', userId)
-      .order('listened_at', { ascending: false })
-      .limit(limit);
-
-    if (spotifyId) query = query.eq('track_id', spotifyId);
-
-    const { data: logs, error: logsError } = await query;
-
-    if (logsError) {
-      console.error('Logs GET error:', logsError);
-      return apiInternalError(logsError);
-    }
-
-    if (!logs?.length) return apiOk([]);
-
-    const userIds = [...new Set(logs.map((l) => l.user_id))];
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, username, avatar_url')
-      .in('id', userIds);
-
-    if (usersError) {
-      console.error('Logs GET users error:', usersError);
-      return apiInternalError(usersError);
-    }
-
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
-
-    const result = logs.map((log) => ({
-      id: log.id,
-      user_id: log.user_id,
-      track_id: log.track_id,
-      listened_at: log.listened_at,
-      source: log.source ?? null,
-      created_at: log.created_at,
-      user: userMap.get(log.user_id) ?? null,
-    }));
-
-    return apiOk(result);
+    return apiOk(logs);
   } catch (e) {
     return apiInternalError(e);
   }

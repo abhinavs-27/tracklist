@@ -9,6 +9,7 @@ import {
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 import {
   validateUsernameUpdate,
   validateBio,
@@ -19,17 +20,13 @@ export async function PATCH(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return apiUnauthorized();
 
-    let body: { username?: unknown; bio?: unknown };
-    try {
-      body = await request.json();
-    } catch {
-      return apiBadRequest("Invalid JSON body");
-    }
+    const { data: body, error: parseErr } = await parseBody<{ username?: unknown; bio?: unknown }>(request);
+    if (parseErr) return parseErr;
 
-    const usernameResult = validateUsernameUpdate(body.username);
+    const usernameResult = validateUsernameUpdate(body!.username);
     if (!usernameResult.ok) return apiBadRequest(usernameResult.error);
     const newUsername = usernameResult.value;
-    const newBio = validateBio(body.bio);
+    const newBio = validateBio(body!.bio);
 
     const supabase = await createSupabaseServerClient();
 
