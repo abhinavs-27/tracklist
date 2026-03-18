@@ -41,52 +41,53 @@ export default function SearchScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b" }}>
       <View style={{ padding: 16, gap: 12 }}>
         <Text
           style={{
             fontSize: 24,
             fontWeight: "700",
-            color: "#111827",
+            color: "#f4f4f5",
           }}
         >
           Search
         </Text>
         <TextInput
           placeholder="Search albums and songs"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#71717a"
           value={query}
           onChangeText={handleSearch}
           style={{
-            paddingHorizontal: 12,
-            paddingVertical: 10,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
             borderRadius: 999,
             borderWidth: 1,
-            borderColor: "#E5E7EB",
-            backgroundColor: "#F9FAFB",
+            borderColor: "#27272a",
+            backgroundColor: "#18181b",
+            color: "#f4f4f5",
           }}
         />
       </View>
 
       {isPending && (
         <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-          <ActivityIndicator size="small" color="#111827" />
+          <ActivityIndicator size="small" color="#10b981" />
         </View>
       )}
 
       <FlatList
         data={results}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: SearchResult) => item.id}
         ItemSeparatorComponent={() => (
           <View
             style={{
               height: 1,
-              backgroundColor: "#E5E7EB",
+              backgroundColor: "#18181b",
               marginLeft: 88,
             }}
           />
         )}
-        renderItem={({ item }) => (
+        renderItem={({ item }: { item: SearchResult }) => (
           <View
             style={{
               flexDirection: "row",
@@ -103,14 +104,14 @@ export default function SearchScreen() {
                 style={{
                   fontSize: 14,
                   fontWeight: "600",
-                  color: "#111827",
+                  color: "#f4f4f5",
                 }}
               >
                 {item.title}
               </Text>
               <Text
                 numberOfLines={1}
-                style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}
+                style={{ fontSize: 12, color: "#a1a1aa", marginTop: 2 }}
               >
                 {item.artist}
               </Text>
@@ -121,4 +122,3 @@ export default function SearchScreen() {
     </SafeAreaView>
   );
 }
-
