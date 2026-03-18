@@ -17,6 +17,22 @@ import type {
   ReviewsResult,
 } from "@/types";
 
+/**
+ * Helper to fetch a Map of user data from a list of user IDs.
+ */
+async function fetchUserMap<T = { id: string; username: string; avatar_url: string | null }>(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userIds: string[],
+  select = "id, username, avatar_url"
+): Promise<Map<string, T>> {
+  if (userIds.length === 0) return new Map();
+  const { data: users } = await supabase
+    .from("users")
+    .select(select)
+    .in("id", userIds);
+  return new Map((users ?? []).map((u: any) => [u.id, u as unknown as T]));
+}
+
 // ---------------------------------------------------------------------------
 // Passive listen logs (Spotify history)
 // ---------------------------------------------------------------------------
@@ -25,8 +41,9 @@ export async function getListenLogsForUser(
   userId: string,
   limit = 30,
   offset = 0,
+  spotifyTrackId?: string,
 ): Promise<ListenLogWithUser[]> {
-  return getListenLogsInternal({ userId, limit, offset });
+  return getListenLogsInternal({ userId, limit, offset, spotifyTrackId });
 }
 
 export async function getListenLogsForTrack(
@@ -73,12 +90,7 @@ async function getListenLogsInternal(opts: {
     if (error || !logs?.length) return [];
 
     const userIds = [...new Set(logs.map((l) => l.user_id))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", userIds);
-
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, userIds);
 
     return logs.map((log) => ({
       id: log.id,
@@ -126,11 +138,7 @@ export async function getReviewsForEntity(
 
     const reviewRows = rows ?? [];
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", userIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, userIds);
 
     const reviews: EntityReviewItem[] = reviewRows.map((r) => {
       const u = userMap.get(r.user_id);
@@ -974,11 +982,11 @@ export async function getReviewsForArtist(
     if (error || !rows?.length) return [];
 
     const userIds = [...new Set(rows.map((r) => r.user_id))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username")
-      .in("id", userIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap<{ id: string; username: string }>(
+      supabase,
+      userIds,
+      "id, username"
+    );
 
     return rows.map((r) => ({
       id: r.id,
@@ -1106,11 +1114,7 @@ export async function getListenLogsForArtist(
     if (error || !logs?.length) return [];
 
     const userIds = [...new Set(logs.map((l) => l.user_id))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", userIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, userIds);
 
     return logs.map((log) => ({
       id: log.id,
@@ -1153,11 +1157,7 @@ export async function getListenLogsForAlbum(
     if (error || !logs?.length) return [];
 
     const userIds = [...new Set(logs.map((l) => l.user_id))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", userIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, userIds);
 
     return logs.map((log) => ({
       id: log.id,
@@ -2220,12 +2220,7 @@ export async function getReviewFeed(
     if (!rows?.length) return [];
 
     const userIds = [...new Set(rows.map((r) => r.user_id))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", userIds);
-
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, userIds);
 
     return rows.map((r) => ({
       id: r.id,
@@ -2384,11 +2379,7 @@ export async function getActivityFeed(
       userIds.add(f.following_id);
     });
     listenSessions.forEach((s) => userIds.add(s.user_id));
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", [...userIds]);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, [...userIds]);
 
     const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
       type: "review",
@@ -2557,11 +2548,7 @@ async function getActivityFeedFallback(
       userIds.add(f.follower_id);
       userIds.add(f.following_id);
     });
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", [...userIds]);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, [...userIds]);
 
     const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
       type: "review",
@@ -3062,11 +3049,11 @@ export async function searchLists(
     if (!listRows?.length) return [];
 
     const userIds = [...new Set(listRows.map((l) => l.user_id))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username")
-      .in("id", userIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u.username]));
+    const userMap = await fetchUserMap<{ id: string; username: string }>(
+      supabase,
+      userIds,
+      "id, username"
+    );
 
     const listIds = listRows.map((l) => l.id);
     const { data: countData } = await supabase.rpc("get_list_item_counts", {
@@ -3087,7 +3074,7 @@ export async function searchLists(
       type: l.type as "album" | "song",
       created_at: l.created_at,
       item_count: countByList.get(l.id) ?? 0,
-      owner_username: userMap.get(l.user_id) ?? null,
+      owner_username: userMap.get(l.user_id)?.username ?? null,
     }));
   } catch (e) {
     console.error("[queries] searchLists failed:", e);

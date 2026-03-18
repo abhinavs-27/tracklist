@@ -9,6 +9,7 @@ import {
   apiForbidden,
   apiInternalError,
   apiOk,
+  apiNoContent,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { isValidUuid } from "@/lib/validation";
@@ -103,7 +104,7 @@ export async function DELETE(
       userId: session.user.id,
       reviewId: id,
     });
-    return new NextResponse(null, { status: 204 });
+    return apiNoContent();
   } catch (e) {
     return apiInternalError(e);
   }
