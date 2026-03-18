@@ -31,7 +31,7 @@ export async function DELETE(
     const ok = await removeListItem(itemId, listId);
     if (!ok) return apiInternalError(new Error("removeListItem failed"));
 
-    console.log("[lists] list item removed", {
+    console.log("[lists] list-item-removed", {
       userId: session.user.id,
       listId,
       itemId,

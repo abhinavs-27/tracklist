@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       actor_user_id: session.user.id,
       type: 'follow',
     });
-    console.log("[follow] user followed", {
+    console.log("[follow] user-followed", {
       followerId: session.user.id,
       followingId,
     });
@@ -73,7 +73,7 @@ export async function DELETE(request: NextRequest) {
       console.error('Unfollow error:', error);
       return apiInternalError(error);
     }
-    console.log("[follow] user unfollowed", {
+    console.log("[follow] user-unfollowed", {
       followerId: session.user.id,
       followingId,
     });

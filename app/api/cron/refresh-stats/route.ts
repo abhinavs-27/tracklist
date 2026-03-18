@@ -34,6 +34,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  console.log("[cron] refresh-stats complete");
+  console.log("[cron] refresh-stats complete", { success: true });
   return apiOk({ ok: true });
 }

@@ -68,6 +68,10 @@ export async function PATCH(request: NextRequest) {
       return apiInternalError(updateError ?? new Error("Update failed"));
     }
 
+    console.log("[users] profile-updated", {
+      userId: session.user.id,
+    });
+
     return apiOk(updated);
   } catch (e) {
     return apiInternalError(e);

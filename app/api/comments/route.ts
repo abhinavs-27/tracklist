@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return apiInternalError(error);
     }
 
-    console.log("[comments] comment created", {
+    console.log("[comments] comment-created", {
       userId: session.user.id,
       commentId: data.id,
       reviewId: data.review_id,

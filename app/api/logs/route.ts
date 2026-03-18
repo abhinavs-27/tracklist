@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return apiInternalError(error);
     }
     await grantAchievementsOnListen(session.user.id);
-    console.log("[logs] manual log created", {
+    console.log("[logs] manual-log-created", {
       userId: session.user.id,
       trackId,
     });

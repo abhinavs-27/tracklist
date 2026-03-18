@@ -119,23 +119,23 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
 
   if (insertError) {
     console.error("[spotify-ingest] insert logs failed", { userId, error: insertError });
-    toInsert.forEach((u) => {
-      console.log("[spotify-ingest] track ingestion failed", {
+    for (const u of toInsert) {
+      console.log("[spotify-ingest] ingest", {
         userId,
         trackId: u.track_id,
         success: false,
       });
-    });
+    }
     return { inserted: 0, skipped: unique.length };
   }
 
-  toInsert.forEach((u) => {
-    console.log("[spotify-ingest] track ingestion successful", {
+  for (const u of toInsert) {
+    console.log("[spotify-ingest] ingest", {
       userId,
       trackId: u.track_id,
       success: true,
     });
-  });
+  }
 
   console.log("[spotify-ingest] passive log added", {
     userId,

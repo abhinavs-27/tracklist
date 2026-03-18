@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   console.log(
     "[cron] spotify-ingest complete",
-    { processed, totalInserted, totalSkipped },
+    { success: true, processed, totalInserted, totalSkipped },
   );
 
   return apiOk({
