@@ -1092,6 +1092,7 @@ export async function getTopTracksForArtist(
 export async function getListenLogsForArtist(
   artistId: string,
   limit = 20,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -1104,12 +1105,15 @@ export async function getListenLogsForArtist(
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
 
+    const from = offset;
+    const to = offset + limit - 1;
+
     const { data: logs, error } = await supabase
       .from("logs")
       .select("id, user_id, track_id, listened_at, source, created_at")
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
 
     if (error || !logs?.length) return [];
 
@@ -1135,6 +1139,7 @@ export async function getListenLogsForArtist(
 export async function getListenLogsForAlbum(
   albumId: string,
   limit = 20,
+  offset = 0,
 ): Promise<ListenLogWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -1147,12 +1152,15 @@ export async function getListenLogsForAlbum(
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
 
+    const from = offset;
+    const to = offset + limit - 1;
+
     const { data: logs, error } = await supabase
       .from("logs")
       .select("id, user_id, track_id, listened_at, source, created_at")
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
 
     if (error || !logs?.length) return [];
 
