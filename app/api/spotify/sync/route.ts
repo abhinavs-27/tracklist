@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
     }
 
-    console.log("[spotify-ingest] manual-sync complete", {
+    console.log("[spotify-ingest] manual-sync-complete", {
       userId: session.user.id,
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,

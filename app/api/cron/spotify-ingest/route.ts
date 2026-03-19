@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("[cron] spotify_tokens query failed", error);
+    console.log("[cron] spotify-ingest-complete", { success: false });
     return apiError("spotify_tokens query failed", 500);
   }
 
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
   }
 
   console.log(
-    "[cron] spotify-ingest complete",
+    "[cron] spotify-ingest-complete",
     { success: true, processed, totalInserted, totalSkipped },
   );
 

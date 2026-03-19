@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
   const { error: statsError } = await supabase.rpc("refresh_entity_stats");
   if (statsError) {
     console.error("[cron] refresh_entity_stats RPC failed", statsError);
+    console.log("[cron] refresh-stats-complete", { success: false });
     return apiError(statsError.message, 500);
   }
 
@@ -34,6 +35,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  console.log("[cron] refresh-stats complete", { success: true });
+  console.log("[cron] refresh-stats-complete", { success: true });
   return apiOk({ ok: true });
 }

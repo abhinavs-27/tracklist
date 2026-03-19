@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    console.log("[cron] compute-cooccurrence complete", {
+    console.log("[cron] compute-cooccurrence-complete", {
       success: true,
       songUsers: songResult.usersProcessed,
       songPairs: songResult.pairsStored,
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "compute-cooccurrence cron failed";
+    console.log("[cron] compute-cooccurrence-complete", { success: false });
     return apiError(message, 500);
   }
 }
