@@ -23,10 +23,8 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ username: string }> },
 ) {
-  console.log("started");
   try {
     const { username } = await context.params;
-    console.log({ username });
     if (!username) return apiBadRequest("username is required");
     if (!isValidUsername(username))
       return apiBadRequest("Invalid username format");

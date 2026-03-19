@@ -40,7 +40,7 @@ export async function DELETE(
       console.error('Log delete error:', deleteError);
       return apiInternalError(deleteError);
     }
-    console.log("[logs] log deleted", {
+    console.log("[logs] log-deleted", {
       userId: session.user.id,
       logId: id,
     });
