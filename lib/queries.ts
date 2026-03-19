@@ -13,24 +13,29 @@ import type {
   FeedActivity,
   FeedListenSession,
   AlbumRecommendation,
-  EntityReviewItem,
   ReviewsResult,
 } from "@/types";
 
 /**
  * Helper to fetch a Map of user data from a list of user IDs.
+ * Exported for use in API routes that need to manualy enrich data.
  */
-async function fetchUserMap<T = { id: string; username: string; avatar_url: string | null }>(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+export async function fetchUserMap<
+  T = { id: string; username: string; avatar_url: string | null },
+>(
+  supabase:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
   userIds: string[],
-  select = "id, username, avatar_url"
+  select = "id, username, avatar_url",
 ): Promise<Map<string, T>> {
   if (userIds.length === 0) return new Map();
-  const { data: users } = await supabase
-    .from("users")
+  const { data: users } = await (supabase.from("users") as any)
     .select(select)
     .in("id", userIds);
-  return new Map((users ?? []).map((u: any) => [u.id, u as unknown as T]));
+  return new Map(
+    (users ?? []).map((u: any) => [u.id, u as unknown as T]),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -140,13 +145,13 @@ export async function getReviewsForEntity(
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
     const userMap = await fetchUserMap(supabase, userIds);
 
-    const reviews: EntityReviewItem[] = reviewRows.map((r) => {
+    const reviews: ReviewWithUser[] = reviewRows.map((r) => {
       const u = userMap.get(r.user_id);
       return {
         id: r.id,
         user_id: r.user_id,
         username: u?.username ?? null,
-        entity_type: r.entity_type,
+        entity_type: r.entity_type as "album" | "song",
         entity_id: r.entity_id,
         rating: r.rating,
         review_text: r.review_text ?? null,
@@ -169,7 +174,7 @@ export async function getReviewsForEntity(
       .eq("entity_type", entityType)
       .eq("entity_id", entityId);
 
-    let my_review: EntityReviewItem | null = null;
+    let my_review: ReviewWithUser | null = null;
     if (userId) {
       const { data: myRow } = await supabase
         .from("reviews")
@@ -952,7 +957,7 @@ export async function getReviewsForArtist(
   artistId: string,
   limit = 10,
   offset = 0,
-): Promise<EntityReviewItem[]> {
+): Promise<ReviewWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -988,17 +993,23 @@ export async function getReviewsForArtist(
       "id, username"
     );
 
-    return rows.map((r) => ({
-      id: r.id,
-      user_id: r.user_id,
-      username: userMap.get(r.user_id)?.username ?? null,
-      entity_type: r.entity_type,
-      entity_id: r.entity_id,
-      rating: r.rating,
-      review_text: r.review_text ?? null,
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    }));
+    return rows.map((r) => {
+      const u = userMap.get(r.user_id);
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        username: u?.username ?? null,
+        entity_type: r.entity_type as "album" | "song",
+        entity_id: r.entity_id,
+        rating: r.rating,
+        review_text: r.review_text ?? null,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        user: u
+          ? { id: u.id, username: u.username, avatar_url: null }
+          : null,
+      };
+    });
   } catch (e) {
     console.error("[queries] getReviewsForArtist failed:", e);
     return [];

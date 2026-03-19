@@ -1,15 +1,15 @@
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { requireApiAuth } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { apiUnauthorized, apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
-import { parseBody } from '@/lib/api-utils';
+import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
+import { parseBody, handlePostgrestError } from '@/lib/api-utils';
 import { isValidUuid, validateCommentContent } from '@/lib/validation';
+import { fetchUserMap } from '@/lib/queries';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
     if (parseErr) return parseErr;
@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      if (error.code === '23503') return apiBadRequest('Review not found');
-      console.error('Comment create error:', error);
-      return apiInternalError(error);
+      return handlePostgrestError(error, {
+        '23503': 'Review not found',
+      });
     }
 
     console.log("[comments] comment-created", {
@@ -74,8 +74,7 @@ export async function GET(request: NextRequest) {
     if (!comments?.length) return apiOk([]);
 
     const userIds = [...new Set(comments.map((c) => c.user_id))];
-    const { data: users } = await supabase.from('users').select('id, username, avatar_url').in('id', userIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = await fetchUserMap(supabase, userIds);
 
     const result = comments.map((c) => ({ ...c, user: userMap.get(c.user_id) ?? null }));
     return apiOk(result);

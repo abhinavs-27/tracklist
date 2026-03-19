@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { requireApiAuth } from "@/lib/auth";
 import { getNotifications } from "@/lib/queries";
-import { apiUnauthorized, apiInternalError, apiOk } from "@/lib/api-response";
+import { apiInternalError, apiOk } from "@/lib/api-response";
 
 /** GET /api/notifications. Returns { notifications: NotificationRow[] }. Auth required. */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
     const notifications = await getNotifications(session.user.id, 50);
     return apiOk({ notifications });
   } catch (e) {

@@ -1,9 +1,7 @@
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { requireApiAuth } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import {
-  apiUnauthorized,
   apiForbidden,
   apiNotFound,
   apiInternalError,
@@ -17,8 +15,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { id } = await params;
     if (!isValidUuid(id)) {
