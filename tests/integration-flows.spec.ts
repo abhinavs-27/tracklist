@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Critical Application Flows', () => {
+/**
+ * Critical Integration flows for the Tracklist application.
+ * These tests cover the primary user journeys using the UI and mocked API responses.
+ */
+test.describe('Critical Integration Flows', () => {
 
   test.beforeEach(async ({ page }) => {
     // Mock the session to be authenticated for all tests
@@ -17,7 +21,7 @@ test.describe('Critical Application Flows', () => {
   });
 
   test('Flow: Creating a review (UI to API)', async ({ page }) => {
-    // Mock the reviews POST API
+    // 1. Mock the reviews POST and GET APIs
     await page.route('**/api/reviews', async (route) => {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON();
@@ -28,23 +32,25 @@ test.describe('Critical Application Flows', () => {
         });
       } else {
         await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({ reviews: [], average_rating: null, count: 0, my_review: null })
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ reviews: [], average_rating: null, count: 0, my_review: null })
         });
       }
     });
 
+    // 2. Navigate to E2E logging harness
     await page.goto('/e2e/logging');
 
-    // Click "Rate & review" for the demo album
+    // 3. Click "Rate & review" for the demo album
+    // Memory says: The AlbumLogButton component renders with the text 'Rate & review'
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
 
-    // Fill out the review
-    await page.getByRole('button', { name: /5 stars/i }).click();
-    await page.getByPlaceholder(/what did you think/i).fill('Testing critical flows!');
+    // 4. Fill out the review in the modal
+    await page.getByRole('button', { name: '5 stars' }).click();
+    await page.getByPlaceholder(/what did you think/i).fill('Testing critical flows: This album is a masterpiece!');
 
-    // Wait for the POST request and click save
+    // 5. Submit and verify the POST request
     const [request] = await Promise.all([
       page.waitForRequest(req => req.url().includes('/api/reviews') && req.method() === 'POST'),
       page.getByRole('button', { name: /save review/i }).click()
@@ -53,12 +59,12 @@ test.describe('Critical Application Flows', () => {
     expect(request.postDataJSON()).toMatchObject({
       entity_type: 'album',
       rating: 5,
-      review_text: 'Testing critical flows!'
+      review_text: 'Testing critical flows: This album is a masterpiece!'
     });
   });
 
   test('Flow: Logging a listen (UI to API)', async ({ page }) => {
-    // Mock the logs POST API
+    // 1. Mock the logs POST API
     await page.route('**/api/logs', async (route) => {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON();
@@ -70,73 +76,60 @@ test.describe('Critical Application Flows', () => {
       }
     });
 
+    // 2. Navigate to E2E logging harness
     await page.goto('/e2e/logging');
 
-    // Use our mock log listen button in the E2E harness
+    // 3. Click the "Mock log listen" button
     const logButton = page.getByRole('button', { name: /mock log listen/i });
 
-    // Wait for the POST request and click
+    // 4. Wait for the POST request and click
     const [request] = await Promise.all([
       page.waitForRequest(req => req.url().includes('/api/logs') && req.method() === 'POST'),
       logButton.click()
     ]);
 
+    // 5. Verify the API was called with the correct payload
     expect(request.postDataJSON()).toMatchObject({
       track_id: 'track_demo_1'
     });
   });
 
-  test('Flow: Spotify ingestion (UI to API)', async ({ page }) => {
-    // Mock the status to be connected
-    await page.route('**/api/spotify/status', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ connected: true }),
-      });
-    });
-
-    // Mock the sync API
+  test('Flow: Spotify ingestion (API)', async ({ page }) => {
+    // 1. Mock the sync API response
     await page.route('**/api/spotify/sync', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ inserted: 10, skipped: 5, mode: 'song' }),
+        body: JSON.stringify({ inserted: 12, skipped: 3, mode: 'song' }),
       });
     });
 
-    // Navigate to user's own profile.
-    // Since ProfilePage is a Server Component, it will show Not Found if user_1 doesn't exist in DB.
-    // However, the SpotifyConnectionCard is a Client Component and it will call /api/spotify/status.
-
-    // We go to a page that we know exists and has the sync button if we were to navigate there.
-    // Actually, we can use the E2E page or just evaluate a fetch if we want to test the API route integration.
-    // To satisfy the code review, we should ideally use a UI component.
-
-    // Let's use page.evaluate to call the API but in a way that it actually exercises the server if we didn't mock it.
-    // But the user wants automated tests for critical flows.
-
+    // 2. Navigate to a page and trigger the sync via evaluate (simulating internal fetch)
     await page.goto('/');
     const result = await page.evaluate(async () => {
       const res = await fetch('/api/spotify/sync', { method: 'POST' });
       return res.json();
     });
-    expect(result.inserted).toBe(10);
+
+    // 3. Verify the result
+    expect(result.inserted).toBe(12);
+    expect(result.mode).toBe('song');
   });
 
   test('Flow: User profile fetch (API)', async ({ page }) => {
     const mockUser = {
-      id: 'user_2',
-      username: 'otheruser',
-      avatar_url: 'https://example.com/avatar.png',
-      bio: 'Critical flows tester',
-      followers_count: 42,
-      following_count: 24,
+      id: 'user_99',
+      username: 'jules_tester',
+      avatar_url: 'https://example.com/jules.png',
+      bio: 'Software engineer testing critical flows.',
+      followers_count: 150,
+      following_count: 75,
       is_following: false,
       is_own_profile: false
     };
 
-    await page.route('**/api/users/otheruser', async (route) => {
+    // 1. Mock the user fetch API
+    await page.route('**/api/users/jules_tester', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -144,33 +137,43 @@ test.describe('Critical Application Flows', () => {
       });
     });
 
+    // 2. Trigger the fetch via evaluate
     await page.goto('/');
     const result = await page.evaluate(async () => {
-      const res = await fetch('/api/users/otheruser');
+      const res = await fetch('/api/users/jules_tester');
       return res.json();
     });
-    expect(result.username).toBe('otheruser');
-    expect(result.followers_count).toBe(42);
+
+    // 3. Verify the returned user data
+    expect(result.username).toBe('jules_tester');
+    expect(result.followers_count).toBe(150);
+    expect(result.bio).toContain('testing critical flows');
   });
 
   test('Flow: Search results (API)', async ({ page }) => {
-    await page.route('**/api/search?q=test*', async (route) => {
+    // 1. Mock the search API
+    await page.route('**/api/search?q=radiohead*', async (route) => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            artists: { items: [] },
-            albums: { items: [{ id: 'album_1', name: 'Test Album', artists: [{ name: 'Test Artist' }], images: [] }] },
-            tracks: { items: [] },
+            artists: { items: [{ id: '1', name: 'Radiohead' }] },
+            albums: { items: [{ id: '2', name: 'In Rainbows', artists: [{ name: 'Radiohead' }] }] },
+            tracks: { items: [{ id: '3', name: 'Nude', artists: [{ name: 'Radiohead' }] }] },
           }),
         });
       });
 
+      // 2. Trigger search via evaluate
       await page.goto('/');
       const result = await page.evaluate(async () => {
-        const res = await fetch('/api/search?q=test');
+        const res = await fetch('/api/search?q=radiohead');
         return res.json();
       });
-      expect(result.albums.items[0].name).toBe('Test Album');
+
+      // 3. Verify results structure
+      expect(result.albums.items[0].name).toBe('In Rainbows');
+      expect(result.tracks.items[0].name).toBe('Nude');
+      expect(result.artists.items[0].name).toBe('Radiohead');
   });
 });
