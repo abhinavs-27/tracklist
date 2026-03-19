@@ -370,11 +370,13 @@ export async function getArtistTopTracksFromLogs(
   const supabase = await createSupabaseServerClient();
 
   // 1) Pull a recent window of song logs and aggregate by track_id in code
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data: logRows, error: logsError } = await supabase
     .from("logs")
     .select("track_id")
+    .gte("listened_at", thirtyDaysAgo)
     .order("listened_at", { ascending: false })
-    .limit(500);
+    .limit(1000);
 
   if (logsError) {
     console.error(

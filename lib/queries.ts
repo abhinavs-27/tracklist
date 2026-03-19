@@ -30,7 +30,10 @@ async function fetchUserMap<T = { id: string; username: string; avatar_url: stri
     .from("users")
     .select(select)
     .in("id", userIds);
-  return new Map((users ?? []).map((u: any) => [u.id, u as unknown as T]));
+  return new Map((users ?? []).map((u) => {
+    const row = u as unknown as { id: string };
+    return [row.id, u as unknown as T];
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -329,23 +332,27 @@ async function getEntityStatsLive(
   const supabase = await createSupabaseServerClient();
 
   let listen_count = 0;
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   if (entityType === "song") {
     const { count } = await supabase
       .from("logs")
       .select("id", { count: "exact", head: true })
-      .eq("track_id", entityId);
+      .eq("track_id", entityId)
+      .gte("listened_at", thirtyDaysAgo);
     listen_count = count ?? 0;
   } else {
     const { data: tracks } = await supabase
       .from("songs")
       .select("id")
-      .eq("album_id", entityId);
+      .eq("album_id", entityId)
+      .limit(100);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const { count } = await supabase
         .from("logs")
         .select("id", { count: "exact", head: true })
-        .in("track_id", ids);
+        .in("track_id", ids)
+        .gte("listened_at", thirtyDaysAgo);
       listen_count = count ?? 0;
     }
   }
@@ -354,7 +361,8 @@ async function getEntityStatsLive(
     .from("reviews")
     .select("rating")
     .eq("entity_type", entityType)
-    .eq("entity_id", entityId);
+    .eq("entity_id", entityId)
+    .limit(500);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
   const review_count = ratings.length;
@@ -513,17 +521,25 @@ export async function getTrackStatsForTrackIds(
 
     const missingIds = uniqueIds.filter((id) => !(id in result));
     if (missingIds.length > 0) {
+      // Limit the fallback aggregation to recent activity for performance
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const [logsRes, reviewsRes] = await Promise.all([
-        supabase.from("logs").select("track_id").in("track_id", missingIds),
+        supabase
+          .from("logs")
+          .select("track_id")
+          .in("track_id", missingIds)
+          .gte("listened_at", thirtyDaysAgo)
+          .limit(2000),
         supabase
           .from("reviews")
           .select("entity_id, rating")
           .eq("entity_type", "song")
-          .in("entity_id", missingIds),
+          .in("entity_id", missingIds)
+          .limit(1000),
       ]);
 
       const listenCounts = new Map<string, number>();
-      for (const row of logsRes.data ?? []) {
+      for (const row of (logsRes.data ?? []) as { track_id: string }[]) {
         listenCounts.set(
           row.track_id,
           (listenCounts.get(row.track_id) ?? 0) + 1,
@@ -531,7 +547,7 @@ export async function getTrackStatsForTrackIds(
       }
       const reviewCounts = new Map<string, number>();
       const ratingSums = new Map<string, number>();
-      for (const row of reviewsRes.data ?? []) {
+      for (const row of (reviewsRes.data ?? []) as { entity_id: string; rating: number }[]) {
         reviewCounts.set(
           row.entity_id,
           (reviewCounts.get(row.entity_id) ?? 0) + 1,
@@ -600,7 +616,7 @@ export async function getLeaderboard(
       const to = endYear ?? startYear!;
       const { data: albums } = await supabase
         .from("albums")
-        .select("id, release_date")
+        .select("id")
         .gte("release_date", `${from}-01-01`)
         .lte("release_date", `${to}-12-31`);
       albumIds = (albums ?? []).map((a) => a.id);
@@ -611,18 +627,14 @@ export async function getLeaderboard(
         .like("release_date", `${year}%`);
       albumIds = (albums ?? []).map((a) => a.id);
     } else if (decade != null) {
+      const yearStart = `${decade}-01-01`;
+      const yearEnd = `${decade + 9}-12-31`;
       const { data: albums } = await supabase
         .from("albums")
-        .select("id, release_date");
-      const yearNum = decade + 10;
-      albumIds = (albums ?? [])
-        .filter((a) => {
-          const y = a.release_date
-            ? parseInt(a.release_date.slice(0, 4), 10)
-            : NaN;
-          return !isNaN(y) && y >= decade && y < yearNum;
-        })
-        .map((a) => a.id);
+        .select("id")
+        .gte("release_date", yearStart)
+        .lte("release_date", yearEnd);
+      albumIds = (albums ?? []).map((a) => a.id);
     }
 
     if (albumIds !== null && albumIds.length === 0) return [];
@@ -630,29 +642,32 @@ export async function getLeaderboard(
     // ------------------------ Most Favorited (albums via user_favorite_albums) ------------------------
     // Currently only supports albums; ignore entity parameter for this type.
     if (type === "mostFavorited") {
-      let allowedAlbumIds: string[] | null = null;
-      if (albumIds && albumIds.length > 0) {
-        allowedAlbumIds = albumIds;
-        if (allowedAlbumIds.length === 0) return [];
-      }
-
+      // Fetch favorite counts grouped by album_id.
+      // Using a specialized RPC for this is best for performance, but we'll use a limited fetch for now.
+      // Ideally we'd have a 'favorite_count' in album_stats.
       let favQuery = supabase
         .from("user_favorite_albums")
-        .select("album_id, user_id");
+        .select("album_id");
 
-      if (allowedAlbumIds) {
-        favQuery = favQuery.in("album_id", allowedAlbumIds);
+      if (albumIds && albumIds.length > 0) {
+        favQuery = favQuery.in("album_id", albumIds);
       }
 
-      const { data: favRows, error: favError } = await favQuery;
+      // We cap the fetch to avoid memory issues if many favorites exist.
+      const { data: favRows, error: favError } = await favQuery.limit(5000);
       if (favError || !favRows?.length) return [];
 
       const favoriteCounts = new Map<string, number>();
-      for (const row of favRows as { album_id: string; user_id: string }[]) {
+      for (const row of favRows as { album_id: string }[]) {
         const current = favoriteCounts.get(row.album_id) ?? 0;
         favoriteCounts.set(row.album_id, current + 1);
       }
-      const favAlbumIds = Array.from(favoriteCounts.keys());
+
+      // Sort and take top matches before fetching album metadata
+      const favAlbumIds = Array.from(favoriteCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit * 2)
+        .map(([id]) => id);
 
       const [{ data: albumRows }, { data: statsRows }] = await Promise.all([
         supabase
@@ -2764,12 +2779,20 @@ export async function getUserLists(
     const cappedLimit = Math.min(Math.max(1, limit), 50);
     const cappedOffset = Math.max(0, offset);
 
-    const { data: listRows, error: listError } = await supabase
+    let query = supabase
       .from("lists")
       .select(
         "id, title, description, type, visibility, emoji, image_url, created_at",
       )
-      .eq("user_id", userId)
+      .eq("user_id", userId);
+
+    const session = await getServerSession(authOptions);
+    if (session?.user?.id !== userId) {
+      // Only show public or friends-visible lists to others (simplified here to non-private)
+      query = query.neq("visibility", "private");
+    }
+
+    const { data: listRows, error: listError } = await query
       .order("created_at", { ascending: false })
       .range(cappedOffset, cappedOffset + cappedLimit - 1);
 
