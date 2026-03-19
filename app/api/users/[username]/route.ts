@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { createSupabaseServerClient } from "@/lib/supabase";
+import { requireApiAuth, getSession } from "@/lib/auth";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
   apiNotFound,
@@ -61,7 +60,7 @@ export async function GET(
     const followers = followersRes.count ?? 0;
     const following = followingRes.count ?? 0;
 
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     let isFollowing = false;
     if (session?.user?.id && session.user.id !== user.id) {
       const { data: follow, error: followError } = await supabase
@@ -94,8 +93,8 @@ export async function PATCH(
   context: { params: Promise<{ username: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { username } = await context.params;
     if (!username || !isValidUsername(username))

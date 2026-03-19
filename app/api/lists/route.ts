@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { requireApiAuth } from "@/lib/auth";
 import { createList, searchLists, grantAchievementOnList } from "@/lib/queries";
 import {
-  apiUnauthorized,
   apiBadRequest,
   apiInternalError,
   apiOk,
@@ -33,8 +31,8 @@ export async function GET(request: NextRequest) {
 /** POST – create a new list. Body: { title, description? }. Auth required. */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { data: body, error: parseErr } = await parseBody<{
       title?: unknown;

@@ -41,7 +41,10 @@ export interface Review {
 }
 
 export interface ReviewWithUser extends Review {
+  /** Populated for UI display. Prefer this over the legacy entity_type/entity_id when possible. */
   user?: User | null;
+  /** @deprecated use user.username */
+  username?: string | null;
 }
 
 /** Listen session: one track in a 30-min window (or aggregated). */
@@ -181,26 +184,11 @@ export type DiscoverUsersResponse = {
   users: DiscoverUser[];
 };
 
-// User search (GET /api/search/users)
-export interface EntityReviewItem {
-  id: string;
-  user_id: string;
-  username: string | null;
-  entity_type: string;
-  entity_id: string;
-  rating: number;
-  review_text: string | null;
-  created_at: string;
-  updated_at: string;
-  /** Populated when user details are fetched (e.g. for ReviewCard). */
-  user?: { id: string; username: string; avatar_url: string | null } | null;
-}
-
 export interface ReviewsResult {
-  reviews: EntityReviewItem[];
+  reviews: ReviewWithUser[];
   average_rating: number | null;
   count: number;
-  my_review: EntityReviewItem | null;
+  my_review: ReviewWithUser | null;
 }
 
 export type UserSearchResult = {
