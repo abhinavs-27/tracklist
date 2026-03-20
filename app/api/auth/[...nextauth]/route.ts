@@ -34,7 +34,7 @@ export const authOptions: NextAuthOptions = {
         if (existing) return true;
 
         if (existingError && existingError.code !== 'PGRST116') {
-          console.error('[auth][signIn] User lookup failed:', existingError);
+          console.error('[users] user-lookup-failed', { error: existingError });
           return false;
         }
         const username = generateUsernameFromEmail(user.email);
@@ -51,12 +51,12 @@ export const authOptions: NextAuthOptions = {
           if (error.code === '23505') {
             return true;
           }
-          console.error('[auth][signIn] Failed to create user:', error);
+          console.error('[users] user-creation-failed', { error });
           return false;
         }
         return true;
       } catch (err) {
-        console.error('[auth][signIn] Unhandled error:', err);
+        console.error('[users] sign-in-error', { error: err });
         return false;
       }
     },
@@ -72,7 +72,7 @@ export const authOptions: NextAuthOptions = {
             .maybeSingle();
 
           if (error) {
-            console.error('[auth][jwt] DB lookup failed:', error);
+            console.error('[users] jwt-db-lookup-failed', { error });
           } else if (dbUser) {
             token.id = dbUser.id;
             token.username = dbUser.username;
@@ -80,7 +80,7 @@ export const authOptions: NextAuthOptions = {
             token.bio = dbUser.bio;
           }
         } catch (err) {
-          console.error('[auth][jwt] Unhandled error:', err);
+          console.error('[users] jwt-error', { error: err });
         }
       }
 

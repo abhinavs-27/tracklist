@@ -137,7 +137,7 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
     });
   }
 
-  console.log("[spotify-ingest] passive log added", {
+  console.log("[spotify-ingest] passive-log-added", {
     userId,
     count: toInsert.length,
   });
