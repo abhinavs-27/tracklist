@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { requireApiAuth } from "@/lib/auth";
 import { getUserRecommendations } from "@/lib/queries";
-import { apiUnauthorized, apiInternalError, apiOk } from "@/lib/api-response";
+import { apiInternalError, apiOk } from "@/lib/api-response";
 
 /** GET /api/recommendations/user. Returns { recommendations: { album_id, score }[] }. Auth required. */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
     const recommendations = await getUserRecommendations(session.user.id, 20);
     return apiOk({ recommendations });
   } catch (e) {

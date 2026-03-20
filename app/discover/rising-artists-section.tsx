@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { RisingArtist } from "@/lib/queries";
+import type { RisingArtist } from "@/types";
 
 type RisingArtistsSectionProps = {
   artists: RisingArtist[];

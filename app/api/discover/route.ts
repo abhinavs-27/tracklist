@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getSession } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { enrichUsersWithFollowStatus } from '@/lib/queries';
 import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (usersError) return apiInternalError(usersError);
 
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     const viewerId = session?.user?.id ?? null;
 
     const enrichedUsers = await enrichUsersWithFollowStatus(

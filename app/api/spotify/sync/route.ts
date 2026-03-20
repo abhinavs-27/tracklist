@@ -13,12 +13,7 @@ import {
 } from "@/lib/spotify-user";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import { getOrFetchTracksBatch } from "@/lib/spotify-cache";
-
-type SyncResponse = {
-  inserted: number;
-  skipped: number;
-  mode: "song";
-};
+import type { SyncResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
   if (!checkSpotifyRateLimit(request)) {

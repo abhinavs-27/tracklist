@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { requireApiAuth } from "@/lib/auth";
 import { getListOwnerId, addListItem } from "@/lib/queries";
 import {
-  apiUnauthorized,
   apiForbidden,
   apiBadRequest,
   apiNotFound,
@@ -19,8 +17,8 @@ export async function POST(
   { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { listId } = await params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");

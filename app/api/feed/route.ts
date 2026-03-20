@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { apiUnauthorized, apiInternalError, apiOk } from "@/lib/api-response";
+import { requireApiAuth } from "@/lib/auth";
+import { apiInternalError, apiOk } from "@/lib/api-response";
 import { clampLimit, LIMITS } from "@/lib/validation";
 import {
   getActivityFeed,
@@ -15,8 +14,8 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { searchParams } = new URL(request.url);
     const limit = clampLimit(

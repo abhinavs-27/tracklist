@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getFollowListWithStatus } from "@/lib/queries";
 import {
@@ -29,7 +28,7 @@ export async function GET(
     if (userError || !user) return apiNotFound("User not found");
     const userId = user.id;
 
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     const viewerId = session?.user?.id ?? null;
 
     const { searchParams } = new URL(request.url);

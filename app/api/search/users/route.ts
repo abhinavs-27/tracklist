@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { requireApiAuth } from '@/lib/auth';
 import { searchUsers, enrichUsersWithFollowStatus } from '@/lib/queries';
-import { apiUnauthorized, apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
+import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { sanitizeString, clampLimit } from '@/lib/validation';
 
 const MIN_QUERY_LENGTH = 2;
@@ -10,8 +9,8 @@ const MAX_QUERY_LENGTH = 50;
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { searchParams } = new URL(request.url);
     const raw = searchParams.get('q') ?? '';

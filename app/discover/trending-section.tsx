@@ -1,4 +1,4 @@
-import type { TrendingEntity } from "@/lib/queries";
+import type { TrendingEntity } from "@/types";
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 

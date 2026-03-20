@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { apiUnauthorized, apiInternalError } from '@/lib/api-response';
+import { requireApiAuth } from '@/lib/auth';
+import { apiInternalError } from '@/lib/api-response';
 import { getSpotifyAuthorizeUrl } from '@/lib/spotify-user';
 import { getRequestOrigin } from '@/lib/app-url';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import crypto from 'crypto';
 
 const COOKIE_OPTIONS = {
@@ -15,8 +14,8 @@ const COOKIE_OPTIONS = {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const url = new URL(request.url);
     const returnTo = url.searchParams.get('returnTo') ?? '/profile';
