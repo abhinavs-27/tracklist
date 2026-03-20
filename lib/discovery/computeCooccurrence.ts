@@ -77,12 +77,21 @@ export async function computeSongCooccurrence(): Promise<{
 }> {
   const supabase = createSupabaseAdminClient();
 
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const [logsRes, reviewsRes] = await Promise.all([
-    supabase.from("logs").select("user_id, track_id"),
+    supabase
+      .from("logs")
+      .select("user_id, track_id")
+      .gte("listened_at", ninetyDaysAgo)
+      .order("listened_at", { ascending: false })
+      .limit(100000),
     supabase
       .from("reviews")
       .select("user_id, entity_id")
-      .eq("entity_type", "song"),
+      .eq("entity_type", "song")
+      .gte("created_at", ninetyDaysAgo)
+      .order("created_at", { ascending: false })
+      .limit(100000),
   ]);
 
   if (logsRes.error) throw new Error(logsRes.error.message);
@@ -148,13 +157,26 @@ export async function computeAlbumCooccurrence(): Promise<{
 }> {
   const supabase = createSupabaseAdminClient();
 
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const [reviewsRes, favRes, logsSongsRes] = await Promise.all([
     supabase
       .from("reviews")
       .select("user_id, entity_id")
-      .eq("entity_type", "album"),
-    supabase.from("user_favorite_albums").select("user_id, album_id"),
-    supabase.from("logs").select("user_id, track_id"),
+      .eq("entity_type", "album")
+      .gte("created_at", ninetyDaysAgo)
+      .order("created_at", { ascending: false })
+      .limit(100000),
+    supabase
+      .from("user_favorite_albums")
+      .select("user_id, album_id")
+      .order("created_at", { ascending: false })
+      .limit(100000),
+    supabase
+      .from("logs")
+      .select("user_id, track_id")
+      .gte("listened_at", ninetyDaysAgo)
+      .order("listened_at", { ascending: false })
+      .limit(100000),
   ]);
 
   if (reviewsRes.error) throw new Error(reviewsRes.error.message);
