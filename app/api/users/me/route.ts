@@ -68,6 +68,7 @@ export async function PATCH(request: NextRequest) {
 
     console.log("[users] profile-updated", {
       userId: session.user.id,
+      fields: Object.keys(updates),
     });
 
     return apiOk(updated);
