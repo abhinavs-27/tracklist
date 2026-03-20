@@ -616,116 +616,76 @@ export async function getLeaderboard(
         .like("release_date", `${year}%`);
       albumIds = (albums ?? []).map((a) => a.id);
     } else if (decade != null) {
+      const yearNum = decade + 10;
       const { data: albums } = await supabase
         .from("albums")
-        .select("id, release_date");
-      const yearNum = decade + 10;
-      albumIds = (albums ?? [])
-        .filter((a) => {
-          const y = a.release_date
-            ? parseInt(a.release_date.slice(0, 4), 10)
-            : NaN;
-          return !isNaN(y) && y >= decade && y < yearNum;
-        })
-        .map((a) => a.id);
+        .select("id")
+        .gte("release_date", `${decade}-01-01`)
+        .lt("release_date", `${yearNum}-01-01`);
+      albumIds = (albums ?? []).map((a) => a.id);
     }
 
     if (albumIds !== null && albumIds.length === 0) return [];
 
-    // ------------------------ Most Favorited (albums via user_favorite_albums) ------------------------
+    // ------------------------ Most Favorited (albums via entity_stats) ------------------------
     // Currently only supports albums; ignore entity parameter for this type.
     if (type === "mostFavorited") {
-      let allowedAlbumIds: string[] | null = null;
+      let statsQuery = supabase
+        .from("entity_stats")
+        .select("entity_id, favorite_count, play_count, avg_rating")
+        .eq("entity_type", "album")
+        .order("favorite_count", { ascending: false })
+        .order("play_count", { ascending: false })
+        .limit(Math.max(limit * 2, 100));
+
       if (albumIds && albumIds.length > 0) {
-        allowedAlbumIds = albumIds;
-        if (allowedAlbumIds.length === 0) return [];
+        statsQuery = statsQuery.in("entity_id", albumIds);
       }
 
-      let favQuery = supabase
-        .from("user_favorite_albums")
-        .select("album_id, user_id");
+      const { data: statsRows, error: statsError } = await statsQuery;
+      if (statsError || !statsRows?.length) return [];
 
-      if (allowedAlbumIds) {
-        favQuery = favQuery.in("album_id", allowedAlbumIds);
-      }
+      const albumIdsFromStats = statsRows.map((r) => r.entity_id);
+      const { data: albumRows } = await supabase
+        .from("albums")
+        .select("id, name, artist_id, image_url")
+        .in("id", albumIdsFromStats);
 
-      const { data: favRows, error: favError } = await favQuery;
-      if (favError || !favRows?.length) return [];
-
-      const favoriteCounts = new Map<string, number>();
-      for (const row of favRows as { album_id: string; user_id: string }[]) {
-        const current = favoriteCounts.get(row.album_id) ?? 0;
-        favoriteCounts.set(row.album_id, current + 1);
-      }
-      const favAlbumIds = Array.from(favoriteCounts.keys());
-
-      const [{ data: albumRows }, { data: statsRows }] = await Promise.all([
-        supabase
-          .from("albums")
-          .select("id, name, artist_id, image_url")
-          .in("id", favAlbumIds),
-        supabase
-          .from("album_stats")
-          .select("album_id, listen_count, avg_rating")
-          .in("album_id", favAlbumIds),
-      ]);
-
-      type StatsRow = {
-        album_id: string;
-        listen_count: number;
-        avg_rating: number | null;
-      };
-      type AlbumRow = {
+      const albumsArray = (albumRows ?? []) as {
         id: string;
         name: string;
         artist_id: string;
         image_url: string | null;
-      };
-      type ArtistRow = { id: string; name: string };
-
-      const statsMap = new Map(
-        (statsRows ?? []).map((r: StatsRow) => [r.album_id, r]),
-      );
-      const albumArray = (albumRows ?? []) as AlbumRow[];
-      const albumMap = new Map(albumArray.map((a) => [a.id, a]));
-      const artistIds = [...new Set(albumArray.map((a) => a.artist_id))];
+      }[];
+      const albumMap = new Map(albumsArray.map((a) => [a.id, a]));
+      const artistIds = [...new Set(albumsArray.map((a) => a.artist_id))];
       const { data: artistRows } = await supabase
         .from("artists")
         .select("id, name")
         .in("id", artistIds);
       const artistMap = new Map(
-        ((artistRows ?? []) as ArtistRow[]).map((a) => [a.id, a.name]),
+        (artistRows ?? []).map((a) => [a.id, a.name]),
       );
 
-      const entries: LeaderboardEntry[] = favAlbumIds
-        .map((id): LeaderboardEntry | null => {
-          const album = albumMap.get(id);
+      const entries: LeaderboardEntry[] = statsRows
+        .map((row): LeaderboardEntry | null => {
+          const album = albumMap.get(row.entity_id);
           if (!album) return null;
-          const stats = statsMap.get(id);
-          const total_plays = stats?.listen_count ?? 0;
-          const average_rating =
-            stats?.avg_rating != null ? Number(stats.avg_rating) : null;
+          const total_plays = row.play_count ?? 0;
+          const average_rating = row.avg_rating != null ? Number(row.avg_rating) : null;
           const artistName = artistMap.get(album.artist_id) ?? "Unknown";
-          const favorite_count = favoriteCounts.get(id) ?? 0;
           return {
             entity_type: "album",
-            id,
+            id: row.entity_id,
             name: album.name,
             artist: artistName,
             artwork_url: album.image_url ?? null,
             total_plays,
             average_rating,
-            favorite_count,
+            favorite_count: row.favorite_count,
           };
         })
         .filter((x): x is LeaderboardEntry => x != null);
-
-      entries.sort((a, b) => {
-        if ((b.favorite_count ?? 0) !== (a.favorite_count ?? 0)) {
-          return (b.favorite_count ?? 0) - (a.favorite_count ?? 0);
-        }
-        return b.total_plays - a.total_plays;
-      });
 
       return entries.slice(0, limit);
     }
