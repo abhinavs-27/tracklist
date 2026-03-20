@@ -48,10 +48,10 @@ export function LogModal({
       await fetcher("/api/reviews", {
         method: "POST",
         body: JSON.stringify({
-          entityId,
-          entityType,
+          entity_id: entityId,
+          entity_type: entityType,
           rating,
-          reviewText: reviewText.trim() || null,
+          review_text: reviewText.trim() || null,
         }),
       });
       onSuccess();

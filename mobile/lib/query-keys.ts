@@ -1,6 +1,8 @@
 /** Centralized query keys for React Query invalidation. */
 
 export const queryKeys = {
+  /** Album detail (including tracks/stats/reviews when available). */
+  album: (albumId: string) => ["album", albumId] as const,
   /** Use for all review queries; never use manual keys like ['reviews', ...]. */
   reviews: (entityType: string, entityId: string) =>
     ["reviews", entityType, entityId] as const,

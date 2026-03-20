@@ -218,7 +218,26 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 
 ---
 
-## 10. Optional features / future improvements
+## 10. Standalone API backend (`backend/`)
+
+The repo includes an **Express + TypeScript** server under **`backend/`** that can serve **`/api/*`** for web and mobile while Next.js runs on another port (or only for UI + NextAuth).
+
+- **Docs**: `backend/README.md`
+- **Dev**: `cd backend && npm install && npm run dev` (default port **3001** so Next can use **3000**)
+- **Env**: Reuses root **`.env`** (Supabase service role, `NEXTAUTH_SECRET`, Spotify client credentials). See `backend/.env.example`.
+- **Migration**: Implement routes in `backend/routes/`, register them in `backend/routes/index.ts`. On the backend, optionally set **`NEXT_API_FALLBACK=http://127.0.0.1:3000`** to proxy unhandled **`/api/*`** to Next.js (when Next still has legacy handlers).
+- **Expo**: Set **`EXPO_PUBLIC_API_URL=http://<LAN_IP>:3001`** in `mobile/.env` (same Wi‑Fi; **3001** = default API port).
+
+### Wiring the web app to Express
+
+- **Mobile** uses **`EXPO_PUBLIC_API_URL`** + **`/api/...`** — point it at the **backend** port (default **3001**), not the Next.js UI port (**3000**).
+- **Web** uses relative **`fetch("/api/...")`** to the Next origin. Set **`API_BACKEND_URL=http://127.0.0.1:3001`** in root **`.env`** so **`middleware.ts`** proxies **`/api/*`** to Express (**skips** **`/api/auth/*`**).
+- Typical dev: Next at **`http://127.0.0.1:3000`**, backend at **`http://127.0.0.1:3001`**, **`NEXTAUTH_URL=http://127.0.0.1:3000`**, **`API_BACKEND_URL=http://127.0.0.1:3001`**.
+- If **`API_BACKEND_URL` is unset**, behavior is unchanged: Next.js **`app/api`** route handlers answer **`/api/*`**.
+
+---
+
+## 11. Optional features / future improvements
 
 - **Lists / list_items**: Tables exist in schema; no UI or API yet.
 - **Ratings on sync**: “Sync recently played” currently inserts logs with a placeholder rating; could add a flow to set rating/review on sync.

@@ -15,6 +15,7 @@ export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
   const [count, setCount] = useState(initialCount);
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
 
@@ -38,6 +39,7 @@ export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || loading) return;
+    setSubmitError(null);
     setLoading(true);
     try {
       const res = await fetch('/api/comments', {
@@ -46,11 +48,13 @@ export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
         body: JSON.stringify({ review_id: reviewId, content: content.trim() }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setComments((prev) => [...prev, data]);
-        setCount((c) => c + 1);
-        setContent('');
+      if (!res.ok) {
+        setSubmitError((data?.error as string) ?? 'Failed to post comment.');
+        return;
       }
+      setComments((prev) => [...prev, data]);
+      setCount((c) => c + 1);
+      setContent('');
     } finally {
       setLoading(false);
     }
@@ -100,6 +104,11 @@ export function CommentThread({ reviewId, initialCount }: CommentThreadProps) {
               >
                 Post
               </button>
+              {submitError && (
+                <div className="col-span-2 mt-2 w-full text-sm text-red-400 font-medium">
+                  {submitError}
+                </div>
+              )}
             </form>
           )}
         </div>

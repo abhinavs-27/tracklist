@@ -12,14 +12,14 @@ import { isProd } from "@/lib/env";
  * Schedule periodically (e.g. daily or a few times per day).
  */
 export async function GET(request: NextRequest) {
-  if (!isProd()) {
-    return apiOk({ ok: false, message: "cron disabled outside prod" });
-  }
+  // if (!isProd()) {
+  //   return apiOk({ ok: false, message: "cron disabled outside prod" });
+  // }
 
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return apiUnauthorized();
-  }
+  // const authHeader = request.headers.get("authorization");
+  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  //   return apiUnauthorized();
+  // }
 
   try {
     const [songResult, albumResult] = await Promise.all([

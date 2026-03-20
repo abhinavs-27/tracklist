@@ -1,0 +1,29 @@
+{
+  "name": "tracklist-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Express + TypeScript API server for Tracklist (web + mobile)",
+  "scripts": {
+    "dev": "nodemon --watch './**/*.ts' --exec 'ts-node --project tsconfig.json' server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "http-proxy-middleware": "^3.0.3",
+    "next-auth": "^4.24.13"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.7",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

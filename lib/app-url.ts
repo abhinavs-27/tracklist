@@ -1,8 +1,12 @@
 import type { NextRequest } from "next/server";
 
 /**
- * Single source of truth for the app's base URL. Ensures production never
- * uses localhost (e.g. when NEXTAUTH_URL is mistakenly set to 127.0.0.1).
+ * Single source of truth for the app's base URL.
+ * - **Production:** never uses loopback (localhost / 127.0.0.1).
+ * - **Development:** `NEXTAUTH_URL` wins if set; otherwise defaults to
+ *   `http://127.0.0.1:3000`. Using **127.0.0.1** vs **localhost** is a preference—
+ *   they are different browser origins, so pick one and set `NEXTAUTH_URL` (and
+ *   OAuth redirect URIs) to match the URL you actually open in the browser.
  */
 
 /**

@@ -71,24 +71,16 @@ export function useReviews(
     { tempId: string; previousData?: ReviewsResponse | undefined } | undefined
   > = useMutation({
     mutationFn: async (payload: CreateReviewPayload) => {
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/reviews`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            entity_type: entityType,
-            entity_id: normalizedId,
-            rating: payload.rating,
-            review_text: payload.review_text,
-          }),
-        },
-      );
-      const json = (await res.json()) as ReviewItem | { error?: string };
-      if (!res.ok) {
-        throw new Error((json as { error?: string }).error ?? "Failed to save review");
-      }
-      return json as ReviewItem;
+      return fetcher<ReviewItem>("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entity_type: entityType,
+          entity_id: normalizedId,
+          rating: payload.rating,
+          review_text: payload.review_text,
+        }),
+      });
     },
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: reviewsKey });
@@ -173,11 +165,7 @@ export function useReviews(
 
   const deleteMutation = useMutation({
     mutationFn: async (reviewId: string) => {
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/reviews/${reviewId}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) throw new Error("Failed to delete review");
+      await fetcher(`/api/reviews/${reviewId}`, { method: "DELETE" });
     },
     onMutate: async (reviewId) => {
       await queryClient.cancelQueries({ queryKey: reviewsKey });
