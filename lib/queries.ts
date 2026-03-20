@@ -14,6 +14,12 @@ import type {
   FeedListenSession,
   AlbumRecommendation,
   ReviewsResult,
+  UserStreak,
+  WeeklyReportRow,
+  PeriodReportRow,
+  TrendingEntity,
+  RisingArtist,
+  HiddenGem,
 } from "@/types";
 
 /**
@@ -34,7 +40,7 @@ export async function fetchUserMap<
     .select(select)
     .in("id", userIds);
   return new Map(
-    (users ?? []).map((u: any) => [u.id, u as unknown as T]),
+    (users ?? []).map((u: any) => [u.id as string, u as unknown as T]),
   );
 }
 
@@ -1476,12 +1482,6 @@ export async function getUserRecommendations(
 // Engagement: streaks, weekly reports, notifications, achievements
 // ---------------------------------------------------------------------------
 
-export type UserStreak = {
-  current_streak: number;
-  longest_streak: number;
-  last_listen_date: string | null;
-};
-
 export async function getUserStreak(
   userId: string,
 ): Promise<UserStreak | null> {
@@ -1503,17 +1503,6 @@ export async function getUserStreak(
     return null;
   }
 }
-
-export type WeeklyReportRow = {
-  id: string;
-  user_id: string;
-  week_start: string;
-  listen_count: number;
-  top_artist_id: string | null;
-  top_album_id: string | null;
-  top_track_id: string | null;
-  created_at: string;
-};
 
 export async function generateWeeklyReport(
   userId: string,
@@ -1540,16 +1529,6 @@ export async function generateWeeklyReport(
     return null;
   }
 }
-
-export type PeriodReportRow = {
-  period_start: string;
-  period_end: string;
-  period_label: string;
-  listen_count: number;
-  top_artist_id: string | null;
-  top_album_id: string | null;
-  top_track_id: string | null;
-};
 
 export async function getPeriodReport(
   userId: string,
@@ -3082,12 +3061,6 @@ export async function getListOwnerId(listId: string): Promise<string | null> {
 // Discovery (trending, rising artists, hidden gems)
 // ---------------------------------------------------------------------------
 
-export type TrendingEntity = {
-  entity_id: string;
-  entity_type: string;
-  listen_count: number;
-};
-
 export async function getTrendingEntities(
   limit = 20,
 ): Promise<TrendingEntity[]> {
@@ -3120,13 +3093,6 @@ export async function getTrendingEntities(
     return [];
   }
 }
-
-export type RisingArtist = {
-  artist_id: string;
-  name: string;
-  avatar_url: string | null;
-  growth: number;
-};
 
 export async function getRisingArtists(
   limit = 20,
@@ -3165,13 +3131,6 @@ export async function getRisingArtists(
     return [];
   }
 }
-
-export type HiddenGem = {
-  entity_id: string;
-  entity_type: string;
-  avg_rating: number;
-  listen_count: number;
-};
 
 export async function getHiddenGems(
   limit = 20,

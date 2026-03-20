@@ -6,10 +6,8 @@ import {
   getTrendingEntities,
   getRisingArtists,
   getHiddenGems,
-  type TrendingEntity,
-  type RisingArtist,
-  type HiddenGem,
 } from "@/lib/queries";
+import type { TrendingEntity, RisingArtist, HiddenGem } from "@/types";
 
 const TTL_MS = 15 * 60 * 1000; // 15 min (server-side cache; MVs refreshed every 5–15 min)
 

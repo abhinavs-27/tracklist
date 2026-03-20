@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest } from "next/server";
+import { getSession } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
@@ -25,7 +24,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("user_id");
     if (!userId || !isValidUuid(userId)) return apiBadRequest("Valid user_id required");
 
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     const supabase = createSupabaseAdminClient();
 
     const isOwnProfile = session?.user?.id === userId;

@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getList, getListOwnerId } from "@/lib/queries";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
@@ -8,7 +7,6 @@ import { getOrFetchTrack } from "@/lib/spotify-cache";
 import {
   apiNotFound,
   apiInternalError,
-  apiUnauthorized,
   apiForbidden,
   apiBadRequest,
   apiOk,
@@ -81,8 +79,8 @@ export async function PATCH(
     const { listId } = await params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId || ownerId !== session.user.id) {
@@ -158,8 +156,8 @@ export async function DELETE(
     const { listId } = await params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId || ownerId !== session.user.id) {

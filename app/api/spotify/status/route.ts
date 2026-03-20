@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { requireApiAuth } from '@/lib/auth';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { apiUnauthorized, apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
+import { apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
 import { checkSpotifyRateLimit } from '@/lib/rate-limit';
 
 export type SpotifyStatusResponse = {
@@ -15,8 +14,8 @@ export async function GET(request: NextRequest) {
     return apiTooManyRequests();
   }
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase

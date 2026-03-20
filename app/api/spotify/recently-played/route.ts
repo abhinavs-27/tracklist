@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextRequest } from "next/server";
+import { requireApiAuth } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
-import { apiUnauthorized, apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
+import { apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
+import { clampLimit } from "@/lib/validation";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_LIMIT = 50;
@@ -15,14 +15,11 @@ export async function GET(request: NextRequest) {
     return apiTooManyRequests();
   }
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return apiUnauthorized();
+    const { session, error: authErr } = await requireApiAuth();
+    if (authErr) return authErr;
 
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(
-      Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10) || 50),
-      MAX_LIMIT,
-    );
+    const limit = clampLimit(searchParams.get("limit"), MAX_LIMIT, 50);
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
     const userId = session.user.id;

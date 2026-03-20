@@ -206,3 +206,56 @@ export type SuggestedUser = {
   avatar_url: string | null;
   followers_count: number;
 };
+
+export type UserStreak = {
+  current_streak: number;
+  longest_streak: number;
+  last_listen_date: string | null;
+};
+
+export type WeeklyReportRow = {
+  id: string;
+  user_id: string;
+  week_start: string;
+  listen_count: number;
+  top_artist_id: string | null;
+  top_album_id: string | null;
+  top_track_id: string | null;
+  created_at: string;
+};
+
+export type PeriodReportRow = {
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  listen_count: number;
+  top_artist_id: string | null;
+  top_album_id: string | null;
+  top_track_id: string | null;
+};
+
+export type TrendingEntity = {
+  entity_id: string;
+  entity_type: string;
+  listen_count: number;
+};
+
+export type RisingArtist = {
+  artist_id: string;
+  name: string;
+  avatar_url: string | null;
+  growth: number;
+};
+
+export type HiddenGem = {
+  entity_id: string;
+  entity_type: string;
+  avg_rating: number;
+  listen_count: number;
+};
+
+export type SyncResponse = {
+  inserted: number;
+  skipped: number;
+  mode: "song";
+};
