@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -29,6 +29,7 @@ const labelStyle: TextStyle = {
 
 export function YearRangeFilter({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
+  const [prevValue, setPrevValue] = useState(value);
   const [startInput, setStartInput] = useState<string>(
     value.startYear ? String(value.startYear) : "",
   );
@@ -36,10 +37,11 @@ export function YearRangeFilter({ value, onChange }: Props) {
     value.endYear ? String(value.endYear) : "",
   );
 
-  useEffect(() => {
+  if (value.startYear !== prevValue.startYear || value.endYear !== prevValue.endYear) {
+    setPrevValue(value);
     setStartInput(value.startYear ? String(value.startYear) : "");
     setEndInput(value.endYear ? String(value.endYear) : "");
-  }, [value.startYear, value.endYear]);
+  }
 
   const label = useMemo(() => {
     const { startYear, endYear } = value;
