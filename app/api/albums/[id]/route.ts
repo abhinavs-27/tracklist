@@ -31,6 +31,7 @@ export async function GET(
     const { album, tracks } = albumResp;
 
     const artistNames = (album.artists ?? []).map((a) => a.name).filter(Boolean).join(", ");
+    const artist_id = (album.artists ?? [])[0]?.id ?? null;
     const artwork_url = album.images?.[0]?.url ?? null;
     const release_date = album.release_date ?? null;
 
@@ -66,6 +67,7 @@ export async function GET(
         id: album.id,
         name: album.name,
         artist: artistNames,
+        artist_id,
         artwork_url,
         release_date,
       },

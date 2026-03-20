@@ -5,6 +5,9 @@ type Props = {
   title: string;
   artist: string;
   releaseDate: string | null;
+  /** Primary Spotify artist id for navigation. */
+  artistId?: string | null;
+  onPressArtist?: (artistId: string) => void;
 };
 
 function getReleaseYear(releaseDate: string | null) {
@@ -15,7 +18,14 @@ function getReleaseYear(releaseDate: string | null) {
 }
 
 /** Album detail header — uses {@link MediaHeader}. */
-export function AlbumHeader({ artworkUrl, title, artist, releaseDate }: Props) {
+export function AlbumHeader({
+  artworkUrl,
+  title,
+  artist,
+  releaseDate,
+  artistId,
+  onPressArtist,
+}: Props) {
   const releaseYear = getReleaseYear(releaseDate);
   return (
     <MediaHeader
@@ -23,6 +33,9 @@ export function AlbumHeader({ artworkUrl, title, artist, releaseDate }: Props) {
       title={title}
       subtitle={artist}
       detailLine={releaseYear != null ? String(releaseYear) : null}
+      onPressSubtitle={
+        artistId && onPressArtist ? () => onPressArtist(artistId) : undefined
+      }
     />
   );
 }

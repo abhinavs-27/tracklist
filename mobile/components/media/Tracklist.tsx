@@ -82,11 +82,31 @@ type Props = {
   tracks: TrackRowItem[];
   onPressTrack: (trackId: string) => void;
   scrollEnabled?: boolean;
+  emptyMessage?: string;
 };
 
-export function Tracklist({ tracks, onPressTrack, scrollEnabled = false }: Props) {
+export function Tracklist({
+  tracks,
+  onPressTrack,
+  scrollEnabled = false,
+  emptyMessage = "No tracks found.",
+}: Props) {
   if (!tracks.length) {
-    return <Text style={styles.empty}>No tracks found.</Text>;
+    return <Text style={styles.empty}>{emptyMessage}</Text>;
+  }
+
+  /** Nested VirtualizedList inside ScrollView often gets zero height; use static rows when not scrolling. */
+  if (!scrollEnabled) {
+    return (
+      <View>
+        {tracks.map((t, i) => (
+          <React.Fragment key={t.id}>
+            {i > 0 ? <View style={styles.sep} /> : null}
+            <MemoTrackRow item={t} onPress={onPressTrack} />
+          </React.Fragment>
+        ))}
+      </View>
+    );
   }
 
   return (

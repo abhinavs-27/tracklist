@@ -8,6 +8,7 @@ import { commentsRouter } from "./comments";
 import { likesRouter } from "./likes";
 import { searchRouter } from "./search";
 import { albumsRouter } from "./albums";
+import { artistsRouter } from "./artists";
 import { spotifyDataRouter } from "./spotify";
 import { authCompatRouter } from "./authCompat";
 
@@ -26,6 +27,7 @@ export function createApiRouter(): Router {
   api.use("/likes", likesRouter);
   api.use("/search", searchRouter);
   api.use("/albums", albumsRouter);
+  api.use("/artists", artistsRouter);
   api.use("/spotify", spotifyDataRouter);
   api.use("/auth", authCompatRouter);
 

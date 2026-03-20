@@ -189,7 +189,10 @@ export async function getArtistAlbums(
   spotifyId: string,
   limit = 20,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
-  return spotifyFetch(`/artists/${spotifyId}/albums`, { limit: String(limit) });
+  return spotifyFetch(`/artists/${spotifyId}/albums`, {
+    limit: String(limit),
+    include_groups: "album,single",
+  });
 }
 
 export async function getArtistTopTracks(

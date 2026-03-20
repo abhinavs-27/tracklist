@@ -19,6 +19,8 @@ export type SongDetail = {
   id: string;
   name: string;
   artist: string;
+  /** Optional Spotify primary artist id for navigation. */
+  artist_id: string | null;
   image_url: string | null;
   release_date: string | null;
   album_name: string | null;
@@ -125,7 +127,10 @@ async function loadSongPage(songId: string): Promise<SongPageData> {
     }));
 
   return {
-    song: spotify,
+    song: {
+      ...spotify,
+      artist_id: spotify.artist_id ?? null,
+    },
     album: albumContext,
     stats,
     reviews,

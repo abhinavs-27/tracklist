@@ -1,8 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
-import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { theme } from "../../lib/theme";
 import { useAlbum } from "../../lib/hooks/useAlbum";
 import { AlbumHeader } from "../../components/media/AlbumHeader";
@@ -10,13 +9,10 @@ import { StatRow } from "../../components/media/StatRow";
 import { ActionRow } from "../../components/media/ActionRow";
 import { Tracklist } from "../../components/media/Tracklist";
 import { ReviewList } from "../../components/reviews/ReviewList";
-import { LogModal } from "../../components/media/LogModal";
-import { queryKeys } from "../../lib/query-keys";
 
 export default function AlbumDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const albumId = useMemo(() => {
     if (!id) return "";
@@ -24,7 +20,6 @@ export default function AlbumDetailScreen() {
   }, [id]);
 
   const { album, tracks, stats, reviews, isLoading, error } = useAlbum(albumId);
-  const [isLogModalVisible, setIsLogModalVisible] = useState(false);
 
   if (isLoading) {
     return (
@@ -85,6 +80,8 @@ export default function AlbumDetailScreen() {
           title={album.name}
           artist={album.artist}
           releaseDate={album.release_date}
+          artistId={album.artist_id}
+          onPressArtist={(aid) => router.push(`/artist/${aid}` as const)}
         />
 
         {/* 2. Stats row */}
@@ -95,9 +92,8 @@ export default function AlbumDetailScreen() {
           reviewCount={stats.review_count}
         />
 
-        {/* 3. Action row */}
+        {/* 3. Action row — review only; listens come from Spotify */}
         <ActionRow
-          onLogPress={() => setIsLogModalVisible(true)}
           onReviewPress={() => router.push(`/reviews/album/${album.id}` as const)}
           onFavoritePress={() => {}}
         />
@@ -124,17 +120,6 @@ export default function AlbumDetailScreen() {
           />
         </View>
       </ScrollView>
-
-      <LogModal
-        visible={isLogModalVisible}
-        onClose={() => setIsLogModalVisible(false)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.album(albumId) });
-        }}
-        entityId={album.id}
-        entityType="album"
-        entityName={album.name}
-      />
     </SafeAreaView>
   );
 }

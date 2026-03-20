@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Artwork } from "./Artwork";
 import { theme } from "../../lib/theme";
 
@@ -9,6 +9,8 @@ export type MediaHeaderProps = {
   subtitle: string;
   /** Optional third line (e.g. release year or “Album · year”). */
   detailLine?: string | null;
+  /** When set, subtitle is tappable (e.g. navigate to artist). */
+  onPressSubtitle?: () => void;
 };
 
 /**
@@ -19,7 +21,24 @@ function MediaHeaderInner({
   title,
   subtitle,
   detailLine,
+  onPressSubtitle,
 }: MediaHeaderProps) {
+  const subtitleEl = onPressSubtitle ? (
+    <Pressable
+      onPress={onPressSubtitle}
+      hitSlop={6}
+      style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+    >
+      <Text style={styles.subtitle} numberOfLines={1}>
+        {subtitle}
+      </Text>
+    </Pressable>
+  ) : (
+    <Text style={styles.subtitle} numberOfLines={1}>
+      {subtitle}
+    </Text>
+  );
+
   return (
     <View style={styles.wrap}>
       <Artwork src={artworkUrl} size="lg" />
@@ -27,9 +46,7 @@ function MediaHeaderInner({
         <Text style={styles.title} numberOfLines={2}>
           {title}
         </Text>
-        <Text style={styles.subtitle} numberOfLines={1}>
-          {subtitle}
-        </Text>
+        {subtitleEl}
         {detailLine != null && detailLine.length > 0 && (
           <Text style={styles.detail} numberOfLines={2}>
             {detailLine}

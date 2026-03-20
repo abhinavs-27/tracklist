@@ -95,6 +95,11 @@ export default function SongDetailScreen() {
           title={song.name}
           subtitle={song.artist}
           detailLine={detailLine}
+          onPressSubtitle={
+            song.artist_id
+              ? () => router.push(`/artist/${song.artist_id}` as const)
+              : undefined
+          }
         />
 
         <StatRow

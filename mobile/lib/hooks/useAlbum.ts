@@ -6,6 +6,8 @@ export type AlbumHeader = {
   id: string;
   name: string;
   artist: string;
+  /** Optional Spotify primary artist id for navigation. */
+  artist_id: string | null;
   artwork_url: string | null;
   release_date: string | null;
 };
@@ -35,7 +37,7 @@ export type ReviewItem = {
 };
 
 type AlbumApiResponse = {
-  album: AlbumHeader;
+  album: AlbumHeader & { artist_id?: string | null };
   tracks: AlbumTrack[];
   stats: AlbumStats;
   reviews?: {
@@ -54,7 +56,13 @@ export function useAlbum(albumId: string) {
     staleTime: 30 * 1000,
   });
 
-  const album = data?.album ?? null;
+  const raw = data?.album ?? null;
+  const album = raw
+    ? {
+        ...raw,
+        artist_id: raw.artist_id ?? null,
+      }
+    : null;
   const tracks = data?.tracks ?? [];
   const stats =
     data?.stats ?? ({

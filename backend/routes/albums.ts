@@ -26,6 +26,7 @@ albumsRouter.get("/:id", async (req, res) => {
       .map((a) => a.name)
       .filter(Boolean)
       .join(", ");
+    const artist_id = (album.artists ?? [])[0]?.id ?? null;
     const artwork_url = album.images?.[0]?.url ?? null;
     const release_date = album.release_date ?? null;
 
@@ -75,6 +76,7 @@ albumsRouter.get("/:id", async (req, res) => {
         id: album.id,
         name: album.name,
         artist: artistNames,
+        artist_id,
         artwork_url,
         release_date,
       },
