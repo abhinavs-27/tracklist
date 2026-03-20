@@ -4,86 +4,77 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { SearchBar } from "./search-bar";
 
+const navLinkClass =
+  "inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation";
+
 export function Navbar() {
   const { data: session, status } = useSession();
 
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+      <div className="mx-auto flex max-w-6xl min-h-14 items-center gap-2 px-4 py-2 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="shrink-0 text-lg font-bold tracking-tight text-white"
+          className="shrink-0 text-lg font-bold tracking-tight text-white touch-manipulation"
         >
           Tracklist
         </Link>
 
-        <div className="hidden flex-1 max-w-md md:block">
+        <div className="hidden min-w-0 flex-1 md:block md:max-w-md">
           <SearchBar placeholder="Search artists, albums, tracks..." />
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/search"
-            className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white md:hidden"
-          >
+        <div
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] pr-1 [scrollbar-width:none] md:ml-auto md:flex-none md:gap-2 md:overflow-visible md:pr-0 [&::-webkit-scrollbar]:hidden"
+          role="navigation"
+          aria-label="Main"
+        >
+          <Link href="/search" className={`${navLinkClass} md:hidden`}>
             Search
           </Link>
-          <Link
-            href="/feed"
-            className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-          >
+          <Link href="/feed" className={navLinkClass}>
             Feed
           </Link>
-          <Link
-            href="/discover"
-            className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-          >
+          <Link href="/discover" className={navLinkClass}>
             Discover
           </Link>
-          <Link
-            href="/leaderboard"
-            className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-          >
+          <Link href="/leaderboard" className={navLinkClass}>
             Leaderboard
           </Link>
           {session && (
             <>
-              <Link
-                href="/lists"
-                className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-              >
+              <Link href="/lists" className={navLinkClass}>
                 Lists
               </Link>
-              <Link
-                href="/search/users"
-                className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-              >
-                Find people
+              <Link href="/search/users" className={navLinkClass}>
+                <span className="max-[380px]:hidden">Find people</span>
+                <span className="hidden max-[380px]:inline">People</span>
               </Link>
-              <Link
-                href="/reports/week"
-                className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-              >
-                Listening reports
+              <Link href="/reports/week" className={navLinkClass}>
+                <span className="max-[420px]:hidden">Listening reports</span>
+                <span className="hidden max-[420px]:inline">Reports</span>
               </Link>
             </>
           )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {status === "loading" ? (
-            <span className="text-zinc-500">...</span>
+            <span className="px-2 text-zinc-500">...</span>
           ) : session ? (
             <>
               <Link
                 href={`/profile/${(session.user as { id?: string }).id ?? ""}`}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white touch-manipulation sm:px-3"
               >
                 {session.user?.image ? (
                   <img
                     src={session.user.image}
                     alt=""
-                    className="h-7 w-7 rounded-full object-cover"
+                    className="h-8 w-8 rounded-full object-cover sm:h-7 sm:w-7"
                   />
                 ) : (
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-xs text-zinc-300">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-xs text-zinc-300 sm:h-7 sm:w-7">
                     {(session.user?.name ?? "?")[0]}
                   </span>
                 )}
@@ -91,7 +82,7 @@ export function Navbar() {
               </Link>
               <Link
                 href="/notifications"
-                className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation"
                 title="Notifications"
                 aria-label="Notifications"
               >
@@ -113,15 +104,16 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation"
               >
-                Sign out
+                <span className="max-sm:hidden">Sign out</span>
+                <span className="hidden max-sm:inline">Out</span>
               </button>
             </>
           ) : (
             <Link
               href="/auth/signin"
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 touch-manipulation"
             >
               Sign in
             </Link>

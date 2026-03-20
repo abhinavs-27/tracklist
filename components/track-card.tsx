@@ -30,8 +30,10 @@ function TrackCardInner({ track, showAlbum = true, noLink = false, songPageLink 
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-white group-hover:text-emerald-400">{track.name}</p>
-        <p className="truncate text-sm text-zinc-500">{artistNames}</p>
+        <p className="truncate text-sm font-medium text-white group-hover:text-emerald-400 sm:text-base">
+          {track.name}
+        </p>
+        <p className="truncate text-xs text-zinc-500 sm:text-sm">{artistNames}</p>
       </div>
       {showAlbum && album && (
         <p className="hidden truncate text-sm text-zinc-500 sm:block max-w-[120px]">{album.name}</p>
@@ -39,7 +41,8 @@ function TrackCardInner({ track, showAlbum = true, noLink = false, songPageLink 
     </>
   );
 
-  const className = "group flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50";
+  const className =
+    "group flex min-h-[44px] touch-manipulation items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50 active:bg-zinc-800/60";
 
   if (!href) {
     return <div className={className}>{content}</div>;

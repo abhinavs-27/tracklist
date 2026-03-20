@@ -17,7 +17,7 @@ export default function ProfileLoading() {
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
         <SkeletonBlock className="mb-3 h-6 w-36" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={i} imageHeight={100} lines={1} />
           ))}

@@ -162,8 +162,8 @@ export default async function ProfilePage({
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
+      <header className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 w-full flex-1 text-center sm:w-auto sm:text-left">
           <ProfileHeader
             username={profile.username}
             avatarUrl={profile.avatar_url}
@@ -190,7 +190,7 @@ export default async function ProfilePage({
             </p>
           )}
         </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
+        <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:items-end">
           {isOwnProfile && (
             <ProfileEditModal
               userId={profile.id}
@@ -226,7 +226,7 @@ export default async function ProfilePage({
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">Top artists</h2>
+          <h2 className="text-base font-semibold text-white sm:text-lg">Top artists</h2>
           <span className="text-xs text-zinc-500">Coming soon</span>
         </div>
         <p className="mt-2 text-sm text-zinc-500">
@@ -261,7 +261,7 @@ export default async function ProfilePage({
 
       <section id="lists">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">Lists</h2>
+          <h2 className="text-base font-semibold text-white sm:text-lg">Lists</h2>
           {isOwnProfile && <ProfileListsSection />}
         </div>
         {userLists.length === 0 ? (
@@ -287,7 +287,7 @@ export default async function ProfilePage({
           </div>
         ) : (
           <>
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               {userLists.map((list) => (
                 <li key={list.id}>
                   <ListCard

@@ -3,6 +3,8 @@
 export const queryKeys = {
   /** Album detail (including tracks/stats/reviews when available). */
   album: (albumId: string) => ["album", albumId] as const,
+  /** Song detail (composed from spotify + album + reviews; see useSong). */
+  song: (songId: string) => ["song", songId] as const,
   /** Use for all review queries; never use manual keys like ['reviews', ...]. */
   reviews: (entityType: string, entityId: string) =>
     ["reviews", entityType, entityId] as const,

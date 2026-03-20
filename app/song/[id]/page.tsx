@@ -84,18 +84,18 @@ export default async function SongPage({ params }: { params: PageParams }) {
   return (
     <div className="space-y-8">
       {/* Track header */}
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-        <div className="h-48 w-48 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:h-56 sm:w-56">
+      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
+        <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:mx-0 sm:h-56 sm:w-56">
           {image ? (
             <img src={image} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">
+            <div className="flex h-full w-full items-center justify-center text-5xl text-zinc-600 sm:text-6xl">
               ♪
             </div>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-bold text-white">{track.name}</h1>
+        <div className="w-full min-w-0 flex-1 text-left">
+          <h1 className="text-2xl font-bold text-white sm:text-3xl">{track.name}</h1>
           <p className="mt-1 text-zinc-400">
             {track.artists?.map((a, i) => (
               <span key={a.id}>
@@ -138,7 +138,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
       {/* Fans also like (co-occurrence) */}
       {relatedTracks.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
+          <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">
             Fans also like
           </h2>
           <p className="mb-3 text-sm text-zinc-400">
@@ -167,7 +167,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
       {/* Recent listens */}
       {recentListens.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
+          <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">
             Recent listens
           </h2>
           <ul className="space-y-2">

@@ -26,8 +26,8 @@ export default async function RecommendedPage() {
         <Link href="/discover" className="text-sm text-emerald-400 hover:underline">
           ← Discover
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-white">Recommended for you</h1>
-        <p className="mt-1 text-zinc-400">
+        <h1 className="mt-2 text-xl font-bold text-white sm:text-2xl">Recommended for you</h1>
+        <p className="mt-1 text-sm text-zinc-400 sm:text-base">
           Albums loved by people with similar taste
         </p>
       </header>
@@ -42,7 +42,7 @@ export default async function RecommendedPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {albums.map((album) => (
             <AlbumCard key={album.id} album={album} />
           ))}

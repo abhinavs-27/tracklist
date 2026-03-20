@@ -25,41 +25,43 @@ function LeaderboardListRow({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50"
+      className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50 active:bg-zinc-800/40 touch-manipulation sm:flex-row sm:items-center sm:gap-3"
     >
-      <span className="w-6 shrink-0 text-right text-sm font-medium text-zinc-500 tabular-nums">
-        {rank}
-      </span>
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
-        {entry.artwork_url ? (
-          <img
-            src={entry.artwork_url}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">
-            ♪
-          </div>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-white">{entry.name}</p>
-        <p className="truncate text-sm text-zinc-500">{entry.artist}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="text-sm text-zinc-400 tabular-nums">
-          {entry.total_plays.toLocaleString()} plays
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <span className="w-6 shrink-0 text-right text-sm font-medium text-zinc-500 tabular-nums">
+          {rank}
         </span>
+        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md bg-zinc-800 sm:h-12 sm:w-12">
+          {entry.artwork_url ? (
+            <img
+              src={entry.artwork_url}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-base text-zinc-500 sm:text-lg">
+              ♪
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-white sm:text-base">
+            {entry.name}
+          </p>
+          <p className="truncate text-xs text-zinc-500 sm:text-sm">{entry.artist}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-800/80 pt-2 text-xs text-zinc-400 tabular-nums sm:border-0 sm:pt-0 sm:text-sm sm:shrink-0">
+        <span>{entry.total_plays.toLocaleString()} plays</span>
         {entry.average_rating != null ? (
-          <span className="text-sm text-amber-400">
+          <span className="text-amber-400">
             ★ {entry.average_rating.toFixed(1)}
           </span>
         ) : (
-          <span className="text-sm text-zinc-500">—</span>
+          <span className="text-zinc-500">—</span>
         )}
         {showFavoriteCount && (
-          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400 tabular-nums">
+          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400 tabular-nums sm:text-xs">
             {(entry.favorite_count ?? 0).toLocaleString()} favorited
           </span>
         )}
@@ -120,15 +122,20 @@ function LeaderboardSkeleton() {
       {Array.from({ length: 12 }).map((_, i) => (
         <div
           key={i}
-          className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3"
+          className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 sm:flex-row sm:items-center sm:gap-3"
         >
-          <div className="h-6 w-6 shrink-0 animate-pulse rounded bg-zinc-700" />
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="h-4 w-48 animate-pulse rounded bg-zinc-700" />
-            <div className="h-3 w-32 animate-pulse rounded bg-zinc-700/80" />
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <div className="h-6 w-6 shrink-0 animate-pulse rounded bg-zinc-700" />
+            <div className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-zinc-700 sm:h-12 sm:w-12" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="h-4 max-w-[12rem] animate-pulse rounded bg-zinc-700" />
+              <div className="h-3 max-w-[8rem] animate-pulse rounded bg-zinc-700/80" />
+            </div>
           </div>
-          <div className="h-4 w-16 animate-pulse rounded bg-zinc-700/80" />
-          <div className="h-4 w-12 animate-pulse rounded bg-zinc-700/80" />
+          <div className="flex gap-3 border-t border-zinc-800/80 pt-2 sm:border-0 sm:pt-0">
+            <div className="h-4 w-16 animate-pulse rounded bg-zinc-700/80" />
+            <div className="h-4 w-12 animate-pulse rounded bg-zinc-700/80" />
+          </div>
         </div>
       ))}
     </div>
@@ -156,18 +163,18 @@ export default function LeaderboardPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
-        <p className="mt-1 text-zinc-400">
+        <h1 className="text-xl font-bold text-white sm:text-2xl">Leaderboard</h1>
+        <p className="mt-1 text-sm text-zinc-400 sm:text-base">
           Most popular and top rated {entity === "album" ? "albums" : "songs"}. Adjust filters to change the time period.
         </p>
       </header>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5">
+        <div className="flex w-full min-w-0 flex-wrap rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5 sm:w-auto">
           <button
             type="button"
             onClick={() => setType("popular")}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
               type === "popular"
                 ? "bg-zinc-700 text-white"
                 : "text-zinc-400 hover:text-white"
@@ -178,7 +185,7 @@ export default function LeaderboardPage() {
           <button
             type="button"
             onClick={() => setType("topRated")}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
               type === "topRated"
                 ? "bg-zinc-700 text-white"
                 : "text-zinc-400 hover:text-white"
@@ -191,7 +198,7 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setType("mostFavorited")}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
                 type === "mostFavorited"
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-400 hover:text-white"
@@ -201,7 +208,7 @@ export default function LeaderboardPage() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="flex rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5">
             <button
               type="button"
@@ -210,7 +217,7 @@ export default function LeaderboardPage() {
                 // If we were on "Most Favorited" (albums-only), switch back to a valid type.
                 if (type === "mostFavorited") setType("popular");
               }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
                 entity === "song"
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-400 hover:text-white"
@@ -221,7 +228,7 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setEntity("album")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
                 entity === "album"
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-400 hover:text-white"
@@ -232,14 +239,14 @@ export default function LeaderboardPage() {
           </div>
           <YearRangeFilter value={yearRange} onChange={setYearRange} />
           <div
-            className="flex rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5"
+            className="flex shrink-0 rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5"
             role="group"
             aria-label="View"
           >
             <button
               type="button"
               onClick={() => setView("grid")}
-              className={`rounded-md p-2 transition ${
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 transition ${
                 view === "grid"
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-400 hover:text-white"
@@ -252,7 +259,7 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setView("list")}
-              className={`rounded-md p-2 transition ${
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 transition ${
                 view === "list"
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-400 hover:text-white"

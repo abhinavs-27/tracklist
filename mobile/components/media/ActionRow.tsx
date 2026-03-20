@@ -2,6 +2,7 @@ import { View, Pressable, Text, StyleSheet } from "react-native";
 import { theme } from "../../lib/theme";
 
 type Props = {
+  onLogPress?: () => void;
   onReviewPress?: () => void;
   onFavoritePress?: () => void;
 };
@@ -14,11 +15,16 @@ function ActionButton({ label, onPress }: { label: string; onPress?: () => void 
   );
 }
 
-export function ActionRow({ onReviewPress, onFavoritePress }: Props) {
+export function ActionRow({
+  onLogPress,
+  onReviewPress,
+  onFavoritePress,
+}: Props) {
   return (
     <View style={styles.wrap}>
-      <ActionButton label="Review" onPress={onReviewPress} />
-      <ActionButton label="Favorite" onPress={onFavoritePress} />
+      {onLogPress != null && <ActionButton label="Log" onPress={onLogPress} />}
+      {onReviewPress != null && <ActionButton label="Review" onPress={onReviewPress} />}
+      {onFavoritePress != null && <ActionButton label="Favorite" onPress={onFavoritePress} />}
     </View>
   );
 }

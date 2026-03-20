@@ -5,7 +5,7 @@ export default function DiscoverLoading() {
     <div className="space-y-10">
       <section>
         <SkeletonBlock className="mb-3 h-6 w-40" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} imageHeight={100} lines={2} />
           ))}
@@ -14,7 +14,7 @@ export default function DiscoverLoading() {
 
       <section>
         <SkeletonBlock className="mb-3 h-6 w-36" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={i} imageHeight={100} lines={1} />
           ))}
@@ -36,7 +36,7 @@ export default function DiscoverLoading() {
 
       <section>
         <SkeletonBlock className="mb-3 h-6 w-36" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} imageHeight={80} lines={2} />
           ))}

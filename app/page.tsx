@@ -10,15 +10,15 @@ export default async function HomePage() {
   if (!session?.user?.id) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-white">
+        <h1 className="px-2 text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
           Log your music. Share with friends.
         </h1>
-        <p className="mt-4 max-w-md text-lg text-zinc-400">
+        <p className="mt-4 max-w-md px-2 text-base text-zinc-400 sm:text-lg">
           Tracklist is like Letterboxd for music. Search for albums and tracks, rate and review your listens, and follow friends to see their activity.
         </p>
         <Link
           href="/auth/signin"
-          className="mt-8 rounded-full bg-emerald-600 px-8 py-3 font-medium text-white transition hover:bg-emerald-500"
+          className="mt-8 inline-flex min-h-11 items-center justify-center rounded-full bg-emerald-600 px-8 py-3 font-medium text-white transition hover:bg-emerald-500 touch-manipulation"
         >
           Sign in with Google
         </Link>
@@ -45,7 +45,7 @@ export default async function HomePage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-bold text-white">Your feed</h1>
+      <h1 className="mb-4 text-xl font-bold text-white sm:text-2xl">Your feed</h1>
       {feedItems.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
           <p className="text-zinc-400">Your feed is empty. Follow people to see what they&apos;re listening to.</p>

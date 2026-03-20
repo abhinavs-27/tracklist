@@ -56,7 +56,7 @@ export function FollowButton({ userId, initialFollowing, onFollowChange }: Follo
       type="button"
       onClick={handleClick}
       disabled={followMutation.isPending}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+      className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium transition touch-manipulation ${
         following
           ? 'border border-zinc-600 bg-transparent text-zinc-300 hover:border-zinc-500'
           : 'bg-emerald-600 text-white hover:bg-emerald-500'

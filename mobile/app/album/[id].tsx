@@ -96,7 +96,11 @@ export default function AlbumDetailScreen() {
         />
 
         {/* 3. Action row */}
-        <ActionRow onReviewPress={() => setIsLogModalVisible(true)} />
+        <ActionRow
+          onLogPress={() => setIsLogModalVisible(true)}
+          onReviewPress={() => router.push(`/reviews/album/${album.id}` as const)}
+          onFavoritePress={() => {}}
+        />
 
         {/* 4. Tracklist */}
         <View style={{ gap: 12 }}>

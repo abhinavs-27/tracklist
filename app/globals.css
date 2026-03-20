@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/*
+ * Responsive breakpoints (Tailwind v4 defaults — align with design spec):
+ *   sm: 640px  ·  md: 768px  ·  lg: 1024px  ·  xl: 1280px
+ * Customize via @theme if you need different values (keep units consistent).
+ */
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

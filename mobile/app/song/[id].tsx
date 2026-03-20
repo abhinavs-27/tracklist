@@ -1,84 +1,131 @@
-import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { SafeAreaView, ScrollView, Text, View, ActivityIndicator, TouchableOpacity } from "react-native";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetcher } from "../../lib/api";
-import { Artwork } from "../../components/media/Artwork";
-import { LogModal } from "../../components/media/LogModal";
-import { queryKeys } from "../../lib/query-keys";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useMemo } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { theme } from "../../lib/theme";
+import { useSong } from "../../lib/hooks/useSong";
+import { MediaHeader } from "../../components/media/MediaHeader";
+import { StatRow } from "../../components/media/StatRow";
+import { ActionRow } from "../../components/media/ActionRow";
+import { SongContext } from "../../components/media/SongContext";
+import { ReviewList } from "../../components/reviews/ReviewList";
 
-type SongDetails = {
-  id: string;
-  name: string;
-  artist: string;
-  image_url: string | null;
-  release_date: string;
-  album_name: string;
-  album_id: string;
-};
+function detailLineForSong(
+  albumName: string | null,
+  releaseDate: string | null,
+): string | null {
+  const parts: string[] = [];
+  if (albumName) parts.push(albumName);
+  if (releaseDate) {
+    const d = new Date(releaseDate);
+    const y = Number.isNaN(d.getTime()) ? null : d.getFullYear();
+    if (y != null) parts.push(String(y));
+  }
+  return parts.length ? parts.join(" · ") : null;
+}
 
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams();
-  const queryClient = useQueryClient();
-  const [isLogModalVisible, setIsLogModalVisible] = useState(false);
+  const router = useRouter();
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["song", id],
-    queryFn: () => fetcher<SongDetails>(`/api/spotify/song/${id}`),
-  });
+  const songId = useMemo(() => {
+    if (!id) return "";
+    return Array.isArray(id) ? id[0] : id;
+  }, [id]);
+
+  const { song, album, stats, reviews, isLoading, error } = useSong(songId);
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b", justifyContent: "center" }}>
-        <ActivityIndicator size="small" color="#10b981" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center" }}>
+        <ActivityIndicator size="small" color={theme.colors.emerald} />
       </SafeAreaView>
     );
   }
 
-  if (error || !data) {
+  if (error || !song) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b", justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ color: "#ef4444" }}>Failed to load song</Text>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center", alignItems: "center" }}
+      >
+        <Text style={{ color: theme.colors.danger, fontWeight: "700" }}>
+          Failed to load song
+        </Text>
+        {error instanceof Error && (
+          <Text style={{ marginTop: 8, color: theme.colors.muted, textAlign: "center" }}>
+            {error.message}
+          </Text>
+        )}
       </SafeAreaView>
     );
   }
+
+  const detailLine = detailLineForSong(song.album_name, song.release_date);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b" }}>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-        <View style={{ flexDirection: "row", gap: 16 }}>
-          <Artwork src={data.image_url} size="lg" />
-          <View style={{ flex: 1, justifyContent: "center", gap: 4 }}>
-            <Text style={{ fontSize: 22, fontWeight: "700", color: "#f4f4f5" }}>{data.name}</Text>
-            <Text style={{ fontSize: 16, color: "#10b981" }}>{data.artist}</Text>
-            <Text style={{ fontSize: 14, color: "#71717a" }}>{data.album_name} ({new Date(data.release_date).getFullYear()})</Text>
-          </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          paddingHorizontal: 16,
+          paddingTop: 12,
+          paddingBottom: 8,
+        }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+        >
+          <Text style={{ color: theme.colors.emerald, fontWeight: "900" }}>‹ Back</Text>
+        </Pressable>
+        <Text
+          style={{ color: theme.colors.text, fontWeight: "900", fontSize: 16 }}
+          numberOfLines={1}
+        >
+          Song
+        </Text>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 24, paddingBottom: 100 }}>
+        <MediaHeader
+          artworkUrl={song.image_url}
+          title={song.name}
+          subtitle={song.artist}
+          detailLine={detailLine}
+        />
+
+        <StatRow
+          averageRating={stats.average_rating}
+          totalPlays={stats.play_count}
+          favoriteCount={stats.favorite_count}
+          reviewCount={stats.review_count}
+        />
+
+        <ActionRow onReviewPress={() => router.push(`/reviews/song/${song.id}` as const)} />
+
+        <View style={{ gap: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.text }}>
+            Album
+          </Text>
+          <SongContext
+            album={album}
+            onPressAlbum={(albumId) => router.push(`/album/${albumId}` as const)}
+          />
         </View>
 
-        <TouchableOpacity
-          style={{
-            backgroundColor: "#10b981",
-            paddingVertical: 12,
-            borderRadius: 999,
-            alignItems: "center"
-          }}
-          onPress={() => setIsLogModalVisible(true)}
-        >
-          <Text style={{ color: "#ffffff", fontWeight: "600", fontSize: 16 }}>Rate & review</Text>
-        </TouchableOpacity>
+        <View style={{ gap: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.text }}>
+            Reviews
+          </Text>
+          <ReviewList
+            reviews={reviews}
+            onViewAllPress={() => router.push(`/reviews/song/${song.id}` as const)}
+          />
+        </View>
       </ScrollView>
-
-      <LogModal
-        visible={isLogModalVisible}
-        onClose={() => setIsLogModalVisible(false)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
-          queryClient.invalidateQueries({ queryKey: ["reviews", "song", id] });
-        }}
-        entityId={data.id}
-        entityType="song"
-        entityName={data.name}
-      />
     </SafeAreaView>
   );
 }

@@ -8,18 +8,18 @@ type RisingArtistsSectionProps = {
 export function RisingArtistsSection({ artists }: RisingArtistsSectionProps) {
   return (
     <section>
-      <h2 className="mb-3 text-lg font-semibold text-white">Rising artists</h2>
+      <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">Rising artists</h2>
       {artists.length === 0 ? (
         <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">
           No rising artists this week. More listens over time will surface artists with growing buzz.
         </p>
       ) : (
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {artists.slice(0, 20).map((a) => (
           <Link
             key={a.artist_id}
             href={`/artist/${a.artist_id}`}
-            className="group flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition hover:border-zinc-600 hover:bg-zinc-800/50"
+            className="group flex min-h-0 touch-manipulation flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition hover:border-zinc-600 hover:bg-zinc-800/50"
           >
             <div className="aspect-square w-full overflow-hidden bg-zinc-800">
               {a.avatar_url ? (

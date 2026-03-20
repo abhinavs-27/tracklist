@@ -70,7 +70,7 @@ export function YearRangeFilter({ value, onChange }: Props) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-sm text-zinc-200 shadow-sm transition hover:border-zinc-500 hover:text-white"
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 shadow-sm transition hover:border-zinc-500 hover:text-white touch-manipulation"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         <span>{label}</span>

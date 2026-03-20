@@ -62,7 +62,7 @@ export function RecentAlbumsGrid({
           <h2 className="text-lg font-semibold text-white">Recent albums</h2>
           <div className="h-4 w-24 animate-pulse rounded bg-zinc-800" />
         </div>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 12 }).map((_, i) => (
             <div key={i} className="aspect-square animate-pulse rounded-xl bg-zinc-800/60" />
           ))}
@@ -88,7 +88,7 @@ export function RecentAlbumsGrid({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {albums.map((album) => {
             const lastPlayed = new Date(album.last_played_at).toLocaleDateString();
             return (

@@ -45,7 +45,7 @@ export function ProfileHeader({
   };
 
   return (
-    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+    <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:text-left">
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-zinc-700 bg-zinc-800">
         {avatarUrl ? (
           <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -55,17 +55,17 @@ export function ProfileHeader({
           </div>
         )}
       </div>
-      <div className="min-w-0 flex-1">
-        <h1 className="text-2xl font-bold text-white">{username}</h1>
+      <div className="min-w-0 w-full flex-1 sm:w-auto sm:text-left">
+        <h1 className="text-xl font-bold text-white sm:text-2xl">{username}</h1>
         {bio && <p className="mt-1 text-zinc-400">{bio}</p>}
-        <div className="mt-2 flex items-center gap-4 text-sm text-zinc-500">
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-zinc-500 sm:justify-start">
           <button
             type="button"
             onClick={() => {
               setInitialTab("followers");
               setFollowersOpen(true);
             }}
-            className="flex items-center gap-1 rounded-full px-0.5 py-0.5 text-zinc-400 hover:text-zinc-200"
+            className="inline-flex min-h-11 min-w-[44px] items-center justify-center gap-1 rounded-full px-2 py-1 text-zinc-400 touch-manipulation hover:text-zinc-200"
           >
             <span className="font-semibold text-white">{optimisticFollowerCount}</span>
             <span>followers</span>
@@ -76,14 +76,14 @@ export function ProfileHeader({
               setInitialTab("following");
               setFollowersOpen(true);
             }}
-            className="flex items-center gap-1 rounded-full px-0.5 py-0.5 text-zinc-400 hover:text-zinc-200"
+            className="inline-flex min-h-11 min-w-[44px] items-center justify-center gap-1 rounded-full px-2 py-1 text-zinc-400 touch-manipulation hover:text-zinc-200"
           >
             <span className="font-semibold text-white">{followingCount}</span>
             <span>following</span>
           </button>
         </div>
         {!isOwnProfile && (
-          <div className="mt-3">
+          <div className="mt-3 flex justify-center sm:block sm:justify-start">
             <FollowButton
               userId={userId}
               initialFollowing={isFollowing}

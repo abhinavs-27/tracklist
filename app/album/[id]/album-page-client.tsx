@@ -109,18 +109,18 @@ export function AlbumPageClient({
     <AlbumReviewsProvider albumId={id}>
       <div className="space-y-8">
         {/* Album header */}
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-          <div className="h-48 w-48 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:h-56 sm:w-56">
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
+          <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:mx-0 sm:h-56 sm:w-56">
             {image ? (
               <img src={image} alt="" className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">
+              <div className="flex h-full w-full items-center justify-center text-5xl text-zinc-600 sm:text-6xl">
                 ♪
               </div>
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-3xl font-bold text-white">{album.name}</h1>
+          <div className="w-full min-w-0 flex-1 text-left">
+            <h1 className="text-2xl font-bold text-white sm:text-3xl">{album.name}</h1>
             <p className="mt-1 text-zinc-400">
               {album.artists?.map((a, i) => (
                 <span key={a.id}>
@@ -200,21 +200,24 @@ export function AlbumPageClient({
 
         {tracks.items?.length ? (
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-white">Tracks</h2>
+            <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">Tracks</h2>
             <div className="space-y-1">
               {tracks.items.map((t, i) => {
                 const songStats = trackStats[t.id] ?? { listen_count: 0, review_count: 0, average_rating: null };
                 return (
-                  <div key={t.id} className="flex flex-col gap-0.5 py-1.5">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 text-right text-xs text-zinc-600">
+                  <div
+                    key={t.id}
+                    className="flex flex-col gap-1 rounded-lg py-1.5 transition-colors hover:bg-zinc-900/40 sm:py-2"
+                  >
+                    <div className="flex min-h-[48px] items-center gap-2 sm:gap-3">
+                      <span className="w-6 shrink-0 text-right text-xs text-zinc-600 tabular-nums">
                         {i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
                         <TrackCard track={t} showAlbum={false} songPageLink showThumbnail={false} />
                       </div>
-                      <span className="hidden text-xs text-zinc-600 sm:block">
-                        {formatDuration(t.duration_ms)}
+                      <span className="shrink-0 text-xs tabular-nums text-zinc-600">
+                        {formatDuration(t.duration_ms) ?? "—"}
                       </span>
                       {session && (
                         <AlbumLogButton
@@ -225,7 +228,7 @@ export function AlbumPageClient({
                         />
                       )}
                     </div>
-                    <div className="flex items-center gap-3 pl-9">
+                    <div className="flex items-center gap-3 pl-8 sm:pl-9">
                       <TrackStatsWithReviews
                         trackId={t.id}
                         serverStats={songStats}

@@ -24,7 +24,7 @@ export default function AlbumIdLoading() {
         <section className="mt-10">
           <Skeleton className="mb-2 h-6 w-44" />
           <Skeleton className="mb-3 h-4 w-56" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {Array.from({ length: 10 }).map((_, i) => (
               <AlbumCardSkeleton key={i} />
             ))}

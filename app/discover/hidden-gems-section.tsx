@@ -52,7 +52,7 @@ export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-semibold text-white">{title}</h2>
+      <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">{title}</h2>
       <p className="mb-3 text-sm text-zinc-500">
         Highly rated with fewer listens
       </p>

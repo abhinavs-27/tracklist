@@ -26,7 +26,7 @@ export function AlbumLogButton({ spotifyId, type, spotifyName, className = '' }:
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 ${className}`}
+        className={`inline-flex min-h-11 items-center justify-center rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 touch-manipulation ${className}`}
       >
         Rate &amp; review
       </button>

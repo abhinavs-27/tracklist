@@ -59,7 +59,7 @@ export async function SearchPageContent({
       {artists.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">Artists</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {artists.map((a: SpotifyApi.ArtistObjectFull) => (
               <ArtistCard key={a.id} artist={a} />
             ))}
@@ -70,7 +70,7 @@ export async function SearchPageContent({
       {albums.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-white">Albums</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {albums.map((a: SpotifyApi.AlbumObjectSimplified) => (
               <AlbumCard key={a.id} album={a} />
             ))}

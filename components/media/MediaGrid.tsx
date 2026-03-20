@@ -34,7 +34,7 @@ export function MediaGrid({
 
   const gridClass = columns
     ? "grid gap-3 sm:gap-4"
-    : "grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 lg:grid-cols-6";
+    : "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
 
   return (
     <ul
@@ -70,10 +70,10 @@ export function MediaGrid({
                 </span>
               )}
             </div>
-            <p className="mt-2 truncate text-sm font-medium text-white">
+            <p className="mt-2 truncate text-xs font-medium text-white sm:text-sm">
               {item.title}
             </p>
-            <p className="truncate text-xs text-zinc-500">{item.artist}</p>
+            <p className="truncate text-[11px] text-zinc-500 sm:text-xs">{item.artist}</p>
             {(item.avgRating != null || item.totalPlays != null || item.favoriteCount != null) && (
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-zinc-400">
                 {item.avgRating != null && (

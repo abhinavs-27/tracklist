@@ -100,8 +100,8 @@ export default async function DiscoverPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-bold text-white">Discover</h1>
-        <p className="mt-1 text-zinc-400">
+        <h1 className="text-xl font-bold text-white sm:text-2xl">Discover</h1>
+        <p className="mt-1 text-sm text-zinc-400 sm:text-base">
           Trending tracks, rising artists, hidden gems, and people to follow.
         </p>
         <div className="mt-2 flex flex-wrap gap-4 text-sm">
@@ -124,12 +124,12 @@ export default async function DiscoverPage() {
 
       {session?.user?.id && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">Suggested users</h2>
+          <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">Suggested users</h2>
           {suggested.length > 0 ? (
             <ul className="space-y-2" role="list">
               {suggested.map((u) => (
                 <li key={u.id}>
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50">
+                  <div className="flex min-h-[52px] items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50 touch-manipulation">
                     <Link
                       href={`/profile/${u.id}`}
                       className="flex min-w-0 flex-1 items-center gap-3"

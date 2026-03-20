@@ -10,7 +10,7 @@ export default function ListsLoading() {
       </div>
       <section>
         <SkeletonBlock className="mb-3 h-6 w-32" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
               <SkeletonBlock className="h-5 w-3/4" />

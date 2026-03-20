@@ -9,7 +9,11 @@ type Props = {
 };
 
 export function StatRow({ averageRating, totalPlays, favoriteCount, reviewCount }: Props) {
-  const showAny = totalPlays > 0 || reviewCount > 0 || favoriteCount > 0;
+  const showAny =
+    averageRating != null ||
+    totalPlays > 0 ||
+    reviewCount > 0 ||
+    favoriteCount > 0;
 
   if (!showAny) {
     return <Text style={styles.empty}>No listens, reviews, or favorites yet</Text>;

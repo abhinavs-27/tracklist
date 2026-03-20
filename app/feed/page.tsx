@@ -33,7 +33,7 @@ export default async function FeedPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-bold text-white">Feed</h1>
+      <h1 className="mb-4 text-xl font-bold text-white sm:text-2xl">Feed</h1>
       {enriched.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
           <p className="text-zinc-400">Your feed is empty. Follow people to see what they&apos;re listening to.</p>
