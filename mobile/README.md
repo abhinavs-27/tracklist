@@ -84,6 +84,7 @@ The app talks to your **Express** API (`EXPO_PUBLIC_API_URL`), not the Next.js U
 
 - From repo root: `cd backend && npm run dev` (default port **3001**).
 - Backend needs the same Supabase setup so **Bearer** tokens from the mobile app resolve to `public.users`.
+- **`GET /api/feed`** is implemented in **Next.js**, not Express. In development the backend **proxies** unhandled `/api/*` routes to Next on **http://127.0.0.1:3000** by default. Run **`npm run dev`** in the repo root (Next on 3000) **and** the backend so the feed loads. Override with **`NEXT_API_FALLBACK`** in `backend/.env` if your Next app uses another origin.
 
 ## Run Expo
 

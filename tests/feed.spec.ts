@@ -26,7 +26,9 @@ test.describe('Feed', () => {
     }
     const data = await res.json();
     expect(Array.isArray(data.items)).toBe(true);
-    expect(data.next_cursor === null || typeof data.next_cursor === 'string').toBe(true);
+    const next =
+      data.nextCursor ?? data.next_cursor;
+    expect(next === null || typeof next === 'string').toBe(true);
     expect(data.items.length).toBeLessThanOrEqual(100);
     if (data.items.length > 1) {
       const times = data.items.map((a: { created_at: string }) => new Date(a.created_at).getTime());

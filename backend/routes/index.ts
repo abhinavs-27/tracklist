@@ -37,8 +37,16 @@ export function createApiRouter(): Router {
   api.use("/auth", authCompatRouter);
   api.use("/follow", followRouter);
 
-  const fallback = process.env.NEXT_API_FALLBACK?.trim();
+  /** Next.js serves some `/api/*` routes (e.g. `GET /api/feed`) that are not implemented in Express yet. */
+  const fallback =
+    process.env.NEXT_API_FALLBACK?.trim() ||
+    (process.env.NODE_ENV !== "production" ? "http://127.0.0.1:3000" : "");
   if (fallback) {
+    if (!process.env.NEXT_API_FALLBACK?.trim() && process.env.NODE_ENV !== "production") {
+      console.info(
+        `[api] NEXT_API_FALLBACK not set; proxying unhandled /api/* to ${fallback} (set NEXT_API_FALLBACK to override)`,
+      );
+    }
     api.use(
       createProxyMiddleware({
         target: fallback,
@@ -51,7 +59,7 @@ export function createApiRouter(): Router {
     api.use((_req, res) => {
       res.status(404).json({
         error: "Not found",
-        hint: "Set NEXT_API_FALLBACK to a Next.js origin (e.g. http://127.0.0.1:3001) to proxy unimplemented /api routes during migration.",
+        hint: "Set NEXT_API_FALLBACK to your Next.js origin (e.g. http://127.0.0.1:3000) so unimplemented /api routes proxy during migration.",
       });
     });
   }

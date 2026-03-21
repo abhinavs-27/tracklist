@@ -39,9 +39,13 @@ export function FeedListVirtual({
     try {
       const res = await fetch(`/api/feed?cursor=${encodeURIComponent(nextCursor)}&limit=50`);
       if (!res.ok) return;
-      const data = (await res.json()) as { items?: EnrichedFeedActivity[]; next_cursor?: string | null };
+      const data = (await res.json()) as {
+        items?: EnrichedFeedActivity[];
+        nextCursor?: string | null;
+        next_cursor?: string | null;
+      };
       setItems((prev) => [...prev, ...(data.items ?? [])]);
-      setNextCursor(data.next_cursor ?? null);
+      setNextCursor(data.nextCursor ?? data.next_cursor ?? null);
     } finally {
       setLoading(false);
     }
