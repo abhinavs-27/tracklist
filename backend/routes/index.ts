@@ -14,6 +14,7 @@ import { authCompatRouter } from "./authCompat";
 import { usersRouter } from "./users";
 import { recentAlbumsRouter } from "./recentAlbums";
 import { followRouter } from "./follow";
+import { listsRouter } from "./lists";
 
 /**
  * All HTTP handlers for `/api/*`.
@@ -23,6 +24,7 @@ export function createApiRouter(): Router {
   const api = Router();
 
   api.use(healthRouter);
+  api.use("/lists", listsRouter);
   api.use("/users", usersRouter);
   api.use("/recent-albums", recentAlbumsRouter);
   api.use("/leaderboard", leaderboardRouter);
@@ -53,6 +55,13 @@ export function createApiRouter(): Router {
         changeOrigin: true,
         /** Preserve full `/api/...` path on the Next.js server. */
         pathRewrite: (_path, req) => req.originalUrl,
+        /**
+         * Next routes like `GET /api/lists/:id` fetch Spotify metadata per item; the
+         * default proxy socket can time out on slow or cold dev servers. `ECONNREFUSED`
+         * to Next is still surfaced as 504 by http-proxy-middleware — run Next on 3000.
+         */
+        proxyTimeout: 180_000,
+        timeout: 180_000,
       }),
     );
   } else {

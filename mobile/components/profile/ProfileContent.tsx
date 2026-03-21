@@ -21,6 +21,7 @@ import {
   ActivitySeparator,
 } from "./ActivityList";
 import { FollowNetworkModal } from "./FollowNetworkModal";
+import { CreateListModal } from "../list/CreateListModal";
 
 type Tab = "favorites" | "activity";
 
@@ -40,6 +41,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
   const [followModalTab, setFollowModalTab] = useState<"followers" | "following">(
     "followers",
   );
+  const [createListOpen, setCreateListOpen] = useState(false);
 
   const {
     user,
@@ -165,7 +167,14 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
               router.push(`/album/${albumId}` as const)
             }
           />
-          <ProfileListsSection lists={lists} isOwnProfile={isOwn} />
+          <ProfileListsSection
+            lists={lists}
+            isOwnProfile={isOwn}
+            username={user.username}
+            onPressCreate={
+              isOwn ? () => setCreateListOpen(true) : undefined
+            }
+          />
         </View>
       ) : (
         <Text
@@ -251,6 +260,10 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
           ) : null
         }
         contentContainerStyle={{ paddingBottom: 120 }}
+      />
+      <CreateListModal
+        visible={createListOpen}
+        onClose={() => setCreateListOpen(false)}
       />
     </SafeAreaView>
   );

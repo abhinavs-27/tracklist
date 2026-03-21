@@ -84,7 +84,9 @@ The app talks to your **Express** API (`EXPO_PUBLIC_API_URL`), not the Next.js U
 
 - From repo root: `cd backend && npm run dev` (default port **3001**).
 - Backend needs the same Supabase setup so **Bearer** tokens from the mobile app resolve to `public.users`.
-- **`GET /api/feed`** is implemented in **Next.js**, not Express. In development the backend **proxies** unhandled `/api/*` routes to Next on **http://127.0.0.1:3000** by default. Run **`npm run dev`** in the repo root (Next on 3000) **and** the backend so the feed loads. Override with **`NEXT_API_FALLBACK`** in `backend/.env` if your Next app uses another origin.
+- **`GET /api/feed`** and **`GET /api/lists/:id`** (and other routes not yet in Express) are served by **Next.js**. In development the backend **proxies** unhandled `/api/*` to Next on **http://127.0.0.1:3000** by default. Run **`npm run dev`** in the repo root (Next on 3000) **and** the backend. Override with **`NEXT_API_FALLBACK`** in `backend/.env` if your Next app uses another origin.
+- **HTTP 504** from the API (e.g. `/api/lists/...`) usually means the Express proxy could not reach Next in time, or **Next isn’t running** on the fallback URL (the proxy maps `ECONNREFUSED` to 504). Start the Next dev server and confirm the port matches **`NEXT_API_FALLBACK`**.
+- **User lists UI**: `/user/[username]/lists` uses **`GET /api/users/:userId/lists`**; **`/list/[id]`** uses **`GET /api/lists/:id`**, which is implemented in **Express** (same JSON as web — no Next.js proxy required for reads).
 
 ## Run Expo
 

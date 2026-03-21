@@ -41,24 +41,27 @@ export async function GET(
     const data = await getList(listId);
     if (!data) return apiNotFound("List not found");
 
-    const enriched: ListItemEnriched[] = [];
-    for (const item of data.items) {
-      try {
-        if (item.entity_type === "album") {
-          const { album } = await getOrFetchAlbum(item.entity_id);
-          enriched.push({
-            ...item,
-            album: album as SpotifyApi.AlbumObjectSimplified,
-          });
-        } else {
+    const enriched: ListItemEnriched[] = await Promise.all(
+      data.items.map(async (item) => {
+        try {
+          if (item.entity_type === "album") {
+            const { album } = await getOrFetchAlbum(item.entity_id);
+            return {
+              ...item,
+              album: album as SpotifyApi.AlbumObjectSimplified,
+            };
+          }
           const track = await getOrFetchTrack(item.entity_id);
-          enriched.push({ ...item, track });
+          return { ...item, track };
+        } catch (e) {
+          console.warn(
+            `[lists] Failed to fetch ${item.entity_type} ${item.entity_id}:`,
+            e,
+          );
+          return { ...item };
         }
-      } catch (e) {
-        console.warn(`[lists] Failed to fetch ${item.entity_type} ${item.entity_id}:`, e);
-        enriched.push({ ...item });
-      }
-    }
+      }),
+    );
 
     return apiOk({
       list: data.list,

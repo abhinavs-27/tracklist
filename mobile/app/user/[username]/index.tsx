@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
-import { ProfileContent } from "../../components/profile/ProfileContent";
-import { theme } from "../../lib/theme";
+import { ProfileContent } from "../../../components/profile/ProfileContent";
+import { theme } from "../../../lib/theme";
 
 export default function UserProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();

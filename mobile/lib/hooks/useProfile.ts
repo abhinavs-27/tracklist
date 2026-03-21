@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
 import { queryKeys } from "../query-keys";
+import type { UserListSummary, UserListsApiResponse } from "../types/user-list";
 import { supabase } from "../supabase";
 import { useAuth } from "./useAuth";
 
@@ -48,13 +49,8 @@ export type ProfileFavoriteItem = {
   artworkUrl: string | null;
 };
 
-export type ProfileListSummary = {
-  id: string;
-  title: string;
-  description: string | null;
-  item_count: number;
-  created_at: string;
-};
+/** @deprecated use UserListSummary — kept for profile component imports */
+export type ProfileListSummary = UserListSummary;
 
 export type ProfileActivityItem = {
   id: string;
@@ -83,8 +79,6 @@ type RecentAlbumsResponse = {
     last_played_at: string;
   }>;
 };
-
-type ListsResponse = { lists: ProfileListSummary[] };
 
 function syntheticUserFromAuth(sessionUser: {
   id: string;
@@ -133,10 +127,10 @@ async function fetchFavoriteAlbums(userId: string): Promise<ProfileFavoriteItem[
   }
 }
 
-async function fetchUserLists(userId: string): Promise<ProfileListSummary[]> {
+async function fetchUserLists(userId: string): Promise<UserListSummary[]> {
   if (!API_URL) return [];
   try {
-    const { lists } = await fetcher<ListsResponse>(
+    const { lists } = await fetcher<UserListsApiResponse>(
       `/api/users/${encodeURIComponent(userId)}/lists`,
     );
     return Array.isArray(lists) ? lists : [];
@@ -149,7 +143,7 @@ async function fetchUserLists(userId: string): Promise<ProfileListSummary[]> {
 async function loadProfile(userIdentifier?: string): Promise<{
   user: ProfileUser;
   favorites: ProfileFavoriteItem[];
-  lists: ProfileListSummary[];
+  lists: UserListSummary[];
   recentActivity: ProfileActivityItem[];
   stats: ProfileStats;
 }> {
@@ -214,7 +208,8 @@ async function loadProfile(userIdentifier?: string): Promise<{
       `/api/users/${encodeURIComponent(row.username)}`,
     );
   } else {
-    user = syntheticUserFromAuth(session.user);
+    const synthetic = syntheticUserFromAuth(session.user);
+    user = row?.id ? { ...synthetic, id: row.id } : synthetic;
   }
 
   const userIdForRecent = row?.id ?? user.id;
@@ -269,7 +264,7 @@ export function useProfile(userIdentifier?: string) {
 
   const key = queryKeys.profile(userIdentifier ?? "me");
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: key,
     queryFn: () => loadProfile(userIdentifier),
     enabled,
@@ -291,5 +286,6 @@ export function useProfile(userIdentifier?: string) {
     isLoading,
     error,
     refetch,
+    isRefetching,
   };
 }
