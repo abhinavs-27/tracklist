@@ -36,11 +36,15 @@ export async function fetchUserMap<
   select = "id, username, avatar_url",
 ): Promise<Map<string, T>> {
   if (userIds.length === 0) return new Map();
-  const { data: users } = await (supabase.from("users") as any)
+  const { data: users } = await (
+    supabase.from("users") as unknown as {
+      select: (s: string) => { in: (k: string, v: string[]) => Promise<{ data: (T & { id: string })[] | null }> };
+    }
+  )
     .select(select)
     .in("id", userIds);
   return new Map(
-    (users ?? []).map((u: any) => [u.id as string, u as unknown as T]),
+    (users ?? []).map((u) => [u.id, u as unknown as T]),
   );
 }
 
