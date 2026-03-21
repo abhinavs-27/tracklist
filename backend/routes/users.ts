@@ -65,16 +65,33 @@ usersRouter.get("/:userId/lists", async (req, res) => {
     }
 
     const listIds = listRows.map((l) => l.id as string);
-    const { data: countData } = await supabase.rpc("get_list_item_counts", {
+    const { data: countData, error: countError } = await supabase.rpc("get_list_item_counts", {
       p_list_ids: listIds,
     });
 
     const countByList = new Map<string, number>();
-    for (const row of (countData ?? []) as {
-      list_id: string;
-      item_count: number;
-    }[]) {
-      countByList.set(row.list_id, Number(row.item_count) || 0);
+    if (countError) {
+      // Fallback when RPC is missing/unavailable in an environment.
+      const { data: itemRows, error: itemRowsError } = await supabase
+        .from("list_items")
+        .select("list_id")
+        .in("list_id", listIds);
+
+      if (itemRowsError) {
+        console.error("[users] lists item count fallback", itemRowsError);
+      } else {
+        for (const row of (itemRows ?? []) as { list_id: string }[]) {
+          const key = row.list_id;
+          countByList.set(key, (countByList.get(key) ?? 0) + 1);
+        }
+      }
+    } else {
+      for (const row of (countData ?? []) as {
+        list_id: string;
+        item_count: number;
+      }[]) {
+        countByList.set(row.list_id, Number(row.item_count) || 0);
+      }
     }
 
     const lists = listRows.map((l) => ({

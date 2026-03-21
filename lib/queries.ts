@@ -2707,6 +2707,44 @@ export type UserListSummary = {
   item_count: number;
 };
 
+async function getListItemCountsMap(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  listIds: string[],
+): Promise<Map<string, number>> {
+  const countByList = new Map<string, number>();
+  if (listIds.length === 0) return countByList;
+
+  const { data: countData, error: countError } = await supabase.rpc(
+    "get_list_item_counts",
+    { p_list_ids: listIds },
+  );
+
+  if (countError) {
+    const { data: itemRows, error: itemRowsError } = await supabase
+      .from("list_items")
+      .select("list_id")
+      .in("list_id", listIds);
+
+    if (itemRowsError) {
+      console.error("[queries] list item counts fallback failed:", itemRowsError);
+    } else {
+      for (const row of (itemRows ?? []) as { list_id: string }[]) {
+        const key = row.list_id;
+        countByList.set(key, (countByList.get(key) ?? 0) + 1);
+      }
+    }
+    return countByList;
+  }
+
+  for (const row of (countData ?? []) as {
+    list_id: string;
+    item_count: number;
+  }[]) {
+    countByList.set(row.list_id, Number(row.item_count) || 0);
+  }
+  return countByList;
+}
+
 export async function getUserLists(
   userId: string,
   limit = 50,
@@ -2730,17 +2768,7 @@ export async function getUserLists(
     if (!listRows?.length) return [];
 
     const listIds = listRows.map((l) => l.id);
-    const { data: countData } = await supabase.rpc("get_list_item_counts", {
-      p_list_ids: listIds,
-    });
-
-    const countByList = new Map<string, number>();
-    for (const row of (countData ?? []) as {
-      list_id: string;
-      item_count: number;
-    }[]) {
-      countByList.set(row.list_id, Number(row.item_count) || 0);
-    }
+    const countByList = await getListItemCountsMap(supabase, listIds);
 
     return listRows.map((l) => ({
       id: l.id,
@@ -3017,16 +3045,7 @@ export async function searchLists(
     );
 
     const listIds = listRows.map((l) => l.id);
-    const { data: countData } = await supabase.rpc("get_list_item_counts", {
-      p_list_ids: listIds,
-    });
-    const countByList = new Map<string, number>();
-    for (const row of (countData ?? []) as {
-      list_id: string;
-      item_count: number;
-    }[]) {
-      countByList.set(row.list_id, Number(row.item_count) || 0);
-    }
+    const countByList = await getListItemCountsMap(supabase, listIds);
 
     return listRows.map((l) => ({
       id: l.id,
