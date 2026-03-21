@@ -31,7 +31,10 @@ export const authOptions: NextAuthOptions = {
           .select('id')
           .eq('email', user.email)
           .single();
-        if (existing) return true;
+        if (existing) {
+          console.log("[users] user-signed-in", { email: user.email, userId: existing.id, isNewUser: false });
+          return true;
+        }
 
         if (existingError && existingError.code !== 'PGRST116') {
           console.error('[users] user-lookup-failed', { error: existingError });
@@ -46,6 +49,7 @@ export const authOptions: NextAuthOptions = {
         });
         if (!error) {
           console.log("[users] user-created", { email: user.email, username });
+          console.log("[users] user-signed-in", { email: user.email, username, isNewUser: true });
         }
         if (error) {
           if (error.code === '23505') {
@@ -56,7 +60,7 @@ export const authOptions: NextAuthOptions = {
         }
         return true;
       } catch (err) {
-        console.error('[users] sign-in-error', { error: err });
+        console.error('[users] sign-in-failed', { error: err });
         return false;
       }
     },
@@ -80,7 +84,7 @@ export const authOptions: NextAuthOptions = {
             token.bio = dbUser.bio;
           }
         } catch (err) {
-          console.error('[users] jwt-error', { error: err });
+          console.error('[users] jwt-failed', { error: err });
         }
       }
 

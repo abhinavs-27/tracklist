@@ -73,7 +73,22 @@ export async function syncRecentlyPlayed(
       "spotify-sync: upsert spotify_recent_tracks failed",
       recentError,
     );
+    for (const r of rows) {
+      console.log("[spotify-ingest] ingest", {
+        userId,
+        trackId: r.track_id,
+        success: false,
+      });
+    }
     throw recentError;
+  }
+
+  for (const r of rows) {
+    console.log("[spotify-ingest] ingest", {
+      userId,
+      trackId: r.track_id,
+      success: true,
+    });
   }
 
   // Also insert passive song logs into logs table (songs only), skipping duplicates

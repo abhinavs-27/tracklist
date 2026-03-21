@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
 
     if (error) return apiInternalError(error);
 
+    console.log("[users] push-token-updated", {
+      userId: me.id,
+      action: token ? "set" : "clear",
+    });
+
     return apiOk({ ok: true });
   } catch (e) {
     const u = handleUnauthorized(e);
