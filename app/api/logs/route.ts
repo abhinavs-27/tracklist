@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
+import { syncManualLogSideEffects } from '@/lib/sync-manual-log-side-effects';
 import {
   apiBadRequest,
   apiInternalError,
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
       return apiInternalError(error);
     }
     await grantAchievementsOnListen(me.id);
+    await syncManualLogSideEffects(me.id, trackId, listenedAt);
     console.log("[logs] manual-log-created", {
       userId: me.id,
       trackId,
