@@ -7,6 +7,14 @@ export interface User {
   created_at?: string;
 }
 
+/** User profile in the database. */
+export interface DbUser {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
 export interface Follow {
   id: string;
   follower_id: string;
@@ -112,12 +120,61 @@ export interface List {
   created_at: string;
 }
 
+export type ListRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  type: "album" | "song";
+  visibility: "public" | "friends" | "private";
+  emoji: string | null;
+  image_url: string | null;
+  created_at: string;
+};
+
 export interface ListItem {
   id: string;
   list_id: string;
   spotify_id: string;
   type: 'song' | 'album';
 }
+
+export type ListItemRow = {
+  id: string;
+  list_id: string;
+  entity_type: "album" | "song";
+  entity_id: string;
+  position: number;
+  added_at: string;
+};
+
+export type UserListSummary = {
+  id: string;
+  title: string;
+  description: string | null;
+  type: "album" | "song";
+  visibility: "public" | "friends" | "private";
+  emoji: string | null;
+  image_url: string | null;
+  created_at: string;
+  item_count: number;
+};
+
+export type ListWithItems = {
+  list: ListRow;
+  items: ListItemRow[];
+  owner_username: string | null;
+};
+
+export type ListSearchResult = {
+  id: string;
+  title: string;
+  description: string | null;
+  type: "album" | "song";
+  created_at: string;
+  item_count: number;
+  owner_username: string | null;
+};
 
 export interface Favorite {
   id: string;
@@ -213,6 +270,25 @@ export type UserStreak = {
   last_listen_date: string | null;
 };
 
+export type LeaderboardEntry = {
+  id: string;
+  entity_type: "song" | "album";
+  name: string;
+  artist: string;
+  artwork_url: string | null;
+  total_plays: number;
+  average_rating: number | null;
+  weighted_score?: number;
+  favorite_count?: number;
+};
+
+export type LeaderboardFilters = {
+  year?: number;
+  decade?: number;
+  startYear?: number;
+  endYear?: number;
+};
+
 export type WeeklyReportRow = {
   id: string;
   user_id: string;
@@ -252,6 +328,73 @@ export type HiddenGem = {
   entity_type: string;
   avg_rating: number;
   listen_count: number;
+};
+
+export type EntityStats = {
+  listen_count: number;
+  average_rating: number | null;
+  review_count: number;
+  /** Count of reviews per star 1–5 for histogram/bar chart. */
+  rating_distribution?: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
+};
+
+export type FriendAlbumActivityRow = {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  listened_at: string;
+  rating: number | null;
+};
+
+export type NotificationRow = {
+  id: string;
+  user_id: string;
+  actor_user_id: string | null;
+  type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  read: boolean;
+  created_at: string;
+};
+
+export type AchievementRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+};
+
+export type UserAchievementRow = { achievement_id: string; earned_at: string };
+
+export type ActivityFeedPage = {
+  items: FeedActivity[];
+  next_cursor: string | null;
+};
+
+export type FeedListenSessionRow = {
+  type: string;
+  user_id: string;
+  track_id: string;
+  album_id: string;
+  track_name: string | null;
+  artist_name: string | null;
+  song_count: number;
+  first_listened_at: string;
+  created_at: string;
+};
+
+export type RecentAlbumItem = {
+  album_id: string;
+  album_name: string | null;
+  artist_name: string;
+  album_image: string | null;
+  last_played_at: string;
 };
 
 export type SyncResponse = {

@@ -1,10 +1,9 @@
 import "server-only";
 
 import { getActivityFeed, getEntityDisplayNames } from "@/lib/queries";
-import type { ActivityFeedPage } from "@/lib/queries";
 import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum, getOrFetchTrack, getOrFetchAlbumsBatch, getOrFetchTracksBatch, batchResultsToMap } from "@/lib/spotify-cache";
-import type { FeedActivity } from "@/types";
+import type { FeedActivity, ActivityFeedPage } from "@/types";
 
 export async function getFeedForUser(
   userId: string,

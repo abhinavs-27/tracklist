@@ -2,9 +2,9 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { LeaderboardEntry, LeaderboardFilters } from "@/lib/queries";
+import type { LeaderboardEntry, LeaderboardFilters } from "@/types";
 
-export type { LeaderboardEntry, LeaderboardFilters } from "@/lib/queries";
+export type { LeaderboardEntry, LeaderboardFilters } from "@/types";
 
 type LeaderboardPage = {
   items: LeaderboardEntry[];

@@ -10,8 +10,11 @@ import {
   apiNoContent,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
-import { isValidUuid } from "@/lib/validation";
-import { validateReviewContent } from "@/lib/validation";
+import {
+  isValidUuid,
+  validateReviewContent,
+  validateRating,
+} from "@/lib/validation";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -44,12 +47,10 @@ export async function PATCH(
     const updates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
-    if (rating != null) {
-      const r = Number(rating);
-      if (!Number.isInteger(r) || r < 1 || r > 5) {
-        return apiBadRequest("rating must be an integer 1–5");
-      }
-      updates.rating = r;
+    if (rating !== undefined) {
+      const ratingResult = validateRating(rating);
+      if (!ratingResult.ok) return apiBadRequest(ratingResult.error);
+      updates.rating = ratingResult.value;
     }
     if (review_text !== undefined) {
       updates.review_text = validateReviewContent(review_text);

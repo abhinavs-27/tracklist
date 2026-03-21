@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { markNotificationsRead } from "@/lib/queries";
-import { apiInternalError, apiOk } from "@/lib/api-response";
+import { apiInternalError, apiNoContent } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 
 /** POST /api/notifications/mark-read. Body: { notification_ids?: string[] }. Mark all or specified as read. Auth required. */
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       notificationIds: body?.notification_ids ?? "all",
     });
 
-    return apiOk({ ok: true });
+    return apiNoContent();
   } catch (e) {
     const u = handleUnauthorized(e);
     if (u) return u;

@@ -5,17 +5,10 @@ import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
 import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
+import { RecentAlbumItem } from "@/types";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ALBUMS = 12;
-
-export type RecentAlbumItem = {
-  album_id: string;
-  album_name: string | null;
-  artist_name: string;
-  album_image: string | null;
-  last_played_at: string;
-};
 
 /** Derive unique recent albums from spotify_recent_tracks (same cache as recent tracks). */
 export async function GET(request: NextRequest) {

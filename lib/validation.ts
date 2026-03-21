@@ -131,3 +131,25 @@ export function validateListType(type: unknown): { ok: true; value: 'album' | 's
   return { ok: true, value: type };
 }
 
+export function validateRating(rating: unknown): { ok: true; value: number } | { ok: false; error: string } {
+  if (rating == null) {
+    return { ok: false, error: 'rating is required' };
+  }
+  const r = Number(rating);
+  if (!Number.isInteger(r) || r < 1 || r > 5) {
+    return { ok: false, error: 'rating must be an integer 1–5' };
+  }
+  return { ok: true, value: r };
+}
+
+export function validateDate(date: unknown, fieldName = 'date'): { ok: true; value: string } | { ok: false; error: string } {
+  try {
+    const d = date ? new Date(date as string | number).toISOString() : new Date().toISOString();
+    if (Number.isNaN(Date.parse(d))) {
+      return { ok: false, error: `Invalid ${fieldName}` };
+    }
+    return { ok: true, value: d };
+  } catch {
+    return { ok: false, error: `Invalid ${fieldName}` };
+  }
+}

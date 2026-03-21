@@ -1,18 +1,8 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-
-type DbUser = {
-  id: string;
-  username: string;
-  avatar_url: string | null;
-  bio: string | null;
-};
-
-function generateUsernameFromEmail(email: string): string {
-  const base = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_').toLowerCase().slice(0, 20);
-  return `${base}_${Math.random().toString(36).slice(2, 8)}`;
-}
+import { generateUsernameFromEmail } from '@/lib/auth/utils';
+import { DbUser } from '@/types';
 
 export const authOptions: NextAuthOptions = {
   providers: [

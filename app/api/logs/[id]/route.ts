@@ -6,7 +6,7 @@ import {
   apiNotFound,
   apiInternalError,
   apiBadRequest,
-  apiOk,
+  apiNoContent,
 } from '@/lib/api-response';
 import { isValidUuid } from '@/lib/validation';
 
@@ -41,7 +41,7 @@ export async function DELETE(
       userId: me.id,
       logId: id,
     });
-    return apiOk({ success: true });
+    return apiNoContent();
   } catch (e) {
     const u = handleUnauthorized(e);
     if (u) return u;

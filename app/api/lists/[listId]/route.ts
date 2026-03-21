@@ -10,6 +10,7 @@ import {
   apiForbidden,
   apiBadRequest,
   apiOk,
+  apiNoContent,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import {
@@ -176,7 +177,7 @@ export async function DELETE(
       listId,
     });
 
-    return apiOk({ success: true });
+    return apiNoContent();
   } catch (e) {
     const u = handleUnauthorized(e);
     if (u) return u;

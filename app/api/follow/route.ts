@@ -5,6 +5,7 @@ import {
   apiBadRequest,
   apiInternalError,
   apiOk,
+  apiNoContent,
 } from '@/lib/api-response';
 import { parseBody, handlePostgrestError } from '@/lib/api-utils';
 import { isValidUuid } from '@/lib/validation';
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       followerId: me.id,
       followingId,
     });
-    return apiOk({ success: true });
+    return apiNoContent();
   } catch (e) {
     const u = handleUnauthorized(e);
     if (u) return u;

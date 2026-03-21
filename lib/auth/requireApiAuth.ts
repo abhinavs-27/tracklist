@@ -5,6 +5,7 @@ import type { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { apiUnauthorized } from "@/lib/api-response";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { generateUsernameFromEmail } from "./utils";
 
 /** Canonical app user row (`public.users`). Email is the cross-platform identity key. */
 export type User = {
@@ -26,15 +27,6 @@ export class UnauthorizedError extends Error {
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
-}
-
-function generateUsernameFromEmail(email: string): string {
-  const base = email
-    .split("@")[0]
-    .replace(/[^a-zA-Z0-9]/g, "_")
-    .toLowerCase()
-    .slice(0, 20);
-  return `${base}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function rowToUser(row: {

@@ -7,9 +7,12 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
-import { isValidSpotifyId } from "@/lib/validation";
-import { validateReviewContent } from "@/lib/validation";
-import { clampLimit } from "@/lib/validation";
+import {
+  isValidSpotifyId,
+  validateReviewContent,
+  clampLimit,
+  validateRating,
+} from "@/lib/validation";
 import { getReviewsForEntity } from "@/lib/queries";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_id>&limit= optional */
@@ -58,10 +61,10 @@ export async function POST(request: NextRequest) {
     if (!isValidSpotifyId(entity_id)) {
       return apiBadRequest("Invalid entity_id (Spotify ID)");
     }
-    const r = Number(rating);
-    if (!Number.isInteger(r) || r < 1 || r > 5) {
-      return apiBadRequest("rating must be an integer 1–5");
-    }
+    const ratingResult = validateRating(rating);
+    if (!ratingResult.ok) return apiBadRequest(ratingResult.error);
+    const r = ratingResult.value;
+
     const reviewText = validateReviewContent(review_text);
 
     const supabase = await createSupabaseServerClient();

@@ -13,6 +13,7 @@ import {
   clampLimit,
   LIMITS,
   sanitizeString,
+  validateDate,
 } from '@/lib/validation';
 
 const LOG_SOURCES = new Set([
@@ -40,15 +41,9 @@ export async function POST(request: NextRequest) {
     if (!isValidSpotifyId(trackId)) {
       return apiBadRequest('Invalid track_id format');
     }
-    let listenedAt: string;
-    try {
-      listenedAt = listened_at
-        ? new Date(listened_at as string | number).toISOString()
-        : new Date().toISOString();
-      if (Number.isNaN(Date.parse(listenedAt))) throw new Error('Invalid date');
-    } catch {
-      return apiBadRequest('Invalid listened_at date');
-    }
+    const dateResult = validateDate(listened_at, 'listened_at');
+    if (!dateResult.ok) return apiBadRequest(dateResult.error);
+    const listenedAt = dateResult.value;
 
     const rawSource = typeof b.source === 'string' ? b.source : 'manual_import';
     const source = LOG_SOURCES.has(rawSource) ? rawSource : 'manual_import';

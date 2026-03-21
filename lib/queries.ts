@@ -20,7 +20,45 @@ import type {
   TrendingEntity,
   RisingArtist,
   HiddenGem,
+  EntityStats,
+  LeaderboardEntry,
+  LeaderboardFilters,
+  FriendAlbumActivityRow,
+  NotificationRow,
+  AchievementRow,
+  UserAchievementRow,
+  ActivityFeedPage,
+  FeedListenSessionRow,
+  ListRow,
+  ListItemRow,
+  UserListSummary,
+  ListWithItems,
+  ListSearchResult,
+  DbUser,
 } from "@/types";
+
+export type {
+  ReviewsResult,
+  UserStreak,
+  TrendingEntity,
+  RisingArtist,
+  HiddenGem,
+  EntityStats,
+  LeaderboardEntry,
+  LeaderboardFilters,
+  FriendAlbumActivityRow,
+  NotificationRow,
+  AchievementRow,
+  UserAchievementRow,
+  ActivityFeedPage,
+  FeedListenSessionRow,
+  ListRow,
+  ListItemRow,
+  UserListSummary,
+  ListWithItems,
+  ListSearchResult,
+  DbUser,
+};
 
 /**
  * Helper to fetch a Map of user data from a list of user IDs.
@@ -36,11 +74,12 @@ export async function fetchUserMap<
   select = "id, username, avatar_url",
 ): Promise<Map<string, T>> {
   if (userIds.length === 0) return new Map();
-  const { data: users } = await (supabase.from("users") as any)
+  const { data: users } = await supabase
+    .from("users")
     .select(select)
     .in("id", userIds);
   return new Map(
-    (users ?? []).map((u: any) => [u.id as string, u as unknown as T]),
+    ((users ?? []) as unknown as T[]).map((u) => [(u as unknown as { id: string }).id, u]),
   );
 }
 
@@ -270,20 +309,6 @@ export async function getReviewsForUser(
 // ---------------------------------------------------------------------------
 // Entity stats (listen count + rating aggregation)
 // ---------------------------------------------------------------------------
-
-export type EntityStats = {
-  listen_count: number;
-  average_rating: number | null;
-  review_count: number;
-  /** Count of reviews per star 1–5 for histogram/bar chart. */
-  rating_distribution?: {
-    1: number;
-    2: number;
-    3: number;
-    4: number;
-    5: number;
-  };
-};
 
 const DEFAULT_ENTITY_STATS: EntityStats = {
   listen_count: 0,
@@ -573,25 +598,6 @@ export async function getTrackStatsForTrackIds(
 // ---------------------------------------------------------------------------
 // Leaderboard
 // ---------------------------------------------------------------------------
-
-export type LeaderboardEntry = {
-  id: string;
-  entity_type: "song" | "album";
-  name: string;
-  artist: string;
-  artwork_url: string | null;
-  total_plays: number;
-  average_rating: number | null;
-  weighted_score?: number;
-  favorite_count?: number;
-};
-
-export type LeaderboardFilters = {
-  year?: number;
-  decade?: number;
-  startYear?: number;
-  endYear?: number;
-};
 
 export async function getLeaderboard(
   type: "popular" | "topRated" | "mostFavorited",
@@ -1255,14 +1261,6 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
   };
 }
 
-export type FriendAlbumActivityRow = {
-  user_id: string;
-  username: string;
-  avatar_url: string | null;
-  listened_at: string;
-  rating: number | null;
-};
-
 /** Friends (users the viewer follows) who listened to this album: logs JOIN songs JOIN follows. Optional rating from their review. */
 export async function getFriendsAlbumActivity(
   viewerId: string,
@@ -1661,17 +1659,6 @@ export async function getUserFavoriteAlbums(
   }
 }
 
-export type NotificationRow = {
-  id: string;
-  user_id: string;
-  actor_user_id: string | null;
-  type: string;
-  entity_type: string | null;
-  entity_id: string | null;
-  read: boolean;
-  created_at: string;
-};
-
 export async function getNotifications(
   userId: string,
   limit = 50,
@@ -1714,14 +1701,6 @@ export async function markNotificationsRead(
     console.error("[queries] markNotificationsRead failed:", e);
   }
 }
-
-export type AchievementRow = {
-  id: string;
-  name: string;
-  description: string | null;
-  icon: string | null;
-};
-export type UserAchievementRow = { achievement_id: string; earned_at: string };
 
 export async function getUserAchievements(
   userId: string,
@@ -2200,23 +2179,6 @@ export async function getReviewFeed(
   }
 }
 
-export type ActivityFeedPage = {
-  items: FeedActivity[];
-  next_cursor: string | null;
-};
-
-export type FeedListenSessionRow = {
-  type: string;
-  user_id: string;
-  track_id: string;
-  album_id: string;
-  track_name: string | null;
-  artist_name: string | null;
-  song_count: number;
-  first_listened_at: string;
-  created_at: string;
-};
-
 /** Fetch listen sessions for the feed (track-level, 30-min bucket). Returns [] if RPC missing. */
 export async function getFeedListenSessions(
   followerId: string,
@@ -2674,39 +2636,6 @@ export async function getEntityDisplayNames(
 // User lists (curated albums/songs)
 // ---------------------------------------------------------------------------
 
-export type ListRow = {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  type: "album" | "song";
-  visibility: "public" | "friends" | "private";
-  emoji: string | null;
-  image_url: string | null;
-  created_at: string;
-};
-
-export type ListItemRow = {
-  id: string;
-  list_id: string;
-  entity_type: "album" | "song";
-  entity_id: string;
-  position: number;
-  added_at: string;
-};
-
-export type UserListSummary = {
-  id: string;
-  title: string;
-  description: string | null;
-  type: "album" | "song";
-  visibility: "public" | "friends" | "private";
-  emoji: string | null;
-  image_url: string | null;
-  created_at: string;
-  item_count: number;
-};
-
 async function getListItemCountsMap(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   listIds: string[],
@@ -2787,12 +2716,6 @@ export async function getUserLists(
     return [];
   }
 }
-
-export type ListWithItems = {
-  list: ListRow;
-  items: ListItemRow[];
-  owner_username: string | null;
-};
 
 export async function getList(
   listId: string,
@@ -3006,16 +2929,6 @@ export async function removeListItem(
 }
 
 /** Search lists by title (public). Returns list summary + owner_username. */
-export type ListSearchResult = {
-  id: string;
-  title: string;
-  description: string | null;
-  type: "album" | "song";
-  created_at: string;
-  item_count: number;
-  owner_username: string | null;
-};
-
 export async function searchLists(
   query: string,
   limit = 20,
