@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { apiInternalError, apiOk } from "@/lib/api-response";
 import { clampLimit, LIMITS } from "@/lib/validation";
 import {
@@ -14,8 +14,7 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { searchParams } = new URL(request.url);
     const limit = clampLimit(
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor")?.trim() || null;
 
     const items: FeedEvent[] = await getActivityFeed(
-      session.user.id,
+      me.id,
       limit,
       cursor,
     );
@@ -36,6 +35,8 @@ export async function GET(request: NextRequest) {
 
     return apiOk({ items, nextCursor });
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

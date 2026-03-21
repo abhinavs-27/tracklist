@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireApiAuth } from '@/lib/auth';
+import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
 import { searchUsers, enrichUsersWithFollowStatus } from '@/lib/queries';
 import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { sanitizeString, clampLimit } from '@/lib/validation';
@@ -9,8 +9,7 @@ const MAX_QUERY_LENGTH = 50;
 
 export async function GET(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { searchParams } = new URL(request.url);
     const raw = searchParams.get('q') ?? '';
@@ -22,13 +21,15 @@ export async function GET(request: NextRequest) {
 
     const limit = clampLimit(searchParams.get('limit'), 50, 20);
 
-    const rows = await searchUsers(q, limit, session.user.id);
+    const rows = await searchUsers(q, limit, me.id);
     if (rows.length === 0) return apiOk([]);
 
-    const users = await enrichUsersWithFollowStatus(rows, session.user.id);
+    const users = await enrichUsersWithFollowStatus(rows, me.id);
 
     return apiOk(users);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -42,8 +42,7 @@ export async function GET(request: NextRequest) {
 /** POST – create or upsert review (one per user per entity) */
 export async function POST(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
     if (parseErr) return parseErr;
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createSupabaseServerClient();
     const row = {
-      user_id: session.user.id,
+      user_id: me.id,
       entity_type: entity_type as string,
       entity_id: entity_id as string,
       rating: r,
@@ -85,12 +84,12 @@ export async function POST(request: NextRequest) {
 
     if (error) return apiInternalError(error);
     const { grantAchievementOnReview } = await import("@/lib/queries");
-    await grantAchievementOnReview(session.user.id);
+    await grantAchievementOnReview(me.id);
 
     const { data: userRow } = await supabase
       .from("users")
       .select("id, username, avatar_url")
-      .eq("id", session.user.id)
+      .eq("id", me.id)
       .single();
 
     const reviewWithUser = {
@@ -109,13 +108,15 @@ export async function POST(request: NextRequest) {
     };
 
     console.log("[reviews] review-created-upserted", {
-      userId: session.user.id,
+      userId: me.id,
       reviewId: data.id,
       entityType: data.entity_type,
       entityId: data.entity_id,
     });
     return apiOk(reviewWithUser);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

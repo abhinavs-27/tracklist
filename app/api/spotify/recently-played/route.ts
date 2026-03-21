@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
@@ -15,14 +15,13 @@ export async function GET(request: NextRequest) {
     return apiTooManyRequests();
   }
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { searchParams } = new URL(request.url);
     const limit = clampLimit(searchParams.get("limit"), MAX_LIMIT, 50);
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
-    const userId = session.user.id;
+    const userId = me.id;
     const supabase = createSupabaseAdminClient();
 
     // Last sync: max(created_at) for this user (when we last wrote to cache)
@@ -65,6 +64,8 @@ export async function GET(request: NextRequest) {
 
     return apiOk({ items, hasMore });
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

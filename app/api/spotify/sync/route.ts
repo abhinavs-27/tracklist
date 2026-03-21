@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -20,14 +20,13 @@ export async function POST(request: NextRequest) {
     return apiTooManyRequests();
   }
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const mode = "song" as const;
 
     let accessToken: string;
     try {
-      accessToken = await getValidSpotifyAccessToken(session.user.id);
+      accessToken = await getValidSpotifyAccessToken(me.id);
     } catch (e) {
       if (e instanceof Error && e.message === "Spotify not connected")
         return apiBadRequest("Spotify not connected");
@@ -69,7 +68,7 @@ export async function POST(request: NextRequest) {
     const { data: existing, error: existingError } = await supabase
       .from("logs")
       .select("track_id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", me.id)
       .in("track_id", trackIds);
     if (existingError) return apiInternalError(existingError);
 
@@ -89,7 +88,7 @@ export async function POST(request: NextRequest) {
     const nowIso = new Date().toISOString();
     const { error: insertError } = await supabase.from("logs").insert(
       toInsert.map((u) => ({
-        user_id: session.user.id,
+        user_id: me.id,
         track_id: u.track_id,
         listened_at: new Date(u.listened_at).toISOString(),
         source: "spotify",
@@ -99,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       for (const u of toInsert) {
         console.log("[spotify-ingest] ingest", {
-          userId: session.user.id,
+          userId: me.id,
           trackId: u.track_id,
           success: false,
         });
@@ -109,14 +108,14 @@ export async function POST(request: NextRequest) {
 
     for (const u of toInsert) {
       console.log("[spotify-ingest] ingest", {
-        userId: session.user.id,
+        userId: me.id,
         trackId: u.track_id,
         success: true,
       });
     }
 
     const { grantAchievementsOnListen } = await import("@/lib/queries");
-    await grantAchievementsOnListen(session.user.id);
+    await grantAchievementsOnListen(me.id);
 
     // Warm songs/albums cache so feed listen-sessions RPC can join logs → songs and show sessions
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
@@ -127,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[spotify-ingest] manual-sync-complete", {
-      userId: session.user.id,
+      userId: me.id,
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,
     });
@@ -138,6 +137,8 @@ export async function POST(request: NextRequest) {
       mode,
     } satisfies SyncResponse);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

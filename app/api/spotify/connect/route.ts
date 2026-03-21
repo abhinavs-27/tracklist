@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireApiAuth } from '@/lib/auth';
+import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
 import { apiInternalError } from '@/lib/api-response';
 import { getSpotifyAuthorizeUrl } from '@/lib/spotify-user';
 import { getRequestOrigin } from '@/lib/app-url';
@@ -14,8 +14,7 @@ const COOKIE_OPTIONS = {
 
 export async function GET(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const url = new URL(request.url);
     const returnTo = url.searchParams.get('returnTo') ?? '/profile';
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
     const origin = getRequestOrigin(request);
 
     const authorizeUrl = getSpotifyAuthorizeUrl(state, origin);
-    console.log('[spotify-ingest] spotify-connect-redirect', { userId: session.user.id, returnTo, origin });
+    console.log('[spotify-ingest] spotify-connect-redirect', { userId: me.id, returnTo, origin });
 
     const res = NextResponse.redirect(authorizeUrl, { status: 302 });
     res.cookies.set('spotify_oauth_state', state, {
@@ -36,6 +35,8 @@ export async function GET(request: NextRequest) {
     });
     return res;
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     console.error('Spotify connect error:', e);
     return apiInternalError(e);
   }

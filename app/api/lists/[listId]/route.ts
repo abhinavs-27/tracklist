@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getList, getListOwnerId } from "@/lib/queries";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
@@ -79,11 +79,10 @@ export async function PATCH(
     const { listId } = await params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
 
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const ownerId = await getListOwnerId(listId);
-    if (!ownerId || ownerId !== session.user.id) {
+    if (!ownerId || ownerId !== me.id) {
       return apiForbidden("You do not own this list");
     }
 
@@ -137,30 +136,31 @@ export async function PATCH(
     if (error || !data) return apiInternalError(error ?? new Error("Update failed"));
 
     console.log("[lists] list-updated", {
-      userId: session.user.id,
+      userId: me.id,
       listId,
     });
 
     return apiOk(data);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }
 
 /** DELETE – delete a list (and its items via CASCADE). Auth + ownership required. */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ listId: string }> },
 ) {
   try {
     const { listId } = await params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
 
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const ownerId = await getListOwnerId(listId);
-    if (!ownerId || ownerId !== session.user.id) {
+    if (!ownerId || ownerId !== me.id) {
       return apiForbidden("You do not own this list");
     }
 
@@ -169,12 +169,14 @@ export async function DELETE(
     if (error) return apiInternalError(error);
 
     console.log("[lists] list-deleted", {
-      userId: session.user.id,
+      userId: me.id,
       listId,
     });
 
     return apiOk({ success: true });
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

@@ -1,10 +1,13 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth, getSession } from "@/lib/auth";
+import {
+  getUserFromRequest,
+  handleUnauthorized,
+  requireApiAuth,
+} from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
   apiNotFound,
-  apiUnauthorized,
   apiForbidden,
   apiConflict,
   apiInternalError,
@@ -19,7 +22,7 @@ import {
 } from "@/lib/validation";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ username: string }> },
 ) {
   try {
@@ -60,13 +63,13 @@ export async function GET(
     const followers = followersRes.count ?? 0;
     const following = followingRes.count ?? 0;
 
-    const session = await getSession();
+    const viewer = await getUserFromRequest(request);
     let isFollowing = false;
-    if (session?.user?.id && session.user.id !== user.id) {
+    if (viewer?.id && viewer.id !== user.id) {
       const { data: follow, error: followError } = await supabase
         .from("follows")
         .select("id")
-        .eq("follower_id", session.user.id)
+        .eq("follower_id", viewer.id)
         .eq("following_id", user.id)
         .single();
       if (followError && followError.code !== "PGRST116") {
@@ -81,9 +84,11 @@ export async function GET(
       followers_count: followers ?? 0,
       following_count: following ?? 0,
       is_following: isFollowing,
-      is_own_profile: session?.user?.id === user.id,
+      is_own_profile: viewer?.id === user.id,
     });
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }
@@ -93,21 +98,20 @@ export async function PATCH(
   context: { params: Promise<{ username: string }> },
 ) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { username } = await context.params;
     if (!username || !isValidUsername(username))
       return apiBadRequest("Invalid username");
 
     const supabase = await createSupabaseServerClient();
-    const { data: user } = await supabase
+    const { data: profileRow } = await supabase
       .from("users")
       .select("id")
       .eq("username", username)
       .single();
 
-    if (!user || user.id !== session.user.id) return apiForbidden();
+    if (!profileRow || profileRow.id !== me.id) return apiForbidden();
 
     const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
     if (parseErr) return parseErr;
@@ -136,7 +140,7 @@ export async function PATCH(
     const { data, error } = await supabase
       .from("users")
       .update(updates)
-      .eq("id", session.user.id)
+      .eq("id", me.id)
       .select("id, username, avatar_url, bio, created_at")
       .single();
 
@@ -146,11 +150,13 @@ export async function PATCH(
       return apiInternalError(error);
     }
     console.log("[users] profile-updated", {
-      userId: session.user.id,
+      userId: me.id,
       fields: Object.keys(updates),
     });
     return apiOk(data);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

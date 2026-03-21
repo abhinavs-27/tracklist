@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiInternalError,
@@ -13,8 +13,7 @@ type Body = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { data: body, error: parseErr } = await parseBody<Body>(request);
     if (parseErr) return parseErr;
@@ -31,12 +30,12 @@ export async function POST(request: NextRequest) {
     const { error: deleteError } = await supabase
       .from("user_favorite_albums")
       .delete()
-      .eq("user_id", session.user.id);
+      .eq("user_id", me.id);
     if (deleteError) return apiInternalError(deleteError);
 
     if (albumIds.length > 0) {
       const rows = albumIds.map((id, index) => ({
-        user_id: session.user.id,
+        user_id: me.id,
         album_id: id,
         position: index + 1,
       }));
@@ -47,12 +46,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[users] favorites-updated", {
-      userId: session.user.id,
+      userId: me.id,
       albumIds,
     });
 
     return apiOk({ albums: albumIds });
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

@@ -1,9 +1,8 @@
 import { NextRequest } from 'next/server';
-import { requireApiAuth } from '@/lib/auth';
+import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
 import {
-  apiUnauthorized,
   apiBadRequest,
   apiInternalError,
   apiOk,
@@ -17,8 +16,7 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
     if (parseErr) return parseErr;
@@ -47,7 +45,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('logs')
       .insert({
-        user_id: session.user.id,
+        user_id: me.id,
         track_id: trackId,
         listened_at: listenedAt,
         source: 'manual_import',
@@ -59,21 +57,22 @@ export async function POST(request: NextRequest) {
       console.error('Log create error:', error);
       return apiInternalError(error);
     }
-    await grantAchievementsOnListen(session.user.id);
+    await grantAchievementsOnListen(me.id);
     console.log("[logs] manual-log-created", {
-      userId: session.user.id,
+      userId: me.id,
       trackId,
     });
     return apiOk(data);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { searchParams } = new URL(request.url);
     const spotifyId = searchParams.get('spotify_id');
@@ -85,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     // Reuse shared query logic for fetching logs with user data
     const logs = await getListenLogsForUser(
-      session.user.id,
+      me.id,
       limit,
       0,
       spotifyId || undefined
@@ -93,6 +92,8 @@ export async function GET(request: NextRequest) {
 
     return apiOk(logs);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createList, searchLists, grantAchievementOnList } from "@/lib/queries";
 import {
   apiBadRequest,
@@ -31,8 +31,7 @@ export async function GET(request: NextRequest) {
 /** POST – create a new list. Body: { title, description? }. Auth required. */
 export async function POST(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { data: body, error: parseErr } = await parseBody<{
       title?: unknown;
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
         : "private";
 
     const list = await createList(
-      session.user.id,
+      me.id,
       titleResult.value,
       description,
       typeResult.value,
@@ -89,15 +88,17 @@ export async function POST(request: NextRequest) {
         // continue; user can add items from the list page
       }
     }
-    await grantAchievementOnList(session.user.id);
+    await grantAchievementOnList(me.id);
 
     console.log("[lists] list-created", {
-      userId: session.user.id,
+      userId: me.id,
       listId: list.id,
     });
 
     return apiOk(list);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

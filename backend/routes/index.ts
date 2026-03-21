@@ -11,6 +11,9 @@ import { albumsRouter } from "./albums";
 import { artistsRouter } from "./artists";
 import { spotifyDataRouter } from "./spotify";
 import { authCompatRouter } from "./authCompat";
+import { usersRouter } from "./users";
+import { recentAlbumsRouter } from "./recentAlbums";
+import { followRouter } from "./follow";
 
 /**
  * All HTTP handlers for `/api/*`.
@@ -20,6 +23,8 @@ export function createApiRouter(): Router {
   const api = Router();
 
   api.use(healthRouter);
+  api.use("/users", usersRouter);
+  api.use("/recent-albums", recentAlbumsRouter);
   api.use("/leaderboard", leaderboardRouter);
   api.use("/discover", discoverRouter);
   api.use("/reviews", reviewsRouter);
@@ -30,6 +35,7 @@ export function createApiRouter(): Router {
   api.use("/artists", artistsRouter);
   api.use("/spotify", spotifyDataRouter);
   api.use("/auth", authCompatRouter);
+  api.use("/follow", followRouter);
 
   const fallback = process.env.NEXT_API_FALLBACK?.trim();
   if (fallback) {

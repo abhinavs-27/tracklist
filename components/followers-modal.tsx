@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { FollowButton } from "./follow-button";
 
 type FollowerUser = {
@@ -21,6 +22,8 @@ type FollowersModalProps = {
 
 type TabKind = "followers" | "following";
 
+const PAGE_SIZE = 20;
+
 export function FollowersModal({
   userId,
   username,
@@ -32,21 +35,33 @@ export function FollowersModal({
   const [activeTab, setActiveTab] = useState<TabKind>(initialTab);
 
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
-  const [followersCursor, setFollowersCursor] = useState<string | null>(null);
   const [followersHasMore, setFollowersHasMore] = useState(true);
   const [followersLoading, setFollowersLoading] = useState(false);
 
   const [following, setFollowing] = useState<FollowerUser[]>([]);
-  const [followingCursor, setFollowingCursor] = useState<string | null>(null);
   const [followingHasMore, setFollowingHasMore] = useState(true);
   const [followingLoading, setFollowingLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
+  const followersRef = useRef(followers);
+  const followingRef = useRef(following);
+  followersRef.current = followers;
+  followingRef.current = following;
+
   useEffect(() => {
     if (!isOpen) return;
     setActiveTab(initialTab);
   }, [isOpen, initialTab]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFollowers([]);
+    setFollowersHasMore(true);
+    setFollowing([]);
+    setFollowingHasMore(true);
+    setError(null);
+  }, [isOpen, userId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -57,13 +72,13 @@ export function FollowersModal({
       void loadTab("following", false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, activeTab]);
+  }, [isOpen, activeTab, userId]);
 
   const loadTab = async (tab: TabKind, append: boolean) => {
     const isFollowers = tab === "followers";
     const loading = isFollowers ? followersLoading : followingLoading;
     const hasMore = isFollowers ? followersHasMore : followingHasMore;
-    const cursor = isFollowers ? followersCursor : followingCursor;
+    const list = isFollowers ? followersRef.current : followingRef.current;
 
     if (loading || (!append && !isOpen)) return;
     if (append && !hasMore) return;
@@ -72,8 +87,9 @@ export function FollowersModal({
     setError(null);
     try {
       const params = new URLSearchParams();
-      params.set("limit", "20");
-      if (append && cursor) params.set("cursor", cursor);
+      params.set("limit", String(PAGE_SIZE));
+      const offset = append ? list.length : 0;
+      params.set("offset", String(offset));
 
       const res = await fetch(
         `/api/users/${encodeURIComponent(username)}/${isFollowers ? "followers" : "following"}?${params.toString()}`,
@@ -88,16 +104,12 @@ export function FollowersModal({
         return;
       }
       const cleaned = data.filter((u) => u.id !== viewerUserId);
-      const nextCursor =
-        cleaned.length > 0 ? cleaned[cleaned.length - 1]!.username : cursor ?? null;
       if (isFollowers) {
         setFollowers((prev) => (append ? [...prev, ...cleaned] : cleaned));
-        setFollowersCursor(nextCursor);
-        setFollowersHasMore(cleaned.length === 20);
+        setFollowersHasMore(cleaned.length === PAGE_SIZE);
       } else {
         setFollowing((prev) => (append ? [...prev, ...cleaned] : cleaned));
-        setFollowingCursor(nextCursor);
-        setFollowingHasMore(cleaned.length === 20);
+        setFollowingHasMore(cleaned.length === PAGE_SIZE);
       }
     } catch {
       setError("Failed to load users.");
@@ -135,7 +147,10 @@ export function FollowersModal({
         <div className="mt-3 flex rounded-full bg-zinc-800 p-1 text-xs font-medium text-zinc-400">
           <button
             type="button"
-            onClick={() => setActiveTab("followers")}
+            onClick={() => {
+              setActiveTab("followers");
+              if (followers.length === 0) void loadTab("followers", false);
+            }}
             className={`flex-1 rounded-full px-3 py-1 ${
               isFollowersTab ? "bg-zinc-900 text-white" : "hover:text-zinc-200"
             }`}
@@ -144,7 +159,10 @@ export function FollowersModal({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("following")}
+            onClick={() => {
+              setActiveTab("following");
+              if (following.length === 0) void loadTab("following", false);
+            }}
             className={`flex-1 rounded-full px-3 py-1 ${
               !isFollowersTab ? "bg-zinc-900 text-white" : "hover:text-zinc-200"
             }`}
@@ -166,8 +184,12 @@ export function FollowersModal({
                   key={u.id}
                   className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 overflow-hidden rounded-full bg-zinc-800">
+                  <Link
+                    href={`/profile/${encodeURIComponent(u.id)}`}
+                    onClick={onClose}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-0.5 text-left hover:bg-zinc-800/80"
+                  >
+                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-800">
                       {u.avatar_url ? (
                         <img
                           src={u.avatar_url}
@@ -180,10 +202,10 @@ export function FollowersModal({
                         </div>
                       )}
                     </div>
-                    <span className="max-w-[140px] truncate font-medium text-white">
+                    <span className="min-w-0 truncate font-medium text-white">
                       {u.username}
                     </span>
-                  </div>
+                  </Link>
                   {viewerUserId && u.id !== viewerUserId ? (
                     <FollowButton
                       userId={u.id}
@@ -210,4 +232,3 @@ export function FollowersModal({
     </div>
   );
 }
-

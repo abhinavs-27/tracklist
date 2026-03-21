@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getFollowListWithStatus } from "@/lib/queries";
 import {
@@ -28,8 +28,8 @@ export async function GET(
     if (userError || !user) return apiNotFound("User not found");
     const userId = user.id;
 
-    const session = await getSession();
-    const viewerId = session?.user?.id ?? null;
+    const viewer = await getUserFromRequest(request);
+    const viewerId = viewer?.id ?? null;
 
     const { searchParams } = new URL(request.url);
     const limit = clampLimit(searchParams.get("limit"), 50, 20);

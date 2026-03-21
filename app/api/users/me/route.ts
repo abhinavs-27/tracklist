@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -15,8 +15,7 @@ import {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { data: body, error: parseErr } = await parseBody<{ username?: unknown; bio?: unknown }>(request);
     if (parseErr) return parseErr;
@@ -32,7 +31,7 @@ export async function PATCH(request: NextRequest) {
     const { data: current, error: currentError } = await supabase
       .from("users")
       .select("id, username, bio")
-      .eq("id", session.user.id)
+      .eq("id", me.id)
       .maybeSingle();
     if (currentError || !current) {
       return apiInternalError(currentError ?? new Error("User not found"));
@@ -58,7 +57,7 @@ export async function PATCH(request: NextRequest) {
     const { data: updated, error: updateError } = await supabase
       .from("users")
       .update(updates)
-      .eq("id", session.user.id)
+      .eq("id", me.id)
       .select("id, email, username, avatar_url, bio, created_at")
       .maybeSingle();
 
@@ -67,12 +66,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     console.log("[users] profile-updated", {
-      userId: session.user.id,
+      userId: me.id,
       fields: Object.keys(updates),
     });
 
     return apiOk(updated);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

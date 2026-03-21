@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { getListOwnerId, addListItem } from "@/lib/queries";
 import {
   apiForbidden,
@@ -17,15 +17,14 @@ export async function POST(
   { params }: { params: Promise<{ listId: string }> }
 ) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { listId } = await params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId) return apiNotFound("List not found");
-    if (ownerId !== session.user.id) return apiForbidden("Not the list owner");
+    if (ownerId !== me.id) return apiForbidden("Not the list owner");
 
     const { data: body, error: parseErr } = await parseBody<{ entity_type?: unknown; entity_id?: unknown }>(request);
     if (parseErr) return parseErr;
@@ -43,7 +42,7 @@ export async function POST(
     if (!item) return apiInternalError(new Error("addListItem returned null"));
 
     console.log("[lists] list-item-added", {
-      userId: session.user.id,
+      userId: me.id,
       listId,
       itemId: item.id,
       entityType,
@@ -52,6 +51,8 @@ export async function POST(
 
     return apiOk(item);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

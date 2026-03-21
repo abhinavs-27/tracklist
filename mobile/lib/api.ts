@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 
 export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
@@ -7,12 +9,21 @@ export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
 
   const url = `${API_URL}${path}`;
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
   const res = await fetch(url, {
     ...init,
-    headers: {
-      Accept: "application/json",
-      ...(init?.headers ?? {}),
-    },
+    credentials: "include",
+    headers,
   });
 
   console.log(`[api] ${url} -> ${res.status}`);

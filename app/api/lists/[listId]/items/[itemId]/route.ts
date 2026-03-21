@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { getListOwnerId, removeListItem } from "@/lib/queries";
 import {
   apiForbidden,
@@ -11,12 +11,11 @@ import { isValidUuid } from "@/lib/validation";
 
 /** DELETE – remove item from list. Owner only. */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ listId: string; itemId: string }> }
 ) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { listId, itemId } = await params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
@@ -24,19 +23,21 @@ export async function DELETE(
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId) return apiNotFound("List not found");
-    if (ownerId !== session.user.id) return apiForbidden("Not the list owner");
+    if (ownerId !== me.id) return apiForbidden("Not the list owner");
 
     const ok = await removeListItem(itemId, listId);
     if (!ok) return apiInternalError(new Error("removeListItem failed"));
 
     console.log("[lists] list-item-removed", {
-      userId: session.user.id,
+      userId: me.id,
       listId,
       itemId,
     });
 
     return apiOk({ success: true, deleted_id: itemId });
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

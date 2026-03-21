@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireApiAuth } from '@/lib/auth';
+import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
 import { checkSpotifyRateLimit } from '@/lib/rate-limit';
@@ -14,14 +14,13 @@ export async function GET(request: NextRequest) {
     return apiTooManyRequests();
   }
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
       .from('spotify_tokens')
       .select('expires_at')
-      .eq('user_id', session.user.id)
+      .eq('user_id', me.id)
       .single();
 
     if (error) {
@@ -34,6 +33,8 @@ export async function GET(request: NextRequest) {
       expires_at: data?.expires_at ?? null,
     } satisfies SpotifyStatusResponse);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

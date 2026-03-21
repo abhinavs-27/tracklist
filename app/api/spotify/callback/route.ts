@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { exchangeSpotifyCode, buildRedirectUriFromOrigin } from "@/lib/spotify-user";
 import { getRequestOrigin } from "@/lib/app-url";
@@ -7,8 +7,7 @@ import { apiBadRequest, apiError, apiOk } from "@/lib/api-response";
 
 export async function GET(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const url = new URL(request.url);
     const code = url.searchParams.get("code");
@@ -52,12 +51,12 @@ export async function GET(request: NextRequest) {
     const { data: existingToken } = await supabase
       .from("spotify_tokens")
       .select("user_id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", me.id)
       .maybeSingle();
 
     if (existingToken) {
       console.log("[spotify-ingest] spotify-callback-token-exists", {
-        userId: session.user.id,
+        userId: me.id,
       });
       const res = apiOk({ connected: true, message: "Spotify is already connected" });
       res.cookies.set("spotify_oauth_state", "", { path: "/", maxAge: 0 });
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     const { error: upsertError } = await supabase.from("spotify_tokens").upsert(
       {
-        user_id: session.user.id,
+        user_id: me.id,
         access_token: token.access_token,
         refresh_token: refreshToken,
         expires_at: expiresAt,
@@ -86,13 +85,13 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("[spotify-ingest] spotify-callback-upsert-success", {
-      userId: session.user.id,
+      userId: me.id,
     });
 
     const cookieReturnTo = request.cookies.get(
       "spotify_oauth_return_to",
     )?.value;
-    const fallback = `/profile/${session.user.id ?? ""}`;
+    const fallback = `/profile/${me.id ?? ""}`;
     const base = requestOrigin;
     const returnToQuery =
       cookieReturnTo &&
@@ -103,13 +102,15 @@ export async function GET(request: NextRequest) {
 
     const returnTo = base + returnToQuery;
 
-    console.log("[spotify-ingest] spotify-callback-redirect", { userId: session.user.id, returnTo });
+    console.log("[spotify-ingest] spotify-callback-redirect", { userId: me.id, returnTo });
 
     const res = NextResponse.redirect(returnTo, { status: 302 });
     res.cookies.set("spotify_oauth_state", "", { path: "/", maxAge: 0 });
     res.cookies.set("spotify_oauth_return_to", "", { path: "/", maxAge: 0 });
     return res;
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     console.error("Spotify callback unexpected error:", e);
     return apiError("Spotify callback failed", 500);
   }

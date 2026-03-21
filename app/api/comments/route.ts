@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireApiAuth } from '@/lib/auth';
+import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { parseBody, handlePostgrestError } from '@/lib/api-utils';
@@ -15,8 +15,7 @@ function isMissingReviewIdColumn(err: unknown) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { session, error: authErr } = await requireApiAuth();
-    if (authErr) return authErr;
+    const me = await requireApiAuth(request);
 
     const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
     if (parseErr) return parseErr;
@@ -37,7 +36,7 @@ export async function POST(request: NextRequest) {
     ({ data, error } = await supabase
       .from('comments')
       .insert({
-        user_id: session.user.id,
+        user_id: me.id,
         review_id,
         content: contentResult.value,
       })
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
       ({ data, error } = await supabase
         .from('comments')
         .insert({
-          user_id: session.user.id,
+          user_id: me.id,
           log_id: review_id,
           content: contentResult.value,
         })
@@ -69,14 +68,20 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[comments] comment-created", {
-      userId: session.user.id,
+      userId: me.id,
       commentId: data.id,
       reviewId: data.review_id,
     });
 
-    const { data: user } = await supabase.from('users').select('id, username, avatar_url').eq('id', session.user.id).single();
-    return apiOk({ ...data, user: user ?? null });
+    const { data: author } = await supabase
+      .from('users')
+      .select('id, username, avatar_url')
+      .eq('id', me.id)
+      .single();
+    return apiOk({ ...data, user: author ?? null });
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }

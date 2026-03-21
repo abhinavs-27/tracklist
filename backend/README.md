@@ -67,7 +67,7 @@ Allowed origins:
    npx expo start -c
    ```
 
-4. Authenticated calls (reviews, likes, comments) require the **NextAuth session cookie** or the same JWT cookie the web app uses. If the app only talks to this backend, ensure your client sends the `Cookie` header or implement Bearer tokens later.
+4. Authenticated calls: **web** sends the **NextAuth session cookie**; the **Expo app** sends **`Authorization: Bearer <Supabase access token>`** (same Supabase project). The backend resolves `public.users` by email and can create a row on first mobile login (mirrors web NextAuth `signIn`).
 
 ## Web (Next.js)
 
