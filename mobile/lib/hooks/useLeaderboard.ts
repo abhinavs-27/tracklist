@@ -62,7 +62,7 @@ export function useLeaderboard(params: UseLeaderboardParams) {
     entity,
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: key,
     queryFn: () => {
       // Note: backend uses `type` for the metric and `entity` for songs/albums.
@@ -102,6 +102,6 @@ export function useLeaderboard(params: UseLeaderboardParams) {
       };
     }) ?? [];
 
-  return { data: items, isLoading, error };
+  return { data: items, isLoading, error, refetch };
 }
 

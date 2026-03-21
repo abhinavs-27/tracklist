@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
 import { theme } from "../../lib/theme";
 import { useProfile } from "../../lib/hooks/useProfile";
 import { useAuth } from "../../lib/hooks/useAuth";
@@ -89,7 +90,14 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
   const viewerId = authUser?.id ?? null;
 
   const listHeader = (
-    <View style={{ paddingHorizontal: 16, gap: 16, paddingTop: 8 }}>
+    <View
+      style={{
+        paddingLeft: 16,
+        paddingRight: 16 + NOTIFICATION_BELL_GUTTER,
+        gap: 16,
+        paddingTop: 8,
+      }}
+    >
       {showBack ? (
         <Pressable
           onPress={() => router.back()}

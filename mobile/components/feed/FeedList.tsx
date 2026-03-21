@@ -91,6 +91,7 @@ export function FeedList() {
 
   return (
     <FlatList
+      style={styles.flex}
       data={items}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
@@ -106,6 +107,7 @@ export function FeedList() {
           refreshing={isFetching && !isFetchingNextPage && !isPending}
           onRefresh={() => refetch()}
           tintColor={theme.colors.emerald}
+          colors={[theme.colors.emerald]}
         />
       }
       ListFooterComponent={
@@ -157,12 +159,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: 100,
   },
   emptyGrow: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: 100,
   },
   itemWrap: {
     paddingVertical: 8,

@@ -88,6 +88,12 @@ The app talks to your **Express** API (`EXPO_PUBLIC_API_URL`), not the Next.js U
 - **HTTP 504** from the API (e.g. `/api/lists/...`) usually means the Express proxy could not reach Next in time, or **Next isn’t running** on the fallback URL (the proxy maps `ECONNREFUSED` to 504). Start the Next dev server and confirm the port matches **`NEXT_API_FALLBACK`**.
 - **User lists UI**: `/user/[username]/lists` uses **`GET /api/users/:userId/lists`**; **`/list/[id]`** uses **`GET /api/lists/:id`**, which is implemented in **Express** (same JSON as web — no Next.js proxy required for reads).
 
+### Notifications & push
+
+- **In-app**: `GET /api/notifications`, `POST /api/notifications/mark-read` (same as web). Actor avatars/usernames are resolved via Supabase `users` (anon read must be allowed for `id, username, avatar_url`, or names fall back to “Someone”).
+- **Expo push**: the app registers for notifications after sign-in and `POST`s the Expo token to **`POST /api/users/me/push-token`** (stores `users.expo_push_token` — apply migration **`051_expo_push_token.sql`**). Clearing runs on sign-out.
+- **EAS project ID**: `getExpoPushTokenAsync` needs `extra.eas.projectId` in **`app.json`** (or your EAS config). Without it, push registration is skipped (dev logs a warning). Server-side sending of pushes is separate from this client work.
+
 ## Run Expo
 
 ```bash

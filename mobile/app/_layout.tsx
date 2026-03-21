@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { NotificationsBootstrap } from "../components/NotificationsBootstrap";
+import { NotificationsTray } from "../components/notifications/NotificationsTray";
 import { maybeCompleteAuthSession } from "../lib/auth-oauth";
 import { AuthProvider } from "../lib/auth-provider";
 import { useAuth } from "../lib/hooks/useAuth";
@@ -50,6 +52,8 @@ function RootLayoutNav() {
   return (
     <>
       <StatusBar style="light" />
+      <NotificationsBootstrap />
+      <NotificationsTray />
       <Slot />
     </>
   );

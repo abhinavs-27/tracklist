@@ -26,13 +26,13 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Feed",
         }}
       />
       <Tabs.Screen
-        name="feed"
+        name="discover"
         options={{
-          title: "Feed",
+          title: "Discover",
         }}
       />
       <Tabs.Screen
@@ -51,12 +51,6 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: "Notifications",
         }}
       />
     </Tabs>

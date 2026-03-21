@@ -19,6 +19,8 @@ export const queryKeys = {
   userLists: (userId: string) => ["userLists", userId] as const,
   discover: () => ["discover"] as const,
   feed: () => ["feed"] as const,
+  /** GET `/api/notifications` + actor enrichment. */
+  notifications: () => ["notifications"] as const,
   favorites: (userId: string) => ["favorites", userId] as const,
   /** Leaderboard: type "popular" | "topRated" | "mostFavorited", filters { startYear?, endYear? }. */
   leaderboard: (

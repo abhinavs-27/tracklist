@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { fetcher } from "../../lib/api";
 import { Artwork } from "../../components/media/Artwork";
+import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
 import { theme } from "../../lib/theme";
 
 type SearchKind = "artist" | "album" | "track";
@@ -146,7 +147,14 @@ export default function SearchScreen() {
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 12 }}>
+        <View
+          style={{
+            paddingLeft: 16,
+            paddingRight: 16 + NOTIFICATION_BELL_GUTTER,
+            paddingTop: 8,
+            gap: 12,
+          }}
+        >
           <Text
             style={{
               fontSize: 24,

@@ -10,6 +10,7 @@ import type {
 } from "../../lib/hooks/useLeaderboard";
 import { useLeaderboard } from "../../lib/hooks/useLeaderboard";
 import { YearRangeFilter, type YearRange } from "../../components/filters/YearRangeFilter";
+import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
 import { theme } from "../../lib/theme";
 
 export default function LeaderboardScreen() {
@@ -39,7 +40,15 @@ export default function LeaderboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
-      <View style={{ padding: 16, gap: 12 }}>
+      <View
+        style={{
+          paddingLeft: 16,
+          paddingRight: 16 + NOTIFICATION_BELL_GUTTER,
+          paddingTop: 16,
+          paddingBottom: 16,
+          gap: 12,
+        }}
+      >
         <Text style={{ fontSize: theme.text.title.fontSize, fontWeight: theme.text.title.fontWeight, color: theme.colors.text }}>
           Leaderboard
         </Text>
