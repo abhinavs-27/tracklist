@@ -24,6 +24,10 @@ export type ProfileUser = {
   avatar_url: string | null;
   bio: string | null;
   created_at: string;
+  /** Own profile only — Last.fm username for scrobble import */
+  lastfm_username?: string | null;
+  /** Own profile only — last server sync (cron or save) */
+  lastfm_last_synced_at?: string | null;
   followers_count: number;
   following_count: number;
   is_following: boolean;
@@ -101,6 +105,8 @@ function syntheticUserFromAuth(sessionUser: {
     avatar_url: pic,
     bio: null,
     created_at: new Date().toISOString(),
+    lastfm_username: null,
+    lastfm_last_synced_at: null,
     followers_count: 0,
     following_count: 0,
     is_following: false,

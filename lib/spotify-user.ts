@@ -1,6 +1,10 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getAppBaseUrl, isLocalhostUrl } from "@/lib/app-url";
+import {
+  isSpotifyIntegrationEnabled,
+  SpotifyIntegrationDisabledError,
+} from "@/lib/spotify-integration-enabled";
 
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
@@ -85,6 +89,10 @@ export async function exchangeSpotifyCode(
   /** Must match the redirect_uri used in the authorize request (e.g. from callback request origin). */
   redirectUriOverride?: string,
 ): Promise<SpotifyTokenResponse> {
+  if (!isSpotifyIntegrationEnabled()) {
+    throw new SpotifyIntegrationDisabledError();
+  }
+
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
   const clientSecret = requiredEnv("SPOTIFY_CLIENT_SECRET");
   const redirectUri = redirectUriOverride ?? buildRedirectUri();
@@ -112,6 +120,10 @@ export async function exchangeSpotifyCode(
 export async function refreshSpotifyAccessToken(
   refreshToken: string,
 ): Promise<SpotifyTokenResponse> {
+  if (!isSpotifyIntegrationEnabled()) {
+    throw new SpotifyIntegrationDisabledError();
+  }
+
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
   const clientSecret = requiredEnv("SPOTIFY_CLIENT_SECRET");
 
@@ -142,6 +154,10 @@ export async function refreshSpotifyAccessToken(
 export async function getValidSpotifyAccessToken(
   userId: string,
 ): Promise<string> {
+  if (!isSpotifyIntegrationEnabled()) {
+    throw new SpotifyIntegrationDisabledError();
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data: row, error: fetchError } = await supabase
     .from("spotify_tokens")
@@ -220,6 +236,10 @@ export async function getRecentlyPlayed(
   accessToken: string,
   limit = 50,
 ): Promise<SpotifyRecentlyPlayedResponse> {
+  if (!isSpotifyIntegrationEnabled()) {
+    throw new SpotifyIntegrationDisabledError();
+  }
+
   const safeLimit = Math.min(Math.max(limit, 1), 50);
   const url = new URL(`${SPOTIFY_API_BASE}/me/player/recently-played`);
   url.searchParams.set("limit", String(safeLimit));
@@ -246,6 +266,10 @@ async function spotifyUserFetch<T>(
   path: string,
   params?: Record<string, string>,
 ): Promise<T> {
+  if (!isSpotifyIntegrationEnabled()) {
+    throw new SpotifyIntegrationDisabledError();
+  }
+
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));

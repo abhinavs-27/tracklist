@@ -1,4 +1,8 @@
 import { logPerf } from "@/lib/profiling";
+import {
+  isSpotifyIntegrationEnabled,
+  SpotifyIntegrationDisabledError,
+} from "@/lib/spotify-integration-enabled";
 
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
@@ -6,8 +10,16 @@ const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 let cachedAccessToken: string | null = null;
 let tokenExpiresAt = 0;
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_RETRIES = 2;
+
+function mergeSignals(signals: AbortSignal[]): AbortSignal {
+  if (signals.length === 1) return signals[0]!;
+  if (typeof AbortSignal !== "undefined" && "any" in AbortSignal) {
+    return AbortSignal.any(signals);
+  }
+  return signals[0]!;
+}
 
 function withTimeout(
   url: string,
@@ -16,7 +28,10 @@ function withTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...init, signal: controller.signal }).finally(() => {
+  const external = init.signal;
+  const signals = external ? [external, controller.signal] : [controller.signal];
+  const merged = mergeSignals(signals);
+  return fetch(url, { ...init, signal: merged }).finally(() => {
     clearTimeout(id);
   });
 }
@@ -62,7 +77,12 @@ async function getClientCredentialsToken(): Promise<string> {
 async function spotifyFetch<T>(
   path: string,
   params?: Record<string, string>,
+  options?: { signal?: AbortSignal; allowLastfmMapping?: boolean },
 ): Promise<T> {
+  if (!isSpotifyIntegrationEnabled() && !options?.allowLastfmMapping) {
+    throw new SpotifyIntegrationDisabledError();
+  }
+
   const start = performance.now();
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
   if (params) {
@@ -81,6 +101,7 @@ async function spotifyFetch<T>(
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
+        signal: options?.signal,
       },
       DEFAULT_TIMEOUT_MS,
     );
@@ -169,14 +190,22 @@ export async function searchSpotify(
   query: string,
   types: ("artist" | "album" | "track")[] = ["artist", "album", "track"],
   limit = 10,
+  opts?: { signal?: AbortSignal; allowLastfmMapping?: boolean },
 ): Promise<SpotifySearchResponse> {
   const type = types.join(",");
   const safeLimit = Math.min(Math.max(limit, 1), 10);
-  return spotifyFetch<SpotifySearchResponse>("/search", {
-    q: query,
-    type,
-    limit: String(safeLimit),
-  });
+  return spotifyFetch<SpotifySearchResponse>(
+    "/search",
+    {
+      q: query,
+      type,
+      limit: String(safeLimit),
+    },
+    {
+      signal: opts?.signal,
+      allowLastfmMapping: opts?.allowLastfmMapping,
+    },
+  );
 }
 
 export async function getArtist(
@@ -263,13 +292,17 @@ export async function getAlbumTracks(
 
 export async function getTrack(
   spotifyId: string,
+  opts?: { allowLastfmMapping?: boolean },
 ): Promise<SpotifyApi.TrackObjectFull> {
-  return spotifyFetch<SpotifyApi.TrackObjectFull>(`/tracks/${spotifyId}`);
+  return spotifyFetch<SpotifyApi.TrackObjectFull>(`/tracks/${spotifyId}`, undefined, {
+    allowLastfmMapping: opts?.allowLastfmMapping,
+  });
 }
 
 /** Spotify limit: 50 tracks per request. Chunks and merges. Falls back to single getTrack() if batch returns 403. */
 export async function getTracks(
   spotifyIds: string[],
+  opts?: { allowLastfmMapping?: boolean },
 ): Promise<SpotifyApi.TrackObjectFull[]> {
   const unique = [...new Set(spotifyIds)].filter(Boolean);
   if (unique.length === 0) return [];
@@ -281,7 +314,7 @@ export async function getTracks(
     try {
       const data = (await spotifyFetch<{
         tracks: (SpotifyApi.TrackObjectFull | null)[];
-      }>("/tracks", { ids })) as {
+      }>(`/tracks`, { ids }, { allowLastfmMapping: opts?.allowLastfmMapping })) as {
         tracks: (SpotifyApi.TrackObjectFull | null)[];
       };
       const resolved = (data.tracks ?? []).filter(
@@ -292,7 +325,7 @@ export async function getTracks(
       if (err instanceof Error && err.message.includes("403")) {
         for (const id of chunk) {
           try {
-            const t = await getTrack(id);
+            const t = await getTrack(id, opts);
             out.push(t);
           } catch {
             // skip failed single fetch

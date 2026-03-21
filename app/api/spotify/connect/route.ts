@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
-import { apiInternalError } from '@/lib/api-response';
+import { apiInternalError, apiSpotifyDisabled } from '@/lib/api-response';
+import { isSpotifyIntegrationEnabled } from '@/lib/spotify-integration-enabled';
 import { getSpotifyAuthorizeUrl } from '@/lib/spotify-user';
 import { getRequestOrigin } from '@/lib/app-url';
 import crypto from 'crypto';
@@ -15,6 +16,10 @@ const COOKIE_OPTIONS = {
 export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
+
+    if (!isSpotifyIntegrationEnabled()) {
+      return apiSpotifyDisabled();
+    }
 
     const url = new URL(request.url);
     const returnTo = url.searchParams.get('returnTo') ?? '/profile';

@@ -1,9 +1,16 @@
 import { NextRequest } from 'next/server';
 import { searchSpotify } from '@/lib/spotify';
 import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
+import { isSpotifyIntegrationEnabled } from '@/lib/spotify-integration-enabled';
 import { validateSearchQuery, clampLimit, LIMITS } from '@/lib/validation';
 
 type SearchType = 'artist' | 'album' | 'track';
+
+const EMPTY_SEARCH = {
+  artists: { items: [] as SpotifyApi.ArtistObjectFull[] },
+  albums: { items: [] as SpotifyApi.AlbumObjectSimplified[] },
+  tracks: { items: [] as SpotifyApi.TrackObjectFull[] },
+};
 
 export async function GET(req: NextRequest) {
   try {
@@ -28,6 +35,10 @@ export async function GET(req: NextRequest) {
 
     const searchTypes: SearchType[] =
       requestedTypes.length > 0 ? requestedTypes : ['artist', 'album', 'track'];
+
+    if (!isSpotifyIntegrationEnabled()) {
+      return apiOk(EMPTY_SEARCH);
+    }
 
     // Delegate to the Spotify helper, which correctly encodes and calls the Spotify API.
     const result = await searchSpotify(queryResult.value, searchTypes, limit);

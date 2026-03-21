@@ -32,6 +32,21 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+@keyframes lastfm-toast-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.lastfm-toast-in {
+  animation: lastfm-toast-in 0.35s ease-out;
+}
+
 @keyframes skeleton-shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

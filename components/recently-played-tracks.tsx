@@ -68,7 +68,9 @@ export function RecentlyPlayedTracks() {
     return (
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
         <h2 className="text-lg font-semibold text-white">Recently played</h2>
-        <p className="mt-2 text-sm text-zinc-500">No recent tracks. Connect Spotify and play something.</p>
+        <p className="mt-2 text-sm text-zinc-500">
+          No recent listens yet. Log from search, Last.fm sync, or Spotify history when connected.
+        </p>
       </section>
     );
   }

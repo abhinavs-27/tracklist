@@ -29,6 +29,7 @@
     "**/*.ts",
     "**/*.tsx",
     "../lib/logging/**/*.ts",
+    "../lib/lastfm/types.ts",
     "../lib/query-keys.ts"
   ],
   "extends": "expo/tsconfig.base"

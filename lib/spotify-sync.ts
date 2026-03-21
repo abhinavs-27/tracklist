@@ -26,8 +26,8 @@ export type RecentTrackRow = {
 };
 
 /**
- * Fetches recently played from Spotify, maps to DB rows, and upserts into spotify_recent_tracks.
- * Uses (user_id, track_id, played_at) as uniqueness key. Caller must use admin client for RLS.
+ * Fetches recently played from Spotify and upserts passive listens into `logs` (same as manual / Last.fm).
+ * Catalog cache is warmed via getOrFetchTracksBatch. Does not write to spotify_recent_tracks.
  */
 export async function syncRecentlyPlayed(
   userId: string,
@@ -61,27 +61,13 @@ export async function syncRecentlyPlayed(
 
   const supabase = createSupabaseAdminClient();
 
-  // Upsert into spotify_recent_tracks (existing behavior)
-  const { error: recentError } = await supabase
-    .from("spotify_recent_tracks")
-    .upsert(rows, {
-      onConflict: "user_id,track_id,played_at",
-    });
-
-  if (recentError) {
-    console.error(
-      "spotify-sync: upsert spotify_recent_tracks failed",
-      recentError,
-    );
-    throw recentError;
-  }
-
-  // Also insert passive song logs into logs table (songs only), skipping duplicates
+  // Passive listens — same table as every other source
   const passiveLogs = rows.map((r) => ({
     user_id: userId,
     track_id: r.track_id,
     listened_at: r.played_at,
-    source: "spotify",
+    source: "spotify" as const,
+    album_id: r.album_id,
   }));
 
   const { error: logsError } = await supabase

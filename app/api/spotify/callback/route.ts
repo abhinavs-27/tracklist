@@ -4,10 +4,18 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { exchangeSpotifyCode, buildRedirectUriFromOrigin } from "@/lib/spotify-user";
 import { getRequestOrigin } from "@/lib/app-url";
 import { apiBadRequest, apiError, apiOk } from "@/lib/api-response";
+import {
+  isSpotifyIntegrationEnabled,
+  SPOTIFY_DISABLED_API_MESSAGE,
+} from "@/lib/spotify-integration-enabled";
 
 export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
+
+    if (!isSpotifyIntegrationEnabled()) {
+      return apiBadRequest(SPOTIFY_DISABLED_API_MESSAGE);
+    }
 
     const url = new URL(request.url);
     const code = url.searchParams.get("code");

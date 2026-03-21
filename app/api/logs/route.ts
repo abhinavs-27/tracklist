@@ -22,6 +22,7 @@ const LOG_SOURCES = new Set([
   'manual',
   'suggested',
   'session',
+  'lastfm',
 ]);
 
 export async function POST(request: NextRequest) {

@@ -3,6 +3,7 @@ import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
 import { checkSpotifyRateLimit } from '@/lib/rate-limit';
+import { isSpotifyIntegrationEnabled } from '@/lib/spotify-integration-enabled';
 
 export type SpotifyStatusResponse = {
   connected: boolean;
@@ -15,6 +16,10 @@ export async function GET(request: NextRequest) {
   }
   try {
     const me = await requireApiAuth(request);
+
+    if (!isSpotifyIntegrationEnabled()) {
+      return apiOk({ connected: false } satisfies SpotifyStatusResponse);
+    }
 
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase

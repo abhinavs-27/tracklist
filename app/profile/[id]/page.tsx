@@ -8,7 +8,8 @@ import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albu
 import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-with-sync";
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { LastfmSection } from "@/components/lastfm/lastfm-section";
+import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   getFollowCounts,
@@ -55,13 +56,17 @@ export default async function ProfilePage({
     avatar_url: string | null;
     bio: string | null;
     created_at: string;
+    lastfm_username: string | null;
+    lastfm_last_synced_at: string | null;
   } | null = null;
   let userError: unknown = null;
 
   if (segment && isValidUuid(segment)) {
     const result = await supabase
       .from("users")
-      .select("id, username, avatar_url, bio, created_at")
+      .select(
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+      )
       .eq("id", segment)
       .maybeSingle();
     user = result.data;
@@ -69,7 +74,9 @@ export default async function ProfilePage({
   } else if (segment) {
     const result = await supabase
       .from("users")
-      .select("id, username, avatar_url, bio, created_at")
+      .select(
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+      )
       .eq("username", String(segment).trim())
       .maybeSingle();
     user = result.data;
@@ -83,6 +90,8 @@ export default async function ProfilePage({
   if (!user) {
     notFound();
   }
+
+  const spotifyIntegrationEnabled = isSpotifyIntegrationEnabled();
 
   if (!isValidUuid(segment)) {
     redirect(`/profile/${user.id}`);
@@ -202,6 +211,15 @@ export default async function ProfilePage({
         </div>
       </header>
 
+      {isOwnProfile ? (
+        <LastfmSection
+          userId={profile.id}
+          username={profile.username}
+          initialUsername={user.lastfm_username ?? null}
+          initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
+        />
+      ) : null}
+
       <ProfileFavoriteAlbumsSection
         userId={profile.id}
         favoriteAlbums={favoriteAlbums}
@@ -218,7 +236,7 @@ export default async function ProfilePage({
       <ProfileRecentAlbumsWithSync
         userId={profile.id}
         username={profile.username}
-        showSpotifyControls={isOwnProfile}
+        showSpotifyControls={isOwnProfile && spotifyIntegrationEnabled}
         spotifyConnected={spotifyConnected}
       />
 

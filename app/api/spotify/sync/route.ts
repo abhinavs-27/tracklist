@@ -6,7 +6,9 @@ import {
   apiInternalError,
   apiOk,
   apiTooManyRequests,
+  apiSpotifyDisabled,
 } from "@/lib/api-response";
+import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import {
   getRecentlyPlayed,
   getValidSpotifyAccessToken,
@@ -21,6 +23,10 @@ export async function POST(request: NextRequest) {
   }
   try {
     const me = await requireApiAuth(request);
+
+    if (!isSpotifyIntegrationEnabled()) {
+      return apiSpotifyDisabled();
+    }
 
     const mode = "song" as const;
 

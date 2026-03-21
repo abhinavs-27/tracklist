@@ -11,11 +11,11 @@ A music social app: sign in with Google, connect Spotify, search and log listens
 - **Authentication**: Sign in with Google (NextAuth). First-time users get a `users` row and a generated username.
 - **Spotify**:
   - **Connect**: OAuth flow stores `access_token`, `refresh_token`, and `expires_at` in `spotify_tokens`. Tokens are refreshed automatically when expired (`lib/spotify-user.ts` → `getValidSpotifyAccessToken`).
-  - **Recently played**: Cached in `spotify_recent_tracks`; refreshed from Spotify when cache is older than 5 minutes. Profile shows “Recently played” from this cache.
-  - **Sync**: “Sync recently played” pulls from Spotify and inserts new album/song entries into `logs` (no duplicate `spotify_id` per user).
+  - **Recently played**: Read from `logs` (same data as manual / Last.fm). When Spotify is connected, `/api/spotify/recently-played` can call Spotify first to append passive listens into `logs`, then returns rows from `logs` + catalog.
+  - **Sync**: “Sync recently played” pulls from Spotify and inserts into `logs` only (no separate “Spotify cache” table for UI).
   - **Search**: Artists, albums, and tracks via Spotify (client-credentials in `lib/spotify.ts`; user-scoped calls use tokens from `spotify_tokens`).
 - **Logging**: Log album or track listens with 1–5 rating, optional review and title, and listen date. Stored in `logs` with `spotify_id` and `type` (song/album).
-- **Profiles**: Username, avatar, bio, followers/following, recent reviews, recent albums (from logs), taste match, and (when connected) recently played from cache. Own profile: edit bio/username/avatar, connect Spotify, sync, view recently played.
+- **Profiles**: Username, avatar, bio, followers/following, recent reviews, recent albums and “recently played” (both from `logs` + catalog). Own profile: edit bio/username/avatar, connect Spotify, sync, view recent listens.
 - **Follow system**: Follow/unfollow users; follower and following counts on profiles.
 - **Feed**: Home and `/feed` show logs from users you follow (`lib/feed.ts` → `getFeedForUser`).
 - **Likes & comments**: Like logs and comment on them; like counts and comment threads on feed and log cards.
@@ -79,7 +79,10 @@ A music social app: sign in with Google, connect Spotify, search and log listens
    - For **Connect & recently played**: add Redirect URI exactly `http://127.0.0.1:3000/api/spotify/callback` (or your `SPOTIFY_REDIRECT_URI`). Set scopes as needed (e.g. `user-read-recently-played`).  
      Set `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and optionally `SPOTIFY_REDIRECT_URI` in `.env.local`.
 
-6. **Run**
+6. **Last.fm (optional — import scrobbles)**  
+   Create an API account at [Last.fm API](https://www.last.fm/api/account/create) and set `LASTFM_API_KEY` in `.env.local`. Users save their public Last.fm username once on the profile; the app calls `user.getRecentTracks` server-side and maps tracks to Spotify for `logs` rows (`source: lastfm`). After each save, `POST /api/lastfm/sync` runs the same import as the daily cron so new users are not stuck until the next schedule. Apply migrations `054_lastfm_username.sql` and `055_lastfm_last_synced_at.sql`. On Vercel, `vercel.json` schedules `/api/cron/lastfm-sync` daily to pull new scrobbles for users with a saved username.
+
+7. **Run**
    ```bash
    npm run dev
    ```
@@ -115,10 +118,14 @@ Set these in `.env.local` (see `.env.example`).
 | `NEXTAUTH_URL`              | Yes      | App URL, e.g. `http://127.0.0.1:3000` or `https://yourdomain.com`                                                                                     |
 | `SUPABASE_URL`              | Yes      | Supabase project URL                                                                                                                                  |
 | `SUPABASE_ANON_KEY`         | Yes      | Supabase anon/public key (used by client and some server code)                                                                                        |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | Supabase service role key; **server-only**; used to bypass RLS for `spotify_tokens`, `spotify_recent_tracks`, and other server operations             |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | Supabase service role key; **server-only**; used to bypass RLS for `spotify_tokens`, cron ingestion, and other server operations             |
 | `SPOTIFY_CLIENT_ID`         | Yes      | Spotify app client ID                                                                                                                                 |
 | `SPOTIFY_CLIENT_SECRET`     | Yes      | Spotify app client secret                                                                                                                             |
 | `SPOTIFY_REDIRECT_URI`      | No       | Exact redirect URI for Spotify OAuth. If unset, defaults to `{NEXTAUTH_URL}/api/spotify/callback` (e.g. `http://127.0.0.1:3000/api/spotify/callback`) |
+| `LASTFM_API_KEY`            | No       | Last.fm API key for `user.getRecentTracks` scrobble import (`/api/lastfm/*`).                                                                                  |
+| `NEXT_PUBLIC_ENABLE_SPOTIFY` | No    | Set to `true` to enable Spotify OAuth, `/api/search`, ingest crons, and Last.fm→Spotify mapping. Default: omitted/false disables integration (see `lib/spotify-integration-enabled.ts`). |
+| `ENABLE_SPOTIFY_INTEGRATION` | No     | Server-side override (same as above) for API routes and jobs when you prefer not to use the `NEXT_PUBLIC_*` name. |
+| `EXPO_PUBLIC_ENABLE_SPOTIFY` | No     | Expo / React Native: same flag for mobile builds. |
 
 Do **not** expose `NEXTAUTH_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` to the client.
 
@@ -133,7 +140,7 @@ Do **not** expose `NEXTAUTH_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` to the client
 | GET           | `/api/spotify/callback`        | Spotify callback; validates state cookie, exchanges code, upserts `spotify_tokens` (only if no row yet for user), redirects to `returnTo` or profile. Uses `createSupabaseAdminClient` for DB. |
 | GET           | `/api/spotify/status`          | Returns `{ connected, expires_at? }` for current user (reads `spotify_tokens`).                                                                                                                |
 | POST          | `/api/spotify/sync`            | Sync recently played from Spotify into `logs`. Query: `mode=album                                                                                                                              | song | both`. Uses `getValidSpotifyAccessToken`, then `getRecentlyPlayed`. |
-| GET           | `/api/spotify/recently-played` | Returns cached recently played (from `spotify_recent_tracks`). If cache older than 5 minutes, refreshes token, calls `syncRecentlyPlayed`, then returns cache (max 50).                        |
+| GET           | `/api/spotify/recently-played` | Recent listens from `logs` (+ songs/albums/artists). If Spotify is connected and integration is on, `offset=0` may call `syncRecentlyPlayed` to append Spotify history into `logs` first. Max 50. |
 | GET           | `/api/spotify/album/[id]`      | Album details by Spotify ID (client credentials).                                                                                                                                              |
 | GET           | `/api/search`                  | Search artists/albums/tracks. Query: `q`, `type`, `limit`. Uses `lib/spotify.ts`.                                                                                                              |
 | GET / POST    | `/api/logs`                    | List logs (query: `limit`, optional `spotify_id`) or create a log (body: `track_id` / `spotify_id`, optional `note`, `source`, `album_id`, `artist_id`, `listened_at`). No ratings on logs—use reviews. |
@@ -145,6 +152,11 @@ Do **not** expose `NEXTAUTH_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` to the client
 | GET           | `/api/discover`                | Discover “recently active” users (query: `limit`).                                                                                                                                             |
 | GET           | `/api/taste-match`             | Taste match between two users. Query: `userA`, `userB`.                                                                                                                                        |
 | GET / PATCH   | `/api/users/[username]`        | Get user by username or update own profile (PATCH: `username`, `bio`, `avatar_url`).                                                                                                           |
+| GET           | `/api/lastfm/preview`          | Authenticated: loads Last.fm scrobbles for `users.lastfm_username`, maps to Spotify; returns `items`, `matchedCount`, `skippedCount`, optional `error` if Last.fm failed. Query: `limit` (default 50, max 200). |
+| POST          | `/api/lastfm/sync`             | Authenticated: same as cron for the signed-in user — fetch recent scrobbles, insert new matches, update `lastfm_last_synced_at`. Used after saving a username on the profile. |
+| POST          | `/api/lastfm/import`           | Authenticated: batch-inserts selected scrobbles into `logs` with `source: lastfm`. Body: `{ entries: [{ spotifyTrackId, listenedAt, albumId?, artistId?, trackName?, artistName?, artworkUrl? }] }`. Returns `highlights` (up to 3) for the success UI. |
+| GET           | `/api/cron/lastfm-sync`        | Service role: daily job; fetches new Last.fm scrobbles per user with `lastfm_username`, inserts matched rows, updates `users.lastfm_last_synced_at`.                                            |
+| PATCH         | `/api/users/me`                | Update profile including optional `lastfm_username` (clear with empty string).                                                                                                                |
 
 All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/[...nextauth]/route.ts`. Helpers: `lib/api-response.ts` (`apiUnauthorized`, `apiBadRequest`, `apiInternalError`, etc.).
 
@@ -163,13 +175,13 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 
 ### Tables (from migrations)
 
-- **users**: `id` (UUID, PK), `email` (unique), `username` (unique), `avatar_url`, `bio`, `created_at`. Synced from NextAuth on first login.
+- **users**: `id` (UUID, PK), `email` (unique), `username` (unique), `avatar_url`, `bio`, `created_at`, optional `lastfm_username`, optional `lastfm_last_synced_at` (daily Last.fm cron watermark). Synced from NextAuth on first login.
 - **follows**: `follower_id`, `following_id` → `users(id)`. Unique on (follower_id, following_id).
 - **logs**: `user_id`, `track_id`, `listened_at`, `source`, optional `album_id`, `artist_id`, `note`, `created_at`. Listen events only; star ratings live on **reviews**. Indexes include `user_id`, `track_id`, `listened_at`.
 - **likes**: `user_id`, `log_id`. Unique (user_id, log_id).
 - **comments**: `user_id`, `log_id`, `content`, `created_at`.
 - **spotify_tokens**: `user_id` (PK, FK → users), `access_token`, `refresh_token`, `expires_at`, `created_at`, `updated_at`. Used only by server (service role / admin client).
-- **spotify_recent_tracks**: `user_id`, `track_id`, `track_name`, `artist_name`, `album_name`, `album_image`, `played_at`, `created_at`. Unique (user_id, track_id, played_at). Index (user_id, played_at DESC).
+- **spotify_recent_tracks** (legacy table; app UI no longer reads it — profile/feed use `logs` + migration `056_feed_listen_sessions_from_logs.sql`).
 - **lists**, **list_items**: Present in 001 for future use.
 - **user_favorite_albums**: Per-user ordered album favorites for profiles and “most favorited” leaderboard.
 
@@ -178,7 +190,7 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 - **Public client** (`lib/supabase-client.ts`): **anon key** (`NEXT_PUBLIC_SUPABASE_ANON_KEY`). Safe for browser and server. RLS applies. Use for all normal application queries.
 - **Server client** (`lib/supabase-server.ts`): **anon key** with cookie-based session support (`@supabase/ssr`). Use in Server Components, Route Handlers, Server Actions. When Supabase Auth is used, `auth.uid()` resolves so RLS works. Call with `await createSupabaseServerClient()`.
 - **Admin client** (`lib/supabase-admin.ts`): **service role key** only. Use for cron jobs, `spotify_tokens`, ingestion, and other backend tasks that must bypass RLS. Never expose to the browser.
-- **spotify_tokens** / **spotify_recent_tracks**: RLS enabled; no anon policies. All access via **admin client** (callback, token refresh, status, profile check, cron).
+- **spotify_tokens**: RLS enabled; no anon policies. All access via **admin client** (callback, token refresh, status, profile check, cron).
 - **Other tables**: Use **server client** (anon + cookies) for feed, logs, follow, discover, taste-match, etc., so RLS can apply when Supabase Auth is in use.
 
 ---
@@ -188,7 +200,7 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 1. **Sign in**: Open app → “Sign in with Google”. First time creates your user and username.
 2. **Profile**: Go to your profile (e.g. `/profile/<username>` from nav). Edit bio/username/avatar in the edit modal.
 3. **Connect Spotify**: In the Spotify section on your profile, click “Connect Spotify”. Approve in Spotify, then you’re redirected back; a token is stored. If a token already exists, the callback returns “Spotify is already connected” and the Connect control is disabled.
-4. **Recently played**: On your profile, “Recently played” is loaded from `/api/spotify/recently-played` (cache in `spotify_recent_tracks`; refreshed from Spotify if cache &gt; 5 min).
+4. **Recently played**: On your profile, “Recently played” is loaded from `/api/spotify/recently-played`, which reads **`logs`** (all sources). With Spotify connected, the same route may pull new Spotify plays into `logs` before returning.
 5. **Sync**: Click “Sync recently played” to import recent Spotify plays into `logs` (albums/songs). Add **reviews** (ratings + text) separately from album/track pages.
 6. **Search**: Use Search to find artists, albums, or tracks (Spotify). Open an album/track to **review** (rating + text) or **log** a listen (separate from reviews on mobile).
 7. **Feed**: Home and Feed show logs from users you follow. Like and comment on logs.
@@ -203,7 +215,7 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
   Redirect URI in Spotify Dashboard must match **exactly** what the app sends (no trailing slash, correct scheme/host/path). For production, set `NEXTAUTH_URL` to your site URL (e.g. `https://tracklistsocial.com`); the app will use `{NEXTAUTH_URL}/api/spotify/callback`. Add that exact URL in [Spotify Dashboard](https://developer.spotify.com/dashboard) → your app → Redirect URIs. (Server logs log the redirect URI used when you click Connect—use that value if unsure.) For local dev use `http://127.0.0.1:3000/api/spotify/callback` and same base in `NEXTAUTH_URL`.
 
 - **Token saving / “new row violates row-level security”**  
-  Writes to `spotify_tokens` (and `spotify_recent_tracks`) must use a Supabase client with the **service role key** (or an admin client that uses it), not the anon key. Ensure:
+  Writes to `spotify_tokens` must use a Supabase client with the **service role key** (or an admin client that uses it), not the anon key. Ensure:
   - `app/api/spotify/callback/route.ts` uses `createSupabaseAdminClient()` (from `lib/supabase-admin.ts`).
   - `lib/supabase-admin.ts` uses `SUPABASE_SERVICE_ROLE_KEY` for token/recent-tracks writes (if it currently uses anon key, RLS will block inserts; switch to service role for those operations).
 

@@ -1,5 +1,10 @@
 /// <reference path="../types/spotify-api.d.ts" />
 
+import {
+  isSpotifyIntegrationEnabled,
+  SpotifyIntegrationDisabledError,
+} from "./spotify-integration-enabled";
+
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
@@ -63,6 +68,10 @@ async function spotifyFetch<T>(
   path: string,
   params?: Record<string, string>,
 ): Promise<T> {
+  if (!isSpotifyIntegrationEnabled()) {
+    throw new SpotifyIntegrationDisabledError();
+  }
+
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));

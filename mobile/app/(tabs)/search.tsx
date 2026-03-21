@@ -15,6 +15,10 @@ import { fetcher } from "../../lib/api";
 import { Artwork } from "../../components/media/Artwork";
 import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
 import { theme } from "../../lib/theme";
+import {
+  isSpotifyIntegrationEnabled,
+  SPOTIFY_DISABLED_USER_MESSAGE,
+} from "../../lib/spotify-integration-enabled";
 
 type SearchKind = "artist" | "album" | "track";
 
@@ -126,6 +130,7 @@ export default function SearchScreen() {
   }, [query, runSearch]);
 
   function onPressResult(item: SearchResult) {
+    if (!isSpotifyIntegrationEnabled()) return;
     if (item.kind === "album") {
       router.push(`/album/${item.id}` as const);
       return;
@@ -136,6 +141,8 @@ export default function SearchScreen() {
     }
     router.push(`/artist/${item.id}` as const);
   }
+
+  const spotifyOff = !isSpotifyIntegrationEnabled();
 
   return (
     <SafeAreaView
@@ -164,11 +171,17 @@ export default function SearchScreen() {
           >
             Search
           </Text>
+          {spotifyOff ? (
+            <Text style={{ fontSize: 13, color: theme.colors.muted, lineHeight: 18 }}>
+              {SPOTIFY_DISABLED_USER_MESSAGE}
+            </Text>
+          ) : null}
           <TextInput
             placeholder="Artists, albums, and songs"
             placeholderTextColor={theme.colors.muted}
             value={query}
             onChangeText={setQuery}
+            editable={!spotifyOff}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
@@ -182,6 +195,7 @@ export default function SearchScreen() {
               backgroundColor: theme.colors.panel,
               color: theme.colors.text,
               fontSize: 16,
+              opacity: spotifyOff ? 0.5 : 1,
             }}
           />
         </View>
@@ -212,7 +226,13 @@ export default function SearchScreen() {
             />
           )}
           ListEmptyComponent={
-            query.trim().length > 0 && !loading ? (
+            spotifyOff ? (
+              <View style={{ paddingHorizontal: 16, paddingTop: 24 }}>
+                <Text style={{ color: theme.colors.muted, fontWeight: "600" }}>
+                  {SPOTIFY_DISABLED_USER_MESSAGE}
+                </Text>
+              </View>
+            ) : query.trim().length > 0 && !loading ? (
               <View style={{ paddingHorizontal: 16, paddingTop: 24 }}>
                 <Text style={{ color: theme.colors.muted, fontWeight: "600" }}>
                   No results. Try another query.

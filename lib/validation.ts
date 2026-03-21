@@ -131,3 +131,24 @@ export function validateListType(type: unknown): { ok: true; value: 'album' | 's
   return { ok: true, value: type };
 }
 
+/** Last.fm usernames: 1–64 chars, letters, numbers, underscore, hyphen (public profile name). */
+const LASTFM_USERNAME_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
+
+export function validateLastfmUsername(
+  username: unknown,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (username == null || username === "") {
+    return { ok: true, value: null };
+  }
+  const s = typeof username === "string" ? username.trim() : String(username).trim();
+  if (s.length === 0) return { ok: true, value: null };
+  if (!LASTFM_USERNAME_REGEX.test(s)) {
+    return {
+      ok: false,
+      error:
+        "Last.fm username must be 1–64 characters (letters, numbers, underscore, hyphen)",
+    };
+  }
+  return { ok: true, value: s };
+}
+

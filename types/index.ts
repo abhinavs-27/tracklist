@@ -57,7 +57,7 @@ export interface FeedListenSession {
   first_listened_at: string;
   created_at: string;
   user?: User | null;
-  /** From RPC (spotify_recent_tracks). */
+  /** From RPC (listen sessions from `logs`). */
   track_name?: string | null;
   artist_name?: string | null;
   /** Enriched by server for display. */

@@ -23,6 +23,7 @@ import {
 } from "./ActivityList";
 import { FollowNetworkModal } from "./FollowNetworkModal";
 import { CreateListModal } from "../list/CreateListModal";
+import { LastfmSection } from "./LastfmSection";
 
 type Tab = "favorites" | "activity";
 
@@ -151,6 +152,15 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         <ProfileFollowButton
           targetUserId={user.id}
           initialFollowing={user.is_following}
+        />
+      ) : null}
+
+      {isOwn ? (
+        <LastfmSection
+          userId={user.id}
+          username={user.username}
+          initialUsername={user.lastfm_username ?? null}
+          initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
         />
       ) : null}
 

@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/compute-cooccurrence",
       "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/lastfm-sync",
+      "schedule": "15 2 * * *"
     }
   ]
 }

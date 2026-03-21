@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { badRequest, internalError, ok, tooManyRequests } from "../lib/http";
 import { checkSpotifyRateLimit } from "../lib/rateLimit";
+import { isSpotifyIntegrationEnabled } from "../lib/spotify-integration-enabled";
 import { getTrack } from "../lib/spotify";
 import { isValidSpotifyId } from "../lib/validation";
 
@@ -12,6 +13,10 @@ spotifyDataRouter.get("/song/:id", async (req, res) => {
   try {
     const { id } = req.params;
     if (!isValidSpotifyId(id)) return badRequest(res, "Invalid Spotify id");
+
+    if (!isSpotifyIntegrationEnabled()) {
+      return badRequest(res, "Spotify integration is temporarily disabled.");
+    }
 
     const track = await getTrack(id);
     const album = track.album;

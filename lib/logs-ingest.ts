@@ -1,5 +1,6 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import {
   getRecentlyPlayed,
   getValidSpotifyAccessToken,
@@ -12,9 +13,8 @@ type RecentlyPlayedItem = {
 };
 
 /**
- * Ingests recently played tracks from Spotify for a single user into:
- * - spotify_recent_tracks (handled elsewhere)
- * - logs (passive song logs; songs only, no ratings/text)
+ * Ingests recently played tracks from Spotify for a single user into `logs` only
+ * (passive listens; same table as manual / Last.fm).
  *
  * Idempotent: logs table enforces UNIQUE(user_id, track_id, listened_at).
  */
@@ -22,6 +22,10 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
   inserted: number;
   skipped: number;
 }> {
+  if (!isSpotifyIntegrationEnabled()) {
+    return { inserted: 0, skipped: 0 };
+  }
+
   const supabase = createSupabaseAdminClient();
 
   let accessToken: string;
@@ -113,6 +117,8 @@ export async function ingestRecentPlaysForUser(userId: string): Promise<{
       track_id: u.track_id,
       listened_at: u.listened_at,
       source: "spotify",
+      album_id: u.track.album?.id ?? null,
+      artist_id: u.track.artists?.[0]?.id ?? null,
     })),
     { onConflict: "user_id,track_id,listened_at" },
   );

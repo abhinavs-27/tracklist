@@ -84,7 +84,7 @@ export function RecentAlbumsGrid({
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
           <p className="text-zinc-500">No recent albums.</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Connect Spotify and play something to see them here.
+            Log listens (Spotify sync, Last.fm, or quick log) to see albums here.
           </p>
         </div>
       ) : (

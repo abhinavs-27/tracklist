@@ -3,11 +3,12 @@ import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
 import { syncRecentlyPlayed } from "@/lib/spotify-sync";
+import { getRecentTracksFromLogs } from "@/lib/recent-from-logs";
 import { apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
+import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import { clampLimit } from "@/lib/validation";
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_LIMIT = 50;
 
 export async function GET(request: NextRequest) {
@@ -24,43 +25,25 @@ export async function GET(request: NextRequest) {
     const userId = me.id;
     const supabase = createSupabaseAdminClient();
 
-    // Last sync: max(created_at) for this user (when we last wrote to cache)
-    const { data: lastSyncRow } = await supabase
-      .from("spotify_recent_tracks")
-      .select("created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    const lastSyncAt = lastSyncRow?.created_at ? new Date(lastSyncRow.created_at).getTime() : 0;
-    const now = Date.now();
-    const useCache = lastSyncAt > 0 && now - lastSyncAt < CACHE_TTL_MS;
-
-    if (!useCache) {
-      let accessToken: string;
+    if (offset === 0 && isSpotifyIntegrationEnabled()) {
       try {
-        accessToken = await getValidSpotifyAccessToken(userId);
+        const accessToken = await getValidSpotifyAccessToken(userId);
+        await syncRecentlyPlayed(userId, accessToken);
       } catch (e) {
         if (e instanceof Error && e.message === "Spotify not connected") {
-          return apiOk({ items: [], hasMore: false });
+          // Fall through — show listens from logs only (Last.fm, manual, etc.)
+        } else {
+          console.warn("[recently-played] syncRecentlyPlayed skipped", e);
         }
-        return apiInternalError(e);
       }
-      await syncRecentlyPlayed(userId, accessToken);
     }
 
-    const { data: tracks, error } = await supabase
-      .from("spotify_recent_tracks")
-      .select("track_id, track_name, artist_name, album_id, album_name, album_image, played_at")
-      .eq("user_id", userId)
-      .order("played_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) return apiInternalError(error);
-
-    const items = tracks ?? [];
-    const hasMore = items.length === limit;
+    const { items, hasMore } = await getRecentTracksFromLogs(
+      supabase,
+      userId,
+      limit,
+      offset,
+    );
 
     return apiOk({ items, hasMore });
   } catch (e) {

@@ -79,7 +79,9 @@ export default function RecentlyPlayedPage() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="text-zinc-500">No recent tracks. Connect Spotify and play something.</p>
+        <p className="text-zinc-500">
+          No recent listens yet. They appear here from your log history (manual, Last.fm, Spotify sync, etc.).
+        </p>
       ) : (
         <>
           <ul className="space-y-2">

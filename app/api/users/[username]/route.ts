@@ -34,7 +34,9 @@ export async function GET(
     const supabase = await createSupabaseServerClient();
     const { data: user, error } = await supabase
       .from("users")
-      .select("id, username, avatar_url, bio, created_at")
+      .select(
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+      )
       .eq("username", username)
       .single();
 
@@ -79,12 +81,16 @@ export async function GET(
       isFollowing = !!follow;
     }
 
+    const isOwn = viewer?.id === user.id;
+
     return apiOk({
       ...user,
+      lastfm_username: isOwn ? user.lastfm_username ?? null : null,
+      lastfm_last_synced_at: isOwn ? user.lastfm_last_synced_at ?? null : null,
       followers_count: followers ?? 0,
       following_count: following ?? 0,
       is_following: isFollowing,
-      is_own_profile: viewer?.id === user.id,
+      is_own_profile: isOwn,
     });
   } catch (e) {
     const u = handleUnauthorized(e);

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
+import { isSpotifyIntegrationEnabled, SPOTIFY_DISABLED_USER_MESSAGE } from "@/lib/spotify-integration-enabled";
 import { resolveTrackForSearchResultWeb } from "@/lib/logging/resolve-log-target";
 import type { LogSource } from "@/lib/logging/types";
 import { useLogging } from "./logging-context";
@@ -94,6 +95,10 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
   const [note, setNote] = useState("");
 
   const runSearch = useCallback(async (text: string) => {
+    if (!isSpotifyIntegrationEnabled()) {
+      setResults([]);
+      return;
+    }
     const q = text.trim();
     if (!q) {
       setResults([]);
@@ -165,6 +170,8 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
     }
   }
 
+  const spotifyOff = !isSpotifyIntegrationEnabled();
+
   if (!open) return null;
 
   return (
@@ -194,7 +201,9 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
           </button>
         </div>
         <p className="shrink-0 px-4 pb-3 text-sm font-medium text-zinc-400">
-          Search, then tap once to log. Optional note applies to the next pick.
+          {spotifyOff
+            ? SPOTIFY_DISABLED_USER_MESSAGE
+            : "Search, then tap once to log. Optional note applies to the next pick."}
         </p>
         <div className="shrink-0 space-y-2.5 px-4 pb-3">
           <input
@@ -202,16 +211,18 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
             placeholder="Artists, albums, tracks…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            disabled={spotifyOff}
             autoCapitalize="none"
             autoCorrect="off"
-            className="w-full rounded-full border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-white placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full rounded-full border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-white placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           />
           <input
             type="text"
             placeholder="Optional note (applies to next log)"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            disabled={spotifyOff}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
         {loading ? (
@@ -222,9 +233,11 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
         <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-zinc-800/80">
           {results.length === 0 ? (
             <li className="px-4 py-3 text-sm font-semibold text-zinc-500">
-              {query.trim().length === 0
-                ? "Type to search Spotify."
-                : "No results"}
+              {spotifyOff
+                ? SPOTIFY_DISABLED_USER_MESSAGE
+                : query.trim().length === 0
+                  ? "Type to search Spotify."
+                  : "No results"}
             </li>
           ) : (
             results.map((item) => {

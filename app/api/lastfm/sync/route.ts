@@ -1,0 +1,53 @@
+import { NextRequest } from "next/server";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { syncLastfmScrobblesForUser } from "@/lib/lastfm/sync-user-scrobbles";
+import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
+
+/**
+ * POST — pull new Last.fm scrobbles for the signed-in user (same logic as the daily cron).
+ * Call after saving `lastfm_username` so users do not wait until the next scheduled run.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const me = await requireApiAuth(request);
+
+    const supabase = await createSupabaseServerClient();
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("lastfm_username")
+      .eq("id", me.id)
+      .maybeSingle();
+
+    if (error) return apiInternalError(error);
+
+    const username = user?.lastfm_username?.trim();
+    if (!username) {
+      return apiBadRequest("Save a Last.fm username first");
+    }
+
+    const admin = createSupabaseAdminClient();
+    const result = await syncLastfmScrobblesForUser(admin, me.id, username);
+
+    if (result.fetchFailed) {
+      return apiOk({
+        ok: true,
+        imported: 0,
+        lastfm_last_synced_at: null,
+        warning: result.fetchError ?? "Last.fm request failed",
+        warningCode: result.fetchErrorCode ?? null,
+      });
+    }
+
+    return apiOk({
+      ok: true,
+      imported: result.imported,
+      lastfm_last_synced_at: result.lastSyncedAt,
+    });
+  } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
+    return apiInternalError(e);
+  }
+}

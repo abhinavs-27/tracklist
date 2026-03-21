@@ -2271,7 +2271,7 @@ export async function getFeedListenSessions(
  * Activity feed: reviews, follows, and listen sessions.
  *
  * Listen sessions (get_feed_listen_sessions):
- * - Source: spotify_recent_tracks from users you follow (last 7 days), track-level.
+ * - Source: `logs` from users you follow (last 7 days), track-level (migration 056+).
  * - Grouped by: user_id, track_id, 30-min bucket; max 3 per user per hour.
  * - Merge: priority sort (reviews > follows > listens), then collapse consecutive same-user into "N songs" with expand showing up to 10 songs.
  */

@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { logPerf, timeAsync } from "@/lib/profiling";
+import { SpotifyIntegrationDisabledError } from "@/lib/spotify-integration-enabled";
 import {
   getAlbum,
   getAlbumTracks,
@@ -786,7 +787,10 @@ async function refreshAlbumFromSpotify(
 
 // --- getOrFetchTrack (DB-first cache + TTL)
 
-async function getOrFetchTrackInner(id: string): Promise<SpotifyApi.TrackObjectFull> {
+async function getOrFetchTrackInner(
+  id: string,
+  opts?: { allowLastfmMapping?: boolean },
+): Promise<SpotifyApi.TrackObjectFull> {
   const supabase = await createSupabaseServerClient();
 
   const { data: songRow, error } = await supabase
@@ -846,7 +850,7 @@ async function getOrFetchTrackInner(id: string): Promise<SpotifyApi.TrackObjectF
 
   const missStart = performance.now();
   try {
-    const track = await getTrack(id);
+    const track = await getTrack(id, opts);
     const alb = track.album;
     if (!alb) throw new Error("Track has no album");
 
@@ -866,13 +870,21 @@ async function getOrFetchTrackInner(id: string): Promise<SpotifyApi.TrackObjectF
     logPerf("cache_miss", "song", performance.now() - missStart, { id });
     return track;
   } catch (e) {
+    if (e instanceof SpotifyIntegrationDisabledError) {
+      throw new Error(
+        "Music catalog lookup is temporarily unavailable. Your listen was still saved.",
+      );
+    }
     console.error(`${LOG_PREFIX} getTrack failed`, e);
     throw new Error(`Failed to fetch track ${id} from Spotify`);
   }
 }
 
-export async function getOrFetchTrack(id: string): Promise<SpotifyApi.TrackObjectFull> {
-  return timeAsync("cache", "getOrFetchTrack", () => getOrFetchTrackInner(id), { id });
+export async function getOrFetchTrack(
+  id: string,
+  opts?: { allowLastfmMapping?: boolean },
+): Promise<SpotifyApi.TrackObjectFull> {
+  return timeAsync("cache", "getOrFetchTrack", () => getOrFetchTrackInner(id, opts), { id });
 }
 
 // --- Batch getOrFetch: DB-first, then single batch Spotify API (chunked), merge, preserve order

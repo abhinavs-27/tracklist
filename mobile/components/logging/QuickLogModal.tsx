@@ -14,6 +14,10 @@ import {
   View,
 } from "react-native";
 import { fetcher } from "../../lib/api";
+import {
+  isSpotifyIntegrationEnabled,
+  SPOTIFY_DISABLED_USER_MESSAGE,
+} from "../../lib/spotify-integration-enabled";
 import { useLogging } from "../../lib/logging-context";
 import { resolveTrackForSearchResult } from "../../lib/resolve-log-target";
 import type { LogSource } from "../../lib/types/log";
@@ -101,6 +105,7 @@ type Props = {
 
 export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
   const { logListen, logBusy, showToast } = useLogging();
+  const spotifyOff = !isSpotifyIntegrationEnabled();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,6 +113,10 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
   const [note, setNote] = useState("");
 
   const runSearch = useCallback(async (text: string) => {
+    if (!isSpotifyIntegrationEnabled()) {
+      setResults([]);
+      return;
+    }
     const q = text.trim();
     if (!q) {
       setResults([]);
@@ -148,6 +157,7 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
   }, [visible]);
 
   async function onPick(item: SearchResult) {
+    if (!isSpotifyIntegrationEnabled()) return;
     if (logBusy) return;
     setResolvingKey(item.key);
     try {
@@ -235,7 +245,9 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                   fontWeight: "500",
                 }}
               >
-                Search, then tap once to log. Optional note applies to the next pick.
+                {spotifyOff
+                  ? SPOTIFY_DISABLED_USER_MESSAGE
+                  : "Search, then tap once to log. Optional note applies to the next pick."}
               </Text>
 
               <View style={{ paddingHorizontal: 18, gap: 10, marginBottom: 12 }}>
@@ -244,6 +256,7 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                   placeholderTextColor={theme.colors.muted}
                   value={query}
                   onChangeText={setQuery}
+                  editable={!spotifyOff}
                   autoCorrect={false}
                   autoCapitalize="none"
                   returnKeyType="search"
@@ -256,6 +269,7 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                     backgroundColor: theme.colors.panel,
                     color: theme.colors.text,
                     fontSize: 16,
+                    opacity: spotifyOff ? 0.5 : 1,
                   }}
                 />
                 <TextInput
@@ -263,6 +277,7 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                   placeholderTextColor={theme.colors.muted}
                   value={note}
                   onChangeText={setNote}
+                  editable={!spotifyOff}
                   style={{
                     paddingHorizontal: 14,
                     paddingVertical: 10,
@@ -298,7 +313,17 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                   />
                 )}
                 ListEmptyComponent={
-                  query.trim().length > 0 && !loading ? (
+                  spotifyOff ? (
+                    <Text
+                      style={{
+                        paddingHorizontal: 18,
+                        color: theme.colors.muted,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {SPOTIFY_DISABLED_USER_MESSAGE}
+                    </Text>
+                  ) : query.trim().length > 0 && !loading ? (
                     <Text
                       style={{
                         paddingHorizontal: 18,

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { ingestRecentPlaysForUser } from "@/lib/logs-ingest";
+import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
 import { isProd } from "@/lib/env";
 
@@ -16,6 +17,21 @@ export async function GET(request: NextRequest) {
   // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
   //   return apiUnauthorized();
   // }
+
+  if (!isSpotifyIntegrationEnabled()) {
+    console.log("[cron] spotify-ingest-complete", {
+      success: true,
+      skipped: true,
+      reason: "spotify_integration_disabled",
+    });
+    return apiOk({
+      ok: true,
+      integrationDisabled: true,
+      processed: 0,
+      inserted: 0,
+      skipped: 0,
+    });
+  }
 
   const supabase = createSupabaseAdminClient();
 
