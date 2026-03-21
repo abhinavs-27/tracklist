@@ -88,11 +88,16 @@ Keep **`NEXTAUTH_URL=http://127.0.0.1:3000`** (or whatever host/port you use for
 
 3. **NextAuth / Google OAuth** still use Next’s **`/api/auth/*`**. For Express routes not implemented yet, set **`NEXT_API_FALLBACK=http://127.0.0.1:3000`** on the **backend** so it proxies to Next’s remaining **`/api/*`** handlers.
 
+**Mobile-only API (Expo → 3001):** `GET /api/feed` and `/api/notifications*` are implemented **natively in Express** so the app works when **Next.js is not running**. You no longer need Next on 3000 just for the feed or notification tray.
+
 ## Implemented routes (native Express)
 
 | Method | Path | Notes |
 |--------|------|--------|
 | GET | `/api/health` | Liveness |
+| GET | `/api/feed` | Query: `limit`, `cursor`. Same JSON as Next `app/api/feed`. |
+| GET | `/api/notifications` | `{ notifications }` |
+| POST | `/api/notifications/mark-read` | Body: `{ notification_ids?: string[] }` |
 | GET | `/api/leaderboard` | Query: `type` or `metric`, `entity`, `cursor`, `limit`, year filters. Uses DB when configured; otherwise **example items**. |
 | GET | `/api/discover` | Recent reviewers / users |
 | GET | `/api/discover/rising-artists` | `limit`, `windowDays`. Example data if DB missing. |
@@ -122,7 +127,7 @@ If Next.js still has legacy handlers, set:
 NEXT_API_FALLBACK=http://127.0.0.1:3000
 ```
 
-(Use the origin where **Next.js** is running.) Any request under `/api` that is **not** handled in Express is forwarded to that origin (e.g. `/api/feed` → Next).
+(Use the origin where **Next.js** is running.) Any request under `/api` that is **not** handled in Express is forwarded to that origin (e.g. legacy routes only — **feed** and **notifications** are native above).
 
 ## Extending
 

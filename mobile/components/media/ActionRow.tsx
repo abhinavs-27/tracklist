@@ -3,6 +3,8 @@ import { theme } from "../../lib/theme";
 
 type Props = {
   onLogPress?: () => void;
+  /** Defaults to "Log" — use e.g. "Log this listen" on detail screens. */
+  logLabel?: string;
   onReviewPress?: () => void;
   onFavoritePress?: () => void;
 };
@@ -17,12 +19,13 @@ function ActionButton({ label, onPress }: { label: string; onPress?: () => void 
 
 export function ActionRow({
   onLogPress,
+  logLabel = "Log",
   onReviewPress,
   onFavoritePress,
 }: Props) {
   return (
     <View style={styles.wrap}>
-      {onLogPress != null && <ActionButton label="Log" onPress={onLogPress} />}
+      {onLogPress != null && <ActionButton label={logLabel} onPress={onLogPress} />}
       {onReviewPress != null && <ActionButton label="Review" onPress={onReviewPress} />}
       {onFavoritePress != null && <ActionButton label="Favorite" onPress={onFavoritePress} />}
     </View>

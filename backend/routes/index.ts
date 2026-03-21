@@ -15,6 +15,8 @@ import { usersRouter } from "./users";
 import { recentAlbumsRouter } from "./recentAlbums";
 import { followRouter } from "./follow";
 import { listsRouter } from "./lists";
+import { feedRouter } from "./feed";
+import { notificationsRouter } from "./notifications";
 
 /**
  * All HTTP handlers for `/api/*`.
@@ -24,6 +26,9 @@ export function createApiRouter(): Router {
   const api = Router();
 
   api.use(healthRouter);
+  /** Native handlers (no Next.js proxy) — required for mobile when only Express runs on 3001. */
+  api.use(feedRouter);
+  api.use(notificationsRouter);
   api.use("/lists", listsRouter);
   api.use("/users", usersRouter);
   api.use("/recent-albums", recentAlbumsRouter);

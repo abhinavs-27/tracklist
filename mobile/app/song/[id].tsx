@@ -1,9 +1,11 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../../lib/theme";
 import { useSong } from "../../lib/hooks/useSong";
+import { useLogging } from "../../lib/logging-context";
+import { useRecentViews } from "../../lib/recent-views-context";
 import { MediaHeader } from "../../components/media/MediaHeader";
 import { StatRow } from "../../components/media/StatRow";
 import { ActionRow } from "../../components/media/ActionRow";
@@ -34,6 +36,22 @@ export default function SongDetailScreen() {
   }, [id]);
 
   const { song, album, stats, reviews, isLoading, error } = useSong(songId);
+  const { recordView } = useRecentViews();
+  const { logListen, showToast } = useLogging();
+
+  useEffect(() => {
+    if (!song) return;
+    void recordView({
+      kind: "song",
+      id: song.id,
+      title: song.name,
+      subtitle: song.artist,
+      artworkUrl: song.image_url,
+      trackId: song.id,
+      albumId: song.album_id,
+      artistId: song.artist_id,
+    });
+  }, [song?.id, recordView]);
 
   if (isLoading) {
     return (
@@ -109,7 +127,19 @@ export default function SongDetailScreen() {
           reviewCount={stats.review_count}
         />
 
-        <ActionRow onReviewPress={() => router.push(`/reviews/song/${song.id}` as const)} />
+        <ActionRow
+          logLabel="Log this listen"
+          onLogPress={() =>
+            void logListen({
+              trackId: song.id,
+              albumId: song.album_id,
+              artistId: song.artist_id,
+              source: "manual",
+              displayName: song.name,
+            }).catch(() => showToast("Couldn’t log. Try again."))
+          }
+          onReviewPress={() => router.push(`/reviews/song/${song.id}` as const)}
+        />
 
         <View style={{ gap: 12 }}>
           <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.text }}>

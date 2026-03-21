@@ -28,5 +28,7 @@ export const queryKeys = {
     filters: { startYear?: number; endYear?: number; entity?: string },
   ) =>
     ["leaderboard", type, filters] as const,
+  /** User listen logs (`GET /api/logs`) — invalidate after creating a log. */
+  logs: () => ["logs"] as const,
 };
 

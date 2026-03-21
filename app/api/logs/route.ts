@@ -12,7 +12,16 @@ import {
   isValidSpotifyId,
   clampLimit,
   LIMITS,
+  sanitizeString,
 } from '@/lib/validation';
+
+const LOG_SOURCES = new Set([
+  'spotify',
+  'manual_import',
+  'manual',
+  'suggested',
+  'session',
+]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +50,22 @@ export async function POST(request: NextRequest) {
       return apiBadRequest('Invalid listened_at date');
     }
 
+    const rawSource = typeof b.source === 'string' ? b.source : 'manual_import';
+    const source = LOG_SOURCES.has(rawSource) ? rawSource : 'manual_import';
+
+    const albumIdRaw = b.album_id;
+    const artistIdRaw = b.artist_id;
+    const albumId =
+      albumIdRaw != null && typeof albumIdRaw === 'string' && isValidSpotifyId(albumIdRaw)
+        ? albumIdRaw
+        : null;
+    const artistId =
+      artistIdRaw != null && typeof artistIdRaw === 'string' && isValidSpotifyId(artistIdRaw)
+        ? artistIdRaw
+        : null;
+
+    const note = sanitizeString(b.note, LIMITS.COMMENT_CONTENT);
+
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from('logs')
@@ -48,9 +73,14 @@ export async function POST(request: NextRequest) {
         user_id: me.id,
         track_id: trackId,
         listened_at: listenedAt,
-        source: 'manual_import',
+        source,
+        album_id: albumId,
+        artist_id: artistId,
+        note,
       })
-      .select('id, user_id, track_id, listened_at, source, created_at')
+      .select(
+        'id, user_id, track_id, listened_at, source, created_at, album_id, artist_id, note',
+      )
       .single();
 
     if (error) {

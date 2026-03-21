@@ -2,6 +2,10 @@
 
 Until you sign in with Google, the app only shows the **login** screen (no tabs or other screens). After sign-in, the main app loads and your session is stored on device.
 
+### Effortless Logging Engine
+
+Signed-in users get a **floating +** (all routes) that opens **quick log** search (album / song / artist → one tap to log via `POST /api/logs`). Album, song, and artist screens include **Log this listen**; the feed shows **recently viewed** items with one-tap **Log** (`source: suggested`). Session prompts periodically offer the same from recent views (`source: session`). Offline failed requests are **queued** in AsyncStorage and **flushed** when the app returns to the foreground or on launch. Apply `052_logs_mobile_fields`, then `053_remove_rating_from_logs` if you still have a `rating` column on `logs` from an older 052 (ratings live on reviews only).
+
 ## 1. Environment (`mobile/.env`)
 
 Create or edit **`mobile/.env`** (not committed with secrets in production):

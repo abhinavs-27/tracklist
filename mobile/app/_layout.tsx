@@ -6,9 +6,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NotificationsBootstrap } from "../components/NotificationsBootstrap";
 import { NotificationsTray } from "../components/notifications/NotificationsTray";
+import { LoggingShell } from "../components/logging/LoggingShell";
 import { maybeCompleteAuthSession } from "../lib/auth-oauth";
 import { AuthProvider } from "../lib/auth-provider";
 import { useAuth } from "../lib/hooks/useAuth";
+import { LoggingProvider } from "../lib/logging-context";
+import { RecentViewsProvider } from "../lib/recent-views-context";
 import { theme } from "../lib/theme";
 
 function RootLayoutNav() {
@@ -55,6 +58,7 @@ function RootLayoutNav() {
       <NotificationsBootstrap />
       <NotificationsTray />
       <Slot />
+      <LoggingShell />
     </>
   );
 }
@@ -66,7 +70,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={client}>
         <AuthProvider>
-          <RootLayoutNav />
+          <LoggingProvider>
+            <RecentViewsProvider>
+              <RootLayoutNav />
+            </RecentViewsProvider>
+          </LoggingProvider>
         </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

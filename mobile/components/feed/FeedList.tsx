@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,11 @@ import { feedItemKey } from "../../lib/feed-keys";
 import { theme } from "../../lib/theme";
 import type { FeedActivity } from "../../lib/types/feed";
 import { FeedItem } from "./FeedItem";
+
+type FeedListProps = {
+  /** Renders above the feed (e.g. quick-log strip). */
+  listHeader?: ReactNode;
+};
 
 function FeedSkeleton() {
   return (
@@ -30,7 +35,7 @@ function FeedSkeleton() {
   );
 }
 
-export function FeedList() {
+export function FeedList({ listHeader }: FeedListProps) {
   const {
     data,
     error,
@@ -123,6 +128,9 @@ export function FeedList() {
           <Text style={styles.emptyText}>No activity yet</Text>
         </View>
       }
+      ListHeaderComponent={
+        listHeader ? <View style={styles.listHeader}>{listHeader}</View> : null
+      }
     />
   );
 }
@@ -184,6 +192,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: theme.colors.muted,
+  },
+  listHeader: {
+    paddingBottom: 8,
   },
   skeletonWrap: {
     paddingHorizontal: 16,

@@ -136,7 +136,7 @@ Do **not** expose `NEXTAUTH_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` to the client
 | GET           | `/api/spotify/recently-played` | Returns cached recently played (from `spotify_recent_tracks`). If cache older than 5 minutes, refreshes token, calls `syncRecentlyPlayed`, then returns cache (max 50).                        |
 | GET           | `/api/spotify/album/[id]`      | Album details by Spotify ID (client credentials).                                                                                                                                              |
 | GET           | `/api/search`                  | Search artists/albums/tracks. Query: `q`, `type`, `limit`. Uses `lib/spotify.ts`.                                                                                                              |
-| GET / POST    | `/api/logs`                    | List logs (query: `user_id`, `limit`) or create a log (body: `spotify_id`, `type`, `rating`, etc.).                                                                                            |
+| GET / POST    | `/api/logs`                    | List logs (query: `limit`, optional `spotify_id`) or create a log (body: `track_id` / `spotify_id`, optional `note`, `source`, `album_id`, `artist_id`, `listened_at`). No ratings on logs—use reviews. |
 | DELETE        | `/api/logs/[id]`               | Delete a log (owner only).                                                                                                                                                                     |
 | GET           | `/api/feed`                    | Feed of logs from followed users. Query: `limit`. Uses `lib/feed.ts`.                                                                                                                          |
 | POST / DELETE | `/api/follow`                  | Follow (body: `following_id`) or unfollow (body: `following_id`).                                                                                                                              |
@@ -165,7 +165,7 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 
 - **users**: `id` (UUID, PK), `email` (unique), `username` (unique), `avatar_url`, `bio`, `created_at`. Synced from NextAuth on first login.
 - **follows**: `follower_id`, `following_id` → `users(id)`. Unique on (follower_id, following_id).
-- **logs**: `user_id`, `spotify_id`, `type` (song/album), `title`, `rating` (1–5), `review`, `listened_at`, `created_at`. Indexes on `user_id`, `spotify_id`, `created_at`, (spotify_id, created_at).
+- **logs**: `user_id`, `track_id`, `listened_at`, `source`, optional `album_id`, `artist_id`, `note`, `created_at`. Listen events only; star ratings live on **reviews**. Indexes include `user_id`, `track_id`, `listened_at`.
 - **likes**: `user_id`, `log_id`. Unique (user_id, log_id).
 - **comments**: `user_id`, `log_id`, `content`, `created_at`.
 - **spotify_tokens**: `user_id` (PK, FK → users), `access_token`, `refresh_token`, `expires_at`, `created_at`, `updated_at`. Used only by server (service role / admin client).
@@ -189,8 +189,8 @@ All authenticated routes use `getServerSession(authOptions)` from `app/api/auth/
 2. **Profile**: Go to your profile (e.g. `/profile/<username>` from nav). Edit bio/username/avatar in the edit modal.
 3. **Connect Spotify**: In the Spotify section on your profile, click “Connect Spotify”. Approve in Spotify, then you’re redirected back; a token is stored. If a token already exists, the callback returns “Spotify is already connected” and the Connect control is disabled.
 4. **Recently played**: On your profile, “Recently played” is loaded from `/api/spotify/recently-played` (cache in `spotify_recent_tracks`; refreshed from Spotify if cache &gt; 5 min).
-5. **Sync**: Click “Sync recently played” to import recent Spotify plays into `logs` (albums/songs). You can then rate and review them.
-6. **Search**: Use Search to find artists, albums, or tracks (Spotify). Open an album/track and “Log” to add a log (rating, review, date).
+5. **Sync**: Click “Sync recently played” to import recent Spotify plays into `logs` (albums/songs). Add **reviews** (ratings + text) separately from album/track pages.
+6. **Search**: Use Search to find artists, albums, or tracks (Spotify). Open an album/track to **review** (rating + text) or **log** a listen (separate from reviews on mobile).
 7. **Feed**: Home and Feed show logs from users you follow. Like and comment on logs.
 8. **Discover**: Discover page lists recently active users; you can follow them.
 9. **Taste match**: On a profile, taste match compares your album logs with that user’s and shows a score and shared albums.
@@ -240,7 +240,7 @@ The repo includes an **Express + TypeScript** server under **`backend/`** that c
 ## 11. Optional features / future improvements
 
 - **Lists / list_items**: Tables exist in schema; no UI or API yet.
-- **Ratings on sync**: “Sync recently played” currently inserts logs with a placeholder rating; could add a flow to set rating/review on sync.
+- **Reviews after sync**: “Sync recently played” imports passive listens into `logs` without ratings; users can still add **reviews** (ratings) on albums/tracks separately.
 - **Top artists**: Profile has a “Top artists” placeholder; could derive from logs or Spotify API.
 - **Notifications**: No in-app notifications for likes/comments/follows.
 - **RLS for anon client**: Currently most access is server-side with service role. Could introduce anon key + RLS for selected tables and use it from client or from API routes that act “as” the user.
