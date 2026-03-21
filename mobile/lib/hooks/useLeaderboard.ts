@@ -24,7 +24,9 @@ type LeaderboardEntryFromApi = {
   artwork_url: string | null;
   total_plays: number;
   average_rating: number | null;
-  favorite_count?: number;
+  favorite_count?: number | null;
+  /** Some gateways may camelCase JSON */
+  favoriteCount?: number | null;
 };
 
 type LeaderboardResponse = {
@@ -80,16 +82,25 @@ export function useLeaderboard(params: UseLeaderboardParams) {
   });
 
   const items: LeaderboardItem[] =
-    data?.items.map((e) => ({
-      id: e.id,
-      entityType: e.entity_type,
-      title: e.name,
-      artist: e.artist,
-      artworkUrl: e.artwork_url,
-      rating: e.average_rating,
-      playCount: e.total_plays,
-      favoriteCount: e.favorite_count,
-    })) ?? [];
+    data?.items.map((e) => {
+      const favRaw = e.favorite_count ?? e.favoriteCount;
+      const favoriteCount =
+        params.metric === "favorited"
+          ? Number(favRaw ?? 0)
+          : favRaw != null
+            ? Number(favRaw)
+            : undefined;
+      return {
+        id: e.id,
+        entityType: e.entity_type,
+        title: e.name,
+        artist: e.artist,
+        artworkUrl: e.artwork_url,
+        rating: e.average_rating,
+        playCount: Number(e.total_plays ?? 0),
+        favoriteCount,
+      };
+    }) ?? [];
 
   return { data: items, isLoading, error };
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { SearchBar } from '@/components/search-bar';
 import { SearchPageContent } from './search-content';
 
 export default async function SearchPage({
@@ -15,8 +16,10 @@ export default async function SearchPage({
       <h1 className="mb-4 text-2xl font-bold text-white">Search</h1>
       {q === '' ? (
         <>
-          <p className="text-zinc-500">Search for artists, albums, or tracks</p>
-          <p className="mt-2 text-sm text-zinc-500">
+          <div className="mb-6 max-w-xl">
+            <SearchBar placeholder="Search artists, albums, or tracks…" />
+          </div>
+          <p className="text-sm text-zinc-500">
             <Link href="/search/users" className="text-emerald-400 hover:underline">
               Find people by username →
             </Link>

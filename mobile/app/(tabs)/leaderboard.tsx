@@ -81,7 +81,7 @@ export default function LeaderboardScreen() {
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
-          <ActivityIndicator size="small" color="#111827" />
+          <ActivityIndicator size="small" color={theme.colors.emerald} />
         </View>
       ) : error ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
@@ -103,7 +103,11 @@ export default function LeaderboardScreen() {
           }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           renderItem={({ item, index }) => (
-            <LeaderboardRow entry={item} rank={index + 1} />
+            <LeaderboardRow
+              entry={item}
+              rank={index + 1}
+              metric={metric}
+            />
           )}
           ListEmptyComponent={() => (
             <View style={{ paddingTop: 24, alignItems: "center" }}>

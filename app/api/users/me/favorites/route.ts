@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   apiInternalError,
   apiOk,
@@ -49,6 +50,14 @@ export async function POST(request: NextRequest) {
       userId: me.id,
       albumIds,
     });
+
+    const admin = createSupabaseAdminClient();
+    const { error: syncErr } = await admin.rpc(
+      "sync_favorite_counts_from_user_favorite_albums",
+    );
+    if (syncErr) {
+      console.error("[users] sync_favorite_counts_from_user_favorite_albums", syncErr);
+    }
 
     return apiOk({ albums: albumIds });
   } catch (e) {

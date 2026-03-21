@@ -14,9 +14,11 @@ function formatCompact(n: number) {
 type Props = {
   entry: LeaderboardItem;
   rank: number; // 1-based
+  /** When `favorited`, always show favorite count (same as leaderboard metric). */
+  metric?: "popular" | "top_rated" | "favorited";
 };
 
-export function LeaderboardRow({ entry, rank }: Props) {
+export function LeaderboardRow({ entry, rank, metric }: Props) {
   const router = useRouter();
 
   const base = entry.entityType === "album" ? "/album" : "/song";
@@ -58,19 +60,38 @@ export function LeaderboardRow({ entry, rank }: Props) {
             {entry.artist}
           </Text>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {entry.rating != null && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            {entry.rating != null && metric !== "favorited" && (
               <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: "600" }}>
                 Rating {entry.rating}
               </Text>
             )}
-            <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: "600" }}>
-              Plays {formatCompact(entry.playCount)}
-            </Text>
-            {entry.favoriteCount != null && (
-              <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: "600" }}>
-                Favorites {formatCompact(entry.favoriteCount)}
-              </Text>
+            {metric === "favorited" ? (
+              <>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.colors.emerald,
+                    fontWeight: "700",
+                  }}
+                >
+                  Favorites {formatCompact(entry.favoriteCount ?? 0)}
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.colors.muted, fontWeight: "600" }}>
+                  Plays {formatCompact(entry.playCount)}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: "600" }}>
+                  Plays {formatCompact(entry.playCount)}
+                </Text>
+                {entry.favoriteCount != null && (
+                  <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: "600" }}>
+                    Favorites {formatCompact(entry.favoriteCount)}
+                  </Text>
+                )}
+              </>
             )}
           </View>
         </View>

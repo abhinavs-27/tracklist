@@ -634,6 +634,9 @@ export async function getLeaderboard(
     if (albumIds !== null && albumIds.length === 0) return [];
 
     // ------------------------ Most Favorited (albums via entity_stats) ------------------------
+    // favorite_count is populated from user_favorite_albums by
+    // sync_favorite_counts_from_user_favorite_albums() (cron + after favorites save).
+    // Not the same as refresh_entity_stats() which only fills legacy album_stats/track_stats.
     // Currently only supports albums; ignore entity parameter for this type.
     if (type === "mostFavorited") {
       let statsQuery = supabase

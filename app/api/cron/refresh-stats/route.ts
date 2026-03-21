@@ -27,6 +27,17 @@ export async function GET(request: NextRequest) {
     return apiError(statsError.message, 500);
   }
 
+  const { error: favError } = await supabase.rpc(
+    "sync_favorite_counts_from_user_favorite_albums",
+  );
+  if (favError) {
+    console.error(
+      "[cron] sync_favorite_counts_from_user_favorite_albums failed",
+      favError,
+    );
+    return apiError(favError.message, 500);
+  }
+
   const { error: discoverError } = await supabase.rpc("refresh_discover_mvs");
   if (discoverError) {
     console.warn(
