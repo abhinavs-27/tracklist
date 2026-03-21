@@ -21,7 +21,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Tracklist — Log your music",
-  description: "A Letterboxd for music. Log listens, rate albums and tracks, follow friends.",
+  description:
+    "The social media app for music. Log listens, rate albums and tracks, follow friends.",
 };
 
 export default async function RootLayout({
