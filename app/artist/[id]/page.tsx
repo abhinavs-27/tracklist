@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { LogListenButton } from "@/components/logging/log-listen-button";
+import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
+import { getArtistTopTracks } from "@/lib/spotify";
 import { TrackCard } from "@/components/track-card";
 import { ListenCard } from "@/components/listen-card";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
@@ -16,12 +21,21 @@ type PageParams = Promise<{ id: string }>;
 
 export default async function ArtistPage({ params }: { params: PageParams }) {
   const { id } = await params;
+  const session = await getServerSession(authOptions);
 
   let artist: SpotifyApi.ArtistObjectFull;
   try {
     artist = await getOrFetchArtist(id);
   } catch {
     notFound();
+  }
+
+  let spotifyTopTrack: SpotifyApi.TrackObjectFull | null = null;
+  try {
+    const topData = await getArtistTopTracks(id);
+    spotifyTopTrack = topData.tracks?.[0] ?? null;
+  } catch {
+    spotifyTopTrack = null;
   }
 
   const [topTracks, popularAlbums, recentReviews, recentListensRaw] =
@@ -47,6 +61,20 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
 
   return (
     <div className="space-y-8">
+      {session && spotifyTopTrack ? (
+        <RecordRecentView
+          kind="artist"
+          id={id}
+          title={artist.name}
+          subtitle={
+            artist.genres?.length ? artist.genres.slice(0, 5).join(" · ") : "Artist"
+          }
+          artworkUrl={image ?? null}
+          trackId={spotifyTopTrack.id}
+          albumId={spotifyTopTrack.album?.id ?? null}
+          artistId={id}
+        />
+      ) : null}
       {/* Artist header */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
         <div className="h-48 w-48 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:h-56 sm:w-56">
@@ -70,6 +98,16 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
               {artist.followers.total.toLocaleString()} followers on Spotify
             </p>
           )}
+          {session && spotifyTopTrack ? (
+            <div className="mt-4">
+              <LogListenButton
+                trackId={spotifyTopTrack.id}
+                albumId={spotifyTopTrack.album?.id ?? null}
+                artistId={id}
+                displayName={artist.name}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 

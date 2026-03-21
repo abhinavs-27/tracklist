@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { LogListenButton } from "@/components/logging/log-listen-button";
+import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
@@ -104,10 +106,25 @@ export function AlbumPageClient({
   recommendedAlbums,
 }: AlbumPageClientProps) {
   const image = album.images?.[0]?.url;
+  const firstTrack = tracks.items?.[0];
 
   return (
     <AlbumReviewsProvider albumId={id}>
       <div className="space-y-8">
+        {session && firstTrack ? (
+          <RecordRecentView
+            kind="album"
+            id={id}
+            title={album.name}
+            subtitle={
+              album.artists?.map((a) => a.name).join(", ") ?? ""
+            }
+            artworkUrl={image ?? null}
+            trackId={firstTrack.id}
+            albumId={id}
+            artistId={album.artists?.[0]?.id ?? null}
+          />
+        ) : null}
         {/* Album header */}
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
           <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:mx-0 sm:h-56 sm:w-56">
@@ -185,7 +202,15 @@ export function AlbumPageClient({
             )}
 
             {session && (
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {firstTrack ? (
+                  <LogListenButton
+                    trackId={firstTrack.id}
+                    albumId={id}
+                    artistId={album.artists?.[0]?.id ?? null}
+                    displayName={album.name}
+                  />
+                ) : null}
                 <AlbumLogButton
                   spotifyId={id}
                   type="album"

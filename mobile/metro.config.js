@@ -2,7 +2,11 @@ const path = require("path");
 const { getDefaultConfig } = require("expo/metro-config");
 
 const projectRoot = __dirname;
+const workspaceRoot = path.resolve(projectRoot, "..");
 const config = getDefaultConfig(projectRoot);
+
+/** Resolve shared `lib/` (logging, query keys) from the repo root. */
+config.watchFolders = [workspaceRoot];
 
 /** Prefer prebuilt entry so Hermes resolves hooks (e.g. useQueryClient) reliably. */
 const reactQueryModern = path.resolve(

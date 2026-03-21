@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { FeedItem } from './feed-item';
 import type { FeedActivity } from '@/types';
 
@@ -32,6 +32,11 @@ export function FeedListVirtual({
   const [items, setItems] = useState<EnrichedFeedActivity[]>(initialItems);
   const [nextCursor, setNextCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setItems(initialItems);
+    setNextCursor(initialCursor);
+  }, [initialItems, initialCursor]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loading) return;

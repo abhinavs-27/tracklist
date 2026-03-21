@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
+import { LogListenButton } from "@/components/logging/log-listen-button";
+import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
 import { SongStatsBar } from "@/app/song/[id]/song-stats-bar";
@@ -81,8 +83,22 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const image = album?.images?.[0]?.url;
   const duration = formatDuration(track.duration_ms);
 
+  const primaryArtist = track.artists?.[0];
+
   return (
     <div className="space-y-8">
+      {session ? (
+        <RecordRecentView
+          kind="song"
+          id={id}
+          title={track.name}
+          subtitle={primaryArtist?.name ?? ""}
+          artworkUrl={image ?? null}
+          trackId={id}
+          albumId={album?.id ?? null}
+          artistId={primaryArtist?.id ?? null}
+        />
+      ) : null}
       {/* Track header */}
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
         <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:mx-0 sm:h-56 sm:w-56">
@@ -124,7 +140,13 @@ export default async function SongPage({ params }: { params: PageParams }) {
           <SongStatsBar songId={id} serverStats={stats} />
 
           {session && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <LogListenButton
+                trackId={id}
+                albumId={album?.id ?? null}
+                artistId={primaryArtist?.id ?? null}
+                displayName={track.name}
+              />
               <AlbumLogButton
                 spotifyId={id}
                 type="song"
