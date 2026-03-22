@@ -259,3 +259,40 @@ export type SyncResponse = {
   skipped: number;
   mode: "song";
 };
+
+// API Request Bodies
+export interface ReviewCreateBody {
+  entity_type: 'album' | 'song';
+  entity_id: string;
+  rating: number;
+  review_text?: string | null;
+}
+
+export interface LogCreateBody {
+  track_id?: string;
+  spotify_id?: string;
+  listened_at?: string | number;
+  source?: string;
+  album_id?: string | null;
+  artist_id?: string | null;
+  note?: string | null;
+}
+
+export interface CommentCreateBody {
+  review_id: string;
+  content: string;
+}
+
+export interface FollowCreateBody {
+  following_id: string;
+}
+
+export interface LikeCreateBody {
+  review_id: string;
+}
+
+export interface ProfileUpdateBody {
+  username?: string;
+  bio?: string | null;
+  lastfm_username?: string | null;
+}

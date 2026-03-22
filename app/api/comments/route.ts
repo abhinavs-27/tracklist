@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
-import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
+import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { parseBody, handlePostgrestError } from '@/lib/api-utils';
+import { CommentCreateBody } from '@/types';
 import { isValidUuid, validateCommentContent } from '@/lib/validation';
 import { fetchUserMap } from '@/lib/queries';
 
@@ -13,11 +14,9 @@ function isMissingReviewIdColumn(err: unknown) {
   return code === '42703' && /comments\.?review_id/i.test(msg);
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+export const POST = withHandler(
+  async (request, { user: me }) => {
+    const { data: body, error: parseErr } = await parseBody<CommentCreateBody>(request);
     if (parseErr) return parseErr;
 
     const { review_id, content } = body!;
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
     ({ data, error } = await supabase
       .from('comments')
       .insert({
-        user_id: me.id,
+        user_id: me!.id,
         review_id,
         content: contentResult.value,
       })
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
       ({ data, error } = await supabase
         .from('comments')
         .insert({
-          user_id: me.id,
+          user_id: me!.id,
           log_id: review_id,
           content: contentResult.value,
         })
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[comments] comment-created", {
-      userId: me.id,
+      userId: me!.id,
       commentId: data.id,
       reviewId: data.review_id,
     });
@@ -76,61 +75,54 @@ export async function POST(request: NextRequest) {
     const { data: author } = await supabase
       .from('users')
       .select('id, username, avatar_url')
-      .eq('id', me.id)
+      .eq('id', me!.id)
       .single();
     return apiOk({ ...data, user: author ?? null });
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const reviewId = searchParams.get('review_id');
-    if (!reviewId) return apiBadRequest('review_id is required');
-    if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
+export const GET = withHandler(async (request: NextRequest) => {
+  const { searchParams } = new URL(request.url);
+  const reviewId = searchParams.get('review_id');
+  if (!reviewId) return apiBadRequest('review_id is required');
+  if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
-    const supabase = await createSupabaseServerClient();
-    let comments: any[] | null = null;
-    let error: any = null;
+  const supabase = await createSupabaseServerClient();
+  let comments: any[] | null = null;
+  let error: any = null;
 
-    // Preferred schema: comments(review_id).
+  // Preferred schema: comments(review_id).
+  ({ data: comments, error } = await supabase
+    .from('comments')
+    .select('id, user_id, review_id, content, created_at')
+    .eq('review_id', reviewId)
+    .order('created_at', { ascending: true }));
+
+  // Fallback schema: comments(log_id).
+  if (error && isMissingReviewIdColumn(error)) {
     ({ data: comments, error } = await supabase
       .from('comments')
-      .select('id, user_id, review_id, content, created_at')
-      .eq('review_id', reviewId)
+      .select('id, user_id, log_id, content, created_at')
+      .eq('log_id', reviewId)
       .order('created_at', { ascending: true }));
-
-    // Fallback schema: comments(log_id).
-    if (error && isMissingReviewIdColumn(error)) {
-      ({ data: comments, error } = await supabase
-        .from('comments')
-        .select('id, user_id, log_id, content, created_at')
-        .eq('log_id', reviewId)
-        .order('created_at', { ascending: true }));
-      if (error) {
-        console.error('Comments GET (fallback) error:', error);
-        return apiInternalError(error);
-      }
-      comments = (comments ?? []).map((c) => ({ ...c, review_id: reviewId }));
-    }
-
     if (error) {
-      console.error('Comments GET error:', error);
+      console.error('Comments GET (fallback) error:', error);
       return apiInternalError(error);
     }
-
-    if (!comments?.length) return apiOk([]);
-
-    const userIds = [...new Set(comments.map((c) => c.user_id))];
-    const userMap = await fetchUserMap(supabase, userIds);
-
-    const result = comments.map((c) => ({ ...c, user: userMap.get(c.user_id) ?? null }));
-    return apiOk(result);
-  } catch (e) {
-    return apiInternalError(e);
+    comments = (comments ?? []).map((c: any) => ({ ...c, review_id: reviewId }));
   }
-}
+
+  if (error) {
+    console.error('Comments GET error:', error);
+    return apiInternalError(error);
+  }
+
+  if (!comments?.length) return apiOk([]);
+
+  const userIds = [...new Set(comments.map((c: any) => c.user_id))];
+  const userMap = await fetchUserMap(supabase, userIds);
+
+  const result = comments.map((c: any) => ({ ...c, user: userMap.get(c.user_id) ?? null }));
+  return apiOk(result);
+});

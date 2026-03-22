@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
+import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
 import { syncManualLogSideEffects } from '@/lib/sync-manual-log-side-effects';
@@ -9,6 +9,7 @@ import {
   apiOk,
 } from '@/lib/api-response';
 import { parseBody } from '@/lib/api-utils';
+import { LogCreateBody } from '@/types';
 import {
   isValidSpotifyId,
   clampLimit,
@@ -25,11 +26,9 @@ const LOG_SOURCES = new Set([
   'lastfm',
 ]);
 
-export async function POST(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+export const POST = withHandler(
+  async (request, { user: me }) => {
+    const { data: body, error: parseErr } = await parseBody<LogCreateBody>(request);
     if (parseErr) return parseErr;
 
     const b = body!;
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('logs')
       .insert({
-        user_id: me.id,
+        user_id: me!.id,
         track_id: trackId,
         listened_at: listenedAt,
         source,
@@ -89,24 +88,19 @@ export async function POST(request: NextRequest) {
       console.error('Log create error:', error);
       return apiInternalError(error);
     }
-    await grantAchievementsOnListen(me.id);
-    await syncManualLogSideEffects(me.id, trackId, listenedAt);
+    await grantAchievementsOnListen(me!.id);
+    await syncManualLogSideEffects(me!.id, trackId, listenedAt);
     console.log("[logs] manual-log-created", {
-      userId: me.id,
+      userId: me!.id,
       trackId,
     });
     return apiOk(data);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);
 
-export async function GET(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
+export const GET = withHandler(
+  async (request, { user: me }) => {
     const { searchParams } = new URL(request.url);
     const spotifyId = searchParams.get('spotify_id');
     const limit = clampLimit(searchParams.get('limit'), LIMITS.LOGS_LIMIT, 20);
@@ -117,16 +111,13 @@ export async function GET(request: NextRequest) {
 
     // Reuse shared query logic for fetching logs with user data
     const logs = await getListenLogsForUser(
-      me.id,
+      me!.id,
       limit,
       0,
       spotifyId || undefined
     );
 
     return apiOk(logs);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);

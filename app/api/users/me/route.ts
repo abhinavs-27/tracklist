@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -8,21 +7,16 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { ProfileUpdateBody } from "@/types";
 import {
   validateUsernameUpdate,
   validateBio,
   validateLastfmUsername,
 } from "@/lib/validation";
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { data: body, error: parseErr } = await parseBody<{
-      username?: unknown;
-      bio?: unknown;
-      lastfm_username?: unknown;
-    }>(request);
+export const PATCH = withHandler(
+  async (request, { user: me }) => {
+    const { data: body, error: parseErr } = await parseBody<ProfileUpdateBody>(request);
     if (parseErr) return parseErr;
 
     const supabase = await createSupabaseServerClient();
@@ -30,7 +24,7 @@ export async function PATCH(request: NextRequest) {
     const { data: current, error: currentError } = await supabase
       .from("users")
       .select("id, username, bio, lastfm_username")
-      .eq("id", me.id)
+      .eq("id", me!.id)
       .maybeSingle();
     if (currentError || !current) {
       return apiInternalError(currentError ?? new Error("User not found"));
@@ -81,7 +75,7 @@ export async function PATCH(request: NextRequest) {
     const { data: updated, error: updateError } = await supabase
       .from("users")
       .update(updates)
-      .eq("id", me.id)
+      .eq("id", me!.id)
       .select(
         "id, email, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
       )
@@ -92,15 +86,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     console.log("[users] profile-updated", {
-      userId: me.id,
+      userId: me!.id,
       fields: Object.keys(updates),
     });
 
     return apiOk(updated);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);
 
