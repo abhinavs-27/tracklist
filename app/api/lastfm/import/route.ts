@@ -90,6 +90,11 @@ export async function POST(request: NextRequest) {
       const result = await insertLastfmImportEntries(supabase, me.id, entries);
 
       if (result.imported === 0) {
+        console.log("[lastfm] import-complete", {
+          userId: me.id,
+          imported: 0,
+          skipped: result.skipped,
+        });
         return apiOk({
           imported: 0,
           skipped: result.skipped,
@@ -98,6 +103,12 @@ export async function POST(request: NextRequest) {
           highlights: result.highlights,
         });
       }
+
+      console.log("[lastfm] import-complete", {
+        userId: me.id,
+        imported: result.imported,
+        skipped: result.skipped,
+      });
 
       return apiOk({
         imported: result.imported,

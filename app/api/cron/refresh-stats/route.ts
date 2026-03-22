@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       "[cron] sync_favorite_counts_from_user_favorite_albums failed",
       favError,
     );
+    console.log("[cron] refresh-stats-complete", { success: false });
     return apiError(favError.message, 500);
   }
 
@@ -44,6 +45,7 @@ export async function GET(request: NextRequest) {
       "[cron] refresh_discover_mvs skipped (apply migration 038 for discover cache):",
       discoverError.message,
     );
+    // Non-fatal if the RPC doesn't exist yet
   }
 
   console.log("[cron] refresh-stats-complete", { success: true });

@@ -31,6 +31,10 @@ export async function POST(request: NextRequest) {
     const result = await syncLastfmScrobblesForUser(admin, me.id, username);
 
     if (result.fetchFailed) {
+      console.warn("[lastfm] manual-sync-failed", {
+        userId: me.id,
+        error: result.fetchError,
+      });
       return apiOk({
         ok: true,
         imported: 0,
@@ -39,6 +43,11 @@ export async function POST(request: NextRequest) {
         warningCode: result.fetchErrorCode ?? null,
       });
     }
+
+    console.log("[lastfm] manual-sync-complete", {
+      userId: me.id,
+      imported: result.imported,
+    });
 
     return apiOk({
       ok: true,
