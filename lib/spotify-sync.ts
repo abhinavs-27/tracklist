@@ -81,7 +81,21 @@ export async function syncRecentlyPlayed(
       "spotify-sync: upsert logs passive entries failed",
       logsError,
     );
+    for (const log of passiveLogs) {
+      console.log("[spotify-ingest] ingest", {
+        userId,
+        trackId: log.track_id,
+        success: false,
+      });
+    }
   } else {
+    for (const log of passiveLogs) {
+      console.log("[spotify-ingest] ingest", {
+        userId,
+        trackId: log.track_id,
+        success: true,
+      });
+    }
     console.log(
       "[logs] Passive log added: user=%s, songs=%d",
       userId,

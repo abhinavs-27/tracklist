@@ -31,21 +31,30 @@ export const authOptions: NextAuthOptions = {
           .select('id')
           .eq('email', user.email)
           .single();
-        if (existing) return true;
+        if (existing) {
+          console.log("[users] user-signed-in", { userId: existing.id, isNewUser: false });
+          return true;
+        }
 
         if (existingError && existingError.code !== 'PGRST116') {
           console.error('[users] user-lookup-failed', { error: existingError });
           return false;
         }
         const username = generateUsernameFromEmail(user.email);
-        const { error } = await supabase.from('users').insert({
-          email: user.email,
-          username,
-          avatar_url: user.image ?? null,
-          bio: null,
-        });
+        const { data: newUser, error } = await supabase
+          .from('users')
+          .insert({
+            email: user.email,
+            username,
+            avatar_url: user.image ?? null,
+            bio: null,
+          })
+          .select('id')
+          .single();
+
         if (!error) {
           console.log("[users] user-created", { email: user.email, username });
+          console.log("[users] user-signed-in", { userId: newUser?.id, isNewUser: true });
         }
         if (error) {
           if (error.code === '23505') {
