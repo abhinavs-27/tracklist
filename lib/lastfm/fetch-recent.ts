@@ -1,6 +1,5 @@
 import "server-only";
 
-import { withRetry } from "@/lib/http/with-retry";
 import type { LastfmNormalizedScrobble } from "./types";
 
 const LASTFM_API = "https://ws.audioscrobbler.com/2.0/";
@@ -30,9 +29,18 @@ function parseLastfmResponse(data: {
   error?: number;
   message?: string;
   recenttracks?: { track?: LastfmTrack | LastfmTrack[] };
-}): LastfmNormalizedScrobble[] {
+}):
+  | { ok: true; tracks: LastfmNormalizedScrobble[] }
+  | { ok: false; error: string; errorCode: string } {
   if (data.error) {
-    throw new Error(data.message ?? `Last.fm error ${data.error}`);
+    let errorCode = `lastfm_${data.error}`;
+    if (data.error === 6) errorCode = "invalid_user";
+    else if (data.error === 10) errorCode = "invalid_api_key";
+    return {
+      ok: false,
+      error: data.message ?? `Last.fm error ${data.error}`,
+      errorCode,
+    };
   }
 
   const raw = data.recenttracks?.track;
@@ -61,7 +69,7 @@ function parseLastfmResponse(data: {
     });
   }
 
-  return out;
+  return { ok: true, tracks: out };
 }
 
 export type FetchLastfmRecentResult =
@@ -93,36 +101,69 @@ export async function fetchLastfmRecentTracksSafe(
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("format", "json");
 
-  const endpoint = "Last.fm user.getRecentTracks";
+  const label = "Last.fm user.getRecentTracks";
+  const maxAttempts = 3;
+  const timeoutMs = 8000;
+  const backoffBaseMs = 500;
 
-  try {
-    const data = await withRetry(
-      async (signal) => {
-        const res = await fetch(url.toString(), {
-          headers: { Accept: "application/json" },
-          signal,
-          next: { revalidate: 0 },
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`);
-        }
-        return res.json() as Promise<{
-          error?: number;
-          message?: string;
-          recenttracks?: { track?: LastfmTrack | LastfmTrack[] };
-        }>;
-      },
-      { label: endpoint, timeoutMs: 8000, maxAttempts: 3, backoffBaseMs: 500 },
-    );
+  let lastErr: unknown;
 
-    const tracks = parseLastfmResponse(data);
-    return { ok: true, tracks };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const code = e instanceof Error && e.name === "AbortError" ? "timeout" : "fetch_failed";
-    return { ok: false, tracks: [], error: msg, errorCode: code };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url.toString(), {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+        next: { revalidate: 0 },
+      });
+      const text = await res.text();
+      let data: {
+        error?: number;
+        message?: string;
+        recenttracks?: { track?: LastfmTrack | LastfmTrack[] };
+      };
+      try {
+        data = JSON.parse(text) as typeof data;
+      } catch {
+        throw new Error(
+          `HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`,
+        );
+      }
+
+      const parsed = parseLastfmResponse(data);
+      if (!parsed.ok) {
+        clearTimeout(tid);
+        return {
+          ok: false,
+          tracks: [],
+          error: parsed.error,
+          errorCode: parsed.errorCode,
+        };
+      }
+
+      clearTimeout(tid);
+      return { ok: true, tracks: parsed.tracks };
+    } catch (e) {
+      clearTimeout(tid);
+      lastErr = e;
+      const detail =
+        e instanceof Error
+          ? e.name === "AbortError"
+            ? `timeout after ${timeoutMs}ms`
+            : e.message
+          : String(e);
+      console.warn(`[with-retry] ${label} attempt ${attempt}/${maxAttempts} — ${detail}`);
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, backoffBaseMs * 2 ** (attempt - 1)));
+      }
+    }
   }
+
+  const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  const code =
+    lastErr instanceof Error && lastErr.name === "AbortError" ? "timeout" : "fetch_failed";
+  return { ok: false, tracks: [], error: msg, errorCode: code };
 }
 
 /**

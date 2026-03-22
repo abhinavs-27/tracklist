@@ -55,68 +55,80 @@ export async function syncLastfmScrobblesForUser(
     throw new Error("syncLastfmScrobblesForUser: empty username");
   }
 
-  const fetchResult = await fetchLastfmRecentTracksSafe(
-    username,
-    LASTFM_USER_SYNC_FETCH_LIMIT,
-  );
+  try {
+    const fetchResult = await fetchLastfmRecentTracksSafe(
+      username,
+      LASTFM_USER_SYNC_FETCH_LIMIT,
+    );
 
-  if (!fetchResult.ok) {
+    if (!fetchResult.ok) {
+      return {
+        imported: 0,
+        lastSyncedAt: null,
+        fetchFailed: true,
+        fetchError: fetchResult.error,
+        fetchErrorCode: fetchResult.errorCode,
+      };
+    }
+
+    const maxAt = await getMaxLastfmListenAt(supabase, userId);
+    const watermarkMs = maxAt ? new Date(maxAt).getTime() : 0;
+    const fresh = fetchResult.tracks.filter(
+      (t) => new Date(t.listenedAtIso).getTime() > watermarkMs,
+    );
+
+    if (fresh.length === 0) {
+      await supabase
+        .from("users")
+        .update({ lastfm_last_synced_at: nowIso })
+        .eq("id", userId);
+      return { imported: 0, lastSyncedAt: nowIso, fetchFailed: false };
+    }
+
+    const previewRows = await mapScrobblesToPreviewRows(fresh);
+    const entries: LastfmImportEntry[] = [];
+    for (const row of previewRows) {
+      if (row.matchStatus !== "matched" || !row.spotifyTrackId) continue;
+      entries.push({
+        spotifyTrackId: row.spotifyTrackId,
+        listenedAt: row.listenedAtIso,
+        albumId: row.albumId,
+        artistId: row.artistId,
+        trackName: row.trackName,
+        artistName: row.artistName,
+        artworkUrl: row.artworkUrl,
+      });
+    }
+
+    if (entries.length === 0) {
+      await supabase
+        .from("users")
+        .update({ lastfm_last_synced_at: nowIso })
+        .eq("id", userId);
+      return { imported: 0, lastSyncedAt: nowIso, fetchFailed: false };
+    }
+
+    const result = await insertLastfmImportEntries(supabase, userId, entries);
+
+    await supabase
+      .from("users")
+      .update({ lastfm_last_synced_at: nowIso })
+      .eq("id", userId);
+
+    return {
+      imported: result.imported,
+      lastSyncedAt: nowIso,
+      fetchFailed: false,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn("[lastfm sync] skipped user (sync error)", { userId, username, error: msg });
     return {
       imported: 0,
       lastSyncedAt: null,
       fetchFailed: true,
-      fetchError: fetchResult.error,
-      fetchErrorCode: fetchResult.errorCode,
+      fetchError: msg,
+      fetchErrorCode: "sync_exception",
     };
   }
-
-  const maxAt = await getMaxLastfmListenAt(supabase, userId);
-  const watermarkMs = maxAt ? new Date(maxAt).getTime() : 0;
-  const fresh = fetchResult.tracks.filter(
-    (t) => new Date(t.listenedAtIso).getTime() > watermarkMs,
-  );
-
-  if (fresh.length === 0) {
-    await supabase
-      .from("users")
-      .update({ lastfm_last_synced_at: nowIso })
-      .eq("id", userId);
-    return { imported: 0, lastSyncedAt: nowIso, fetchFailed: false };
-  }
-
-  const previewRows = await mapScrobblesToPreviewRows(fresh);
-  const entries: LastfmImportEntry[] = [];
-  for (const row of previewRows) {
-    if (row.matchStatus !== "matched" || !row.spotifyTrackId) continue;
-    entries.push({
-      spotifyTrackId: row.spotifyTrackId,
-      listenedAt: row.listenedAtIso,
-      albumId: row.albumId,
-      artistId: row.artistId,
-      trackName: row.trackName,
-      artistName: row.artistName,
-      artworkUrl: row.artworkUrl,
-    });
-  }
-
-  if (entries.length === 0) {
-    await supabase
-      .from("users")
-      .update({ lastfm_last_synced_at: nowIso })
-      .eq("id", userId);
-    return { imported: 0, lastSyncedAt: nowIso, fetchFailed: false };
-  }
-
-  const result = await insertLastfmImportEntries(supabase, userId, entries);
-
-  await supabase
-    .from("users")
-    .update({ lastfm_last_synced_at: nowIso })
-    .eq("id", userId);
-
-  return {
-    imported: result.imported,
-    lastSyncedAt: nowIso,
-    fetchFailed: false,
-  };
 }

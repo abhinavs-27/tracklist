@@ -41,7 +41,8 @@ export async function GET() {
     try {
       const result = await syncLastfmScrobblesForUser(supabase, u.id, username);
       if (result.fetchFailed) {
-        console.warn("[cron lastfm] Last.fm fetch failed", {
+        console.warn("[cron lastfm] skipped user", {
+          userId: u.id,
           username,
           error: result.fetchError,
           code: result.fetchErrorCode,
