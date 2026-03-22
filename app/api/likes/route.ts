@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
+import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import {
   apiBadRequest,
@@ -7,22 +7,21 @@ import {
   apiOk,
 } from '@/lib/api-response';
 import { parseBody, handlePostgrestError } from '@/lib/api-utils';
+import { LikeCreateBody } from '@/types';
 import { isValidUuid } from '@/lib/validation';
 
-export async function POST(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+export const POST = withHandler(
+  async (request, { user: me }) => {
+    const { data: body, error: parseErr } = await parseBody<LikeCreateBody>(request);
     if (parseErr) return parseErr;
 
-    const reviewId = body!.review_id as string;
+    const reviewId = body!.review_id;
     if (!reviewId) return apiBadRequest('review_id is required');
     if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
 
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('likes').insert({
-      user_id: me.id,
+      user_id: me!.id,
       review_id: reviewId,
     });
 
@@ -33,21 +32,16 @@ export async function POST(request: NextRequest) {
       });
     }
     console.log("[likes] review-liked", {
-      userId: me.id,
+      userId: me!.id,
       reviewId,
     });
     return apiOk({ success: true });
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);
 
-export async function DELETE(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
+export const DELETE = withHandler(
+  async (request, { user: me }) => {
     const { searchParams } = new URL(request.url);
     const reviewId = searchParams.get('review_id');
     if (!reviewId) return apiBadRequest('review_id is required');
@@ -57,7 +51,7 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase
       .from('likes')
       .delete()
-      .eq('user_id', me.id)
+      .eq('user_id', me!.id)
       .eq('review_id', reviewId);
 
     if (error) {
@@ -65,13 +59,10 @@ export async function DELETE(request: NextRequest) {
       return apiInternalError(error);
     }
     console.log("[likes] review-unliked", {
-      userId: me.id,
+      userId: me!.id,
       reviewId,
     });
     return apiOk({ success: true });
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);

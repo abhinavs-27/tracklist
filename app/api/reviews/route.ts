@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -7,44 +7,44 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
-import { isValidSpotifyId } from "@/lib/validation";
-import { validateReviewContent } from "@/lib/validation";
-import { clampLimit } from "@/lib/validation";
+import { ReviewCreateBody } from "@/types";
+import {
+  isValidSpotifyId,
+  validateReviewContent,
+  clampLimit,
+  validateEntityType,
+  validateRating,
+} from "@/lib/validation";
 import { getReviewsForEntity } from "@/lib/queries";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_id>&limit= optional */
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const entityType = searchParams.get("entity_type");
-    const entityId = searchParams.get("entity_id");
-    const limit = clampLimit(searchParams.get("limit"), 20, 10);
+export const GET = withHandler(async (request: NextRequest) => {
+  const { searchParams } = new URL(request.url);
+  const entityType = searchParams.get("entity_type");
+  const entityId = searchParams.get("entity_id");
+  const limit = clampLimit(searchParams.get("limit"), 20, 10);
 
-    if (!entityType || !entityId) {
-      return apiBadRequest("entity_type and entity_id required");
-    }
-    if (entityType !== "album" && entityType !== "song") {
-      return apiBadRequest("entity_type must be album or song");
-    }
-    if (!isValidSpotifyId(entityId)) {
-      return apiBadRequest("Invalid entity_id (Spotify ID)");
-    }
-
-    const result = await getReviewsForEntity(entityType, entityId, limit);
-    if (!result) return apiInternalError("Failed to fetch reviews");
-
-    return apiOk(result);
-  } catch (e) {
-    return apiInternalError(e);
+  if (!entityType || !entityId) {
+    return apiBadRequest("entity_type and entity_id required");
   }
-}
+
+  const typeResult = validateEntityType(entityType);
+  if (!typeResult.ok) return apiBadRequest(typeResult.error);
+
+  if (!isValidSpotifyId(entityId)) {
+    return apiBadRequest("Invalid entity_id (Spotify ID)");
+  }
+
+  const result = await getReviewsForEntity(typeResult.value, entityId, limit);
+  if (!result) return apiInternalError("Failed to fetch reviews");
+
+  return apiOk(result);
+});
 
 /** POST – create or upsert review (one per user per entity) */
-export async function POST(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+export const POST = withHandler(
+  async (request, { user: me }) => {
+    const { data: body, error: parseErr } = await parseBody<ReviewCreateBody>(request);
     if (parseErr) return parseErr;
 
     const { entity_type, entity_id, rating, review_text } = body!;
@@ -52,24 +52,25 @@ export async function POST(request: NextRequest) {
     if (!entity_type || !entity_id || rating == null) {
       return apiBadRequest("entity_type, entity_id, and rating required");
     }
-    if (entity_type !== "album" && entity_type !== "song") {
-      return apiBadRequest("entity_type must be album or song");
-    }
+
+    const typeResult = validateEntityType(entity_type);
+    if (!typeResult.ok) return apiBadRequest(typeResult.error);
+
     if (!isValidSpotifyId(entity_id)) {
       return apiBadRequest("Invalid entity_id (Spotify ID)");
     }
-    const r = Number(rating);
-    if (!Number.isInteger(r) || r < 1 || r > 5) {
-      return apiBadRequest("rating must be an integer 1–5");
-    }
+
+    const ratingResult = validateRating(rating);
+    if (!ratingResult.ok) return apiBadRequest(ratingResult.error);
+
     const reviewText = validateReviewContent(review_text);
 
     const supabase = await createSupabaseServerClient();
     const row = {
-      user_id: me.id,
-      entity_type: entity_type as string,
+      user_id: me!.id,
+      entity_type: typeResult.value,
       entity_id: entity_id as string,
-      rating: r,
+      rating: ratingResult.value,
       review_text: reviewText,
       updated_at: new Date().toISOString(),
     };
@@ -84,12 +85,12 @@ export async function POST(request: NextRequest) {
 
     if (error) return apiInternalError(error);
     const { grantAchievementOnReview } = await import("@/lib/queries");
-    await grantAchievementOnReview(me.id);
+    await grantAchievementOnReview(me!.id);
 
     const { data: userRow } = await supabase
       .from("users")
       .select("id, username, avatar_url")
-      .eq("id", me.id)
+      .eq("id", me!.id)
       .single();
 
     const reviewWithUser = {
@@ -108,15 +109,12 @@ export async function POST(request: NextRequest) {
     };
 
     console.log("[reviews] review-created-upserted", {
-      userId: me.id,
+      userId: me!.id,
       reviewId: data.id,
       entityType: data.entity_type,
       entityId: data.entity_id,
     });
     return apiOk(reviewWithUser);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);

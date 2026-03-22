@@ -124,11 +124,25 @@ export function validateListDescription(description: unknown): string | null {
   return sanitizeString(description, LIMITS.LIST_DESCRIPTION);
 }
 
-export function validateListType(type: unknown): { ok: true; value: 'album' | 'song' } | { ok: false; error: string } {
+export function validateEntityType(type: unknown): { ok: true; value: 'album' | 'song' } | { ok: false; error: string } {
   if (type !== 'album' && type !== 'song') {
-    return { ok: false, error: "type must be 'album' or 'song'" };
+    return { ok: false, error: "entity_type must be 'album' or 'song'" };
   }
-  return { ok: true, value: type };
+  return { ok: true, value: type as 'album' | 'song' };
+}
+
+export function validateRating(rating: unknown): { ok: true; value: number } | { ok: false; error: string } {
+  const r = Number(rating);
+  if (!Number.isInteger(r) || r < 1 || r > 5) {
+    return { ok: false, error: 'rating must be an integer 1–5' };
+  }
+  return { ok: true, value: r };
+}
+
+export function validateListType(type: unknown): { ok: true; value: 'album' | 'song' } | { ok: false; error: string } {
+  const res = validateEntityType(type);
+  if (!res.ok) return { ok: false, error: "type must be 'album' or 'song'" };
+  return res;
 }
 
 /** Last.fm usernames: 1–64 chars, letters, numbers, underscore, hyphen (public profile name). */
