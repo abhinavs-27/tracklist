@@ -1,9 +1,5 @@
-import { NextRequest } from "next/server";
-import {
-  getUserFromRequest,
-  handleUnauthorized,
-  requireApiAuth,
-} from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -21,92 +17,78 @@ import {
   validateAvatarUrl,
 } from "@/lib/validation";
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ username: string }> },
-) {
-  try {
-    const { username } = await context.params;
-    if (!username) return apiBadRequest("username is required");
-    if (!isValidUsername(username))
-      return apiBadRequest("Invalid username format");
+export const GET = withHandler(async (request, { params }) => {
+  const { username } = params;
+  if (!username) return apiBadRequest("username is required");
+  if (!isValidUsername(username))
+    return apiBadRequest("Invalid username format");
 
-    const supabase = await createSupabaseServerClient();
-    const { data: user, error } = await supabase
-      .from("users")
-      .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
-      )
-      .eq("username", username)
-      .single();
+  const supabase = await createSupabaseServerClient();
+  const { data: user, error } = await supabase
+    .from("users")
+    .select(
+      "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+    )
+    .eq("username", username)
+    .single();
 
-    if (error || !user) return apiNotFound("User not found");
+  if (error || !user) return apiNotFound("User not found");
 
-    const [followersRes, followingRes] = await Promise.all([
-      supabase
-        .from("follows")
-        .select("id", { count: "exact", head: true })
-        .eq("following_id", user.id),
-      supabase
-        .from("follows")
-        .select("id", { count: "exact", head: true })
-        .eq("follower_id", user.id),
-    ]);
+  const [followersRes, followingRes] = await Promise.all([
+    supabase
+      .from("follows")
+      .select("id", { count: "exact", head: true })
+      .eq("following_id", user.id),
+    supabase
+      .from("follows")
+      .select("id", { count: "exact", head: true })
+      .eq("follower_id", user.id),
+  ]);
 
-    if (followersRes.error || followingRes.error) {
-      console.error(
-        "User followers/following count error:",
-        followersRes.error,
-        followingRes.error,
-      );
-      return apiInternalError(followersRes.error ?? followingRes.error);
-    }
-
-    const followers = followersRes.count ?? 0;
-    const following = followingRes.count ?? 0;
-
-    const viewer = await getUserFromRequest(request);
-    let isFollowing = false;
-    if (viewer?.id && viewer.id !== user.id) {
-      const { data: follow, error: followError } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", viewer.id)
-        .eq("following_id", user.id)
-        .single();
-      if (followError && followError.code !== "PGRST116") {
-        console.error("User isFollowing lookup error:", followError);
-        return apiInternalError(followError);
-      }
-      isFollowing = !!follow;
-    }
-
-    const isOwn = viewer?.id === user.id;
-
-    return apiOk({
-      ...user,
-      lastfm_username: isOwn ? user.lastfm_username ?? null : null,
-      lastfm_last_synced_at: isOwn ? user.lastfm_last_synced_at ?? null : null,
-      followers_count: followers ?? 0,
-      following_count: following ?? 0,
-      is_following: isFollowing,
-      is_own_profile: isOwn,
-    });
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
+  if (followersRes.error || followingRes.error) {
+    console.error(
+      "User followers/following count error:",
+      followersRes.error,
+      followingRes.error,
+    );
+    return apiInternalError(followersRes.error ?? followingRes.error);
   }
-}
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ username: string }> },
-) {
-  try {
-    const me = await requireApiAuth(request);
+  const followers = followersRes.count ?? 0;
+  const following = followingRes.count ?? 0;
 
-    const { username } = await context.params;
+  const viewer = await getUserFromRequest(request);
+  let isFollowing = false;
+  if (viewer?.id && viewer.id !== user.id) {
+    const { data: follow, error: followError } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", viewer.id)
+      .eq("following_id", user.id)
+      .single();
+    if (followError && followError.code !== "PGRST116") {
+      console.error("User isFollowing lookup error:", followError);
+      return apiInternalError(followError);
+    }
+    isFollowing = !!follow;
+  }
+
+  const isOwn = viewer?.id === user.id;
+
+  return apiOk({
+    ...user,
+    lastfm_username: isOwn ? user.lastfm_username ?? null : null,
+    lastfm_last_synced_at: isOwn ? user.lastfm_last_synced_at ?? null : null,
+    followers_count: followers ?? 0,
+    following_count: following ?? 0,
+    is_following: isFollowing,
+    is_own_profile: isOwn,
+  });
+});
+
+export const PATCH = withHandler(
+  async (request, { user: me, params }) => {
+    const { username } = params;
     if (!username || !isValidUsername(username))
       return apiBadRequest("Invalid username");
 
@@ -117,9 +99,10 @@ export async function PATCH(
       .eq("username", username)
       .single();
 
-    if (!profileRow || profileRow.id !== me.id) return apiForbidden();
+    if (!profileRow || profileRow.id !== me!.id) return apiForbidden();
 
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    const { data: body, error: parseErr } =
+      await parseBody<Record<string, unknown>>(request);
     if (parseErr) return parseErr;
 
     const b = body!;
@@ -146,7 +129,7 @@ export async function PATCH(
     const { data, error } = await supabase
       .from("users")
       .update(updates)
-      .eq("id", me.id)
+      .eq("id", me!.id)
       .select("id, username, avatar_url, bio, created_at")
       .single();
 
@@ -156,13 +139,10 @@ export async function PATCH(
       return apiInternalError(error);
     }
     console.log("[users] profile-updated", {
-      userId: me.id,
+      userId: me!.id,
       fields: Object.keys(updates),
     });
     return apiOk(data);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);

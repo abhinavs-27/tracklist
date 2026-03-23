@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getList, getListOwnerId } from "@/lib/queries";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
@@ -30,62 +29,50 @@ export type ListItemEnriched = {
 };
 
 /** GET – list details + ordered items with album/song info. Public. */
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> }
-) {
-  try {
-    const { listId } = await params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+export const GET = withHandler(async (_request, { params }) => {
+  const { listId } = params;
+  if (!isValidUuid(listId)) return apiNotFound("List not found");
 
-    const data = await getList(listId);
-    if (!data) return apiNotFound("List not found");
+  const data = await getList(listId);
+  if (!data) return apiNotFound("List not found");
 
-    const enriched: ListItemEnriched[] = await Promise.all(
-      data.items.map(async (item) => {
-        try {
-          if (item.entity_type === "album") {
-            const { album } = await getOrFetchAlbum(item.entity_id);
-            return {
-              ...item,
-              album: album as SpotifyApi.AlbumObjectSimplified,
-            };
-          }
-          const track = await getOrFetchTrack(item.entity_id);
-          return { ...item, track };
-        } catch (e) {
-          console.warn(
-            `[lists] Failed to fetch ${item.entity_type} ${item.entity_id}:`,
-            e,
-          );
-          return { ...item };
+  const enriched: ListItemEnriched[] = await Promise.all(
+    data.items.map(async (item) => {
+      try {
+        if (item.entity_type === "album") {
+          const { album } = await getOrFetchAlbum(item.entity_id);
+          return {
+            ...item,
+            album: album as SpotifyApi.AlbumObjectSimplified,
+          };
         }
-      }),
-    );
+        const track = await getOrFetchTrack(item.entity_id);
+        return { ...item, track };
+      } catch (e) {
+        console.warn(
+          `[lists] Failed to fetch ${item.entity_type} ${item.entity_id}:`,
+          e,
+        );
+        return { ...item };
+      }
+    }),
+  );
 
-    return apiOk({
-      list: data.list,
-      owner_username: data.owner_username,
-      items: enriched,
-    });
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  return apiOk({
+    list: data.list,
+    owner_username: data.owner_username,
+    items: enriched,
+  });
+});
 
 /** PATCH – update list metadata (title, description, visibility, emoji/image). Auth + ownership required. */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> },
-) {
-  try {
-    const { listId } = await params;
+export const PATCH = withHandler(
+  async (request, { user: me, params }) => {
+    const { listId } = params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
 
-    const me = await requireApiAuth(request);
-
     const ownerId = await getListOwnerId(listId);
-    if (!ownerId || ownerId !== me.id) {
+    if (!ownerId || ownerId !== me!.id) {
       return apiForbidden("You do not own this list");
     }
 
@@ -136,34 +123,27 @@ export async function PATCH(
       )
       .maybeSingle();
 
-    if (error || !data) return apiInternalError(error ?? new Error("Update failed"));
+    if (error || !data)
+      return apiInternalError(error ?? new Error("Update failed"));
 
     console.log("[lists] list-updated", {
-      userId: me.id,
+      userId: me!.id,
       listId,
     });
 
     return apiOk(data);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);
 
 /** DELETE – delete a list (and its items via CASCADE). Auth + ownership required. */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> },
-) {
-  try {
-    const { listId } = await params;
+export const DELETE = withHandler(
+  async (request, { user: me, params }) => {
+    const { listId } = params;
     if (!isValidUuid(listId)) return apiNotFound("List not found");
 
-    const me = await requireApiAuth(request);
-
     const ownerId = await getListOwnerId(listId);
-    if (!ownerId || ownerId !== me.id) {
+    if (!ownerId || ownerId !== me!.id) {
       return apiForbidden("You do not own this list");
     }
 
@@ -172,14 +152,11 @@ export async function DELETE(
     if (error) return apiInternalError(error);
 
     console.log("[lists] list-deleted", {
-      userId: me.id,
+      userId: me!.id,
       listId,
     });
 
     return apiOk({ success: true });
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);
