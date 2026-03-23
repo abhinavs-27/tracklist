@@ -3,7 +3,7 @@ import { handleUnauthorized, requireApiAuth, type User } from './auth';
 import { apiInternalError } from './api-response';
 
 type HandlerContext = {
-  params?: any;
+  params: Record<string, string>;
   user?: User;
 };
 
@@ -22,10 +22,11 @@ type HandlerOptions = {
 export function withHandler(handler: APIHandler, options: HandlerOptions = {}) {
   return async (
     request: NextRequest,
-    { params }: { params?: any } = {}
+    { params }: { params?: Promise<Record<string, string>> | Record<string, string> } = {}
   ): Promise<NextResponse> => {
     try {
-      const context: HandlerContext = { params: await params };
+      const resolvedParams = params ? await params : {};
+      const context: HandlerContext = { params: resolvedParams };
 
       if (options.requireAuth) {
         context.user = await requireApiAuth(request);
