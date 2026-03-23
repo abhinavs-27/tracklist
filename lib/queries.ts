@@ -611,7 +611,7 @@ export async function getLeaderboard(
       const to = endYear ?? startYear!;
       const { data: albums } = await supabase
         .from("albums")
-        .select("id, release_date")
+        .select("id")
         .gte("release_date", `${from}-01-01`)
         .lte("release_date", `${to}-12-31`);
       albumIds = (albums ?? []).map((a) => a.id);

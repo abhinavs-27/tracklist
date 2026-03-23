@@ -141,7 +141,7 @@ export async function getRecentTracksFromLogs(
   const fetchN = limit + 1;
   const { data: logRows, error } = await supabase
     .from("logs")
-    .select("track_id, listened_at, album_id, artist_id")
+    .select("track_id, listened_at")
     .eq("user_id", userId)
     .order("listened_at", { ascending: false })
     .range(offset, offset + fetchN - 1);
@@ -173,10 +173,8 @@ export async function getRecentTracksFromLogs(
   const artistIds = new Set<string>();
   for (const r of slice) {
     const song = songMap.get(r.track_id as string);
-    const aid =
-      (r.album_id as string | null) ?? song?.album_id ?? null;
-    const arid =
-      (r.artist_id as string | null) ?? song?.artist_id ?? null;
+    const aid = song?.album_id ?? null;
+    const arid = song?.artist_id ?? null;
     if (aid) albumIds.add(aid);
     if (arid) artistIds.add(arid);
   }
@@ -214,12 +212,9 @@ export async function getRecentTracksFromLogs(
   const items: RecentTrackRow[] = [];
   for (const r of slice) {
     const song = songMap.get(r.track_id as string);
-    const aid =
-      (r.album_id as string | null) ?? song?.album_id ?? null;
+    const aid = song?.album_id ?? null;
     const album = aid ? albumMap.get(aid) : null;
-    const aridFromLog =
-      (r.artist_id as string | null) ?? song?.artist_id ?? null;
-    const arid = aridFromLog ?? album?.artist_id ?? null;
+    const arid = song?.artist_id ?? album?.artist_id ?? null;
     const artistName = arid ? (artistMap.get(arid) ?? "") : "";
     const trackName = song?.name ?? "Unknown track";
     const albumName = album?.name ?? null;
