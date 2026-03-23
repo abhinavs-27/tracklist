@@ -16,6 +16,13 @@ export async function middleware(request: NextRequest) {
   if (!pathname.startsWith("/api/")) return NextResponse.next();
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
 
+  /**
+   * Implemented in Next (`app/api/leaderboard/route.ts` + `lib/queries`).
+   * Do not proxy — otherwise dev breaks when Express on `API_BACKEND_URL` is not
+   * running (middleware `fetch` throws → 500) and duplicates backend logic.
+   */
+  if (pathname === "/api/leaderboard") return NextResponse.next();
+
   const base = backend.replace(/\/$/, "");
   const target = `${base}${pathname}${request.nextUrl.search}`;
 
@@ -35,19 +42,34 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const res = await fetch(target, {
-    method: request.method,
-    headers,
-    body: body && body.byteLength > 0 ? body : undefined,
-  });
+  try {
+    const res = await fetch(target, {
+      method: request.method,
+      headers,
+      body: body && body.byteLength > 0 ? body : undefined,
+    });
 
-  const out = new NextResponse(res.body, { status: res.status });
-  res.headers.forEach((value, key) => {
-    const k = key.toLowerCase();
-    if (k === "transfer-encoding") return;
-    out.headers.set(key, value);
-  });
-  return out;
+    const out = new NextResponse(res.body, { status: res.status });
+    res.headers.forEach((value, key) => {
+      const k = key.toLowerCase();
+      if (k === "transfer-encoding") return;
+      out.headers.set(key, value);
+    });
+    return out;
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error("[middleware] API_BACKEND_URL proxy failed:", target, detail);
+    return NextResponse.json(
+      {
+        error: "API backend unavailable",
+        detail:
+          process.env.NODE_ENV === "development"
+            ? `${detail} (is Express running at ${base}?)`
+            : undefined,
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export const config = {

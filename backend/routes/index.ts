@@ -49,9 +49,12 @@ export function createApiRouter(): Router {
     process.env.NEXT_API_FALLBACK?.trim() ||
     (process.env.NODE_ENV !== "production" ? "http://127.0.0.1:3000" : "");
   if (fallback) {
-    if (!process.env.NEXT_API_FALLBACK?.trim() && process.env.NODE_ENV !== "production") {
+    if (
+      !process.env.NEXT_API_FALLBACK?.trim() &&
+      process.env.NODE_ENV !== "production"
+    ) {
       console.info(
-        `[api] NEXT_API_FALLBACK not set; proxying unhandled /api/* to ${fallback} (set NEXT_API_FALLBACK to override)`,
+        `[api] NEXT_API_FALLBACK not set; proxying unhandled /api/* to Next.js at ${fallback} (set NEXT_API_FALLBACK to override)`,
       );
     }
     api.use(
@@ -63,7 +66,7 @@ export function createApiRouter(): Router {
         /**
          * Next routes like `GET /api/lists/:id` fetch Spotify metadata per item; the
          * default proxy socket can time out on slow or cold dev servers. `ECONNREFUSED`
-         * to Next is still surfaced as 504 by http-proxy-middleware — run Next on 3000.
+         * to Next is still surfaced as 504 — ensure Next.js is running (default target port 3000).
          */
         proxyTimeout: 180_000,
         timeout: 180_000,
