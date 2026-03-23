@@ -3,6 +3,9 @@ import { test, expect } from '@playwright/test';
 /**
  * Critical Integration flows for the Tracklist application.
  * These tests cover the primary user journeys using the UI (where possible) and mocked API responses.
+ *
+ * Note: Due to Server-side rendering (SSR) dependencies on Supabase environment variables in the sandbox,
+ * we verify the client-side logic by combining UI presence checks with API structure validation via page.evaluate.
  */
 test.describe('Critical Flows Integration', () => {
 
@@ -32,6 +35,23 @@ test.describe('Critical Flows Integration', () => {
         contentType: 'application/json',
         body: JSON.stringify({ csrfToken: 'mock-csrf-token' }),
       });
+    });
+
+    // 3. Mock the feed and reviews APIs to avoid server-side dependency issues
+    await page.route('**/api/feed*', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ items: [], next_cursor: null }),
+        });
+    });
+
+    await page.route('**/api/reviews?entity_type=*', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ reviews: [], average_rating: null, count: 0, my_review: null }),
+        });
     });
   });
 
