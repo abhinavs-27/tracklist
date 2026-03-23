@@ -627,7 +627,8 @@ export async function getLeaderboard(
         .from("albums")
         .select("id")
         .gte("release_date", `${decade}-01-01`)
-        .lt("release_date", `${yearNum}-01-01`);
+        .lt("release_date", `${yearNum}-01-01`)
+        .limit(1000); // Prevent oversized ID lists in subsequent .in() filters
       albumIds = (albums ?? []).map((a) => a.id);
     }
 

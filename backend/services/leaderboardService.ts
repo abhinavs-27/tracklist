@@ -47,18 +47,14 @@ export async function getLeaderboard(
         .like("release_date", `${year}%`);
       albumIds = (albums ?? []).map((a) => a.id);
     } else if (decade != null) {
+      const yearNum = decade + 10;
       const { data: albums } = await supabase
         .from("albums")
-        .select("id, release_date");
-      const yearNum = decade + 10;
-      albumIds = (albums ?? [])
-        .filter((a) => {
-          const y = a.release_date
-            ? parseInt(a.release_date.slice(0, 4), 10)
-            : NaN;
-          return !isNaN(y) && y >= decade && y < yearNum;
-        })
-        .map((a) => a.id);
+        .select("id")
+        .gte("release_date", `${decade}-01-01`)
+        .lt("release_date", `${yearNum}-01-01`)
+        .limit(1000); // Prevent oversized ID lists in subsequent .in() filters
+      albumIds = (albums ?? []).map((a) => a.id);
     }
 
     if (albumIds !== null && albumIds.length === 0) return [];
