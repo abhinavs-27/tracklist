@@ -165,6 +165,71 @@ function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   return { ...base, summary: buildSummary(base) };
 }
 
+/**
+ * Overlay latest `artists` / `albums` image URLs from the DB.
+ * Cached taste JSON can lag behind rows updated by `getOrFetchArtist` and other paths.
+ */
+async function hydrateTasteIdentityArtwork(
+  admin: SupabaseClient,
+  identity: TasteIdentity,
+): Promise<TasteIdentity> {
+  if (identity.topArtists.length === 0 && identity.topAlbums.length === 0) {
+    return identity;
+  }
+
+  const artistIds = [...new Set(identity.topArtists.map((a) => a.id).filter(Boolean))];
+  const albumIds = [...new Set(identity.topAlbums.map((a) => a.id).filter(Boolean))];
+  const artistImage = new Map<string, string | null>();
+  const albumImage = new Map<string, string | null>();
+  const CHUNK = 300;
+
+  for (let i = 0; i < artistIds.length; i += CHUNK) {
+    const chunk = artistIds.slice(i, i + CHUNK);
+    const { data, error } = await admin
+      .from("artists")
+      .select("id, image_url")
+      .in("id", chunk);
+    if (error) {
+      console.warn("[taste-identity] hydrate artists failed", error);
+      continue;
+    }
+    for (const row of data ?? []) {
+      const r = row as { id: string; image_url: string | null };
+      artistImage.set(r.id, r.image_url);
+    }
+  }
+
+  for (let i = 0; i < albumIds.length; i += CHUNK) {
+    const chunk = albumIds.slice(i, i + CHUNK);
+    const { data, error } = await admin
+      .from("albums")
+      .select("id, image_url")
+      .in("id", chunk);
+    if (error) {
+      console.warn("[taste-identity] hydrate albums failed", error);
+      continue;
+    }
+    for (const row of data ?? []) {
+      const r = row as { id: string; image_url: string | null };
+      albumImage.set(r.id, r.image_url);
+    }
+  }
+
+  return {
+    ...identity,
+    topArtists: identity.topArtists.map((a) => {
+      if (!artistImage.has(a.id)) return a;
+      const url = artistImage.get(a.id);
+      return { ...a, imageUrl: url ?? a.imageUrl ?? null };
+    }),
+    topAlbums: identity.topAlbums.map((al) => {
+      if (!albumImage.has(al.id)) return al;
+      const url = albumImage.get(al.id);
+      return { ...al, imageUrl: url ?? al.imageUrl ?? null };
+    }),
+  };
+}
+
 async function fetchSongsBatch(
   admin: SupabaseClient,
   ids: string[],
@@ -547,7 +612,7 @@ export async function refreshTasteIdentityCacheForUser(
   const admin = createSupabaseAdminClient();
   const computed = await computeTasteIdentity(admin, userId);
   await upsertTasteIdentityCache(admin, userId, computed);
-  return computed;
+  return hydrateTasteIdentityArtwork(admin, computed);
 }
 
 export async function getTasteIdentity(userId: string): Promise<TasteIdentity> {
@@ -562,11 +627,12 @@ export async function getTasteIdentity(userId: string): Promise<TasteIdentity> {
   if (!cacheErr && cached?.payload && cached.updated_at) {
     const age = Date.now() - new Date(cached.updated_at).getTime();
     if (age < STALE_MS && age >= 0) {
-      return normalizeCachedTasteIdentity(cached.payload as TasteIdentity);
+      const identity = normalizeCachedTasteIdentity(cached.payload as TasteIdentity);
+      return hydrateTasteIdentityArtwork(admin, identity);
     }
   }
 
   const computed = await computeTasteIdentity(admin, userId);
   await upsertTasteIdentityCache(admin, userId, computed);
-  return computed;
+  return hydrateTasteIdentityArtwork(admin, computed);
 }
