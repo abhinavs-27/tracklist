@@ -29,4 +29,6 @@ export const queryKeys = {
   ) => ["leaderboard", type, filters] as const,
   /** User listen logs (`GET /api/logs`) — invalidate after creating a log. */
   logs: () => ["logs"] as const,
+  /** Computed taste summary (`GET /api/taste-identity`). */
+  tasteIdentity: (userId: string) => ["tasteIdentity", userId] as const,
 };

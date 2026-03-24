@@ -1,5 +1,6 @@
 import { logPerf } from "@/lib/profiling";
 import {
+  isSpotifyCatalogAllowedForLastfmImport,
   isSpotifyIntegrationEnabled,
   SpotifyIntegrationDisabledError,
 } from "@/lib/spotify-integration-enabled";
@@ -12,6 +13,31 @@ let tokenExpiresAt = 0;
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_RETRIES = 2;
+
+/**
+ * Spotify batch endpoints expect `ids=id1,id2` with literal commas.
+ * `URLSearchParams` encodes commas as %2C, so Spotify receives one malformed id and returns nulls.
+ */
+function setQueryParamsPreservingIdCommas(
+  url: URL,
+  params: Record<string, string>,
+): void {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "ids") {
+      const idList = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      parts.push(
+        `${encodeURIComponent(key)}=${idList.map((id) => encodeURIComponent(id)).join(",")}`,
+      );
+    } else {
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    }
+  }
+  url.search = parts.join("&");
+}
 
 function mergeSignals(signals: AbortSignal[]): AbortSignal {
   if (signals.length === 1) return signals[0]!;
@@ -29,7 +55,9 @@ function withTimeout(
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   const external = init.signal;
-  const signals = external ? [external, controller.signal] : [controller.signal];
+  const signals = external
+    ? [external, controller.signal]
+    : [controller.signal];
   const merged = mergeSignals(signals);
   return fetch(url, { ...init, signal: merged }).finally(() => {
     clearTimeout(id);
@@ -77,16 +105,30 @@ async function getClientCredentialsToken(): Promise<string> {
 async function spotifyFetch<T>(
   path: string,
   params?: Record<string, string>,
-  options?: { signal?: AbortSignal; allowLastfmMapping?: boolean },
+  options?: {
+    signal?: AbortSignal;
+    /**
+     * Explicit opt-in for this request when UI integration is off (documents intent; same effect as
+     * having LASTFM_API_KEY set for server-side mapping — see `isSpotifyCatalogAllowedForLastfmImport`).
+     */
+    allowLastfmMapping?: boolean;
+    /** Client-credentials calls when UI integration is off (e.g. cron metadata backfill). */
+    allowClientCredentials?: boolean;
+  },
 ): Promise<T> {
-  if (!isSpotifyIntegrationEnabled() && !options?.allowLastfmMapping) {
+  if (
+    !isSpotifyIntegrationEnabled() &&
+    !options?.allowLastfmMapping &&
+    !options?.allowClientCredentials &&
+    !isSpotifyCatalogAllowedForLastfmImport()
+  ) {
     throw new SpotifyIntegrationDisabledError();
   }
 
   const start = performance.now();
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
   if (params) {
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    setQueryParamsPreservingIdCommas(url, params);
   }
 
   let lastError: unknown;
@@ -108,7 +150,9 @@ async function spotifyFetch<T>(
 
     if (res.ok) {
       const data = (await res.json()) as T;
-      logPerf("spotify", path, performance.now() - start, { path: path.slice(0, 100) });
+      logPerf("spotify", path, performance.now() - start, {
+        path: path.slice(0, 100),
+      });
       return data;
     }
 
@@ -134,10 +178,8 @@ async function spotifyFetch<T>(
       continue;
     }
 
-    // 403 Forbidden: often app in Development Mode or quota/access restricted. Retry once with fresh token.
+    // 403: refreshing the token does not help — fail fast so callers (e.g. getArtists) can fall back to single-id requests.
     if (res.status === 403) {
-      cachedAccessToken = null;
-      tokenExpiresAt = 0;
       const raw = await res.text();
       let hint = "";
       try {
@@ -150,10 +192,9 @@ async function spotifyFetch<T>(
       } catch {
         if (raw.length > 0 && raw.length < 200) hint = ` — ${raw}`;
       }
-      lastError = new Error(
-        `Spotify API 403 Forbidden for ${path}${hint}. Check Spotify Developer Dashboard: ensure your app is not restricted (Development Mode may limit some endpoints), or request extended quota.`,
+      throw new Error(
+        `Spotify API 403 Forbidden for ${path}${hint}. Check Spotify Developer Dashboard (app status, Web API quota, Development Mode limits).`,
       );
-      continue;
     }
 
     const raw = await res.text();
@@ -210,8 +251,16 @@ export async function searchSpotify(
 
 export async function getArtist(
   spotifyId: string,
+  opts?: { allowClientCredentials?: boolean; allowLastfmMapping?: boolean },
 ): Promise<SpotifyApi.ArtistObjectFull> {
-  return spotifyFetch<SpotifyApi.ArtistObjectFull>(`/artists/${spotifyId}`);
+  return spotifyFetch<SpotifyApi.ArtistObjectFull>(
+    `/artists/${spotifyId}`,
+    undefined,
+    {
+      allowClientCredentials: opts?.allowClientCredentials,
+      allowLastfmMapping: opts?.allowLastfmMapping,
+    },
+  );
 }
 
 export async function getArtistAlbums(
@@ -294,9 +343,13 @@ export async function getTrack(
   spotifyId: string,
   opts?: { allowLastfmMapping?: boolean },
 ): Promise<SpotifyApi.TrackObjectFull> {
-  return spotifyFetch<SpotifyApi.TrackObjectFull>(`/tracks/${spotifyId}`, undefined, {
-    allowLastfmMapping: opts?.allowLastfmMapping,
-  });
+  return spotifyFetch<SpotifyApi.TrackObjectFull>(
+    `/tracks/${spotifyId}`,
+    undefined,
+    {
+      allowLastfmMapping: opts?.allowLastfmMapping,
+    },
+  );
 }
 
 /** Spotify limit: 50 tracks per request. Chunks and merges. Falls back to single getTrack() if batch returns 403. */
@@ -314,7 +367,11 @@ export async function getTracks(
     try {
       const data = (await spotifyFetch<{
         tracks: (SpotifyApi.TrackObjectFull | null)[];
-      }>(`/tracks`, { ids }, { allowLastfmMapping: opts?.allowLastfmMapping })) as {
+      }>(
+        `/tracks`,
+        { ids },
+        { allowLastfmMapping: opts?.allowLastfmMapping },
+      )) as {
         tracks: (SpotifyApi.TrackObjectFull | null)[];
       };
       const resolved = (data.tracks ?? []).filter(
@@ -340,41 +397,25 @@ export async function getTracks(
   return out;
 }
 
-/** Spotify limit: 50 artists per request. Chunks and merges. Falls back to single getArtist() if batch returns 403. */
+/**
+ * Resolves multiple artists using only GET /artists/{id} (one request per id).
+ * The bulk ?ids= endpoint is not used — some Spotify apps return 403 on batch catalog reads while single-artist works.
+ */
 export async function getArtists(
   spotifyIds: string[],
+  opts?: { allowClientCredentials?: boolean; allowLastfmMapping?: boolean },
 ): Promise<SpotifyApi.ArtistObjectFull[]> {
   const unique = [...new Set(spotifyIds)].filter(Boolean);
   if (unique.length === 0) return [];
-  const CHUNK = 50;
   const out: SpotifyApi.ArtistObjectFull[] = [];
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const ids = chunk.join(",");
+  for (let i = 0; i < unique.length; i++) {
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
     try {
-      const data = (await spotifyFetch<{
-        artists: (SpotifyApi.ArtistObjectFull | null)[];
-      }>("/artists", { ids })) as {
-        artists: (SpotifyApi.ArtistObjectFull | null)[];
-      };
-      const resolved = (data.artists ?? []).filter(
-        (a): a is SpotifyApi.ArtistObjectFull => a != null,
-      );
-      out.push(...resolved);
-    } catch (err) {
-      if (err instanceof Error && err.message.includes("403")) {
-        for (const id of chunk) {
-          try {
-            const a = await getArtist(id);
-            out.push(a);
-          } catch {
-            // skip failed single fetch
-          }
-          await new Promise((r) => setTimeout(r, 80));
-        }
-      } else {
-        throw err;
-      }
+      out.push(await getArtist(unique[i]!, opts));
+    } catch {
+      /* invalid id or API error */
     }
   }
   return out;

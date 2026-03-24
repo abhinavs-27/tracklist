@@ -9,6 +9,7 @@ import { ProfileRecentAlbumsWithSync } from "@/components/profile-recent-albums-
 import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { LastfmSection } from "@/components/lastfm/lastfm-section";
+import { TasteIdentitySection } from "@/components/profile/taste-identity-section";
 import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
@@ -226,6 +227,8 @@ export default async function ProfilePage({
         isOwnProfile={isOwnProfile}
       />
 
+      <TasteIdentitySection userId={profile.id} />
+
       {!isOwnProfile && (
         <TasteMatchSection
           profileUserId={profile.id}
@@ -241,16 +244,6 @@ export default async function ProfilePage({
       />
 
       {isOwnProfile ? <RecentlyPlayedTracks /> : null}
-
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-white sm:text-lg">Top artists</h2>
-          <span className="text-xs text-zinc-500">Coming soon</span>
-        </div>
-        <p className="mt-2 text-sm text-zinc-500">
-          This section will show the user&apos;s most listened artists.
-        </p>
-      </section>
 
       {achievements.length > 0 && (
         <section>
@@ -279,7 +272,9 @@ export default async function ProfilePage({
 
       <section id="lists">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-white sm:text-lg">Lists</h2>
+          <h2 className="text-base font-semibold text-white sm:text-lg">
+            Lists
+          </h2>
           {isOwnProfile && <ProfileListsSection />}
         </div>
         {userLists.length === 0 ? (

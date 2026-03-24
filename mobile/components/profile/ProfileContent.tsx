@@ -24,6 +24,7 @@ import {
 import { FollowNetworkModal } from "./FollowNetworkModal";
 import { CreateListModal } from "../list/CreateListModal";
 import { LastfmSection } from "./LastfmSection";
+import { TasteIdentity } from "./TasteIdentity";
 
 type Tab = "favorites" | "activity";
 
@@ -163,6 +164,8 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
           initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
         />
       ) : null}
+
+      <TasteIdentity userId={user.id} />
 
       <View style={{ flexDirection: "row", gap: 10 }}>
         <TabChip

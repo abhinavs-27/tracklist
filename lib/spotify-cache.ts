@@ -67,6 +67,7 @@ type ArtistRow = {
   name: string;
   image_url: string | null;
   genres: string[] | null;
+  popularity?: number | null;
   created_at: string;
   updated_at: string;
   cached_at?: string | null;
@@ -91,6 +92,7 @@ type SongRow = {
   artist_id: string;
   duration_ms: number | null;
   track_number: number | null;
+  popularity?: number | null;
   created_at: string;
   updated_at: string;
   cached_at?: string | null;
@@ -98,17 +100,64 @@ type SongRow = {
 
 // --- Helpers: upsert from Spotify payloads
 
+function clampPopularity(n: number): number {
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+/** Spotify typings omit `popularity` on some builds; API returns it for full artists. */
+type ArtistWithPopularity = SpotifyApi.ArtistObjectFull & {
+  popularity?: number;
+};
+
 export async function upsertArtistFromSpotify(
   supabase: SupabaseClient,
   a: SpotifyApi.ArtistObjectFull | SpotifyApi.ArtistObjectSimplified,
+  options?: {
+    /** Full Spotify payload: skip read-before-write (halves DB round-trips for batch backfills). */
+    skipMerge?: boolean;
+  },
 ) {
   const now = new Date().toISOString();
+
+  type ArtistMergeRow = {
+    genres: string[] | null;
+    popularity: number | null;
+    image_url: string | null;
+  };
+
+  let ex: ArtistMergeRow | null = null;
+
+  if (!options?.skipMerge) {
+    const { data: existing } = await supabase
+      .from("artists")
+      .select("genres, popularity, image_url")
+      .eq("id", a.id)
+      .maybeSingle();
+    ex = existing as ArtistMergeRow | null;
+  }
+
+  const newGenres =
+    "genres" in a && Array.isArray(a.genres) && a.genres.length > 0
+      ? a.genres
+      : ex?.genres ?? null;
+
+  const ap = a as ArtistWithPopularity;
+  const newPop =
+    typeof ap.popularity === "number"
+      ? clampPopularity(ap.popularity)
+      : ex?.popularity ?? null;
+
+  const newImage =
+    "images" in a && a.images?.[0]?.url
+      ? a.images[0].url
+      : ex?.image_url ?? null;
+
   const row = {
     id: a.id,
     name: a.name,
-    image_url:
-      "images" in a && a.images?.[0]?.url ? a.images[0].url : null,
-    genres: "genres" in a && a.genres?.length ? a.genres : null,
+    image_url: newImage,
+    genres: newGenres,
+    popularity: newPop,
     updated_at: now,
     cached_at: now,
   };
@@ -200,6 +249,14 @@ export async function upsertTrackFromSpotify(
       ? (track as { track_number?: number }).track_number ?? null
       : null;
 
+  const trackWithPop = track as SpotifyApi.TrackObjectFull & {
+    popularity?: number;
+  };
+  const pop =
+    typeof trackWithPop.popularity === "number"
+      ? trackWithPop.popularity
+      : null;
+
   const row = {
     id: track.id,
     name: track.name,
@@ -207,6 +264,7 @@ export async function upsertTrackFromSpotify(
     artist_id: first.id,
     duration_ms: track.duration_ms ?? null,
     track_number: trackNumber,
+    popularity: pop,
     updated_at: now,
     cached_at: now,
   };
@@ -234,6 +292,14 @@ async function upsertSongRowOnly(
       ? (track as { track_number?: number }).track_number ?? null
       : null;
   const now = new Date().toISOString();
+  const trackWithPop = track as SpotifyApi.TrackObjectFull & {
+    popularity?: number;
+  };
+  const pop =
+    typeof trackWithPop.popularity === "number"
+      ? trackWithPop.popularity
+      : null;
+
   const row = {
     id: track.id,
     name: track.name,
@@ -241,6 +307,7 @@ async function upsertSongRowOnly(
     artist_id: artistId,
     duration_ms: track.duration_ms ?? null,
     track_number: trackNumber,
+    popularity: pop,
     updated_at: now,
     cached_at: now,
   };
@@ -260,7 +327,7 @@ async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjec
 
   const { data: row, error } = await supabase
     .from("artists")
-    .select("id, name, image_url, genres, cached_at, updated_at")
+    .select("id, name, image_url, genres, popularity, cached_at, updated_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -279,8 +346,9 @@ async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjec
         name: a.name,
         images: [{ url: a.image_url }],
         genres: a.genres ?? undefined,
+        popularity: typeof a.popularity === "number" ? a.popularity : 0,
         followers: { total: 0 },
-      };
+      } as SpotifyApi.ArtistObjectFull;
     }
     if (!stale && !a.image_url) {
       try {
@@ -299,8 +367,9 @@ async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjec
         name: a.name,
         images: undefined,
         genres: a.genres ?? undefined,
+        popularity: typeof a.popularity === "number" ? a.popularity : 0,
         followers: { total: 0 },
-      };
+      } as SpotifyApi.ArtistObjectFull;
     }
   }
 

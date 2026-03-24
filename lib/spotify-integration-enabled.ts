@@ -1,9 +1,12 @@
 /**
- * Switch for user-facing Spotify features (OAuth, search UI, ingest, etc.).
- * Last.fm import still works with a username when the server has LASTFM_API_KEY and
- * Spotify client credentials; mapping uses `allowLastfmMapping` on search only.
- * Set NEXT_PUBLIC_ENABLE_SPOTIFY=true (and/or ENABLE_SPOTIFY_INTEGRATION=true on the server) to re-enable.
- * Default: disabled when unset.
+ * Switch for **user-facing** Spotify features (OAuth, search UI, in-app Spotify ingest, etc.).
+ *
+ * Server-side **catalog/metadata** calls (client credentials) may still run when:
+ * - `allowLastfmMapping` / `allowClientCredentials` is passed to `spotifyFetch`, or
+ * - `LASTFM_API_KEY` is set (Last.fm import needs Spotify to resolve IDs) — unless
+ *   `SPOTIFY_DISABLE_FOR_LASTFM_IMPORT=true` opts out.
+ *
+ * Set NEXT_PUBLIC_ENABLE_SPOTIFY=true (and/or ENABLE_SPOTIFY_INTEGRATION=true) to enable the full integration.
  */
 
 export class SpotifyIntegrationDisabledError extends Error {
@@ -14,6 +17,15 @@ export class SpotifyIntegrationDisabledError extends Error {
 }
 
 let devLoggedDisabled = false;
+
+/** True when Last.fm import is configured; allows Spotify API for catalog mapping unless explicitly blocked. */
+export function isSpotifyCatalogAllowedForLastfmImport(): boolean {
+  if (process.env.SPOTIFY_DISABLE_FOR_LASTFM_IMPORT === "true") {
+    return false;
+  }
+  const k = process.env.LASTFM_API_KEY?.trim();
+  return Boolean(k && k.length > 0);
+}
 
 export function isSpotifyIntegrationEnabled(): boolean {
   const enabled =
