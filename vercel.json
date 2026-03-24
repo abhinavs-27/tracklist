@@ -15,10 +15,6 @@
     {
       "path": "/api/cron/taste-identity-refresh",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/backfill-artist-metadata",
-      "schedule": "0 0 * * *"
     }
   ]
 }
