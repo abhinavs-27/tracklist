@@ -14,7 +14,6 @@ import type { TasteGenre, TasteIdentity, TasteTopAlbum, TasteTopArtist } from ".
 export type { TasteGenre, TasteIdentity, TasteTopAlbum, TasteTopArtist } from "./types";
 export type { TasteListeningStyle } from "./listening-style";
 
-const STALE_MS = 6 * 60 * 60 * 1000;
 const TOP_N = 10;
 const TOP_GENRES = 10;
 const LOG_CAP = 8000;
@@ -606,33 +605,33 @@ async function upsertTasteIdentityCache(
  * Recompute taste identity from logs and write `taste_identity_cache` (no stale check).
  * Used by the daily cron and can be called after bulk imports.
  */
+/**
+ * Recompute from logs, merge latest artwork from `artists` / `albums`, and upsert cache.
+ * Call from the daily cron (or after bulk imports); profile reads do not run this.
+ */
 export async function refreshTasteIdentityCacheForUser(
   userId: string,
 ): Promise<TasteIdentity> {
   const admin = createSupabaseAdminClient();
   const computed = await computeTasteIdentity(admin, userId);
-  await upsertTasteIdentityCache(admin, userId, computed);
-  return hydrateTasteIdentityArtwork(admin, computed);
+  const hydrated = await hydrateTasteIdentityArtwork(admin, computed);
+  await upsertTasteIdentityCache(admin, userId, hydrated);
+  return hydrated;
 }
 
+/** Single read of `taste_identity_cache` — no log scans, no Spotify, no artwork hydration. */
 export async function getTasteIdentity(userId: string): Promise<TasteIdentity> {
   const admin = createSupabaseAdminClient();
 
   const { data: cached, error: cacheErr } = await admin
     .from("taste_identity_cache")
-    .select("payload, updated_at")
+    .select("payload")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!cacheErr && cached?.payload && cached.updated_at) {
-    const age = Date.now() - new Date(cached.updated_at).getTime();
-    if (age < STALE_MS && age >= 0) {
-      const identity = normalizeCachedTasteIdentity(cached.payload as TasteIdentity);
-      return hydrateTasteIdentityArtwork(admin, identity);
-    }
+  if (cacheErr || !cached?.payload) {
+    return { ...EMPTY };
   }
 
-  const computed = await computeTasteIdentity(admin, userId);
-  await upsertTasteIdentityCache(admin, userId, computed);
-  return hydrateTasteIdentityArtwork(admin, computed);
+  return normalizeCachedTasteIdentity(cached.payload as TasteIdentity);
 }
