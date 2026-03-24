@@ -361,17 +361,33 @@ async function getEntityStatsLive(
     }
   }
 
-  const { data: reviewRows } = await supabase
+  // 1. Get total review count via database-side aggregate (no row fetch)
+  const { count: total_review_count } = await supabase
     .from("reviews")
-    .select("rating")
+    .select("id", { count: "exact", head: true })
     .eq("entity_type", entityType)
     .eq("entity_id", entityId);
 
-  const ratings = (reviewRows ?? []).map((r) => r.rating);
-  const review_count = ratings.length;
-  const sum = ratings.reduce((a, b) => a + b, 0);
+  const review_count = total_review_count ?? 0;
+
+  // 2. Fetch ratings for average and distribution.
+  // We limit to 5000 for live aggregation to prevent memory issues while remaining accurate for most entities.
+  // Order by created_at DESC to ensure the approximation is based on the most recent reviews.
+  const { data: ratingRows } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+
+  const rows = ratingRows ?? [];
+  const fetched_count = rows.length;
+  const sum = rows.reduce((a, b) => a + b.rating, 0);
+
+  // If we hit the 5000 limit, the average is an approximation of the latest 5000 reviews.
   const average_rating =
-    review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
+    fetched_count > 0 ? Math.round((sum / fetched_count) * 10) / 10 : null;
 
   const rating_distribution: {
     1: number;
@@ -386,8 +402,8 @@ async function getEntityStatsLive(
     4: 0,
     5: 0,
   };
-  for (const r of ratings) {
-    const star = Math.max(1, Math.min(5, Math.floor(r)));
+  for (const r of rows) {
+    const star = Math.max(1, Math.min(5, Math.floor(r.rating)));
     rating_distribution[star as 1 | 2 | 3 | 4 | 5]++;
   }
 
@@ -524,42 +540,34 @@ export async function getTrackStatsForTrackIds(
 
     const missingIds = uniqueIds.filter((id) => !(id in result));
     if (missingIds.length > 0) {
-      const [logsRes, reviewsRes] = await Promise.all([
-        supabase.from("logs").select("track_id").in("track_id", missingIds),
-        supabase
-          .from("reviews")
-          .select("entity_id, rating")
-          .eq("entity_type", "song")
-          .in("entity_id", missingIds),
-      ]);
+      // Fetch live aggregates for missing track_stats via database RPC.
+      // This is much more efficient than fetching raw rows for JavaScript aggregation.
+      const { data: statsRows, error: statsError } = await supabase.rpc(
+        "get_track_stats_batch",
+        { p_track_ids: missingIds },
+      );
 
-      const listenCounts = new Map<string, number>();
-      for (const row of logsRes.data ?? []) {
-        listenCounts.set(
-          row.track_id,
-          (listenCounts.get(row.track_id) ?? 0) + 1,
-        );
-      }
-      const reviewCounts = new Map<string, number>();
-      const ratingSums = new Map<string, number>();
-      for (const row of reviewsRes.data ?? []) {
-        reviewCounts.set(
-          row.entity_id,
-          (reviewCounts.get(row.entity_id) ?? 0) + 1,
-        );
-        ratingSums.set(
-          row.entity_id,
-          (ratingSums.get(row.entity_id) ?? 0) + row.rating,
-        );
-      }
-
-      for (const trackId of missingIds) {
-        const listen_count = listenCounts.get(trackId) ?? 0;
-        const review_count = reviewCounts.get(trackId) ?? 0;
-        const sum = ratingSums.get(trackId) ?? 0;
-        const average_rating =
-          review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
-        result[trackId] = { listen_count, average_rating, review_count };
+      if (!statsError && statsRows) {
+        for (const row of statsRows as {
+          track_id: string;
+          listen_count: number;
+          review_count: number;
+          avg_rating: number | null;
+        }[]) {
+          result[row.track_id] = {
+            listen_count: Number(row.listen_count) || 0,
+            review_count: Number(row.review_count) || 0,
+            average_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
+          };
+        }
+      } else {
+        if (statsError) {
+          console.warn("[queries] get_track_stats_batch RPC failed, using fallback:", statsError.message);
+        }
+        // Fallback or ensure every ID is at least initialized to avoid undefined in return
+        for (const id of missingIds) {
+          if (!(id in result)) result[id] = { ...empty };
+        }
       }
     }
 

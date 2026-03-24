@@ -78,6 +78,7 @@ export async function computeSongCooccurrence(): Promise<{
   const supabase = createSupabaseAdminClient();
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  // Fetch a limited subset of recent activity for co-occurrence computation.
   const [logsRes, reviewsRes] = await Promise.all([
     supabase
       .from("logs")
@@ -158,6 +159,7 @@ export async function computeAlbumCooccurrence(): Promise<{
   const supabase = createSupabaseAdminClient();
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  // Fetch a limited subset of recent activity for co-occurrence computation.
   const [reviewsRes, favRes, logsSongsRes] = await Promise.all([
     supabase
       .from("reviews")

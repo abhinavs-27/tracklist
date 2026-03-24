@@ -48,8 +48,10 @@ export async function getRecentAlbumsFromLogs(
       .from("songs")
       .select("id, album_id")
       .in("id", trackIdsNeedingSong);
-    for (const s of songs ?? []) {
-      if (s.album_id) songAlbumMap.set(s.id, s.album_id);
+    if (songs) {
+      for (const s of songs) {
+        if (s.album_id) songAlbumMap.set(s.id, s.album_id);
+      }
     }
   }
 
