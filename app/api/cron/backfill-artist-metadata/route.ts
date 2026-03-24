@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
     try {
       const artists = await getArtists(chunk, {
         allowClientCredentials: true,
+      });
       for (const a of artists) {
         try {
           await upsertArtistFromSpotify(supabase, a, { skipMerge: true });

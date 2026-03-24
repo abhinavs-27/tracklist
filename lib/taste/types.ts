@@ -19,14 +19,9 @@ export type TasteGenre = {
   weight: number;
 };
 
-/** Derived listening persona (single best match). */
-export type TasteListeningStyle =
-  | "deep listener"
-  | "explorer"
-  | "mainstream"
-  | "crate digger"
-  | "binge listener"
-  | "casual";
+import type { TasteListeningStyle } from "./listening-style";
+
+export type { TasteListeningStyle };
 
 export type TasteIdentity = {
   topArtists: TasteTopArtist[];

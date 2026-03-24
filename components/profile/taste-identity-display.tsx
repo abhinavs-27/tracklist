@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getListeningStyleDisplay, normalizeListeningStyle } from "@/lib/taste/listening-style";
 import type { TasteIdentity } from "@/lib/taste/types";
 
 type Props = {
@@ -11,10 +12,9 @@ export function TasteIdentityDisplay({ data: t }: Props) {
     t.topArtists.length > 0 ||
     t.topGenres.length > 0;
 
-  const styleLabel =
-    typeof t.listeningStyle === "string"
-      ? t.listeningStyle
-      : String(t.listeningStyle);
+  const styleKey = normalizeListeningStyle(t.listeningStyle as string);
+  const { title: styleTitle, subtitle: styleSubtitle } =
+    getListeningStyleDisplay(styleKey);
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
@@ -40,9 +40,10 @@ export function TasteIdentityDisplay({ data: t }: Props) {
           <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/90">
             Listening style
           </p>
-          <p className="mt-1 text-2xl font-semibold capitalize leading-tight text-white sm:text-3xl">
-            {styleLabel}
+          <p className="mt-1 text-2xl font-semibold leading-tight text-white sm:text-3xl">
+            {styleTitle}
           </p>
+          <p className="mt-1.5 text-sm leading-snug text-zinc-400">{styleSubtitle}</p>
           <p className="mt-2 text-xs text-zinc-500">
             ~{t.avgTracksPerSession} tracks / session
           </p>

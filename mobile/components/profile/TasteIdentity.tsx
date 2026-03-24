@@ -11,6 +11,10 @@ import { useRouter } from "expo-router";
 import { fetcher } from "../../lib/api";
 import { queryKeys } from "../../lib/query-keys";
 import { theme } from "../../lib/theme";
+import {
+  getListeningStyleDisplay,
+  normalizeListeningStyle,
+} from "../../../lib/taste/listening-style";
 import type { TasteIdentity } from "../../../lib/taste/types";
 
 type Props = {
@@ -72,6 +76,9 @@ export function TasteIdentity({ userId }: Props) {
 
   const hasAny =
     t.totalLogs > 0 || t.topArtists.length > 0 || t.topGenres.length > 0;
+
+  const styleKey = normalizeListeningStyle(t.listeningStyle as string);
+  const styleDisplay = getListeningStyleDisplay(styleKey);
 
   return (
     <View
@@ -138,13 +145,22 @@ export function TasteIdentity({ userId }: Props) {
           </Text>
           <Text
             style={{
-              fontSize: 26,
+              fontSize: 24,
               fontWeight: "800",
               color: theme.colors.text,
-              textTransform: "capitalize",
+              lineHeight: 28,
             }}
           >
-            {t.listeningStyle}
+            {styleDisplay.title}
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: theme.colors.muted,
+              lineHeight: 20,
+            }}
+          >
+            {styleDisplay.subtitle}
           </Text>
           <Text style={{ fontSize: 12, color: theme.colors.muted }}>
             ~{t.avgTracksPerSession} tracks / session

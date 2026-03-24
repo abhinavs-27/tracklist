@@ -5,15 +5,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getArtists } from "@/lib/spotify";
 import { upsertArtistFromSpotify } from "@/lib/spotify-cache";
-import type {
-  TasteGenre,
-  TasteIdentity,
-  TasteListeningStyle,
-  TasteTopAlbum,
-  TasteTopArtist,
-} from "./types";
+import {
+  normalizeListeningStyle,
+  type TasteListeningStyle,
+} from "./listening-style";
+import type { TasteGenre, TasteIdentity, TasteTopAlbum, TasteTopArtist } from "./types";
 
 export type { TasteGenre, TasteIdentity, TasteTopAlbum, TasteTopArtist } from "./types";
+export type { TasteListeningStyle } from "./listening-style";
 
 const STALE_MS = 6 * 60 * 60 * 1000;
 const TOP_N = 10;
@@ -27,7 +26,7 @@ const EMPTY: TasteIdentity = {
   topGenres: [],
   obscurityScore: null,
   diversityScore: 0,
-  listeningStyle: "casual",
+  listeningStyle: "plotting-the-plot",
   avgTracksPerSession: 0,
   totalLogs: 0,
   summary: "Log more listens to unlock your taste identity.",
@@ -76,43 +75,43 @@ function pickListeningStyle(args: {
   const scores: Scored[] = [];
 
   if (totalLogs < 22) {
-    scores.push({ style: "casual", score: 72 - totalLogs * 1.2 });
+    scores.push({ style: "plotting-the-plot", score: 72 - totalLogs * 1.2 });
   }
 
   if (avgTrackPopularity != null && avgTrackPopularity > 70) {
     scores.push({
-      style: "mainstream",
+      style: "chart-gravity",
       score: 55 + (avgTrackPopularity - 70) * 1.1,
     });
   }
 
   if (avgTrackPopularity != null && avgTrackPopularity < 40) {
     scores.push({
-      style: "crate digger",
+      style: "deep-cuts-dept",
       score: 55 + (40 - avgTrackPopularity) * 1.0,
     });
   }
 
-  if (uniqueArtists >= 45) scores.push({ style: "explorer", score: 88 });
-  else if (uniqueArtists >= 30) scores.push({ style: "explorer", score: 74 });
-  else if (uniqueArtists >= 20) scores.push({ style: "explorer", score: 58 });
+  if (uniqueArtists >= 45) scores.push({ style: "omnivore-mode", score: 88 });
+  else if (uniqueArtists >= 30) scores.push({ style: "omnivore-mode", score: 74 });
+  else if (uniqueArtists >= 20) scores.push({ style: "omnivore-mode", score: 58 });
   else if (uniqueGenres >= 14 && uniqueArtists >= 14) {
-    scores.push({ style: "explorer", score: 52 + uniqueGenres * 0.4 });
+    scores.push({ style: "omnivore-mode", score: 52 + uniqueGenres * 0.4 });
   }
 
   if (totalLogs >= 28 && albumRatio < 0.2 && uniqueAlbums >= 3) {
-    scores.push({ style: "deep listener", score: 78 });
+    scores.push({ style: "album-gravity-well", score: 78 });
   } else if (totalLogs >= 18 && albumRatio < 0.28 && uniqueAlbums >= 2) {
-    scores.push({ style: "deep listener", score: 60 });
+    scores.push({ style: "album-gravity-well", score: 60 });
   }
 
   if (maxLogsPerDay >= 90 || logsPerDay >= 45) {
-    scores.push({ style: "binge listener", score: 82 });
+    scores.push({ style: "session-maximalist", score: 82 });
   } else if (maxLogsPerDay >= 45 || logsPerDay >= 28) {
-    scores.push({ style: "binge listener", score: 64 });
+    scores.push({ style: "session-maximalist", score: 64 });
   }
 
-  if (scores.length === 0) return "casual";
+  if (scores.length === 0) return "plotting-the-plot";
 
   scores.sort((a, b) => b.score - a.score);
   return scores[0]!.style;
@@ -131,29 +130,39 @@ function buildSummary(t: TasteIdentity): string {
   } else if (t.obscurityScore != null && t.obscurityScore <= 35) {
     bits.push("You gravitate toward popular tracks.");
   }
-  switch (t.listeningStyle) {
-    case "deep listener":
-      bits.push("You often go deep on albums and return to the same corners of your catalog.");
+  const ls = normalizeListeningStyle(t.listeningStyle as string);
+  switch (ls) {
+    case "album-gravity-well":
+      bits.push("You circle back to the same albums a lot.");
       break;
-    case "explorer":
-      bits.push("You jump between artists and sounds.");
+    case "omnivore-mode":
+      bits.push("You jump between a lot of different artists.");
       break;
-    case "mainstream":
-      bits.push("You spend a lot of time with well-known tracks.");
+    case "chart-gravity":
+      bits.push("A lot of your plays sit on the popular side.");
       break;
-    case "crate digger":
-      bits.push("You dig into less obvious tracks.");
+    case "deep-cuts-dept":
+      bits.push("You lean toward tracks that aren’t the obvious singles.");
       break;
-    case "binge listener":
-      bits.push("You listen in intense bursts.");
+    case "session-maximalist":
+      bits.push("Sometimes you rack up a ton of plays in one go.");
       break;
-    case "casual":
-      bits.push("Your listening is light or still taking shape.");
+    case "plotting-the-plot":
+      bits.push("Not enough logged listens yet to say much.");
       break;
     default:
-      bits.push("Your habits mix many styles.");
+      bits.push("Your habits mix a few different patterns.");
   }
   return bits.join(" ");
+}
+
+function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
+  const listeningStyle = normalizeListeningStyle(String(cached.listeningStyle));
+  const base = { ...cached, listeningStyle };
+  if (base.totalLogs === 0) {
+    return { ...base, summary: EMPTY.summary };
+  }
+  return { ...base, summary: buildSummary(base) };
 }
 
 async function fetchSongsBatch(
@@ -510,6 +519,37 @@ export async function computeTasteIdentity(
   return { ...base, summary: buildSummary(base) };
 }
 
+async function upsertTasteIdentityCache(
+  admin: SupabaseClient,
+  userId: string,
+  payload: TasteIdentity,
+): Promise<void> {
+  const { error } = await admin.from("taste_identity_cache").upsert(
+    {
+      user_id: userId,
+      payload,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) {
+    console.warn("[taste-identity] cache upsert failed", error);
+  }
+}
+
+/**
+ * Recompute taste identity from logs and write `taste_identity_cache` (no stale check).
+ * Used by the daily cron and can be called after bulk imports.
+ */
+export async function refreshTasteIdentityCacheForUser(
+  userId: string,
+): Promise<TasteIdentity> {
+  const admin = createSupabaseAdminClient();
+  const computed = await computeTasteIdentity(admin, userId);
+  await upsertTasteIdentityCache(admin, userId, computed);
+  return computed;
+}
+
 export async function getTasteIdentity(userId: string): Promise<TasteIdentity> {
   const admin = createSupabaseAdminClient();
 
@@ -522,24 +562,11 @@ export async function getTasteIdentity(userId: string): Promise<TasteIdentity> {
   if (!cacheErr && cached?.payload && cached.updated_at) {
     const age = Date.now() - new Date(cached.updated_at).getTime();
     if (age < STALE_MS && age >= 0) {
-      return cached.payload as TasteIdentity;
+      return normalizeCachedTasteIdentity(cached.payload as TasteIdentity);
     }
   }
 
   const computed = await computeTasteIdentity(admin, userId);
-
-  const { error: upErr } = await admin.from("taste_identity_cache").upsert(
-    {
-      user_id: userId,
-      payload: computed,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
-
-  if (upErr) {
-    console.warn("[taste-identity] cache upsert failed", upErr);
-  }
-
+  await upsertTasteIdentityCache(admin, userId, computed);
   return computed;
 }

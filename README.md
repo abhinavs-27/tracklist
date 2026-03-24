@@ -285,6 +285,7 @@ Representative routes (non-exhaustive; see `app/api/` and existing README tables
 | `0 0 * * *` | `/api/cron/refresh-stats` | Refresh entity/stats materializations |
 | `30 0 * * *` | `/api/cron/compute-cooccurrence` | Co-occurrence / recommendation inputs |
 | `0 0 * * *` | `/api/cron/lastfm-sync` | Last.fm scrobble import per user |
+| `0 4 * * *` | `/api/cron/taste-identity-refresh` | Recompute `taste_identity_cache` (oldest rows first; batch per run) |
 | manual | `/api/cron/backfill-artist-metadata` | Spotify artist **genres**, **popularity**, **images** for rows missing data (client credentials; optional `Authorization: Bearer CRON_SECRET` when set) |
 
 Cron routes must be secured (e.g. `CRON_SECRET` / Vercel headers) per your deployment — verify `app/api/cron/*` implementations.
