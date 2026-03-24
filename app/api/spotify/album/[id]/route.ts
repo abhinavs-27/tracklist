@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAlbum } from '@/lib/spotify';
-import { apiBadRequest, apiInternalError, apiOk, apiTooManyRequests, apiSpotifyDisabled } from '@/lib/api-response';
-import { isSpotifyIntegrationEnabled } from '@/lib/spotify-integration-enabled';
+import { apiBadRequest, apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
 import { isValidSpotifyId } from '@/lib/validation';
 import { checkSpotifyRateLimit } from '@/lib/rate-limit';
 
@@ -14,10 +13,6 @@ export async function GET(request: NextRequest, ctx: { params: RouteParams }) {
   try {
     const { id } = await ctx.params;
     if (!isValidSpotifyId(id)) return apiBadRequest('Invalid spotify id');
-
-    if (!isSpotifyIntegrationEnabled()) {
-      return apiSpotifyDisabled();
-    }
 
     const album = await getAlbum(id);
     const data = {

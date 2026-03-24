@@ -16,7 +16,11 @@ export function Providers({
   session?: Session | null;
 }) {
   return (
-    <SessionProvider session={session}>
+    <SessionProvider
+      session={session}
+      refetchOnWindowFocus={false}
+      refetchInterval={0}
+    >
       <QueryProvider>
         <ToastProvider>
           <RecentViewsProvider>

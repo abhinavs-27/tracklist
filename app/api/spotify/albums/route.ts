@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAlbums } from "@/lib/spotify";
-import { apiBadRequest, apiInternalError, apiTooManyRequests, apiOk, apiSpotifyDisabled } from "@/lib/api-response";
-import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
+import { apiBadRequest, apiInternalError, apiTooManyRequests, apiOk } from "@/lib/api-response";
 import { isValidSpotifyId } from "@/lib/validation";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 
@@ -28,10 +27,6 @@ export async function GET(request: NextRequest) {
     const rawIds = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
     const ids = rawIds.filter((id) => isValidSpotifyId(id)).slice(0, MAX_IDS);
     if (ids.length === 0) return apiBadRequest("No valid Spotify album ids provided");
-
-    if (!isSpotifyIntegrationEnabled()) {
-      return apiSpotifyDisabled();
-    }
 
     const albums = await getAlbums(ids);
     const result: AlbumMetadataItem[] = albums.map((a) => ({

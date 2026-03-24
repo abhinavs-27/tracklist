@@ -1,6 +1,80 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/** Set `MAINTENANCE_MODE=true` in env to show a site-wide maintenance page (503). */
+function isMaintenanceMode(): boolean {
+  const v = process.env.MAINTENANCE_MODE?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+const MAINTENANCE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tracklist — Under maintenance</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #09090b;
+      color: #fafafa;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      padding: 1.5rem;
+    }
+    .card {
+      max-width: 28rem;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.5rem;
+    }
+    p {
+      margin: 0;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      color: #a1a1aa;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Under maintenance</h1>
+    <p>Tracklist is temporarily unavailable. We’ll be back soon.</p>
+  </div>
+</body>
+</html>`;
+
+function maintenanceResponse(request: NextRequest): NextResponse {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      {
+        error: "maintenance",
+        message: "Tracklist is temporarily under maintenance.",
+      },
+      {
+        status: 503,
+        headers: { "Retry-After": "3600" },
+      },
+    );
+  }
+  return new NextResponse(MAINTENANCE_HTML, {
+    status: 503,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Retry-After": "3600",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 /**
  * When `API_BACKEND_URL` is set, proxy browser/API requests from this Next.js app
  * to the standalone Express backend. NextAuth stays on Next (`/api/auth/*`).
@@ -9,6 +83,10 @@ import type { NextRequest } from "next/server";
  * the site on port 3000 (default).
  */
 export async function middleware(request: NextRequest) {
+  if (isMaintenanceMode()) {
+    return maintenanceResponse(request);
+  }
+
   const backend = process.env.API_BACKEND_URL?.trim();
   if (!backend) return NextResponse.next();
 
@@ -73,5 +151,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: [
+    "/",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
 
 /**
@@ -15,12 +14,8 @@ export async function syncManualLogSideEffects(
   trackId: string,
   _listenedAtIso: string,
 ): Promise<void> {
-  const catalogOpts = !isSpotifyIntegrationEnabled()
-    ? ({ allowLastfmMapping: true } as const)
-    : undefined;
-
   try {
-    await getOrFetchTrack(trackId, catalogOpts);
+    await getOrFetchTrack(trackId);
   } catch (e) {
     console.warn("[syncManualLog] getOrFetchTrack failed; stats may be incomplete until refresh", {
       trackId,
@@ -46,15 +41,11 @@ export async function syncBatchLogSideEffects(
 ): Promise<void> {
   if (entries.length === 0) return;
 
-  const catalogOpts = !isSpotifyIntegrationEnabled()
-    ? ({ allowLastfmMapping: true } as const)
-    : undefined;
-
   const uniqueIds = [...new Set(entries.map((e) => e.trackId))];
 
   for (const id of uniqueIds) {
     try {
-      await getOrFetchTrack(id, catalogOpts);
+      await getOrFetchTrack(id);
     } catch (e) {
       console.warn("[syncBatchLog] getOrFetchTrack failed", { id, error: e });
     }

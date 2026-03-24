@@ -1,20 +1,16 @@
 /**
- * Switch for **user-facing** Spotify features (OAuth, search UI, in-app Spotify ingest, etc.).
+ * `isSpotifyIntegrationEnabled()` — OAuth, Spotify logging, sync, quick log, ingest cron.
+ * Use for **user-linked** Spotify flows only (not catalog search/metadata).
  *
- * Server-side **catalog/metadata** calls (client credentials) may still run when:
- * - `allowLastfmMapping` / `allowClientCredentials` is passed to `spotifyFetch`, or
- * - `LASTFM_API_KEY` is set (Last.fm import needs Spotify to resolve IDs) — unless
- *   `SPOTIFY_DISABLE_FOR_LASTFM_IMPORT=true` opts out.
+ * To hide Spotify **profile** controls (connect / sync UI) without toggling env flags,
+ * set `NEXT_PUBLIC_HIDE_SPOTIFY_PROFILE=true`.
  *
- * Set NEXT_PUBLIC_ENABLE_SPOTIFY=true (and/or ENABLE_SPOTIFY_INTEGRATION=true) to enable the full integration.
+ * Catalog (`spotifyFetch` / client credentials) is not gated by this — it only needs
+ * `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET`.
+ *
+ * Last.fm → Spotify ID mapping when `LASTFM_API_KEY` is set — unless
+ * `SPOTIFY_DISABLE_FOR_LASTFM_IMPORT=true`.
  */
-
-export class SpotifyIntegrationDisabledError extends Error {
-  constructor(message = "Spotify integration is temporarily disabled") {
-    super(message);
-    this.name = "SpotifyIntegrationDisabledError";
-  }
-}
 
 let devLoggedDisabled = false;
 
@@ -39,14 +35,22 @@ export function isSpotifyIntegrationEnabled(): boolean {
     !devLoggedDisabled
   ) {
     devLoggedDisabled = true;
-    console.debug("[Spotify Integration Disabled]");
+    console.debug("[Spotify user integration off — OAuth / logging]");
   }
 
   return enabled;
 }
 
+/** True when profile should show Spotify connect / sync (manual opt-out via env). */
+export function isSpotifyProfileIntegrationVisible(): boolean {
+  if (process.env.NEXT_PUBLIC_HIDE_SPOTIFY_PROFILE === "true") {
+    return false;
+  }
+  return isSpotifyIntegrationEnabled();
+}
+
 export const SPOTIFY_DISABLED_USER_MESSAGE =
-  "Music import and Spotify features are temporarily unavailable.";
+  "Spotify logging is not enabled for this app.";
 
 export const SPOTIFY_DISABLED_API_MESSAGE =
-  "Spotify integration is temporarily disabled.";
+  "Spotify account linking is not enabled.";

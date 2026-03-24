@@ -156,16 +156,21 @@ Copy **`.env.example`** to **`.env`**. Critical entries:
 | `SUPABASE_SERVICE_ROLE_KEY` | **Server-only** — crons, admin writes, `spotify_tokens` |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Spotify app |
 | `SPOTIFY_REDIRECT_URI` | Optional; default pattern `{NEXTAUTH_URL}/api/spotify/callback` |
+| `SPOTIFY_DEBUG` | `1` or `true` — log each Spotify Web API call (path, HTTP status, ms) to **server** stdout; never logs access tokens. Browser DevTools won’t show these (server-side `spotifyFetch`). |
 
-**Spotify + search + OAuth behavior** are gated by feature flags (default off if unset):
+**Spotify** uses two layers (see `lib/spotify-integration-enabled.ts`):
+
+| Layer | What it controls | When it works |
+|-------|------------------|---------------|
+| **Catalog** (search, album metadata, `spotifyFetch` client-credentials) | `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` | Independent of OAuth — search and metadata work with credentials only. |
+| **User integration** (OAuth, logging, sync, quick log, ingest cron) | Feature flags below | Off unless explicitly enabled. |
 
 | Variable | Purpose |
 |----------|---------|
-| `NEXT_PUBLIC_ENABLE_SPOTIFY` | Client-visible gate |
-| `ENABLE_SPOTIFY_INTEGRATION` | Server-side gate for API routes / jobs |
-| `EXPO_PUBLIC_ENABLE_SPOTIFY` | Expo / mobile builds |
-
-See `lib/spotify-integration-enabled.ts`.
+| `NEXT_PUBLIC_ENABLE_SPOTIFY` | Client-visible gate for **linking Spotify / logging** |
+| `ENABLE_SPOTIFY_INTEGRATION` | Server gate for OAuth routes, ingest, user-token APIs |
+| `EXPO_PUBLIC_ENABLE_SPOTIFY` | Expo — Spotify account features on mobile |
+| `EXPO_PUBLIC_DISABLE_SPOTIFY_CATALOG` | Set `true` to hide mobile search UX (rare; server still controls API) |
 
 **Last.fm (optional)**
 
@@ -312,7 +317,7 @@ npm run test:e2e    # Playwright (requires dev server / env per project)
 | **Infinite loading** on pages using **`fetch('/api/...')`** | **`API_BACKEND_URL`** set + Express fallback loop — unset **`API_BACKEND_URL`** for web-only dev, or ensure Express **`NEXT_API_FALLBACK`** points to Next **3000** and avoid circular proxying. |
 | **503** “API backend unavailable” | Middleware cannot reach **`API_BACKEND_URL`** (Express not running / wrong port). |
 | **504** from Express to Next | Next not running on **`NEXT_API_FALLBACK`** URL, or timeout — start **`npm run dev`** on port 3000. |
-| **Spotify “disabled”** | Set **`NEXT_PUBLIC_ENABLE_SPOTIFY=true`** and **`ENABLE_SPOTIFY_INTEGRATION=true`** (or equivalent). |
+| **Spotify logging / OAuth “disabled”** | Set **`NEXT_PUBLIC_ENABLE_SPOTIFY=true`** and **`ENABLE_SPOTIFY_INTEGRATION=true`** for user-linked features. **Search/catalog** only needs **`SPOTIFY_CLIENT_ID`** / **`SPOTIFY_CLIENT_SECRET`**. |
 | **Spotify Web API 403** on `/v1/artists` (batch or single) | App restrictions in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard): Development Mode limits, quota, or policy — client-credentials still need a valid app; check the JSON **`error.message`** in logs. |
 | **RLS / permission errors** on admin operations | Use **service role** only in trusted server code (`lib/supabase-admin.ts`). |
 | **Session / 401** | **`NEXTAUTH_URL`** must match the browser origin. |

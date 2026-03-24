@@ -10,7 +10,7 @@ import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { LastfmSection } from "@/components/lastfm/lastfm-section";
 import { TasteIdentitySection } from "@/components/profile/taste-identity-section";
-import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
+import { isSpotifyProfileIntegrationVisible } from "@/lib/spotify-integration-enabled";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   getFollowCounts,
@@ -92,7 +92,7 @@ export default async function ProfilePage({
     notFound();
   }
 
-  const spotifyIntegrationEnabled = isSpotifyIntegrationEnabled();
+  const spotifyProfileControlsVisible = isSpotifyProfileIntegrationVisible();
 
   if (!isValidUuid(segment)) {
     redirect(`/profile/${user.id}`);
@@ -239,7 +239,7 @@ export default async function ProfilePage({
       <ProfileRecentAlbumsWithSync
         userId={profile.id}
         username={profile.username}
-        showSpotifyControls={isOwnProfile && spotifyIntegrationEnabled}
+        showSpotifyControls={isOwnProfile && spotifyProfileControlsVisible}
         spotifyConnected={spotifyConnected}
       />
 

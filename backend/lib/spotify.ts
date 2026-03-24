@@ -1,10 +1,5 @@
 /// <reference path="../types/spotify-api.d.ts" />
 
-import {
-  isSpotifyIntegrationEnabled,
-  SpotifyIntegrationDisabledError,
-} from "./spotify-integration-enabled";
-
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
@@ -68,10 +63,6 @@ async function spotifyFetch<T>(
   path: string,
   params?: Record<string, string>,
 ): Promise<T> {
-  if (!isSpotifyIntegrationEnabled()) {
-    throw new SpotifyIntegrationDisabledError();
-  }
-
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -120,10 +111,8 @@ async function spotifyFetch<T>(
       continue;
     }
 
-    // 403 Forbidden: often app in Development Mode or quota/access restricted. Retry once with fresh token.
+    // 403: app policy / Dev Mode — not fixed by a new token (401 is for invalid/expired tokens).
     if (res.status === 403) {
-      cachedAccessToken = null;
-      tokenExpiresAt = 0;
       const raw = await res.text();
       let hint = "";
       try {
@@ -136,10 +125,9 @@ async function spotifyFetch<T>(
       } catch {
         if (raw.length > 0 && raw.length < 200) hint = ` — ${raw}`;
       }
-      lastError = new Error(
-        `Spotify API 403 Forbidden for ${path}${hint}. Check Spotify Developer Dashboard: ensure your app is not restricted (Development Mode may limit some endpoints), or request extended quota.`,
+      throw new Error(
+        `Spotify API 403 Forbidden for ${path}${hint}. Check Spotify Developer Dashboard (Extended Quota vs Development Mode, Feb 2026 catalog limits).`,
       );
-      continue;
     }
 
     const raw = await res.text();
@@ -206,7 +194,17 @@ export async function getArtistTopTracks(
   spotifyId: string,
   market = "US",
 ): Promise<{ tracks: SpotifyApi.TrackObjectFull[] }> {
-  return spotifyFetch(`/artists/${spotifyId}/top-tracks`, { market });
+  try {
+    return await spotifyFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
+      `/artists/${spotifyId}/top-tracks`,
+      { market },
+    );
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("403")) {
+      return { tracks: [] };
+    }
+    throw e;
+  }
 }
 
 export async function getAlbum(
@@ -215,43 +213,21 @@ export async function getAlbum(
   return spotifyFetch<SpotifyApi.AlbumObjectFull>(`/albums/${spotifyId}`);
 }
 
-/** Spotify limit: 20 albums per request. Chunks and merges. Falls back to single getAlbum() if batch returns 403. */
+/** GET /albums/{id} per id — bulk GET /albums?ids= returns 403 on Spotify Development Mode (Feb 2026). */
 export async function getAlbums(
   spotifyIds: string[],
 ): Promise<SpotifyApi.AlbumObjectFull[]> {
   const unique = [...new Set(spotifyIds)].filter(Boolean);
   if (unique.length === 0) return [];
-  const CHUNK = 20;
   const out: SpotifyApi.AlbumObjectFull[] = [];
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const ids = chunk.join(",");
+  for (let i = 0; i < unique.length; i++) {
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
     try {
-      const data = (await spotifyFetch<{
-        albums: (SpotifyApi.AlbumObjectFull | null)[];
-      }>("/albums", { ids })) as {
-        albums: (SpotifyApi.AlbumObjectFull | null)[];
-      };
-      const resolved = (data.albums ?? []).filter(
-        (a): a is SpotifyApi.AlbumObjectFull => a != null,
-      );
-      out.push(...resolved);
-    } catch (err) {
-      if (err instanceof Error && err.message.includes("403")) {
-        // Fallback: fetch each album individually when batch endpoint is restricted.
-        for (const id of chunk) {
-          try {
-            const a = await getAlbum(id);
-            out.push(a);
-          } catch {
-            // skip failed single fetch
-          }
-          // Small delay to avoid hammering the API.
-          await new Promise((resolve) => setTimeout(resolve, 80));
-        }
-      } else {
-        throw err;
-      }
+      out.push(await getAlbum(unique[i]!));
+    } catch {
+      /* invalid id or API error */
     }
   }
   return out;
@@ -274,81 +250,41 @@ export async function getTrack(
   return spotifyFetch<SpotifyApi.TrackObjectFull>(`/tracks/${spotifyId}`);
 }
 
-/** Spotify limit: 50 tracks per request. Chunks and merges. Falls back to single getTrack() if batch returns 403. */
+/** GET /tracks/{id} per id — bulk GET /tracks?ids= returns 403 on Spotify Development Mode (Feb 2026). */
 export async function getTracks(
   spotifyIds: string[],
 ): Promise<SpotifyApi.TrackObjectFull[]> {
   const unique = [...new Set(spotifyIds)].filter(Boolean);
   if (unique.length === 0) return [];
-  const CHUNK = 50;
   const out: SpotifyApi.TrackObjectFull[] = [];
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const ids = chunk.join(",");
+  for (let i = 0; i < unique.length; i++) {
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
     try {
-      const data = (await spotifyFetch<{
-        tracks: (SpotifyApi.TrackObjectFull | null)[];
-      }>("/tracks", { ids })) as {
-        tracks: (SpotifyApi.TrackObjectFull | null)[];
-      };
-      const resolved = (data.tracks ?? []).filter(
-        (t): t is SpotifyApi.TrackObjectFull => t != null,
-      );
-      out.push(...resolved);
-    } catch (err) {
-      if (err instanceof Error && err.message.includes("403")) {
-        for (const id of chunk) {
-          try {
-            const t = await getTrack(id);
-            out.push(t);
-          } catch {
-            // skip failed single fetch
-          }
-          await new Promise((r) => setTimeout(r, 80));
-        }
-      } else {
-        throw err;
-      }
+      out.push(await getTrack(unique[i]!));
+    } catch {
+      /* invalid id or API error */
     }
   }
   return out;
 }
 
-/** Spotify limit: 50 artists per request. Chunks and merges. Falls back to single getArtist() if batch returns 403. */
+/** GET /artists/{id} per id — bulk GET /artists?ids= returns 403 on Spotify Development Mode (Feb 2026). */
 export async function getArtists(
   spotifyIds: string[],
 ): Promise<SpotifyApi.ArtistObjectFull[]> {
   const unique = [...new Set(spotifyIds)].filter(Boolean);
   if (unique.length === 0) return [];
-  const CHUNK = 50;
   const out: SpotifyApi.ArtistObjectFull[] = [];
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const ids = chunk.join(",");
+  for (let i = 0; i < unique.length; i++) {
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
     try {
-      const data = (await spotifyFetch<{
-        artists: (SpotifyApi.ArtistObjectFull | null)[];
-      }>("/artists", { ids })) as {
-        artists: (SpotifyApi.ArtistObjectFull | null)[];
-      };
-      const resolved = (data.artists ?? []).filter(
-        (a): a is SpotifyApi.ArtistObjectFull => a != null,
-      );
-      out.push(...resolved);
-    } catch (err) {
-      if (err instanceof Error && err.message.includes("403")) {
-        for (const id of chunk) {
-          try {
-            const a = await getArtist(id);
-            out.push(a);
-          } catch {
-            // skip failed single fetch
-          }
-          await new Promise((r) => setTimeout(r, 80));
-        }
-      } else {
-        throw err;
-      }
+      out.push(await getArtist(unique[i]!));
+    } catch {
+      /* invalid id or API error */
     }
   }
   return out;

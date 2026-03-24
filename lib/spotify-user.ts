@@ -3,7 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getAppBaseUrl, isLocalhostUrl } from "@/lib/app-url";
 import {
   isSpotifyIntegrationEnabled,
-  SpotifyIntegrationDisabledError,
+  SPOTIFY_DISABLED_API_MESSAGE,
 } from "@/lib/spotify-integration-enabled";
 
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
@@ -90,7 +90,7 @@ export async function exchangeSpotifyCode(
   redirectUriOverride?: string,
 ): Promise<SpotifyTokenResponse> {
   if (!isSpotifyIntegrationEnabled()) {
-    throw new SpotifyIntegrationDisabledError();
+    throw new Error(SPOTIFY_DISABLED_API_MESSAGE);
   }
 
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
@@ -121,7 +121,7 @@ export async function refreshSpotifyAccessToken(
   refreshToken: string,
 ): Promise<SpotifyTokenResponse> {
   if (!isSpotifyIntegrationEnabled()) {
-    throw new SpotifyIntegrationDisabledError();
+    throw new Error(SPOTIFY_DISABLED_API_MESSAGE);
   }
 
   const clientId = requiredEnv("SPOTIFY_CLIENT_ID");
@@ -155,7 +155,7 @@ export async function getValidSpotifyAccessToken(
   userId: string,
 ): Promise<string> {
   if (!isSpotifyIntegrationEnabled()) {
-    throw new SpotifyIntegrationDisabledError();
+    throw new Error(SPOTIFY_DISABLED_API_MESSAGE);
   }
 
   const supabase = createSupabaseAdminClient();
@@ -237,7 +237,7 @@ export async function getRecentlyPlayed(
   limit = 50,
 ): Promise<SpotifyRecentlyPlayedResponse> {
   if (!isSpotifyIntegrationEnabled()) {
-    throw new SpotifyIntegrationDisabledError();
+    throw new Error(SPOTIFY_DISABLED_API_MESSAGE);
   }
 
   const safeLimit = Math.min(Math.max(limit, 1), 50);
@@ -267,7 +267,7 @@ async function spotifyUserFetch<T>(
   params?: Record<string, string>,
 ): Promise<T> {
   if (!isSpotifyIntegrationEnabled()) {
-    throw new SpotifyIntegrationDisabledError();
+    throw new Error(SPOTIFY_DISABLED_API_MESSAGE);
   }
 
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
@@ -320,9 +320,16 @@ export async function getUserArtistTopTracks(
   artistId: string,
   market = "US",
 ): Promise<{ tracks: SpotifyApi.TrackObjectFull[] }> {
-  return spotifyUserFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
-    accessToken,
-    `/artists/${artistId}/top-tracks`,
-    { market },
-  );
+  try {
+    return await spotifyUserFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
+      accessToken,
+      `/artists/${artistId}/top-tracks`,
+      { market },
+    );
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("403")) {
+      return { tracks: [] };
+    }
+    throw e;
+  }
 }

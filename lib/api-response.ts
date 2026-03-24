@@ -56,11 +56,6 @@ export function apiTooManyRequests(message = 'Too many requests'): NextResponse 
   return apiError(message, 429);
 }
 
-/** Spotify integration turned off via env (see `lib/spotify-integration-enabled.ts`). */
-export function apiSpotifyDisabled(message = 'Spotify integration is temporarily disabled.'): NextResponse {
-  return apiError(message, 503, { code: 'SPOTIFY_DISABLED' });
-}
-
 /**
  * Use for 500s: log the real error, return generic message to client.
  */

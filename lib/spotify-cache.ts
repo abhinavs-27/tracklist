@@ -2,7 +2,6 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { logPerf, timeAsync } from "@/lib/profiling";
-import { SpotifyIntegrationDisabledError } from "@/lib/spotify-integration-enabled";
 import {
   getAlbum,
   getAlbumTracks,
@@ -22,7 +21,10 @@ const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** In-memory dedupe: same batch requested again within 5s returns cached (e.g. during one render). */
 const BATCH_MEMORY_TTL_MS = 5000;
-const batchMemoryCache = new Map<string, { data: Map<string, unknown>; at: number }>();
+const batchMemoryCache = new Map<
+  string,
+  { data: Map<string, unknown>; at: number }
+>();
 function getBatchCacheKey(prefix: string, ids: string[]): string {
   return `${prefix}:${[...new Set(ids)].filter(Boolean).sort().join(",")}`;
 }
@@ -139,18 +141,18 @@ export async function upsertArtistFromSpotify(
   const newGenres =
     "genres" in a && Array.isArray(a.genres) && a.genres.length > 0
       ? a.genres
-      : ex?.genres ?? null;
+      : (ex?.genres ?? null);
 
   const ap = a as ArtistWithPopularity;
   const newPop =
     typeof ap.popularity === "number"
       ? clampPopularity(ap.popularity)
-      : ex?.popularity ?? null;
+      : (ex?.popularity ?? null);
 
   const newImage =
     "images" in a && a.images?.[0]?.url
       ? a.images[0].url
-      : ex?.image_url ?? null;
+      : (ex?.image_url ?? null);
 
   const row = {
     id: a.id,
@@ -189,9 +191,8 @@ export async function upsertAlbumFromSpotify(
     name: album.name,
     artist_id: first.id,
     image_url: album.images?.[0]?.url ?? null,
-    release_date: "release_date" in album ? album.release_date ?? null : null,
-    total_tracks:
-      "total_tracks" in album ? album.total_tracks ?? null : null,
+    release_date: "release_date" in album ? (album.release_date ?? null) : null,
+    total_tracks: "total_tracks" in album ? (album.total_tracks ?? null) : null,
     updated_at: now,
     cached_at: now,
   };
@@ -236,17 +237,14 @@ export async function upsertTrackFromSpotify(
     onConflict: "id",
   });
   if (albumErr) {
-    console.error(
-      `${LOG_PREFIX} albums upsert (from track) failed`,
-      albumErr,
-    );
+    console.error(`${LOG_PREFIX} albums upsert (from track) failed`, albumErr);
     throw new Error(`albums upsert (from track): ${albumErr.message}`);
   }
   logUpsert("album", albumId);
 
   const trackNumber =
     "track_number" in track
-      ? (track as { track_number?: number }).track_number ?? null
+      ? ((track as { track_number?: number }).track_number ?? null)
       : null;
 
   const trackWithPop = track as SpotifyApi.TrackObjectFull & {
@@ -289,7 +287,7 @@ async function upsertSongRowOnly(
 ) {
   const trackNumber =
     "track_number" in track
-      ? (track as { track_number?: number }).track_number ?? null
+      ? ((track as { track_number?: number }).track_number ?? null)
       : null;
   const now = new Date().toISOString();
   const trackWithPop = track as SpotifyApi.TrackObjectFull & {
@@ -322,7 +320,9 @@ async function upsertSongRowOnly(
 
 // --- getOrFetchArtist (DB-first cache + TTL)
 
-async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjectFull> {
+async function getOrFetchArtistInner(
+  id: string,
+): Promise<SpotifyApi.ArtistObjectFull> {
   const supabase = await createSupabaseServerClient();
 
   const { data: row, error } = await supabase
@@ -337,10 +337,8 @@ async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjec
 
   if (row) {
     const a = row as unknown as ArtistRow;
-    const cacheTime = a.cached_at ?? a.updated_at;
-    const stale = isCacheStale(cacheTime);
 
-    if (!stale && a.image_url) {
+    if (a.image_url) {
       return {
         id: a.id,
         name: a.name,
@@ -350,18 +348,23 @@ async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjec
         followers: { total: 0 },
       } as SpotifyApi.ArtistObjectFull;
     }
-    if (!stale && !a.image_url) {
+
+    try {
+      const artist = await getArtist(id);
       try {
-        const artist = await getArtist(id);
-        try {
-          await upsertArtistFromSpotify(supabase, artist);
-        } catch (e) {
-          console.error(`${LOG_PREFIX} upsertArtistFromSpotify (backfill image) error`, e);
-        }
-        return artist;
+        await upsertArtistFromSpotify(supabase, artist);
       } catch (e) {
-        console.warn(`${LOG_PREFIX} getArtist (image backfill) failed, using cached data`, e);
+        console.error(
+          `${LOG_PREFIX} upsertArtistFromSpotify (backfill image) error`,
+          e,
+        );
       }
+      return artist;
+    } catch (e) {
+      console.warn(
+        `${LOG_PREFIX} getArtist (no image in DB) failed, using cached row`,
+        e,
+      );
       return {
         id: a.id,
         name: a.name,
@@ -391,8 +394,15 @@ async function getOrFetchArtistInner(id: string): Promise<SpotifyApi.ArtistObjec
   }
 }
 
-export async function getOrFetchArtist(id: string): Promise<SpotifyApi.ArtistObjectFull> {
-  return timeAsync("cache", "getOrFetchArtist", () => getOrFetchArtistInner(id), { id });
+export async function getOrFetchArtist(
+  id: string,
+): Promise<SpotifyApi.ArtistObjectFull> {
+  return timeAsync(
+    "cache",
+    "getOrFetchArtist",
+    () => getOrFetchArtistInner(id),
+    { id },
+  );
 }
 
 // --- getOrFetchArtistAlbums: fetch from Spotify, upsert albums (and artists)
@@ -516,7 +526,12 @@ export async function getArtistTopTracksFromLogs(
 
   let albumsMap = new Map<
     string,
-    { id: string; name: string; image_url: string | null; release_date: string | null }
+    {
+      id: string;
+      name: string;
+      image_url: string | null;
+      release_date: string | null;
+    }
   >();
   if (albumIds.length > 0) {
     const { data: albumRows, error: albumsError } = await supabase
@@ -608,7 +623,9 @@ async function getOrFetchAlbumInner(id: string): Promise<{
 
   const { data: albumRow, error: albumErr } = await supabase
     .from("albums")
-    .select("id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at")
+    .select(
+      "id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -653,12 +670,17 @@ async function getOrFetchAlbumInner(id: string): Promise<{
             return { album: result.album, tracks: result.tracks };
           const { data: refetched } = await supabase
             .from("songs")
-            .select("id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at")
+            .select(
+              "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
+            )
             .eq("album_id", id)
             .order("track_number", { ascending: true });
           songs = (refetched ?? []) as unknown as SongRow[];
         } catch (e) {
-          console.warn(`${LOG_PREFIX} album tracks backfill failed for ${id}`, e);
+          console.warn(
+            `${LOG_PREFIX} album tracks backfill failed for ${id}`,
+            e,
+          );
         }
       }
 
@@ -754,12 +776,20 @@ async function getOrFetchAlbumInner(id: string): Promise<{
       .select("id, name")
       .in("id", artistIdsStale.length ? artistIdsStale : [album.artist_id]);
     const artistMapStale = new Map(
-      (artistRowsStale ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
+      (artistRowsStale ?? []).map((r: { id: string; name: string }) => [
+        r.id,
+        r.name,
+      ]),
     );
     const albumPayloadStale: SpotifyApi.AlbumObjectFull = {
       id: album.id,
       name: album.name,
-      artists: [{ id: album.artist_id, name: artistStale?.name ?? artistMapStale.get(album.artist_id) ?? "" }],
+      artists: [
+        {
+          id: album.artist_id,
+          name: artistStale?.name ?? artistMapStale.get(album.artist_id) ?? "",
+        },
+      ],
       images: album.image_url ? [{ url: album.image_url }] : undefined,
       release_date: album.release_date ?? undefined,
       total_tracks: album.total_tracks ?? undefined,
@@ -767,7 +797,9 @@ async function getOrFetchAlbumInner(id: string): Promise<{
         items: songsStale.map((s) => ({
           id: s.id,
           name: s.name,
-          artists: [{ id: s.artist_id, name: artistMapStale.get(s.artist_id) ?? "" }],
+          artists: [
+            { id: s.artist_id, name: artistMapStale.get(s.artist_id) ?? "" },
+          ],
           duration_ms: s.duration_ms ?? undefined,
         })),
         total: songsStale.length,
@@ -777,21 +809,27 @@ async function getOrFetchAlbumInner(id: string): Promise<{
         previous: null,
       },
     };
-    const tracksPayloadStale: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> = {
-      items: songsStale.map((s) => ({
-        id: s.id,
-        name: s.name,
-        artists: [{ id: s.artist_id, name: artistMapStale.get(s.artist_id) ?? "" }],
-        duration_ms: s.duration_ms ?? undefined,
-      })),
-      total: songsStale.length,
-      limit: songsStale.length,
-      offset: 0,
-      next: null,
-      previous: null,
-    };
+    const tracksPayloadStale: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> =
+      {
+        items: songsStale.map((s) => ({
+          id: s.id,
+          name: s.name,
+          artists: [
+            { id: s.artist_id, name: artistMapStale.get(s.artist_id) ?? "" },
+          ],
+          duration_ms: s.duration_ms ?? undefined,
+        })),
+        total: songsStale.length,
+        limit: songsStale.length,
+        offset: 0,
+        next: null,
+        previous: null,
+      };
     refreshAlbumFromSpotify(supabase, id).catch((e) =>
-      console.warn(`${LOG_PREFIX} background album refresh failed for ${id}`, e),
+      console.warn(
+        `${LOG_PREFIX} background album refresh failed for ${id}`,
+        e,
+      ),
     );
     return { album: albumPayloadStale, tracks: tracksPayloadStale };
   }
@@ -815,7 +853,9 @@ export async function getOrFetchAlbum(id: string): Promise<{
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }> {
-  return timeAsync("cache", "getOrFetchAlbum", () => getOrFetchAlbumInner(id), { id });
+  return timeAsync("cache", "getOrFetchAlbum", () => getOrFetchAlbumInner(id), {
+    id,
+  });
 }
 
 /** Fetch album + tracks from Spotify and upsert (album once, each artist once, each song once). Returns the fetched data or null on error. */
@@ -840,7 +880,8 @@ async function refreshAlbumFromSpotify(
     }
     for (const aid of artistIds) {
       if (aid === albumArtistId) continue;
-      const art = tracksResp.items?.find((tr) => tr.artists?.[0]?.id === aid)?.artists?.[0];
+      const art = tracksResp.items?.find((tr) => tr.artists?.[0]?.id === aid)
+        ?.artists?.[0];
       if (art) await upsertArtistFromSpotify(supabase, art);
     }
     for (const t of tracksResp.items ?? []) {
@@ -864,7 +905,9 @@ async function getOrFetchTrackInner(
 
   const { data: songRow, error } = await supabase
     .from("songs")
-    .select("id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at")
+    .select(
+      "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -939,11 +982,6 @@ async function getOrFetchTrackInner(
     logPerf("cache_miss", "song", performance.now() - missStart, { id });
     return track;
   } catch (e) {
-    if (e instanceof SpotifyIntegrationDisabledError) {
-      throw new Error(
-        "Music catalog lookup is temporarily unavailable. Your listen was still saved.",
-      );
-    }
     console.error(`${LOG_PREFIX} getTrack failed`, e);
     throw new Error(`Failed to fetch track ${id} from Spotify`);
   }
@@ -953,7 +991,12 @@ export async function getOrFetchTrack(
   id: string,
   opts?: { allowLastfmMapping?: boolean },
 ): Promise<SpotifyApi.TrackObjectFull> {
-  return timeAsync("cache", "getOrFetchTrack", () => getOrFetchTrackInner(id, opts), { id });
+  return timeAsync(
+    "cache",
+    "getOrFetchTrack",
+    () => getOrFetchTrackInner(id, opts),
+    { id },
+  );
 }
 
 // --- Batch getOrFetch: DB-first, then single batch Spotify API (chunked), merge, preserve order
@@ -999,7 +1042,10 @@ async function getOrFetchTracksBatchInner(
 
   const memKey = getBatchCacheKey("tracks", ids);
   const cached = getFromBatchMemoryMap(memKey);
-  if (cached) return ids.map((id) => (cached.get(id) as SpotifyApi.TrackObjectFull | null) ?? null);
+  if (cached)
+    return ids.map(
+      (id) => (cached.get(id) as SpotifyApi.TrackObjectFull | null) ?? null,
+    );
 
   const supabase = await createSupabaseServerClient();
   const lookup = new Map<string, SpotifyApi.TrackObjectFull | null>();
@@ -1009,7 +1055,9 @@ async function getOrFetchTracksBatchInner(
     .select("id, name, album_id, artist_id, duration_ms, cached_at, updated_at")
     .in("id", uniqueIds);
   const allSongs = (songRows ?? []) as unknown as SongRow[];
-  const songs = allSongs.filter((s) => !isCacheStale(s.cached_at ?? s.updated_at));
+  const songs = allSongs.filter(
+    (s) => !isCacheStale(s.cached_at ?? s.updated_at),
+  );
 
   const albumIds = [...new Set(songs.map((s) => s.album_id).filter(Boolean))];
   const artistIds = [...new Set(songs.map((s) => s.artist_id).filter(Boolean))];
@@ -1018,18 +1066,19 @@ async function getOrFetchTracksBatchInner(
     albumIds.length
       ? supabase
           .from("albums")
-          .select("id, name, artist_id, image_url, release_date, cached_at, updated_at")
+          .select(
+            "id, name, artist_id, image_url, release_date, cached_at, updated_at",
+          )
           .in("id", albumIds)
       : { data: [] },
     artistIds.length
-      ? supabase
-          .from("artists")
-          .select("id, name")
-          .in("id", artistIds)
+      ? supabase.from("artists").select("id, name").in("id", artistIds)
       : { data: [] },
   ]);
 
-  const albumMap = new Map((albumRows ?? []).map((a) => [a.id, a as unknown as AlbumRow]));
+  const albumMap = new Map(
+    (albumRows ?? []).map((a) => [a.id, a as unknown as AlbumRow]),
+  );
   const artistMap = new Map(
     (artistRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
   );
@@ -1057,7 +1106,10 @@ async function getOrFetchTracksBatchInner(
             "release_date" in alb ? alb.release_date : undefined,
           );
         } catch (e) {
-          console.warn(`${LOG_PREFIX} upsertTrackFromSpotify (batch) failed for ${track.id}`, e);
+          console.warn(
+            `${LOG_PREFIX} upsertTrackFromSpotify (batch) failed for ${track.id}`,
+            e,
+          );
         }
         lookup.set(track.id, track);
       }
@@ -1077,7 +1129,12 @@ async function getOrFetchTracksBatchInner(
 export async function getOrFetchTracksBatch(
   ids: string[],
 ): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
-  return timeAsync("cache", "getOrFetchTracksBatch", () => getOrFetchTracksBatchInner(ids), { n: ids.length });
+  return timeAsync(
+    "cache",
+    "getOrFetchTracksBatch",
+    () => getOrFetchTracksBatchInner(ids),
+    { n: ids.length },
+  );
 }
 
 /** Batch fetch albums: DB first, then single getAlbums() for missing (chunked 20). Returns array in input order. */
@@ -1089,19 +1146,29 @@ async function getOrFetchAlbumsBatchInner(
 
   const memKey = getBatchCacheKey("albums", ids);
   const cached = getFromBatchMemoryMap(memKey);
-  if (cached) return ids.map((id) => (cached.get(id) as SpotifyApi.AlbumObjectSimplified | null) ?? null);
+  if (cached)
+    return ids.map(
+      (id) =>
+        (cached.get(id) as SpotifyApi.AlbumObjectSimplified | null) ?? null,
+    );
 
   const supabase = await createSupabaseServerClient();
   const lookup = new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
 
   const { data: albumRows } = await supabase
     .from("albums")
-    .select("id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at")
+    .select(
+      "id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
+    )
     .in("id", uniqueIds);
   const allAlbums = (albumRows ?? []) as unknown as AlbumRow[];
-  const albums = allAlbums.filter((a) => !isCacheStale(a.cached_at ?? a.updated_at));
+  const albums = allAlbums.filter(
+    (a) => !isCacheStale(a.cached_at ?? a.updated_at),
+  );
 
-  const artistIds = [...new Set(albums.map((a) => a.artist_id).filter(Boolean))];
+  const artistIds = [
+    ...new Set(albums.map((a) => a.artist_id).filter(Boolean)),
+  ];
   const { data: artistRows } = await supabase
     .from("artists")
     .select("id, name")
@@ -1128,7 +1195,10 @@ async function getOrFetchAlbumsBatchInner(
         try {
           await upsertAlbumFromSpotify(supabase, album);
         } catch (e) {
-          console.warn(`${LOG_PREFIX} upsertAlbumFromSpotify (batch) failed for ${album.id}`, e);
+          console.warn(
+            `${LOG_PREFIX} upsertAlbumFromSpotify (batch) failed for ${album.id}`,
+            e,
+          );
         }
         const first = album.artists?.[0];
         lookup.set(album.id, {
@@ -1154,7 +1224,12 @@ async function getOrFetchAlbumsBatchInner(
 export async function getOrFetchAlbumsBatch(
   ids: string[],
 ): Promise<(SpotifyApi.AlbumObjectSimplified | null)[]> {
-  return timeAsync("cache", "getOrFetchAlbumsBatch", () => getOrFetchAlbumsBatchInner(ids), { n: ids.length });
+  return timeAsync(
+    "cache",
+    "getOrFetchAlbumsBatch",
+    () => getOrFetchAlbumsBatchInner(ids),
+    { n: ids.length },
+  );
 }
 
 /** Batch fetch artists: DB first, then single getArtists() for missing (chunked 50). Returns array in input order. */
@@ -1166,7 +1241,10 @@ async function getOrFetchArtistsBatchInner(
 
   const memKey = getBatchCacheKey("artists", ids);
   const cached = getFromBatchMemoryMap(memKey);
-  if (cached) return ids.map((id) => (cached.get(id) as SpotifyApi.ArtistObjectFull | null) ?? null);
+  if (cached)
+    return ids.map(
+      (id) => (cached.get(id) as SpotifyApi.ArtistObjectFull | null) ?? null,
+    );
 
   const supabase = await createSupabaseServerClient();
   const lookup = new Map<string, SpotifyApi.ArtistObjectFull | null>();
@@ -1198,7 +1276,10 @@ async function getOrFetchArtistsBatchInner(
         try {
           await upsertArtistFromSpotify(supabase, artist);
         } catch (e) {
-          console.warn(`${LOG_PREFIX} upsertArtistFromSpotify (batch) failed for ${artist.id}`, e);
+          console.warn(
+            `${LOG_PREFIX} upsertArtistFromSpotify (batch) failed for ${artist.id}`,
+            e,
+          );
         }
         lookup.set(artist.id, artist);
       }
@@ -1218,5 +1299,10 @@ async function getOrFetchArtistsBatchInner(
 export async function getOrFetchArtistsBatch(
   ids: string[],
 ): Promise<(SpotifyApi.ArtistObjectFull | null)[]> {
-  return timeAsync("cache", "getOrFetchArtistsBatch", () => getOrFetchArtistsBatchInner(ids), { n: ids.length });
+  return timeAsync(
+    "cache",
+    "getOrFetchArtistsBatch",
+    () => getOrFetchArtistsBatchInner(ids),
+    { n: ids.length },
+  );
 }

@@ -4,19 +4,10 @@ import { AlbumCard } from "@/components/album-card";
 import { TrackCard } from "@/components/track-card";
 import { searchSpotify } from "@/lib/spotify";
 import type { SpotifySearchResponse } from "@/lib/spotify";
-import { isSpotifyIntegrationEnabled, SPOTIFY_DISABLED_USER_MESSAGE } from "@/lib/spotify-integration-enabled";
 
 async function search(q: string): Promise<SpotifySearchResponse | null> {
   const query = q.trim();
   if (!query) return null;
-
-  if (!isSpotifyIntegrationEnabled()) {
-    return {
-      artists: { items: [] },
-      albums: { items: [] },
-      tracks: { items: [] },
-    };
-  }
 
   try {
     // Uses client-credentials flow under the hood with SPOTIFY_CLIENT_ID/SECRET
@@ -60,17 +51,10 @@ export async function SearchPageContent({
   const artists = result.artists?.items ?? [];
   const albums = result.albums?.items ?? [];
   const tracks = result.tracks?.items ?? [];
-  const spotifyOff = !isSpotifyIntegrationEnabled();
 
   return (
     <div className="space-y-8">
       <SearchBar defaultValue={query} placeholder="Search..." />
-
-      {spotifyOff ? (
-        <p className="rounded-lg border border-zinc-700 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-400">
-          {SPOTIFY_DISABLED_USER_MESSAGE}
-        </p>
-      ) : null}
 
       {artists.length > 0 && (
         <section>
@@ -105,8 +89,7 @@ export async function SearchPageContent({
         </section>
       )}
 
-      {!spotifyOff &&
-        artists.length === 0 &&
+      {artists.length === 0 &&
         albums.length === 0 &&
         tracks.length === 0 && (
           <p className="text-zinc-500">No results for “{query}”.</p>
