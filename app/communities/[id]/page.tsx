@@ -10,7 +10,6 @@ import { getCommunityFeedMerged } from "@/lib/community/community-feed-merged";
 import { getCommunityInsights } from "@/lib/community/getCommunityInsights";
 import { getCommunityMemberStatsWithRoles } from "@/lib/community/get-community-member-stats";
 import { getCommunityTasteMatchesForViewer } from "@/lib/community/get-community-taste-matches";
-import { getCommunityWeeklySummaryWithTrend } from "@/lib/community/get-community-weekly-summary";
 import { getWeeklyLeaderboard } from "@/lib/community/getWeeklyLeaderboard";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
@@ -52,21 +51,15 @@ export default async function CommunityDetailPage({
   const insights =
     isMember && session?.user?.id ? await getCommunityInsights(id) : null;
 
-  const [
-    leaderboard,
-    memberStats,
-    weeklySummary,
-    tastePeers,
-    feedMerged,
-  ] = isMember && session?.user?.id
-    ? await Promise.all([
-        getWeeklyLeaderboard(id),
-        getCommunityMemberStatsWithRoles(id),
-        getCommunityWeeklySummaryWithTrend(id),
-        getCommunityTasteMatchesForViewer(id, session.user.id),
-        getCommunityFeedMerged(id, 30, "all"),
-      ])
-    : [[], [], { current: null, previous: null, trend: null }, { similar: [], opposite: [] }, []];
+  const [leaderboard, memberStats, tastePeers, feedMerged] =
+    isMember && session?.user?.id
+      ? await Promise.all([
+          getWeeklyLeaderboard(id),
+          getCommunityMemberStatsWithRoles(id),
+          getCommunityTasteMatchesForViewer(id, session.user.id),
+          getCommunityFeedMerged(id, 30, "all"),
+        ])
+      : [[], [], { similar: [], opposite: [] }, []];
 
   const tasteMatch =
     session?.user?.id ? await getCommunityMatch(session.user.id, id) : null;
@@ -132,11 +125,7 @@ export default async function CommunityDetailPage({
       {isMember && insights ? <CommunityInsights insights={insights} /> : null}
 
       {isMember && session?.user?.id ? (
-        <CommunityWeeklySummary
-          current={weeklySummary.current}
-          previous={weeklySummary.previous}
-          trend={weeklySummary.trend}
-        />
+        <CommunityWeeklySummary communityId={id} />
       ) : null}
 
       {isMember && session?.user?.id ? (

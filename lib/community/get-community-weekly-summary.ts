@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  type LocalActivityBucket,
+  getLocalActivityRollingSevenDays,
+  isValidTimeZone,
+} from "@/lib/community/activity-local";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getUtcWeekStartDate } from "@/lib/week";
 
@@ -7,7 +12,13 @@ export type WeeklySummaryPayload = {
   week_start: string;
   top_genres: { name: string; weight: number }[];
   top_styles: { style: string; share: number }[];
+  /** Legacy UTC buckets from the weekly job (0–5, 6–11, … UTC). */
   activity_pattern: Record<string, number>;
+  /** When `timeZone` was passed to the getter — listening times in that zone. */
+  activity_local?: {
+    buckets: LocalActivityBucket[];
+    timeZone: string;
+  };
   updated_at: string | null;
 };
 
@@ -24,9 +35,11 @@ function diffTopGenres(
 
 /**
  * Current and previous ISO week summaries + simple genre delta.
+ * Pass `timeZone` (IANA) to attach `activity_local` from member logs in that zone.
  */
 export async function getCommunityWeeklySummaryWithTrend(
   communityId: string,
+  options?: { timeZone?: string },
 ): Promise<{
   current: WeeklySummaryPayload | null;
   previous: WeeklySummaryPayload | null;
@@ -73,8 +86,18 @@ export async function getCommunityWeeklySummaryWithTrend(
     }),
   );
 
-  const current = byWeek.get(thisWeek) ?? null;
-  const previous = byWeek.get(prevWeek) ?? null;
+  let current = byWeek.get(thisWeek) ?? null;
+  let previous = byWeek.get(prevWeek) ?? null;
+
+  const tz = options?.timeZone?.trim();
+  if (tz && isValidTimeZone(tz) && current) {
+    const buckets = await getLocalActivityRollingSevenDays(cid, tz);
+    const merged: WeeklySummaryPayload = {
+      ...current,
+      activity_local: { buckets, timeZone: tz },
+    };
+    current = merged;
+  }
 
   let trend: { genres: { gained: string[]; lost: string[] } } | null = null;
   if (current && previous) {

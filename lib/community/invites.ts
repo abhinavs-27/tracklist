@@ -87,6 +87,27 @@ export type CreateInviteResult =
   | { ok: true; inviteId: string }
   | { ok: false; reason: string };
 
+async function notifyInviteeOfCommunityInvite(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  invitedUserId: string,
+  actorUserId: string,
+  communityId: string,
+): Promise<void> {
+  const { error } = await admin.from("notifications").insert({
+    user_id: invitedUserId,
+    actor_user_id: actorUserId,
+    type: "community_invite",
+    entity_type: "community",
+    entity_id: communityId,
+  });
+  if (error) {
+    console.warn(
+      "[community] invite notification insert failed",
+      error.message,
+    );
+  }
+}
+
 /**
  * Owner invites a user. Public or private communities. Idempotent re-send after decline.
  */
@@ -158,6 +179,7 @@ export async function createCommunityInvite(
       if (upErr || !updated) {
         return { ok: false, reason: "error" };
       }
+      await notifyInviteeOfCommunityInvite(admin, invitee, owner, cid);
       return { ok: true, inviteId: (updated as { id: string }).id };
     }
   }
@@ -177,6 +199,8 @@ export async function createCommunityInvite(
     console.error("[community] invite insert", insErr);
     return { ok: false, reason: "error" };
   }
+
+  await notifyInviteeOfCommunityInvite(admin, invitee, owner, cid);
 
   return { ok: true, inviteId: (inserted as { id: string }).id };
 }

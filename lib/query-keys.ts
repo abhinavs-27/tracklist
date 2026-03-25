@@ -51,4 +51,7 @@ export const queryKeys = {
   communityInvites: () => ["communityInvites"] as const,
   /** Recommended public communities (`GET /api/communities/recommended`). */
   recommendedCommunities: () => ["recommendedCommunities"] as const,
+  /** Weekly summary (`GET /api/communities/:id/weekly-summary?timeZone=`). */
+  communityWeeklySummary: (communityId: string, timeZone: string) =>
+    ["communityWeeklySummary", communityId, timeZone] as const,
 };

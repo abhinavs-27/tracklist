@@ -44,7 +44,25 @@ export default async function NotificationsPage() {
                       {" started following you"}
                     </>
                   )}
-                  {n.type !== "follow" && (
+                  {n.type === "community_invite" &&
+                    n.actor_user_id &&
+                    n.entity_type === "community" &&
+                    n.entity_id && (
+                  <>
+                    <Link href={`/profile/${n.actor_user_id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">
+                      {actorMap.get(n.actor_user_id) ?? "Someone"}
+                    </Link>
+                    {" invited you to a "}
+                    <Link
+                      href={`/communities/${n.entity_id}`}
+                      className="font-medium text-emerald-400 hover:underline"
+                    >
+                      community
+                    </Link>
+                    {" — open Communities to respond."}
+                  </>
+                  )}
+                  {n.type !== "follow" && n.type !== "community_invite" && (
                     <span className="capitalize">{n.type.replace(/_/g, " ")}</span>
                   )}
                 </span>
