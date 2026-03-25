@@ -13,17 +13,17 @@
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
-    "@supabase/supabase-js": "^2.99.1",
-    "@tanstack/react-query": "^5.91.0",
-    "@tanstack/react-query-devtools": "^5.91.3",
+    "@supabase/supabase-js": "^2.100.0",
+    "@tanstack/react-query": "^5.95.2",
+    "@tanstack/react-query-devtools": "^5.95.2",
     "@tanstack/react-virtual": "^3.13.23",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "next": "^16.2.0",
+    "next": "^16.2.1",
     "next-auth": "^4.24.13",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "vercel": "^50.34.2"
+    "vercel": "^50.37.0"
   },
   "overrides": {
     "@tootallnate/once": "3.0.1",
@@ -46,7 +46,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.0",
+    "eslint-config-next": "^16.2.1",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3"
   }
