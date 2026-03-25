@@ -22,44 +22,47 @@ export function Navbar() {
           Tracklist
         </Link>
 
-        <div
-          className="flex min-h-11 min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] pr-1 [scrollbar-width:none] sm:gap-2 md:justify-center lg:gap-2 [&::-webkit-scrollbar]:hidden"
-          role="navigation"
-          aria-label="Main"
-        >
-          <Link href="/search" className={`${navLinkClass} md:hidden`}>
-            Search
-          </Link>
-          <Link href="/feed" className={navLinkClass}>
-            Feed
-          </Link>
-          <Link href="/discover" className={navLinkClass}>
-            Discover
-          </Link>
-          <Link href="/leaderboard" className={navLinkClass}>
-            Leaderboard
-          </Link>
-          {session && (
-            <>
-              <Link href="/communities" className={navLinkClass}>
-                Communities
-              </Link>
-              <Link href="/communities/invites" className={navLinkClass}>
-                Invites
-              </Link>
-              <Link href="/lists" className={navLinkClass}>
-                Lists
-              </Link>
-              <Link href="/search/users" className={navLinkClass}>
-                <span className="max-[380px]:hidden">Find people</span>
-                <span className="hidden max-[380px]:inline">People</span>
-              </Link>
-              <Link href="/reports/week" className={navLinkClass}>
-                <span className="max-[420px]:hidden">Listening reports</span>
-                <span className="hidden max-[420px]:inline">Reports</span>
-              </Link>
-            </>
-          )}
+        {/* Outer flex child must shrink (min-w-0) so the inner strip can overflow-x; inner handles one-line scroll (iOS flex+overflow quirk). */}
+        <div className="min-w-0 flex-1 self-stretch">
+          <div
+            role="navigation"
+            aria-label="Main"
+            className="flex h-full min-h-11 w-full min-w-0 max-w-full flex-nowrap items-center justify-start gap-1 overflow-x-scroll overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] pr-1 [scrollbar-width:none] sm:gap-2 md:gap-2 [&::-webkit-scrollbar]:hidden"
+          >
+            <Link href="/search" className={`${navLinkClass} md:hidden`}>
+              Search
+            </Link>
+            <Link href="/feed" className={navLinkClass}>
+              Feed
+            </Link>
+            <Link href="/discover" className={navLinkClass}>
+              Discover
+            </Link>
+            <Link href="/leaderboard" className={navLinkClass}>
+              Leaderboard
+            </Link>
+            {session && (
+              <>
+                <Link href="/communities" className={navLinkClass}>
+                  Communities
+                </Link>
+                <Link href="/communities/invites" className={navLinkClass}>
+                  Invites
+                </Link>
+                <Link href="/lists" className={navLinkClass}>
+                  Lists
+                </Link>
+                <Link href="/search/users" className={navLinkClass}>
+                  <span className="max-[380px]:hidden">Find people</span>
+                  <span className="hidden max-[380px]:inline">People</span>
+                </Link>
+                <Link href="/reports/week" className={navLinkClass}>
+                  <span className="max-[420px]:hidden">Listening reports</span>
+                  <span className="hidden max-[420px]:inline">Reports</span>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
