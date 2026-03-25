@@ -12,20 +12,18 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl min-h-14 items-center gap-2 px-4 py-2 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6 lg:px-8">
+        {/* Row 1: brand, links, account — search moved to row 2 so it can use full width */}
+        <div className="flex min-h-11 items-center gap-2">
         <Link
           href="/"
-          className="shrink-0 text-lg font-bold tracking-tight text-white touch-manipulation"
+          className="shrink-0 self-center text-lg font-bold tracking-tight text-white touch-manipulation"
         >
           Tracklist
         </Link>
 
-        <div className="hidden min-w-0 flex-1 md:block md:max-w-xl lg:max-w-2xl">
-          <SearchBar placeholder="Search artists, albums, tracks..." />
-        </div>
-
         <div
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] pr-1 [scrollbar-width:none] md:ml-auto md:flex-none md:gap-2 md:overflow-visible md:pr-0 [&::-webkit-scrollbar]:hidden"
+          className="flex min-h-11 min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] pr-1 [scrollbar-width:none] sm:gap-2 md:justify-center lg:gap-2 [&::-webkit-scrollbar]:hidden"
           role="navigation"
           aria-label="Main"
         >
@@ -124,6 +122,12 @@ export function Navbar() {
               Sign in
             </Link>
           )}
+        </div>
+        </div>
+
+        {/* Row 2: full-width search (md+) — avoids squeezing against many nav links */}
+        <div className="mt-2 hidden w-full md:block">
+          <SearchBar placeholder="Search artists, albums, tracks..." />
         </div>
       </div>
     </nav>
