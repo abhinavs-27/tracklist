@@ -127,7 +127,7 @@ export async function getCommunityFeedMerged(
       ? Promise.resolve([])
       : admin
           .from("reviews")
-          .select("id, user_id, entity_type, entity_id, rating, created_at")
+          .select("id, user_id, entity_type, entity_id, rating, review_text, created_at")
           .in("user_id", memberIds)
           .order("created_at", { ascending: false })
           .limit(perSource)
@@ -142,6 +142,7 @@ export async function getCommunityFeedMerged(
               entity_type: string;
               entity_id: string;
               rating: number;
+              review_text: string | null;
               created_at: string;
             }[];
           }),
@@ -196,6 +197,7 @@ export async function getCommunityFeedMerged(
         entity_type: rev.entity_type,
         entity_id: rev.entity_id,
         rating: rev.rating,
+        review_text: rev.review_text,
       },
     });
   }

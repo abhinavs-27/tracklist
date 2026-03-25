@@ -1,28 +1,28 @@
 import { withHandler } from "@/lib/api-handler";
 import {
-  getCommunityFeedMerged,
-  type CommunityFeedFilter,
-} from "@/lib/community/community-feed-merged";
+  getCommunityFeedV2,
+  type CommunityFeedFilterV2,
+} from "@/lib/community/get-community-feed-v2";
 import { isCommunityMember } from "@/lib/community/queries";
 import { apiForbidden, apiNotFound, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 
-const FILTERS: CommunityFeedFilter[] = [
+const FILTERS: CommunityFeedFilterV2[] = [
   "all",
-  "streaks",
   "listens",
   "reviews",
+  "streaks",
   "members",
 ];
 
-function parseFilter(raw: string | null): CommunityFeedFilter {
-  if (raw && FILTERS.includes(raw as CommunityFeedFilter)) {
-    return raw as CommunityFeedFilter;
+function parseFilter(raw: string | null): CommunityFeedFilterV2 {
+  if (raw && FILTERS.includes(raw as CommunityFeedFilterV2)) {
+    return raw as CommunityFeedFilterV2;
   }
   return "all";
 }
 
-/** GET /api/communities/[id]/feed — merged activity (events + listens + reviews); members only. */
+/** GET /api/communities/[id]/feed — `community_feed` rows + enrichment; members only. */
 export const GET = withHandler(
   async (request, { user: me, params }) => {
     const id = params.id?.trim() ?? "";
@@ -38,9 +38,15 @@ export const GET = withHandler(
       50,
       Math.max(1, parseInt(searchParams.get("limit") ?? "30", 10) || 30),
     );
+    const offset = Math.max(
+      0,
+      parseInt(searchParams.get("offset") ?? "0", 10) || 0,
+    );
     const filter = parseFilter(searchParams.get("filter"));
-    const feed = await getCommunityFeedMerged(id, limit, filter);
-    return apiOk({ feed, filter });
+    const feed = await getCommunityFeedV2(id, limit, filter, offset);
+    const next_offset =
+      feed.length >= limit ? offset + feed.length : null;
+    return apiOk({ feed, filter, next_offset });
   },
   { requireAuth: true },
 );

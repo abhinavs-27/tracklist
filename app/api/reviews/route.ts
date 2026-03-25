@@ -95,6 +95,23 @@ export const POST = withHandler(
       rating: data.rating,
     });
 
+    try {
+      const { fanOutReviewForUserCommunities } = await import(
+        "@/lib/community/community-feed-insert"
+      );
+      await fanOutReviewForUserCommunities({
+        userId: me!.id,
+        reviewId: data.id,
+        entityType: data.entity_type,
+        entityId: data.entity_id,
+        rating: data.rating,
+        reviewText: data.review_text ?? null,
+        createdAt: data.created_at,
+      });
+    } catch (e) {
+      console.warn("[reviews] community_feed fan-out", e);
+    }
+
     const { data: userRow } = await supabase
       .from("users")
       .select("id, username, avatar_url")

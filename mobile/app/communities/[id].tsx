@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { CommunityTasteMatchCard } from "../../components/community/CommunityTasteMatchCard";
 import { CommunityInsights } from "../../components/community/CommunityInsights";
@@ -326,10 +326,91 @@ export default function CommunityDetailScreen() {
                 ) : (
                   feed.map((item) => (
                     <View key={item.id} style={styles.feedRow}>
-                      <Text style={styles.feedText}>{item.label}</Text>
-                      <Text style={styles.feedTime}>
-                        {formatRelative(item.created_at)}
-                      </Text>
+                      <View style={styles.feedRowInner}>
+                        <Pressable
+                          onPress={() =>
+                            router.push(
+                              `/user/${encodeURIComponent(item.username)}` as const,
+                            )
+                          }
+                        >
+                          {item.avatar_url ? (
+                            <Image
+                              source={{ uri: item.avatar_url }}
+                              style={styles.feedAvatar}
+                            />
+                          ) : (
+                            <View style={styles.feedAvatarPh}>
+                              <Text style={styles.feedAvatarPhText}>
+                                {item.username[0]?.toUpperCase() ?? "?"}
+                              </Text>
+                            </View>
+                          )}
+                        </Pressable>
+                        <View style={styles.feedBody}>
+                          {item.event_type === "review" &&
+                          item.entity_href &&
+                          item.entity_name ? (
+                            <Text style={styles.feedText}>
+                              <Text style={styles.feedUsername}>
+                                {item.username}
+                              </Text>
+                              <Text style={styles.feedSep}> · </Text>
+                              <Text>Rated </Text>
+                              <Text
+                                style={styles.feedEntityLink}
+                                onPress={() =>
+                                  router.push(item.entity_href as Href)
+                                }
+                              >
+                                {item.entity_name}
+                              </Text>
+                              <Text>{` ${Number(item.payload?.rating) || 0}/5`}</Text>
+                            </Text>
+                          ) : (
+                            <Text style={styles.feedText}>
+                              <Text style={styles.feedUsername}>
+                                {item.username}
+                              </Text>
+                              <Text style={styles.feedSep}> · </Text>
+                              {item.label}
+                            </Text>
+                          )}
+                          {item.sublabel ? (
+                            <Text style={styles.feedSub} numberOfLines={3}>
+                              {item.sublabel}
+                            </Text>
+                          ) : null}
+                          {item.comment_count != null &&
+                          item.comment_count > 0 &&
+                          (item.review_id || item.log_id) ? (
+                            <Text style={styles.feedCommentHint}>
+                              {item.comment_count} community comment
+                              {item.comment_count === 1 ? "" : "s"} (open on
+                              web)
+                            </Text>
+                          ) : null}
+                          <Text style={styles.feedTime}>
+                            {item.event_type.replace(/_/g, " ")} ·{" "}
+                            {formatRelative(item.created_at)}
+                          </Text>
+                        </View>
+                        {item.artwork_url ? (
+                          <Pressable
+                            onPress={() =>
+                              item.entity_href
+                                ? router.push(item.entity_href as Href)
+                                : undefined
+                            }
+                            disabled={!item.entity_href}
+                          >
+                            <Image
+                              source={{ uri: item.artwork_url }}
+                              style={styles.feedArtwork}
+                            />
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </View>
                   ))
                 )}
@@ -422,6 +503,54 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
   },
+  feedRowInner: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  feedAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+  },
+  feedAvatarPh: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.active,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  feedAvatarPhText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.colors.text,
+  },
+  feedBody: { flex: 1, minWidth: 0 },
   feedText: { fontSize: 14, color: theme.colors.text, lineHeight: 20 },
+  feedUsername: { fontWeight: "700", color: theme.colors.text },
+  feedSep: { color: theme.colors.muted, fontWeight: "400" },
+  feedSub: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    marginTop: 4,
+    lineHeight: 16,
+  },
   feedTime: { fontSize: 12, color: theme.colors.muted, marginTop: 4 },
+  feedEntityLink: {
+    fontSize: 14,
+    color: theme.colors.emerald,
+    fontWeight: "600",
+  },
+  feedCommentHint: {
+    fontSize: 11,
+    color: theme.colors.muted,
+    marginTop: 4,
+    fontStyle: "italic",
+  },
+  feedArtwork: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+  },
 });

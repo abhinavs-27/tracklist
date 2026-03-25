@@ -15,16 +15,34 @@ export type CommunityLeaderboardRow = {
   streakDays: number;
 };
 
-/** Mirrors `CommunityFeedRow` from server `getCommunityFeed`. */
-export type CommunityFeedRow = {
+/** Mirrors server `CommunityFeedItemV2` from `getCommunityFeedV2`. */
+export type CommunityFeedItemV2 = {
   id: string;
+  community_id: string;
   user_id: string;
-  type: string;
-  metadata: Record<string, unknown>;
+  event_type: string;
+  payload: Record<string, unknown>;
   created_at: string;
   username: string;
   avatar_url: string | null;
   label: string;
+  sublabel: string | null;
+  artwork_url: string | null;
+  badge:
+    | "streak"
+    | "review"
+    | "list"
+    | "listen"
+    | "member"
+    | "follow"
+    | null;
+  entity_type?: "album" | "song" | null;
+  entity_id?: string | null;
+  entity_name?: string | null;
+  entity_href?: string | null;
+  review_id?: string | null;
+  log_id?: string | null;
+  comment_count?: number;
 };
 
 export type CommunitiesListResponse = {
@@ -44,7 +62,9 @@ export type CommunityLeaderboardResponse = {
 };
 
 export type CommunityFeedResponse = {
-  feed: CommunityFeedRow[];
+  feed: CommunityFeedItemV2[];
+  filter?: string;
+  next_offset?: number | null;
 };
 
 /** Mirrors server `CommunityInsights` from `getCommunityInsights`. */
@@ -111,8 +131,11 @@ export async function fetchCommunityLeaderboard(
 export async function fetchCommunityFeed(
   communityId: string,
   limit = 30,
+  options?: { filter?: string; offset?: number },
 ): Promise<CommunityFeedResponse> {
   const q = new URLSearchParams({ limit: String(limit) });
+  if (options?.filter) q.set("filter", options.filter);
+  if (options?.offset != null) q.set("offset", String(options.offset));
   return fetcher<CommunityFeedResponse>(
     `/api/communities/${encodeURIComponent(communityId)}/feed?${q.toString()}`,
   );

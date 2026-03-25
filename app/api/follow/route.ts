@@ -37,6 +37,17 @@ export const POST = withHandler(
       actor_user_id: me!.id,
       type: 'follow',
     });
+    try {
+      const { fanOutFollowInSharedCommunities } = await import(
+        '@/lib/community/community-feed-insert'
+      );
+      await fanOutFollowInSharedCommunities({
+        followerId: me!.id,
+        followingId,
+      });
+    } catch (e) {
+      console.warn('[follow] community_feed fan-out', e);
+    }
     console.log("[follow] user-followed", {
       followerId: me!.id,
       followingId,

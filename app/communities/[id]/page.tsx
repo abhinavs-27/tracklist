@@ -6,7 +6,7 @@ import { CommunityFeedClient } from "@/components/community/community-feed-clien
 import { CommunityTastePeers } from "@/components/community/community-taste-peers";
 import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
 import { CommunityInsights } from "@/components/community/CommunityInsights";
-import { getCommunityFeedMerged } from "@/lib/community/community-feed-merged";
+import { getCommunityFeedV2 } from "@/lib/community/get-community-feed-v2";
 import { getCommunityInsights } from "@/lib/community/getCommunityInsights";
 import { getCommunityMemberStatsWithRoles } from "@/lib/community/get-community-member-stats";
 import { getCommunityTasteMatchesForViewer } from "@/lib/community/get-community-taste-matches";
@@ -51,13 +51,13 @@ export default async function CommunityDetailPage({
   const insights =
     isMember && session?.user?.id ? await getCommunityInsights(id) : null;
 
-  const [leaderboard, memberStats, tastePeers, feedMerged] =
+  const [leaderboard, memberStats, tastePeers, initialCommunityFeed] =
     isMember && session?.user?.id
       ? await Promise.all([
           getWeeklyLeaderboard(id),
           getCommunityMemberStatsWithRoles(id),
           getCommunityTasteMatchesForViewer(id, session.user.id),
-          getCommunityFeedMerged(id, 30, "all"),
+          getCommunityFeedV2(id, 30, "all", 0),
         ])
       : [[], [], { similar: [], opposite: [] }, []];
 
@@ -244,10 +244,13 @@ export default async function CommunityDetailPage({
 
           <section>
             <h2 className="mb-3 text-lg font-semibold text-white">Activity</h2>
-            {feedMerged.length === 0 ? (
+            {initialCommunityFeed.length === 0 ? (
               <p className="text-sm text-zinc-500">No activity yet.</p>
             ) : (
-              <CommunityFeedClient communityId={id} initialItems={feedMerged} />
+              <CommunityFeedClient
+                communityId={id}
+                initialItems={initialCommunityFeed}
+              />
             )}
           </section>
         </>

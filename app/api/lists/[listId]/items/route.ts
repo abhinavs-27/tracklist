@@ -41,6 +41,34 @@ export async function POST(
     const item = await addListItem(listId, entityType, entityId);
     if (!item) return apiInternalError(new Error("addListItem returned null"));
 
+    try {
+      const { createSupabaseServerClient } = await import(
+        "@/lib/supabase-server"
+      );
+      const { fanOutListItemAddForUserCommunities } = await import(
+        "@/lib/community/community-feed-insert"
+      );
+      const sb = await createSupabaseServerClient();
+      const { data: listRow } = await sb
+        .from("lists")
+        .select("title")
+        .eq("id", listId)
+        .maybeSingle();
+      const title =
+        (listRow as { title?: string } | null)?.title?.trim() || "My list";
+      await fanOutListItemAddForUserCommunities({
+        userId: me.id,
+        listId,
+        listTitle: title,
+        entityType,
+        entityId,
+        itemId: item.id,
+        addedAt: item.added_at ?? new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn("[lists] community_feed fan-out", e);
+    }
+
     console.log("[lists] list-item-added", {
       userId: me.id,
       listId,

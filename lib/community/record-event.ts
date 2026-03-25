@@ -1,10 +1,12 @@
 import "server-only";
 
+import { insertCommunityFeedSingle } from "@/lib/community/community-feed-insert";
+import { mapCommunityEventToFeedPayload } from "@/lib/community/map-community-event-to-feed";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { CommunityEventType } from "@/types";
 
 /**
- * Insert a community feed row. Call from streak hooks / weekly jobs when ready.
+ * Insert legacy `community_events` row and mirror into `community_feed` when mappable.
  */
 export async function recordCommunityEvent(args: {
   communityId: string;
@@ -23,5 +25,14 @@ export async function recordCommunityEvent(args: {
     console.warn("[community] recordCommunityEvent failed", error.message);
     return { ok: false };
   }
+
+  const mapped = mapCommunityEventToFeedPayload(args.type, args.metadata ?? {});
+  await insertCommunityFeedSingle({
+    communityId: args.communityId,
+    userId: args.userId,
+    eventType: mapped.eventType,
+    payload: mapped.payload,
+  });
+
   return { ok: true };
 }

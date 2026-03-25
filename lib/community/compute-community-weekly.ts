@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  COMMUNITY_FEED_TYPES,
+  insertCommunityFeedSingle,
+} from "@/lib/community/community-feed-insert";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { cosineSimilarity } from "@/lib/taste/cosineSimilarity";
 import {
@@ -229,6 +233,12 @@ export async function computeCommunityWeekly(communityId: string): Promise<{
     { community_id: cid, user_id: explorer, role_type: "explorer" as const, week_start: weekStart },
   ];
 
+  const ROLE_FEED_LABEL: Record<string, string> = {
+    champion: "Champion",
+    on_fire: "On Fire",
+    explorer: "Explorer",
+  };
+
   for (const r of rolePayload) {
     const { error: rErr } = await admin.from("community_member_roles").upsert(
       {
@@ -244,6 +254,17 @@ export async function computeCommunityWeekly(communityId: string): Promise<{
       console.error("[community-weekly] roles", rErr);
       return { ok: false, error: rErr.message };
     }
+    await insertCommunityFeedSingle({
+      communityId: r.community_id,
+      userId: r.user_id,
+      eventType: COMMUNITY_FEED_TYPES.streak_role,
+      payload: {
+        role_type: r.role_type,
+        week_start: r.week_start,
+        label: ROLE_FEED_LABEL[r.role_type] ?? r.role_type,
+        milestone: "Weekly community role",
+      },
+    });
   }
 
   const genreCounts = new Map<string, number>();

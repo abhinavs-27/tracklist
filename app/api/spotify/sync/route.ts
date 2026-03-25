@@ -17,6 +17,7 @@ import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import { getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist-genres";
+import { fanOutListenForUserCommunities } from "@/lib/community/community-feed-insert";
 import type { SyncResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -96,15 +97,18 @@ export async function POST(request: NextRequest) {
     }
 
     const nowIso = new Date().toISOString();
-    const { error: insertError } = await supabase.from("logs").insert(
-      toInsert.map((u) => ({
-        user_id: me.id,
-        track_id: u.track_id,
-        listened_at: new Date(u.listened_at).toISOString(),
-        source: "spotify",
-        created_at: nowIso,
-      })),
-    );
+    const { data: insertedLogs, error: insertError } = await supabase
+      .from("logs")
+      .insert(
+        toInsert.map((u) => ({
+          user_id: me.id,
+          track_id: u.track_id,
+          listened_at: new Date(u.listened_at).toISOString(),
+          source: "spotify",
+          created_at: nowIso,
+        })),
+      )
+      .select("id, track_id, listened_at, source");
     if (insertError) {
       for (const u of toInsert) {
         console.log("[spotify-ingest] ingest", {
@@ -122,6 +126,27 @@ export async function POST(request: NextRequest) {
         trackId: u.track_id,
         success: true,
       });
+    }
+
+    if (insertedLogs?.length) {
+      try {
+        for (const row of insertedLogs as {
+          id: string;
+          track_id: string;
+          listened_at: string;
+          source: string;
+        }[]) {
+          await fanOutListenForUserCommunities({
+            userId: me.id,
+            logId: row.id,
+            listenedAt: row.listened_at,
+            source: row.source ?? "spotify",
+            trackId: row.track_id,
+          });
+        }
+      } catch (e) {
+        console.warn("[spotify-sync] community_feed fan-out", e);
+      }
     }
 
     const { grantAchievementsOnListen } = await import("@/lib/queries");

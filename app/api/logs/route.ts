@@ -90,6 +90,23 @@ export const POST = withHandler(
     }
     await grantAchievementsOnListen(me!.id);
     await syncManualLogSideEffects(me!.id, trackId, listenedAt);
+    try {
+      const { fanOutListenForUserCommunities } = await import(
+        "@/lib/community/community-feed-insert"
+      );
+      await fanOutListenForUserCommunities({
+        userId: me!.id,
+        logId: data.id as string,
+        listenedAt: listenedAt,
+        source,
+        trackId,
+        albumId: albumId,
+        artistId: artistId,
+        title: null,
+      });
+    } catch (e) {
+      console.warn("[logs] community_feed fan-out", e);
+    }
     console.log("[logs] manual-log-created", {
       userId: me!.id,
       trackId,
