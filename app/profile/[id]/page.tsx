@@ -10,6 +10,7 @@ import { RecentlyPlayedTracks } from "@/components/recently-played-tracks";
 import { ProfileEditModal } from "./profile-edit-modal";
 import { LastfmSection } from "@/components/lastfm/lastfm-section";
 import { TasteIdentitySection } from "@/components/profile/taste-identity-section";
+import { ListeningInsightsSection } from "@/components/profile/listening-insights-section";
 import { isSpotifyProfileIntegrationVisible } from "@/lib/spotify-integration-enabled";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
@@ -235,6 +236,10 @@ export default async function ProfilePage({
       )}
 
       <TasteIdentitySection userId={profile.id} />
+
+      {session?.user?.id ? (
+        <ListeningInsightsSection userId={profile.id} />
+      ) : null}
 
       <ProfileRecentAlbumsWithSync
         userId={profile.id}
