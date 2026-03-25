@@ -190,23 +190,6 @@ export async function getArtistAlbums(
   });
 }
 
-export async function getArtistTopTracks(
-  spotifyId: string,
-  market = "US",
-): Promise<{ tracks: SpotifyApi.TrackObjectFull[] }> {
-  try {
-    return await spotifyFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
-      `/artists/${spotifyId}/top-tracks`,
-      { market },
-    );
-  } catch (e) {
-    if (e instanceof Error && e.message.includes("403")) {
-      return { tracks: [] };
-    }
-    throw e;
-  }
-}
-
 export async function getAlbum(
   spotifyId: string,
 ): Promise<SpotifyApi.AlbumObjectFull> {

@@ -8,7 +8,6 @@ import {
   getAlbums,
   getArtist,
   getArtistAlbums,
-  getArtistTopTracks,
   getArtists,
   getTrack,
   getTracks,

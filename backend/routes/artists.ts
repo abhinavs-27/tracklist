@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { badRequest, internalError, notFound, ok } from "../lib/http";
-import { getArtist, getArtistAlbums, getArtistTopTracks } from "../lib/spotify";
+import { getArtist, getArtistAlbums } from "../lib/spotify";
 import { getTrackStatsForTrackIds } from "../services/statsService";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
 import { isValidSpotifyId } from "../lib/validation";
@@ -11,7 +11,7 @@ import {
 
 export const artistsRouter = Router();
 
-/** GET /api/artists/:id — Spotify artist + discography + top tracks (+ optional listen stats). */
+/** GET /api/artists/:id — Spotify artist + discography; top tracks from DB only. */
 artistsRouter.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -24,7 +24,6 @@ artistsRouter.get("/:id", async (req, res) => {
       return notFound(res, "Artist not found");
     }
 
-    /** Albums / top-tracks can fail independently (quota, market, etc.); web only needs artist fetch. */
     let albumsPage: SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified> = {
       items: [],
       limit: 0,
@@ -37,13 +36,6 @@ artistsRouter.get("/:id", async (req, res) => {
       albumsPage = await getArtistAlbums(id, 50);
     } catch {
       console.warn("[artists] getArtistAlbums failed for", id);
-    }
-
-    let topTracksData: { tracks: SpotifyApi.TrackObjectFull[] } = { tracks: [] };
-    try {
-      topTracksData = await getArtistTopTracks(id);
-    } catch {
-      console.warn("[artists] getArtistTopTracks failed for", id);
     }
 
     const image_url = artist.images?.[0]?.url ?? null;
@@ -107,7 +99,7 @@ artistsRouter.get("/:id", async (req, res) => {
       listen_count: number;
       review_count: number;
       average_rating: number | null;
-    }>;
+    }> = [];
 
     if (dbTracks.length > 0) {
       const topTrackIds = dbTracks.map((t) => t.id);
@@ -123,26 +115,6 @@ artistsRouter.get("/:id", async (req, res) => {
           name: t.name,
           track_number: idx + 1,
           duration_ms: t.duration_ms,
-          listen_count: listen,
-          review_count: s?.review_count ?? 0,
-          average_rating: s?.average_rating ?? null,
-        };
-      });
-    } else {
-      const topTracksSpotify = (topTracksData.tracks ?? []).slice(0, 10);
-      const topTrackIds = topTracksSpotify.map((t) => t.id);
-      if (isSupabaseConfigured() && topTrackIds.length > 0) {
-        trackStats = await getTrackStatsForTrackIds(topTrackIds);
-      }
-      topTracks = topTracksSpotify.map((t, idx) => {
-        const s = trackStats[t.id];
-        const listen = s?.listen_count ?? 0;
-        totalPlays += listen;
-        return {
-          id: t.id,
-          name: t.name,
-          track_number: idx + 1,
-          duration_ms: t.duration_ms ?? null,
           listen_count: listen,
           review_count: s?.review_count ?? 0,
           average_rating: s?.average_rating ?? null,

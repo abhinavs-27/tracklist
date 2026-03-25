@@ -990,7 +990,7 @@ export async function getReviewsForArtist(
 export async function getTopTracksForArtist(
   artistId: string,
   limit = 10,
-): Promise<SpotifyApi.TrackObjectSimplified[]> {
+): Promise<SpotifyApi.TrackObjectFull[]> {
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -1060,9 +1060,9 @@ export async function getTopTracksForArtist(
                   : undefined,
               }
             : undefined,
-        } as SpotifyApi.TrackObjectSimplified;
+        } as SpotifyApi.TrackObjectFull;
       })
-      .filter((x): x is SpotifyApi.TrackObjectSimplified => x !== null);
+      .filter((x): x is SpotifyApi.TrackObjectFull => x !== null);
   } catch (e) {
     console.error("[queries] getTopTracksForArtist failed:", e);
     return [];

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     .from("artists")
     .select("id, genres, popularity, image_url")
     .order("updated_at", { ascending: true })
-    .limit(800);
+    .limit(5);
 
   if (error) {
     console.error("[cron backfill-artist-metadata] query failed", error);

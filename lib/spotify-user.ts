@@ -314,22 +314,3 @@ export async function getUserArtistAlbums(
     SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>
   >(accessToken, `/artists/${artistId}/albums`, { limit: String(safeLimit) });
 }
-
-export async function getUserArtistTopTracks(
-  accessToken: string,
-  artistId: string,
-  market = "US",
-): Promise<{ tracks: SpotifyApi.TrackObjectFull[] }> {
-  try {
-    return await spotifyUserFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
-      accessToken,
-      `/artists/${artistId}/top-tracks`,
-      { market },
-    );
-  } catch (e) {
-    if (e instanceof Error && e.message.includes("403")) {
-      return { tracks: [] };
-    }
-    throw e;
-  }
-}

@@ -4,7 +4,7 @@ import {
   fetchArtistAlbumsFromDb,
   fetchArtistTracksFromDb,
 } from "@/lib/artist-db-feed";
-import { getArtist, getArtistAlbums, getArtistTopTracks } from "@/lib/spotify";
+import { getArtist, getArtistAlbums } from "@/lib/spotify";
 import { getTrackStatsForTrackIds } from "@/lib/queries";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isValidSpotifyId } from "@/lib/validation";
@@ -38,13 +38,6 @@ export async function GET(
       albumsPage = await getArtistAlbums(id, 50);
     } catch {
       console.warn("[api/artists] getArtistAlbums failed for", id);
-    }
-
-    let topTracksData: { tracks: SpotifyApi.TrackObjectFull[] } = { tracks: [] };
-    try {
-      topTracksData = await getArtistTopTracks(id);
-    } catch {
-      console.warn("[api/artists] getArtistTopTracks failed for", id);
     }
 
     const image_url = artist.images?.[0]?.url ?? null;
@@ -97,7 +90,7 @@ export async function GET(
       listen_count: number;
       review_count: number;
       average_rating: number | null;
-    }>;
+    }> = [];
 
     if (dbTracks.length > 0) {
       const topTrackIds = dbTracks.map((t) => t.id);
@@ -114,27 +107,6 @@ export async function GET(
           name: t.name,
           track_number: idx + 1,
           duration_ms: t.duration_ms,
-          listen_count: listen,
-          review_count: s?.review_count ?? 0,
-          average_rating: s?.average_rating ?? null,
-        };
-      });
-    } else {
-      const topTracksSpotify = (topTracksData.tracks ?? []).slice(0, 10);
-      const topTrackIds = topTracksSpotify.map((t) => t.id);
-      trackStats =
-        topTrackIds.length > 0
-          ? await getTrackStatsForTrackIds(topTrackIds)
-          : {};
-      topTracks = topTracksSpotify.map((t, idx) => {
-        const s = trackStats[t.id];
-        const listen = s?.listen_count ?? 0;
-        totalPlays += listen;
-        return {
-          id: t.id,
-          name: t.name,
-          track_number: idx + 1,
-          duration_ms: t.duration_ms ?? null,
           listen_count: listen,
           review_count: s?.review_count ?? 0,
           average_rating: s?.average_rating ?? null,

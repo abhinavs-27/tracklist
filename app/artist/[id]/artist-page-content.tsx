@@ -5,7 +5,6 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { getOrFetchArtist, getOrFetchTrack } from "@/lib/spotify-cache";
-import { getArtistTopTracks } from "@/lib/spotify";
 import { TrackCard } from "@/components/track-card";
 import { ListenCard } from "@/components/listen-card";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
@@ -24,16 +23,8 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const session = await getServerSession(authOptions);
 
   let artist: SpotifyApi.ArtistObjectFull;
-  let spotifyTopTrack: SpotifyApi.TrackObjectFull | null = null;
   try {
-    const [a, topData] = await Promise.all([
-      getOrFetchArtist(id),
-      getArtistTopTracks(id).catch(() => ({
-        tracks: [] as SpotifyApi.TrackObjectFull[],
-      })),
-    ]);
-    artist = a;
-    spotifyTopTrack = topData.tracks?.[0] ?? null;
+    artist = await getOrFetchArtist(id);
   } catch {
     notFound();
   }
@@ -45,6 +36,8 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
       getReviewsForArtist(id, 8),
       getListenLogsForArtist(id, 10),
     ]);
+
+  const heroTrack = topTracks[0] ?? null;
 
   const recentListens = await Promise.all(
     recentListensRaw.map(async (log) => {
@@ -61,7 +54,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
   return (
     <div className="space-y-8">
-      {session && spotifyTopTrack ? (
+      {session && heroTrack ? (
         <RecordRecentView
           kind="artist"
           id={id}
@@ -70,8 +63,8 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
             artist.genres?.length ? artist.genres.slice(0, 5).join(" · ") : "Artist"
           }
           artworkUrl={image ?? null}
-          trackId={spotifyTopTrack.id}
-          albumId={spotifyTopTrack.album?.id ?? null}
+          trackId={heroTrack.id}
+          albumId={heroTrack.album?.id ?? null}
           artistId={id}
         />
       ) : null}
@@ -97,11 +90,11 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
               {artist.followers.total.toLocaleString()} followers on Spotify
             </p>
           )}
-          {session && spotifyTopTrack ? (
+          {session && heroTrack ? (
             <div className="mt-4">
               <LogListenButton
-                trackId={spotifyTopTrack.id}
-                albumId={spotifyTopTrack.album?.id ?? null}
+                trackId={heroTrack.id}
+                albumId={heroTrack.album?.id ?? null}
                 artistId={id}
                 displayName={artist.name}
               />
