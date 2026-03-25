@@ -156,17 +156,30 @@ export interface SpotifyTrack {
   duration_ms?: number;
 }
 
-// Taste match
-export type TasteMatchSharedAlbum = {
-  spotify_id: string;
-  rating_userA?: number | null;
-  rating_userB?: number | null;
+// Taste match v2 (cached taste identity — artists + genres)
+export type TasteMatchSharedArtist = {
+  id: string;
+  name: string;
+  imageUrl?: string | null;
+  listenCountUserA: number;
+  listenCountUserB: number;
+};
+
+export type TasteMatchSharedGenre = {
+  name: string;
+  weightUserA: number;
+  weightUserB: number;
 };
 
 export type TasteMatchResponse = {
-  score: number; // 0-100
-  sharedAlbumCount: number;
-  sharedAlbums: TasteMatchSharedAlbum[];
+  score: number;
+  overlapScore: number;
+  genreOverlapScore: number;
+  discoveryScore: number;
+  sharedArtists: TasteMatchSharedArtist[];
+  sharedGenres: TasteMatchSharedGenre[];
+  summary: string;
+  insufficientData: boolean;
 };
 
 // Discover

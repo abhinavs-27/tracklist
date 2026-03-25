@@ -227,14 +227,14 @@ export default async function ProfilePage({
         isOwnProfile={isOwnProfile}
       />
 
-      <TasteIdentitySection userId={profile.id} />
-
       {!isOwnProfile && (
         <TasteMatchSection
           profileUserId={profile.id}
           viewerUserId={session?.user?.id ?? null}
         />
       )}
+
+      <TasteIdentitySection userId={profile.id} />
 
       <ProfileRecentAlbumsWithSync
         userId={profile.id}

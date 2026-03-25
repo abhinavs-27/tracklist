@@ -334,6 +334,69 @@ async function fetchArtistsBatch(
   return out;
 }
 
+/**
+ * Top artists by play count from logs (not taste-identity cache). Taste match uses
+ * this so overlap compares a larger pool (e.g. top 20) than cached identity (top 10),
+ * and avoids stale/empty cache making shared artists look like zero.
+ */
+export async function getTopArtistsFromLogsForMatch(
+  admin: SupabaseClient,
+  userId: string,
+  limit: number,
+): Promise<TasteTopArtist[]> {
+  const cap = Math.min(Math.max(1, limit), 50);
+  const { data: logRows, error: logErr } = await admin
+    .from("logs")
+    .select("track_id, listened_at, album_id, artist_id")
+    .eq("user_id", userId)
+    .order("listened_at", { ascending: true })
+    .limit(LOG_CAP);
+
+  if (logErr || !logRows?.length) {
+    if (logErr) {
+      console.error("[taste-identity] logs query failed (match)", logErr);
+    }
+    return [];
+  }
+
+  const logs = logRows as {
+    track_id: string;
+    listened_at: string;
+    album_id: string | null;
+    artist_id: string | null;
+  }[];
+
+  const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean))];
+  const songMap = await fetchSongsBatch(admin, trackIds);
+
+  const artistCounts = new Map<string, number>();
+  for (const log of logs) {
+    const song = songMap.get(log.track_id);
+    const artistId = log.artist_id ?? song?.artist_id ?? null;
+    if (artistId) {
+      artistCounts.set(artistId, (artistCounts.get(artistId) ?? 0) + 1);
+    }
+  }
+
+  if (artistCounts.size === 0) return [];
+
+  const topIds = [...artistCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, cap)
+    .map(([id]) => id);
+
+  const artistMeta = await fetchArtistsBatch(admin, topIds);
+  return topIds.map((id) => {
+    const m = artistMeta.get(id);
+    return {
+      id,
+      name: m?.name ?? "Unknown",
+      listenCount: artistCounts.get(id) ?? 0,
+      imageUrl: m?.image_url ?? null,
+    };
+  });
+}
+
 async function fetchAlbumsBatch(
   admin: SupabaseClient,
   ids: string[],

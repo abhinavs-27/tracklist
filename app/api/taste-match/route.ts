@@ -1,95 +1,37 @@
-import { NextRequest } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
-import { isValidUuid } from '@/lib/validation';
-import type { TasteMatchResponse } from '@/types';
+import { NextRequest } from "next/server";
+import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import {
+  apiBadRequest,
+  apiForbidden,
+  apiInternalError,
+  apiOk,
+} from "@/lib/api-response";
+import { getTasteMatch } from "@/lib/taste/taste-match";
+import { isValidUuid } from "@/lib/validation";
 
-type ReviewRow = {
-  entity_id: string;
-  rating: number;
-  created_at: string;
-};
-
-function uniqueLatestByEntityId(rows: ReviewRow[]) {
-  const map = new Map<string, ReviewRow>();
-  for (const row of rows) {
-    if (!map.has(row.entity_id)) map.set(row.entity_id, row);
-  }
-  return map;
-}
-
+/**
+ * GET /api/taste-match?userB=<uuid>
+ * Viewer is always the authenticated user (user A). Query `userA` is ignored for security.
+ */
 export async function GET(request: NextRequest) {
   try {
+    const me = await requireApiAuth(request);
     const { searchParams } = new URL(request.url);
-    const userA = searchParams.get('userA');
-    const userB = searchParams.get('userB');
+    const userB = searchParams.get("userB")?.trim();
 
-    if (!userA || !userB) return apiBadRequest('Missing userA or userB');
-    if (!isValidUuid(userA) || !isValidUuid(userB)) return apiBadRequest('Invalid user id');
-    if (userA === userB) {
-      const body: TasteMatchResponse = {
-        score: 100,
-        sharedAlbumCount: 0,
-        sharedAlbums: [],
-      };
-      return apiOk(body);
+    const userAParam = searchParams.get("userA")?.trim();
+    if (userAParam && userAParam !== me.id) {
+      return apiForbidden("You can only compare taste as yourself.");
     }
 
-    const supabase = await createSupabaseServerClient();
+    if (!userB) return apiBadRequest("Missing userB");
+    if (!isValidUuid(userB)) return apiBadRequest("Invalid user id");
 
-    const [aRes, bRes] = await Promise.all([
-      supabase
-        .from('reviews')
-        .select('entity_id, rating, created_at')
-        .eq('user_id', userA)
-        .eq('entity_type', 'album')
-        .order('created_at', { ascending: false })
-        .limit(1000),
-      supabase
-        .from('reviews')
-        .select('entity_id, rating, created_at')
-        .eq('user_id', userB)
-        .eq('entity_type', 'album')
-        .order('created_at', { ascending: false })
-        .limit(1000),
-    ]);
-
-    if (aRes.error) return apiInternalError(aRes.error);
-    if (bRes.error) return apiInternalError(bRes.error);
-
-    const aRows = (aRes.data ?? []) as ReviewRow[];
-    const bRows = (bRes.data ?? []) as ReviewRow[];
-
-    const aMap = uniqueLatestByEntityId(aRows);
-    const bMap = uniqueLatestByEntityId(bRows);
-
-    const aTotal = aMap.size;
-    const bTotal = bMap.size;
-    const denom = Math.max(aTotal, bTotal, 1);
-
-    const sharedAlbums: TasteMatchResponse['sharedAlbums'] = [];
-    for (const entityId of aMap.keys()) {
-      const b = bMap.get(entityId);
-      if (!b) continue;
-      const a = aMap.get(entityId)!;
-      sharedAlbums.push({
-        spotify_id: entityId,
-        rating_userA: a.rating ?? null,
-        rating_userB: b.rating ?? null,
-      });
-    }
-
-    const sharedAlbumCount = sharedAlbums.length;
-    const score = Math.round((sharedAlbumCount / denom) * 100);
-
-    const body: TasteMatchResponse = {
-      score: Math.max(0, Math.min(100, score)),
-      sharedAlbumCount,
-      sharedAlbums,
-    };
-
-    return apiOk(body);
+    const result = await getTasteMatch(me.id, userB);
+    return apiOk(result);
   } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
     return apiInternalError(e);
   }
 }
