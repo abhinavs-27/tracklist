@@ -47,6 +47,27 @@ export type CommunityFeedResponse = {
   feed: CommunityFeedRow[];
 };
 
+/** Mirrors server `CommunityInsights` from `getCommunityInsights`. */
+export type CommunityInsightsPayload = {
+  summary: string;
+  topArtists: { artistId: string; name: string; count: number }[];
+  explorationScore: number;
+  explorationLabel: string;
+  timeOfDay: {
+    morning: number;
+    afternoon: number;
+    night: number;
+    lateNight: number;
+  };
+  dominantTime: string;
+  diversityScore: number;
+  diversityLabel: string;
+};
+
+export type CommunityInsightsResponse = {
+  insights: CommunityInsightsPayload;
+};
+
 export async function fetchMyCommunities(): Promise<CommunitiesListResponse> {
   return fetcher<CommunitiesListResponse>("/api/communities");
 }
@@ -94,6 +115,14 @@ export async function fetchCommunityFeed(
   const q = new URLSearchParams({ limit: String(limit) });
   return fetcher<CommunityFeedResponse>(
     `/api/communities/${encodeURIComponent(communityId)}/feed?${q.toString()}`,
+  );
+}
+
+export async function fetchCommunityInsights(
+  communityId: string,
+): Promise<CommunityInsightsResponse> {
+  return fetcher<CommunityInsightsResponse>(
+    `/api/communities/${encodeURIComponent(communityId)}/insights`,
   );
 }
 

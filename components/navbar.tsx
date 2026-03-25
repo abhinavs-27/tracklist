@@ -20,7 +20,7 @@ export function Navbar() {
           Tracklist
         </Link>
 
-        <div className="hidden min-w-0 flex-1 md:block md:max-w-md">
+        <div className="hidden min-w-0 flex-1 md:block md:max-w-xl lg:max-w-2xl">
           <SearchBar placeholder="Search artists, albums, tracks..." />
         </div>
 

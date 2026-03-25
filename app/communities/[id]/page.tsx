@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { CommunityInsights } from "@/components/community/CommunityInsights";
 import { getCommunityFeed } from "@/lib/community/community-feed";
+import { getCommunityInsights } from "@/lib/community/getCommunityInsights";
 import { getWeeklyLeaderboard } from "@/lib/community/getWeeklyLeaderboard";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
@@ -39,6 +41,8 @@ export default async function CommunityDetailPage({
       ? await getPendingInviteForUserToCommunity(id, userId)
       : null;
 
+  const insights =
+    isMember && session?.user?.id ? await getCommunityInsights(id) : null;
   const leaderboard =
     isMember && session?.user?.id ? await getWeeklyLeaderboard(id) : [];
   const feed =
@@ -97,6 +101,8 @@ export default async function CommunityDetailPage({
       {isOwner && isMember ? (
         <InviteMembersPanel communityId={id} />
       ) : null}
+
+      {isMember && insights ? <CommunityInsights insights={insights} /> : null}
 
       {isMember ? (
         <>

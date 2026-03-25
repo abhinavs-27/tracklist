@@ -39,6 +39,9 @@ export const queryKeys = {
     ["community", communityId, "leaderboard"] as const,
   communityFeed: (communityId: string) =>
     ["community", communityId, "feed"] as const,
+  /** Group listening insights (`GET /api/communities/:id/insights`). */
+  communityInsights: (communityId: string) =>
+    ["community", communityId, "insights"] as const,
   /** Pending community invites for inbox (`GET /api/communities/invites`). */
   communityInvites: () => ["communityInvites"] as const,
 };

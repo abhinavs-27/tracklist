@@ -11,12 +11,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
+import { CommunityInsights } from "../../components/community/CommunityInsights";
 import { InviteMembersPanel } from "../../components/community/InviteMembersPanel";
 import {
   acceptCommunityInviteApi,
   declineCommunityInviteApi,
   fetchCommunityDetail,
   fetchCommunityFeed,
+  fetchCommunityInsights,
   fetchCommunityLeaderboard,
   joinCommunity,
 } from "../../lib/api-communities";
@@ -57,6 +59,12 @@ export default function CommunityDetailScreen() {
 
   const isMember = meta?.is_member ?? false;
 
+  const { data: insights, isPending: insightsPending } = useQuery({
+    queryKey: queryKeys.communityInsights(id),
+    queryFn: () => fetchCommunityInsights(id).then((r) => r.insights),
+    enabled: !!id && isMember,
+  });
+
   const { data: lbData, isPending: lbPending } = useQuery({
     queryKey: queryKeys.communityLeaderboard(id),
     queryFn: () => fetchCommunityLeaderboard(id),
@@ -87,6 +95,9 @@ export default function CommunityDetailScreen() {
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communityFeed(id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.communityInsights(id),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communitiesMine(),
@@ -130,6 +141,9 @@ export default function CommunityDetailScreen() {
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communityFeed(id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.communityInsights(id),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communitiesMine(),
@@ -232,6 +246,17 @@ export default function CommunityDetailScreen() {
             ) : (
               <>
                 {isOwner ? <InviteMembersPanel communityId={id} /> : null}
+                {insightsPending && isMember ? (
+                  <View style={{ marginBottom: 16, alignItems: "center" }}>
+                    <ActivityIndicator color={theme.colors.emerald} />
+                    <Text style={[styles.muted, { marginTop: 8 }]}>
+                      Loading insights…
+                    </Text>
+                  </View>
+                ) : null}
+                {insights && isMember ? (
+                  <CommunityInsights insights={insights} />
+                ) : null}
                 <Text style={styles.sectionTitle}>This week&apos;s leaderboard</Text>
                 <Text style={styles.hint}>Last 7 days · by total listens</Text>
                 {lbPending ? (
