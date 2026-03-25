@@ -1508,6 +1508,8 @@ export async function getUserStreak(
   }
 }
 
+export { getWeeklyListeningStory } from "@/lib/reports/weekly-listening-story";
+
 export async function generateWeeklyReport(
   userId: string,
 ): Promise<WeeklyReportRow | null> {

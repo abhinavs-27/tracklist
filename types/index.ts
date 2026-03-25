@@ -247,6 +247,38 @@ export type PeriodReportRow = {
   top_track_id: string | null;
 };
 
+export type WeeklyTopEntity = {
+  id: string;
+  name: string | null;
+  imageUrl: string | null;
+};
+
+export type WeeklyListeningStoryStats = {
+  totalLogs: number;
+  uniqueArtists: number;
+  newArtists: number;
+  streakDays: number;
+};
+
+export type WeeklyListeningStoryComparison = {
+  logsDiffPercent: number | null;
+};
+
+export type WeeklyListeningStoryPayload = {
+  periodStart: string;
+  periodEnd: string;
+  periodLabel: string;
+  stats: WeeklyListeningStoryStats;
+  top: {
+    artist: WeeklyTopEntity | null;
+    album: WeeklyTopEntity | null;
+    track: WeeklyTopEntity | null;
+  };
+  insights: string[];
+  summary: string;
+  comparison: WeeklyListeningStoryComparison;
+};
+
 export type TrendingEntity = {
   entity_id: string;
   entity_type: string;
