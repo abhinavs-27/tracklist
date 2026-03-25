@@ -23,6 +23,7 @@ import {
 } from "@/lib/queries";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
+import { SimilarUsersSection } from "@/components/similar-users-section";
 import { isValidUuid } from "@/lib/validation";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
@@ -221,6 +222,8 @@ export default async function ProfilePage({
           initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
         />
       ) : null}
+
+      {isOwnProfile ? <SimilarUsersSection userId={profile.id} /> : null}
 
       <ProfileFavoriteAlbumsSection
         userId={profile.id}

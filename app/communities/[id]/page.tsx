@@ -16,6 +16,8 @@ import {
 } from "@/lib/community/queries";
 import { formatRelativeTime } from "@/lib/time";
 import { isValidUuid } from "@/lib/validation";
+import { CommunityTasteMatchCard } from "@/components/community-taste-match";
+import { getCommunityMatch } from "@/lib/taste/getCommunityMatch";
 import { CommunityActions } from "./community-actions";
 
 export default async function CommunityDetailPage({
@@ -47,6 +49,9 @@ export default async function CommunityDetailPage({
     isMember && session?.user?.id ? await getWeeklyLeaderboard(id) : [];
   const feed =
     isMember && session?.user?.id ? await getCommunityFeed(id, 25) : [];
+
+  const tasteMatch =
+    session?.user?.id ? await getCommunityMatch(session.user.id, id) : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-8">
@@ -87,6 +92,10 @@ export default async function CommunityDetailPage({
           )}
         </div>
       </header>
+
+      {session?.user?.id && tasteMatch ? (
+        <CommunityTasteMatchCard score={tasteMatch.score} />
+      ) : null}
 
       {!isMember ? (
         <p className="text-sm text-zinc-500">

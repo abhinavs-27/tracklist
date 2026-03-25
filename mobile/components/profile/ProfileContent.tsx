@@ -25,6 +25,7 @@ import { FollowNetworkModal } from "./FollowNetworkModal";
 import { CreateListModal } from "../list/CreateListModal";
 import { LastfmSection } from "./LastfmSection";
 import { TasteIdentity } from "./TasteIdentity";
+import { SimilarUsersSection } from "./SimilarUsersSection";
 
 type Tab = "favorites" | "activity";
 
@@ -166,6 +167,8 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
       ) : null}
 
       <TasteIdentity userId={user.id} />
+
+      {isOwn ? <SimilarUsersSection /> : null}
 
       <View style={{ flexDirection: "row", gap: 10 }}>
         <TabChip

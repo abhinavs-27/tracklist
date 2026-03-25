@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
+import { CommunityTasteMatchCard } from "../../components/community/CommunityTasteMatchCard";
 import { CommunityInsights } from "../../components/community/CommunityInsights";
 import { InviteMembersPanel } from "../../components/community/InviteMembersPanel";
 import {
@@ -22,6 +23,8 @@ import {
   fetchCommunityLeaderboard,
   joinCommunity,
 } from "../../lib/api-communities";
+import { useAuth } from "../../lib/hooks/useAuth";
+import { fetchCommunityTasteMatch } from "../../lib/api-taste";
 import { queryKeys } from "../../lib/query-keys";
 import { theme } from "../../lib/theme";
 
@@ -39,6 +42,7 @@ function formatRelative(iso: string): string {
 }
 
 export default function CommunityDetailScreen() {
+  const { user: authUser } = useAuth();
   const router = useRouter();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = useMemo(() => {
@@ -100,6 +104,9 @@ export default function CommunityDetailScreen() {
         queryKey: queryKeys.communityInsights(id),
       });
       await queryClient.invalidateQueries({
+        queryKey: queryKeys.communityTasteMatch(id),
+      });
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.communitiesMine(),
       });
       await queryClient.invalidateQueries({
@@ -146,6 +153,9 @@ export default function CommunityDetailScreen() {
         queryKey: queryKeys.communityInsights(id),
       });
       await queryClient.invalidateQueries({
+        queryKey: queryKeys.communityTasteMatch(id),
+      });
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.communitiesMine(),
       });
     } catch (e) {
@@ -189,6 +199,14 @@ export default function CommunityDetailScreen() {
                 <Text style={styles.badge}> · Private</Text>
               ) : null}
             </Text>
+
+            {authUser?.id && tasteMatch ? (
+              <CommunityTasteMatchCard
+                score={tasteMatch.score}
+                label={tasteMatch.label}
+                shortLabel={tasteMatch.shortLabel}
+              />
+            ) : null}
 
             {!isMember ? (
               <View style={styles.joinBlock}>

@@ -42,6 +42,11 @@ export const queryKeys = {
   /** Group listening insights (`GET /api/communities/:id/insights`). */
   communityInsights: (communityId: string) =>
     ["community", communityId, "insights"] as const,
+  /** User vs community taste vector (`GET /api/communities/:id/match`). */
+  communityTasteMatch: (communityId: string) =>
+    ["community", communityId, "tasteMatch"] as const,
+  /** Similar users (`GET /api/taste/matches`). */
+  tasteMatches: () => ["tasteMatches"] as const,
   /** Pending community invites for inbox (`GET /api/communities/invites`). */
   communityInvites: () => ["communityInvites"] as const,
 };
