@@ -5,6 +5,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getSuggestedUsers } from "@/lib/queries";
 import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached } from "@/lib/discover-cache";
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
+import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
+import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
 import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, getOrFetchArtistsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import { FollowButton } from "@/components/follow-button";
 
@@ -32,6 +34,9 @@ export default async function DiscoverPage() {
   const suggestedPromise = session?.user?.id
     ? getSuggestedUsers(session.user.id, 10)
     : Promise.resolve([]);
+  const recommendedCommunitiesPromise = session?.user?.id
+    ? getRecommendedCommunities(session.user.id)
+    : Promise.resolve([]);
 
   const hiddenGemsConfig = getChartConfig("hidden_gems");
   const hiddenGemsMinRating = hiddenGemsConfig?.filters?.min_rating ?? 4;
@@ -39,6 +44,7 @@ export default async function DiscoverPage() {
 
   const discoverSettled = await Promise.allSettled([
     suggestedPromise,
+    recommendedCommunitiesPromise,
     getTrendingEntitiesCached(MAX_ITEMS),
     getRisingArtistsCached(MAX_ITEMS, 7),
     getHiddenGemsCached(MAX_ITEMS, hiddenGemsMinRating, hiddenGemsMaxListens),
@@ -47,14 +53,19 @@ export default async function DiscoverPage() {
   const suggested = discoverSettled[0].status === "fulfilled" ? discoverSettled[0].value : [];
   if (discoverSettled[0].status === "rejected") console.error("[discover] getSuggestedUsers failed:", discoverSettled[0].reason);
 
-  const trendingRaw = discoverSettled[1].status === "fulfilled" ? discoverSettled[1].value : [];
-  if (discoverSettled[1].status === "rejected") console.error("[discover] getTrendingEntitiesCached failed:", discoverSettled[1].reason);
+  const recommendedCommunities =
+    discoverSettled[1].status === "fulfilled" ? discoverSettled[1].value : [];
+  if (discoverSettled[1].status === "rejected")
+    console.error("[discover] getRecommendedCommunities failed:", discoverSettled[1].reason);
 
-  const risingArtists = discoverSettled[2].status === "fulfilled" ? discoverSettled[2].value : [];
-  if (discoverSettled[2].status === "rejected") console.error("[discover] getRisingArtistsCached failed:", discoverSettled[2].reason);
+  const trendingRaw = discoverSettled[2].status === "fulfilled" ? discoverSettled[2].value : [];
+  if (discoverSettled[2].status === "rejected") console.error("[discover] getTrendingEntitiesCached failed:", discoverSettled[2].reason);
 
-  const hiddenGemsRaw = discoverSettled[3].status === "fulfilled" ? discoverSettled[3].value : [];
-  if (discoverSettled[3].status === "rejected") console.error("[discover] getHiddenGemsCached failed:", discoverSettled[3].reason);
+  const risingArtists = discoverSettled[3].status === "fulfilled" ? discoverSettled[3].value : [];
+  if (discoverSettled[3].status === "rejected") console.error("[discover] getRisingArtistsCached failed:", discoverSettled[3].reason);
+
+  const hiddenGemsRaw = discoverSettled[4].status === "fulfilled" ? discoverSettled[4].value : [];
+  if (discoverSettled[4].status === "rejected") console.error("[discover] getHiddenGemsCached failed:", discoverSettled[4].reason);
 
   const trendingTrackIds = trendingRaw.map((e) => e.entity_id);
   const hiddenGemsByType = { song: [] as string[], album: [] as string[] };
@@ -115,6 +126,10 @@ export default async function DiscoverPage() {
           )}
         </div>
       </header>
+
+      {session?.user?.id && recommendedCommunities.length > 0 ? (
+        <RecommendedCommunitiesSection items={recommendedCommunities} />
+      ) : null}
 
       <TrendingSection items={trendingEnriched} />
 

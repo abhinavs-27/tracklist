@@ -49,4 +49,6 @@ export const queryKeys = {
   tasteMatches: () => ["tasteMatches"] as const,
   /** Pending community invites for inbox (`GET /api/communities/invites`). */
   communityInvites: () => ["communityInvites"] as const,
+  /** Recommended public communities (`GET /api/communities/recommended`). */
+  recommendedCommunities: () => ["recommendedCommunities"] as const,
 };

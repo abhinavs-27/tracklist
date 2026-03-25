@@ -7,6 +7,7 @@ import { QueryProvider } from '@/components/providers/query-provider';
 import { LoggingProvider } from '@/components/logging/logging-context';
 import { RecentViewsProvider } from '@/components/logging/recent-views-provider';
 import { LoggingShell } from '@/components/logging/logging-shell';
+import { CommunityOnboarding } from '@/components/onboarding/CommunityOnboarding';
 
 export function Providers({
   children,
@@ -26,6 +27,7 @@ export function Providers({
           <RecentViewsProvider>
             <LoggingProvider>
               {children}
+              <CommunityOnboarding />
               <LoggingShell />
             </LoggingProvider>
           </RecentViewsProvider>

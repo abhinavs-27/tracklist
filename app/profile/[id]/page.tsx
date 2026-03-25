@@ -25,6 +25,8 @@ import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
 import { SimilarUsersSection } from "@/components/similar-users-section";
 import { isValidUuid } from "@/lib/validation";
+import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
+import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -172,6 +174,17 @@ export default async function ProfilePage({
       profileSettled[6].reason,
     );
 
+  let recommendedCommunities: Awaited<
+    ReturnType<typeof getRecommendedCommunities>
+  > = [];
+  if (session?.user?.id === user.id) {
+    try {
+      recommendedCommunities = await getRecommendedCommunities(user.id);
+    } catch (e) {
+      console.error("[profile] getRecommendedCommunities failed:", e);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -224,6 +237,13 @@ export default async function ProfilePage({
       ) : null}
 
       {isOwnProfile ? <SimilarUsersSection userId={profile.id} /> : null}
+
+      {isOwnProfile && recommendedCommunities.length > 0 ? (
+        <RecommendedCommunitiesSection
+          title="Communities you'd like"
+          items={recommendedCommunities}
+        />
+      ) : null}
 
       <ProfileFavoriteAlbumsSection
         userId={profile.id}
