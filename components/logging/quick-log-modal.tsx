@@ -1,16 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useToast } from "@/components/toast";
-import { resolveTrackForSearchResultWeb } from "@/lib/logging/resolve-log-target";
 import type { LogSource } from "@/lib/logging/types";
 import { useLogging } from "./logging-context";
 
-type SearchKind = "artist" | "album" | "track";
-
-type SearchResult = {
+type TrackSearchResult = {
   key: string;
-  kind: SearchKind;
   id: string;
   title: string;
   artist: string;
@@ -18,21 +13,6 @@ type SearchResult = {
 };
 
 type SpotifySearchPayload = {
-  artists?: {
-    items: Array<{
-      id: string;
-      name: string;
-      images?: Array<{ url: string }>;
-    }>;
-  };
-  albums?: {
-    items: Array<{
-      id: string;
-      name: string;
-      artists?: Array<{ name: string }>;
-      images?: Array<{ url: string }>;
-    }>;
-  };
   tracks?: {
     items: Array<{
       id: string;
@@ -43,39 +23,14 @@ type SpotifySearchPayload = {
   };
 };
 
-function flattenSpotifySearch(data: SpotifySearchPayload): SearchResult[] {
-  const out: SearchResult[] = [];
-  for (const a of data.artists?.items ?? []) {
-    out.push({
-      key: `artist:${a.id}`,
-      kind: "artist",
-      id: a.id,
-      title: a.name,
-      artist: "Artist",
-      artworkUrl: a.images?.[0]?.url ?? null,
-    });
-  }
-  for (const al of data.albums?.items ?? []) {
-    out.push({
-      key: `album:${al.id}`,
-      kind: "album",
-      id: al.id,
-      title: al.name,
-      artist: al.artists?.[0]?.name ?? "Album",
-      artworkUrl: al.images?.[0]?.url ?? null,
-    });
-  }
-  for (const t of data.tracks?.items ?? []) {
-    out.push({
-      key: `track:${t.id}`,
-      kind: "track",
-      id: t.id,
-      title: t.name,
-      artist: t.artists?.[0]?.name ?? "Track",
-      artworkUrl: t.album?.images?.[0]?.url ?? null,
-    });
-  }
-  return out;
+function flattenTrackSearch(data: SpotifySearchPayload): TrackSearchResult[] {
+  return (data.tracks?.items ?? []).map((t) => ({
+    key: `track:${t.id}`,
+    id: t.id,
+    title: t.name,
+    artist: t.artists?.[0]?.name ?? "Unknown artist",
+    artworkUrl: t.album?.images?.[0]?.url ?? null,
+  }));
 }
 
 type Props = {
@@ -86,9 +41,8 @@ type Props = {
 
 export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
   const { logListen, logBusy } = useLogging();
-  const { toast } = useToast();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<TrackSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [resolvingKey, setResolvingKey] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -101,13 +55,17 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const params = new URLSearchParams({
+        q,
+        type: "track",
+      });
+      const res = await fetch(`/api/search?${params.toString()}`);
       if (!res.ok) {
         setResults([]);
         return;
       }
       const data = (await res.json()) as SpotifySearchPayload;
-      setResults(flattenSpotifySearch(data));
+      setResults(flattenTrackSearch(data));
     } catch {
       setResults([]);
     } finally {
@@ -136,30 +94,22 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
     }
   }, [open]);
 
-  async function onPick(item: SearchResult) {
+  async function onPick(item: TrackSearchResult) {
     if (logBusy) return;
     setResolvingKey(item.key);
     try {
-      const resolved = await resolveTrackForSearchResultWeb(item.kind, item.id);
-      if (!resolved) {
-        toast("No track found for that item.");
-        return;
-      }
-      try {
-        await logListen({
-          trackId: resolved.trackId,
-          albumId: resolved.albumId ?? null,
-          artistId: resolved.artistId ?? null,
-          source,
-          note: note.trim() || null,
-          displayName: resolved.displayNameForLog ?? item.title,
-        });
-        onClose();
-      } catch {
-        /* logListen already toasts */
-      }
+      const displayName = `${item.title} · ${item.artist}`;
+      await logListen({
+        trackId: item.id,
+        albumId: null,
+        artistId: null,
+        source,
+        note: note.trim() || null,
+        displayName,
+      });
+      onClose();
     } catch {
-      toast("Couldn’t load details. Check your connection.");
+      /* logListen already toasts */
     } finally {
       setResolvingKey(null);
     }
@@ -194,13 +144,12 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
           </button>
         </div>
         <p className="shrink-0 px-4 pb-3 text-sm font-medium text-zinc-400">
-          Search for a song, album, or artist. Album/artist picks log a representative
-          track from that release or artist. Optional note applies to the next pick.
+          Search for a track, tap to log. Optional note applies to the next pick.
         </p>
         <div className="shrink-0 space-y-2.5 px-4 pb-3">
           <input
             type="search"
-            placeholder="Artists, albums, tracks…"
+            placeholder="Search tracks…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoCapitalize="none"
@@ -224,18 +173,12 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
           {results.length === 0 ? (
             <li className="px-4 py-3 text-sm font-semibold text-zinc-500">
               {query.trim().length === 0
-                ? "Type to search Spotify."
+                ? "Type to search for tracks."
                 : "No results"}
             </li>
           ) : (
             results.map((item) => {
               const busy = resolvingKey === item.key;
-              const sub =
-                item.kind === "artist"
-                  ? "Artist"
-                  : item.kind === "album"
-                    ? `Album · ${item.artist}`
-                    : `Song · ${item.artist}`;
               return (
                 <li key={item.key}>
                   <button
@@ -262,7 +205,7 @@ export function QuickLogModal({ open, onClose, source = "manual" }: Props) {
                         {item.title}
                       </p>
                       <p className="mt-0.5 truncate text-xs text-zinc-500">
-                        {sub}
+                        Song · {item.artist}
                       </p>
                     </div>
                     {busy ? (

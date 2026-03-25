@@ -15,16 +15,12 @@ import {
 } from "react-native";
 import { fetcher } from "../../lib/api";
 import { useLogging } from "../../lib/logging-context";
-import { resolveTrackForSearchResult } from "../../lib/resolve-log-target";
 import type { LogSource } from "../../lib/types/log";
 import { theme } from "../../lib/theme";
 import { Artwork } from "../media/Artwork";
 
-type SearchKind = "artist" | "album" | "track";
-
-type SearchResult = {
+type TrackSearchResult = {
   key: string;
-  kind: SearchKind;
   id: string;
   title: string;
   artist: string;
@@ -32,21 +28,6 @@ type SearchResult = {
 };
 
 type SpotifySearchPayload = {
-  artists?: {
-    items: Array<{
-      id: string;
-      name: string;
-      images?: Array<{ url: string }>;
-    }>;
-  };
-  albums?: {
-    items: Array<{
-      id: string;
-      name: string;
-      artists?: Array<{ name: string }>;
-      images?: Array<{ url: string }>;
-    }>;
-  };
   tracks?: {
     items: Array<{
       id: string;
@@ -57,39 +38,14 @@ type SpotifySearchPayload = {
   };
 };
 
-function flattenSpotifySearch(data: SpotifySearchPayload): SearchResult[] {
-  const out: SearchResult[] = [];
-  for (const a of data.artists?.items ?? []) {
-    out.push({
-      key: `artist:${a.id}`,
-      kind: "artist",
-      id: a.id,
-      title: a.name,
-      artist: "Artist",
-      artworkUrl: a.images?.[0]?.url ?? null,
-    });
-  }
-  for (const al of data.albums?.items ?? []) {
-    out.push({
-      key: `album:${al.id}`,
-      kind: "album",
-      id: al.id,
-      title: al.name,
-      artist: al.artists?.[0]?.name ?? "Album",
-      artworkUrl: al.images?.[0]?.url ?? null,
-    });
-  }
-  for (const t of data.tracks?.items ?? []) {
-    out.push({
-      key: `track:${t.id}`,
-      kind: "track",
-      id: t.id,
-      title: t.name,
-      artist: t.artists?.[0]?.name ?? "Track",
-      artworkUrl: t.album?.images?.[0]?.url ?? null,
-    });
-  }
-  return out;
+function flattenTrackSearch(data: SpotifySearchPayload): TrackSearchResult[] {
+  return (data.tracks?.items ?? []).map((t) => ({
+    key: `track:${t.id}`,
+    id: t.id,
+    title: t.name,
+    artist: t.artists?.[0]?.name ?? "Unknown artist",
+    artworkUrl: t.album?.images?.[0]?.url ?? null,
+  }));
 }
 
 type Props = {
@@ -101,9 +57,8 @@ type Props = {
 
 export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
   const { logListen, logBusy, showToast } = useLogging();
-  const spotifyOff = !isSpotifyIntegrationEnabled();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<TrackSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [resolvingKey, setResolvingKey] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -116,10 +71,11 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
     }
     setLoading(true);
     try {
+      const params = new URLSearchParams({ q, type: "track" });
       const data = await fetcher<SpotifySearchPayload>(
-        `/api/search?q=${encodeURIComponent(q)}`,
+        `/api/search?${params.toString()}`,
       );
-      setResults(flattenSpotifySearch(data));
+      setResults(flattenTrackSearch(data));
     } catch {
       setResults([]);
     } finally {
@@ -148,29 +104,19 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
     }
   }, [visible]);
 
-  async function onPick(item: SearchResult) {
+  async function onPick(item: TrackSearchResult) {
     if (logBusy) return;
     setResolvingKey(item.key);
     try {
-      let resolved;
-      try {
-        resolved = await resolveTrackForSearchResult(item.kind, item.id);
-      } catch {
-        showToast("Couldn’t load details. Check your connection.");
-        return;
-      }
-      if (!resolved) {
-        showToast("No track found for that item.");
-        return;
-      }
+      const displayName = `${item.title} · ${item.artist}`;
       try {
         await logListen({
-          trackId: resolved.trackId,
-          albumId: resolved.albumId ?? null,
-          artistId: resolved.artistId ?? null,
+          trackId: item.id,
+          albumId: null,
+          artistId: null,
           source,
           note: note.trim() || null,
-          displayName: resolved.displayNameForLog ?? item.title,
+          displayName,
         });
         Keyboard.dismiss();
         onClose();
@@ -236,13 +182,12 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                   fontWeight: "500",
                 }}
               >
-                Search for a song, album, or artist. Album/artist picks log a representative
-                track from that release or artist. Optional note applies to the next pick.
+                Search for a track, tap to log. Optional note applies to the next pick.
               </Text>
 
               <View style={{ paddingHorizontal: 18, gap: 10, marginBottom: 12 }}>
                 <TextInput
-                  placeholder="Artists, albums, tracks…"
+                  placeholder="Search tracks…"
                   placeholderTextColor={theme.colors.muted}
                   value={query}
                   onChangeText={setQuery}
@@ -318,7 +263,7 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                         fontWeight: "600",
                       }}
                     >
-                      Type to search Spotify.
+                      Type to search for tracks.
                     </Text>
                   ) : null
                 }
@@ -357,11 +302,7 @@ export function QuickLogModal({ visible, onClose, source = "manual" }: Props) {
                             marginTop: 2,
                           }}
                         >
-                          {item.kind === "artist"
-                            ? "Artist"
-                            : item.kind === "album"
-                              ? `Album · ${item.artist}`
-                              : `Song · ${item.artist}`}
+                          Song · {item.artist}
                         </Text>
                       </View>
                       {busy ? (
