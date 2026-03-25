@@ -62,7 +62,13 @@ export default async function NotificationsPage() {
                     {" — open Communities to respond."}
                   </>
                   )}
-                  {n.type !== "follow" && n.type !== "community_invite" && (
+                  {n.type !== "follow" &&
+                    !(
+                      n.type === "community_invite" &&
+                      n.actor_user_id &&
+                      n.entity_type === "community" &&
+                      n.entity_id
+                    ) && (
                     <span className="capitalize">{n.type.replace(/_/g, " ")}</span>
                   )}
                 </span>

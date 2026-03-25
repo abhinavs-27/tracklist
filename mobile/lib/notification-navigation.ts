@@ -14,5 +14,8 @@ export function getRouteForNotification(n: EnrichedNotification): string | null 
   if (n.entity_type === "list" && n.entity_id) {
     return `/list/${n.entity_id}`;
   }
+  if (n.type === "community_invite" && n.entity_type === "community" && n.entity_id) {
+    return `/communities/${encodeURIComponent(n.entity_id)}`;
+  }
   return null;
 }
