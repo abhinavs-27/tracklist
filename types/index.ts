@@ -125,6 +125,39 @@ export interface Comment {
   created_at: string;
 }
 
+export type CommunityEventType = "streak" | "top_artist" | "milestone";
+
+export type CommunityRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  is_private: boolean;
+  created_by: string;
+  created_at: string;
+};
+
+export type CommunityWithMeta = CommunityRow & {
+  member_count: number;
+  my_role: "owner" | "member";
+};
+
+export type CommunityInviteStatus = "pending" | "accepted" | "declined";
+
+export type CommunityInviteRow = {
+  id: string;
+  community_id: string;
+  invited_by: string;
+  invited_user_id: string;
+  status: CommunityInviteStatus;
+  created_at: string;
+};
+
+/** Pending invite for the current user with community name (for inbox UI). */
+export type CommunityInvitePending = CommunityInviteRow & {
+  community: Pick<CommunityRow, "id" | "name" | "is_private">;
+  invited_by_username: string;
+};
+
 export interface List {
   id: string;
   user_id: string;

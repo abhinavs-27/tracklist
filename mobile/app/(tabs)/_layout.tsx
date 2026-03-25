@@ -36,6 +36,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="communities"
+        options={{
+          title: "Groups",
+        }}
+      />
+      <Tabs.Screen
         name="leaderboard"
         options={{
           title: "Leaderboard",

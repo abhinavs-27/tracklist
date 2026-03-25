@@ -31,4 +31,14 @@ export const queryKeys = {
   logs: () => ["logs"] as const,
   /** Computed taste summary (`GET /api/taste-identity`). */
   tasteIdentity: (userId: string) => ["tasteIdentity", userId] as const,
+  /** Communities the signed-in user belongs to (`GET /api/communities`). */
+  communitiesMine: () => ["communities", "mine"] as const,
+  /** Single community metadata (`GET /api/communities/:id`). */
+  community: (communityId: string) => ["community", communityId] as const,
+  communityLeaderboard: (communityId: string) =>
+    ["community", communityId, "leaderboard"] as const,
+  communityFeed: (communityId: string) =>
+    ["community", communityId, "feed"] as const,
+  /** Pending community invites for inbox (`GET /api/communities/invites`). */
+  communityInvites: () => ["communityInvites"] as const,
 };
