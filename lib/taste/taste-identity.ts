@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getArtists } from "@/lib/spotify";
 import { upsertArtistFromSpotify } from "@/lib/spotify-cache";
+import { scheduleEnrichArtistGenresForArtistIds } from "./enrich-artist-genres";
 import {
   normalizeListeningStyle,
   type TasteListeningStyle,
@@ -33,6 +34,13 @@ const EMPTY: TasteIdentity = {
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
+}
+
+/** Cached payloads may still have legacy diversity 0–100; UI is 0–10 distinct genres. */
+function normalizeDiversityScore(n: number): number {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  if (n <= 10) return Math.min(10, Math.round(n));
+  return Math.min(10, Math.round(n / 10));
 }
 
 function maxLogsPerDay(
@@ -119,9 +127,10 @@ function pickListeningStyle(args: {
 function buildSummary(t: TasteIdentity): string {
   if (t.totalLogs === 0) return EMPTY.summary;
   const bits: string[] = [];
-  if (t.diversityScore >= 55) {
+  // diversityScore is 0–10 (distinct genre tags, capped at 10).
+  if (t.diversityScore >= 7) {
     bits.push("You explore a wide spread of genres.");
-  } else if (t.diversityScore <= 30) {
+  } else if (t.diversityScore <= 3) {
     bits.push("Your listening clusters in a focused set of genres.");
   }
   if (t.obscurityScore != null && t.obscurityScore >= 55) {
@@ -157,7 +166,8 @@ function buildSummary(t: TasteIdentity): string {
 
 function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   const listeningStyle = normalizeListeningStyle(String(cached.listeningStyle));
-  const base = { ...cached, listeningStyle };
+  const diversityScore = normalizeDiversityScore(cached.diversityScore);
+  const base = { ...cached, listeningStyle, diversityScore };
   if (base.totalLogs === 0) {
     return { ...base, summary: EMPTY.summary };
   }
@@ -443,6 +453,7 @@ export async function computeTasteIdentity(
   const genreRaw = new Map<string, number>();
   const genreLabel = new Map<string, string>();
 
+  // `artists.genres` — filled from Last.fm tags via `enrichArtistGenres` (Spotify artist genres are unreliable).
   for (const [artistId, listenCount] of artistCounts) {
     const meta = artistMeta.get(artistId);
     const genres = meta?.genres?.map((g) => g.trim()).filter(Boolean) ?? [];
@@ -468,10 +479,9 @@ export async function computeTasteIdentity(
       : [];
 
   const uniqueGenres = genreRaw.size;
+  /** 0–10: count of distinct genre tags across listened artists, capped at 10 (matches UI). */
   const diversityScore =
-    uniqueGenres === 0
-      ? 0
-      : Math.min(100, Math.round((uniqueGenres / 10) * 100));
+    uniqueGenres === 0 ? 0 : Math.min(10, uniqueGenres);
 
   let obscurityScore: number | null = null;
   if (popularities.length > 0) {
@@ -526,6 +536,8 @@ export async function computeTasteIdentity(
     await enrichTopArtistsFromSpotify(admin, missingImages.slice(0, 10));
     artistMeta = await fetchArtistsBatch(admin, [...artistIdsForMeta]);
   }
+
+  scheduleEnrichArtistGenresForArtistIds(admin, topArtistIds, 14);
 
   const topArtists: TasteTopArtist[] = topArtistIds.map((id) => {
     const m = artistMeta.get(id);

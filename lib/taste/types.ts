@@ -29,6 +29,7 @@ export type TasteIdentity = {
   topGenres: TasteGenre[];
   /** 0–100 from track popularity; null if no track popularity data */
   obscurityScore: number | null;
+  /** Distinct genre tags (0–10), not a percentage. */
   diversityScore: number;
   listeningStyle: TasteListeningStyle;
   avgTracksPerSession: number;

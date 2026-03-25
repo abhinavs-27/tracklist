@@ -15,6 +15,8 @@ import {
 } from "@/lib/spotify-user";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import { getOrFetchTracksBatch } from "@/lib/spotify-cache";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist-genres";
 import type { SyncResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -131,6 +133,15 @@ export async function POST(request: NextRequest) {
       await getOrFetchTracksBatch(idsToWarm);
     } catch (e) {
       console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
+    }
+
+    try {
+      const admin = createSupabaseAdminClient();
+      scheduleEnrichArtistGenresForTrackIds(admin, idsToWarm);
+    } catch (e) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[spotify-sync] Last.fm genre enrich schedule failed", e);
+      }
     }
 
     console.log("[spotify-ingest] manual-sync-complete", {

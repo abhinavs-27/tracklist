@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist-genres";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
 
 /**
@@ -24,6 +25,7 @@ export async function syncManualLogSideEffects(
   }
 
   const supabase = createSupabaseAdminClient();
+  scheduleEnrichArtistGenresForTrackIds(supabase, [trackId]);
   const { error: refreshError } = await supabase.rpc("refresh_entity_stats");
   if (refreshError) {
     console.warn("[syncManualLog] refresh_entity_stats failed", refreshError);
@@ -52,6 +54,8 @@ export async function syncBatchLogSideEffects(
   }
 
   const supabase = createSupabaseAdminClient();
+  scheduleEnrichArtistGenresForTrackIds(supabase, uniqueIds);
+
   const { error: refreshError } = await supabase.rpc("refresh_entity_stats");
   if (refreshError) {
     console.warn("[syncBatchLog] refresh_entity_stats failed", refreshError);

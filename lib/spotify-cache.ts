@@ -69,6 +69,7 @@ type ArtistRow = {
   image_url: string | null;
   genres: string[] | null;
   popularity?: number | null;
+  lastfm_fetched_at?: string | null;
   created_at: string;
   updated_at: string;
   cached_at?: string | null;
