@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getFeedForUser, enrichFeedActivitiesWithEntityNames, enrichListenSessionsWithAlbums } from '@/lib/feed';
+import { getRecommendedCommunities } from '@/lib/community/getRecommendedCommunities';
 import { FeedListVirtual } from '@/components/feed-list-virtual';
+import { RecommendedCommunitiesSection } from '@/components/discover/recommended-communities-section';
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -32,7 +34,11 @@ export default async function HomePage() {
     );
   }
 
-  const { items: feedItems, next_cursor: feedNextCursor } = await getFeedForUser(session.user.id, 50, null);
+  const [feedResult, recommendedCommunities] = await Promise.all([
+    getFeedForUser(session.user.id, 50, null),
+    getRecommendedCommunities(session.user.id),
+  ]);
+  const { items: feedItems, next_cursor: feedNextCursor } = feedResult;
   const [withNames, withAlbums] = await Promise.all([
     enrichFeedActivitiesWithEntityNames(feedItems),
     enrichListenSessionsWithAlbums(feedItems),
@@ -46,6 +52,11 @@ export default async function HomePage() {
   return (
     <div>
       <h1 className="mb-4 text-xl font-bold text-white sm:text-2xl">Your feed</h1>
+      {recommendedCommunities.length > 0 ? (
+        <div className="mb-8">
+          <RecommendedCommunitiesSection items={recommendedCommunities} />
+        </div>
+      ) : null}
       {feedItems.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
           <p className="text-zinc-400">Your feed is empty. Follow people to see what they&apos;re listening to.</p>
