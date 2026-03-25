@@ -4,6 +4,17 @@ import { buildCommunityVector } from "@/lib/community/buildCommunityVector";
 import { buildNormalizedTasteVector } from "@/lib/taste/buildTasteVector";
 import { cosineSimilarity } from "@/lib/taste/cosineSimilarity";
 
+/** Reuse a precomputed user vector to avoid rebuilding for each community. */
+export async function getCommunityMatchScoreForUserVector(
+  userVector: Record<string, number>,
+  communityId: string,
+): Promise<number> {
+  const cid = communityId?.trim();
+  if (!cid) return 0;
+  const communityVec = await buildCommunityVector(cid);
+  return cosineSimilarity(userVector, communityVec);
+}
+
 export async function getCommunityMatch(
   userId: string,
   communityId: string,
@@ -12,10 +23,7 @@ export async function getCommunityMatch(
   const cid = communityId?.trim();
   if (!uid || !cid) return { score: 0 };
 
-  const [userVec, communityVec] = await Promise.all([
-    buildNormalizedTasteVector(uid),
-    buildCommunityVector(cid),
-  ]);
-
-  return { score: cosineSimilarity(userVec, communityVec) };
+  const userVec = await buildNormalizedTasteVector(uid);
+  const score = await getCommunityMatchScoreForUserVector(userVec, cid);
+  return { score };
 }
