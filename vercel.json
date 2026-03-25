@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/taste-identity-refresh",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/community-feature-weekly",
+      "schedule": "15 3 * * 1"
     }
   ]
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { CommunityInvitePending } from "@/types";
@@ -52,15 +51,9 @@ export function CommunityInvitesClient({
 
   if (invites.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-8 text-center">
-        <p className="text-zinc-400">No pending invites.</p>
-        <Link
-          href="/communities"
-          className="mt-4 inline-block text-emerald-400 hover:underline"
-        >
-          Back to communities
-        </Link>
-      </div>
+      <p className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-4 py-3 text-sm text-zinc-500">
+        No pending invites.
+      </p>
     );
   }
 

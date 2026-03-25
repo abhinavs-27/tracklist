@@ -326,6 +326,20 @@ export async function getArtistAlbums(
   });
 }
 
+/**
+ * Chart / popularity order (Spotify). Used when DB has no artist tracks yet (e.g. quick log from search).
+ */
+export async function getArtistSpotifyTopTracks(
+  spotifyId: string,
+  market = "US",
+): Promise<SpotifyApi.TrackObjectFull[]> {
+  const data = await spotifyFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
+    `/artists/${spotifyId}/top-tracks`,
+    { market },
+  );
+  return data.tracks ?? [];
+}
+
 export async function getAlbum(
   spotifyId: string,
 ): Promise<SpotifyApi.AlbumObjectFull> {

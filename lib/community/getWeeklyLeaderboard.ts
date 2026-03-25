@@ -49,7 +49,7 @@ function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-function longestStreakInWindow(
+export function longestStreakInWindow(
   daySet: Set<string>,
   rangeStart: string,
   rangeEnd: string,

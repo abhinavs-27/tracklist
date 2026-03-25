@@ -1,10 +1,28 @@
 import { withHandler } from "@/lib/api-handler";
-import { getCommunityFeed } from "@/lib/community/community-feed";
+import {
+  getCommunityFeedMerged,
+  type CommunityFeedFilter,
+} from "@/lib/community/community-feed-merged";
 import { isCommunityMember } from "@/lib/community/queries";
 import { apiForbidden, apiNotFound, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 
-/** GET /api/communities/[id]/feed — community activity; members only. */
+const FILTERS: CommunityFeedFilter[] = [
+  "all",
+  "streaks",
+  "listens",
+  "reviews",
+  "members",
+];
+
+function parseFilter(raw: string | null): CommunityFeedFilter {
+  if (raw && FILTERS.includes(raw as CommunityFeedFilter)) {
+    return raw as CommunityFeedFilter;
+  }
+  return "all";
+}
+
+/** GET /api/communities/[id]/feed — merged activity (events + listens + reviews); members only. */
 export const GET = withHandler(
   async (request, { user: me, params }) => {
     const id = params.id?.trim() ?? "";
@@ -20,8 +38,9 @@ export const GET = withHandler(
       50,
       Math.max(1, parseInt(searchParams.get("limit") ?? "30", 10) || 30),
     );
-    const feed = await getCommunityFeed(id, limit);
-    return apiOk({ feed });
+    const filter = parseFilter(searchParams.get("filter"));
+    const feed = await getCommunityFeedMerged(id, limit, filter);
+    return apiOk({ feed, filter });
   },
   { requireAuth: true },
 );

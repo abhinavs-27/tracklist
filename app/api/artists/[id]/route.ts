@@ -4,7 +4,7 @@ import {
   fetchArtistAlbumsFromDb,
   fetchArtistTracksFromDb,
 } from "@/lib/artist-db-feed";
-import { getArtist, getArtistAlbums } from "@/lib/spotify";
+import { getArtist, getArtistAlbums, getArtistSpotifyTopTracks } from "@/lib/spotify";
 import { getTrackStatsForTrackIds } from "@/lib/queries";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isValidSpotifyId } from "@/lib/validation";
@@ -112,6 +112,34 @@ export async function GET(
           average_rating: s?.average_rating ?? null,
         };
       });
+    } else {
+      try {
+        const spotifyTop = await getArtistSpotifyTopTracks(id);
+        const slice = spotifyTop.slice(0, 10);
+        if (slice.length > 0) {
+          const topTrackIds = slice.map((t) => t.id);
+          trackStats =
+            topTrackIds.length > 0
+              ? await getTrackStatsForTrackIds(topTrackIds)
+              : {};
+          topTracks = slice.map((t, idx) => {
+            const s = trackStats[t.id];
+            const listen = s?.listen_count ?? 0;
+            totalPlays += listen;
+            return {
+              id: t.id,
+              name: t.name,
+              track_number: idx + 1,
+              duration_ms: t.duration_ms ?? null,
+              listen_count: listen,
+              review_count: s?.review_count ?? 0,
+              average_rating: s?.average_rating ?? null,
+            };
+          });
+        }
+      } catch (e) {
+        console.warn("[api/artists] getArtistSpotifyTopTracks failed for", id, e);
+      }
     }
 
     return apiOk({

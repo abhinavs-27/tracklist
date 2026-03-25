@@ -46,9 +46,6 @@ export function Navbar() {
                 <Link href="/communities" className={navLinkClass}>
                   Communities
                 </Link>
-                <Link href="/communities/invites" className={navLinkClass}>
-                  Invites
-                </Link>
                 <Link href="/lists" className={navLinkClass}>
                   Lists
                 </Link>

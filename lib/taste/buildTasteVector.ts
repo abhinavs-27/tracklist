@@ -124,19 +124,36 @@ export function normalizeTasteVector(
 export async function buildNormalizedTasteVector(
   userId: string,
 ): Promise<Record<string, number>> {
+  const since = new Date(Date.now() - TASTE_LOOKBACK_MS).toISOString();
+  return buildNormalizedTasteVectorForRange(userId, since, null);
+}
+
+/**
+ * Normalized artist weights from logs in [sinceIso, untilIso).
+ * `untilIso` null → now.
+ */
+export async function buildNormalizedTasteVectorForRange(
+  userId: string,
+  sinceIso: string,
+  untilIso: string | null,
+): Promise<Record<string, number>> {
   const admin = createSupabaseAdminClient();
   const uid = userId?.trim();
   if (!uid) return {};
 
-  const since = new Date(Date.now() - TASTE_LOOKBACK_MS).toISOString();
-
-  const { data: logRows, error } = await admin
+  let q = admin
     .from("logs")
     .select("user_id, listened_at, artist_id, track_id")
     .eq("user_id", uid)
-    .gte("listened_at", since)
+    .gte("listened_at", sinceIso)
     .order("listened_at", { ascending: true })
     .limit(MAX_LOG_ROWS);
+
+  if (untilIso) {
+    q = q.lt("listened_at", untilIso);
+  }
+
+  const { data: logRows, error } = await q;
 
   if (error || !logRows?.length) return {};
 

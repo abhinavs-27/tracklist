@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { CommunityInvitesClient } from "@/app/communities/invites/invites-client";
+import { listPendingInvitesForUser } from "@/lib/community/invites";
 import { getUserCommunities } from "@/lib/community/queries";
 
 export default async function CommunitiesPage() {
@@ -10,7 +12,10 @@ export default async function CommunitiesPage() {
     redirect("/auth/signin?callbackUrl=/communities");
   }
 
-  const communities = await getUserCommunities(session.user.id);
+  const [communities, invites] = await Promise.all([
+    getUserCommunities(session.user.id),
+    listPendingInvitesForUser(session.user.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
@@ -21,22 +26,25 @@ export default async function CommunitiesPage() {
             Small-group listening challenges — leaderboards reset weekly.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/communities/invites"
-            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
-          >
-            Invites
-          </Link>
-          <Link
-            href="/communities/new"
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-          >
-            Create community
-          </Link>
-        </div>
+        <Link
+          href="/communities/new"
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          Create community
+        </Link>
       </div>
 
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Pending invites
+        </h2>
+        <CommunityInvitesClient initialInvites={invites} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Your communities
+        </h2>
       {communities.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-8 text-center">
           <p className="text-zinc-400">
@@ -74,6 +82,7 @@ export default async function CommunitiesPage() {
           ))}
         </ul>
       )}
+      </section>
     </div>
   );
 }

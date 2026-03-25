@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   FlatList,
@@ -9,8 +9,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useCallback } from "react";
-import type { CommunityWithMeta } from "../../../types";
+import { useCallback, useState } from "react";
+import type { CommunityInvitePending, CommunityWithMeta } from "../../../types";
+import {
+  acceptCommunityInviteApi,
+  declineCommunityInviteApi,
+  fetchMyCommunityInvites,
+} from "../../lib/api-communities";
 import { useMyCommunities } from "../../lib/hooks/useMyCommunities";
 import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
 import { queryKeys } from "../../lib/query-keys";
@@ -19,13 +24,118 @@ import { theme } from "../../lib/theme";
 export default function CommunitiesTabScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: communities, isPending, error, refetch, isRefetching } =
-    useMyCommunities();
+  const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
+
+  const {
+    data: communities,
+    isPending,
+    error,
+    refetch,
+    isRefetching,
+  } = useMyCommunities();
+
+  const {
+    data: inviteData,
+    isPending: invitesPending,
+    refetch: refetchInvites,
+  } = useQuery({
+    queryKey: queryKeys.communityInvites(),
+    queryFn: async () => {
+      const r = await fetchMyCommunityInvites();
+      return r.invites;
+    },
+  });
+
+  const invites: CommunityInvitePending[] = inviteData ?? [];
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.communitiesMine() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.communityInvites() });
     void refetch();
-  }, [queryClient, refetch]);
+    void refetchInvites();
+  }, [queryClient, refetch, refetchInvites]);
+
+  const onAccept = useCallback(
+    async (id: string) => {
+      setBusyInviteId(id);
+      try {
+        await acceptCommunityInviteApi(id);
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.communityInvites(),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.communitiesMine(),
+        });
+        await refetchInvites();
+        await refetch();
+      } finally {
+        setBusyInviteId(null);
+      }
+    },
+    [queryClient, refetch, refetchInvites],
+  );
+
+  const onDecline = useCallback(
+    async (id: string) => {
+      setBusyInviteId(id);
+      try {
+        await declineCommunityInviteApi(id);
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.communityInvites(),
+        });
+        await refetchInvites();
+      } finally {
+        setBusyInviteId(null);
+      }
+    },
+    [queryClient, refetchInvites],
+  );
+
+  const listHeader = (
+    <View style={styles.invitesBlock}>
+      <Text style={styles.sectionLabel}>Pending invites</Text>
+      {invitesPending ? (
+        <View style={styles.invitesLoading}>
+          <ActivityIndicator color={theme.colors.emerald} />
+        </View>
+      ) : invites.length === 0 ? (
+        <Text style={styles.invitesEmpty}>No pending invites.</Text>
+      ) : (
+        <View style={styles.inviteCards}>
+          {invites.map((inv) => (
+            <View key={inv.id} style={styles.inviteCard}>
+              <Text style={styles.inviteTitle}>{inv.community.name}</Text>
+              <Text style={styles.inviteSub}>
+                {inv.invited_by_username} invited you
+                {inv.community.is_private ? " · Private" : ""}
+              </Text>
+              <View style={styles.inviteActions}>
+                <Pressable
+                  style={styles.declineBtn}
+                  onPress={() => onDecline(inv.id)}
+                  disabled={busyInviteId === inv.id}
+                >
+                  <Text style={styles.declineBtnText}>Decline</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.acceptBtn}
+                  onPress={() => onAccept(inv.id)}
+                  disabled={busyInviteId === inv.id}
+                >
+                  <Text style={styles.acceptBtnText}>
+                    {busyInviteId === inv.id ? "…" : "Accept"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+      <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
+        Your communities
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -34,20 +144,12 @@ export default function CommunitiesTabScreen() {
         <Text style={styles.subtitle}>
           Weekly leaderboards with your crew — not global.
         </Text>
-        <View style={styles.headerActions}>
-          <Pressable
-            style={styles.secondaryBtn}
-            onPress={() => router.push("/communities/invites")}
-          >
-            <Text style={styles.secondaryBtnText}>Invites</Text>
-          </Pressable>
-          <Pressable
-            style={styles.primaryBtn}
-            onPress={() => router.push("/communities/new")}
-          >
-            <Text style={styles.primaryBtnText}>Create community</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          style={styles.primaryBtn}
+          onPress={() => router.push("/communities/new")}
+        >
+          <Text style={styles.primaryBtnText}>Create community</Text>
+        </Pressable>
       </View>
 
       {isPending && !communities ? (
@@ -67,6 +169,7 @@ export default function CommunitiesTabScreen() {
           keyExtractor={(item) => item.id}
           refreshing={isRefetching}
           onRefresh={onRefresh}
+          ListHeaderComponent={listHeader}
           contentContainerStyle={
             communities?.length === 0 ? styles.emptyContainer : styles.listPad
           }
@@ -127,42 +230,80 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     lineHeight: 20,
   },
-  headerActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 4,
-  },
-  secondaryBtn: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  secondaryBtnText: {
-    color: theme.colors.text,
-    fontWeight: "600",
-    fontSize: 15,
-  },
   primaryBtn: {
+    alignSelf: "flex-start",
     backgroundColor: theme.colors.emerald,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
+    marginTop: 4,
   },
   primaryBtnText: {
     color: "#fff",
     fontWeight: "700",
     fontSize: 15,
   },
+  invitesBlock: {
+    paddingHorizontal: 18,
+    paddingBottom: 4,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: theme.colors.muted,
+  },
+  sectionLabelSpaced: { marginTop: 4, marginBottom: 8 },
+  invitesLoading: { paddingVertical: 12, alignItems: "flex-start" },
+  invitesEmpty: {
+    fontSize: 14,
+    color: theme.colors.muted,
+    paddingVertical: 8,
+  },
+  inviteCards: { gap: 10, marginBottom: 4 },
+  inviteCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: theme.colors.panel,
+  },
+  inviteTitle: { fontSize: 17, fontWeight: "700", color: theme.colors.text },
+  inviteSub: { marginTop: 4, fontSize: 13, color: theme.colors.muted },
+  inviteActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 12,
+  },
+  declineBtn: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  declineBtnText: { color: theme.colors.text, fontWeight: "600" },
+  acceptBtn: {
+    backgroundColor: theme.colors.emerald,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  acceptBtnText: { color: "#fff", fontWeight: "700" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   pad: { padding: 18 },
-  listPad: { paddingHorizontal: 18, paddingBottom: 24, gap: 10 },
+  listPad: { paddingHorizontal: 0, paddingBottom: 24, gap: 0 },
   emptyContainer: { flexGrow: 1, padding: 24, justifyContent: "center" },
   err: { color: theme.colors.danger, fontWeight: "600" },
   link: { color: theme.colors.emerald, marginTop: 8, fontWeight: "600" },
-  empty: { color: theme.colors.muted, fontSize: 15, lineHeight: 22 },
+  empty: {
+    color: theme.colors.muted,
+    fontSize: 15,
+    lineHeight: 22,
+    paddingHorizontal: 18,
+  },
   card: {
     backgroundColor: theme.colors.panel,
     borderRadius: 12,
@@ -170,6 +311,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     padding: 14,
     marginBottom: 10,
+    marginHorizontal: 18,
   },
   cardTop: {
     flexDirection: "row",

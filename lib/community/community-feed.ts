@@ -41,6 +41,13 @@ function buildLabel(
       }
       return `${username} reached a milestone`;
     }
+    case "role_badge": {
+      const role = (meta.role as string) ?? "a role";
+      return `${username} is ${role}`;
+    }
+    case "listen":
+    case "review":
+      return `${username} activity`;
     default:
       return `${username} activity`;
   }

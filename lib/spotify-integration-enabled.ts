@@ -1,6 +1,9 @@
 /**
- * `isSpotifyIntegrationEnabled()` — OAuth, Spotify logging, sync, quick log, ingest cron.
+ * `isSpotifyIntegrationEnabled()` — OAuth, account sync, ingest cron, user-linked Spotify APIs.
  * Use for **user-linked** Spotify flows only (not catalog search/metadata).
+ *
+ * Manual quick log (`/api/search` + `POST /api/logs`) uses the **catalog** (client credentials)
+ * and does **not** require this flag — keep quick log UI enabled whenever search works.
  *
  * To hide Spotify **profile** controls (connect / sync UI) without toggling env flags,
  * set `NEXT_PUBLIC_HIDE_SPOTIFY_PROFILE=true`.

@@ -125,7 +125,13 @@ export interface Comment {
   created_at: string;
 }
 
-export type CommunityEventType = "streak" | "top_artist" | "milestone";
+export type CommunityEventType =
+  | "streak"
+  | "top_artist"
+  | "milestone"
+  | "listen"
+  | "review"
+  | "role_badge";
 
 export type CommunityRow = {
   id: string;
