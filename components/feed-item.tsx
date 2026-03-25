@@ -112,9 +112,220 @@ interface FeedItemProps {
   spotifyName?: string;
 }
 
+function starsRow(rating: number): string {
+  const r = Math.max(0, Math.min(5, Math.round(rating)));
+  return `${"★".repeat(r)}${"☆".repeat(5 - r)}`;
+}
+
+const FeedStoryBlock = memo(function FeedStoryBlock({
+  activity,
+}: {
+  activity: Extract<FeedActivity, { type: "feed_story" }>;
+}) {
+  const username = activity.user?.username ?? "Someone";
+  const p = activity.payload;
+  const timeAgo = formatRelativeTime(activity.created_at);
+
+  const headline = (() => {
+    switch (activity.story_kind) {
+      case "discovery": {
+        const name = (p.artist_name as string) ?? "an artist";
+        const id = p.artist_id as string | undefined;
+        return (
+          <>
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {username}
+            </Link>
+            {" discovered "}
+            {id ? (
+              <Link href={`/artist/${id}`} className="text-emerald-400 hover:underline">
+                {name}
+              </Link>
+            ) : (
+              <span className="text-zinc-200">{name}</span>
+            )}
+          </>
+        );
+      }
+      case "top-artist-shift": {
+        const name = (p.artist_name as string) ?? "an artist";
+        const id = p.artist_id as string | undefined;
+        return (
+          <>
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {username}
+            </Link>
+            {" is really into "}
+            {id ? (
+              <Link href={`/artist/${id}`} className="text-emerald-400 hover:underline">
+                {name}
+              </Link>
+            ) : (
+              <span className="text-zinc-200">{name}</span>
+            )}
+            {" lately"}
+          </>
+        );
+      }
+      case "rating": {
+        const title = (p.title as string) ?? "something";
+        const et = p.entity_type as string;
+        const eid = p.entity_id as string;
+        const rating = Number(p.rating) || 0;
+        const href =
+          et === "album" ? `/album/${eid}` : et === "song" ? `/song/${eid}` : "#";
+        return (
+          <>
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {username}
+            </Link>
+            {" rated "}
+            <Link href={href} className="text-emerald-400 hover:underline">
+              {title}
+            </Link>
+            <span className="ml-1.5 text-amber-400/95" aria-label={`${rating} stars`}>
+              {starsRow(rating)}
+            </span>
+          </>
+        );
+      }
+      case "streak": {
+        const days = Number(p.days) || 0;
+        return (
+          <>
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {username}
+            </Link>
+            {` is on a ${days}-day listening streak`}
+          </>
+        );
+      }
+      case "binge": {
+        return (
+          <>
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {username}
+            </Link>
+            {" went on a music binge"}
+          </>
+        );
+      }
+      case "new-list": {
+        const title = (p.title as string) ?? "a list";
+        const lid = p.list_id as string | undefined;
+        return (
+          <>
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {username}
+            </Link>
+            {" created a list: "}
+            {lid ? (
+              <Link href={`/lists/${lid}`} className="text-emerald-400 hover:underline">
+                {title}
+              </Link>
+            ) : (
+              <span className="text-zinc-200">{title}</span>
+            )}
+          </>
+        );
+      }
+      case "milestone": {
+        const m = p.milestone as number | undefined;
+        return (
+          <>
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {username}
+            </Link>
+            {` hit ${m ?? ""} total listens on Tracklist`}
+          </>
+        );
+      }
+      default:
+        return <span className="text-zinc-400">Activity</span>;
+    }
+  })();
+
+  const kindLabel = (() => {
+    switch (activity.story_kind) {
+      case "discovery":
+        return "Discovery";
+      case "binge":
+        return "Listening";
+      case "top-artist-shift":
+        return "Trending";
+      case "rating":
+        return "Review";
+      case "streak":
+        return "Streak";
+      case "new-list":
+        return "List";
+      case "milestone":
+        return "Milestone";
+      default:
+        return "Update";
+    }
+  })();
+
+  return (
+    <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
+      <div className="flex items-start gap-3">
+        <Link
+          href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+          className="shrink-0"
+        >
+          {activity.user?.avatar_url ? (
+            <img
+              src={activity.user.avatar_url}
+              alt=""
+              className="h-9 w-9 rounded-full border border-zinc-700 object-cover"
+            />
+          ) : (
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-200">
+              {username[0]?.toUpperCase() ?? "?"}
+            </span>
+          )}
+        </Link>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-relaxed text-zinc-300">{headline}</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            <span className="text-zinc-600">{kindLabel}</span>
+            <span className="mx-1.5">·</span>
+            {timeAgo}
+          </p>
+        </div>
+      </div>
+    </article>
+  );
+});
+
 function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
   if (activity.type === 'review') {
     return <ReviewCard review={activity.review} spotifyName={spotifyName} />;
+  }
+
+  if (activity.type === 'feed_story') {
+    return <FeedStoryBlock activity={activity} />;
   }
 
   if (activity.type === 'listen_sessions_summary') {

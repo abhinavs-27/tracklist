@@ -321,9 +321,43 @@ function FollowBlock({ activity }: { activity: Extract<FeedActivity, { type: "fo
   );
 }
 
+function FeedStoryBlock({ activity }: { activity: Extract<FeedActivity, { type: "feed_story" }> }) {
+  const u = activity.user?.username ?? "Someone";
+  const p = activity.payload;
+  const line = (() => {
+    switch (activity.story_kind) {
+      case "discovery":
+        return `${u} discovered ${(p.artist_name as string) ?? "an artist"}`;
+      case "top-artist-shift":
+        return `${u} is really into ${(p.artist_name as string) ?? "an artist"} lately`;
+      case "rating":
+        return `${u} rated ${(p.title as string) ?? "something"}`;
+      case "streak":
+        return `${u} is on a ${Number(p.days) || 0}-day listening streak`;
+      case "binge":
+        return `${u} went on a music binge`;
+      case "new-list":
+        return `${u} created a list: ${(p.title as string) ?? ""}`;
+      case "milestone":
+        return `${u} hit a listen milestone`;
+      default:
+        return `${u} activity`;
+    }
+  })();
+  return (
+    <View style={styles.card}>
+      <Text style={styles.bodyText}>{line}</Text>
+      <Text style={styles.timeSmall}>{formatRelativeTime(activity.created_at)}</Text>
+    </View>
+  );
+}
+
 function FeedItemInner({ activity }: { activity: FeedActivity }) {
   if (activity.type === "review") {
     return <ReviewBlock activity={activity} />;
+  }
+  if (activity.type === "feed_story") {
+    return <FeedStoryBlock activity={activity} />;
   }
   if (activity.type === "listen_sessions_summary") {
     return <ListenSessionsSummaryBlock activity={activity} />;

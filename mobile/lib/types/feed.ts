@@ -50,6 +50,24 @@ export type FeedListenSessionsSummary = {
   sessions: FeedListenSession[];
 };
 
+export type FeedStoryKind =
+  | "discovery"
+  | "top-artist-shift"
+  | "rating"
+  | "streak"
+  | "binge"
+  | "new-list"
+  | "milestone";
+
+export type FeedStoryActivity = {
+  type: "feed_story";
+  story_kind: FeedStoryKind;
+  id: string;
+  created_at: string;
+  user?: FeedUser | null;
+  payload: Record<string, unknown>;
+};
+
 export type FeedActivity =
   | {
       type: "review";
@@ -67,9 +85,11 @@ export type FeedActivity =
       following_username: string | null;
     }
   | FeedListenSession
-  | FeedListenSessionsSummary;
+  | FeedListenSessionsSummary
+  | FeedStoryActivity;
 
 export type FeedPageResponse = {
   items: FeedActivity[];
   nextCursor: string | null;
+  events?: FeedStoryActivity[];
 };

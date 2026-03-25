@@ -113,6 +113,7 @@ export async function getRecentAlbumsFromLogs(
 
   const out: RecentAlbumItem[] = [];
   for (const id of sortedAlbumIds) {
+    if (out.length >= maxAlbums) break;
     const meta = metaById.get(id);
     if (!meta) continue;
     const last = albumLatest.get(id);

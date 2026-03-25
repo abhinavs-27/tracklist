@@ -1,7 +1,8 @@
 import "server-only";
 
-import { getActivityFeed, getEntityDisplayNames } from "@/lib/queries";
+import { getEntityDisplayNames } from "@/lib/queries";
 import type { ActivityFeedPage } from "@/lib/queries";
+import { getMergedActivityFeed } from "@/lib/feed/merged-feed";
 import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum, getOrFetchTrack, getOrFetchAlbumsBatch, getOrFetchTracksBatch, batchResultsToMap } from "@/lib/spotify-cache";
 import type { FeedActivity } from "@/types";
@@ -11,7 +12,12 @@ export async function getFeedForUser(
   limit = 50,
   cursor: string | null = null,
 ): Promise<ActivityFeedPage> {
-  return timeAsync("db", "getFeedForUser", () => getActivityFeed(userId, limit, cursor), { limit, hasCursor: !!cursor });
+  return timeAsync(
+    "db",
+    "getFeedForUser",
+    () => getMergedActivityFeed(userId, limit, cursor),
+    { limit, hasCursor: !!cursor },
+  );
 }
 
 /** Enrich review activities with entity names (album/track) for display. Uses DB first, then spotify-cache for missing. */
@@ -88,6 +94,7 @@ export async function enrichListenSessionsWithAlbums(
   };
 
   return activities.map((activity): FeedActivity => {
+    if (activity.type === "feed_story") return activity;
     if (activity.type === "listen_session") {
       const withTrack = applyTrackName(activity);
       const album = albumMap.get(activity.album_id) ?? null;

@@ -87,6 +87,14 @@ export const POST = withHandler(
     const { grantAchievementOnReview } = await import("@/lib/queries");
     await grantAchievementOnReview(me!.id);
 
+    const { recordRatingFeedEvent } = await import("@/lib/feed/generate-events");
+    await recordRatingFeedEvent(me!.id, {
+      review_id: data.id,
+      entity_type: data.entity_type,
+      entity_id: data.entity_id,
+      rating: data.rating,
+    });
+
     const { data: userRow } = await supabase
       .from("users")
       .select("id, username, avatar_url")

@@ -9,5 +9,8 @@ export function feedItemKey(activity: FeedActivity, index: number): string {
   if (activity.type === "listen_session") {
     return `listen-${activity.user_id}-${activity.track_id}-${activity.created_at}`;
   }
+  if (activity.type === "feed_story") {
+    return `story-${activity.id}`;
+  }
   return `feed-${index}`;
 }

@@ -11,6 +11,7 @@ function feedItemKey(activity: EnrichedFeedActivity): string {
   if (activity.type === 'review') return activity.review.id;
   if (activity.type === 'follow') return activity.id;
   if (activity.type === 'listen_sessions_summary') return `summary-${activity.user_id}-${activity.created_at}`;
+  if (activity.type === 'feed_story') return `story-${activity.id}`;
   return `${activity.user_id}-${activity.album_id}-${activity.created_at}`;
 }
 

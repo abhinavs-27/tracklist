@@ -76,12 +76,33 @@ export interface FeedListenSessionsSummary {
   sessions: FeedListenSession[];
 }
 
-/** Feed activity item: review, follow, listen session, or collapsed listen summary. */
+/** Feed v2 story kinds (stored in `feed_events.type`). */
+export type FeedStoryKind =
+  | "discovery"
+  | "top-artist-shift"
+  | "rating"
+  | "streak"
+  | "binge"
+  | "new-list"
+  | "milestone";
+
+/** Insight-style feed row (not a raw log). */
+export type FeedStoryActivity = {
+  type: "feed_story";
+  story_kind: FeedStoryKind;
+  id: string;
+  created_at: string;
+  user?: User | null;
+  payload: Record<string, unknown>;
+};
+
+/** Feed activity item: review, follow, listen session, collapsed listen summary, or feed v2 story. */
 export type FeedActivity =
   | { type: 'review'; created_at: string; review: ReviewWithUser }
   | { type: 'follow'; id: string; created_at: string; follower_id: string; following_id: string; follower_username: string | null; following_username: string | null }
   | FeedListenSession
-  | FeedListenSessionsSummary;
+  | FeedListenSessionsSummary
+  | FeedStoryActivity;
 
 /** Recommendation from co-listening: album_id and co-occurrence score. */
 export interface AlbumRecommendation {
