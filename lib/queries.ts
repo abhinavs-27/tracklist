@@ -524,42 +524,56 @@ export async function getTrackStatsForTrackIds(
 
     const missingIds = uniqueIds.filter((id) => !(id in result));
     if (missingIds.length > 0) {
-      const [logsRes, reviewsRes] = await Promise.all([
-        supabase.from("logs").select("track_id").in("track_id", missingIds),
-        supabase
-          .from("reviews")
-          .select("entity_id, rating")
-          .eq("entity_type", "song")
-          .in("entity_id", missingIds),
-      ]);
+      const { data: batchRows, error: batchError } = await supabase.rpc(
+        "get_track_stats_batch",
+        { p_track_ids: missingIds },
+      );
 
-      const listenCounts = new Map<string, number>();
-      for (const row of logsRes.data ?? []) {
-        listenCounts.set(
-          row.track_id,
-          (listenCounts.get(row.track_id) ?? 0) + 1,
-        );
-      }
-      const reviewCounts = new Map<string, number>();
-      const ratingSums = new Map<string, number>();
-      for (const row of reviewsRes.data ?? []) {
-        reviewCounts.set(
-          row.entity_id,
-          (reviewCounts.get(row.entity_id) ?? 0) + 1,
-        );
-        ratingSums.set(
-          row.entity_id,
-          (ratingSums.get(row.entity_id) ?? 0) + row.rating,
-        );
-      }
+      if (!batchError && batchRows?.length) {
+        for (const row of batchRows as {
+          track_id: string;
+          listen_count: number;
+          review_count: number;
+          avg_rating: number;
+        }[]) {
+          result[row.track_id] = {
+            listen_count: Number(row.listen_count) || 0,
+            review_count: Number(row.review_count) || 0,
+            average_rating:
+              row.review_count > 0
+                ? Math.round(Number(row.avg_rating) * 10) / 10
+                : null,
+          };
+        }
+      } else if (batchError) {
+        console.warn("[queries] get_track_stats_batch RPC failed, using manual fallback:", batchError.message);
+        const [logsRes, reviewsRes] = await Promise.all([
+          supabase.from("logs").select("track_id").in("track_id", missingIds),
+          supabase
+            .from("reviews")
+            .select("entity_id, rating")
+            .eq("entity_type", "song")
+            .in("entity_id", missingIds),
+        ]);
 
-      for (const trackId of missingIds) {
-        const listen_count = listenCounts.get(trackId) ?? 0;
-        const review_count = reviewCounts.get(trackId) ?? 0;
-        const sum = ratingSums.get(trackId) ?? 0;
-        const average_rating =
-          review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
-        result[trackId] = { listen_count, average_rating, review_count };
+        const listenCounts = new Map<string, number>();
+        for (const row of logsRes.data ?? []) {
+          listenCounts.set(row.track_id, (listenCounts.get(row.track_id) ?? 0) + 1);
+        }
+        const reviewCounts = new Map<string, number>();
+        const ratingSums = new Map<string, number>();
+        for (const row of reviewsRes.data ?? []) {
+          reviewCounts.set(row.entity_id, (reviewCounts.get(row.entity_id) ?? 0) + 1);
+          ratingSums.set(row.entity_id, (ratingSums.get(row.entity_id) ?? 0) + row.rating);
+        }
+
+        for (const trackId of missingIds) {
+          const listen_count = listenCounts.get(trackId) ?? 0;
+          const review_count = reviewCounts.get(trackId) ?? 0;
+          const sum = ratingSums.get(trackId) ?? 0;
+          const average_rating = review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
+          result[trackId] = { listen_count, average_rating, review_count };
+        }
       }
     }
 
@@ -1283,7 +1297,8 @@ export async function getFriendsAlbumActivity(
     const { data: followRows } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", viewerId);
+      .eq("follower_id", viewerId)
+      .limit(500);
     const followingIds = (followRows ?? []).map((f) => f.following_id);
     if (followingIds.length === 0) return [];
 
@@ -1384,7 +1399,8 @@ export async function getAlbumListeners(
     const { data: followRows } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", viewerId);
+      .eq("follower_id", viewerId)
+      .limit(500);
     const followingSet = new Set((followRows ?? []).map((f) => f.following_id));
 
     const seen = new Set<string>();
@@ -1982,7 +1998,8 @@ export async function enrichUsersWithFollowStatus<T extends { id: string }>(
       .in(
         "following_id",
         users.map((u) => u.id),
-      );
+      )
+      .limit(500);
 
     if (error) {
       console.error("[queries] enrichUsersWithFollowStatus failed:", error);
@@ -2158,7 +2175,8 @@ export async function getReviewFeed(
     const { data: followings, error: followError } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", userId);
+      .eq("follower_id", userId)
+      .limit(500); // Safety limit for users with massive follow lists.
 
     if (followError) throw followError;
 
@@ -2462,7 +2480,8 @@ async function getActivityFeedFallback(
     const { data: followings, error: followError } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", userId);
+      .eq("follower_id", userId)
+      .limit(500); // Safety limit for users with massive follow lists.
     if (followError) throw followError;
 
     const followingIds = (followings ?? [])

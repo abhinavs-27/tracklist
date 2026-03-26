@@ -30,6 +30,7 @@ export async function getRecentAlbumsFromLogs(
     .from("logs")
     .select("album_id, track_id, listened_at")
     .eq("user_id", userId)
+    .not("listened_at", "is", null)
     .order("listened_at", { ascending: false })
     .limit(LOGS_SCAN_LIMIT);
 
@@ -144,6 +145,7 @@ export async function getRecentTracksFromLogs(
     .from("logs")
     .select("track_id, listened_at")
     .eq("user_id", userId)
+    .not("listened_at", "is", null)
     .order("listened_at", { ascending: false })
     .range(offset, offset + fetchN - 1);
 
