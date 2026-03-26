@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { CommunityConsensusSection } from "@/components/community/community-consensus";
 import { CommunityFeedClient } from "@/components/community/community-feed-client";
 import { CommunityTastePeers } from "@/components/community/community-taste-peers";
 import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
@@ -161,6 +162,10 @@ export default async function CommunityDetailPage({
 
       {isMember && session?.user?.id ? (
         <CommunityWeeklySummary communityId={id} />
+      ) : null}
+
+      {isMember && session?.user?.id ? (
+        <CommunityConsensusSection communityId={id} />
       ) : null}
 
       {isMember && session?.user?.id ? (
