@@ -30,7 +30,8 @@ export function FloatingLogButton() {
       loop.stop();
       scale.setValue(1);
     };
-  }, [logBusy, scale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logBusy]);
 
   return (
     <View

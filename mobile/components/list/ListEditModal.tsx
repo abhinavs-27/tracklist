@@ -52,6 +52,7 @@ export function ListEditModal({
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTitle(initialTitle);
       setDescription(initialDescription ?? "");
       setVisibility(

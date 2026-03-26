@@ -76,6 +76,7 @@ export function SessionLogPrompt() {
 
   async function dismiss() {
     setVisible(false);
+    // eslint-disable-next-line react-hooks/purity
     await setLastPrompt(Date.now());
   }
 

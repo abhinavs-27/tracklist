@@ -41,7 +41,8 @@ export function LogToast({ message, onDismiss }: Props) {
         friction: 8,
       }),
     ]).start();
-  }, [message, opacity, translateY]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message]);
 
   if (!message) return null;
 
