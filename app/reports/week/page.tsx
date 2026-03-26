@@ -151,9 +151,17 @@ export default async function WeeklyReportPage({
 
   return (
     <div className="space-y-6">
-      <Link href="/" className="text-sm text-emerald-400 hover:underline">
-        ← Home
-      </Link>
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
+        <Link href="/" className="text-sm text-emerald-400 hover:underline">
+          ← Home
+        </Link>
+        <Link
+          href="/reports/listening"
+          className="text-sm text-zinc-500 hover:text-emerald-400 hover:underline"
+        >
+          Full rankings →
+        </Link>
+      </div>
       <h1 className="text-2xl font-bold text-white">Listening report</h1>
 
       <div className="flex flex-wrap items-center gap-2">

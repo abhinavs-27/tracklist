@@ -20,6 +20,8 @@ export const LIMITS = {
   FEED_LIMIT: 100,
   /** Opaque feed row id for `feed_item` activity comments (colon-separated, etc.). */
   FEED_ACTIVITY_TARGET_ID: 512,
+  /** Custom listening reports: max span for raw log scan. */
+  REPORTS_CUSTOM_MAX_DAYS: 45,
   LOGS_LIMIT: 100,
   /** Spotify `GET /search` `limit` max is 10 (Feb 2026 Web API). */
   SEARCH_LIMIT: 10,

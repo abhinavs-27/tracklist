@@ -53,7 +53,7 @@ export function Navbar() {
                   <span className="max-[380px]:hidden">Find people</span>
                   <span className="hidden max-[380px]:inline">People</span>
                 </Link>
-                <Link href="/reports/week" className={navLinkClass}>
+                <Link href="/reports/listening" className={navLinkClass}>
                   <span className="max-[420px]:hidden">Listening reports</span>
                   <span className="hidden max-[420px]:inline">Reports</span>
                 </Link>
