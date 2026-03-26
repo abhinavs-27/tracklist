@@ -14,15 +14,30 @@ import {
 import { parseBody } from "@/lib/api-utils";
 import { fetchUserMap } from "@/lib/queries";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { validateCommentContent } from "@/lib/validation";
-import { isValidUuid } from "@/lib/validation";
+import {
+  isValidFeedItemTargetId,
+  isValidUuid,
+  validateCommentContent,
+} from "@/lib/validation";
 
 function parseTargetType(raw: string | null): FeedActivityTargetType | null {
-  if (raw === "review" || raw === "log") return raw;
+  if (raw === "review" || raw === "log" || raw === "feed_item") return raw;
   return null;
 }
 
-/** GET/POST — comments on a review or listen (log) scoped to this community only. */
+function validTargetId(
+  targetType: FeedActivityTargetType,
+  raw: string,
+): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  if (targetType === "feed_item") {
+    return isValidFeedItemTargetId(t) ? t : null;
+  }
+  return isValidUuid(t) ? t : null;
+}
+
+/** GET/POST — comments on feed targets (review, log, or opaque feed row id) in this community. */
 export const GET = withHandler(
   async (request, { user: me, params }) => {
     const communityId = params.id?.trim() ?? "";
@@ -34,11 +49,12 @@ export const GET = withHandler(
 
     const { searchParams } = new URL(request.url);
     const targetType = parseTargetType(searchParams.get("target_type"));
-    const targetId = searchParams.get("target_id")?.trim() ?? "";
-    if (!targetType) return apiBadRequest("target_type must be review or log");
-    if (!targetId || !isValidUuid(targetId)) {
-      return apiBadRequest("Invalid target_id");
+    const targetIdRaw = searchParams.get("target_id") ?? "";
+    if (!targetType) {
+      return apiBadRequest("target_type must be review, log, or feed_item");
     }
+    const targetId = validTargetId(targetType, targetIdRaw);
+    if (!targetId) return apiBadRequest("Invalid target_id");
 
     const rows = await listFeedActivityCommentsForTarget(
       communityId,
@@ -76,11 +92,13 @@ export const POST = withHandler(
     if (parseErr) return parseErr;
 
     const targetType = parseTargetType(body?.target_type ?? null);
-    const targetId = body?.target_id?.trim() ?? "";
-    if (!targetType) return apiBadRequest("target_type must be review or log");
-    if (!targetId || !isValidUuid(targetId)) {
-      return apiBadRequest("Invalid target_id");
+    const targetIdRaw =
+      typeof body?.target_id === "string" ? body.target_id : "";
+    if (!targetType) {
+      return apiBadRequest("target_type must be review, log, or feed_item");
     }
+    const targetId = validTargetId(targetType, targetIdRaw);
+    if (!targetId) return apiBadRequest("Invalid target_id");
 
     const contentResult = validateCommentContent(body?.content ?? "");
     if (!contentResult.ok) return apiBadRequest(contentResult.error);

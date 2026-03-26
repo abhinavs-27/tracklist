@@ -14,7 +14,7 @@ type CommentRow = {
 /** Community-only thread (separate from global `comments` on reviews). */
 export function CommunityFeedCommentThread(props: {
   communityId: string;
-  targetType: "review" | "log";
+  targetType: "review" | "log" | "feed_item";
   targetId: string;
   initialCount?: number;
 }) {

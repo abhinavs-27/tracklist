@@ -2,7 +2,7 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
-export type FeedActivityTargetType = "review" | "log";
+export type FeedActivityTargetType = "review" | "log" | "feed_item";
 
 export async function countFeedActivityComments(
   communityId: string | null,

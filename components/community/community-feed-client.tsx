@@ -8,6 +8,19 @@ import { formatRelativeTime } from "@/lib/time";
 
 type Filter = "all" | "streaks" | "listens" | "reviews" | "members";
 
+function commentThreadTarget(item: CommunityFeedItemV2): {
+  targetType: "review" | "log" | "feed_item";
+  targetId: string;
+} {
+  if (item.review_id) {
+    return { targetType: "review", targetId: item.review_id };
+  }
+  if (item.log_id) {
+    return { targetType: "log", targetId: item.log_id };
+  }
+  return { targetType: "feed_item", targetId: item.id };
+}
+
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "listens", label: "Listens" },
@@ -19,10 +32,17 @@ const FILTERS: { value: Filter; label: string }[] = [
 export function CommunityFeedClient(props: {
   communityId: string;
   initialItems: CommunityFeedItemV2[];
+  initialNextOffset?: number | null;
+  pageSize?: number;
 }) {
+  const pageSize = props.pageSize ?? 20;
   const [filter, setFilter] = useState<Filter>("all");
   const [items, setItems] = useState<CommunityFeedItemV2[]>(props.initialItems);
+  const [nextOffset, setNextOffset] = useState<number | null>(
+    props.initialNextOffset ?? null,
+  );
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const skipFirstLoad = useRef(true);
   const filterRef = useRef<Filter>("all");
   filterRef.current = filter;
@@ -32,18 +52,53 @@ export function CommunityFeedClient(props: {
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/communities/${props.communityId}/feed?limit=40&filter=${encodeURIComponent(f)}`,
+          `/api/communities/${props.communityId}/feed?limit=${pageSize}&offset=0&filter=${encodeURIComponent(f)}`,
           { cache: "no-store" },
         );
         if (!res.ok) return;
-        const data = (await res.json()) as { feed?: CommunityFeedItemV2[] };
+        const data = (await res.json()) as {
+          feed?: CommunityFeedItemV2[];
+          next_offset?: number | null;
+        };
         setItems(data.feed ?? []);
+        setNextOffset(data.next_offset ?? null);
       } finally {
         setLoading(false);
       }
     },
-    [props.communityId],
+    [props.communityId, pageSize],
   );
+
+  const loadMore = useCallback(async () => {
+    if (nextOffset == null || loadingMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/communities/${props.communityId}/feed?limit=${pageSize}&offset=${nextOffset}&filter=${encodeURIComponent(filter)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        feed?: CommunityFeedItemV2[];
+        next_offset?: number | null;
+      };
+      const more = data.feed ?? [];
+      setItems((prev) => {
+        const seen = new Set(prev.map((i) => i.id));
+        const merged = [...prev];
+        for (const row of more) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id);
+            merged.push(row);
+          }
+        }
+        return merged;
+      });
+      setNextOffset(data.next_offset ?? null);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [props.communityId, pageSize, filter, nextOffset, loadingMore, loading]);
 
   useEffect(() => {
     if (skipFirstLoad.current) {
@@ -87,6 +142,11 @@ export function CommunityFeedClient(props: {
     };
   }, [props.communityId, load]);
 
+  useEffect(() => {
+    setItems(props.initialItems);
+    setNextOffset(props.initialNextOffset ?? null);
+  }, [props.communityId]);
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-2">
@@ -109,8 +169,8 @@ export function CommunityFeedClient(props: {
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : items.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          No activity for this filter yet. Listens, reviews, list updates, and milestones
-          appear here for members.
+          No activity for this filter yet. Member listens, reviews, follows, feed stories,
+          and milestones appear here.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -119,6 +179,9 @@ export function CommunityFeedClient(props: {
             const rating = Number(item.payload?.rating) || 0;
             const showEntityLink =
               isReview && item.entity_href && item.entity_name;
+            const isFullLineLabel =
+              item.event_type === "feed_story" ||
+              item.event_type === "community_follow";
 
             return (
               <li
@@ -164,6 +227,10 @@ export function CommunityFeedClient(props: {
                           {rating}/5
                         </span>
                       </p>
+                    ) : isFullLineLabel ? (
+                      <p className="text-sm leading-relaxed text-zinc-200">
+                        {item.label}
+                      </p>
                     ) : (
                       <p className="text-sm text-zinc-200">
                         <Link
@@ -208,26 +275,28 @@ export function CommunityFeedClient(props: {
                     )
                   ) : null}
                 </div>
-                {item.review_id ? (
-                  <CommunityFeedCommentThread
-                    communityId={props.communityId}
-                    targetType="review"
-                    targetId={item.review_id}
-                    initialCount={item.comment_count}
-                  />
-                ) : item.log_id ? (
-                  <CommunityFeedCommentThread
-                    communityId={props.communityId}
-                    targetType="log"
-                    targetId={item.log_id}
-                    initialCount={item.comment_count}
-                  />
-                ) : null}
+                <CommunityFeedCommentThread
+                  communityId={props.communityId}
+                  {...commentThreadTarget(item)}
+                  initialCount={item.comment_count}
+                />
               </li>
             );
           })}
         </ul>
       )}
+      {!loading && items.length > 0 && nextOffset != null ? (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => void loadMore()}
+            disabled={loadingMore}
+            className="rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 disabled:opacity-50"
+          >
+            {loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

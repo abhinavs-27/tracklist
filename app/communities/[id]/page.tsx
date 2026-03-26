@@ -51,15 +51,19 @@ export default async function CommunityDetailPage({
   const insights =
     isMember && session?.user?.id ? await getCommunityInsights(id) : null;
 
+  const feedPageSize = 20;
   const [leaderboard, memberStats, tastePeers, initialCommunityFeed] =
     isMember && session?.user?.id
       ? await Promise.all([
           getWeeklyLeaderboard(id),
           getCommunityMemberStatsWithRoles(id),
           getCommunityTasteMatchesForViewer(id, session.user.id),
-          getCommunityFeedV2(id, 30, "all", 0),
+          getCommunityFeedV2(id, feedPageSize, "all", 0),
         ])
       : [[], [], { similar: [], opposite: [] }, []];
+
+  const initialFeedNextOffset =
+    initialCommunityFeed.length >= feedPageSize ? feedPageSize : null;
 
   const tasteMatch =
     session?.user?.id ? await getCommunityMatch(session.user.id, id) : null;
@@ -250,6 +254,8 @@ export default async function CommunityDetailPage({
               <CommunityFeedClient
                 communityId={id}
                 initialItems={initialCommunityFeed}
+                initialNextOffset={initialFeedNextOffset}
+                pageSize={feedPageSize}
               />
             )}
           </section>

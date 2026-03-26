@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CommunityTasteMatchCard } from "../../components/community/CommunityTasteMatchCard";
 import { CommunityInsights } from "../../components/community/CommunityInsights";
 import { InviteMembersPanel } from "../../components/community/InviteMembersPanel";
@@ -22,6 +22,7 @@ import {
   fetchCommunityInsights,
   fetchCommunityLeaderboard,
   joinCommunity,
+  type CommunityFeedItemV2,
 } from "../../lib/api-communities";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { fetchCommunityTasteMatch } from "../../lib/api-taste";
@@ -77,15 +78,25 @@ export default function CommunityDetailScreen() {
 
   const { data: feedData, isPending: feedPending } = useQuery({
     queryKey: queryKeys.communityFeed(id),
-    queryFn: () => fetchCommunityFeed(id, 25),
+    queryFn: () => fetchCommunityFeed(id, 20),
     enabled: !!id && isMember,
   });
+
+  const [feedExtra, setFeedExtra] = useState<CommunityFeedItemV2[]>([]);
+  const [feedNextOffset, setFeedNextOffset] = useState<number | null>(null);
+  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
+
+  useEffect(() => {
+    setFeedExtra([]);
+    setFeedNextOffset(feedData?.next_offset ?? null);
+  }, [id, feedData]);
 
   const community = meta?.community;
   const pendingInviteId = meta?.pending_invite_id ?? null;
   const isOwner = meta?.my_role === "owner";
   const leaderboard = lbData?.leaderboard ?? [];
-  const feed = feedData?.feed ?? [];
+  const feedBase = feedData?.feed ?? [];
+  const feed = [...feedBase, ...feedExtra];
 
   async function onAcceptInvite() {
     if (!pendingInviteId) return;
@@ -133,6 +144,18 @@ export default function CommunityDetailScreen() {
       setJoinErr(e instanceof Error ? e.message : "Could not decline");
     } finally {
       setInviteBusy(false);
+    }
+  }
+
+  async function onLoadMoreFeed() {
+    if (!id || feedNextOffset == null || feedLoadingMore) return;
+    setFeedLoadingMore(true);
+    try {
+      const res = await fetchCommunityFeed(id, 20, { offset: feedNextOffset });
+      setFeedExtra((prev) => [...prev, ...res.feed]);
+      setFeedNextOffset(res.next_offset ?? null);
+    } finally {
+      setFeedLoadingMore(false);
     }
   }
 
@@ -367,6 +390,9 @@ export default function CommunityDetailScreen() {
                               </Text>
                               <Text>{` ${Number(item.payload?.rating) || 0}/5`}</Text>
                             </Text>
+                          ) : item.event_type === "feed_story" ||
+                            item.event_type === "community_follow" ? (
+                            <Text style={styles.feedText}>{item.label}</Text>
                           ) : (
                             <Text style={styles.feedText}>
                               <Text style={styles.feedUsername}>
@@ -382,8 +408,7 @@ export default function CommunityDetailScreen() {
                             </Text>
                           ) : null}
                           {item.comment_count != null &&
-                          item.comment_count > 0 &&
-                          (item.review_id || item.log_id) ? (
+                          item.comment_count > 0 ? (
                             <Text style={styles.feedCommentHint}>
                               {item.comment_count} community comment
                               {item.comment_count === 1 ? "" : "s"} (open on
@@ -414,6 +439,21 @@ export default function CommunityDetailScreen() {
                     </View>
                   ))
                 )}
+                {feedNextOffset != null ? (
+                  <Pressable
+                    onPress={() => void onLoadMoreFeed()}
+                    disabled={feedLoadingMore}
+                    style={({ pressed }) => [
+                      styles.loadMoreBtn,
+                      pressed && styles.loadMoreBtnPressed,
+                      feedLoadingMore && styles.loadMoreBtnDisabled,
+                    ]}
+                  >
+                    <Text style={styles.loadMoreText}>
+                      {feedLoadingMore ? "Loading…" : "Load more"}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </>
             )}
           </>
@@ -553,4 +593,18 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
   },
+  loadMoreBtn: {
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.active,
+  },
+  loadMoreBtnPressed: { opacity: 0.85 },
+  loadMoreBtnDisabled: { opacity: 0.5 },
+  loadMoreText: { fontSize: 14, fontWeight: "600", color: theme.colors.text },
 });

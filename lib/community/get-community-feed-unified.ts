@@ -15,6 +15,7 @@ import {
 import { mapCommunityEventToFeedPayload } from "@/lib/community/map-community-event-to-feed";
 import {
   batchCountFeedActivityComments,
+  type FeedActivityTargetType,
 } from "@/lib/community/feed-activity-comments";
 import { fetchUserMap, getEntityDisplayNames } from "@/lib/queries";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -243,17 +244,31 @@ async function mergedItemsToV2(
 ): Promise<CommunityFeedItemV2[]> {
   if (!items.length) return [];
 
-  const listenItems = items.filter(
-    (i): i is Extract<CommunityFeedMergedItem, { kind: "listen" }> =>
-      i.kind === "listen",
-  );
-  const trackIds = [
-    ...new Set(
-      listenItems
-        .map((i) => i.metadata.track_id as string | undefined)
-        .filter((x): x is string => Boolean(x?.trim())),
-    ),
-  ];
+  const admin = createSupabaseAdminClient();
+  const followUserIds = new Set<string>();
+  for (const i of items) {
+    if (i.kind === "follow") {
+      followUserIds.add(i.follower_id);
+      followUserIds.add(i.following_id);
+    }
+  }
+  const followUserMap =
+    followUserIds.size > 0
+      ? await fetchUserMap(admin, [...followUserIds])
+      : new Map();
+
+  const trackIdsSet = new Set<string>();
+  for (const i of items) {
+    if (i.kind === "listen_session") {
+      const tid = i.metadata.track_id as string | undefined;
+      if (tid?.trim()) trackIdsSet.add(tid);
+    } else if (i.kind === "listen_sessions_summary") {
+      for (const s of i.metadata.sessions ?? []) {
+        if (s.track_id?.trim()) trackIdsSet.add(s.track_id);
+      }
+    }
+  }
+  const trackIds = [...trackIdsSet];
 
   const tracks =
     trackIds.length > 0 ? await getOrFetchTracksBatch(trackIds) : [];
@@ -344,10 +359,12 @@ async function mergedItemsToV2(
   const out: CommunityFeedItemV2[] = [];
 
   for (const item of items) {
-    if (item.kind === "listen") {
+    if (item.kind === "listen_session") {
       const tid = item.metadata.track_id as string | undefined;
-      let trackName: string | null = null;
-      let artistName: string | null = null;
+      let trackName =
+        (item.metadata.track_name as string | null | undefined)?.trim() || null;
+      let artistName =
+        (item.metadata.artist_name as string | null | undefined)?.trim() || null;
       let artwork: string | null = null;
       if (tid) {
         const meta = trackMeta.get(tid);
@@ -357,34 +374,106 @@ async function mergedItemsToV2(
           artwork = meta.album?.images?.[0]?.url ?? null;
         }
       }
-      const logId = item.id.startsWith("log:")
-        ? item.id.slice(4)
-        : item.id;
       const payload = {
         track_id: tid ?? null,
-        title: item.metadata.title ?? null,
-        log_type: item.metadata.log_type,
-        log_id: logId,
+        album_id: item.metadata.album_id,
+        song_count: item.metadata.song_count,
+        track_name: trackName,
+        artist_name: artistName,
       };
       const { label, sublabel } = buildLabel(
         COMMUNITY_FEED_TYPES.listen,
-        payload,
+        {
+          ...payload,
+          title: trackName,
+        },
         { trackName, artistName },
       );
       out.push({
         id: item.id,
         community_id: communityId,
         user_id: item.user_id,
-        event_type: COMMUNITY_FEED_TYPES.listen,
-        payload,
+        event_type: "listen_session",
+        payload: { ...payload, kind: "listen_session" },
         created_at: item.created_at,
         username: item.username,
         avatar_url: item.avatar_url,
-        label,
+        label: item.label || label,
         sublabel,
         artwork_url: artwork,
-        badge: badgeForType(COMMUNITY_FEED_TYPES.listen),
-        log_id: logId,
+        badge: badgeForType("listen_session"),
+      });
+      continue;
+    }
+
+    if (item.kind === "listen_sessions_summary") {
+      const sessions = item.metadata.sessions ?? [];
+      const firstTid = sessions[0]?.track_id;
+      let artwork: string | null = null;
+      if (firstTid) {
+        const meta = trackMeta.get(firstTid);
+        artwork = meta?.album?.images?.[0]?.url ?? null;
+      }
+      out.push({
+        id: item.id,
+        community_id: communityId,
+        user_id: item.user_id,
+        event_type: "listen_sessions_summary",
+        payload: {
+          kind: "listen_sessions_summary",
+          song_count: item.metadata.song_count,
+          sessions,
+        },
+        created_at: item.created_at,
+        username: item.username,
+        avatar_url: item.avatar_url,
+        label: item.label,
+        sublabel: null,
+        artwork_url: artwork,
+        badge: badgeForType("listen_sessions_summary"),
+      });
+      continue;
+    }
+
+    if (item.kind === "feed_story") {
+      out.push({
+        id: item.id,
+        community_id: communityId,
+        user_id: item.user_id,
+        event_type: "feed_story",
+        payload: {
+          story_kind: item.story_kind,
+          ...item.metadata,
+        },
+        created_at: item.created_at,
+        username: item.username,
+        avatar_url: item.avatar_url,
+        label: item.label,
+        sublabel: null,
+        artwork_url: null,
+        badge: badgeForType("feed_story"),
+      });
+      continue;
+    }
+
+    if (item.kind === "follow") {
+      const follower = followUserMap.get(item.follower_id);
+      out.push({
+        id: item.id,
+        community_id: communityId,
+        user_id: item.follower_id,
+        event_type: "community_follow",
+        payload: {
+          follower_id: item.follower_id,
+          following_id: item.following_id,
+        },
+        created_at: item.created_at,
+        username: item.follower_username,
+        avatar_url: follower?.avatar_url ?? null,
+        label: `${item.follower_username} followed ${item.following_username}`,
+        sublabel: null,
+        artwork_url: null,
+        badge: badgeForType("community_follow"),
       });
       continue;
     }
@@ -437,6 +526,10 @@ async function mergedItemsToV2(
       continue;
     }
 
+    if (item.kind !== "event") {
+      continue;
+    }
+
     const mapped = mapCommunityEventToFeedPayload(
       item.type,
       item.metadata ?? {},
@@ -463,9 +556,9 @@ async function mergedItemsToV2(
 }
 
 /**
- * Community activity: reads **logs**, **reviews**, and **community_events** (merged), plus
- * supplemental **community_feed** rows that are not represented elsewhere (weekly roles,
- * follows, list updates). Same `CommunityFeedItemV2` shape as the table-only path.
+ * Community activity: same sources as the home feed, scoped to community members — listen
+ * sessions (RPC), `feed_events` stories, intra-community follows, reviews, and
+ * `community_events`, plus supplemental `community_feed` rows (weekly roles, fan-out).
  */
 export async function getCommunityFeedUnified(
   communityId: string,
@@ -492,24 +585,25 @@ export async function getCommunityFeedUnified(
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
   const sliced = combined.slice(offset, offset + limit);
-  const targets: { targetType: "review" | "log"; targetId: string }[] = [];
+  const targets: { targetType: FeedActivityTargetType; targetId: string }[] =
+    [];
   for (const item of sliced) {
-    if (item.event_type === COMMUNITY_FEED_TYPES.review && item.review_id) {
+    if (item.review_id) {
       targets.push({ targetType: "review", targetId: item.review_id });
-    } else if (item.event_type === COMMUNITY_FEED_TYPES.listen && item.log_id) {
+    } else if (item.log_id) {
       targets.push({ targetType: "log", targetId: item.log_id });
+    } else {
+      targets.push({ targetType: "feed_item", targetId: item.id });
     }
   }
   const counts = await batchCountFeedActivityComments(cid, targets);
   return sliced.map((item) => {
-    const key =
-      item.event_type === COMMUNITY_FEED_TYPES.listen && item.log_id
+    const key = item.review_id
+      ? (`review:${item.review_id}` as const)
+      : item.log_id
         ? (`log:${item.log_id}` as const)
-        : item.event_type === COMMUNITY_FEED_TYPES.review && item.review_id
-          ? (`review:${item.review_id}` as const)
-          : null;
-    const n = key ? (counts.get(key) ?? 0) : 0;
-    if (!key) return item;
+        : (`feed_item:${item.id}` as const);
+    const n = counts.get(key) ?? 0;
     return { ...item, comment_count: n };
   });
 }

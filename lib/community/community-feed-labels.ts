@@ -4,6 +4,8 @@ import { COMMUNITY_FEED_TYPES } from "@/lib/community/community-feed-insert";
 export function badgeForType(t: string): CommunityFeedItemV2["badge"] {
   switch (t) {
     case COMMUNITY_FEED_TYPES.listen:
+    case "listen_session":
+    case "listen_sessions_summary":
       return "listen";
     case COMMUNITY_FEED_TYPES.review:
       return "review";
@@ -14,7 +16,10 @@ export function badgeForType(t: string): CommunityFeedItemV2["badge"] {
     case COMMUNITY_FEED_TYPES.member_joined:
       return "member";
     case COMMUNITY_FEED_TYPES.follow_in_community:
+    case "community_follow":
       return "follow";
+    case "feed_story":
+      return null;
     default:
       return null;
   }

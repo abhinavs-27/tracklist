@@ -18,6 +18,8 @@ export const LIMITS = {
   BIO: 500,
   SEARCH_QUERY: 200,
   FEED_LIMIT: 100,
+  /** Opaque feed row id for `feed_item` activity comments (colon-separated, etc.). */
+  FEED_ACTIVITY_TARGET_ID: 512,
   LOGS_LIMIT: 100,
   /** Spotify `GET /search` `limit` max is 10 (Feb 2026 Web API). */
   SEARCH_LIMIT: 10,
@@ -28,6 +30,14 @@ export const LIMITS = {
 
 export function isValidUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_REGEX.test(value);
+}
+
+/** Non-UUID anchor for community feed rows (e.g. `ls:user:track:time`). */
+export function isValidFeedItemTargetId(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const s = value.trim();
+  if (s.length === 0 || s.length > LIMITS.FEED_ACTIVITY_TARGET_ID) return false;
+  return !/[\x00-\x1F\x7F]/.test(s);
 }
 
 export function isValidSpotifyId(value: unknown): value is string {
