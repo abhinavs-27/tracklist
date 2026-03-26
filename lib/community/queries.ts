@@ -196,13 +196,32 @@ export async function createCommunity(
   }
 
   const c = row as CommunityRow;
-  const { error: mErr } = await admin.from("community_members").insert({
-    community_id: c.id,
-    user_id: userId,
-    role: "admin",
-  });
+  let mErr = (
+    await admin.from("community_members").insert({
+      community_id: c.id,
+      user_id: userId,
+      role: "admin",
+    })
+  ).error;
+
+  /** DBs that never ran migration 076 still only allow `owner` | `member`. */
+  if (
+    mErr &&
+    (mErr as { code?: string }).code === "23514" &&
+    String(mErr.message ?? "").includes("community_members_role_check")
+  ) {
+    mErr = (
+      await admin.from("community_members").insert({
+        community_id: c.id,
+        user_id: userId,
+        role: "owner",
+      })
+    ).error;
+  }
+
   if (mErr) {
     console.error("[community] creator membership failed", mErr);
+    await admin.from("communities").delete().eq("id", c.id);
     return null;
   }
 
