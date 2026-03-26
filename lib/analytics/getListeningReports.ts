@@ -5,6 +5,9 @@ import {
   currentMonthStart,
   currentWeekStart,
   currentYear,
+  previousCalendarYear,
+  previousMonthStart,
+  previousWeekStart,
 } from "@/lib/analytics/period-now";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
@@ -22,6 +25,14 @@ export type ListeningReportItem = {
   name: string;
   image: string | null;
   count: number;
+  /** 1-based rank within the full sorted list for this period. */
+  rank: number;
+  /** 1-based rank in the previous period, if the entity appeared there. */
+  previousRank: number | null;
+  /** Positive = moved up in rank. `previousRank - rank`. Null if new or no prior period. */
+  movement: number | null;
+  /** True if the entity had no plays in the comparison period. */
+  isNew: boolean;
 };
 
 export type ListeningReportsResult = {
@@ -41,6 +52,14 @@ type AggregateReportRow = {
   count: number;
   cover_image_url?: string | null;
 };
+
+const MAX_RANK_ROWS = 5000;
+
+function buildRankMap(rows: { entity_id: string }[]): Map<string, number> {
+  const m = new Map<string, number>();
+  rows.forEach((r, i) => m.set(r.entity_id, i + 1));
+  return m;
+}
 
 async function fetchAggregateRows(args: {
   userId: string;
@@ -80,56 +99,142 @@ async function fetchAggregateRows(args: {
   return (data ?? []) as AggregateReportRow[];
 }
 
+async function fetchAllAggregateRowsForBucket(args: {
+  userId: string;
+  entityType: ReportEntityType;
+  weekStart: string | null;
+  monthStart: string | null;
+  year: number | null;
+}): Promise<AggregateReportRow[]> {
+  const admin = createSupabaseAdminClient();
+  let q = admin
+    .from("user_listening_aggregates")
+    .select("entity_id, count, cover_image_url")
+    .eq("user_id", args.userId)
+    .eq("entity_type", args.entityType)
+    .order("count", { ascending: false })
+    .limit(MAX_RANK_ROWS);
+
+  if (args.weekStart) {
+    q = q.eq("week_start", args.weekStart).is("month", null).is("year", null);
+  } else if (args.monthStart) {
+    q = q.eq("month", args.monthStart).is("week_start", null).is("year", null);
+  } else if (args.year != null) {
+    q = q.eq("year", args.year).is("week_start", null).is("month", null);
+  } else {
+    return [];
+  }
+
+  const { data, error } = await q;
+  if (error) {
+    console.warn("[analytics] fetchAllAggregateRowsForBucket", error.message);
+    return [];
+  }
+  return (data ?? []) as AggregateReportRow[];
+}
+
+function previousCustomWindow(
+  startInclusive: Date,
+  endExclusive: Date,
+): { startInclusive: Date; endExclusive: Date } {
+  const spanMs = endExclusive.getTime() - startInclusive.getTime();
+  const prevEndExclusive = new Date(startInclusive.getTime());
+  const prevStartInclusive = new Date(prevEndExclusive.getTime() - spanMs);
+  return { startInclusive: prevStartInclusive, endExclusive: prevEndExclusive };
+}
+
 async function enrichReportItems(
   entityType: ReportEntityType,
   rows: AggregateReportRow[],
+  rankOffset: number,
+  prevRankMap: Map<string, number>,
 ): Promise<ListeningReportItem[]> {
   if (!rows.length) return [];
 
   if (entityType === "genre") {
-    return rows.map((r) => ({
-      entityId: r.entity_id,
-      name: r.entity_id,
-      image: r.cover_image_url ?? null,
-      count: r.count,
-    }));
+    return rows.map((r, i) => {
+      const rank = rankOffset + i + 1;
+      const pr = prevRankMap.get(r.entity_id) ?? null;
+      const isNew = !prevRankMap.has(r.entity_id);
+      return {
+        entityId: r.entity_id,
+        name: r.entity_id,
+        image: r.cover_image_url ?? null,
+        count: r.count,
+        rank,
+        previousRank: pr,
+        movement: pr != null ? pr - rank : null,
+        isNew,
+      };
+    });
   }
 
   const ids = rows.map((r) => r.entity_id);
   if (entityType === "artist") {
     const list = await getOrFetchArtistsBatch(ids);
     return rows.map((r, i) => {
+      const rank = rankOffset + i + 1;
       const a = list[i];
+      const pr = prevRankMap.get(r.entity_id) ?? null;
+      const isNew = !prevRankMap.has(r.entity_id);
       return {
         entityId: r.entity_id,
         name: a?.name ?? r.entity_id,
         image: a?.images?.[0]?.url ?? null,
         count: r.count,
+        rank,
+        previousRank: pr,
+        movement: pr != null ? pr - rank : null,
+        isNew,
       };
     });
   }
   if (entityType === "album") {
     const list = await getOrFetchAlbumsBatch(ids);
     return rows.map((r, i) => {
+      const rank = rankOffset + i + 1;
       const a = list[i];
+      const pr = prevRankMap.get(r.entity_id) ?? null;
+      const isNew = !prevRankMap.has(r.entity_id);
       return {
         entityId: r.entity_id,
         name: a?.name ?? r.entity_id,
         image: a?.images?.[0]?.url ?? null,
         count: r.count,
+        rank,
+        previousRank: pr,
+        movement: pr != null ? pr - rank : null,
+        isNew,
       };
     });
   }
   const list = await getOrFetchTracksBatch(ids);
   return rows.map((r, i) => {
+    const rank = rankOffset + i + 1;
     const t = list[i];
+    const pr = prevRankMap.get(r.entity_id) ?? null;
+    const isNew = !prevRankMap.has(r.entity_id);
     return {
       entityId: r.entity_id,
       name: t?.name ?? r.entity_id,
       image: t?.album?.images?.[0]?.url ?? null,
       count: r.count,
+      rank,
+      previousRank: pr,
+      movement: pr != null ? pr - rank : null,
+      isNew,
     };
   });
+}
+
+function toAggregateRowsFromCustom(
+  raw: { entity_id: string; count: number }[],
+): AggregateReportRow[] {
+  return raw.map((r) => ({
+    entity_id: r.entity_id,
+    count: r.count,
+    cover_image_url: null,
+  }));
 }
 
 export async function getListeningReports(args: {
@@ -157,15 +262,30 @@ export async function getListeningReports(args: {
       (endExclusive.getTime() - start.getTime()) / (86400 * 1000);
     if (days > LIMITS.REPORTS_CUSTOM_MAX_DAYS) return null;
 
-    const raw = await customRangeAggregate({
+    const rawCurrent = await customRangeAggregate({
       userId: args.userId,
       entityType: args.entityType,
       startInclusive: start,
       endExclusive,
     });
-    const slice = raw.slice(offset, offset + limit);
-    const hasMore = raw.length > offset + limit;
-    const items = await enrichReportItems(args.entityType, slice);
+    const prevWin = previousCustomWindow(start, endExclusive);
+    const rawPrev = await customRangeAggregate({
+      userId: args.userId,
+      entityType: args.entityType,
+      startInclusive: prevWin.startInclusive,
+      endExclusive: prevWin.endExclusive,
+    });
+
+    const prevRankMap = buildRankMap(toAggregateRowsFromCustom(rawPrev));
+    const currentRows = toAggregateRowsFromCustom(rawCurrent);
+    const pageRows = currentRows.slice(offset, offset + limit);
+    const hasMore = currentRows.length > offset + limit;
+    const items = await enrichReportItems(
+      args.entityType,
+      pageRows,
+      offset,
+      prevRankMap,
+    );
     return {
       items,
       range: "custom",
@@ -190,19 +310,46 @@ export async function getListeningReports(args: {
     periodLabel = String(year);
   }
 
-  const rows = await fetchAggregateRows({
-    userId: args.userId,
-    entityType: args.entityType,
-    weekStart,
-    monthStart,
-    year,
-    limit: limit + 1,
-    offset,
-  });
+  let prevWeek: string | null = null;
+  let prevMonth: string | null = null;
+  let prevYear: number | null = null;
+  if (weekStart) {
+    prevWeek = previousWeekStart(weekStart);
+  } else if (monthStart) {
+    prevMonth = previousMonthStart(monthStart);
+  } else if (year != null) {
+    prevYear = previousCalendarYear(year);
+  }
 
-  const hasMore = rows.length > limit;
-  const page = hasMore ? rows.slice(0, limit) : rows;
-  const items = await enrichReportItems(args.entityType, page);
+  const [currentRows, prevRows] = await Promise.all([
+    fetchAllAggregateRowsForBucket({
+      userId: args.userId,
+      entityType: args.entityType,
+      weekStart,
+      monthStart,
+      year,
+    }),
+    fetchAllAggregateRowsForBucket({
+      userId: args.userId,
+      entityType: args.entityType,
+      weekStart: prevWeek,
+      monthStart: prevMonth,
+      year: prevYear,
+    }),
+  ]);
+
+  const prevRankMap = buildRankMap(prevRows);
+  const hasMore = currentRows.length > offset + limit;
+  const pageSlice = hasMore
+    ? currentRows.slice(offset, offset + limit)
+    : currentRows.slice(offset);
+
+  const items = await enrichReportItems(
+    args.entityType,
+    pageSlice,
+    offset,
+    prevRankMap,
+  );
   const nextOffset = hasMore ? offset + limit : null;
 
   return {
