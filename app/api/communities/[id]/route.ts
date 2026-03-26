@@ -1,13 +1,22 @@
 import { NextRequest } from "next/server";
 import { requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
 import {
   getCommunityById,
   getCommunityMemberCount,
   getCommunityMemberRole,
   isCommunityMember,
+  updateCommunitySettings,
 } from "@/lib/community/queries";
-import { apiInternalError, apiNotFound, apiOk } from "@/lib/api-response";
+import {
+  apiBadRequest,
+  apiForbidden,
+  apiInternalError,
+  apiNotFound,
+  apiOk,
+} from "@/lib/api-response";
+import { parseBody } from "@/lib/api-utils";
 import { isValidUuid } from "@/lib/validation";
 
 /**
@@ -37,7 +46,7 @@ export async function GET(
     const member_count = await getCommunityMemberCount(id);
     const is_member = userId ? await isCommunityMember(id, userId) : false;
 
-    let my_role: "owner" | "member" | null = null;
+    let my_role: "admin" | "member" | null = null;
     let pending_invite_id: string | null = null;
     if (userId) {
       if (is_member) {
@@ -59,3 +68,62 @@ export async function GET(
     return apiInternalError(e);
   }
 }
+
+/** PATCH /api/communities/[id] — name, description, is_private (permission rules in `updateCommunitySettings`). */
+export const PATCH = withHandler(
+  async (request, { user: me, params }) => {
+    const id = params.id?.trim() ?? "";
+    if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
+
+    const { data: body, error: parseErr } = await parseBody<{
+      name?: unknown;
+      description?: unknown;
+      is_private?: unknown;
+    }>(request);
+    if (parseErr) return parseErr;
+
+    const patch: {
+      name?: string;
+      description?: string | null;
+      is_private?: boolean;
+    } = {};
+
+    if (body?.name !== undefined) {
+      if (typeof body.name !== "string") {
+        return apiBadRequest("name must be a string");
+      }
+      patch.name = body.name;
+    }
+    if (body?.description !== undefined) {
+      if (body.description === null) {
+        patch.description = null;
+      } else if (typeof body.description === "string") {
+        patch.description = body.description;
+      } else {
+        return apiBadRequest("description must be a string or null");
+      }
+    }
+    if (body?.is_private !== undefined) {
+      if (typeof body.is_private !== "boolean") {
+        return apiBadRequest("is_private must be a boolean");
+      }
+      patch.is_private = body.is_private;
+    }
+
+    const result = await updateCommunitySettings(id, me!.id, patch);
+    if (!result.ok) {
+      switch (result.reason) {
+        case "not_found":
+          return apiNotFound("Community not found");
+        case "forbidden":
+          return apiForbidden("You cannot update this community");
+        case "validation":
+          return apiBadRequest("Invalid name, description, or no changes");
+        default:
+          return apiInternalError(new Error("updateCommunitySettings"));
+      }
+    }
+    return apiOk({ community: result.community });
+  },
+  { requireAuth: true },
+);

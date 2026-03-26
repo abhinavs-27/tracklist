@@ -53,7 +53,7 @@ export type CommunityDetailResponse = {
   community: CommunityRow;
   member_count: number;
   is_member: boolean;
-  my_role: "owner" | "member" | null;
+  my_role: "admin" | "member" | null;
   pending_invite_id: string | null;
 };
 

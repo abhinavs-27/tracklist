@@ -10,7 +10,7 @@ import {
 import { parseBody } from "@/lib/api-utils";
 import { isValidUuid } from "@/lib/validation";
 
-/** POST /api/communities/:id/invites — owner invites a user. Body: { invitedUserId } */
+/** POST /api/communities/:id/invites — member invites (public: admins only). Body: { invitedUserId } */
 export const POST = withHandler(
   async (request: NextRequest, { user: me, params }) => {
     const cid = params.id?.trim() ?? "";
@@ -33,7 +33,7 @@ export const POST = withHandler(
     if (!result.ok) {
       switch (result.reason) {
         case "forbidden":
-          return apiForbidden("Only the community owner can send invites");
+          return apiForbidden("Only community admins can send invites");
         case "not_found":
           return apiNotFound("Community not found");
         case "self":

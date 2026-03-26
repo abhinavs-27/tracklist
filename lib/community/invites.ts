@@ -3,6 +3,7 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { CommunityInvitePending, CommunityRow } from "@/types";
 
+import { canInviteToCommunity } from "@/lib/community/permissions";
 import { recordCommunityEvent } from "@/lib/community/record-event";
 import { getCommunityById, getCommunityMemberRole } from "@/lib/community/queries";
 
@@ -127,14 +128,14 @@ export async function createCommunityInvite(
     return { ok: false, reason: "self" };
   }
 
-  const role = await getCommunityMemberRole(cid, owner);
-  if (role !== "owner") {
-    return { ok: false, reason: "forbidden" };
-  }
-
   const community = await getCommunityById(cid);
   if (!community) {
     return { ok: false, reason: "not_found" };
+  }
+
+  const role = await getCommunityMemberRole(cid, owner);
+  if (role === null || !canInviteToCommunity(community.is_private, true, role)) {
+    return { ok: false, reason: "forbidden" };
   }
 
   const admin = createSupabaseAdminClient();

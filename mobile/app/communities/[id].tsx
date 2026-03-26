@@ -93,7 +93,11 @@ export default function CommunityDetailScreen() {
 
   const community = meta?.community;
   const pendingInviteId = meta?.pending_invite_id ?? null;
-  const isOwner = meta?.my_role === "owner";
+  const canInvite = useMemo(() => {
+    if (!isMember || !community || !meta?.my_role) return false;
+    if (community.is_private) return true;
+    return meta.my_role === "admin";
+  }, [isMember, community, meta?.my_role]);
   const leaderboard = lbData?.leaderboard ?? [];
   const feedBase = feedData?.feed ?? [];
   const feed = [...feedBase, ...feedExtra];
@@ -286,7 +290,7 @@ export default function CommunityDetailScreen() {
               </View>
             ) : (
               <>
-                {isOwner ? <InviteMembersPanel communityId={id} /> : null}
+                {canInvite ? <InviteMembersPanel communityId={id} /> : null}
                 {insightsPending && isMember ? (
                   <View style={{ marginBottom: 16, alignItems: "center" }}>
                     <ActivityIndicator color={theme.colors.emerald} />

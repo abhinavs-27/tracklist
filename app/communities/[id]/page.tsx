@@ -11,13 +11,19 @@ import { getCommunityInsights } from "@/lib/community/getCommunityInsights";
 import { getCommunityMemberStatsWithRoles } from "@/lib/community/get-community-member-stats";
 import { getCommunityTasteMatchesForViewer } from "@/lib/community/get-community-taste-matches";
 import { getWeeklyLeaderboard } from "@/lib/community/getWeeklyLeaderboard";
+import { CommunitySettings } from "@/components/community/CommunitySettings";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
+import {
+  canEditCommunitySettings,
+  canInviteToCommunity,
+} from "@/lib/community/permissions";
 import {
   getCommunityById,
   getCommunityMemberCount,
   getCommunityMemberRole,
   isCommunityMember,
+  listCommunityMembersForSettings,
 } from "@/lib/community/queries";
 import { formatRelativeTime } from "@/lib/time";
 import { isValidUuid } from "@/lib/validation";
@@ -42,7 +48,22 @@ export default async function CommunityDetailPage({
   const userId = session?.user?.id ?? null;
   const isMember = userId ? await isCommunityMember(id, userId) : false;
   const myRole = userId ? await getCommunityMemberRole(id, userId) : null;
-  const isOwner = myRole === "owner";
+  const canEdit =
+    userId && isMember && myRole
+      ? canEditCommunitySettings(community.is_private, true, myRole)
+      : false;
+  const showAdminSection =
+    userId && isMember && myRole
+      ? !community.is_private && canEdit && myRole === "admin"
+      : false;
+  const membersForSettings =
+    userId && isMember && showAdminSection
+      ? await listCommunityMembersForSettings(id)
+      : [];
+  const canInvite =
+    userId && isMember && myRole
+      ? canInviteToCommunity(community.is_private, true, myRole)
+      : false;
   const pendingInvite =
     userId && !isMember
       ? await getPendingInviteForUserToCommunity(id, userId)
@@ -76,20 +97,32 @@ export default async function CommunityDetailPage({
 
       <header className="space-y-2 border-b border-zinc-800 pb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">{community.name}</h1>
-            {community.description ? (
-              <p className="mt-2 text-zinc-400">{community.description}</p>
-            ) : null}
-            <p className="mt-2 text-sm text-zinc-500">
-              {memberCount} member{memberCount !== 1 ? "s" : ""}
-              {community.is_private ? (
-                <span className="ml-2 rounded bg-zinc-800 px-2 py-0.5 text-xs">
-                  Private
-                </span>
+          {isMember && session?.user?.id ? (
+            <CommunitySettings
+              communityId={id}
+              community={community}
+              memberCount={memberCount}
+              members={membersForSettings}
+              viewerId={session.user.id}
+              canEdit={canEdit}
+              showAdminSection={showAdminSection}
+            />
+          ) : (
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold text-white">{community.name}</h1>
+              {community.description ? (
+                <p className="mt-2 text-zinc-400">{community.description}</p>
               ) : null}
-            </p>
-          </div>
+              <p className="mt-2 text-sm text-zinc-500">
+                {memberCount} member{memberCount !== 1 ? "s" : ""}
+                {community.is_private ? (
+                  <span className="ml-2 rounded bg-zinc-800 px-2 py-0.5 text-xs">
+                    Private
+                  </span>
+                ) : null}
+              </p>
+            </div>
+          )}
           {session?.user?.id ? (
             <CommunityActions
               communityId={id}
@@ -117,14 +150,12 @@ export default async function CommunityDetailPage({
           {community.is_private
             ? pendingInvite
               ? "You’ve been invited to this private community."
-              : "This community is private. Ask an owner for an invite, or check your invites."
+              : "This community is private. Ask a member for an invite, or check your invites."
             : "Join to see the weekly leaderboard and activity feed."}
         </p>
       ) : null}
 
-      {isOwner && isMember ? (
-        <InviteMembersPanel communityId={id} />
-      ) : null}
+      {canInvite ? <InviteMembersPanel communityId={id} /> : null}
 
       {isMember && insights ? <CommunityInsights insights={insights} /> : null}
 

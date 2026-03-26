@@ -144,7 +144,7 @@ export type CommunityRow = {
 
 export type CommunityWithMeta = CommunityRow & {
   member_count: number;
-  my_role: "owner" | "member";
+  my_role: "admin" | "member";
 };
 
 export type CommunityInviteStatus = "pending" | "accepted" | "declined";

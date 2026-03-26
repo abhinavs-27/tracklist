@@ -3,7 +3,22 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { CommunityRow, CommunityWithMeta } from "@/types";
 
+import type { CommunityMemberRole } from "@/lib/community/member-role";
+import {
+  canEditCommunitySettings,
+  canPromoteToAdmin,
+} from "@/lib/community/permissions";
 import { recordCommunityEvent } from "@/lib/community/record-event";
+import type { CommunityMemberListRow } from "@/lib/community/member-list";
+import { fetchUserMap } from "@/lib/queries";
+
+export type { CommunityMemberRole } from "@/lib/community/member-role";
+
+function normalizeMemberRole(raw: string | null | undefined): CommunityMemberRole | null {
+  if (raw === "admin" || raw === "owner") return "admin";
+  if (raw === "member") return "member";
+  return null;
+}
 
 async function getUserCommunitiesLegacy(
   admin: ReturnType<typeof createSupabaseAdminClient>,
@@ -24,7 +39,7 @@ async function getUserCommunitiesLegacy(
   const roleByCid = new Map(
     (memberships as { community_id: string; role: string }[]).map((m) => [
       m.community_id,
-      m.role,
+      normalizeMemberRole(m.role) ?? "member",
     ]),
   );
 
@@ -50,7 +65,7 @@ async function getUserCommunitiesLegacy(
   return (comms as CommunityRow[]).map((c) => ({
     ...c,
     member_count: countMap.get(c.id) ?? 0,
-    my_role: (roleByCid.get(c.id) ?? "member") as "owner" | "member",
+    my_role: (roleByCid.get(c.id) ?? "member") as CommunityMemberRole,
   }));
 }
 
@@ -68,8 +83,8 @@ export async function getUserCommunities(
   if (!error && Array.isArray(data)) {
     return (data as Record<string, unknown>[]).map((row) => {
       const roleRaw = String(row.my_role ?? "member");
-      const my_role: "owner" | "member" =
-        roleRaw === "owner" ? "owner" : "member";
+      const my_role: CommunityMemberRole =
+        normalizeMemberRole(roleRaw) ?? "member";
       return {
         id: String(row.id),
         name: String(row.name),
@@ -139,7 +154,7 @@ export async function isCommunityMember(
 export async function getCommunityMemberRole(
   communityId: string,
   userId: string,
-): Promise<"owner" | "member" | null> {
+): Promise<CommunityMemberRole | null> {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("community_members")
@@ -149,8 +164,7 @@ export async function getCommunityMemberRole(
     .maybeSingle();
   if (error || !data) return null;
   const r = (data as { role: string }).role;
-  if (r === "owner" || r === "member") return r;
-  return null;
+  return normalizeMemberRole(r);
 }
 
 export async function createCommunity(
@@ -185,10 +199,10 @@ export async function createCommunity(
   const { error: mErr } = await admin.from("community_members").insert({
     community_id: c.id,
     user_id: userId,
-    role: "owner",
+    role: "admin",
   });
   if (mErr) {
-    console.error("[community] owner membership failed", mErr);
+    console.error("[community] creator membership failed", mErr);
     return null;
   }
 
@@ -245,6 +259,169 @@ export async function joinPublicCommunity(
     type: "milestone",
     metadata: { kind: "joined" },
   });
+
+  return { ok: true };
+}
+
+export type { CommunityMemberListRow } from "@/lib/community/member-list";
+
+export async function listCommunityMembersForSettings(
+  communityId: string,
+): Promise<CommunityMemberListRow[]> {
+  const admin = createSupabaseAdminClient();
+  const cid = communityId.trim();
+  if (!cid) return [];
+
+  const { data: rows, error } = await admin
+    .from("community_members")
+    .select("user_id, role, created_at")
+    .eq("community_id", cid)
+    .order("created_at", { ascending: true });
+
+  if (error || !rows?.length) return [];
+
+  const userIds = (rows as { user_id: string }[]).map((r) => r.user_id);
+  const userMap = await fetchUserMap(admin, userIds);
+
+  return (rows as { user_id: string; role: string }[]).map((r) => {
+    const u = userMap.get(r.user_id);
+    return {
+      user_id: r.user_id,
+      username: u?.username ?? "Unknown",
+      avatar_url: u?.avatar_url ?? null,
+      role: normalizeMemberRole(r.role) ?? "member",
+    };
+  });
+}
+
+async function setAllCommunityMembersAdmin(communityId: string): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin
+    .from("community_members")
+    .update({ role: "admin" })
+    .eq("community_id", communityId.trim());
+  if (error) {
+    console.error("[community] set all members admin", error);
+    return false;
+  }
+  return true;
+}
+
+export async function updateCommunitySettings(
+  communityId: string,
+  actorUserId: string,
+  patch: {
+    name?: string;
+    description?: string | null;
+    is_private?: boolean;
+  },
+): Promise<
+  | { ok: true; community: CommunityRow }
+  | { ok: false; reason: "not_found" | "forbidden" | "validation" | "error" }
+> {
+  const admin = createSupabaseAdminClient();
+  const cid = communityId.trim();
+  const actor = actorUserId.trim();
+  if (!cid || !actor) return { ok: false, reason: "validation" };
+
+  const community = await getCommunityById(cid);
+  if (!community) return { ok: false, reason: "not_found" };
+
+  const isMember = await isCommunityMember(cid, actor);
+  const role = await getCommunityMemberRole(cid, actor);
+  if (!canEditCommunitySettings(community.is_private, isMember, role)) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (patch.name !== undefined) {
+    const n = patch.name.trim();
+    if (n.length < 2 || n.length > 120) {
+      return { ok: false, reason: "validation" };
+    }
+    updates.name = n;
+  }
+  if (patch.description !== undefined) {
+    const d =
+      patch.description === null || patch.description === ""
+        ? null
+        : String(patch.description).trim();
+    if (d !== null && d.length > 2000) {
+      return { ok: false, reason: "validation" };
+    }
+    updates.description = d;
+  }
+
+  let becamePrivate = false;
+  if (patch.is_private !== undefined) {
+    const next = Boolean(patch.is_private);
+    if (next && !community.is_private) {
+      becamePrivate = true;
+    }
+    updates.is_private = next;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { ok: false, reason: "validation" };
+  }
+
+  const { data: row, error } = await admin
+    .from("communities")
+    .update(updates)
+    .eq("id", cid)
+    .select("id, name, description, is_private, created_by, created_at")
+    .single();
+
+  if (error || !row) {
+    console.error("[community] update settings", error);
+    return { ok: false, reason: "error" };
+  }
+
+  if (becamePrivate) {
+    const ok = await setAllCommunityMembersAdmin(cid);
+    if (!ok) return { ok: false, reason: "error" };
+  }
+
+  return { ok: true, community: row as CommunityRow };
+}
+
+export async function promoteCommunityMemberToAdmin(
+  communityId: string,
+  actorUserId: string,
+  targetUserId: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const admin = createSupabaseAdminClient();
+  const cid = communityId.trim();
+  const actor = actorUserId.trim();
+  const target = targetUserId.trim();
+  if (!cid || !actor || !target) return { ok: false, reason: "invalid" };
+  if (actor === target) return { ok: false, reason: "self" };
+
+  const community = await getCommunityById(cid);
+  if (!community) return { ok: false, reason: "not_found" };
+
+  const actorRole = await getCommunityMemberRole(cid, actor);
+  const targetRole = await getCommunityMemberRole(cid, target);
+  if (actorRole === null || targetRole === null) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  if (!canPromoteToAdmin(community.is_private, true, actorRole)) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  if (targetRole === "admin") return { ok: true };
+
+  const { error } = await admin
+    .from("community_members")
+    .update({ role: "admin" })
+    .eq("community_id", cid)
+    .eq("user_id", target);
+
+  if (error) {
+    console.error("[community] promote", error);
+    return { ok: false, reason: "error" };
+  }
 
   return { ok: true };
 }
