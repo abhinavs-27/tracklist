@@ -34,9 +34,9 @@ export const CHART_CONFIGS: Record<string, ChartConfig> = {
     id: "hidden_gems",
     label: "Hidden Gems",
     filters: {
-      min_rating: 4.2,
-      max_plays: 500,
-      min_review_count: 5,
+      /** Aligned with `mv_hidden_gems` + discover-cache MV fast path (min 4, max 50 listens). */
+      min_rating: 4,
+      max_plays: 50,
     },
   },
   trending: {

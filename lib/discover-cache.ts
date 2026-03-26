@@ -76,34 +76,43 @@ async function getRisingFromMvOrLive(limit: number, windowDays: number): Promise
   return getRisingArtists(limit, windowDays);
 }
 
-/** Read from MV first (minRating=4, maxListens=50 only); fallback to live RPC. Never throws. */
+/** Read from MV first (minRating=4, maxListens=50 only); fallback to live RPC; then relaxed thresholds if still empty. */
 async function getHiddenFromMvOrLive(
   limit: number,
   minRating: number,
   maxListens: number,
 ): Promise<HiddenGem[]> {
-  if (minRating !== 4 || maxListens !== 50) return getHiddenGems(limit, minRating, maxListens);
-  const start = performance.now();
-  try {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.rpc("get_hidden_gems_from_mv", { p_limit: limit });
-    const ms = performance.now() - start;
-    if (!error && data?.length) {
-      logPerf("mv_hit", "hidden_gems", ms, { limit });
-      return (data as { entity_id: string; entity_type: string; avg_rating: number; listen_count: number }[]).map(
-        (r) => ({
-          entity_id: r.entity_id,
-          entity_type: r.entity_type ?? "song",
-          avg_rating: Number(r.avg_rating) || 0,
-          listen_count: Number(r.listen_count) || 0,
-        }),
-      );
+  if (minRating === 4 && maxListens === 50) {
+    const start = performance.now();
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { data, error } = await supabase.rpc("get_hidden_gems_from_mv", { p_limit: limit });
+      const ms = performance.now() - start;
+      if (!error && data?.length) {
+        logPerf("mv_hit", "hidden_gems", ms, { limit });
+        return (data as { entity_id: string; entity_type: string; avg_rating: number; listen_count: number }[]).map(
+          (r) => ({
+            entity_id: r.entity_id,
+            entity_type: r.entity_type ?? "song",
+            avg_rating: Number(r.avg_rating) || 0,
+            listen_count: Number(r.listen_count) || 0,
+          }),
+        );
+      }
+      logPerf("mv_miss", "hidden_gems", ms, { limit });
+    } catch {
+      logPerf("mv_miss", "hidden_gems", performance.now() - start, { limit });
     }
-    logPerf("mv_miss", "hidden_gems", ms, { limit });
-  } catch {
-    logPerf("mv_miss", "hidden_gems", performance.now() - start, { limit });
   }
-  return getHiddenGems(limit, minRating, maxListens);
+
+  let rows = await getHiddenGems(limit, minRating, maxListens);
+  if (rows.length > 0) return rows;
+
+  /** Still empty: looser bar when few reviews exist (each entity still needs ≥1 review). */
+  if (minRating > 3.5 || maxListens < 100) {
+    rows = await getHiddenGems(limit, 3.5, 150);
+  }
+  return rows;
 }
 
 export async function getTrendingEntitiesCached(

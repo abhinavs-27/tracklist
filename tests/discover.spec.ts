@@ -67,9 +67,7 @@ test.describe('Discover', () => {
     const hasTrending = await page.getByRole('heading', { name: /trending/i }).isVisible();
     const hasRising = await page.getByRole('heading', { name: /rising artists/i }).isVisible();
     const hasHidden = await page.getByRole('heading', { name: /hidden gems/i }).isVisible();
-    const hasSuggested = await page.getByRole('heading', { name: /suggested users/i }).isVisible();
-    const hasRecentlyActive = await page.getByRole('heading', { name: /recently active/i }).isVisible();
-    expect(hasTrending || hasRising || hasHidden || hasSuggested || hasRecentlyActive).toBeTruthy();
+    expect(hasTrending || hasRising || hasHidden).toBeTruthy();
   });
 
   test('discover page shows Trending, Rising artists, and Hidden gems sections even when empty', async ({ page }) => {
@@ -130,66 +128,9 @@ test.describe('Discover', () => {
     }
   });
 
-  test('follow/unfollow toggles state', async ({ page }) => {
-    await page.route('**/api/discover**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          users: [
-            {
-              id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-              username: 'alice',
-              avatar_url: null,
-              latest_album_spotify_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
-              latest_log_created_at: new Date().toISOString(),
-              is_following: false,
-              is_viewer: false,
-            },
-          ],
-        }),
-      });
-    });
-
-    await page.route('**/api/spotify/album/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: '2nLhD10Z7Sb4RFyCX2ZCyx',
-          name: 'Mock Album',
-          images: [{ url: 'https://example.com/cover.jpg' }],
-          artists: [],
-          release_date: null,
-        }),
-      });
-    });
-
-    await page.route('**/api/follow', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
-        return;
-      }
-      await route.fallback();
-    });
-
-    await page.route('**/api/follow?following_id=*', async (route) => {
-      if (route.request().method() === 'DELETE') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
-        return;
-      }
-      await route.fallback();
-    });
-
-    await page.goto('/discover');
-
-    const followButton = page.getByRole('button', { name: /^follow$/i });
-    await expect(followButton).toBeVisible();
-    await followButton.click();
-
-    await expect(page.getByRole('button', { name: /^following$/i })).toBeVisible();
-    await page.getByRole('button', { name: /^following$/i }).click();
-    await expect(page.getByRole('button', { name: /^follow$/i })).toBeVisible();
+  test('GET /api/search/users/browse returns 401 when unauthenticated', async ({ request }) => {
+    const res = await request.get('/api/search/users/browse');
+    expect(res.status()).toBe(401);
   });
 });
 

@@ -34,9 +34,8 @@ export const CHART_CONFIGS: Record<string, ChartConfig> = {
     id: "hidden_gems",
     label: "Hidden Gems",
     filters: {
-      min_rating: 4.2,
-      max_plays: 500,
-      min_review_count: 5,
+      min_rating: 4,
+      max_plays: 50,
     },
   },
   trending: {

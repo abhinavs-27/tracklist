@@ -12,7 +12,9 @@ export default async function SearchUsersPage() {
   return (
     <div className="mx-auto max-w-2xl px-2 sm:px-0">
       <h1 className="mb-4 text-2xl font-bold text-white">Find users</h1>
-      <p className="mb-4 text-zinc-400">Search by username to find people to follow.</p>
+      <p className="mb-4 text-zinc-400">
+        Browse everyone who joined, or search by username.
+      </p>
       <UserSearchContent />
     </div>
   );
