@@ -16,6 +16,7 @@ import {
   validateBio,
   validateAvatarUrl,
 } from "@/lib/validation";
+import { getFollowCounts } from "@/lib/queries";
 
 export const GET = withHandler(async (request, { params }) => {
   const { username } = params;
@@ -34,28 +35,8 @@ export const GET = withHandler(async (request, { params }) => {
 
   if (error || !user) return apiNotFound("User not found");
 
-  const [followersRes, followingRes] = await Promise.all([
-    supabase
-      .from("follows")
-      .select("id", { count: "exact", head: true })
-      .eq("following_id", user.id),
-    supabase
-      .from("follows")
-      .select("id", { count: "exact", head: true })
-      .eq("follower_id", user.id),
-  ]);
-
-  if (followersRes.error || followingRes.error) {
-    console.error(
-      "User followers/following count error:",
-      followersRes.error,
-      followingRes.error,
-    );
-    return apiInternalError(followersRes.error ?? followingRes.error);
-  }
-
-  const followers = followersRes.count ?? 0;
-  const following = followingRes.count ?? 0;
+  const { followers_count: followers, following_count: following } =
+    await getFollowCounts(user.id);
 
   const viewer = await getUserFromRequest(request);
   let isFollowing = false;

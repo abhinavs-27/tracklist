@@ -33,7 +33,7 @@ artistsRouter.get("/:id", async (req, res) => {
       total: 0,
     };
     try {
-      albumsPage = await getArtistAlbums(id, 50);
+      albumsPage = await getArtistAlbums(id, 20);
     } catch {
       console.warn("[artists] getArtistAlbums failed for", id);
     }

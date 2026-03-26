@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useEffect, useMemo, useState } from "react";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
-import { AlbumReviews } from "@/app/album/[id]/album-reviews";
-import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
 import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
 import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
@@ -24,11 +23,6 @@ const FriendsWhoListened = dynamic(
   () => import("./friends-who-listened").then((m) => ({ default: m.FriendsWhoListened })),
   { loading: AlbumLazySectionSkeleton },
 );
-const AlbumRecommendationsSection = dynamic(
-  () => import("./album-recommendations-section").then((m) => ({ default: m.AlbumRecommendationsSection })),
-  { loading: AlbumLazySectionSkeleton },
-);
-
 function formatDuration(ms: number | undefined) {
   if (!ms) return null;
   const min = Math.floor(ms / 60000);
@@ -82,6 +76,12 @@ function TrackStatsWithReviews({
   );
 }
 
+type TrackStatRow = {
+  listen_count: number;
+  review_count: number;
+  average_rating: number | null;
+};
+
 export type AlbumPageClientProps = {
   id: string;
   album: SpotifyApi.AlbumObjectFull;
@@ -90,8 +90,6 @@ export type AlbumPageClientProps = {
   stats: { listen_count: number; average_rating: number | null; review_count: number; rating_distribution?: Record<number, number> };
   engagementStats: { listen_count: number; review_count: number; avg_rating: number | null };
   friendActivity: FriendActivityItem[];
-  trackStats: Record<string, { listen_count: number; review_count: number; average_rating: number | null }>;
-  recommendedAlbums: SpotifyApi.AlbumObjectSimplified[];
 };
 
 export function AlbumPageClient({
@@ -102,14 +100,61 @@ export function AlbumPageClient({
   stats,
   engagementStats,
   friendActivity,
-  trackStats,
-  recommendedAlbums,
 }: AlbumPageClientProps) {
   const image = album.images?.[0]?.url;
   const firstTrack = tracks.items?.[0];
 
+  const [trackStats, setTrackStats] = useState<Record<string, TrackStatRow>>({});
+  const [trackStatsLoading, setTrackStatsLoading] = useState(true);
+
+  const trackIdsKey = useMemo(
+    () => tracks.items?.map((t) => t.id).join(",") ?? "",
+    [tracks.items],
+  );
+
+  useEffect(() => {
+    const ids = tracks.items?.map((t) => t.id) ?? [];
+    if (ids.length === 0) {
+      setTrackStatsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const chunkSize = 400;
+    void (async () => {
+      try {
+        const merged: Record<string, TrackStatRow> = {};
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          const chunk = ids.slice(i, i + chunkSize);
+          const res = await fetch("/api/track-stats/batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ track_ids: chunk }),
+          });
+          if (!res.ok) throw new Error(String(res.status));
+          const payload = (await res.json()) as {
+            stats?: Record<string, TrackStatRow>;
+          };
+          Object.assign(merged, payload.stats ?? {});
+        }
+        if (!cancelled) setTrackStats(merged);
+      } catch {
+        if (!cancelled) setTrackStats({});
+      } finally {
+        if (!cancelled) setTrackStatsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [trackIdsKey]);
+
+  const emptyTrackStat: TrackStatRow = {
+    listen_count: 0,
+    review_count: 0,
+    average_rating: null,
+  };
+
   return (
-    <AlbumReviewsProvider albumId={id}>
       <div className="space-y-8">
         {session && firstTrack ? (
           <RecordRecentView
@@ -228,7 +273,7 @@ export function AlbumPageClient({
             <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">Tracks</h2>
             <div className="space-y-1">
               {tracks.items.map((t, i) => {
-                const songStats = trackStats[t.id] ?? { listen_count: 0, review_count: 0, average_rating: null };
+                const songStats = trackStats[t.id] ?? emptyTrackStat;
                 return (
                   <div
                     key={t.id}
@@ -253,11 +298,15 @@ export function AlbumPageClient({
                         />
                       )}
                     </div>
-                    <div className="flex items-center gap-3 pl-8 sm:pl-9">
-                      <TrackStatsWithReviews
-                        trackId={t.id}
-                        serverStats={songStats}
-                      />
+                    <div className="flex min-h-[1.25rem] items-center gap-3 pl-8 sm:pl-9">
+                      {trackStatsLoading ? (
+                        <span className="inline-block h-3 w-28 animate-pulse rounded bg-zinc-800/60" />
+                      ) : (
+                        <TrackStatsWithReviews
+                          trackId={t.id}
+                          serverStats={songStats}
+                        />
+                      )}
                     </div>
                   </div>
                 );
@@ -265,13 +314,6 @@ export function AlbumPageClient({
             </div>
           </section>
         ) : null}
-
-        {recommendedAlbums.length > 0 && (
-          <AlbumRecommendationsSection albums={recommendedAlbums} albumName={album.name} />
-        )}
-
-        <AlbumReviews albumId={id} albumName={album.name} />
       </div>
-    </AlbumReviewsProvider>
   );
 }

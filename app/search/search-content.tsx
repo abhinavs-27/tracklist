@@ -12,7 +12,7 @@ async function search(q: string): Promise<SpotifySearchResponse | null> {
   try {
     // Uses client-credentials flow under the hood with SPOTIFY_CLIENT_ID/SECRET
     // and caches the token in memory.
-    return await searchSpotify(query, ["artist", "album", "track"], 20);
+    return await searchSpotify(query, ["artist", "album", "track"], 10);
   } catch (err) {
     console.error("Spotify search error:", err);
     return null;

@@ -105,7 +105,7 @@ export async function getCommunityFeedMerged(
       ? Promise.resolve([])
       : admin
           .from("logs")
-          .select("id, user_id, listened_at, title, track_id, type")
+          .select("id, user_id, listened_at, track_id, source")
           .in("user_id", memberIds)
           .order("listened_at", { ascending: false })
           .limit(perSource)
@@ -118,9 +118,8 @@ export async function getCommunityFeedMerged(
               id: string;
               user_id: string;
               listened_at: string;
-              title: string | null;
               track_id: string | null;
-              type: string;
+              source: string | null;
             }[];
           }),
     filter === "streaks" || filter === "listens" || filter === "members"
@@ -148,6 +147,27 @@ export async function getCommunityFeedMerged(
           }),
   ]);
 
+  const songTitleByTrack = new Map<string, string>();
+  const trackIdsForTitles = [
+    ...new Set(
+      logRows
+        .map((r) => r.track_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (trackIdsForTitles.length > 0) {
+    const { data: songs, error: songsErr } = await admin
+      .from("songs")
+      .select("id, name")
+      .in("id", trackIdsForTitles);
+    if (songsErr) {
+      console.error("[community-feed] songs for logs", songsErr);
+    }
+    for (const s of songs ?? []) {
+      songTitleByTrack.set(s.id as string, (s.name as string) ?? "");
+    }
+  }
+
   const userIds = new Set<string>();
   for (const r of events) userIds.add(r.user_id);
   for (const r of logRows) userIds.add(r.user_id);
@@ -164,7 +184,9 @@ export async function getCommunityFeedMerged(
   for (const log of logRows) {
     const u = userMap.get(log.user_id);
     const username = u?.username ?? "Someone";
-    const title = log.title?.trim() || "a track";
+    const resolved =
+      log.track_id != null ? songTitleByTrack.get(log.track_id) : undefined;
+    const title = resolved?.trim() || "a track";
     merged.push({
       kind: "listen",
       id: `log:${log.id}`,
@@ -174,9 +196,9 @@ export async function getCommunityFeedMerged(
       created_at: log.listened_at,
       label: `${username} listened to ${title}`,
       metadata: {
-        title: log.title,
+        title: resolved?.trim() ?? null,
         track_id: log.track_id,
-        log_type: log.type,
+        log_type: log.source,
       },
     });
   }

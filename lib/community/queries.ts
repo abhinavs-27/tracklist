@@ -5,13 +5,10 @@ import type { CommunityRow, CommunityWithMeta } from "@/types";
 
 import { recordCommunityEvent } from "@/lib/community/record-event";
 
-export async function getUserCommunities(
-  userId: string,
+async function getUserCommunitiesLegacy(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  uid: string,
 ): Promise<CommunityWithMeta[]> {
-  const admin = createSupabaseAdminClient();
-  const uid = userId?.trim();
-  if (!uid) return [];
-
   const { data: memberships, error } = await admin
     .from("community_members")
     .select("community_id, role")
@@ -55,6 +52,48 @@ export async function getUserCommunities(
     member_count: countMap.get(c.id) ?? 0,
     my_role: (roleByCid.get(c.id) ?? "member") as "owner" | "member",
   }));
+}
+
+export async function getUserCommunities(
+  userId: string,
+): Promise<CommunityWithMeta[]> {
+  const admin = createSupabaseAdminClient();
+  const uid = userId?.trim();
+  if (!uid) return [];
+
+  const { data, error } = await admin.rpc("get_user_communities_with_meta", {
+    p_user_id: uid,
+  });
+
+  if (!error && Array.isArray(data)) {
+    return (data as Record<string, unknown>[]).map((row) => {
+      const roleRaw = String(row.my_role ?? "member");
+      const my_role: "owner" | "member" =
+        roleRaw === "owner" ? "owner" : "member";
+      return {
+        id: String(row.id),
+        name: String(row.name),
+        description:
+          row.description === null || row.description === undefined
+            ? null
+            : String(row.description),
+        is_private: Boolean(row.is_private),
+        created_by: String(row.created_by),
+        created_at: String(row.created_at),
+        member_count: Math.max(0, Number(row.member_count) || 0),
+        my_role,
+      };
+    });
+  }
+
+  if (error) {
+    console.warn(
+      "[community] get_user_communities_with_meta RPC failed, using fallback:",
+      error.message,
+    );
+  }
+
+  return getUserCommunitiesLegacy(admin, uid);
 }
 
 export async function getCommunityById(

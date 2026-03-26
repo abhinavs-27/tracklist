@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { logPerf, timeAsync } from "@/lib/profiling";
 import {
   getAlbum,
-  getAlbumTracks,
+  getAllAlbumTracks,
   getAlbums,
   getArtist,
   getArtistAlbums,
@@ -59,6 +59,19 @@ function logUpsert(_entity: string, _id: string) {
 function isCacheStale(cachedAt: string | null | undefined): boolean {
   if (!cachedAt) return true;
   return Date.now() - new Date(cachedAt).getTime() > CACHE_TTL_MS;
+}
+
+/** DB has fewer songs than Spotify's total_tracks, or we never stored total_tracks on a non-empty album. */
+function albumNeedsTrackBackfill(
+  songCount: number,
+  totalTracksNullable: number | null,
+): boolean {
+  const totalTracks = totalTracksNullable ?? 0;
+  return (
+    songCount === 0 ||
+    (totalTracks > 0 && songCount < totalTracks) ||
+    (songCount > 0 && totalTracks === 0)
+  );
 }
 
 // --- DB row types (match 009_spotify_entities + 035_spotify_cached_at)
@@ -221,6 +234,12 @@ export async function upsertTrackFromSpotify(
 
   await upsertArtistFromSpotify(supabase, first);
 
+  const { data: existingAlbum } = await supabase
+    .from("albums")
+    .select("total_tracks")
+    .eq("id", albumId)
+    .maybeSingle();
+
   const now = new Date().toISOString();
   const albumRow = {
     id: albumId,
@@ -228,7 +247,9 @@ export async function upsertTrackFromSpotify(
     artist_id: first.id,
     image_url: albumImageUrl,
     release_date: albumReleaseDate ?? null,
-    total_tracks: null,
+    total_tracks:
+      (existingAlbum as { total_tracks?: number | null } | null)?.total_tracks ??
+      null,
     updated_at: now,
     cached_at: now,
   };
@@ -658,12 +679,7 @@ async function getOrFetchAlbumInner(id: string): Promise<{
 
       let songs = (songRows ?? []) as unknown as SongRow[];
 
-      const totalTracks = album.total_tracks ?? 0;
-      const needBackfill =
-        songs.length === 0 ||
-        (totalTracks > 0 && songs.length < totalTracks) ||
-        (songs.length > 0 && totalTracks === 0);
-      if (needBackfill) {
+      if (albumNeedsTrackBackfill(songs.length, album.total_tracks)) {
         try {
           const result = await refreshAlbumFromSpotify(supabase, id);
           if (result?.album && result?.tracks)
@@ -769,7 +785,31 @@ async function getOrFetchAlbumInner(id: string): Promise<{
       .select("id, name, album_id, artist_id, duration_ms, track_number")
       .eq("album_id", id)
       .order("track_number", { ascending: true });
-    const songsStale = (songRowsStale ?? []) as unknown as SongRow[];
+    let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
+
+    let ranStaleSyncBackfill = false;
+    if (albumNeedsTrackBackfill(songsStale.length, album.total_tracks)) {
+      ranStaleSyncBackfill = true;
+      try {
+        const result = await refreshAlbumFromSpotify(supabase, id);
+        if (result?.album && result?.tracks)
+          return { album: result.album, tracks: result.tracks };
+        const { data: refetchedStale } = await supabase
+          .from("songs")
+          .select(
+            "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
+          )
+          .eq("album_id", id)
+          .order("track_number", { ascending: true });
+        songsStale = (refetchedStale ?? []) as unknown as SongRow[];
+      } catch (e) {
+        console.warn(
+          `${LOG_PREFIX} album tracks backfill failed (stale album) for ${id}`,
+          e,
+        );
+      }
+    }
+
     const artistIdsStale = [...new Set(songsStale.map((s) => s.artist_id))];
     const { data: artistRowsStale } = await supabase
       .from("artists")
@@ -825,12 +865,14 @@ async function getOrFetchAlbumInner(id: string): Promise<{
         next: null,
         previous: null,
       };
-    refreshAlbumFromSpotify(supabase, id).catch((e) =>
-      console.warn(
-        `${LOG_PREFIX} background album refresh failed for ${id}`,
-        e,
-      ),
-    );
+    if (!ranStaleSyncBackfill) {
+      refreshAlbumFromSpotify(supabase, id).catch((e) =>
+        console.warn(
+          `${LOG_PREFIX} background album refresh failed for ${id}`,
+          e,
+        ),
+      );
+    }
     return { album: albumPayloadStale, tracks: tracksPayloadStale };
   }
 
@@ -869,7 +911,7 @@ async function refreshAlbumFromSpotify(
   try {
     const [albumResp, tracksResp] = await Promise.all([
       getAlbum(id),
-      getAlbumTracks(id, 50, 0),
+      getAllAlbumTracks(id),
     ]);
     await upsertAlbumFromSpotify(supabase, albumResp);
     const albumArtistId = albumResp.artists?.[0]?.id;

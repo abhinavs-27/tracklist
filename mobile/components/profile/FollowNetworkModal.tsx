@@ -90,13 +90,12 @@ export function FollowNetworkModal({
         setError("Unexpected response.");
         return;
       }
-      const cleaned = data.filter((u) => u.id !== viewerUserId);
       if (isFollowers) {
-        setFollowers((prev) => (append ? [...prev, ...cleaned] : cleaned));
-        setFollowersHasMore(cleaned.length === PAGE_SIZE);
+        setFollowers((prev) => (append ? [...prev, ...data] : data));
+        setFollowersHasMore(data.length === PAGE_SIZE);
       } else {
-        setFollowing((prev) => (append ? [...prev, ...cleaned] : cleaned));
-        setFollowingHasMore(cleaned.length === PAGE_SIZE);
+        setFollowing((prev) => (append ? [...prev, ...data] : data));
+        setFollowingHasMore(data.length === PAGE_SIZE);
       }
     } catch {
       setError("Failed to load users.");

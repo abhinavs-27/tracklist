@@ -19,7 +19,8 @@ export const LIMITS = {
   SEARCH_QUERY: 200,
   FEED_LIMIT: 100,
   LOGS_LIMIT: 100,
-  SEARCH_LIMIT: 50,
+  /** Spotify `GET /search` `limit` max is 10 (Feb 2026 Web API). */
+  SEARCH_LIMIT: 10,
   FOLLOWING_IDS_CAP: 500,
   LIST_TITLE: 100,
   LIST_DESCRIPTION: 2000,

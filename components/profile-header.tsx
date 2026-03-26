@@ -40,7 +40,9 @@ export function ProfileHeader({
   }, [followersCount]);
 
   const handleFollowChange = (isFollowingNow: boolean) => {
-    setOptimisticFollowerCount((prev) => prev + (isFollowingNow ? 1 : -1));
+    setOptimisticFollowerCount((prev) =>
+      Math.max(0, prev + (isFollowingNow ? 1 : -1)),
+    );
     onProfileUpdated?.();
   };
 

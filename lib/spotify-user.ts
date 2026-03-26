@@ -9,6 +9,14 @@ import {
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
+/**
+ * User OAuth (Bearer) calls to Spotify. We only use:
+ * - `GET /me/player/recently-played` (sync / ingest)
+ * - optional `GET /artists/{id}`, `GET /artists/{id}/albums` for helpers
+ * Do not add deprecated user endpoints: `GET /users/{id}`, `PUT /me/tracks`, etc.
+ * (Feb 2026 replaces many with `/me/library` — not integrated here.)
+ */
+
 /** Buffer in ms before expiry to refresh early (e.g. 60s). */
 const EXPIRY_BUFFER_MS = 60_000;
 
@@ -308,8 +316,7 @@ export async function getUserArtistAlbums(
   artistId: string,
   limit = 10,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
-  // Some environments enforce a maximum of 10 for this endpoint
-  const safeLimit = Math.min(Math.max(limit, 1), 10);
+  const safeLimit = Math.min(Math.max(limit, 1), 20);
   return spotifyUserFetch<
     SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>
   >(accessToken, `/artists/${artistId}/albums`, { limit: String(safeLimit) });

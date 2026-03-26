@@ -18,7 +18,7 @@ export const GET = withHandler(async (req: NextRequest) => {
 
   const rawQ = searchParams.get('q');
   const typeParam = searchParams.get('type') || 'artist,album,track';
-  const limit = clampLimit(searchParams.get('limit'), LIMITS.SEARCH_LIMIT, 20);
+  const limit = clampLimit(searchParams.get('limit'), LIMITS.SEARCH_LIMIT, 10);
 
   // Validate and normalize the search query.
   const queryResult = validateSearchQuery(rawQ);

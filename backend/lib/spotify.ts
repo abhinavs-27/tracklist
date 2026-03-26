@@ -1,5 +1,12 @@
 /// <reference path="../types/spotify-api.d.ts" />
 
+import { SpotifyRateLimitError } from "./spotify-errors";
+
+/**
+ * Mirrors `lib/spotify.ts` (client-credentials). Same allowed endpoints; no bulk `?ids=`,
+ * no artist top-tracks or Spotify recommendations/browse APIs.
+ */
+
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
@@ -89,18 +96,20 @@ async function spotifyFetch<T>(
       return data;
     }
 
-    // Handle rate limiting with simple bounded backoff.
     if (res.status === 429) {
       const retryAfterHeader = res.headers.get("Retry-After");
       const retryAfterSeconds = retryAfterHeader
         ? Number.parseInt(retryAfterHeader, 10)
-        : 1;
-      const delayMs = Number.isFinite(retryAfterSeconds)
-        ? Math.min(Math.max(retryAfterSeconds, 1), 10) * 1000
-        : 1000;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      lastError = new Error(`Spotify API rate limited for ${path}`);
-      continue;
+        : null;
+      const ra =
+        retryAfterSeconds != null && Number.isFinite(retryAfterSeconds)
+          ? retryAfterSeconds
+          : null;
+      throw new SpotifyRateLimitError(
+        `Spotify API rate limited for ${path}` +
+          (ra != null ? ` (Retry-After: ${ra}s)` : ""),
+        ra,
+      );
     }
 
     // If the token is invalid/expired earlier than expected, clear cache and retry once.
@@ -182,10 +191,12 @@ export async function getArtist(
 
 export async function getArtistAlbums(
   spotifyId: string,
-  limit = 20,
+  limit = 10,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
+  // Spotify client-credentials catalog enforces a maximum of 10 for this endpoint.
+  const safeLimit = Math.min(Math.max(limit, 1), 10);
   return spotifyFetch(`/artists/${spotifyId}/albums`, {
-    limit: String(limit),
+    limit: String(safeLimit),
     include_groups: "album,single",
   });
 }

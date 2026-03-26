@@ -5,6 +5,13 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getAlbums } from "@/lib/spotify";
+import {
+  getCachedAllArtistAlbums,
+  getCachedArtistAlbumsFirstPage,
+  getCachedArtistAlbumsFirstPageMeta,
+  getCachedPeekArtistAlbumsHasMore,
+  SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
+} from "@/lib/spotify/getAllArtistAlbums";
 import { upsertAlbumFromSpotify } from "@/lib/spotify-cache";
 import { sanitizeString } from "@/lib/validation";
 import type {
@@ -490,6 +497,82 @@ export async function getEntityStats(
   }
 }
 
+/** Single batch for {@link getTrackStatsForTrackIds} (Supabase `.in()` size limits). */
+async function getTrackStatsForTrackIdsSingleBatch(
+  uniqueIds: string[],
+): Promise<Record<string, EntityStats>> {
+  const empty: EntityStats = {
+    listen_count: 0,
+    average_rating: null,
+    review_count: 0,
+  };
+  if (uniqueIds.length === 0) return {};
+
+  const supabase = await createSupabaseServerClient();
+  const result: Record<string, EntityStats> = {};
+
+  const { data: rows, error } = await supabase
+    .from("track_stats")
+    .select("track_id, listen_count, review_count, avg_rating")
+    .in("track_id", uniqueIds);
+
+  if (!error && rows?.length) {
+    for (const row of rows as {
+      track_id: string;
+      listen_count: number;
+      review_count: number;
+      avg_rating: number | null;
+    }[]) {
+      result[row.track_id] = mapTrackStatsRow(row);
+    }
+  }
+
+  const missingIds = uniqueIds.filter((id) => !(id in result));
+  if (missingIds.length > 0) {
+    const [logsRes, reviewsRes] = await Promise.all([
+      supabase.from("logs").select("track_id").in("track_id", missingIds),
+      supabase
+        .from("reviews")
+        .select("entity_id, rating")
+        .eq("entity_type", "song")
+        .in("entity_id", missingIds),
+    ]);
+
+    const listenCounts = new Map<string, number>();
+    for (const row of logsRes.data ?? []) {
+      listenCounts.set(
+        row.track_id,
+        (listenCounts.get(row.track_id) ?? 0) + 1,
+      );
+    }
+    const reviewCounts = new Map<string, number>();
+    const ratingSums = new Map<string, number>();
+    for (const row of reviewsRes.data ?? []) {
+      reviewCounts.set(
+        row.entity_id,
+        (reviewCounts.get(row.entity_id) ?? 0) + 1,
+      );
+      ratingSums.set(
+        row.entity_id,
+        (ratingSums.get(row.entity_id) ?? 0) + row.rating,
+      );
+    }
+
+    for (const trackId of missingIds) {
+      const listen_count = listenCounts.get(trackId) ?? 0;
+      const review_count = reviewCounts.get(trackId) ?? 0;
+      const sum = ratingSums.get(trackId) ?? 0;
+      const average_rating =
+        review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
+      result[trackId] = { listen_count, average_rating, review_count };
+    }
+  }
+
+  return Object.fromEntries(uniqueIds.map((id) => [id, result[id] ?? empty]));
+}
+
+const TRACK_STATS_CHUNK = 120;
+
 /** Per-track stats for multiple song IDs. Reads from track_stats first; fallback aggregation for missing. */
 export async function getTrackStatsForTrackIds(
   trackIds: string[],
@@ -502,72 +585,55 @@ export async function getTrackStatsForTrackIds(
   if (trackIds.length === 0) return {};
 
   try {
-    const supabase = await createSupabaseServerClient();
     const uniqueIds = [...new Set(trackIds)];
-    const result: Record<string, EntityStats> = {};
-
-    const { data: rows, error } = await supabase
-      .from("track_stats")
-      .select("track_id, listen_count, review_count, avg_rating")
-      .in("track_id", uniqueIds);
-
-    if (!error && rows?.length) {
-      for (const row of rows as {
-        track_id: string;
-        listen_count: number;
-        review_count: number;
-        avg_rating: number | null;
-      }[]) {
-        result[row.track_id] = mapTrackStatsRow(row);
-      }
+    if (uniqueIds.length <= TRACK_STATS_CHUNK) {
+      const result = await getTrackStatsForTrackIdsSingleBatch(uniqueIds);
+      return Object.fromEntries(trackIds.map((id) => [id, result[id] ?? empty]));
     }
-
-    const missingIds = uniqueIds.filter((id) => !(id in result));
-    if (missingIds.length > 0) {
-      const [logsRes, reviewsRes] = await Promise.all([
-        supabase.from("logs").select("track_id").in("track_id", missingIds),
-        supabase
-          .from("reviews")
-          .select("entity_id, rating")
-          .eq("entity_type", "song")
-          .in("entity_id", missingIds),
-      ]);
-
-      const listenCounts = new Map<string, number>();
-      for (const row of logsRes.data ?? []) {
-        listenCounts.set(
-          row.track_id,
-          (listenCounts.get(row.track_id) ?? 0) + 1,
-        );
-      }
-      const reviewCounts = new Map<string, number>();
-      const ratingSums = new Map<string, number>();
-      for (const row of reviewsRes.data ?? []) {
-        reviewCounts.set(
-          row.entity_id,
-          (reviewCounts.get(row.entity_id) ?? 0) + 1,
-        );
-        ratingSums.set(
-          row.entity_id,
-          (ratingSums.get(row.entity_id) ?? 0) + row.rating,
-        );
-      }
-
-      for (const trackId of missingIds) {
-        const listen_count = listenCounts.get(trackId) ?? 0;
-        const review_count = reviewCounts.get(trackId) ?? 0;
-        const sum = ratingSums.get(trackId) ?? 0;
-        const average_rating =
-          review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
-        result[trackId] = { listen_count, average_rating, review_count };
-      }
+    const merged: Record<string, EntityStats> = {};
+    for (let i = 0; i < uniqueIds.length; i += TRACK_STATS_CHUNK) {
+      const chunk = uniqueIds.slice(i, i + TRACK_STATS_CHUNK);
+      Object.assign(merged, await getTrackStatsForTrackIdsSingleBatch(chunk));
     }
-
-    return Object.fromEntries(trackIds.map((id) => [id, result[id] ?? empty]));
+    return Object.fromEntries(trackIds.map((id) => [id, merged[id] ?? empty]));
   } catch (e) {
     console.error("[queries] getTrackStatsForTrackIds failed:", e);
     return Object.fromEntries(trackIds.map((id) => [id, empty]));
   }
+}
+
+const LOG_COUNT_CHUNK = 400;
+
+/** One GROUP BY query per chunk; falls back to {@link getTrackStatsForTrackIds} if RPC missing. */
+async function countLogsByTrackIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  trackIds: string[],
+): Promise<Map<string, number>> {
+  const unique = [...new Set(trackIds)];
+  const map = new Map<string, number>();
+  if (unique.length === 0) return map;
+
+  for (let i = 0; i < unique.length; i += LOG_COUNT_CHUNK) {
+    const slice = unique.slice(i, i + LOG_COUNT_CHUNK);
+    const { data, error } = await supabase.rpc("count_logs_by_track_ids", {
+      p_track_ids: slice,
+    });
+    if (error || data == null) {
+      const stats = await getTrackStatsForTrackIds(slice);
+      for (const id of slice) {
+        map.set(id, stats[id]?.listen_count ?? 0);
+      }
+      continue;
+    }
+    for (const row of data as { track_id: string; play_count: number | string }[]) {
+      map.set(row.track_id, Number(row.play_count));
+    }
+  }
+
+  for (const id of unique) {
+    if (!map.has(id)) map.set(id, 0);
+  }
+  return map;
 }
 
 // ---------------------------------------------------------------------------
@@ -986,11 +1052,18 @@ export async function getReviewsForArtist(
   }
 }
 
-/** Top tracks for an artist: ordered by listen count, then all other cached tracks so we show a full list. */
+export type ArtistPopularTrack = {
+  track: SpotifyApi.TrackObjectFull;
+  playCount: number;
+  avgRating: number | null;
+  ratingCount: number;
+};
+
+/** Top tracks for an artist: ordered by listen count (track_stats + logs), then name. */
 export async function getTopTracksForArtist(
   artistId: string,
   limit = 10,
-): Promise<SpotifyApi.TrackObjectFull[]> {
+): Promise<ArtistPopularTrack[]> {
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -1001,20 +1074,12 @@ export async function getTopTracksForArtist(
     if (!songRows?.length) return [];
 
     const trackIds = songRows.map((s) => s.id);
-    const { data: statsRows } = await supabase
-      .from("track_stats")
-      .select("track_id, listen_count")
-      .in("track_id", trackIds);
+    const statsMap = await getTrackStatsForTrackIds(trackIds);
 
-    const counts = new Map<string, number>();
-    for (const s of statsRows ?? []) {
-      counts.set(s.track_id, s.listen_count ?? 0);
-    }
-    // Sort: logged tracks by count desc, then all others (by name) so we show a full list
     const sortedIds = [...trackIds]
       .sort((a, b) => {
-        const countA = counts.get(a) ?? 0;
-        const countB = counts.get(b) ?? 0;
+        const countA = statsMap[a]?.listen_count ?? 0;
+        const countB = statsMap[b]?.listen_count ?? 0;
         if (countB !== countA) return countB - countA;
         const nameA = songRows.find((s) => s.id === a)?.name ?? "";
         const nameB = songRows.find((s) => s.id === b)?.name ?? "";
@@ -1041,7 +1106,8 @@ export async function getTopTracksForArtist(
         const song = songMap.get(id);
         if (!song || song.artist_id !== artistId) return null;
         const album = albumMap.get(song.album_id);
-        return {
+        const st = statsMap[id];
+        const track = {
           id: song.id,
           name: song.name,
           artists: [
@@ -1061,8 +1127,14 @@ export async function getTopTracksForArtist(
               }
             : undefined,
         } as SpotifyApi.TrackObjectFull;
+        return {
+          track,
+          playCount: st?.listen_count ?? 0,
+          avgRating: st?.average_rating ?? null,
+          ratingCount: st?.review_count ?? 0,
+        };
       })
-      .filter((x): x is SpotifyApi.TrackObjectFull => x !== null);
+      .filter((x): x is ArtistPopularTrack => x !== null);
   } catch (e) {
     console.error("[queries] getTopTracksForArtist failed:", e);
     return [];
@@ -1163,82 +1235,145 @@ export async function getListenLogsForAlbum(
   }
 }
 
-/** Albums by an artist with composite popularity score. */
+export type ArtistAlbumEngagementRow = {
+  id: string;
+  name: string;
+  image_url: string | null;
+  listen_count: number;
+  review_count: number;
+  average_rating: number | null;
+};
+
+const ALBUM_ID_IN_CHUNK = 120;
+const REVIEW_IN_CHUNK = 120;
+
+async function enrichSpotifyAlbumsForArtist(
+  artistId: string,
+  spotifyAlbums: SpotifyApi.AlbumObjectSimplified[],
+): Promise<ArtistAlbumEngagementRow[]> {
+  if (!spotifyAlbums.length) return [];
+
+  const supabase = await createSupabaseServerClient();
+  const albumIds = spotifyAlbums.map((a) => a.id);
+
+  const albumToTracks = new Map<string, string[]>();
+  for (let i = 0; i < albumIds.length; i += ALBUM_ID_IN_CHUNK) {
+    const chunk = albumIds.slice(i, i + ALBUM_ID_IN_CHUNK);
+    const { data: songRows } = await supabase
+      .from("songs")
+      .select("id, album_id")
+      .eq("artist_id", artistId)
+      .in("album_id", chunk);
+    for (const s of songRows ?? []) {
+      const list = albumToTracks.get(s.album_id) ?? [];
+      list.push(s.id);
+      albumToTracks.set(s.album_id, list);
+    }
+  }
+
+  const allTrackIds = [...new Set([...albumToTracks.values()].flat())];
+  const playByTrack = await countLogsByTrackIds(supabase, allTrackIds);
+
+  const reviewAgg = new Map<string, { count: number; sum: number }>();
+  for (let i = 0; i < albumIds.length; i += REVIEW_IN_CHUNK) {
+    const chunk = albumIds.slice(i, i + REVIEW_IN_CHUNK);
+    const { data: revRows } = await supabase
+      .from("reviews")
+      .select("entity_id, rating")
+      .eq("entity_type", "album")
+      .in("entity_id", chunk);
+    for (const r of revRows ?? []) {
+      const cur = reviewAgg.get(r.entity_id) ?? { count: 0, sum: 0 };
+      cur.count += 1;
+      cur.sum += r.rating;
+      reviewAgg.set(r.entity_id, cur);
+    }
+  }
+
+  const orderIndex = new Map(spotifyAlbums.map((a, i) => [a.id, i]));
+
+  const rows: ArtistAlbumEngagementRow[] = spotifyAlbums.map((a) => {
+    const tids = albumToTracks.get(a.id) ?? [];
+    let listen_count = 0;
+    for (const tid of tids) {
+      listen_count += playByTrack.get(tid) ?? 0;
+    }
+    const rv = reviewAgg.get(a.id);
+    const review_count = rv?.count ?? 0;
+    const average_rating =
+      review_count > 0 && rv
+        ? Math.round((rv.sum / review_count) * 10) / 10
+        : null;
+    return {
+      id: a.id,
+      name: a.name,
+      image_url: a.images?.[0]?.url ?? null,
+      listen_count,
+      review_count,
+      average_rating,
+    };
+  });
+
+  rows.sort((a, b) => {
+    if (b.listen_count !== a.listen_count) return b.listen_count - a.listen_count;
+    return (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0);
+  });
+
+  return rows;
+}
+
+async function fetchArtistAlbumsWithEngagement(
+  artistId: string,
+  scope: "first-page" | "full",
+): Promise<ArtistAlbumEngagementRow[]> {
+  const spotifyAlbums =
+    scope === "first-page"
+      ? await getCachedArtistAlbumsFirstPage(artistId)
+      : await getCachedAllArtistAlbums(artistId);
+  return enrichSpotifyAlbumsForArtist(artistId, spotifyAlbums);
+}
+
+/**
+ * Full Spotify album list + batched log/review aggregates.
+ * Not wrapped in unstable_cache: this path uses createSupabaseServerClient (cookies),
+ * which is incompatible with Next.js cache callbacks.
+ * Spotify: first page only on the artist page; full paginated list on /artist/[id]/albums.
+ */
+export async function getArtistAlbumsWithEngagement(
+  artistId: string,
+): Promise<ArtistAlbumEngagementRow[]> {
+  try {
+    return await fetchArtistAlbumsWithEngagement(artistId, "full");
+  } catch (e) {
+    console.error("[queries] getArtistAlbumsWithEngagement failed:", e);
+    return [];
+  }
+}
+
+export type PopularAlbumsForArtistResult = {
+  rows: ArtistAlbumEngagementRow[];
+  /** True when Spotify has more than the first page; second request peeks offset=pageSize. */
+  hasMoreAlbums: boolean;
+};
+
 export async function getPopularAlbumsForArtist(
   artistId: string,
-  limit = 10,
-): Promise<
-  {
-    id: string;
-    name: string;
-    image_url: string | null;
-    listen_count: number;
-    review_count: number;
-    average_rating: number | null;
-  }[]
-> {
+  limit = 20,
+): Promise<PopularAlbumsForArtistResult> {
   try {
-    const supabase = await createSupabaseServerClient();
-
-    const { data: statsRows, error: statsError } = await supabase
-      .from("album_stats")
-      .select(`
-        album_id,
-        listen_count,
-        review_count,
-        avg_rating,
-        albums!inner (
-          id,
-          name,
-          image_url,
-          artist_id
-        )
-      `)
-      .eq("albums.artist_id", artistId)
-      .order("listen_count", { ascending: false })
-      .limit(limit);
-
-    if (statsError || !statsRows?.length) {
-      // Fallback: if no stats, return basic album list sorted by name
-      const { data: albumRows } = await supabase
-        .from("albums")
-        .select("id, name, image_url")
-        .eq("artist_id", artistId)
-        .order("name", { ascending: true })
-        .limit(limit);
-
-      return (albumRows ?? []).map((a) => ({
-        id: a.id,
-        name: a.name,
-        image_url: a.image_url ?? null,
-        listen_count: 0,
-        review_count: 0,
-        average_rating: null,
-      }));
+    const meta = await getCachedArtistAlbumsFirstPageMeta(artistId);
+    if (!meta.albums.length) {
+      return { rows: [], hasMoreAlbums: false };
     }
-
-    return (statsRows as unknown as {
-      album_id: string;
-      listen_count: number;
-      review_count: number;
-      avg_rating: number | null;
-      albums: {
-        id: string;
-        name: string;
-        image_url: string | null;
-        artist_id: string;
-      };
-    }[]).map((row) => ({
-      id: row.album_id,
-      name: row.albums.name,
-      image_url: row.albums.image_url ?? null,
-      listen_count: row.listen_count ?? 0,
-      review_count: row.review_count ?? 0,
-      average_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
-    }));
+    const enriched = await enrichSpotifyAlbumsForArtist(artistId, meta.albums);
+    const rows = enriched.slice(0, limit);
+    const hasMoreAlbums =
+      meta.rawCount >= SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT &&
+      (await getCachedPeekArtistAlbumsHasMore(artistId));
+    return { rows, hasMoreAlbums };
   } catch (e) {
     console.error("[queries] getPopularAlbumsForArtist failed:", e);
-    return [];
+    return { rows: [], hasMoreAlbums: false };
   }
 }
 
@@ -1867,6 +2002,28 @@ export async function getFollowCounts(userId: string): Promise<{
 }> {
   try {
     const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("get_follow_counts", {
+      p_user_id: userId,
+    });
+    if (!error && data != null) {
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row && typeof row === "object" && "followers_count" in row) {
+        const r = row as {
+          followers_count: unknown;
+          following_count: unknown;
+        };
+        return {
+          followers_count: Math.max(0, Number(r.followers_count) || 0),
+          following_count: Math.max(0, Number(r.following_count) || 0),
+        };
+      }
+    }
+    if (error) {
+      console.warn(
+        "[queries] get_follow_counts RPC failed, using fallback:",
+        error.message,
+      );
+    }
     const [followersRes, followingRes] = await Promise.all([
       supabase
         .from("follows")
@@ -1878,8 +2035,8 @@ export async function getFollowCounts(userId: string): Promise<{
         .eq("follower_id", userId),
     ]);
     return {
-      followers_count: followersRes.count ?? 0,
-      following_count: followingRes.count ?? 0,
+      followers_count: Math.max(0, followersRes.count ?? 0),
+      following_count: Math.max(0, followingRes.count ?? 0),
     };
   } catch (e) {
     console.error("[queries] getFollowCounts failed:", e);

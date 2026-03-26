@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
-import { getOrFetchArtist, getOrFetchTrack } from "@/lib/spotify-cache";
+import { getOrFetchArtist, getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { TrackCard } from "@/components/track-card";
 import { ListenCard } from "@/components/listen-card";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
@@ -29,26 +29,27 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const [topTracks, popularAlbums, recentReviews, recentListensRaw] =
+  const [topTracks, popularAlbumsResult, recentReviews, recentListensRaw] =
     await Promise.all([
       getTopTracksForArtist(id, 10),
-      getPopularAlbumsForArtist(id, 12),
+      getPopularAlbumsForArtist(id),
       getReviewsForArtist(id, 8),
       getListenLogsForArtist(id, 10),
     ]);
 
-  const heroTrack = topTracks[0] ?? null;
+  const popularAlbums = popularAlbumsResult.rows;
+  /** Spotify returned a full first page and a peek at offset=pageSize found more; full list loads on /albums. */
+  const showAlbumsViewMore = popularAlbumsResult.hasMoreAlbums;
 
-  const recentListens = await Promise.all(
-    recentListensRaw.map(async (log) => {
-      try {
-        const track = await getOrFetchTrack(log.track_id);
-        return { log, trackName: track?.name ?? undefined };
-      } catch {
-        return { log, trackName: undefined };
-      }
-    }),
-  );
+  const heroPopular = topTracks[0] ?? null;
+  const heroTrack = heroPopular?.track ?? null;
+
+  const recentTrackIds = recentListensRaw.map((log) => log.track_id);
+  const recentTracks = await getOrFetchTracksBatch(recentTrackIds);
+  const recentListens = recentListensRaw.map((log, i) => ({
+    log,
+    trackName: recentTracks[i]?.name ?? undefined,
+  }));
 
   const image = artist.images?.[0]?.url;
 
@@ -109,8 +110,18 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
             Popular tracks
           </h2>
           <div className="space-y-2">
-            {topTracks.slice(0, 10).map((t) => (
-              <TrackCard key={t.id} track={t} showAlbum songPageLink />
+            {topTracks.slice(0, 10).map(({ track: t, playCount, avgRating, ratingCount }) => (
+              <TrackCard
+                key={t.id}
+                track={t}
+                showAlbum
+                songPageLink
+                engagement={{
+                  playCount,
+                  avgRating,
+                  ratingCount,
+                }}
+              />
             ))}
           </div>
         </section>
@@ -118,7 +129,17 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
       {popularAlbums.length > 0 ? (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">Albums</h2>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <h2 className="text-lg font-semibold text-white">Albums</h2>
+            {showAlbumsViewMore ? (
+              <Link
+                href={`/artist/${id}/albums`}
+                className="text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+              >
+                View more
+              </Link>
+            ) : null}
+          </div>
           <MediaGrid
             items={popularAlbums.map(
               (a): MediaItem => ({

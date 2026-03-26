@@ -52,7 +52,7 @@ searchRouter.get("/", async (req, res) => {
   try {
     const rawQ = req.query.q as string | undefined;
     const typeParam = (req.query.type as string) || "artist,album,track";
-    const limit = clampLimit(req.query.limit, LIMITS.SEARCH_LIMIT, 20);
+    const limit = clampLimit(req.query.limit, LIMITS.SEARCH_LIMIT, 10);
 
     const queryResult = validateSearchQuery(rawQ);
     if (!queryResult.ok) return badRequest(res, queryResult.error);

@@ -333,3 +333,8 @@ npm run test:e2e    # Playwright (requires dev server / env per project)
 - [NextAuth.js](https://next-auth.js.org/)
 
 ---
+
+curl -X POST "https://accounts.spotify.com/api/token" \
+  -H "Authorization: Basic $(echo -n $SPOTIFY_CLIENT_ID:$SPOTIFY_CLIENT_SECRET | base64)" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials"

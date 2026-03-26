@@ -1,9 +1,21 @@
 import { logPerf } from "@/lib/profiling";
+import { SpotifyRateLimitError } from "@/lib/spotify-errors";
 
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
 /**
+ * Spotify Web API usage (client-credentials catalog only).
+ *
+ * **Called:** `GET /search`, `GET /artists/{id}`, `GET /artists/{id}/albums`,
+ * `GET /albums/{id}`, `GET /albums/{id}/tracks`, `GET /tracks/{id}` — each by id only.
+ *
+ * **Not used (removed or restricted for many apps):** bulk `GET /tracks|albums|artists?ids=`,
+ * `GET /artists/{id}/top-tracks`, `GET /recommendations`, related artists, audio features,
+ * browse categories, new releases, etc. See Nov 2024 and Feb 2026 Spotify developer posts.
+ *
+ * **Search:** Feb 2026 caps `limit` at 10 — `searchSpotify` enforces that.
+ *
  * Set SPOTIFY_DEBUG=1 to log each Web API call (path, status, ms) to server stdout.
  * On non-OK responses, logs the full response body (and content-type) so you can see Spotify's error JSON.
  */
@@ -130,9 +142,12 @@ async function getClientCredentialsToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text();
-    spotifyDebugLog(`token → ${res.status} ${Math.round(performance.now() - tokenStart)}ms`, {
-      error: text.slice(0, 200),
-    });
+    spotifyDebugLog(
+      `token → ${res.status} ${Math.round(performance.now() - tokenStart)}ms`,
+      {
+        error: text.slice(0, 200),
+      },
+    );
     throw new Error(`Spotify token error: ${res.status} ${text}`);
   }
 
@@ -210,18 +225,21 @@ async function spotifyFetch<T>(
       errorBody,
     );
 
-    // Handle rate limiting with simple bounded backoff.
+    // 429: stop immediately — do not retry or backoff (avoids amplifying quota use).
     if (res.status === 429) {
       const retryAfterHeader = res.headers.get("Retry-After");
       const retryAfterSeconds = retryAfterHeader
         ? Number.parseInt(retryAfterHeader, 10)
-        : 1;
-      const delayMs = Number.isFinite(retryAfterSeconds)
-        ? Math.min(Math.max(retryAfterSeconds, 1), 10) * 1000
-        : 1000;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      lastError = new Error(`Spotify API rate limited for ${path}`);
-      continue;
+        : null;
+      const ra =
+        retryAfterSeconds != null && Number.isFinite(retryAfterSeconds)
+          ? retryAfterSeconds
+          : null;
+      throw new SpotifyRateLimitError(
+        `Spotify API rate limited for ${path}` +
+          (ra != null ? ` (Retry-After: ${ra}s)` : ""),
+        ra,
+      );
     }
 
     // If the token is invalid/expired earlier than expected, clear cache and retry once.
@@ -243,7 +261,8 @@ async function spotifyFetch<T>(
         const msg = json?.error?.message ?? "";
         if (msg) hint = ` — ${msg}`;
       } catch {
-        if (errorBody.length > 0 && errorBody.length < 200) hint = ` — ${errorBody}`;
+        if (errorBody.length > 0 && errorBody.length < 200)
+          hint = ` — ${errorBody}`;
       }
       throw new Error(
         `Spotify API 403 Forbidden for ${path}${hint}. Check Spotify Developer Dashboard (app status, Web API quota, Development Mode limits).`,
@@ -318,26 +337,17 @@ export async function getArtist(
 
 export async function getArtistAlbums(
   spotifyId: string,
-  limit = 20,
+  limit = 10,
+  offset = 0,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
+  // Spotify client-credentials catalog currently enforces a maximum of 10 for this endpoint.
+  // Higher values (e.g. 20, 50) return HTTP 400 "Invalid limit".
+  const safeLimit = Math.min(Math.max(limit, 1), 10);
   return spotifyFetch(`/artists/${spotifyId}/albums`, {
-    limit: String(limit),
+    limit: String(safeLimit),
+    offset: String(offset),
     include_groups: "album,single",
   });
-}
-
-/**
- * Chart / popularity order (Spotify). Used when DB has no artist tracks yet (e.g. quick log from search).
- */
-export async function getArtistSpotifyTopTracks(
-  spotifyId: string,
-  market = "US",
-): Promise<SpotifyApi.TrackObjectFull[]> {
-  const data = await spotifyFetch<{ tracks: SpotifyApi.TrackObjectFull[] }>(
-    `/artists/${spotifyId}/top-tracks`,
-    { market },
-  );
-  return data.tracks ?? [];
 }
 
 export async function getAlbum(
@@ -378,6 +388,44 @@ export async function getAlbumTracks(
     limit: String(limit),
     offset: String(offset),
   });
+}
+
+/** All album tracks (Spotify caps each request at 50; follows pagination). */
+export async function getAllAlbumTracks(
+  spotifyId: string,
+): Promise<SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>> {
+  const pageLimit = 50;
+  let offset = 0;
+  const allItems: SpotifyApi.TrackObjectSimplified[] = [];
+  let first: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> | null =
+    null;
+  for (;;) {
+    const page = await getAlbumTracks(spotifyId, pageLimit, offset);
+    if (!first) first = page;
+    const items = page.items ?? [];
+    allItems.push(...items);
+    if (items.length < pageLimit || !page.next) break;
+    offset += items.length;
+  }
+  if (!first) {
+    return {
+      items: [],
+      limit: 0,
+      next: null,
+      offset: 0,
+      previous: null,
+      total: 0,
+    } as SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
+  }
+  return {
+    ...first,
+    items: allItems,
+    total: allItems.length,
+    limit: allItems.length,
+    offset: 0,
+    next: null,
+    previous: null,
+  } as SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }
 
 export async function getTrack(

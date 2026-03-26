@@ -9,9 +9,22 @@ interface TrackCardProps {
   songPageLink?: boolean;
   /** When false, hide the album-art thumbnail (e.g. on album page where cover is already shown) */
   showThumbnail?: boolean;
+  /** Plays + optional rating line (artist popular tracks). */
+  engagement?: {
+    playCount: number;
+    avgRating: number | null;
+    ratingCount: number;
+  };
 }
 
-function TrackCardInner({ track, showAlbum = true, noLink = false, songPageLink = false, showThumbnail = true }: TrackCardProps) {
+function TrackCardInner({
+  track,
+  showAlbum = true,
+  noLink = false,
+  songPageLink = false,
+  showThumbnail = true,
+  engagement,
+}: TrackCardProps) {
   const artistNames = track.artists?.map((a) => a.name).join(', ') ?? '';
   const album = 'album' in track ? track.album : null;
   const image = album?.images?.[0]?.url;
@@ -34,6 +47,16 @@ function TrackCardInner({ track, showAlbum = true, noLink = false, songPageLink 
           {track.name}
         </p>
         <p className="truncate text-xs text-zinc-500 sm:text-sm">{artistNames}</p>
+        {engagement ? (
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-zinc-400">
+            <span>{engagement.playCount.toLocaleString()} plays</span>
+            {engagement.avgRating != null && engagement.ratingCount > 0 ? (
+              <span className="text-amber-400">
+                ★ {engagement.avgRating.toFixed(1)} ({engagement.ratingCount})
+              </span>
+            ) : null}
+          </p>
+        ) : null}
       </div>
       {showAlbum && album && (
         <p className="hidden truncate text-sm text-zinc-500 sm:block max-w-[120px]">{album.name}</p>

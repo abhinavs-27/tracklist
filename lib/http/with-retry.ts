@@ -2,6 +2,8 @@
  * Bounded retries with exponential backoff and per-attempt timeout for external APIs.
  */
 
+import { SpotifyRateLimitError } from "@/lib/spotify-errors";
+
 export type WithRetryOptions = {
   maxAttempts?: number;
   /** Total wall-clock budget for a single attempt (abort signal passed to fn). */
@@ -39,6 +41,7 @@ export async function withRetry<T>(
       return result;
     } catch (e) {
       clearTimeout(tid);
+      if (e instanceof SpotifyRateLimitError) throw e;
       lastErr = e;
       const detail =
         e instanceof Error
