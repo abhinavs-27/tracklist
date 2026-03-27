@@ -1,4 +1,3 @@
-/// <reference path="../types/spotify-api.d.ts" />
 import { Router } from "express";
 import {
   ok,
@@ -244,7 +243,7 @@ listsRouter.get("/:listId", async (req, res) => {
       .order("position", { ascending: true })
       .range(0, 99);
 
-    itemRows = itemsResult.data;
+    itemRows = (itemsResult.data ?? []).map((r: { id: string, entity_type: string, entity_id: string, position: number, added_at?: string }) => ({ ...r, list_id: listId }));
     itemsError = itemsResult.error;
 
     if (itemsError?.code === "42703") {

@@ -142,7 +142,7 @@ export async function getReviewsForEntity(
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, user_id, rating, review_text, created_at, updated_at",
       )
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
@@ -164,8 +164,8 @@ export async function getReviewsForEntity(
         id: r.id,
         user_id: r.user_id,
         username: u?.username ?? null,
-        entity_type: r.entity_type as "album" | "song",
-        entity_id: r.entity_id,
+        entity_type: entityType,
+        entity_id: entityId,
         rating: r.rating,
         review_text: r.review_text ?? null,
         created_at: r.created_at,
@@ -192,7 +192,7 @@ export async function getReviewsForEntity(
       const { data: myRow } = await supabase
         .from("reviews")
         .select(
-          "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+          "id, rating, review_text, created_at, updated_at",
         )
         .eq("entity_type", entityType)
         .eq("entity_id", entityId)
@@ -204,10 +204,10 @@ export async function getReviewsForEntity(
           null;
         my_review = {
           id: myRow.id,
-          user_id: myRow.user_id,
+          user_id: userId,
           username: sessionUsername,
-          entity_type: myRow.entity_type,
-          entity_id: myRow.entity_id,
+          entity_type: entityType,
+          entity_id: entityId,
           rating: myRow.rating,
           review_text: myRow.review_text ?? null,
           created_at: myRow.created_at,
@@ -242,7 +242,7 @@ export async function getReviewsForUser(
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -259,7 +259,7 @@ export async function getReviewsForUser(
 
     return rows.map((r) => ({
       id: r.id,
-      user_id: r.user_id,
+      user_id: userId,
       entity_type: r.entity_type as "album" | "song",
       entity_id: r.entity_id,
       rating: r.rating,
@@ -1418,7 +1418,8 @@ export async function getFriendsAlbumActivity(
     const { data: followRows } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", viewerId);
+      .eq("follower_id", viewerId)
+      .limit(500);
     const followingIds = (followRows ?? []).map((f) => f.following_id);
     if (followingIds.length === 0) return [];
 
@@ -1519,7 +1520,8 @@ export async function getAlbumListeners(
     const { data: followRows } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", viewerId);
+      .eq("follower_id", viewerId)
+      .limit(500);
     const followingSet = new Set((followRows ?? []).map((f) => f.following_id));
 
     const seen = new Set<string>();
@@ -1823,13 +1825,13 @@ export async function getNotifications(
     const { data, error } = await supabase
       .from("notifications")
       .select(
-        "id, user_id, actor_user_id, type, entity_type, entity_id, read, created_at",
+        "id, actor_user_id, type, entity_type, entity_id, read, created_at",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .range(from, to);
     if (error) return [];
-    return (data ?? []) as NotificationRow[];
+    return (data ?? []).map((n) => ({ ...(n as Record<string, unknown>), user_id: userId })) as NotificationRow[];
   } catch (e) {
     console.error("[queries] getNotifications failed:", e);
     return [];
@@ -2565,19 +2567,19 @@ export async function getActivityFeed(
     listenSessions.forEach((s) => userIds.add(s.user_id));
     const userMap = await fetchUserMap(supabase, [...userIds]);
 
-    const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
+    const reviewActivities: FeedActivity[] = (reviewRows as unknown as Record<string, unknown>[]).map((r) => ({
       type: "review",
-      created_at: r.created_at,
+      created_at: r.created_at as string,
       review: {
-        id: r.id,
-        user_id: r.user_id,
+        id: r.id as string,
+        user_id: r.user_id as string,
         entity_type: r.entity_type as "album" | "song",
-        entity_id: r.entity_id,
-        rating: r.rating,
-        review_text: r.review_text ?? null,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-        user: userMap.get(r.user_id) ?? null,
+        entity_id: r.entity_id as string,
+        rating: r.rating as number,
+        review_text: (r.review_text as string) ?? null,
+        created_at: r.created_at as string,
+        updated_at: r.updated_at as string,
+        user: userMap.get(r.user_id as string) ?? null,
       },
     }));
 
@@ -2734,19 +2736,19 @@ async function getActivityFeedFallback(
     });
     const userMap = await fetchUserMap(supabase, [...userIds]);
 
-    const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
+    const reviewActivities: FeedActivity[] = (reviewRows as unknown as Record<string, unknown>[]).map((r) => ({
       type: "review",
-      created_at: r.created_at,
+      created_at: r.created_at as string,
       review: {
-        id: r.id,
-        user_id: r.user_id,
+        id: r.id as string,
+        user_id: r.user_id as string,
         entity_type: r.entity_type as "album" | "song",
-        entity_id: r.entity_id,
-        rating: r.rating,
-        review_text: r.review_text ?? null,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-        user: userMap.get(r.user_id) ?? null,
+        entity_id: r.entity_id as string,
+        rating: r.rating as number,
+        review_text: (r.review_text as string) ?? null,
+        created_at: r.created_at as string,
+        updated_at: r.updated_at as string,
+        user: userMap.get(r.user_id as string) ?? null,
       },
     }));
 
@@ -3312,7 +3314,7 @@ export async function getTrendingEntities(
   try {
     const supabase = await createSupabaseServerClient();
     const capped = Math.min(Math.max(1, limit), 50);
-    const { data, error } = await supabase.rpc("get_trending_entities", {
+    const { data, error = null } = await supabase.rpc("get_trending_entities", {
       p_limit: capped,
     });
     if (error) {
@@ -3322,17 +3324,11 @@ export async function getTrendingEntities(
       );
       return [];
     }
-    return (data ?? []).map(
-      (r: {
-        entity_id: string;
-        entity_type: string;
-        listen_count: number;
-      }) => ({
-        entity_id: r.entity_id,
-        entity_type: r.entity_type ?? "song",
-        listen_count: Number(r.listen_count) || 0,
-      }),
-    );
+    return (data ?? []).map((r: { entity_id: string; entity_type: string; listen_count: number }) => ({
+      entity_id: r.entity_id,
+      entity_type: r.entity_type ?? "song",
+      listen_count: Number(r.listen_count) || 0,
+    }));
   } catch (e) {
     console.error("[queries] getTrendingEntities failed:", e);
     return [];
@@ -3347,7 +3343,7 @@ export async function getRisingArtists(
     const supabase = await createSupabaseServerClient();
     const cappedLimit = Math.min(Math.max(1, limit), 50);
     const cappedWindow = Math.min(Math.max(1, windowDays), 90);
-    const { data, error } = await supabase.rpc("get_rising_artists", {
+    const { data, error = null } = await supabase.rpc("get_rising_artists", {
       p_limit: cappedLimit,
       p_window_days: cappedWindow,
     });
@@ -3358,19 +3354,12 @@ export async function getRisingArtists(
       );
       return [];
     }
-    return (data ?? []).map(
-      (r: {
-        artist_id: string;
-        name: string;
-        avatar_url: string | null;
-        growth: number;
-      }) => ({
-        artist_id: r.artist_id,
-        name: r.name ?? "",
-        avatar_url: r.avatar_url ?? null,
-        growth: Number(r.growth) || 0,
-      }),
-    );
+    return (data ?? []).map((r: { artist_id: string; name: string; avatar_url: string | null; growth: number }) => ({
+      artist_id: r.artist_id,
+      name: r.name ?? "",
+      avatar_url: r.avatar_url ?? null,
+      growth: Number(r.growth) || 0,
+    }));
   } catch (e) {
     console.error("[queries] getRisingArtists failed:", e);
     return [];
@@ -3385,7 +3374,7 @@ export async function getHiddenGems(
   try {
     const supabase = await createSupabaseServerClient();
     const cappedLimit = Math.min(Math.max(1, limit), 50);
-    const { data, error } = await supabase.rpc("get_hidden_gems", {
+    const { data, error = null } = await supabase.rpc("get_hidden_gems", {
       p_limit: cappedLimit,
       p_min_rating: minRating,
       p_max_listens: maxListens,
@@ -3397,19 +3386,12 @@ export async function getHiddenGems(
       );
       return [];
     }
-    return (data ?? []).map(
-      (r: {
-        entity_id: string;
-        entity_type: string;
-        avg_rating: number;
-        listen_count: number;
-      }) => ({
-        entity_id: r.entity_id,
-        entity_type: r.entity_type ?? "song",
-        avg_rating: Number(r.avg_rating) || 0,
-        listen_count: Number(r.listen_count) || 0,
-      }),
-    );
+    return (data ?? []).map((r: { entity_id: string; entity_type: string; avg_rating: number; listen_count: number }) => ({
+      entity_id: r.entity_id,
+      entity_type: r.entity_type ?? "song",
+      avg_rating: Number(r.avg_rating) || 0,
+      listen_count: Number(r.listen_count) || 0,
+    }));
   } catch (e) {
     console.error("[queries] getHiddenGems failed:", e);
     return [];

@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAlbum, getAlbums, getTrack, getTracks } from "../lib/spotify";
 
 /** Matches `FeedActivity` from root `types` (JSON shape for web + mobile). */
-type FeedActivity = any;
+type FeedActivity = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type ActivityFeedPage = {
   items: FeedActivity[];

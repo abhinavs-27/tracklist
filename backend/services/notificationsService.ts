@@ -22,7 +22,7 @@ export async function listNotifications(
   const { data, error } = await supabase
     .from("notifications")
     .select(
-      "id, user_id, actor_user_id, type, entity_type, entity_id, read, created_at",
+      "id, actor_user_id, type, entity_type, entity_id, read, created_at",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -31,7 +31,7 @@ export async function listNotifications(
     console.error("[notificationsService] list", error);
     return [];
   }
-  return (data ?? []) as NotificationRow[];
+  return (data ?? []).map((n: unknown) => ({ ...(n as Record<string, unknown>), user_id: userId })) as NotificationRow[];
 }
 
 export async function markNotificationsRead(
