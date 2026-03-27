@@ -39,10 +39,8 @@ export default async function HomePage() {
     getRecommendedCommunities(session.user.id),
   ]);
   const { items: feedItems, next_cursor: feedNextCursor } = feedResult;
-  const [withNames, withAlbums] = await Promise.all([
-    enrichFeedActivitiesWithEntityNames(feedItems),
-    enrichListenSessionsWithAlbums(feedItems),
-  ]);
+  const withNames = await enrichFeedActivitiesWithEntityNames(feedItems);
+  const withAlbums = await enrichListenSessionsWithAlbums(feedItems);
   const enrichedItems = withAlbums.map((activity, i) =>
     activity.type === "review" && withNames[i]
       ? { ...activity, spotifyName: (withNames[i] as { spotifyName?: string }).spotifyName }

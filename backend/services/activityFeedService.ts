@@ -254,23 +254,26 @@ async function enrichFeedActivitiesWithEntityNames(
 
   const nameMap = await getEntityDisplayNames(supabase, reviewItems);
 
-  return Promise.all(
-    activities.map(async (activity) => {
-      if (activity.type !== "review") return { ...activity, spotifyName: undefined };
-      let name = nameMap.get(activity.review.entity_id);
-      if (name == null) {
-        try {
-          name =
-            activity.review.entity_type === "album"
-              ? (await getAlbum(activity.review.entity_id)).name
-              : (await getTrack(activity.review.entity_id)).name;
-        } catch {
-          name = undefined;
-        }
+  const out: (FeedActivity & { spotifyName?: string })[] = [];
+  for (const activity of activities) {
+    if (activity.type !== "review") {
+      out.push({ ...activity, spotifyName: undefined });
+      continue;
+    }
+    let name = nameMap.get(activity.review.entity_id);
+    if (name == null) {
+      try {
+        name =
+          activity.review.entity_type === "album"
+            ? (await getAlbum(activity.review.entity_id)).name
+            : (await getTrack(activity.review.entity_id)).name;
+      } catch {
+        name = undefined;
       }
-      return { ...activity, spotifyName: name ?? undefined };
-    }),
-  );
+    }
+    out.push({ ...activity, spotifyName: name ?? undefined });
+  }
+  return out;
 }
 
 async function enrichListenSessionsWithAlbums(
@@ -300,10 +303,10 @@ async function enrichListenSessionsWithAlbums(
 
   const albumIdList = [...albumIds];
   const trackIdList = [...trackIdsNeedingName];
-  const [albumArr, trackArr] = await Promise.all([
-    albumIdList.length > 0 ? getAlbums(albumIdList) : Promise.resolve([]),
-    trackIdList.length > 0 ? getTracks(trackIdList) : Promise.resolve([]),
-  ]);
+  const albumArr =
+    albumIdList.length > 0 ? await getAlbums(albumIdList) : [];
+  const trackArr =
+    trackIdList.length > 0 ? await getTracks(trackIdList) : [];
 
   const albumMap = new Map(albumArr.map((a) => [a.id, a]));
   const trackMap = new Map(trackArr.map((t) => [t.id, t]));

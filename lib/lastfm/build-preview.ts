@@ -4,7 +4,8 @@ import type { LastfmNormalizedScrobble, LastfmPreviewRow } from "./types";
 import { fetchLastfmRecentTracksSafe } from "./fetch-recent";
 import { mapLastfmToSpotify } from "./map-to-spotify";
 
-const MAP_CONCURRENCY = 4;
+/** Sequential Last.fm → Spotify mapping (Spotify is globally rate-limited). */
+const MAP_CONCURRENCY = 1;
 
 function isLastfmPreviewDebug(): boolean {
   return (

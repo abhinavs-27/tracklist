@@ -9,6 +9,9 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@tracklist/spotify-client": "file:../packages/spotify-client",
+    "bottleneck": "^2.19.5",
+    "ioredis": "^5.8.2",
     "@supabase/supabase-js": "^2.49.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

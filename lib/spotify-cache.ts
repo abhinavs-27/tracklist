@@ -12,6 +12,7 @@ import {
   getTrack,
   getTracks,
 } from "@/lib/spotify";
+import { MAX_SPOTIFY_ITEMS } from "@/lib/spotify/client";
 
 const LOG_PREFIX = "[spotify-cache]";
 
@@ -909,10 +910,8 @@ async function refreshAlbumFromSpotify(
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> | null;
 }> {
   try {
-    const [albumResp, tracksResp] = await Promise.all([
-      getAlbum(id),
-      getAllAlbumTracks(id),
-    ]);
+    const albumResp = await getAlbum(id);
+    const tracksResp = await getAllAlbumTracks(id);
     await upsertAlbumFromSpotify(supabase, albumResp);
     const albumArtistId = albumResp.artists?.[0]?.id;
     const artistIds = new Set<string>();
@@ -1079,8 +1078,21 @@ function buildTrackFromRows(
 async function getOrFetchTracksBatchInner(
   ids: string[],
 ): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
-  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  let uniqueIds = [...new Set(ids)].filter(Boolean);
   if (uniqueIds.length === 0) return ids.map(() => null);
+
+  if (uniqueIds.length > MAX_SPOTIFY_ITEMS) {
+    const overflow = uniqueIds.slice(MAX_SPOTIFY_ITEMS);
+    uniqueIds = uniqueIds.slice(0, MAX_SPOTIFY_ITEMS);
+    try {
+      const { enqueueSpotifyEnrich } = await import("@/lib/jobs/spotifyQueue");
+      for (const trackId of overflow) {
+        await enqueueSpotifyEnrich({ name: "enrich_track", trackId });
+      }
+    } catch (e) {
+      console.warn(`${LOG_PREFIX} enqueue overflow tracks failed`, e);
+    }
+  }
 
   const memKey = getBatchCacheKey("tracks", ids);
   const cached = getFromBatchMemoryMap(memKey);
@@ -1278,8 +1290,21 @@ export async function getOrFetchAlbumsBatch(
 async function getOrFetchArtistsBatchInner(
   ids: string[],
 ): Promise<(SpotifyApi.ArtistObjectFull | null)[]> {
-  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  let uniqueIds = [...new Set(ids)].filter(Boolean);
   if (uniqueIds.length === 0) return ids.map(() => null);
+
+  if (uniqueIds.length > MAX_SPOTIFY_ITEMS) {
+    const overflow = uniqueIds.slice(MAX_SPOTIFY_ITEMS);
+    uniqueIds = uniqueIds.slice(0, MAX_SPOTIFY_ITEMS);
+    try {
+      const { enqueueSpotifyEnrich } = await import("@/lib/jobs/spotifyQueue");
+      for (const artistId of overflow) {
+        await enqueueSpotifyEnrich({ name: "enrich_artist", artistId });
+      }
+    } catch (e) {
+      console.warn(`${LOG_PREFIX} enqueue overflow artists failed`, e);
+    }
+  }
 
   const memKey = getBatchCacheKey("artists", ids);
   const cached = getFromBatchMemoryMap(memKey);

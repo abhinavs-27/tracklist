@@ -5,9 +5,9 @@ import {
   isSpotifyIntegrationEnabled,
   SPOTIFY_DISABLED_API_MESSAGE,
 } from "@/lib/spotify-integration-enabled";
+import { bearerSpotifyFetchJson } from "@/lib/spotify/client";
 
 const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
-const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
 /**
  * User OAuth (Bearer) calls to Spotify. We only use:
@@ -249,20 +249,11 @@ export async function getRecentlyPlayed(
   }
 
   const safeLimit = Math.min(Math.max(limit, 1), 50);
-  const url = new URL(`${SPOTIFY_API_BASE}/me/player/recently-played`);
-  url.searchParams.set("limit", String(safeLimit));
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Spotify recently-played error: ${res.status} ${text}`);
-  }
-
-  return (await res.json()) as SpotifyRecentlyPlayedResponse;
+  return bearerSpotifyFetchJson<SpotifyRecentlyPlayedResponse>(
+    accessToken,
+    "/me/player/recently-played",
+    { limit: String(safeLimit) },
+  );
 }
 
 // ------------------------------------------------------------
@@ -278,27 +269,12 @@ async function spotifyUserFetch<T>(
     throw new Error(SPOTIFY_DISABLED_API_MESSAGE);
   }
 
-  const url = new URL(`${SPOTIFY_API_BASE}${path}`);
-  if (params) {
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  try {
+    return await bearerSpotifyFetchJson<T>(accessToken, path, params);
+  } catch (e) {
+    console.warn("spotifyUserFetch error", { path, error: e });
+    throw e;
   }
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.warn("spotifyUserFetch error", {
-      path,
-      status: res.status,
-      body: text,
-    });
-    throw new Error(`Spotify user API error: ${res.status} ${path} ${text}`);
-  }
-
-  return (await res.json()) as T;
 }
 
 export async function getUserArtist(

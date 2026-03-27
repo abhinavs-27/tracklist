@@ -68,11 +68,12 @@ export default async function DiscoverPage() {
   const discoverTrackIds = [...trendingTrackIds, ...hiddenGemsByType.song];
   const discoverAlbumIds = hiddenGemsByType.album;
   const risingArtistIds = risingArtists.map((a) => a.artist_id);
-  const [trackArr, albumArr, artistArr] = await Promise.all([
-    getOrFetchTracksBatch(discoverTrackIds),
-    getOrFetchAlbumsBatch(discoverAlbumIds),
-    risingArtistIds.length > 0 ? getOrFetchArtistsBatch(risingArtistIds) : Promise.resolve([]),
-  ]);
+  const trackArr = await getOrFetchTracksBatch(discoverTrackIds);
+  const albumArr = await getOrFetchAlbumsBatch(discoverAlbumIds);
+  const artistArr =
+    risingArtistIds.length > 0
+      ? await getOrFetchArtistsBatch(risingArtistIds)
+      : [];
   const tracksMap = batchResultsToMap(discoverTrackIds, trackArr);
   const albumsMap = batchResultsToMap(discoverAlbumIds, albumArr);
   const artistImageMap = new Map<string, string | null>();

@@ -1,0 +1,14 @@
+{
+  "name": "@tracklist/spotify-client",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "bottleneck": "^2.19.5",
+    "ioredis": "^5.10.1"
+  }
+}

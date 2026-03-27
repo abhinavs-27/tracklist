@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@tracklist/spotify-client": ["./packages/spotify-client/src/index.ts"]
     }
   },
   "include": [

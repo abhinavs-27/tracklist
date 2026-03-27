@@ -56,18 +56,14 @@ export async function GET(request: NextRequest) {
   for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
     const batch = userIds.slice(i, i + BATCH_SIZE);
 
-    const results = await Promise.all(
-      batch.map((userId) =>
-        ingestRecentPlaysForUser(userId).catch((e) => {
-          console.error("[cron] ingest failed for user", userId, e);
-          return { inserted: 0, skipped: 0 };
-        }),
-      ),
-    );
-
-    for (const r of results) {
-      totalInserted += r.inserted;
-      totalSkipped += r.skipped;
+    for (const userId of batch) {
+      try {
+        const r = await ingestRecentPlaysForUser(userId);
+        totalInserted += r.inserted;
+        totalSkipped += r.skipped;
+      } catch (e) {
+        console.error("[cron] ingest failed for user", userId, e);
+      }
     }
 
     processed += batch.length;
