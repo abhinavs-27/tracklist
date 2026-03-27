@@ -328,6 +328,12 @@ export async function upsertTrackFromSpotify(
 ) {
   const first = track.artists?.[0];
   if (!first) throw new Error("Track has no artist");
+  if (!track.name?.trim()) {
+    throw new Error("refuse to upsert song without track name");
+  }
+  if (!first.name?.trim()) {
+    throw new Error("refuse to upsert song without artist name");
+  }
 
   await upsertArtistFromSpotify(supabase, first);
 
@@ -406,6 +412,9 @@ async function upsertSongRowOnly(
   albumId: string,
   artistId: string,
 ) {
+  if (!track.name?.trim()) {
+    throw new Error("refuse to upsert song without track name");
+  }
   const trackNumber =
     "track_number" in track
       ? ((track as { track_number?: number }).track_number ?? null)
