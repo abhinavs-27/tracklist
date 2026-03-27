@@ -123,7 +123,10 @@ export function LastfmSection({
       if (!res.ok) throw new Error(data.error ?? "Save failed");
 
       let lastSynced: string | null = data.lastfm_last_synced_at ?? null;
-      if (typeof data.lastfm_username === "string" && data.lastfm_username.trim()) {
+      if (
+        typeof data.lastfm_username === "string" &&
+        data.lastfm_username.trim()
+      ) {
         const syncRes = await fetch("/api/lastfm/sync", { method: "POST" });
         const syncJson = (await syncRes.json()) as {
           lastfm_last_synced_at?: string | null;
@@ -145,15 +148,25 @@ export function LastfmSection({
       setSavedAt(new Date().toISOString());
       setUsernameInput(data.lastfm_username ?? "");
       setLastSyncedAt(data.lastfm_last_synced_at ?? null);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.profile(userId),
+      });
       router.refresh();
     },
   });
 
   const previewQuery = useQuery({
-    queryKey: ["lastfm", "preview", usernameInput.trim(), savedAt, previewNonce],
+    queryKey: [
+      "lastfm",
+      "preview",
+      usernameInput.trim(),
+      savedAt,
+      previewNonce,
+    ],
     queryFn: async () => {
-      const res = await fetch("/api/lastfm/preview?limit=200", { cache: "no-store" });
+      const res = await fetch("/api/lastfm/preview?limit=200", {
+        cache: "no-store",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Preview failed");
       return data as PreviewResponse;
@@ -165,7 +178,9 @@ export function LastfmSection({
 
   const matchedItems = useMemo(
     () =>
-      (previewQuery.data?.items ?? []).filter((i) => i.matchStatus === "matched"),
+      (previewQuery.data?.items ?? []).filter(
+        (i) => i.matchStatus === "matched",
+      ),
     [previewQuery.data?.items],
   );
 
@@ -213,7 +228,9 @@ export function LastfmSection({
       }
       setAddToListOpen(false);
       setSuccessToast(null);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.profile(userId),
+      });
       router.refresh();
     } catch (e) {
       console.error(e);
@@ -239,7 +256,8 @@ export function LastfmSection({
           artistName: i.artistName,
           artworkUrl: i.artworkUrl,
         }));
-      if (entries.length === 0) throw new Error("Select at least one matched track");
+      if (entries.length === 0)
+        throw new Error("Select at least one matched track");
       const res = await fetch("/api/lastfm/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -261,10 +279,14 @@ export function LastfmSection({
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.logs() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.profile(userId),
+      });
       setPreviewNonce((n) => n + 1);
       void queryClient.removeQueries({ queryKey: ["lastfm", "preview"] });
-      setLastImportTrackIds([...new Set(data._entries.map((e) => e.spotifyTrackId))]);
+      setLastImportTrackIds([
+        ...new Set(data._entries.map((e) => e.spotifyTrackId)),
+      ]);
       setSuccessToast({
         imported: data.imported,
         highlights: data.highlights ?? [],
@@ -296,27 +318,32 @@ export function LastfmSection({
             Connect Last.fm to power your data
           </p>
           <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
-            Your listens sync from Last.fm first. Spotify enriches album art and metadata in the
-            background — the app keeps working even when Spotify is unavailable.
+            Your listens sync from Last.fm first. Without this you can still use
+            the app, but just have to log manually. We highly recommend
+            connecting!
           </p>
         </div>
       ) : null}
       <p
         className={`text-sm text-zinc-500 ${showConnectCta ? "mt-3" : "mt-1"}`}
       >
-        Save your public Last.fm username once. We sync new scrobbles automatically in the
-        background (and once right after you save). No Last.fm password — read-only API access.
+        Save your public Last.fm username once. We sync new scrobbles
+        automatically in the background (and once right after you save).
       </p>
       {usernameInput.trim() ? (
         <p className="mt-2 text-xs text-zinc-500">
           Last automatic sync:{" "}
-          <span className="text-zinc-400">{formatLastSynced(lastSyncedAt)}</span>
+          <span className="text-zinc-400">
+            {formatLastSynced(lastSyncedAt)}
+          </span>
         </p>
       ) : null}
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="min-w-0 flex-1">
-          <label className="block text-xs font-medium text-zinc-400">Last.fm username</label>
+          <label className="block text-xs font-medium text-zinc-400">
+            Last.fm username
+          </label>
           <input
             type="text"
             value={usernameInput}
@@ -338,7 +365,9 @@ export function LastfmSection({
       </div>
       {saveMutation.isError && (
         <p className="mt-2 text-sm text-red-400">
-          {saveMutation.error instanceof Error ? saveMutation.error.message : "Save failed"}
+          {saveMutation.error instanceof Error
+            ? saveMutation.error.message
+            : "Save failed"}
         </p>
       )}
 
@@ -350,123 +379,146 @@ export function LastfmSection({
           </span>
         </summary>
         <div className="border-t border-zinc-800/80 px-3 pb-4 pt-2">
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={!usernameInput.trim() || previewQuery.isFetching}
-          onClick={() => void loadPreview()}
-          className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
-        >
-          {previewQuery.isFetching ? "Loading preview…" : "Load preview"}
-        </button>
-        {matchedItems.length > 0 && !previewQuery.isFetching && (
-          <>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setSelectedKeys(new Set(matchedItems.map((i) => i.key)))}
-              className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-400 hover:bg-zinc-800"
+              disabled={!usernameInput.trim() || previewQuery.isFetching}
+              onClick={() => void loadPreview()}
+              className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
             >
-              Select all matched
+              {previewQuery.isFetching ? "Loading preview…" : "Load preview"}
             </button>
-            <button
-              type="button"
-              onClick={() => setSelectedKeys(new Set())}
-              className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-zinc-800"
-            >
-              Deselect all
-            </button>
-          </>
-        )}
-      </div>
+            {matchedItems.length > 0 && !previewQuery.isFetching && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedKeys(new Set(matchedItems.map((i) => i.key)))
+                  }
+                  className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-400 hover:bg-zinc-800"
+                >
+                  Select all matched
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedKeys(new Set())}
+                  className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-zinc-800"
+                >
+                  Deselect all
+                </button>
+              </>
+            )}
+          </div>
 
-      {previewQuery.isError && (
-        <p className="mt-3 text-sm text-red-400">
-          {previewQuery.error instanceof Error
-            ? previewQuery.error.message
-            : "Could not load preview"}
-        </p>
-      )}
-
-      {previewQuery.isFetching && <PreviewSkeleton />}
-
-      {showPreviewBody && preview && (
-        <>
-          {preview.error ? (
-            <p className="mt-3 text-sm text-amber-400/90">{preview.error}</p>
-          ) : (
-            <p className="mt-3 text-sm text-zinc-400">
-              <span className="font-medium text-emerald-400/90">{preview.matchedCount} matched</span>
-              {" · "}
-              <span className="text-zinc-500">{preview.skippedCount} skipped</span>
+          {previewQuery.isError && (
+            <p className="mt-3 text-sm text-red-400">
+              {previewQuery.error instanceof Error
+                ? previewQuery.error.message
+                : "Could not load preview"}
             </p>
           )}
-          <div className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-zinc-800">
-            <ul className="divide-y divide-zinc-800">
-              {preview.items.map((row) => {
-                const matched = row.matchStatus === "matched";
-                const checked = selectedKeys.has(row.key);
-                return (
-                  <li
-                    key={row.key}
-                    className="flex items-start gap-3 px-3 py-2.5 text-sm"
-                  >
-                    {matched ? (
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleKey(row.key)}
-                        className="mt-1"
-                      />
-                    ) : (
-                      <span className="mt-1 w-4 shrink-0 text-zinc-600">—</span>
-                    )}
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
-                      {row.artworkUrl ? (
-                        <img src={row.artworkUrl} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-                          ♪
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-white">{row.trackName}</p>
-                      <p className="text-zinc-500">{row.artistName}</p>
-                      {row.albumName ? (
-                        <p className="text-xs text-zinc-600">{row.albumName}</p>
-                      ) : null}
-                      <p className="text-xs text-zinc-600">
-                        {new Date(row.listenedAtIso).toLocaleString()}
-                      </p>
-                      {!matched && (
-                        <p className="text-xs text-amber-500/90">No Spotify match</p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </>
-      )}
 
-      {matchedItems.length > 0 && !previewQuery.isFetching && (
-        <button
-          type="button"
-          disabled={importMutation.isPending || selectedKeys.size === 0}
-          onClick={() => importMutation.mutate()}
-          className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 sm:w-auto"
-        >
-          {importMutation.isPending
-            ? "Importing…"
-            : `Import selected (${selectedKeys.size})`}
-        </button>
-      )}
-      {importMutation.isError && (
-        <p className="mt-2 text-sm text-red-400">
-          {importMutation.error instanceof Error ? importMutation.error.message : "Import failed"}
-        </p>
-      )}
+          {previewQuery.isFetching && <PreviewSkeleton />}
+
+          {showPreviewBody && preview && (
+            <>
+              {preview.error ? (
+                <p className="mt-3 text-sm text-amber-400/90">
+                  {preview.error}
+                </p>
+              ) : (
+                <p className="mt-3 text-sm text-zinc-400">
+                  <span className="font-medium text-emerald-400/90">
+                    {preview.matchedCount} matched
+                  </span>
+                  {" · "}
+                  <span className="text-zinc-500">
+                    {preview.skippedCount} skipped
+                  </span>
+                </p>
+              )}
+              <div className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-zinc-800">
+                <ul className="divide-y divide-zinc-800">
+                  {preview.items.map((row) => {
+                    const matched = row.matchStatus === "matched";
+                    const checked = selectedKeys.has(row.key);
+                    return (
+                      <li
+                        key={row.key}
+                        className="flex items-start gap-3 px-3 py-2.5 text-sm"
+                      >
+                        {matched ? (
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleKey(row.key)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <span className="mt-1 w-4 shrink-0 text-zinc-600">
+                            —
+                          </span>
+                        )}
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
+                          {row.artworkUrl ? (
+                            <img
+                              src={row.artworkUrl}
+                              alt=""
+                              referrerPolicy="no-referrer"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-zinc-600">
+                              ♪
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-white">
+                            {row.trackName}
+                          </p>
+                          <p className="text-zinc-500">{row.artistName}</p>
+                          {row.albumName ? (
+                            <p className="text-xs text-zinc-600">
+                              {row.albumName}
+                            </p>
+                          ) : null}
+                          <p className="text-xs text-zinc-600">
+                            {new Date(row.listenedAtIso).toLocaleString()}
+                          </p>
+                          {!matched && (
+                            <p className="text-xs text-amber-500/90">
+                              No Spotify match
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </>
+          )}
+
+          {matchedItems.length > 0 && !previewQuery.isFetching && (
+            <button
+              type="button"
+              disabled={importMutation.isPending || selectedKeys.size === 0}
+              onClick={() => importMutation.mutate()}
+              className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 sm:w-auto"
+            >
+              {importMutation.isPending
+                ? "Importing…"
+                : `Import selected (${selectedKeys.size})`}
+            </button>
+          )}
+          {importMutation.isError && (
+            <p className="mt-2 text-sm text-red-400">
+              {importMutation.error instanceof Error
+                ? importMutation.error.message
+                : "Import failed"}
+            </p>
+          )}
         </div>
       </details>
 
@@ -486,17 +538,31 @@ export function LastfmSection({
             {successToast.highlights.length > 0 && (
               <ul className="mt-3 space-y-2">
                 {successToast.highlights.slice(0, 3).map((h) => (
-                  <li key={h.spotifyTrackId} className="flex items-center gap-2 text-xs text-zinc-300">
+                  <li
+                    key={h.spotifyTrackId}
+                    className="flex items-center gap-2 text-xs text-zinc-300"
+                  >
                     <div className="h-9 w-9 shrink-0 overflow-hidden rounded bg-zinc-800">
                       {h.artworkUrl ? (
-                        <img src={h.artworkUrl} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={h.artworkUrl}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-zinc-600">♪</div>
+                        <div className="flex h-full items-center justify-center text-zinc-600">
+                          ♪
+                        </div>
                       )}
                     </div>
                     <span className="min-w-0">
-                      <span className="block truncate font-medium text-white">{h.trackName}</span>
-                      <span className="block truncate text-zinc-500">{h.artistName}</span>
+                      <span className="block truncate font-medium text-white">
+                        {h.trackName}
+                      </span>
+                      <span className="block truncate text-zinc-500">
+                        {h.artistName}
+                      </span>
                     </span>
                   </li>
                 ))}
@@ -535,12 +601,17 @@ export function LastfmSection({
           aria-modal="true"
         >
           <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-xl">
-            <p className="text-sm font-semibold text-white">Add imported tracks to a list</p>
+            <p className="text-sm font-semibold text-white">
+              Add imported tracks to a list
+            </p>
             <p className="mt-1 text-xs text-zinc-500">
-              Choose a song list. Tracks already on the list may return an error — safe to ignore.
+              Choose a song list. Tracks already on the list may return an error
+              — safe to ignore.
             </p>
             {lists.length === 0 ? (
-              <p className="mt-3 text-sm text-zinc-400">No song lists yet. Create one from your profile.</p>
+              <p className="mt-3 text-sm text-zinc-400">
+                No song lists yet. Create one from your profile.
+              </p>
             ) : (
               <label className="mt-3 block text-xs text-zinc-400">
                 List

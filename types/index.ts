@@ -400,4 +400,6 @@ export interface ProfileUpdateBody {
   username?: string;
   bio?: string | null;
   lastfm_username?: string | null;
+  /** Profile onboarding wizard finished (username, favorites, Last.fm). */
+  onboarding_completed?: boolean;
 }

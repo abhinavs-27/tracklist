@@ -1,6 +1,22 @@
-'use client';
+"use client";
 
-import { signIn } from 'next-auth/react';
+import { signIn } from "next-auth/react";
+
+/** Same-origin path only; blocks open redirects and nested `/auth/signin` chains. */
+function safeCallbackUrl(raw: string | null): string {
+  if (raw == null || raw === "") return "/";
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    /* keep raw */
+  }
+  const t = decoded.trim();
+  if (!t.startsWith("/") || t.startsWith("//")) return "/";
+  if (t.includes("//")) return "/";
+  if (t.toLowerCase().includes("/auth/signin")) return "/";
+  return t;
+}
 
 export default function SignInPage() {
   return (
@@ -10,7 +26,15 @@ export default function SignInPage() {
         <p className="mb-6 text-zinc-400">Sign in with Google to log your music.</p>
         <button
           type="button"
-          onClick={() => signIn('google', { callbackUrl: '/' })}
+          onClick={() => {
+            const q =
+              typeof window !== "undefined"
+                ? new URLSearchParams(window.location.search).get(
+                    "callbackUrl",
+                  )
+                : null;
+            void signIn("google", { callbackUrl: safeCallbackUrl(q) });
+          }}
           className="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 font-medium text-zinc-900 transition hover:bg-zinc-100"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">

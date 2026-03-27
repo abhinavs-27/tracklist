@@ -30,7 +30,7 @@ import { formatRelativeTime } from "@/lib/time";
 import { isValidUuid } from "@/lib/validation";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { getCommunityMatch } from "@/lib/taste/getCommunityMatch";
-import { CommunityActions } from "./community-actions";
+import { CommunityActions } from "@/components/community/community-actions";
 
 export default async function CommunityDetailPage({
   params,
@@ -127,13 +127,15 @@ export default async function CommunityDetailPage({
           {session?.user?.id ? (
             <CommunityActions
               communityId={id}
+              communityName={community.name}
               isPrivate={community.is_private}
               isMember={isMember}
               pendingInviteId={pendingInvite?.id ?? null}
             />
           ) : (
             <Link
-              href={`/auth/signin?callbackUrl=/communities/${id}`}
+              prefetch={false}
+              href={`/auth/signin?callbackUrl=${encodeURIComponent(`/communities/${id}`)}`}
               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white"
             >
               Sign in

@@ -13,6 +13,7 @@ import {
   validateBio,
   validateLastfmUsername,
 } from "@/lib/validation";
+import { fetchLastfmRecentTracksSafe } from "@/lib/lastfm/fetch-recent";
 
 export const PATCH = withHandler(
   async (request, { user: me }) => {
@@ -23,7 +24,7 @@ export const PATCH = withHandler(
 
     const { data: current, error: currentError } = await supabase
       .from("users")
-      .select("id, username, bio, lastfm_username")
+      .select("id, username, bio, lastfm_username, onboarding_completed")
       .eq("id", me!.id)
       .maybeSingle();
     if (currentError || !current) {
@@ -35,6 +36,7 @@ export const PATCH = withHandler(
       bio?: string | null;
       lastfm_username?: string | null;
       lastfm_last_synced_at?: string | null;
+      onboarding_completed?: boolean;
     } = {};
 
     if (body!.username !== undefined) {
@@ -62,10 +64,32 @@ export const PATCH = withHandler(
     if (body!.lastfm_username !== undefined) {
       const lastfmResult = validateLastfmUsername(body!.lastfm_username);
       if (!lastfmResult.ok) return apiBadRequest(lastfmResult.error);
+      const nextLf = lastfmResult.value;
+      const prevLf = current.lastfm_username ?? null;
+      if (
+        nextLf !== null &&
+        nextLf !== prevLf
+      ) {
+        const check = await fetchLastfmRecentTracksSafe(nextLf, 1);
+        if (!check.ok) {
+          return apiBadRequest(
+            check.errorCode === "invalid_user"
+              ? "Last.fm user not found — check the username or create an account at last.fm/join"
+              : check.error,
+          );
+        }
+      }
       updates.lastfm_username = lastfmResult.value;
       if (lastfmResult.value === null) {
         updates.lastfm_last_synced_at = null;
       }
+    }
+
+    if (body!.onboarding_completed !== undefined) {
+      if (typeof body!.onboarding_completed !== "boolean") {
+        return apiBadRequest("onboarding_completed must be a boolean");
+      }
+      updates.onboarding_completed = body!.onboarding_completed;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -77,7 +101,7 @@ export const PATCH = withHandler(
       .update(updates)
       .eq("id", me!.id)
       .select(
-        "id, email, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+        "id, email, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
       )
       .maybeSingle();
 

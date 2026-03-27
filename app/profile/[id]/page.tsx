@@ -27,6 +27,7 @@ import { SimilarUsersSection } from "@/components/similar-users-section";
 import { isValidUuid } from "@/lib/validation";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
+import { DeleteAccountSection } from "@/components/profile/delete-account-section";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -63,6 +64,7 @@ export default async function ProfilePage({
     created_at: string;
     lastfm_username: string | null;
     lastfm_last_synced_at: string | null;
+    onboarding_completed: boolean;
   } | null = null;
   let userError: unknown = null;
 
@@ -70,7 +72,7 @@ export default async function ProfilePage({
     const result = await supabase
       .from("users")
       .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
       )
       .eq("id", segment)
       .maybeSingle();
@@ -80,7 +82,7 @@ export default async function ProfilePage({
     const result = await supabase
       .from("users")
       .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
       )
       .eq("username", String(segment).trim())
       .maybeSingle();
@@ -100,6 +102,14 @@ export default async function ProfilePage({
 
   if (!isValidUuid(segment)) {
     redirect(`/profile/${user.id}`);
+  }
+
+  if (
+    session?.user?.id &&
+    session.user.id === user.id &&
+    user.onboarding_completed !== true
+  ) {
+    redirect("/onboarding");
   }
 
   const profileSettled = await Promise.allSettled([
@@ -229,6 +239,7 @@ export default async function ProfilePage({
 
       {isOwnProfile ? (
         <LastfmSection
+          key={`lastfm-${profile.id}`}
           userId={profile.id}
           username={profile.username}
           initialUsername={user.lastfm_username ?? null}
@@ -355,6 +366,8 @@ export default async function ProfilePage({
           </>
         )}
       </section>
+
+      {isOwnProfile ? <DeleteAccountSection username={profile.username} /> : null}
     </div>
   );
 }

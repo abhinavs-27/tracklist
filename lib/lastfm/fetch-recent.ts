@@ -1,5 +1,6 @@
 import "server-only";
 
+import { fetchLastfmApi } from "@/lib/lastfm/lastfm-api-fetch";
 import type { LastfmNormalizedScrobble } from "./types";
 
 const LASTFM_API = "https://ws.audioscrobbler.com/2.0/";
@@ -112,12 +113,23 @@ export async function fetchLastfmRecentTracksSafe(
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(url.toString(), {
-        headers: { Accept: "application/json" },
+      const res = await fetchLastfmApi(url.toString(), {
         signal: controller.signal,
         next: { revalidate: 0 },
       });
       const text = await res.text();
+      if (!res.ok) {
+        let detail = text.slice(0, 200);
+        try {
+          const j = JSON.parse(text) as { message?: string };
+          if (typeof j.message === "string" && j.message.trim()) {
+            detail = j.message.trim();
+          }
+        } catch {
+          /* non-JSON body */
+        }
+        throw new Error(`HTTP ${res.status}: ${detail}`);
+      }
       let data: {
         error?: number;
         message?: string;
@@ -126,9 +138,7 @@ export async function fetchLastfmRecentTracksSafe(
       try {
         data = JSON.parse(text) as typeof data;
       } catch {
-        throw new Error(
-          `HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`,
-        );
+        throw new Error(`HTTP ${res.status}: response was not JSON`);
       }
 
       const parsed = parseLastfmResponse(data);

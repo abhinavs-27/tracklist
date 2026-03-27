@@ -1,5 +1,6 @@
 import "server-only";
 
+import { fetchLastfmApi } from "@/lib/lastfm/lastfm-api-fetch";
 import { lastfmListenersOrPlaycountScore } from "./metric-to-score";
 import { parseLastfmCount } from "./parse-count";
 import { throttleLastfm } from "./throttle";
@@ -43,7 +44,7 @@ export async function getLastfmTrackStats(
   const timeoutId = setTimeout(() => controller.abort(), 12_000);
   let res: Response;
   try {
-    res = await fetch(url.toString(), {
+    res = await fetchLastfmApi(url.toString(), {
       cache: "no-store",
       signal: controller.signal,
     });

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { fetchLastfmApi } from "@/lib/lastfm/lastfm-api-fetch";
+
 const LASTFM_API = "https://ws.audioscrobbler.com/2.0/";
 
 const MIN_GAP_MS = 320;
@@ -94,7 +96,7 @@ export async function getLastfmArtistGenres(
   const timeoutId = setTimeout(() => controller.abort(), 12_000);
   let res: Response;
   try {
-    res = await fetch(url.toString(), {
+    res = await fetchLastfmApi(url.toString(), {
       cache: "no-store",
       signal: controller.signal,
     });

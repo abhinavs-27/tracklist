@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { SearchBar } from "./search-bar";
 
@@ -9,6 +10,42 @@ const navLinkClass =
 
 export function Navbar() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const onboardingOnly = pathname === "/onboarding";
+
+  if (onboardingOnly) {
+    return (
+      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="text-lg font-bold tracking-tight text-white touch-manipulation"
+          >
+            Tracklist
+          </Link>
+          {status === "loading" ? (
+            <span className="text-sm text-zinc-500">…</span>
+          ) : session ? (
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link
+              prefetch={false}
+              href="/auth/signin"
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 touch-manipulation"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
@@ -116,6 +153,7 @@ export function Navbar() {
             </>
           ) : (
             <Link
+              prefetch={false}
               href="/auth/signin"
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 touch-manipulation"
             >

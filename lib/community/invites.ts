@@ -285,6 +285,33 @@ export async function acceptCommunityInvite(
   return { ok: true };
 }
 
+/**
+ * When a user is in this community through another path (e.g. share link),
+ * mark any pending direct invite so the invites UI stays consistent.
+ */
+export async function markPendingDirectInviteAcceptedForMember(
+  communityId: string,
+  userId: string,
+): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  const cid = communityId.trim();
+  const uid = userId.trim();
+  if (!cid || !uid) return;
+
+  const { error } = await admin
+    .from("community_invites")
+    .update({ status: "accepted" })
+    .eq("community_id", cid)
+    .eq("invited_user_id", uid)
+    .eq("status", "pending");
+  if (error) {
+    console.warn(
+      "[community] mark pending invite accepted for member",
+      error.message,
+    );
+  }
+}
+
 export async function declineCommunityInvite(
   inviteId: string,
   userId: string,

@@ -8,8 +8,13 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 /** Spotify IDs are 22-char alphanumeric (base62) */
 const SPOTIFY_ID_REGEX = /^[a-zA-Z0-9]{22}$/;
 
-/** Username: lowercase letters, numbers, underscore, 3–20 chars */
-const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+/** Covers auto-generated usernames: email local up to 20 + `_` + 6-char suffix (max 27). */
+export const USERNAME_MAX_LENGTH = 32;
+
+/** Username: lowercase letters, numbers, underscore */
+const USERNAME_REGEX = new RegExp(
+  `^[a-z0-9_]{3,${USERNAME_MAX_LENGTH}}$`,
+);
 
 export const LIMITS = {
   COMMENT_CONTENT: 2000,
@@ -120,7 +125,7 @@ export function validateUsernameUpdate(
     return {
       ok: false,
       error:
-        "username must be 3–20 characters, lowercase letters, numbers, or underscore",
+        `username must be 3–${USERNAME_MAX_LENGTH} characters, lowercase letters, numbers, or underscore`,
     };
   }
   return { ok: true, value: s };
