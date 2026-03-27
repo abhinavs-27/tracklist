@@ -8,7 +8,7 @@ import { useRecentViews } from "./recent-views-provider";
 type Props = RecentViewItem;
 
 /**
- * Records a visit for the “Pick up where you left off” strip + session prompt.
+ * Records a visit for the “Pick up where you left off” strip on the feed.
  */
 export function RecordRecentView({
   kind,

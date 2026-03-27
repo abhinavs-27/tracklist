@@ -4,7 +4,6 @@ import { useLogging } from "../../lib/logging-context";
 import { FloatingLogButton } from "./FloatingLogButton";
 import { LogToast } from "./LogToast";
 import { QuickLogModal } from "./QuickLogModal";
-import { SessionLogPrompt } from "./SessionLogPrompt";
 
 export function LoggingShell() {
   const { session } = useAuth();
@@ -22,7 +21,6 @@ export function LoggingShell() {
         source="manual"
       />
       <LogToast message={toastMessage} onDismiss={dismissToast} />
-      <SessionLogPrompt />
     </View>
   );
 }

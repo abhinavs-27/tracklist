@@ -3,7 +3,6 @@
 import { useSession } from "next-auth/react";
 import { FloatingLogButton } from "./floating-log-button";
 import { QuickLogModal } from "./quick-log-modal";
-import { SessionLogPrompt } from "./session-log-prompt";
 import { useLogging } from "./logging-context";
 
 export function LoggingShell() {
@@ -16,7 +15,6 @@ export function LoggingShell() {
     <>
       <FloatingLogButton />
       <QuickLogModal open={quickLogOpen} onClose={() => setQuickLogOpen(false)} />
-      <SessionLogPrompt />
     </>
   );
 }
