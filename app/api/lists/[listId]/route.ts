@@ -16,6 +16,7 @@ import {
   validateListTitle,
   validateListDescription,
 } from "@/lib/validation";
+import { ListUpdateBody } from "@/types";
 
 export type ListItemEnriched = {
   id: string;
@@ -76,36 +77,31 @@ export const PATCH = withHandler(
       return apiForbidden("You do not own this list");
     }
 
-    const { data: body, error: bodyError } = await parseBody<{
-      title?: unknown;
-      description?: unknown;
-      visibility?: unknown;
-      emoji?: unknown;
-      image_url?: unknown;
-    }>(request);
+    const { data: body, error: bodyError } =
+      await parseBody<ListUpdateBody>(request);
     if (bodyError) return bodyError;
 
     const updates: Record<string, unknown> = {};
 
-    if (body.title !== undefined) {
+    if (body!.title !== undefined) {
       const titleResult = validateListTitle(body.title);
       if (!titleResult.ok) return apiBadRequest(titleResult.error);
       updates.title = titleResult.value;
     }
-    if (body.description !== undefined) {
-      updates.description = validateListDescription(body.description);
+    if (body!.description !== undefined) {
+      updates.description = validateListDescription(body!.description);
     }
-    if (body.visibility !== undefined) {
-      const v = body.visibility;
+    if (body!.visibility !== undefined) {
+      const v = body!.visibility;
       if (v !== "public" && v !== "friends" && v !== "private") {
         return apiBadRequest("Invalid visibility");
       }
       updates.visibility = v;
     }
-    if (body.image_url !== undefined) {
+    if (body!.image_url !== undefined) {
       updates.image_url =
-        typeof body.image_url === "string" && body.image_url.length > 0
-          ? body.image_url
+        typeof body!.image_url === "string" && body!.image_url.length > 0
+          ? body!.image_url
           : null;
     }
 

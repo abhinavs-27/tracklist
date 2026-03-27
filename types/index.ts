@@ -400,4 +400,17 @@ export interface ProfileUpdateBody {
   username?: string;
   bio?: string | null;
   lastfm_username?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface ReviewUpdateBody {
+  rating?: number;
+  review_text?: string | null;
+}
+
+export interface ListUpdateBody {
+  title?: string;
+  description?: string | null;
+  visibility?: 'public' | 'friends' | 'private';
+  image_url?: string | null;
 }

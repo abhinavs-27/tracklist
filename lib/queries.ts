@@ -51,6 +51,34 @@ export async function fetchUserMap<
   );
 }
 
+/**
+ * Helper to fetch a single user by username.
+ */
+export async function fetchUserByUsername<
+  T = {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    bio: string | null;
+    created_at: string;
+    lastfm_username: string | null;
+    lastfm_last_synced_at: string | null;
+  },
+>(
+  supabase:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
+  username: string,
+  select = "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+): Promise<T | null> {
+  const { data, error } = await (supabase.from("users") as any)
+    .select(select)
+    .eq("username", username)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as unknown as T;
+}
+
 // ---------------------------------------------------------------------------
 // Passive listen logs (Spotify history)
 // ---------------------------------------------------------------------------

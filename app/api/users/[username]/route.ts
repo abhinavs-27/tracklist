@@ -5,18 +5,14 @@ import {
   apiBadRequest,
   apiNotFound,
   apiForbidden,
-  apiConflict,
-  apiInternalError,
   apiOk,
+  apiError,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
-import {
-  isValidUsername,
-  validateUsernameUpdate,
-  validateBio,
-  validateAvatarUrl,
-} from "@/lib/validation";
-import { getFollowCounts } from "@/lib/queries";
+import { isValidUsername } from "@/lib/validation";
+import { getFollowCounts, fetchUserByUsername } from "@/lib/queries";
+import { updateProfile } from "@/lib/user/profile";
+import { ProfileUpdateBody } from "@/types";
 
 export const GET = withHandler(async (request, { params }) => {
   const { username } = params;
@@ -25,15 +21,9 @@ export const GET = withHandler(async (request, { params }) => {
     return apiBadRequest("Invalid username format");
 
   const supabase = await createSupabaseServerClient();
-  const { data: user, error } = await supabase
-    .from("users")
-    .select(
-      "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
-    )
-    .eq("username", username)
-    .single();
+  const user = await fetchUserByUsername(supabase, username);
 
-  if (error || !user) return apiNotFound("User not found");
+  if (!user) return apiNotFound("User not found");
 
   const { followers_count: followers, following_count: following } =
     await getFollowCounts(user.id);
@@ -46,10 +36,9 @@ export const GET = withHandler(async (request, { params }) => {
       .select("id")
       .eq("follower_id", viewer.id)
       .eq("following_id", user.id)
-      .single();
+      .maybeSingle();
     if (followError && followError.code !== "PGRST116") {
       console.error("User isFollowing lookup error:", followError);
-      return apiInternalError(followError);
     }
     isFollowing = !!follow;
   }
@@ -74,56 +63,29 @@ export const PATCH = withHandler(
       return apiBadRequest("Invalid username");
 
     const supabase = await createSupabaseServerClient();
-    const { data: profileRow } = await supabase
-      .from("users")
-      .select("id")
-      .eq("username", username)
-      .single();
+    const user = await fetchUserByUsername<{ id: string }>(
+      supabase,
+      username,
+      "id",
+    );
 
-    if (!profileRow || profileRow.id !== me!.id) return apiForbidden();
+    if (!user || user.id !== me!.id) return apiForbidden();
 
     const { data: body, error: parseErr } =
-      await parseBody<Record<string, unknown>>(request);
+      await parseBody<ProfileUpdateBody>(request);
     if (parseErr) return parseErr;
 
-    const b = body!;
-    const updates: {
-      username?: string;
-      bio?: string | null;
-      avatar_url?: string | null;
-    } = {};
-
-    const usernameResult = validateUsernameUpdate(b.username);
-    if (usernameResult.ok) updates.username = usernameResult.value;
-
-    if (b.bio !== undefined) updates.bio = validateBio(b.bio);
-
-    if (b.avatar_url !== undefined) {
-      const validated = validateAvatarUrl(b.avatar_url);
-      updates.avatar_url = validated;
+    const result = await updateProfile(me!.id, body!);
+    if (!result.ok) {
+      return apiError(result.error, result.status);
     }
 
-    if (Object.keys(updates).length === 0) {
-      return apiBadRequest("No valid fields to update");
-    }
-
-    const { data, error } = await supabase
-      .from("users")
-      .update(updates)
-      .eq("id", me!.id)
-      .select("id, username, avatar_url, bio, created_at")
-      .single();
-
-    if (error) {
-      if (error.code === "23505") return apiConflict("Username taken");
-      console.error("User update error:", error);
-      return apiInternalError(error);
-    }
     console.log("[users] profile-updated", {
       userId: me!.id,
-      fields: Object.keys(updates),
+      fields: Object.keys(body!),
     });
-    return apiOk(data);
+
+    return apiOk(result.data);
   },
   { requireAuth: true },
 );

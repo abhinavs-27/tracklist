@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { apiBadRequest, apiInternalError, apiNotFound, apiOk } from "@/lib/api-response";
+import { withHandler } from "@/lib/api-handler";
+import { apiBadRequest, apiNotFound, apiOk } from "@/lib/api-response";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import {
   getAlbumEngagementStats,
@@ -9,95 +9,88 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isValidSpotifyId } from "@/lib/validation";
 
-type RouteParams = Promise<{ id: string }>;
+export const GET = withHandler(async (_request, { params }) => {
+  const { id } = params;
+  if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
 
-export async function GET(
-  request: NextRequest,
-  ctx: {
-    params: RouteParams;
-  },
-) {
+  let albumResp: Awaited<ReturnType<typeof getOrFetchAlbum>>;
   try {
-    const { id } = await ctx.params;
-    if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
-
-    let albumResp: Awaited<ReturnType<typeof getOrFetchAlbum>>;
-    try {
-      albumResp = await getOrFetchAlbum(id);
-    } catch {
-      return apiNotFound("Album not found");
-    }
-
-    const { album, tracks } = albumResp;
-
-    const artistNames = (album.artists ?? []).map((a) => a.name).filter(Boolean).join(", ");
-    const artist_id = (album.artists ?? [])[0]?.id ?? null;
-    const artwork_url = album.images?.[0]?.url ?? null;
-    const release_date = album.release_date ?? null;
-
-    const engagement = await getAlbumEngagementStats(id);
-
-    const trackIds = (tracks.items ?? []).map((t) => t.id);
-    const trackStats = await getTrackStatsForTrackIds(trackIds);
-
-    // Favorite count comes from the precomputed entity_stats table.
-    const supabase = await createSupabaseServerClient();
-    const { data: entityStatRow } = await supabase
-      .from("entity_stats")
-      .select("favorite_count")
-      .eq("entity_type", "album")
-      .eq("entity_id", id)
-      .maybeSingle();
-
-    const favorite_count = entityStatRow?.favorite_count ?? 0;
-
-    const reviewsResult = await getReviewsForEntity("album", id, 5);
-    const reviews =
-      reviewsResult?.reviews?.map((r) => ({
-        id: r.id,
-        username: r.username ?? null,
-        rating: r.rating,
-        review_text: r.review_text ?? null,
-      })) ?? [];
-
-    const review_count = reviewsResult?.count ?? engagement.review_count;
-
-    return apiOk({
-      album: {
-        id: album.id,
-        name: album.name,
-        artist: artistNames,
-        artist_id,
-        artwork_url,
-        release_date,
-      },
-      tracks: (tracks.items ?? []).map((t, idx) => {
-        // Spotify types for TrackObjectSimplified don't always expose track_number,
-        // but the field is present in the payload. Fallback to index+1 for safety.
-        const maybeTrackNumber = (t as unknown as { track_number?: number }).track_number;
-        const serverStats = trackStats?.[t.id];
-        return {
-          id: t.id,
-          name: t.name,
-          track_number: maybeTrackNumber ?? idx + 1,
-          duration_ms: t.duration_ms ?? null,
-          listen_count: serverStats?.listen_count ?? 0,
-          review_count: serverStats?.review_count ?? 0,
-          average_rating: serverStats?.average_rating ?? null,
-        };
-      }),
-      stats: {
-        average_rating: engagement.avg_rating,
-        play_count: engagement.listen_count,
-        favorite_count,
-        review_count,
-      },
-      reviews: {
-        items: reviews,
-      },
-    });
-  } catch (e) {
-    return apiInternalError(e);
+    albumResp = await getOrFetchAlbum(id);
+  } catch {
+    return apiNotFound("Album not found");
   }
-}
+
+  const { album, tracks } = albumResp;
+
+  const artistNames = (album.artists ?? [])
+    .map((a) => a.name)
+    .filter(Boolean)
+    .join(", ");
+  const artist_id = (album.artists ?? [])[0]?.id ?? null;
+  const artwork_url = album.images?.[0]?.url ?? null;
+  const release_date = album.release_date ?? null;
+
+  const engagement = await getAlbumEngagementStats(id);
+
+  const trackIds = (tracks.items ?? []).map((t) => t.id);
+  const trackStats = await getTrackStatsForTrackIds(trackIds);
+
+  // Favorite count comes from the precomputed entity_stats table.
+  const supabase = await createSupabaseServerClient();
+  const { data: entityStatRow } = await supabase
+    .from("entity_stats")
+    .select("favorite_count")
+    .eq("entity_type", "album")
+    .eq("entity_id", id)
+    .maybeSingle();
+
+  const favorite_count = entityStatRow?.favorite_count ?? 0;
+
+  const reviewsResult = await getReviewsForEntity("album", id, 5);
+  const reviews =
+    reviewsResult?.reviews?.map((r) => ({
+      id: r.id,
+      username: r.username ?? null,
+      rating: r.rating,
+      review_text: r.review_text ?? null,
+    })) ?? [];
+
+  const review_count = reviewsResult?.count ?? engagement.review_count;
+
+  return apiOk({
+    album: {
+      id: album.id,
+      name: album.name,
+      artist: artistNames,
+      artist_id,
+      artwork_url,
+      release_date,
+    },
+    tracks: (tracks.items ?? []).map((t, idx) => {
+      // Spotify types for TrackObjectSimplified don't always expose track_number,
+      // but the field is present in the payload. Fallback to index+1 for safety.
+      const maybeTrackNumber = (t as unknown as { track_number?: number })
+        .track_number;
+      const serverStats = trackStats?.[t.id];
+      return {
+        id: t.id,
+        name: t.name,
+        track_number: maybeTrackNumber ?? idx + 1,
+        duration_ms: t.duration_ms ?? null,
+        listen_count: serverStats?.listen_count ?? 0,
+        review_count: serverStats?.review_count ?? 0,
+        average_rating: serverStats?.average_rating ?? null,
+      };
+    }),
+    stats: {
+      average_rating: engagement.avg_rating,
+      play_count: engagement.listen_count,
+      favorite_count,
+      review_count,
+    },
+    reviews: {
+      items: reviews,
+    },
+  });
+});
 
