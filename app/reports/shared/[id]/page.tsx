@@ -5,6 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getListeningReports } from "@/lib/analytics/getListeningReports";
 import type { ReportEntityType } from "@/lib/analytics/getListeningReports";
 import { getSavedReportById } from "@/lib/reports/saved-report";
+import { SharedReportPublicLink } from "./shared-report-public-link";
 import { SharedReportShareButton } from "./shared-report-share-button";
 import { SharedListeningReportView } from "./shared-listening-report-view";
 
@@ -64,6 +65,7 @@ export default async function SharedListeningReportPage({
           }))}
         />
       </div>
+      <SharedReportPublicLink reportId={row.id} isPublic={row.is_public} />
       <SharedListeningReportView payload={data} readOnly />
     </div>
   );

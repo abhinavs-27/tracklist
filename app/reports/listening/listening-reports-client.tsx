@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ListeningReportShareImageModal } from "@/components/reports/listening-report-share-image";
 import type { ListeningReportShareCardRow } from "@/components/reports/listening-report-share-card";
+import { useToast } from "@/components/toast";
 
 type EntityType = "artist" | "album" | "track" | "genre";
 type Range = "week" | "month" | "year" | "custom";
@@ -66,7 +67,20 @@ function formatMovement(m: number | null, isNew: boolean): string {
   return `↓ ${m}`;
 }
 
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function ListeningReportsClient(props: { userId: string }) {
+  const { toast } = useToast();
   const [range, setRange] = useState<Range>("week");
   const [entityType, setEntityType] = useState<EntityType>("artist");
   const [startDate, setStartDate] = useState("");
@@ -88,7 +102,41 @@ export function ListeningReportsClient(props: { userId: string }) {
     shareUrl: string | null;
   } | null>(null);
   const [sharingSavedId, setSharingSavedId] = useState<string | null>(null);
+  /** Latest public share URL (for copy-again + flash after save). */
+  const [publicShareUrl, setPublicShareUrl] = useState<string | null>(null);
+  const [linkCopiedHighlight, setLinkCopiedHighlight] = useState(false);
+  const linkCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchGenRef = useRef(0);
+
+  const flashLinkCopied = useCallback(() => {
+    if (linkCopiedTimerRef.current) {
+      clearTimeout(linkCopiedTimerRef.current);
+    }
+    setLinkCopiedHighlight(true);
+    linkCopiedTimerRef.current = setTimeout(() => {
+      setLinkCopiedHighlight(false);
+      linkCopiedTimerRef.current = null;
+    }, 6500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (linkCopiedTimerRef.current) {
+        clearTimeout(linkCopiedTimerRef.current);
+      }
+    };
+  }, []);
+
+  const copyPublicLink = useCallback(async () => {
+    if (!publicShareUrl) return;
+    const ok = await copyTextToClipboard(publicShareUrl);
+    if (ok) {
+      toast("Link copied to clipboard");
+      flashLinkCopied();
+    } else {
+      toast("Couldn’t copy — select the link and copy manually");
+    }
+  }, [publicShareUrl, toast, flashLinkCopied]);
 
   function rowsForShare(items: ReportItem[]): ListeningReportShareCardRow[] {
     return items.slice(0, 5).map((r) => ({
@@ -383,12 +431,25 @@ export function ListeningReportsClient(props: { userId: string }) {
       if (json?.id && data?.items.length) {
         const origin =
           typeof window !== "undefined" ? window.location.origin : "";
+        const shareUrl = `${origin}/reports/shared/${json.id}`;
+        if (makePublic) {
+          setPublicShareUrl(shareUrl);
+          const copied = await copyTextToClipboard(shareUrl);
+          if (copied) {
+            toast("Share link copied to clipboard");
+          } else {
+            toast("Report saved — use Copy link below");
+          }
+          flashLinkCopied();
+        } else {
+          setPublicShareUrl(null);
+        }
         setShareModal({
           reportTitle: name,
           periodLabel: data.periodLabel,
           entityLabel: entityTypeLabel(entityType),
           rows: rowsForShare(data.items),
-          shareUrl: `${origin}/reports/shared/${json.id}`,
+          shareUrl: makePublic ? shareUrl : null,
         });
         setShareModalOpen(true);
       }
@@ -515,7 +576,7 @@ export function ListeningReportsClient(props: { userId: string }) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
             <button
@@ -532,47 +593,142 @@ export function ListeningReportsClient(props: { userId: string }) {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-500">
-            <input
-              type="checkbox"
-              checked={makePublic}
-              onChange={(e) => setMakePublic(e.target.checked)}
-              className="rounded border-zinc-600"
-            />
-            Public link (anyone with URL)
-          </label>
-          <button
-            type="button"
-            onClick={() => void saveReport()}
-            disabled={
-              saving ||
-              loading ||
-              (range === "custom" && (!startDate || !endDate)) ||
-              !data?.items.length
-            }
-            className="rounded-full border border-zinc-600 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save this report"}
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              openShareFromCurrent({
-                reportTitle: "Listening report",
-                shareUrl: null,
-              })
-            }
-            disabled={
-              loading ||
-              (range === "custom" && (!startDate || !endDate)) ||
-              !data?.items.length
-            }
-            className="rounded-full border border-zinc-600 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
-            title="PNG you can send to friends. Save the report to include your share link on the image."
-          >
-            Share image
-          </button>
+
+        <div className="rounded-xl border border-zinc-800/90 bg-zinc-900/50 p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1 space-y-1 pr-0 sm:pr-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">
+                    Shareable link
+                  </p>
+                  <p className="text-xs leading-relaxed text-zinc-500">
+                    {makePublic
+                      ? "When you save, your share link is copied automatically. Anyone with the link can view that snapshot."
+                      : "Turn on to get a public link when you save. Leave off to keep the report private to you."}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={makePublic}
+              aria-label={
+                makePublic
+                  ? "Shareable link enabled for next save"
+                  : "Shareable link disabled for next save"
+              }
+              onClick={() => {
+                setMakePublic((v) => {
+                  const next = !v;
+                  if (!next) {
+                    setPublicShareUrl(null);
+                    setLinkCopiedHighlight(false);
+                  }
+                  return next;
+                });
+              }}
+              className={`relative mx-auto h-8 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 sm:mx-0 ${
+                makePublic ? "bg-emerald-600" : "bg-zinc-600"
+              }`}
+            >
+              <span
+                className={`absolute top-1 left-1 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ease-out ${
+                  makePublic ? "translate-x-3" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {makePublic && publicShareUrl ? (
+            <div
+              className={`mt-4 rounded-lg border px-3 py-3 transition-colors ${
+                linkCopiedHighlight
+                  ? "border-emerald-500/45 bg-emerald-950/40"
+                  : "border-zinc-700/80 bg-zinc-950/60"
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-xs font-semibold uppercase tracking-wide ${
+                      linkCopiedHighlight
+                        ? "text-emerald-400"
+                        : "text-zinc-500"
+                    }`}
+                  >
+                    {linkCopiedHighlight
+                      ? "Copied to clipboard"
+                      : "Your share link"}
+                  </p>
+                  <p className="mt-1.5 break-all font-mono text-[11px] leading-relaxed text-zinc-300">
+                    {publicShareUrl}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void copyPublicLink()}
+                  className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-800/80 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-emerald-600/50 hover:bg-zinc-800"
+                >
+                  Copy again
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-col gap-2 border-t border-zinc-800/80 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
+            <button
+              type="button"
+              onClick={() => void saveReport()}
+              disabled={
+                saving ||
+                loading ||
+                (range === "custom" && (!startDate || !endDate)) ||
+                !data?.items.length
+              }
+              className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50 sm:w-auto"
+            >
+              {saving ? "Saving…" : "Save this report"}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                openShareFromCurrent({
+                  reportTitle: "Listening report",
+                  shareUrl: null,
+                })
+              }
+              disabled={
+                loading ||
+                (range === "custom" && (!startDate || !endDate)) ||
+                !data?.items.length
+              }
+              className="w-full rounded-lg border border-zinc-600 bg-zinc-900/60 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50 sm:w-auto"
+              title="Create a PNG to send to friends. Save the report first if you want the image to include your share link."
+            >
+              Share as image
+            </button>
+          </div>
         </div>
       </div>
 
@@ -594,6 +750,11 @@ export function ListeningReportsClient(props: { userId: string }) {
                   >
                     {s.name}
                   </Link>
+                  {s.is_public ? (
+                    <span className="ml-1.5 inline-block align-middle rounded-md border border-emerald-800/60 bg-emerald-950/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400/95">
+                      Link
+                    </span>
+                  ) : null}
                   <span className="text-zinc-500">
                     {" "}
                     · {s.entity_type} · {s.range_type}
