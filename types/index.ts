@@ -399,5 +399,56 @@ export interface LikeCreateBody {
 export interface ProfileUpdateBody {
   username?: string;
   bio?: string | null;
+  avatar_url?: string | null;
   lastfm_username?: string | null;
+}
+
+export interface PushTokenUpdateBody {
+  expo_push_token: string | null;
+}
+
+export interface FavoriteUpdateBody {
+  albums: string[];
+}
+
+export interface ListUpdateBody {
+  title?: string;
+  description?: string | null;
+  visibility?: 'public' | 'friends' | 'private';
+  image_url?: string | null;
+  emoji?: string | null;
+}
+
+export interface ListCreateBody {
+  title: string;
+  description?: string | null;
+  type?: 'album' | 'song';
+  visibility?: 'public' | 'friends' | 'private';
+  first_item?: { entity_type?: 'album' | 'song'; entity_id?: string };
+  initial_items?: { entity_type?: 'album' | 'song'; entity_id?: string }[];
+}
+
+export interface ListItemCreateBody {
+  entity_type: 'album' | 'song';
+  entity_id: string;
+}
+
+export interface CommunityCreateBody {
+  name: string;
+  description?: string | null;
+  is_private?: boolean;
+}
+
+export interface CommunityJoinBody {
+  communityId: string;
+}
+
+export interface CommunityInviteBody {
+  invitedUserId: string;
+}
+
+export interface CommunityCommentCreateBody {
+  content: string;
+  target_type: 'review' | 'log';
+  target_id: string;
 }

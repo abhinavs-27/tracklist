@@ -12,6 +12,7 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { CommunityCommentCreateBody } from "@/types";
 import { fetchUserMap } from "@/lib/queries";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { validateCommentContent } from "@/lib/validation";
@@ -68,11 +69,7 @@ export const POST = withHandler(
     const member = await isCommunityMember(communityId, me!.id);
     if (!member) return apiForbidden("Join this community to comment");
 
-    const { data: body, error: parseErr } = await parseBody<{
-      target_type?: string;
-      target_id?: string;
-      content?: string;
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<CommunityCommentCreateBody>(request);
     if (parseErr) return parseErr;
 
     const targetType = parseTargetType(body?.target_type ?? null);

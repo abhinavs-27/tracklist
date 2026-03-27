@@ -8,6 +8,7 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { CommunityInviteBody } from "@/types";
 import { isValidUuid } from "@/lib/validation";
 
 /** POST /api/communities/:id/invites — owner invites a user. Body: { invitedUserId } */
@@ -16,9 +17,7 @@ export const POST = withHandler(
     const cid = params.id?.trim() ?? "";
     if (!cid || !isValidUuid(cid)) return apiNotFound("Invalid community");
 
-    const { data: body, error: parseErr } = await parseBody<{
-      invitedUserId?: unknown;
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<CommunityInviteBody>(request);
     if (parseErr) return parseErr;
 
     const raw =

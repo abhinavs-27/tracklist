@@ -3,6 +3,7 @@ import { withHandler } from "@/lib/api-handler";
 import { createList, searchLists, grantAchievementOnList } from "@/lib/queries";
 import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { ListCreateBody } from "@/types";
 import {
   validateListTitle,
   validateListDescription,
@@ -23,14 +24,7 @@ export const GET = withHandler(async (request: NextRequest) => {
 /** POST – create a new list. Body: { title, description? }. Auth required. */
 export const POST = withHandler(
   async (request, { user: me }) => {
-    const { data: body, error: parseErr } = await parseBody<{
-      title?: unknown;
-      description?: unknown;
-      type?: unknown;
-      visibility?: unknown;
-      first_item?: { entity_type?: unknown; entity_id?: unknown };
-      initial_items?: { entity_type?: unknown; entity_id?: unknown }[];
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<ListCreateBody>(request);
     if (parseErr) return parseErr;
 
     const titleResult = validateListTitle(body!.title);

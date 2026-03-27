@@ -3,6 +3,7 @@ import { withHandler } from "@/lib/api-handler";
 import { createCommunity, getUserCommunities } from "@/lib/community/queries";
 import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { CommunityCreateBody } from "@/types";
 
 /** GET /api/communities — communities the current user belongs to. */
 export const GET = withHandler(
@@ -16,11 +17,7 @@ export const GET = withHandler(
 /** POST /api/communities — body: { name, description?, is_private? } */
 export const POST = withHandler(
   async (request: NextRequest, { user: me }) => {
-    const { data: body, error: parseErr } = await parseBody<{
-      name?: unknown;
-      description?: unknown;
-      is_private?: unknown;
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<CommunityCreateBody>(request);
     if (parseErr) return parseErr;
 
     const name = typeof body!.name === "string" ? body!.name.trim() : "";

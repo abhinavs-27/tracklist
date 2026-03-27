@@ -11,6 +11,7 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { ListUpdateBody } from "@/types";
 import {
   isValidUuid,
   validateListTitle,
@@ -76,13 +77,7 @@ export const PATCH = withHandler(
       return apiForbidden("You do not own this list");
     }
 
-    const { data: body, error: bodyError } = await parseBody<{
-      title?: unknown;
-      description?: unknown;
-      visibility?: unknown;
-      emoji?: unknown;
-      image_url?: unknown;
-    }>(request);
+    const { data: body, error: bodyError } = await parseBody<ListUpdateBody>(request);
     if (bodyError) return bodyError;
 
     const updates: Record<string, unknown> = {};

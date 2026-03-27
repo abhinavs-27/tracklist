@@ -3,14 +3,13 @@ import { withHandler } from "@/lib/api-handler";
 import { joinPublicCommunity } from "@/lib/community/queries";
 import { apiBadRequest, apiForbidden, apiNotFound, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { CommunityJoinBody } from "@/types";
 import { isValidUuid } from "@/lib/validation";
 
 /** POST /api/communities/join — body: { communityId } — public communities only. */
 export const POST = withHandler(
   async (request: NextRequest, { user: me }) => {
-    const { data: body, error: parseErr } = await parseBody<{
-      communityId?: unknown;
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<CommunityJoinBody>(request);
     if (parseErr) return parseErr;
 
     const raw = typeof body!.communityId === "string" ? body!.communityId.trim() : "";

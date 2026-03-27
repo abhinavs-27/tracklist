@@ -1,90 +1,85 @@
 import { NextRequest } from 'next/server';
-import { getUserFromRequest } from '@/lib/auth';
+import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { enrichUsersWithFollowStatus } from '@/lib/queries';
-import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
+import { apiInternalError, apiOk } from '@/lib/api-response';
 import { clampLimit } from '@/lib/validation';
 import type { DiscoverUsersResponse } from '@/types';
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const limit = clampLimit(searchParams.get('limit'), 20, 16);
+export const GET = withHandler(async (request: NextRequest) => {
+  const { searchParams } = new URL(request.url);
+  const limit = clampLimit(searchParams.get('limit'), 20, 16);
 
-    const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
-    const { data: reviews, error: reviewsError } = await supabase
-      .from('reviews')
-      .select('user_id, entity_id, entity_type, created_at')
-      .eq('entity_type', 'album')
-      .order('created_at', { ascending: false })
-      .limit(Math.min(Math.max(limit * 10, 50), 80));
+  const { data: reviews, error: reviewsError } = await supabase
+    .from('reviews')
+    .select('user_id, entity_id, entity_type, created_at')
+    .eq('entity_type', 'album')
+    .order('created_at', { ascending: false })
+    .limit(Math.min(Math.max(limit * 10, 50), 80));
 
-    if (reviewsError) return apiInternalError(reviewsError);
+  if (reviewsError) return apiInternalError(reviewsError);
 
-    const recentReviews = reviews ?? [];
-    const seen = new Set<string>();
-    const userIds: string[] = [];
-    const latestAlbumByUser = new Map<string, { spotify_id: string; created_at: string }>();
+  const recentReviews = reviews ?? [];
+  const seen = new Set<string>();
+  const userIds: string[] = [];
+  const latestAlbumByUser = new Map<string, { spotify_id: string; created_at: string }>();
 
-    for (const r of recentReviews) {
-      if (!r?.user_id || !r?.entity_id) continue;
-      if (seen.has(r.user_id)) continue;
-      seen.add(r.user_id);
-      userIds.push(r.user_id);
-      latestAlbumByUser.set(r.user_id, { spotify_id: r.entity_id, created_at: r.created_at });
-      if (userIds.length >= limit) break;
-    }
+  for (const r of recentReviews) {
+    if (!r?.user_id || !r?.entity_id) continue;
+    if (seen.has(r.user_id)) continue;
+    seen.add(r.user_id);
+    userIds.push(r.user_id);
+    latestAlbumByUser.set(r.user_id, { spotify_id: r.entity_id, created_at: r.created_at });
+    if (userIds.length >= limit) break;
+  }
 
-    if (userIds.length === 0) {
-      const body: DiscoverUsersResponse = { users: [] };
-      return apiOk(body);
-    }
+  if (userIds.length === 0) {
+    const body: DiscoverUsersResponse = { users: [] };
+    return apiOk(body);
+  }
 
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, username, avatar_url, bio, created_at')
-      .in('id', userIds);
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, username, avatar_url, bio, created_at')
+    .in('id', userIds);
 
-    if (usersError) return apiInternalError(usersError);
+  if (usersError) return apiInternalError(usersError);
 
-    const viewer = await getUserFromRequest(request);
-    const viewerId = viewer?.id ?? null;
+  const viewer = await (await import('@/lib/auth')).getUserFromRequest(request);
+  const resolvedViewerId = viewer?.id ?? null;
 
-    const enrichedUsers = await enrichUsersWithFollowStatus(
-      (users ?? []).map((u) => ({
+  const enrichedUsers = await enrichUsersWithFollowStatus(
+    (users ?? []).map((u) => ({
+      id: u.id,
+      username: u.username,
+      avatar_url: u.avatar_url,
+      bio: u.bio,
+      created_at: u.created_at,
+    })),
+    resolvedViewerId,
+  );
+
+  const userMap = new Map(enrichedUsers.map((u) => [u.id, u]));
+
+  const result = userIds
+    .map((id) => {
+      const u = userMap.get(id);
+      if (!u) return null;
+      const latest = latestAlbumByUser.get(id);
+      return {
         id: u.id,
         username: u.username,
         avatar_url: u.avatar_url,
-        bio: u.bio,
-        created_at: u.created_at,
-      })),
-      viewerId,
-    );
+        latest_album_spotify_id: latest?.spotify_id ?? null,
+        latest_log_created_at: latest?.created_at ?? null,
+        is_following: u.is_following,
+        is_viewer: resolvedViewerId ? resolvedViewerId === u.id : false,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x);
 
-    const userMap = new Map(enrichedUsers.map((u) => [u.id, u]));
-
-    const result = userIds
-      .map((id) => {
-        const u = userMap.get(id);
-        if (!u) return null;
-        const latest = latestAlbumByUser.get(id);
-        return {
-          id: u.id,
-          username: u.username,
-          avatar_url: u.avatar_url,
-          latest_album_spotify_id: latest?.spotify_id ?? null,
-          latest_log_created_at: latest?.created_at ?? null,
-          is_following: u.is_following,
-          is_viewer: viewerId ? viewerId === u.id : false,
-        };
-      })
-      .filter((x): x is NonNullable<typeof x> => !!x);
-
-    const body: DiscoverUsersResponse = { users: result };
-    return apiOk(body);
-  } catch (e) {
-    if (e instanceof TypeError) return apiBadRequest('Invalid request');
-    return apiInternalError(e);
-  }
-}
+  const body: DiscoverUsersResponse = { users: result };
+  return apiOk(body);
+});
