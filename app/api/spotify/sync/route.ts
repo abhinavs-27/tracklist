@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     // Warm songs/albums cache so feed listen-sessions RPC can join logs → songs and show sessions
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
     try {
-      await getOrFetchTracksBatch(idsToWarm);
+      await getOrFetchTracksBatch(idsToWarm, { allowNetwork: true });
     } catch (e) {
       console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
     }

@@ -4,7 +4,7 @@ import { getEntityDisplayNames } from "@/lib/queries";
 import type { ActivityFeedPage } from "@/lib/queries";
 import { getMergedActivityFeed } from "@/lib/feed/merged-feed";
 import { timeAsync } from "@/lib/profiling";
-import { getOrFetchAlbum, getOrFetchTrack, getOrFetchAlbumsBatch, getOrFetchTracksBatch, batchResultsToMap } from "@/lib/spotify-cache";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { FeedActivity } from "@/types";
 
 export async function getFeedForUser(
@@ -37,18 +37,7 @@ export async function enrichFeedActivitiesWithEntityNames(
       out.push({ ...activity, spotifyName: undefined });
       continue;
     }
-    let name = nameMap.get(activity.review.entity_id);
-    if (name == null) {
-      try {
-        name =
-          activity.review.entity_type === "album"
-            ? (await getOrFetchAlbum(activity.review.entity_id)).album?.name ??
-              undefined
-            : (await getOrFetchTrack(activity.review.entity_id))?.name;
-      } catch {
-        name = undefined;
-      }
-    }
+    const name = nameMap.get(activity.review.entity_id);
     out.push({ ...activity, spotifyName: name ?? undefined });
   }
   return out;
@@ -60,6 +49,7 @@ export async function enrichListenSessionsWithAlbums(
   activities: FeedActivity[],
 ): Promise<FeedActivity[]> {
   return timeAsync("enrich", "enrichListenSessionsWithAlbums", async () => {
+  const supabase = createSupabaseAdminClient();
   const sessionActivities = activities.filter(
     (a): a is FeedActivity & { type: "listen_session" } => a.type === "listen_session",
   );
@@ -77,12 +67,65 @@ export async function enrichListenSessionsWithAlbums(
 
   const albumIdList = [...albumIds];
   const trackIdList = [...trackIdsNeedingName];
-  const albumArr =
-    albumIdList.length > 0 ? await getOrFetchAlbumsBatch(albumIdList) : [];
-  const trackArr =
-    trackIdList.length > 0 ? await getOrFetchTracksBatch(trackIdList) : [];
-  const albumMap = batchResultsToMap(albumIdList, albumArr);
-  const trackMap = batchResultsToMap(trackIdList, trackArr);
+
+  type DbArtist = { id: string; name: string };
+  type DbAlbum = { id: string; name: string; artist_id: string; image_url: string | null };
+  type DbTrack = { id: string; name: string; artist_id: string | null };
+
+  const [{ data: albumRows }, { data: trackRows }] = await Promise.all([
+    albumIdList.length > 0
+      ? supabase
+          .from("albums")
+          .select("id, name, artist_id, image_url")
+          .in("id", albumIdList)
+      : Promise.resolve({ data: [] as DbAlbum[] }),
+    trackIdList.length > 0
+      ? supabase
+          .from("songs")
+          .select("id, name, artist_id")
+          .in("id", trackIdList)
+      : Promise.resolve({ data: [] as DbTrack[] }),
+  ]);
+
+  const artistIds = new Set<string>();
+  for (const a of (albumRows ?? []) as DbAlbum[]) artistIds.add(a.artist_id);
+  for (const t of (trackRows ?? []) as DbTrack[]) {
+    if (t.artist_id) artistIds.add(t.artist_id);
+  }
+  const { data: artistRows } =
+    artistIds.size > 0
+      ? await supabase
+          .from("artists")
+          .select("id, name")
+          .in("id", [...artistIds])
+      : { data: [] as DbArtist[] };
+
+  const artistNameById = new Map(
+    ((artistRows ?? []) as DbArtist[]).map((r) => [r.id, r.name]),
+  );
+
+  const albumMap = new Map(
+    ((albumRows ?? []) as DbAlbum[]).map((a) => [
+      a.id,
+      {
+        id: a.id,
+        name: a.name,
+        images: a.image_url ? [{ url: a.image_url }] : [],
+        artists: [{ id: a.artist_id, name: artistNameById.get(a.artist_id) ?? "" }],
+      },
+    ]),
+  );
+  const trackMap = new Map(
+    ((trackRows ?? []) as DbTrack[]).map((t) => [
+      t.id,
+      {
+        name: t.name,
+        artists: t.artist_id
+          ? [{ id: t.artist_id, name: artistNameById.get(t.artist_id) ?? "" }]
+          : [],
+      },
+    ]),
+  );
 
   const applyTrackName = <T extends { track_id?: string; track_name?: string | null; artist_name?: string | null }>(
     s: T,

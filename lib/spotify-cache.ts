@@ -13,8 +13,25 @@ import {
   getTracks,
 } from "@/lib/spotify";
 import { MAX_SPOTIFY_ITEMS } from "@/lib/spotify/client";
+import {
+  catalogReadsAllowSpotifyNetwork,
+  type CatalogFetchOpts,
+} from "@/lib/spotify/catalog-read-policy";
+
+export type { CatalogFetchOpts } from "@/lib/spotify/catalog-read-policy";
 
 const LOG_PREFIX = "[spotify-cache]";
+
+function emptyTrackPaging(): SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> {
+  return {
+    items: [],
+    total: 0,
+    limit: 0,
+    offset: 0,
+    next: null,
+    previous: null,
+  };
+}
 
 /** TTL for cached Spotify data: refresh if older than this (default 30 days). */
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -104,15 +121,90 @@ type AlbumRow = {
 type SongRow = {
   id: string;
   name: string;
-  album_id: string;
-  artist_id: string;
+  album_id: string | null;
+  artist_id: string | null;
   duration_ms: number | null;
   track_number: number | null;
   popularity?: number | null;
   created_at: string;
   updated_at: string;
   cached_at?: string | null;
+  spotify_id?: string | null;
+  lastfm_name?: string | null;
+  lastfm_artist_name?: string | null;
 };
+
+function buildSyntheticLfmTrack(
+  song: SongRow,
+): SpotifyApi.TrackObjectFull {
+  const aid = song.artist_id ?? "lfm-unknown";
+  return {
+    id: song.id,
+    name: song.name,
+    artists: [
+      {
+        id: aid,
+        name: song.lastfm_artist_name ?? "Artist",
+      },
+    ],
+    duration_ms: song.duration_ms ?? undefined,
+    album: undefined,
+  } as SpotifyApi.TrackObjectFull;
+}
+
+async function trackFromDbSongRow(
+  supabase: SupabaseClient,
+  song: SongRow,
+): Promise<SpotifyApi.TrackObjectFull> {
+  const albumPromise = song.album_id
+    ? supabase
+        .from("albums")
+        .select("id, name, artist_id, image_url, release_date")
+        .eq("id", song.album_id)
+        .maybeSingle()
+    : Promise.resolve({ data: null });
+  const artistPromise = song.artist_id
+    ? supabase
+        .from("artists")
+        .select("id, name, image_url, genres")
+        .eq("id", song.artist_id)
+        .maybeSingle()
+    : Promise.resolve({ data: null });
+
+  const [{ data: albumRow }, { data: artistRow }] = await Promise.all([
+    albumPromise,
+    artistPromise,
+  ]);
+
+  const album = albumRow as unknown as AlbumRow | null;
+  const artist = artistRow as unknown as ArtistRow | null;
+
+  return {
+    id: song.id,
+    name: song.name,
+    artists: [
+      {
+        id: song.artist_id ?? "",
+        name: artist?.name ?? song.lastfm_artist_name ?? "",
+      },
+    ],
+    duration_ms: song.duration_ms ?? undefined,
+    album: album
+      ? {
+          id: album.id,
+          name: album.name,
+          artists: [
+            {
+              id: album.artist_id,
+              name: artist?.name ?? "",
+            },
+          ],
+          images: album.image_url ? [{ url: album.image_url }] : undefined,
+          release_date: album.release_date ?? undefined,
+        }
+      : undefined,
+  };
+}
 
 // --- Helpers: upsert from Spotify payloads
 
@@ -176,6 +268,10 @@ export async function upsertArtistFromSpotify(
     popularity: newPop,
     updated_at: now,
     cached_at: now,
+    data_source: "spotify" as const,
+    needs_spotify_enrichment: false,
+    spotify_id: a.id,
+    last_updated: now,
   };
 
   const { error } = await supabase.from("artists").upsert(row, {
@@ -287,6 +383,9 @@ export async function upsertTrackFromSpotify(
     popularity: pop,
     updated_at: now,
     cached_at: now,
+    data_source: "spotify" as const,
+    needs_spotify_enrichment: false,
+    spotify_id: track.id,
   };
 
   const { error } = await supabase.from("songs").upsert(row, {
@@ -330,6 +429,9 @@ async function upsertSongRowOnly(
     popularity: pop,
     updated_at: now,
     cached_at: now,
+    data_source: "spotify" as const,
+    needs_spotify_enrichment: false,
+    spotify_id: track.id,
   };
   const { error } = await supabase.from("songs").upsert(row, {
     onConflict: "id",
@@ -344,8 +446,10 @@ async function upsertSongRowOnly(
 
 async function getOrFetchArtistInner(
   id: string,
+  opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.ArtistObjectFull> {
   const supabase = await createSupabaseServerClient();
+  const net = catalogReadsAllowSpotifyNetwork(opts);
 
   const { data: row, error } = await supabase
     .from("artists")
@@ -365,6 +469,17 @@ async function getOrFetchArtistInner(
         id: a.id,
         name: a.name,
         images: [{ url: a.image_url }],
+        genres: a.genres ?? undefined,
+        popularity: typeof a.popularity === "number" ? a.popularity : 0,
+        followers: { total: 0 },
+      } as SpotifyApi.ArtistObjectFull;
+    }
+
+    if (!net) {
+      return {
+        id: a.id,
+        name: a.name,
+        images: undefined,
         genres: a.genres ?? undefined,
         popularity: typeof a.popularity === "number" ? a.popularity : 0,
         followers: { total: 0 },
@@ -400,6 +515,17 @@ async function getOrFetchArtistInner(
 
   logCacheMiss("artist", id);
 
+  if (!net) {
+    return {
+      id,
+      name: id,
+      images: undefined,
+      genres: [],
+      popularity: 0,
+      followers: { total: 0 },
+    } as SpotifyApi.ArtistObjectFull;
+  }
+
   const missStart = performance.now();
   try {
     const artist = await getArtist(id);
@@ -418,11 +544,12 @@ async function getOrFetchArtistInner(
 
 export async function getOrFetchArtist(
   id: string,
+  opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.ArtistObjectFull> {
   return timeAsync(
     "cache",
     "getOrFetchArtist",
-    () => getOrFetchArtistInner(id),
+    () => getOrFetchArtistInner(id, opts),
     { id },
   );
 }
@@ -637,11 +764,15 @@ export async function getOrFetchArtistTopTracks(
 
 // --- getOrFetchAlbum (lazy cache with tracks)
 
-async function getOrFetchAlbumInner(id: string): Promise<{
+async function getOrFetchAlbumInner(
+  id: string,
+  opts?: CatalogFetchOpts,
+): Promise<{
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }> {
   const supabase = await createSupabaseServerClient();
+  const net = catalogReadsAllowSpotifyNetwork(opts);
 
   const { data: albumRow, error: albumErr } = await supabase
     .from("albums")
@@ -680,7 +811,10 @@ async function getOrFetchAlbumInner(id: string): Promise<{
 
       let songs = (songRows ?? []) as unknown as SongRow[];
 
-      if (albumNeedsTrackBackfill(songs.length, album.total_tracks)) {
+      if (
+        net &&
+        albumNeedsTrackBackfill(songs.length, album.total_tracks)
+      ) {
         try {
           const result = await refreshAlbumFromSpotify(supabase, id);
           if (result?.album && result?.tracks)
@@ -735,8 +869,8 @@ async function getOrFetchAlbumInner(id: string): Promise<{
             name: s.name,
             artists: [
               {
-                id: s.artist_id,
-                name: artistMap.get(s.artist_id) ?? "",
+                id: s.artist_id ?? "",
+                name: artistMap.get(s.artist_id ?? "") ?? "",
               },
             ],
             duration_ms: s.duration_ms ?? undefined,
@@ -754,8 +888,8 @@ async function getOrFetchAlbumInner(id: string): Promise<{
         name: s.name,
         artists: [
           {
-            id: s.artist_id,
-            name: artistMap.get(s.artist_id) ?? "",
+            id: s.artist_id ?? "",
+            name: artistMap.get(s.artist_id ?? "") ?? "",
           },
         ],
         duration_ms: s.duration_ms ?? undefined,
@@ -789,7 +923,10 @@ async function getOrFetchAlbumInner(id: string): Promise<{
     let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
 
     let ranStaleSyncBackfill = false;
-    if (albumNeedsTrackBackfill(songsStale.length, album.total_tracks)) {
+    if (
+      net &&
+      albumNeedsTrackBackfill(songsStale.length, album.total_tracks)
+    ) {
       ranStaleSyncBackfill = true;
       try {
         const result = await refreshAlbumFromSpotify(supabase, id);
@@ -811,7 +948,9 @@ async function getOrFetchAlbumInner(id: string): Promise<{
       }
     }
 
-    const artistIdsStale = [...new Set(songsStale.map((s) => s.artist_id))];
+    const artistIdsStale = [
+      ...new Set(songsStale.map((s) => s.artist_id).filter(Boolean)),
+    ] as string[];
     const { data: artistRowsStale } = await supabase
       .from("artists")
       .select("id, name")
@@ -839,7 +978,10 @@ async function getOrFetchAlbumInner(id: string): Promise<{
           id: s.id,
           name: s.name,
           artists: [
-            { id: s.artist_id, name: artistMapStale.get(s.artist_id) ?? "" },
+            {
+              id: s.artist_id ?? "",
+              name: artistMapStale.get(s.artist_id ?? "") ?? "",
+            },
           ],
           duration_ms: s.duration_ms ?? undefined,
         })),
@@ -856,7 +998,10 @@ async function getOrFetchAlbumInner(id: string): Promise<{
           id: s.id,
           name: s.name,
           artists: [
-            { id: s.artist_id, name: artistMapStale.get(s.artist_id) ?? "" },
+            {
+              id: s.artist_id ?? "",
+              name: artistMapStale.get(s.artist_id ?? "") ?? "",
+            },
           ],
           duration_ms: s.duration_ms ?? undefined,
         })),
@@ -866,7 +1011,7 @@ async function getOrFetchAlbumInner(id: string): Promise<{
         next: null,
         previous: null,
       };
-    if (!ranStaleSyncBackfill) {
+    if (!ranStaleSyncBackfill && net) {
       refreshAlbumFromSpotify(supabase, id).catch((e) =>
         console.warn(
           `${LOG_PREFIX} background album refresh failed for ${id}`,
@@ -878,6 +1023,21 @@ async function getOrFetchAlbumInner(id: string): Promise<{
   }
 
   logCacheMiss("album", id);
+
+  if (!net) {
+    return {
+      album: {
+        id,
+        name: "Album",
+        artists: [{ id: "", name: "" }],
+        images: [],
+        release_date: undefined,
+        total_tracks: 0,
+        tracks: emptyTrackPaging(),
+      } as SpotifyApi.AlbumObjectFull,
+      tracks: emptyTrackPaging(),
+    };
+  }
 
   const missStart = performance.now();
   try {
@@ -892,13 +1052,21 @@ async function getOrFetchAlbumInner(id: string): Promise<{
   }
 }
 
-export async function getOrFetchAlbum(id: string): Promise<{
+export async function getOrFetchAlbum(
+  id: string,
+  opts?: CatalogFetchOpts,
+): Promise<{
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }> {
-  return timeAsync("cache", "getOrFetchAlbum", () => getOrFetchAlbumInner(id), {
-    id,
-  });
+  return timeAsync(
+    "cache",
+    "getOrFetchAlbum",
+    () => getOrFetchAlbumInner(id, opts),
+    {
+      id,
+    },
+  );
 }
 
 /** Fetch album + tracks from Spotify and upsert (album once, each artist once, each song once). Returns the fetched data or null on error. */
@@ -940,14 +1108,15 @@ async function refreshAlbumFromSpotify(
 
 async function getOrFetchTrackInner(
   id: string,
-  opts?: { allowLastfmMapping?: boolean },
+  opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.TrackObjectFull> {
   const supabase = await createSupabaseServerClient();
+  const net = catalogReadsAllowSpotifyNetwork(opts);
 
   const { data: songRow, error } = await supabase
     .from("songs")
     .select(
-      "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
+      "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, spotify_id, lastfm_name, lastfm_artist_name",
     )
     .eq("id", id)
     .maybeSingle();
@@ -958,52 +1127,36 @@ async function getOrFetchTrackInner(
 
   if (songRow) {
     const song = songRow as unknown as SongRow;
+    if (song.id.startsWith("lfm:") && song.spotify_id) {
+      return getOrFetchTrackInner(song.spotify_id, opts);
+    }
+    if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+      return buildSyntheticLfmTrack(song);
+    }
     const cacheTime = song.cached_at ?? song.updated_at;
     if (!isCacheStale(cacheTime)) {
-      const [{ data: albumRow }, { data: artistRow }] = await Promise.all([
-        supabase
-          .from("albums")
-          .select("id, name, artist_id, image_url, release_date")
-          .eq("id", song.album_id)
-          .maybeSingle(),
-        supabase
-          .from("artists")
-          .select("id, name, image_url, genres")
-          .eq("id", song.artist_id)
-          .maybeSingle(),
-      ]);
-
-      const album = albumRow as unknown as AlbumRow | null;
-      const artist = artistRow as unknown as ArtistRow | null;
-
-      return {
-        id: song.id,
-        name: song.name,
-        artists: [{ id: song.artist_id, name: artist?.name ?? "" }],
-        duration_ms: song.duration_ms ?? undefined,
-        album: album
-          ? {
-              id: album.id,
-              name: album.name,
-              artists: [
-                {
-                  id: album.artist_id,
-                  name: artist?.name ?? "",
-                },
-              ],
-              images: album.image_url ? [{ url: album.image_url }] : undefined,
-              release_date: album.release_date ?? undefined,
-            }
-          : undefined,
-      };
+      return trackFromDbSongRow(supabase, song);
+    }
+    if (!net) {
+      return trackFromDbSongRow(supabase, song);
     }
   }
 
   logCacheMiss("song", id);
 
+  if (!net) {
+    return {
+      id,
+      name: "Track",
+      artists: [{ id: "", name: "Unknown" }],
+    } as SpotifyApi.TrackObjectFull;
+  }
+
   const missStart = performance.now();
   try {
-    const track = await getTrack(id, opts);
+    const track = await getTrack(id, {
+      allowLastfmMapping: opts?.allowLastfmMapping,
+    });
     const alb = track.album;
     if (!alb) throw new Error("Track has no album");
 
@@ -1030,7 +1183,7 @@ async function getOrFetchTrackInner(
 
 export async function getOrFetchTrack(
   id: string,
-  opts?: { allowLastfmMapping?: boolean },
+  opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.TrackObjectFull> {
   return timeAsync(
     "cache",
@@ -1060,7 +1213,7 @@ function buildTrackFromRows(
   return {
     id: song.id,
     name: song.name,
-    artists: [{ id: song.artist_id, name: artistName }],
+    artists: [{ id: song.artist_id ?? "", name: artistName }],
     duration_ms: song.duration_ms ?? undefined,
     album: album
       ? {
@@ -1077,9 +1230,12 @@ function buildTrackFromRows(
 /** Batch fetch tracks: DB first, then single getTracks() for missing (chunked 50). Returns array in input order. */
 async function getOrFetchTracksBatchInner(
   ids: string[],
+  opts?: CatalogFetchOpts,
 ): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
   let uniqueIds = [...new Set(ids)].filter(Boolean);
   if (uniqueIds.length === 0) return ids.map(() => null);
+
+  const net = catalogReadsAllowSpotifyNetwork(opts);
 
   if (uniqueIds.length > MAX_SPOTIFY_ITEMS) {
     const overflow = uniqueIds.slice(MAX_SPOTIFY_ITEMS);
@@ -1106,15 +1262,17 @@ async function getOrFetchTracksBatchInner(
 
   const { data: songRows } = await supabase
     .from("songs")
-    .select("id, name, album_id, artist_id, duration_ms, cached_at, updated_at")
+    .select(
+      "id, name, album_id, artist_id, duration_ms, cached_at, updated_at, spotify_id, lastfm_name, lastfm_artist_name",
+    )
     .in("id", uniqueIds);
   const allSongs = (songRows ?? []) as unknown as SongRow[];
   const songs = allSongs.filter(
     (s) => !isCacheStale(s.cached_at ?? s.updated_at),
   );
 
-  const albumIds = [...new Set(songs.map((s) => s.album_id).filter(Boolean))];
-  const artistIds = [...new Set(songs.map((s) => s.artist_id).filter(Boolean))];
+  const albumIds = [...new Set(allSongs.map((s) => s.album_id).filter(Boolean))];
+  const artistIds = [...new Set(allSongs.map((s) => s.artist_id).filter(Boolean))];
 
   const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
     albumIds.length
@@ -1137,10 +1295,46 @@ async function getOrFetchTracksBatchInner(
     (artistRows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]),
   );
 
+  if (!net) {
+    for (const song of allSongs) {
+      if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+        lookup.set(song.id, buildSyntheticLfmTrack(song));
+        continue;
+      }
+      const album =
+        song.album_id != null ? (albumMap.get(song.album_id) ?? null) : null;
+      const artistName =
+        song.artist_id != null
+          ? (artistMap.get(song.artist_id) ?? "")
+          : (song.lastfm_artist_name ?? "");
+      lookup.set(song.id, buildTrackFromRows(song, album, artistName));
+    }
+    uniqueIds.forEach((id) => {
+      if (!lookup.has(id)) lookup.set(id, null);
+    });
+    setBatchMemoryMap(memKey, lookup as Map<string, unknown>);
+    return ids.map((id) => lookup.get(id) ?? null);
+  }
+
   for (const song of songs) {
-    const album = albumMap.get(song.album_id) ?? null;
-    const artistName = artistMap.get(song.artist_id) ?? "";
+    if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+      lookup.set(song.id, buildSyntheticLfmTrack(song));
+      continue;
+    }
+    const album =
+      song.album_id != null ? (albumMap.get(song.album_id) ?? null) : null;
+    const artistName =
+      song.artist_id != null
+        ? (artistMap.get(song.artist_id) ?? "")
+        : (song.lastfm_artist_name ?? "");
     lookup.set(song.id, buildTrackFromRows(song, album, artistName));
+  }
+
+  for (const song of allSongs) {
+    if (lookup.has(song.id)) continue;
+    if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+      lookup.set(song.id, buildSyntheticLfmTrack(song));
+    }
   }
 
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
@@ -1182,11 +1376,12 @@ async function getOrFetchTracksBatchInner(
 
 export async function getOrFetchTracksBatch(
   ids: string[],
+  opts?: CatalogFetchOpts,
 ): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
   return timeAsync(
     "cache",
     "getOrFetchTracksBatch",
-    () => getOrFetchTracksBatchInner(ids),
+    () => getOrFetchTracksBatchInner(ids, opts),
     { n: ids.length },
   );
 }
@@ -1194,9 +1389,12 @@ export async function getOrFetchTracksBatch(
 /** Batch fetch albums: DB first, then single getAlbums() for missing (chunked 20). Returns array in input order. */
 async function getOrFetchAlbumsBatchInner(
   ids: string[],
+  opts?: CatalogFetchOpts,
 ): Promise<(SpotifyApi.AlbumObjectSimplified | null)[]> {
   const uniqueIds = [...new Set(ids)].filter(Boolean);
   if (uniqueIds.length === 0) return ids.map(() => null);
+
+  const net = catalogReadsAllowSpotifyNetwork(opts);
 
   const memKey = getBatchCacheKey("albums", ids);
   const cached = getFromBatchMemoryMap(memKey);
@@ -1242,7 +1440,7 @@ async function getOrFetchAlbumsBatchInner(
   }
 
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
-  if (missingIds.length > 0) {
+  if (missingIds.length > 0 && net) {
     try {
       const fetched = await getAlbums(missingIds);
       for (const album of fetched) {
@@ -1277,11 +1475,12 @@ async function getOrFetchAlbumsBatchInner(
 
 export async function getOrFetchAlbumsBatch(
   ids: string[],
+  opts?: CatalogFetchOpts,
 ): Promise<(SpotifyApi.AlbumObjectSimplified | null)[]> {
   return timeAsync(
     "cache",
     "getOrFetchAlbumsBatch",
-    () => getOrFetchAlbumsBatchInner(ids),
+    () => getOrFetchAlbumsBatchInner(ids, opts),
     { n: ids.length },
   );
 }
@@ -1289,9 +1488,12 @@ export async function getOrFetchAlbumsBatch(
 /** Batch fetch artists: DB first, then single getArtists() for missing (chunked 50). Returns array in input order. */
 async function getOrFetchArtistsBatchInner(
   ids: string[],
+  opts?: CatalogFetchOpts,
 ): Promise<(SpotifyApi.ArtistObjectFull | null)[]> {
   let uniqueIds = [...new Set(ids)].filter(Boolean);
   if (uniqueIds.length === 0) return ids.map(() => null);
+
+  const net = catalogReadsAllowSpotifyNetwork(opts);
 
   if (uniqueIds.length > MAX_SPOTIFY_ITEMS) {
     const overflow = uniqueIds.slice(MAX_SPOTIFY_ITEMS);
@@ -1325,6 +1527,24 @@ async function getOrFetchArtistsBatchInner(
     (a) => !isCacheStale(a.cached_at ?? a.updated_at) && a.image_url,
   );
 
+  if (!net) {
+    for (const a of allArtists) {
+      lookup.set(a.id, {
+        id: a.id,
+        name: a.name,
+        images: a.image_url ? [{ url: a.image_url }] : undefined,
+        genres: a.genres ?? undefined,
+        popularity: typeof a.popularity === "number" ? a.popularity : 0,
+        followers: { total: 0 },
+      } as SpotifyApi.ArtistObjectFull);
+    }
+    uniqueIds.forEach((id) => {
+      if (!lookup.has(id)) lookup.set(id, null);
+    });
+    setBatchMemoryMap(memKey, lookup as Map<string, unknown>);
+    return ids.map((id) => lookup.get(id) ?? null);
+  }
+
   for (const a of artistsWithImage) {
     lookup.set(a.id, {
       id: a.id,
@@ -1336,7 +1556,7 @@ async function getOrFetchArtistsBatchInner(
   }
 
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
-  if (missingIds.length > 0) {
+  if (missingIds.length > 0 && net) {
     try {
       const fetched = await getArtists(missingIds);
       for (const artist of fetched) {
@@ -1365,11 +1585,12 @@ async function getOrFetchArtistsBatchInner(
 
 export async function getOrFetchArtistsBatch(
   ids: string[],
+  opts?: CatalogFetchOpts,
 ): Promise<(SpotifyApi.ArtistObjectFull | null)[]> {
   return timeAsync(
     "cache",
     "getOrFetchArtistsBatch",
-    () => getOrFetchArtistsBatchInner(ids),
+    () => getOrFetchArtistsBatchInner(ids, opts),
     { n: ids.length },
   );
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { memo } from 'react';
+import { CatalogArtworkPlaceholder } from '@/components/catalog-artwork-placeholder';
 
 interface TrackCardProps {
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified;
@@ -34,11 +35,13 @@ function TrackCardInner({
   const content = (
     <>
       {showThumbnail && (
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
+        <div className="h-12 w-12 shrink-0">
           {image ? (
-            <img src={image} alt="" className="h-full w-full object-cover" />
+            <div className="h-12 w-12 overflow-hidden rounded bg-zinc-800">
+              <img src={image} alt="" className="h-full w-full object-cover" />
+            </div>
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-xl text-zinc-600">♪</div>
+            <CatalogArtworkPlaceholder size="md" />
           )}
         </div>
       )}

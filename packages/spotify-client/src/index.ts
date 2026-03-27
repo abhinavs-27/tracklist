@@ -12,6 +12,7 @@ const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_RETRIES = 3;
 const MEMORY_CACHE_MAX = 5000;
+const FAIL_FAST_ON_429 = process.env.SPOTIFY_FAIL_FAST_ON_429 !== "0";
 
 const TTL_ARTIST_ALBUM_TRACK_SEC = 86400 * 7;
 const TTL_SEARCH_SEC = 3600;
@@ -419,6 +420,13 @@ async function fetchCatalogResponseWithRetry(
     const retryAfter = Number(res.headers.get("Retry-After") || 1);
     const retryAfterSec = Number.isFinite(retryAfter) ? retryAfter : 1;
     await tripCircuitBreaker(retryAfterSec);
+    if (FAIL_FAST_ON_429) {
+      const ra = Number.isFinite(retryAfter) ? retryAfter : null;
+      throw new SpotifyRateLimitError(
+        `Spotify API rate limited for ${path}`,
+        ra,
+      );
+    }
     const waitMs = Math.min(
       120_000,
       Math.max(1000, retryAfterSec * 1000),
@@ -619,6 +627,13 @@ export async function bearerSpotifyFetchJson<T>(
       maybeLogSpotifyHealth();
       const retryAfterSec = Number(res.headers.get("Retry-After") || 2);
       await tripCircuitBreaker(Number.isFinite(retryAfterSec) ? retryAfterSec : 2);
+      if (FAIL_FAST_ON_429) {
+        const ra = Number.parseInt(res.headers.get("Retry-After") || "1", 10);
+        throw new SpotifyRateLimitError(
+          `Spotify user API rate limited for ${path}`,
+          Number.isFinite(ra) ? ra : null,
+        );
+      }
       if (retriesLeft <= 0) {
         const ra = Number.parseInt(res.headers.get("Retry-After") || "1", 10);
         throw new SpotifyRateLimitError(

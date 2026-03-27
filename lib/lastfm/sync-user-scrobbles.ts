@@ -2,10 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { mapScrobblesToPreviewRows } from "@/lib/lastfm/build-preview";
 import { fetchLastfmRecentTracksSafe } from "@/lib/lastfm/fetch-recent";
-import { insertLastfmImportEntries } from "@/lib/lastfm/import-entries";
-import type { LastfmImportEntry } from "@/lib/lastfm/types";
+import { ingestLastfmScrobbles } from "@/lib/lastfm/ingest";
 
 export const LASTFM_USER_SYNC_FETCH_LIMIT = 100;
 
@@ -39,8 +37,9 @@ export type SyncLastfmUserResult = {
 };
 
 /**
- * Fetch Last.fm recent tracks, import new matched scrobbles since the latest
- * `logs` row with source lastfm, update `users.lastfm_last_synced_at`.
+ * Fetch Last.fm recent tracks, import new scrobbles since the latest
+ * `logs` row with source lastfm (Last.fm–primary path: DB first, Spotify enriches async),
+ * update `users.lastfm_last_synced_at`.
  * Used by the daily cron and by POST /api/lastfm/sync after the user saves a username.
  */
 export async function syncLastfmScrobblesForUser(
@@ -85,30 +84,7 @@ export async function syncLastfmScrobblesForUser(
       return { imported: 0, lastSyncedAt: nowIso, fetchFailed: false };
     }
 
-    const previewRows = await mapScrobblesToPreviewRows(fresh);
-    const entries: LastfmImportEntry[] = [];
-    for (const row of previewRows) {
-      if (row.matchStatus !== "matched" || !row.spotifyTrackId) continue;
-      entries.push({
-        spotifyTrackId: row.spotifyTrackId,
-        listenedAt: row.listenedAtIso,
-        albumId: row.albumId,
-        artistId: row.artistId,
-        trackName: row.trackName,
-        artistName: row.artistName,
-        artworkUrl: row.artworkUrl,
-      });
-    }
-
-    if (entries.length === 0) {
-      await supabase
-        .from("users")
-        .update({ lastfm_last_synced_at: nowIso })
-        .eq("id", userId);
-      return { imported: 0, lastSyncedAt: nowIso, fetchFailed: false };
-    }
-
-    const result = await insertLastfmImportEntries(supabase, userId, entries);
+    const ingest = await ingestLastfmScrobbles(supabase, userId, fresh);
 
     await supabase
       .from("users")
@@ -116,7 +92,7 @@ export async function syncLastfmScrobblesForUser(
       .eq("id", userId);
 
     return {
-      imported: result.imported,
+      imported: ingest.insertedLogs,
       lastSyncedAt: nowIso,
       fetchFailed: false,
     };

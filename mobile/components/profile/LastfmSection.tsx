@@ -274,6 +274,7 @@ export function LastfmSection({
 
   const preview = previewQuery.data;
   const showList = previewQuery.data && !previewQuery.isFetching;
+  const showConnectCta = !initialUsername?.trim();
 
   return (
     <View
@@ -289,6 +290,26 @@ export function LastfmSection({
       <Text style={{ fontSize: 17, fontWeight: "800", color: theme.colors.text }}>
         Last.fm
       </Text>
+      {showConnectCta ? (
+        <View
+          style={{
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: "rgba(16, 185, 129, 0.35)",
+            backgroundColor: "rgba(6, 78, 59, 0.35)",
+            padding: 12,
+            gap: 6,
+          }}
+        >
+          <Text style={{ fontSize: 14, fontWeight: "700", color: "#d1fae5" }}>
+            Connect Last.fm to power your data
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.colors.muted, lineHeight: 18 }}>
+            Listens sync from Last.fm first; Spotify adds artwork in the background. Works even when
+            Spotify is down.
+          </Text>
+        </View>
+      ) : null}
       <Text style={{ fontSize: 13, color: theme.colors.muted, lineHeight: 18 }}>
         Save your Last.fm username once. New scrobbles sync automatically (including right after you
         save). No password — we only use Last.fm’s public API.

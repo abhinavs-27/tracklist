@@ -1,12 +1,12 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { enqueueSpotifyEnrich } from "@/lib/jobs/spotifyQueue";
 import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist-genres";
-import { getOrFetchTrack } from "@/lib/spotify-cache";
 
 /**
  * After a manual log row is inserted:
- * 1. Ensure `songs` / `albums` / `artists` rows exist via getOrFetchTrack (catalog cache).
+ * 1. Enqueue catalog hydration (never block on Spotify in the request path).
  * 2. Refresh `album_stats` / `track_stats` from `logs`.
  * Profile “recent” UIs read only from `logs` + catalog tables — no spotify_recent_tracks.
  */
@@ -15,14 +15,7 @@ export async function syncManualLogSideEffects(
   trackId: string,
   _listenedAtIso: string,
 ): Promise<void> {
-  try {
-    await getOrFetchTrack(trackId);
-  } catch (e) {
-    console.warn("[syncManualLog] getOrFetchTrack failed; stats may be incomplete until refresh", {
-      trackId,
-      error: e instanceof Error ? e.message : String(e),
-    });
-  }
+  await enqueueSpotifyEnrich({ name: "enrich_track", trackId });
 
   const supabase = createSupabaseAdminClient();
   scheduleEnrichArtistGenresForTrackIds(supabase, [trackId]);
@@ -46,11 +39,7 @@ export async function syncBatchLogSideEffects(
   const uniqueIds = [...new Set(entries.map((e) => e.trackId))];
 
   for (const id of uniqueIds) {
-    try {
-      await getOrFetchTrack(id);
-    } catch (e) {
-      console.warn("[syncBatchLog] getOrFetchTrack failed", { id, error: e });
-    }
+    await enqueueSpotifyEnrich({ name: "enrich_track", trackId: id });
   }
 
   const supabase = createSupabaseAdminClient();

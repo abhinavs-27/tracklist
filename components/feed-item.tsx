@@ -2,6 +2,7 @@
 
 import { useState, memo } from 'react';
 import Link from 'next/link';
+import { CatalogArtworkPlaceholder } from '@/components/catalog-artwork-placeholder';
 import { ReviewCard } from './review-card';
 import { formatRelativeTime } from '@/lib/time';
 import type { FeedActivity, FeedListenSession } from '@/types';
@@ -18,13 +19,13 @@ const ListenSessionRow = memo(function ListenSessionRow({ session }: { session: 
       href={`/album/${session.album_id}`}
       className="group flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-2 transition hover:border-zinc-600 hover:bg-zinc-800/50"
     >
-      <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
-        {image ? (
+      {image ? (
+        <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
           <img src={image} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-lg text-zinc-600">♪</div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <CatalogArtworkPlaceholder size="sm" />
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-white group-hover:text-emerald-400">{trackName}</p>
         {artistName ? <p className="truncate text-xs text-zinc-500">{artistName}</p> : null}
@@ -372,13 +373,13 @@ function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
               href={`/album/${activity.album_id}`}
               className="group mt-1 flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-2 transition hover:border-zinc-600 hover:bg-zinc-800/50"
             >
-              <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
-                {image ? (
+              {image ? (
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
                   <img src={image} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xl text-zinc-600">♪</div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <CatalogArtworkPlaceholder size="md" />
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-white group-hover:text-emerald-400">{trackName}</p>
                 {artistName ? (

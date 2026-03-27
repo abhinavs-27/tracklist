@@ -285,10 +285,25 @@ export function LastfmSection({
   const preview = previewQuery.data;
   const showPreviewBody = previewQuery.data && !previewQuery.isFetching;
 
+  const showConnectCta = !initialUsername?.trim();
+
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
       <h2 className="text-lg font-semibold text-white">Last.fm</h2>
-      <p className="mt-1 text-sm text-zinc-500">
+      {showConnectCta ? (
+        <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-950/25 px-3 py-3">
+          <p className="text-sm font-medium text-emerald-100/95">
+            Connect Last.fm to power your data
+          </p>
+          <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+            Your listens sync from Last.fm first. Spotify enriches album art and metadata in the
+            background — the app keeps working even when Spotify is unavailable.
+          </p>
+        </div>
+      ) : null}
+      <p
+        className={`text-sm text-zinc-500 ${showConnectCta ? "mt-3" : "mt-1"}`}
+      >
         Save your public Last.fm username once. We sync new scrobbles automatically in the
         background (and once right after you save). No Last.fm password — read-only API access.
       </p>

@@ -104,7 +104,7 @@ export async function syncRecentlyPlayed(
     // Warm songs cache so feed listen-sessions (logs INNER JOIN songs) show this user's listens
     const trackIds = [...new Set(passiveLogs.map((l) => l.track_id))];
     try {
-      await getOrFetchTracksBatch(trackIds);
+      await getOrFetchTracksBatch(trackIds, { allowNetwork: true });
     } catch (e) {
       console.warn(
         "spotify-sync: cache warm failed (feed may show fewer listens until tracks are loaded):",
