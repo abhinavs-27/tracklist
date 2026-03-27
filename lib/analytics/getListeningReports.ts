@@ -172,9 +172,12 @@ async function enrichReportItems(
   const ids = rows.map((r) => r.entity_id);
   if (entityType === "artist") {
     const list = await getOrFetchArtistsBatch(ids);
+    const byEntityId = new Map(
+      ids.map((id, i) => [id, list[i] ?? null] as const),
+    );
     return rows.map((r, i) => {
       const rank = rankOffset + i + 1;
-      const a = list[i];
+      const a = byEntityId.get(r.entity_id) ?? list[i];
       const pr = prevRankMap.get(r.entity_id) ?? null;
       const isNew = !prevRankMap.has(r.entity_id);
       return {
@@ -191,9 +194,12 @@ async function enrichReportItems(
   }
   if (entityType === "album") {
     const list = await getOrFetchAlbumsBatch(ids);
+    const byEntityId = new Map(
+      ids.map((id, i) => [id, list[i] ?? null] as const),
+    );
     return rows.map((r, i) => {
       const rank = rankOffset + i + 1;
-      const a = list[i];
+      const a = byEntityId.get(r.entity_id) ?? list[i];
       const pr = prevRankMap.get(r.entity_id) ?? null;
       const isNew = !prevRankMap.has(r.entity_id);
       return {
@@ -209,9 +215,12 @@ async function enrichReportItems(
     });
   }
   const list = await getOrFetchTracksBatch(ids);
+  const byEntityId = new Map(
+    ids.map((id, i) => [id, list[i] ?? null] as const),
+  );
   return rows.map((r, i) => {
     const rank = rankOffset + i + 1;
-    const t = list[i];
+    const t = byEntityId.get(r.entity_id) ?? list[i];
     const pr = prevRankMap.get(r.entity_id) ?? null;
     const isNew = !prevRankMap.has(r.entity_id);
     return {
