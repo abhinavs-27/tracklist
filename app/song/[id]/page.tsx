@@ -17,6 +17,7 @@ import {
   getListenLogsForTrack,
 } from "@/lib/queries";
 import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -28,15 +29,14 @@ function formatDuration(ms: number | undefined) {
 }
 
 export default async function SongPage({ params }: { params: PageParams }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  /** Route params may arrive as `lfm%3A...`; DB + Spotify paths need `lfm:...`. */
+  const id = normalizeReviewEntityId(rawId);
   const session = await getServerSession(authOptions);
 
   let track: SpotifyApi.TrackObjectFull;
   try {
-    track = await getOrFetchTrack(id, {
-      allowNetwork: id.startsWith("lfm:"),
-      allowLastfmMapping: id.startsWith("lfm:"),
-    });
+    track = await getOrFetchTrack(id);
   } catch {
     notFound();
   }

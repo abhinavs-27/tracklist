@@ -5,6 +5,7 @@ import { useReviews } from "@/lib/hooks/use-reviews";
 import { VirtualReviewList } from "@/components/virtual-review-list";
 import type { ReviewsResponse } from "@/lib/hooks/use-reviews";
 import { useAlbumReviewsContext } from "@/app/album/[id]/album-reviews-context";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 function formatStars(rating: number) {
   const r = Math.max(1, Math.min(5, Math.floor(rating)));
@@ -31,7 +32,7 @@ export function ReviewsSectionWithData({
   const useAlbumData =
     entityType === "album" &&
     albumContext &&
-    albumContext.albumId === String(entityId ?? "");
+    albumContext.albumId === normalizeReviewEntityId(String(entityId ?? ""));
   const {
     reviews,
     data,

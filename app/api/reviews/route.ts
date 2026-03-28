@@ -9,7 +9,8 @@ import {
 import { parseBody } from "@/lib/api-utils";
 import { ReviewCreateBody } from "@/types";
 import {
-  isValidSpotifyId,
+  isValidReviewEntityId,
+  normalizeReviewEntityId,
   validateReviewContent,
   clampLimit,
   validateEntityType,
@@ -17,11 +18,12 @@ import {
 } from "@/lib/validation";
 import { getReviewsForEntity } from "@/lib/queries";
 
-/** GET ?entity_type=album|song&entity_id=<spotify_id>&limit= optional */
+/** GET ?entity_type=album|song&entity_id=<spotify_or_lfm_id>&limit= optional */
 export const GET = withHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const entityType = searchParams.get("entity_type");
-  const entityId = searchParams.get("entity_id");
+  const rawEntityId = searchParams.get("entity_id");
+  const entityId = rawEntityId ? normalizeReviewEntityId(rawEntityId) : null;
   const limit = clampLimit(searchParams.get("limit"), 20, 10);
 
   if (!entityType || !entityId) {
@@ -31,8 +33,8 @@ export const GET = withHandler(async (request: NextRequest) => {
   const typeResult = validateEntityType(entityType);
   if (!typeResult.ok) return apiBadRequest(typeResult.error);
 
-  if (!isValidSpotifyId(entityId)) {
-    return apiBadRequest("Invalid entity_id (Spotify ID)");
+  if (!isValidReviewEntityId(entityId)) {
+    return apiBadRequest("Invalid entity_id");
   }
 
   const result = await getReviewsForEntity(typeResult.value, entityId, limit);
@@ -47,17 +49,18 @@ export const POST = withHandler(
     const { data: body, error: parseErr } = await parseBody<ReviewCreateBody>(request);
     if (parseErr) return parseErr;
 
-    const { entity_type, entity_id, rating, review_text } = body!;
+    const { entity_type, entity_id: rawEntityIdBody, rating, review_text } = body!;
 
-    if (!entity_type || !entity_id || rating == null) {
+    if (!entity_type || !rawEntityIdBody || rating == null) {
       return apiBadRequest("entity_type, entity_id, and rating required");
     }
 
     const typeResult = validateEntityType(entity_type);
     if (!typeResult.ok) return apiBadRequest(typeResult.error);
 
-    if (!isValidSpotifyId(entity_id)) {
-      return apiBadRequest("Invalid entity_id (Spotify ID)");
+    const entity_id = normalizeReviewEntityId(String(rawEntityIdBody));
+    if (!isValidReviewEntityId(entity_id)) {
+      return apiBadRequest("Invalid entity_id");
     }
 
     const ratingResult = validateRating(rating);
@@ -69,7 +72,7 @@ export const POST = withHandler(
     const row = {
       user_id: me!.id,
       entity_type: typeResult.value,
-      entity_id: entity_id as string,
+      entity_id,
       rating: ratingResult.value,
       review_text: reviewText,
       updated_at: new Date().toISOString(),

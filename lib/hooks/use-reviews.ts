@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 export type ReviewItem = {
   id: string;
@@ -46,8 +47,8 @@ export function useReviews(
   options?: { initialData?: ReviewsResponse | null }
 ) {
   const queryClient = useQueryClient();
-  // Normalize so both section and modal use the same cache key (e.g. string vs number from URL)
-  const normalizedId = String(entityId ?? "");
+  // Normalize + fix double-encoded ids (`lfm%253A...` → `lfm:...`) so query key matches server
+  const normalizedId = normalizeReviewEntityId(String(entityId ?? ""));
   const reviewsKey = queryKeys.reviews(entityType, normalizedId);
 
   const {

@@ -17,6 +17,9 @@ import {
   catalogReadsAllowSpotifyNetwork,
   type CatalogFetchOpts,
 } from "@/lib/spotify/catalog-read-policy";
+import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 export type { CatalogFetchOpts } from "@/lib/spotify/catalog-read-policy";
 
@@ -168,6 +171,101 @@ function buildSyntheticLfmTrack(
     duration_ms: song.duration_ms ?? undefined,
     album: undefined,
   } as SpotifyApi.TrackObjectFull;
+}
+
+function trimmedSpotifyId(song: SongRow): string {
+  return typeof song.spotify_id === "string" ? song.spotify_id.trim() : "";
+}
+
+/** Keep `lfm:*` as the canonical track id when we hydrated from Spotify catalog. */
+function withCanonicalSongId(
+  lfmId: string,
+  track: SpotifyApi.TrackObjectFull,
+): SpotifyApi.TrackObjectFull {
+  return {
+    ...track,
+    id: lfmId,
+  } as SpotifyApi.TrackObjectFull;
+}
+
+/** Mirror `resolveTrackSpotifyJob`: persist Spotify ids onto the synthetic `lfm:*` row (service role). */
+async function persistLfmSongSpotifyLink(
+  lfmSongId: string,
+  track: SpotifyApi.TrackObjectFull,
+): Promise<void> {
+  const alb = track.album;
+  const first = track.artists?.[0];
+  if (!alb || !first) return;
+
+  const supabase = createSupabaseAdminClient();
+  const trackWithPop = track as SpotifyApi.TrackObjectFull & {
+    popularity?: number;
+  };
+  const pop =
+    typeof trackWithPop.popularity === "number"
+      ? trackWithPop.popularity
+      : null;
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("songs")
+    .update({
+      spotify_id: track.id,
+      name: track.name,
+      album_id: alb.id,
+      artist_id: first.id,
+      duration_ms: track.duration_ms ?? null,
+      popularity: pop,
+      data_source: "mixed",
+      needs_spotify_enrichment: false,
+      updated_at: now,
+      cached_at: now,
+    })
+    .eq("id", lfmSongId);
+
+  if (error) {
+    console.warn(`${LOG_PREFIX} persistLfmSongSpotifyLink failed`, lfmSongId, error);
+  }
+}
+
+/**
+ * When `songs.spotify_id` is empty but we have Last.fm title/artist strings, resolve via search (same as enrichment job).
+ */
+async function tryResolveLfmSongViaLastfmSearch(
+  song: SongRow,
+  opts: CatalogFetchOpts | undefined,
+): Promise<SpotifyApi.TrackObjectFull | null> {
+  const trackName =
+    (song.name && song.name.trim()) ||
+    (song.lastfm_name && song.lastfm_name.trim()) ||
+    "";
+  const artistName =
+    (song.lastfm_artist_name && song.lastfm_artist_name.trim()) || "";
+  if (!trackName || !artistName) return null;
+
+  const match = await mapLastfmToSpotify(
+    trackName,
+    artistName,
+    null,
+    { durationMs: song.duration_ms ?? undefined },
+  );
+  if (!match) return null;
+
+  try {
+    const track = await getOrFetchTrackInner(match.trackId, opts);
+    try {
+      await persistLfmSongSpotifyLink(song.id, track);
+    } catch (e) {
+      console.warn(`${LOG_PREFIX} persistLfmSongSpotifyLink (search path)`, e);
+    }
+    return withCanonicalSongId(song.id, track);
+  } catch (e) {
+    console.warn(`${LOG_PREFIX} tryResolveLfmSongViaLastfmSearch failed`, {
+      songId: song.id,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return null;
+  }
 }
 
 async function trackFromDbSongRow(
@@ -1161,8 +1259,18 @@ async function getOrFetchTrackInner(
 
   if (songRow) {
     const song = songRow as unknown as SongRow;
-    if (song.id.startsWith("lfm:") && song.spotify_id) {
-      return getOrFetchTrackInner(song.spotify_id, opts);
+    const linked = trimmedSpotifyId(song);
+    if (song.id.startsWith("lfm:") && linked) {
+      const t = await getOrFetchTrackInner(linked, opts);
+      return withCanonicalSongId(song.id, t);
+    }
+    if (
+      song.id.startsWith("lfm:") &&
+      !linked &&
+      catalogReadsAllowSpotifyNetwork(opts)
+    ) {
+      const resolved = await tryResolveLfmSongViaLastfmSearch(song, opts);
+      if (resolved) return resolved;
     }
     if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
       return buildSyntheticLfmTrack(song);
@@ -1172,6 +1280,9 @@ async function getOrFetchTrackInner(
       return trackFromDbSongRow(supabase, song);
     }
     if (!net) {
+      return trackFromDbSongRow(supabase, song);
+    }
+    if (song.id.startsWith("lfm:")) {
       return trackFromDbSongRow(supabase, song);
     }
   }
@@ -1219,11 +1330,21 @@ export async function getOrFetchTrack(
   id: string,
   opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.TrackObjectFull> {
+  const canonicalId = normalizeReviewEntityId(id);
+  const mergedOpts: CatalogFetchOpts = {
+    ...opts,
+    allowNetwork: canonicalId.startsWith("lfm:")
+      ? true
+      : opts?.allowNetwork,
+    allowLastfmMapping: canonicalId.startsWith("lfm:")
+      ? true
+      : opts?.allowLastfmMapping,
+  };
   return timeAsync(
     "cache",
     "getOrFetchTrack",
-    () => getOrFetchTrackInner(id, opts),
-    { id },
+    () => getOrFetchTrackInner(canonicalId, mergedOpts),
+    { id: canonicalId },
   );
 }
 
@@ -1299,6 +1420,25 @@ async function getOrFetchTracksBatchInner(
       .in("id", idChunk);
     allSongs.push(...((songRows ?? []) as unknown as SongRow[]));
   }
+
+  if (net) {
+    for (const song of allSongs) {
+      if (!song.id.startsWith("lfm:")) continue;
+      const linked = trimmedSpotifyId(song);
+      if (!linked) continue;
+      try {
+        const t = await getOrFetchTrackInner(linked, opts);
+        lookup.set(song.id, withCanonicalSongId(song.id, t));
+      } catch (e) {
+        console.warn(
+          `${LOG_PREFIX} batch lfm+spotify_id hydrate failed`,
+          song.id,
+          e,
+        );
+      }
+    }
+  }
+
   const songs = allSongs.filter(
     (s) => !isCacheStale(s.cached_at ?? s.updated_at),
   );
@@ -1342,6 +1482,7 @@ async function getOrFetchTracksBatchInner(
 
   if (!net) {
     for (const song of allSongs) {
+      if (lookup.has(song.id)) continue;
       if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
         lookup.set(song.id, buildSyntheticLfmTrack(song));
         continue;
@@ -1362,6 +1503,7 @@ async function getOrFetchTracksBatchInner(
   }
 
   for (const song of songs) {
+    if (lookup.has(song.id)) continue;
     if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
       lookup.set(song.id, buildSyntheticLfmTrack(song));
       continue;
@@ -1425,11 +1567,12 @@ export async function getOrFetchTracksBatch(
   ids: string[],
   opts?: CatalogFetchOpts,
 ): Promise<(SpotifyApi.TrackObjectFull | null)[]> {
+  const normalized = ids.map((x) => normalizeReviewEntityId(x));
   return timeAsync(
     "cache",
     "getOrFetchTracksBatch",
-    () => getOrFetchTracksBatchInner(ids, opts),
-    { n: ids.length },
+    () => getOrFetchTracksBatchInner(normalized, opts),
+    { n: normalized.length },
   );
 }
 

@@ -8,6 +8,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 /** Spotify IDs are 22-char alphanumeric (base62) */
 const SPOTIFY_ID_REGEX = /^[a-zA-Z0-9]{22}$/;
 
+/** Synthetic Last.fm cache keys (`lib/lastfm/lfm-ids.ts`): `lfm:` + 16 hex chars */
+const LFM_CATALOG_ID_REGEX = /^lfm:[0-9a-f]{16}$/;
+
 /** Covers auto-generated usernames: email local up to 20 + `_` + 6-char suffix (max 27). */
 export const USERNAME_MAX_LENGTH = 32;
 
@@ -49,6 +52,40 @@ export function isValidFeedItemTargetId(value: unknown): value is string {
 
 export function isValidSpotifyId(value: unknown): value is string {
   return typeof value === 'string' && value.length <= 22 && SPOTIFY_ID_REGEX.test(value);
+}
+
+export function isValidLfmCatalogId(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const s = value.trim();
+  return LFM_CATALOG_ID_REGEX.test(s);
+}
+
+/**
+ * Spotify catalog id OR synthetic `lfm:*` song/album/artist row id (reviews, lists, etc.).
+ */
+export function isValidReviewEntityId(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const s = value.trim();
+  if (s.length === 0 || s.length > 64) return false;
+  return isValidSpotifyId(s) || isValidLfmCatalogId(s);
+}
+
+/**
+ * Undo accidental double-encoding of query/body entity ids (`lfm%253A...` → `lfm:...`).
+ */
+export function normalizeReviewEntityId(raw: string): string {
+  let s = raw.trim();
+  try {
+    for (let i = 0; i < 4; i++) {
+      if (!s.includes("%")) break;
+      const next = decodeURIComponent(s);
+      if (next === s) break;
+      s = next;
+    }
+  } catch {
+    return raw.trim();
+  }
+  return s;
 }
 
 export function isValidUsername(value: unknown): value is string {
