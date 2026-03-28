@@ -250,29 +250,26 @@ export default async function ProfilePage({
   return (
     <div className={sectionGap}>
       <div
-        className={`relative overflow-hidden ${cardElevated} bg-gradient-to-br from-zinc-900/95 via-zinc-900/90 to-emerald-950/35 p-5 ring-1 ring-white/[0.08] sm:p-7`}
+        className={`relative overflow-hidden ${cardElevated} bg-gradient-to-br from-zinc-900/90 via-zinc-900/85 to-zinc-900/80 p-6 ring-1 ring-white/[0.06] sm:p-8`}
       >
         <div
-          className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-emerald-500/[0.14] blur-3xl"
+          className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-emerald-500/[0.08] blur-3xl"
           aria-hidden
         />
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1 text-center sm:text-left">
-            <ProfileHeader
-              variant="hero"
-              username={profile.username}
-              avatarUrl={profile.avatar_url}
-              bio={profile.bio}
-              followersCount={profile.followers_count ?? 0}
-              followingCount={profile.following_count ?? 0}
-              isOwnProfile={isOwnProfile}
-              isFollowing={profile.is_following ?? false}
-              userId={profile.id}
-              viewerUserId={session?.user?.id ?? null}
+        <div className="relative min-w-0">
+          <ProfileHeader
+            variant="hero"
+            username={profile.username}
+            avatarUrl={profile.avatar_url}
+            bio={profile.bio}
+            followersCount={profile.followers_count ?? 0}
+            followingCount={profile.following_count ?? 0}
+            isOwnProfile={isOwnProfile}
+            isFollowing={profile.is_following ?? false}
+            userId={profile.id}
+            viewerUserId={session?.user?.id ?? null}
               keyStatLine={heroLines.keyStatLine}
-              vibeLine={heroLines.vibeLine}
-            />
-          </div>
+          />
         </div>
       </div>
 

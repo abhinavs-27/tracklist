@@ -2,15 +2,13 @@ import type { TasteIdentity } from "@/lib/taste/types";
 
 type Streak = { current_streak: number; longest_streak: number } | null;
 
-const VIBE_MAX = 220;
-
 /**
- * Key stat + vibe copy for the profile identity hero (server-derived).
+ * One-line hero stat for the profile (server-derived).
  */
 export function buildProfileHeroLines(
   taste: TasteIdentity,
   streak: Streak,
-): { keyStatLine: string | null; vibeLine: string | null } {
+): { keyStatLine: string | null } {
   let keyStatLine: string | null = null;
   if (streak && streak.current_streak > 0) {
     keyStatLine = `${streak.current_streak}-day listening streak`;
@@ -23,14 +21,5 @@ export function buildProfileHeroLines(
     keyStatLine = `${taste.totalLogs.toLocaleString()} tracks logged`;
   }
 
-  let vibeLine: string | null = null;
-  const week = taste.recent?.insightWeek?.trim();
-  if (week) {
-    vibeLine = week.length > VIBE_MAX ? `${week.slice(0, VIBE_MAX - 1)}…` : week;
-  } else if (taste.summary?.trim()) {
-    const s = taste.summary.trim();
-    vibeLine = s.length > VIBE_MAX ? `${s.slice(0, VIBE_MAX - 1)}…` : s;
-  }
-
-  return { keyStatLine, vibeLine };
+  return { keyStatLine };
 }
