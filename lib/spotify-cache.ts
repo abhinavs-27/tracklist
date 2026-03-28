@@ -150,13 +150,19 @@ function buildSyntheticLfmTrack(
   song: SongRow,
 ): SpotifyApi.TrackObjectFull {
   const aid = song.artist_id ?? "lfm-unknown";
+  const displayName =
+    (song.name && song.name.trim()) ||
+    (song.lastfm_name && song.lastfm_name.trim()) ||
+    "Track";
+  const displayArtist =
+    (song.lastfm_artist_name && song.lastfm_artist_name.trim()) || "Artist";
   return {
     id: song.id,
-    name: song.name,
+    name: displayName,
     artists: [
       {
         id: aid,
-        name: song.lastfm_artist_name ?? "Artist",
+        name: displayArtist,
       },
     ],
     duration_ms: song.duration_ms ?? undefined,
@@ -191,13 +197,20 @@ async function trackFromDbSongRow(
   const album = albumRow as unknown as AlbumRow | null;
   const artist = artistRow as unknown as ArtistRow | null;
 
+  const trackTitle =
+    (song.name && song.name.trim()) ||
+    (song.lastfm_name && song.lastfm_name.trim()) ||
+    "Track";
   return {
     id: song.id,
-    name: song.name,
+    name: trackTitle,
     artists: [
       {
         id: song.artist_id ?? "",
-        name: artist?.name ?? song.lastfm_artist_name ?? "",
+        name:
+          artist?.name?.trim() ||
+          (song.lastfm_artist_name && song.lastfm_artist_name.trim()) ||
+          "Artist",
       },
     ],
     duration_ms: song.duration_ms ?? undefined,
@@ -1231,10 +1244,18 @@ function buildTrackFromRows(
   album: AlbumRow | null,
   artistName: string,
 ): SpotifyApi.TrackObjectFull {
+  const title =
+    (song.name && song.name.trim()) ||
+    (song.lastfm_name && song.lastfm_name.trim()) ||
+    "Track";
+  const artist =
+    artistName.trim() ||
+    (song.lastfm_artist_name && song.lastfm_artist_name.trim()) ||
+    "Artist";
   return {
     id: song.id,
-    name: song.name,
-    artists: [{ id: song.artist_id ?? "", name: artistName }],
+    name: title,
+    artists: [{ id: song.artist_id ?? "", name: artist }],
     duration_ms: song.duration_ms ?? undefined,
     album: album
       ? {

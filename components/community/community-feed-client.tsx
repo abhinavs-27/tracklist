@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { COMMUNITY_FEED_PAGE_SIZE } from "@/lib/community/community-feed-page-size";
 import type { CommunityFeedItemV2 } from "@/lib/community/community-feed-types";
 import { CommunityFeedCommentThread } from "@/components/community/community-feed-comment-thread";
 import {
@@ -130,9 +131,8 @@ export function CommunityFeedClient(props: {
   communityId: string;
   initialItems: CommunityFeedItemV2[];
   initialNextOffset?: number | null;
-  pageSize?: number;
 }) {
-  const pageSize = props.pageSize ?? 10;
+  const pageSize = COMMUNITY_FEED_PAGE_SIZE;
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<CommunityFeedItemV2[]>(props.initialItems);
@@ -150,7 +150,7 @@ export function CommunityFeedClient(props: {
     async (targetPage: number, f: Filter) => {
       const offset = (targetPage - 1) * pageSize;
       const res = await fetch(
-        `/api/communities/${props.communityId}/feed?limit=${pageSize}&offset=${offset}&filter=${encodeURIComponent(f)}`,
+        `/api/communities/${props.communityId}/feed?offset=${offset}&filter=${encodeURIComponent(f)}`,
         { cache: "no-store" },
       );
       if (!res.ok) return null;

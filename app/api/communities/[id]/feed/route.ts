@@ -1,4 +1,5 @@
 import { withHandler } from "@/lib/api-handler";
+import { COMMUNITY_FEED_PAGE_SIZE } from "@/lib/community/community-feed-page-size";
 import {
   getCommunityFeedV2,
   type CommunityFeedFilterV2,
@@ -34,16 +35,17 @@ export const GET = withHandler(
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(
-      50,
-      Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10) || 10),
-    );
+    /** Fixed page size — ignore `limit` query so cached/old clients cannot load 20+. */
+    const limit = COMMUNITY_FEED_PAGE_SIZE;
     const offset = Math.max(
       0,
       parseInt(searchParams.get("offset") ?? "0", 10) || 0,
     );
     const filter = parseFilter(searchParams.get("filter"));
-    const feed = await getCommunityFeedV2(id, limit, filter, offset);
+    let feed = await getCommunityFeedV2(id, limit, filter, offset);
+    if (feed.length > limit) {
+      feed = feed.slice(0, limit);
+    }
     const next_offset =
       feed.length >= limit ? offset + feed.length : null;
     return apiOk({ feed, filter, next_offset });

@@ -32,7 +32,10 @@ export default async function SongPage({ params }: { params: PageParams }) {
 
   let track: SpotifyApi.TrackObjectFull;
   try {
-    track = await getOrFetchTrack(id);
+    track = await getOrFetchTrack(id, {
+      allowNetwork: id.startsWith("lfm:"),
+      allowLastfmMapping: id.startsWith("lfm:"),
+    });
   } catch {
     notFound();
   }
