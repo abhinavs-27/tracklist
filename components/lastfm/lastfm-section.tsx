@@ -310,7 +310,7 @@ export function LastfmSection({
   const showConnectCta = !initialUsername?.trim();
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+    <section className="min-w-0 max-w-full overflow-x-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5">
       <h2 className="text-lg font-semibold text-white">Last.fm</h2>
       {showConnectCta ? (
         <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-950/25 px-3 py-3">

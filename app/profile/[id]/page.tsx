@@ -260,15 +260,19 @@ export default async function ProfilePage({
       />
 
       {isOwnProfile ? (
-        <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
-          <LastfmSection
-            key={`lastfm-${profile.id}`}
-            userId={profile.id}
-            username={profile.username}
-            initialUsername={user.lastfm_username ?? null}
-            initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
-          />
-          <SimilarUsersSection userId={profile.id} variant="strip" />
+        <section className="grid min-w-0 max-w-full gap-4 sm:gap-6 lg:grid-cols-2 lg:items-start">
+          <div className="min-w-0 max-w-full">
+            <LastfmSection
+              key={`lastfm-${profile.id}`}
+              userId={profile.id}
+              username={profile.username}
+              initialUsername={user.lastfm_username ?? null}
+              initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
+            />
+          </div>
+          <div className="min-w-0 max-w-full">
+            <SimilarUsersSection userId={profile.id} variant="strip" />
+          </div>
         </section>
       ) : null}
 
@@ -294,6 +298,29 @@ export default async function ProfilePage({
       {isOwnProfile ? (
         <ProfileTopThisWeekSection userId={profile.id} />
       ) : null}
+
+      <div id="recent-activity" className="scroll-mt-24">
+        <SectionBlock
+          title="Recent activity"
+          description={
+            isOwnProfile
+              ? "A short preview of albums from your logs and recent Spotify plays."
+              : "Latest albums from their listening history."
+          }
+          action={
+            isOwnProfile
+              ? { label: "View all activity", href: "/recently-played" }
+              : undefined
+          }
+        >
+          <ProfileRecentActivity
+            userId={profile.id}
+            isOwnProfile={isOwnProfile}
+            showSpotifyControls={isOwnProfile && spotifyProfileControlsVisible}
+            spotifyConnected={spotifyConnected}
+          />
+        </SectionBlock>
+      </div>
 
       {!isOwnProfile && (
         <TasteMatchSection
@@ -327,22 +354,6 @@ export default async function ProfilePage({
           />
         </SectionBlock>
       ) : null}
-
-      <SectionBlock
-        title="Recent activity"
-        description={
-          isOwnProfile
-            ? "Latest albums from your logs and recent Spotify plays when connected."
-            : "Latest albums from their listening history."
-        }
-      >
-        <ProfileRecentActivity
-          userId={profile.id}
-          isOwnProfile={isOwnProfile}
-          showSpotifyControls={isOwnProfile && spotifyProfileControlsVisible}
-          spotifyConnected={spotifyConnected}
-        />
-      </SectionBlock>
 
       {achievements.length > 0 ? (
         <SectionBlock

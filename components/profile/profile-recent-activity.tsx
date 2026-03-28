@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { SpotifyConnectionCard } from "@/components/spotify-connection-card";
+import { cardElevatedInteractive } from "@/lib/ui/surface";
 
+/** Preview length — keep the strip scannable (5–10). */
 const PREVIEW_CAP = 8;
-const ALBUM_FETCH = 10;
-const TRACK_FETCH = 6;
+const ALBUM_FETCH = 12;
+const TRACK_FETCH = 8;
+
+const strip =
+  "flex gap-3 overflow-x-auto pb-2 pl-0.5 pt-0.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 type RecentAlbumItem = {
   album_id: string;
@@ -75,6 +80,54 @@ function mergeActivity(
   return [...albumRows, ...trackRows]
     .sort((a, b) => b.at - a.at)
     .slice(0, PREVIEW_CAP);
+}
+
+function ActivityCard({ row }: { row: ActivityRow }) {
+  return (
+    <Link
+      href={row.href}
+      className={`${cardElevatedInteractive} flex w-[min(68vw,200px)] shrink-0 snap-start flex-col overflow-hidden sm:w-[188px]`}
+    >
+      <div className="aspect-square w-full bg-zinc-800">
+        {row.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={row.image}
+            alt=""
+            className="h-full w-full object-cover"
+            width={200}
+            height={200}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-3xl text-zinc-600">
+            ♪
+          </div>
+        )}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3 pt-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-white">
+            {row.title}
+          </p>
+          <span className="shrink-0 rounded-md bg-zinc-800/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+            {row.kind === "album" ? "Album" : "Play"}
+          </span>
+        </div>
+        <p className="line-clamp-2 text-xs text-zinc-500">{row.subtitle}</p>
+        <time
+          className="mt-auto text-[11px] text-zinc-600"
+          dateTime={new Date(row.at).toISOString()}
+        >
+          {new Date(row.at).toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </time>
+      </div>
+    </Link>
+  );
 }
 
 export function ProfileRecentActivity({
@@ -159,89 +212,39 @@ export function ProfileRecentActivity({
       ) : null}
 
       {loading ? (
-        <ul className="space-y-2">
+        <div className={strip}>
           {Array.from({ length: 5 }).map((_, i) => (
-            <li
+            <div
               key={i}
-              className="flex animate-pulse gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-3"
+              className={`${cardElevatedInteractive} flex w-[min(68vw,200px)] shrink-0 snap-start flex-col overflow-hidden animate-pulse sm:w-[188px]`}
             >
-              <div className="h-14 w-14 shrink-0 rounded-lg bg-zinc-800/80" />
-              <div className="min-w-0 flex-1 space-y-2 pt-0.5">
-                <div className="h-4 w-3/4 rounded bg-zinc-800/80" />
-                <div className="h-3 w-1/2 rounded bg-zinc-800/70" />
+              <div className="aspect-square w-full bg-zinc-800/80" />
+              <div className="space-y-2 p-3">
+                <div className="h-4 w-[85%] rounded bg-zinc-800/80" />
+                <div className="h-3 w-[60%] rounded bg-zinc-800/70" />
+                <div className="h-3 w-[35%] rounded bg-zinc-800/60" />
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : !hasAny ? (
-        <p className="rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-500">
+        <p className="rounded-2xl border border-zinc-800/90 bg-zinc-950/40 px-4 py-4 text-sm text-zinc-500 ring-1 ring-inset ring-white/[0.05]">
           No recent activity yet. Log listens, sync Last.fm, or connect Spotify to
-          see albums and tracks here.
+          see albums and plays here.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <div className={strip}>
           {rows.map((row) => (
-            <li key={row.key}>
-              <Link
-                href={row.href}
-                className="flex min-h-[56px] gap-3 rounded-xl border border-zinc-800/85 bg-zinc-950/50 p-3 transition hover:border-zinc-600/90 hover:bg-zinc-900/55"
-              >
-                {row.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={row.image}
-                    alt=""
-                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                    width={56}
-                    height={56}
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-lg text-zinc-600">
-                    ♪
-                  </div>
-                )}
-                <div className="min-w-0 flex-1 py-0.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-2 text-sm font-medium leading-snug text-white">
-                      {row.title}
-                    </p>
-                    <span className="shrink-0 rounded-md bg-zinc-800/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                      {row.kind === "album" ? "Album" : "Track"}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">
-                    {row.subtitle}
-                  </p>
-                  <time
-                    className="mt-1 block text-[11px] text-zinc-600"
-                    dateTime={new Date(row.at).toISOString()}
-                  >
-                    {new Date(row.at).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </time>
-                </div>
-              </Link>
-            </li>
+            <ActivityCard key={row.key} row={row} />
           ))}
-        </ul>
+        </div>
       )}
 
-      {isOwnProfile ? (
-        <div className="flex flex-col gap-2 border-t border-zinc-800/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-zinc-500">
-            Preview of recent albums (from logs) and Spotify plays when connected.
-          </p>
-          <Link
-            href="/reports/listening"
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-950/25 px-4 py-2.5 text-sm font-medium text-emerald-300 transition hover:bg-emerald-950/40"
-          >
-            View all activity
-          </Link>
-        </div>
+      {isOwnProfile && hasAny ? (
+        <p className="text-xs text-zinc-600">
+          Showing up to {PREVIEW_CAP} items, newest first. Albums come from your
+          logs; plays from Spotify when connected.
+        </p>
       ) : null}
     </div>
   );

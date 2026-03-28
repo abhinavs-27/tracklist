@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { SectionBlock } from "@/components/layout/section-block";
 import { getTopThisWeek } from "@/lib/profile/top-this-week";
-import { cardElevated } from "@/lib/ui/surface";
+import { cardElevated, cardElevatedInteractive } from "@/lib/ui/surface";
 
 const strip =
-  "flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  "flex gap-3 overflow-x-auto pb-2 pl-0.5 pt-0.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 function TrackCard({
   name,
@@ -22,7 +22,7 @@ function TrackCard({
   return (
     <Link
       href={href}
-      className={`flex w-[min(46vw,168px)] shrink-0 flex-col gap-2 rounded-xl border border-zinc-800/90 bg-zinc-950/55 p-3 transition hover:border-emerald-500/35 hover:bg-zinc-900/60 sm:w-[156px]`}
+      className={`${cardElevatedInteractive} flex w-[min(46vw,168px)] shrink-0 snap-start flex-col gap-2 p-3 sm:w-[156px]`}
     >
       <div className="aspect-square w-full overflow-hidden rounded-lg bg-zinc-800">
         {imageUrl ? (
@@ -67,7 +67,7 @@ function ArtistCard({
   return (
     <Link
       href={href}
-      className={`flex w-[min(38vw,132px)] shrink-0 flex-col items-center gap-2 rounded-xl border border-zinc-800/90 bg-zinc-950/55 p-3 text-center transition hover:border-emerald-500/35 hover:bg-zinc-900/60 sm:w-[120px]`}
+      className={`${cardElevatedInteractive} flex w-[min(38vw,132px)] shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-[120px]`}
     >
       <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full border border-zinc-700/80 bg-zinc-800">
         {imageUrl ? (
@@ -110,7 +110,7 @@ export async function ProfileTopThisWeekSection({
     <section id="top-week" className="scroll-mt-24">
       <SectionBlock
         title="Top this week"
-        description={`${data.rangeLabel} · from your listening history`}
+        description={`${data.rangeLabel} · your most-played tracks and artists (UTC week)`}
         action={
           compact
             ? {
@@ -131,7 +131,7 @@ export async function ProfileTopThisWeekSection({
           <div className="space-y-8">
             {tracks.length > 0 ? (
               <div>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                <h3 className="mb-3 text-sm font-semibold tracking-tight text-zinc-200">
                   Top tracks
                 </h3>
                 <div className={strip}>
@@ -151,7 +151,7 @@ export async function ProfileTopThisWeekSection({
 
             {artists.length > 0 ? (
               <div>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                <h3 className="mb-3 text-sm font-semibold tracking-tight text-zinc-200">
                   Top artists
                 </h3>
                 <div className={strip}>

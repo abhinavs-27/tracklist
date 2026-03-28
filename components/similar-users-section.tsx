@@ -16,7 +16,7 @@ export async function SimilarUsersSection({
 
   if (top.length === 0) {
     return (
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
+      <section className="min-w-0 max-w-full rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 sm:p-5">
         <h2 className="text-lg font-semibold text-white">Similar users</h2>
         <p className="mt-2 text-sm text-zinc-500">
           No close matches yet — keep logging music in the last 30 days so we can
@@ -31,11 +31,11 @@ export async function SimilarUsersSection({
 
   const listClass =
     variant === "strip"
-      ? "mt-4 flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      ? "mt-4 flex min-w-0 gap-2 overflow-x-auto pb-2 pl-0.5 pt-0.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
       : "mt-4 space-y-3";
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-5">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 sm:p-5">
       <h2 className="text-lg font-semibold text-white">Similar users</h2>
       <p className="mt-1 text-sm text-zinc-500">
         Based on your last 30 days of listens (artist vectors + cosine similarity).
@@ -47,28 +47,35 @@ export async function SimilarUsersSection({
           return (
             <li
               key={m.userId}
-              className={variant === "strip" ? "w-[min(100%,260px)] shrink-0" : ""}
+              className={
+                variant === "strip"
+                  ? "w-60 max-w-[min(16rem,calc(100vw-2.5rem))] shrink-0 snap-start"
+                  : ""
+              }
             >
               <Link
                 href={`/profile/${m.userId}`}
-                className="flex h-full items-center gap-3 rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-3 py-2 transition hover:border-zinc-600"
+                className="flex h-full min-w-0 items-center gap-2.5 rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-2.5 py-2 transition hover:border-zinc-600 sm:gap-3 sm:px-3"
               >
                 {u?.avatar_url ? (
                   <img
                     src={u.avatar_url}
                     alt=""
-                    className="h-10 w-10 shrink-0 rounded-full object-cover"
+                    className="h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10"
                   />
                 ) : (
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-sm text-zinc-300">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-sm text-zinc-300 sm:h-10 sm:w-10">
                     {(u?.username ?? "?")[0]?.toUpperCase()}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-white">
+                  <p className="truncate font-medium text-white">
                     {u?.username ?? "Unknown"}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="truncate text-xs text-zinc-500 sm:hidden">
+                    {tasteSimilarityLabel(m.similarityScore)}
+                  </p>
+                  <p className="hidden truncate text-xs text-zinc-500 sm:block">
                     {pct}% · {tasteSimilarityLabel(m.similarityScore)}
                   </p>
                 </div>
