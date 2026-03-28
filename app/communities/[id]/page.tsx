@@ -27,7 +27,7 @@ import {
   getCommunityMemberGrowthThisWeek,
 } from "@/lib/community/get-community-hero-data";
 import { isValidUuid } from "@/lib/validation";
-import { sectionGap, sectionTitle } from "@/lib/ui/surface";
+import { sectionGap } from "@/lib/ui/surface";
 import { CommunityHero } from "@/components/community/community-hero";
 import { CommunityMemberHeroShell } from "@/components/community/community-member-hero-shell";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
@@ -185,7 +185,6 @@ export default async function CommunityDetailPage({
           </Suspense>
 
           <section>
-            <h2 className={`mb-6 ${sectionTitle}`}>Activity</h2>
             <Suspense fallback={<CommunityFeedSkeleton />}>
               <CommunityFeedSlot communityId={id} />
             </Suspense>
