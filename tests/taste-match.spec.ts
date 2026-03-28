@@ -23,6 +23,8 @@ test.describe("Taste match", () => {
           sharedGenres: [
             { name: "indie rock", weightUserA: 15, weightUserB: 12 },
           ],
+          uniqueGenresUserA: [{ name: "jazz", weight: 8 }],
+          uniqueGenresUserB: [{ name: "metal", weight: 10 }],
           summary: "Somewhat similar — you share artists and some genre ground.",
           insufficientData: false,
         }),

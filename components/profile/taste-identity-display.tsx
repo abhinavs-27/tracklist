@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TasteCard } from "@/components/taste-card";
 import { getListeningStyleDisplay, normalizeListeningStyle } from "@/lib/taste/listening-style";
 import type { TasteIdentity } from "@/lib/taste/types";
 
@@ -16,17 +17,30 @@ export function TasteIdentityDisplay({ data: t }: Props) {
   const { title: styleTitle, subtitle: styleSubtitle } =
     getListeningStyleDisplay(styleKey);
 
+  const cardInsight = t.recent?.insightWeek?.trim()
+    ? t.recent.insightWeek
+    : t.summary;
+  const cardGenres =
+    t.recent?.topGenres7d && t.recent.topGenres7d.length > 0
+      ? t.recent.topGenres7d
+      : t.topGenres;
+  const insightSource = t.recent?.insightWeek?.trim()
+    ? "Last 7 days vs last 30 days · from your logs"
+    : "All-time listening · from your logs";
+  const genresLabel = t.recent?.topGenres7d?.length ? "This week" : "Top genres";
+
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-base font-semibold text-white sm:text-lg">
-          Taste identity
-        </h2>
-        {t.totalLogs > 0 ? (
-          <p className="text-xs text-zinc-500">From {t.totalLogs} logs</p>
-        ) : null}
-      </div>
-      <p className="mt-1 text-sm text-zinc-400">{t.summary}</p>
+      <TasteCard
+        mode="identity"
+        title="Taste identity"
+        subtitle={t.totalLogs > 0 ? `From ${t.totalLogs} logs` : undefined}
+        insight={cardInsight}
+        genres={cardGenres}
+        insightSource={insightSource}
+        genresLabel={genresLabel}
+        className="mb-5"
+      />
 
       {!hasAny ? (
         <p className="mt-3 text-sm text-zinc-500">
@@ -110,39 +124,6 @@ export function TasteIdentityDisplay({ data: t }: Props) {
             </p>
             <p className="text-[11px] text-zinc-600">Unique genres (vs 10 = max)</p>
           </div>
-        </div>
-      ) : null}
-
-      {t.totalLogs > 0 ? (
-        <div className="mt-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Top genres
-          </p>
-          {t.topGenres.length === 0 ? (
-            <p className="mt-2 text-sm text-zinc-500">
-              Not enough data yet — genres appear as Spotify artist metadata is
-              filled (listen more or run artist backfill).
-            </p>
-          ) : (
-            <ul className="mt-2 space-y-1.5">
-              {t.topGenres.slice(0, 10).map((g) => (
-                <li key={g.name} className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800">
-                    <div
-                      className="h-full rounded-full bg-violet-500/80"
-                      style={{ width: `${Math.min(100, g.weight)}%` }}
-                    />
-                  </div>
-                  <span className="w-28 shrink-0 truncate text-zinc-300">
-                    {g.name}
-                  </span>
-                  <span className="w-10 shrink-0 text-right tabular-nums text-zinc-500">
-                    {g.weight.toFixed(0)}%
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       ) : null}
 

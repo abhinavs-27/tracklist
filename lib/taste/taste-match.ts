@@ -4,6 +4,7 @@ import type {
   TasteMatchResponse,
   TasteMatchSharedArtist,
   TasteMatchSharedGenre,
+  TasteMatchUniqueGenre,
 } from "@/types";
 import {
   getTasteIdentity,
@@ -17,6 +18,7 @@ const MATCH_ARTIST_POOL = 20;
 const ARTIST_WEIGHT = 0.6;
 const GENRE_WEIGHT = 0.4;
 const MAX_SHARED_ARTISTS = 5;
+const MAX_UNIQUE_GENRES = 8;
 
 function clamp100(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
@@ -120,6 +122,32 @@ function buildSharedArtists(
   return out.slice(0, limit);
 }
 
+function buildUniqueGenres(
+  a: TasteGenre[],
+  b: TasteGenre[],
+): { uniqueA: TasteMatchUniqueGenre[]; uniqueB: TasteMatchUniqueGenre[] } {
+  const mb = genreWeightMap(b);
+  const ma = genreWeightMap(a);
+  const uniqueA: TasteMatchUniqueGenre[] = [];
+  for (const g of a) {
+    const key = g.name.trim().toLowerCase();
+    if (!key || mb.has(key)) continue;
+    uniqueA.push({ name: g.name.trim(), weight: g.weight });
+  }
+  uniqueA.sort((x, y) => y.weight - x.weight);
+  const uniqueB: TasteMatchUniqueGenre[] = [];
+  for (const g of b) {
+    const key = g.name.trim().toLowerCase();
+    if (!key || ma.has(key)) continue;
+    uniqueB.push({ name: g.name.trim(), weight: g.weight });
+  }
+  uniqueB.sort((x, y) => y.weight - x.weight);
+  return {
+    uniqueA: uniqueA.slice(0, MAX_UNIQUE_GENRES),
+    uniqueB: uniqueB.slice(0, MAX_UNIQUE_GENRES),
+  };
+}
+
 function buildSharedGenres(
   a: TasteGenre[],
   b: TasteGenre[],
@@ -184,6 +212,8 @@ export async function getTasteMatch(
     discoveryScore: 0,
     sharedArtists: [],
     sharedGenres: [],
+    uniqueGenresUserA: [],
+    uniqueGenresUserB: [],
     summary,
     insufficientData: true,
   });
@@ -199,6 +229,8 @@ export async function getTasteMatch(
       discoveryScore: 0,
       sharedArtists: [],
       sharedGenres: [],
+      uniqueGenresUserA: [],
+      uniqueGenresUserB: [],
       summary: "Same listener — that’s a perfect match (and no discovery gap).",
       insufficientData: false,
     };
@@ -259,6 +291,10 @@ export async function getTasteMatch(
     MAX_SHARED_ARTISTS,
   );
   const sharedGenres = buildSharedGenres(identityA.topGenres, identityB.topGenres);
+  const { uniqueA, uniqueB } = buildUniqueGenres(
+    identityA.topGenres,
+    identityB.topGenres,
+  );
 
   const summary = buildSummary(score, sharedGenres, sharedArtists.length);
 
@@ -269,6 +305,8 @@ export async function getTasteMatch(
     discoveryScore,
     sharedArtists,
     sharedGenres,
+    uniqueGenresUserA: uniqueA,
+    uniqueGenresUserB: uniqueB,
     summary,
     insufficientData: false,
   };

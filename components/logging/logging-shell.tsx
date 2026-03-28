@@ -5,7 +5,7 @@ import { FloatingLogButton } from "./floating-log-button";
 import { QuickLogModal } from "./quick-log-modal";
 import { useLogging } from "./logging-context";
 
-export function LoggingShell() {
+export function LoggingShell({ hideQuickLogFab = false }: { hideQuickLogFab?: boolean }) {
   const { data: session, status } = useSession();
   const { quickLogOpen, setQuickLogOpen } = useLogging();
 
@@ -13,7 +13,7 @@ export function LoggingShell() {
 
   return (
     <>
-      <FloatingLogButton />
+      {hideQuickLogFab ? null : <FloatingLogButton />}
       <QuickLogModal open={quickLogOpen} onClose={() => setQuickLogOpen(false)} />
     </>
   );

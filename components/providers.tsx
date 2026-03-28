@@ -12,9 +12,12 @@ import { CommunityOnboarding } from '@/components/onboarding/CommunityOnboarding
 export function Providers({
   children,
   session,
+  hideQuickLogFab,
 }: {
   children: React.ReactNode;
   session?: Session | null;
+  /** Set when Last.fm is linked — scrobbling covers logging; hide FAB for more space. */
+  hideQuickLogFab?: boolean;
 }) {
   return (
     <SessionProvider
@@ -28,7 +31,7 @@ export function Providers({
             <LoggingProvider>
               {children}
               <CommunityOnboarding />
-              <LoggingShell />
+              <LoggingShell hideQuickLogFab={hideQuickLogFab} />
             </LoggingProvider>
           </RecentViewsProvider>
         </ToastProvider>

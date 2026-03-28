@@ -10,9 +10,21 @@ import {
   normalizeListeningStyle,
   type TasteListeningStyle,
 } from "./listening-style";
-import type { TasteGenre, TasteIdentity, TasteTopAlbum, TasteTopArtist } from "./types";
+import type {
+  TasteGenre,
+  TasteIdentity,
+  TasteRecentSnapshot,
+  TasteTopAlbum,
+  TasteTopArtist,
+} from "./types";
 
-export type { TasteGenre, TasteIdentity, TasteTopAlbum, TasteTopArtist } from "./types";
+export type {
+  TasteGenre,
+  TasteIdentity,
+  TasteRecentSnapshot,
+  TasteTopAlbum,
+  TasteTopArtist,
+} from "./types";
 export type { TasteListeningStyle } from "./listening-style";
 
 const TOP_N = 10;
@@ -169,7 +181,7 @@ function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   const diversityScore = normalizeDiversityScore(cached.diversityScore);
   const base = { ...cached, listeningStyle, diversityScore };
   if (base.totalLogs === 0) {
-    return { ...base, summary: EMPTY.summary };
+    return { ...base, summary: EMPTY.summary, recent: undefined };
   }
   return { ...base, summary: buildSummary(base) };
 }
@@ -332,6 +344,146 @@ async function fetchArtistsBatch(
     }
   }
   return out;
+}
+
+type LogRowSlice = {
+  track_id: string;
+  album_id: string | null;
+  artist_id: string | null;
+};
+
+function genreWeightsFromArtistCounts(
+  artistCounts: Map<string, number>,
+  artistMeta: Map<
+    string,
+    { name: string; genres: string[] | null; image_url: string | null; popularity: number | null }
+  >,
+): TasteGenre[] {
+  const genreRaw = new Map<string, number>();
+  const genreLabel = new Map<string, string>();
+  for (const [artistId, listenCount] of artistCounts) {
+    const meta = artistMeta.get(artistId);
+    const genres = meta?.genres?.map((g) => g.trim()).filter(Boolean) ?? [];
+    if (genres.length === 0) continue;
+    const per = listenCount / genres.length;
+    for (const g of genres) {
+      const key = g.toLowerCase();
+      if (!genreLabel.has(key)) genreLabel.set(key, g);
+      genreRaw.set(key, (genreRaw.get(key) ?? 0) + per);
+    }
+  }
+  const genreTotal = [...genreRaw.values()].reduce((a, b) => a + b, 0);
+  if (genreTotal <= 0) return [];
+  return [...genreRaw.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, TOP_GENRES)
+    .map(([key, c]) => ({
+      name: genreLabel.get(key) ?? key,
+      weight: Math.round((c / genreTotal) * 1000) / 10,
+    }));
+}
+
+async function aggregateLogsToTopGenres(
+  admin: SupabaseClient,
+  logs: LogRowSlice[],
+): Promise<TasteGenre[]> {
+  if (logs.length === 0) return [];
+  const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean))];
+  const songMap = await fetchSongsBatch(admin, trackIds);
+  const artistCounts = new Map<string, number>();
+  for (const log of logs) {
+    const song = songMap.get(log.track_id);
+    const artistId = log.artist_id ?? song?.artist_id ?? null;
+    if (artistId) {
+      artistCounts.set(artistId, (artistCounts.get(artistId) ?? 0) + 1);
+    }
+  }
+  if (artistCounts.size === 0) return [];
+  const artistMeta = await fetchArtistsBatch(admin, [...artistCounts.keys()]);
+  return genreWeightsFromArtistCounts(artistCounts, artistMeta);
+}
+
+function buildRecentInsightSentence(
+  genres7: TasteGenre[],
+  genres30: TasteGenre[],
+  logCount7: number,
+  logCount30: number,
+): string {
+  if (logCount30 < 5) {
+    return "Log a few more plays across the last month to unlock week-over-week taste insights.";
+  }
+  if (logCount7 < 3) {
+    return "Add a few more listens this week and we’ll highlight how your taste shifted.";
+  }
+  const top7 = genres7[0];
+  const top30 = genres30[0];
+  if (top7 && top30 && top7.name !== top30.name) {
+    return `This week you’re leaning more into ${top7.name} than your ${logCount30}-day usual (${top30.name}).`;
+  }
+  const sameName = top7?.name;
+  const share30 = genres30.find((g) => g.name === sameName)?.weight ?? 0;
+  if (top7 && sameName && top7.weight >= share30 + 12) {
+    return `You’re doubling down on ${sameName} this week — a bigger slice of your plays than usual.`;
+  }
+  if (top7) {
+    return `Your ${logCount7} plays this week keep ${top7.name} center stage — in line with your ${logCount30}-day mix.`;
+  }
+  return "Your listening mix this week matches your recent breadth — keep logging to refine trends.";
+}
+
+async function computeRecentTasteSnapshot(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<TasteRecentSnapshot | null> {
+  const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: rows, error } = await admin
+    .from("logs")
+    .select("track_id, listened_at, album_id, artist_id")
+    .eq("user_id", userId)
+    .gte("listened_at", since30)
+    .order("listened_at", { ascending: false })
+    .limit(2000);
+
+  if (error) {
+    console.warn("[taste-identity] recent window logs failed", error);
+    return null;
+  }
+  const logs = (rows ?? []) as {
+    track_id: string;
+    listened_at: string;
+    album_id: string | null;
+    artist_id: string | null;
+  }[];
+  if (logs.length === 0) return null;
+
+  const now = Date.now();
+  const sevenMs = 7 * 24 * 60 * 60 * 1000;
+  const logs7 = logs.filter((l) => now - new Date(l.listened_at).getTime() <= sevenMs);
+  const slice = (x: (typeof logs)[number]) => ({
+    track_id: x.track_id,
+    album_id: x.album_id,
+    artist_id: x.artist_id,
+  });
+
+  const [topGenres7d, topGenres30d] = await Promise.all([
+    aggregateLogsToTopGenres(admin, logs7.map(slice)),
+    aggregateLogsToTopGenres(admin, logs.map(slice)),
+  ]);
+
+  const insightWeek = buildRecentInsightSentence(
+    topGenres7d,
+    topGenres30d,
+    logs7.length,
+    logs.length,
+  );
+
+  return {
+    logCount7d: logs7.length,
+    logCount30d: logs.length,
+    topGenres7d,
+    topGenres30d,
+    insightWeek,
+  };
 }
 
 /**
@@ -655,7 +807,9 @@ export async function computeTasteIdentity(
     totalLogs,
     summary: "",
   };
-  return { ...base, summary: buildSummary(base) };
+  const withSummary = { ...base, summary: buildSummary(base) };
+  const recent = await computeRecentTasteSnapshot(admin, userId);
+  return { ...withSummary, recent: recent ?? undefined };
 }
 
 async function upsertTasteIdentityCache(

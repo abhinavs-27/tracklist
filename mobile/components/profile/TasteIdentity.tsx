@@ -80,6 +80,18 @@ export function TasteIdentity({ userId }: Props) {
   const styleKey = normalizeListeningStyle(t.listeningStyle as string);
   const styleDisplay = getListeningStyleDisplay(styleKey);
 
+  const cardInsight = t.recent?.insightWeek?.trim()
+    ? t.recent.insightWeek
+    : t.summary;
+  const cardGenres =
+    t.recent?.topGenres7d && t.recent.topGenres7d.length > 0
+      ? t.recent.topGenres7d
+      : t.topGenres;
+  const insightSource = t.recent?.insightWeek?.trim()
+    ? "Last 7 days vs last 30 days"
+    : "All-time listening";
+  const genresLabel = t.recent?.topGenres7d?.length ? "This week" : "Top genres";
+
   return (
     <View
       style={{
@@ -110,16 +122,79 @@ export function TasteIdentity({ userId }: Props) {
         ) : null}
       </View>
 
-      <Text style={{ fontSize: 14, color: theme.colors.muted, lineHeight: 20 }}>
-        {t.summary}
-      </Text>
-
-      {!hasAny ? (
+      {hasAny ? (
+        <View
+          style={{
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: "rgba(113, 113, 122, 0.5)",
+            backgroundColor: "rgba(24, 24, 27, 0.85)",
+            padding: 14,
+            gap: 10,
+          }}
+        >
+          <Text
+            style={{ fontSize: 14, color: theme.colors.text, lineHeight: 20 }}
+          >
+            {cardInsight}
+          </Text>
+          <Text style={{ fontSize: 11, color: theme.colors.muted }}>
+            {insightSource}
+          </Text>
+          {cardGenres.length > 0 ? (
+            <>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: theme.colors.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                {genresLabel}
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                {cardGenres.slice(0, 12).map((g) => (
+                  <View
+                    key={g.name}
+                    style={{
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: "rgba(139, 92, 246, 0.35)",
+                      paddingVertical: 6,
+                      paddingHorizontal: 10,
+                      backgroundColor: "rgba(91, 33, 182, 0.18)",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: theme.colors.text }}>
+                      {g.name}{" "}
+                      <Text style={{ color: theme.colors.muted }}>
+                        {Math.round(g.weight)}%
+                      </Text>
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <Text style={{ fontSize: 13, color: theme.colors.muted }}>
+              Genre tags appear as artist metadata fills in — keep logging.
+            </Text>
+          )}
+        </View>
+      ) : (
         <Text style={{ fontSize: 14, color: theme.colors.muted }}>
           No listening history yet. Log tracks or sync Last.fm / Spotify to build
           your taste profile.
         </Text>
-      ) : null}
+      )}
 
       {t.totalLogs > 0 ? (
         <View
@@ -266,68 +341,6 @@ export function TasteIdentity({ userId }: Props) {
             value={String(t.diversityScore)}
             hint="unique genres (10 = max)"
           />
-        </View>
-      ) : null}
-
-      {t.totalLogs > 0 ? (
-        <View style={{ gap: 8 }}>
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "600",
-              color: theme.colors.muted,
-              textTransform: "uppercase",
-            }}
-          >
-            Top genres
-          </Text>
-          {t.topGenres.length === 0 ? (
-            <Text style={{ fontSize: 14, color: theme.colors.muted }}>
-              Not enough data yet — genres appear as Spotify artist metadata is
-              filled.
-            </Text>
-          ) : (
-            t.topGenres.slice(0, 10).map((g) => (
-              <View
-                key={g.name}
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                <View
-                  style={{
-                    flex: 1,
-                    height: 6,
-                    borderRadius: 4,
-                    backgroundColor: theme.colors.border,
-                  }}
-                >
-                  <View
-                    style={{
-                      height: 6,
-                      borderRadius: 4,
-                      width: `${Math.min(100, g.weight)}%` as `${number}%`,
-                      backgroundColor: "#8b5cf6",
-                    }}
-                  />
-                </View>
-                <Text
-                  style={{ width: 100, fontSize: 13, color: theme.colors.text }}
-                  numberOfLines={1}
-                >
-                  {g.name}
-                </Text>
-                <Text
-                  style={{
-                    width: 36,
-                    fontSize: 13,
-                    color: theme.colors.muted,
-                    textAlign: "right",
-                  }}
-                >
-                  {g.weight.toFixed(0)}%
-                </Text>
-              </View>
-            ))
-          )}
         </View>
       ) : null}
 

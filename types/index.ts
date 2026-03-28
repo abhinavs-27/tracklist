@@ -231,6 +231,12 @@ export type TasteMatchSharedGenre = {
   weightUserB: number;
 };
 
+/** Genre strong on one side only (for taste compare “differing” pills). */
+export type TasteMatchUniqueGenre = {
+  name: string;
+  weight: number;
+};
+
 export type TasteMatchResponse = {
   score: number;
   overlapScore: number;
@@ -238,6 +244,10 @@ export type TasteMatchResponse = {
   discoveryScore: number;
   sharedArtists: TasteMatchSharedArtist[];
   sharedGenres: TasteMatchSharedGenre[];
+  /** Top genres in user A’s identity that are not in user B’s set. */
+  uniqueGenresUserA: TasteMatchUniqueGenre[];
+  /** Top genres in user B’s identity that are not in user A’s set. */
+  uniqueGenresUserB: TasteMatchUniqueGenre[];
   summary: string;
   insufficientData: boolean;
 };

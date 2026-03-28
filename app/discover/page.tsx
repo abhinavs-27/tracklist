@@ -6,6 +6,7 @@ import { getTrendingEntitiesCached, getRisingArtistsCached, getHiddenGemsCached 
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
+import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
 import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, getOrFetchArtistsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 
 function DiscoverSectionSkeleton() {
@@ -121,6 +122,10 @@ export default async function DiscoverPage() {
 
       {session?.user?.id && recommendedCommunities.length > 0 ? (
         <RecommendedCommunitiesSection items={recommendedCommunities} />
+      ) : null}
+
+      {session?.user?.id ? (
+        <DiscoverTastePreview userId={session.user.id} />
       ) : null}
 
       <TrendingSection items={trendingEnriched} />

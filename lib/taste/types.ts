@@ -23,6 +23,16 @@ import type { TasteListeningStyle } from "./listening-style";
 
 export type { TasteListeningStyle };
 
+/** Rolling windows for “this week vs month” copy and 7d genre pills (from `taste_identity_cache` after refresh). */
+export type TasteRecentSnapshot = {
+  logCount7d: number;
+  logCount30d: number;
+  topGenres7d: TasteGenre[];
+  topGenres30d: TasteGenre[];
+  /** Compares last 7d vs last 30d genre mix. */
+  insightWeek: string;
+};
+
 export type TasteIdentity = {
   topArtists: TasteTopArtist[];
   topAlbums: TasteTopAlbum[];
@@ -36,4 +46,6 @@ export type TasteIdentity = {
   totalLogs: number;
   /** Short human-readable blurb */
   summary: string;
+  /** Present after identity refresh when enough recent logs exist. */
+  recent?: TasteRecentSnapshot | null;
 };
