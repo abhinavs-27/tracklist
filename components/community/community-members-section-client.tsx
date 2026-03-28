@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CommunityMemberRosterEntry } from "@/lib/community/community-member-roster-types";
 import { CommunityMembersGrid } from "@/components/community/community-members-grid";
+import {
+  communityBody,
+  communityButton,
+  communityCard,
+  communityHeadline,
+  communityMeta,
+} from "@/lib/ui/surface";
 
 type Props = {
   communityId: string;
@@ -71,21 +78,19 @@ export function CommunityMembersSectionClient({
   );
 
   if (total === 0) {
-    return <p className="text-sm text-zinc-500">No members to show yet.</p>;
+    return <p className={`${communityBody} text-zinc-500`}>No members to show yet.</p>;
   }
 
   return (
     <section className="space-y-3">
       <details
-        className="group rounded-2xl border border-zinc-800/90 bg-zinc-950/40 ring-1 ring-white/[0.04]"
+        className={`group ${communityCard} bg-zinc-950/35 p-0`}
         onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
       >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-4 text-left transition hover:bg-zinc-900/40 sm:px-5 sm:py-4 [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-5 py-5 text-left transition hover:bg-zinc-900/30 sm:px-6 sm:py-5 [&::-webkit-details-marker]:hidden">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-white">
-              People in this community
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
+            <h2 className={communityHeadline}>People in this community</h2>
+            <p className={`mt-1.5 ${communityMeta}`}>
               {total} member{total !== 1 ? "s" : ""}
               {totalPages > 1 ? (
                 <span className="text-zinc-600">
@@ -96,7 +101,7 @@ export function CommunityMembersSectionClient({
             </p>
           </div>
           <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-400 transition-transform duration-200 ${
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900/80 text-zinc-400 ring-1 ring-white/[0.08] transition-transform duration-200 ${
               detailsOpen ? "rotate-180" : ""
             }`}
             aria-hidden
@@ -113,7 +118,7 @@ export function CommunityMembersSectionClient({
           </span>
         </summary>
 
-        <div className="border-t border-zinc-800/80 px-4 pb-5 pt-4 sm:px-5">
+        <div className="px-5 pb-6 pt-2 sm:px-6">
           <CommunityMembersGrid
             communityId={communityId}
             viewerId={viewerId}
@@ -121,23 +126,23 @@ export function CommunityMembersSectionClient({
             showPromote={showPromote}
           />
           {totalPages > 1 ? (
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800/80 pt-4">
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => void goToPage(page - 1)}
                 disabled={page <= 1 || loading}
-                className="rounded-xl border border-zinc-600 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800/50 disabled:cursor-not-allowed disabled:opacity-40"
+                className={communityButton}
               >
                 {loading ? "Loading…" : "Previous"}
               </button>
-              <span className="text-sm tabular-nums text-zinc-500">
+              <span className={`tabular-nums ${communityMeta}`}>
                 Page {page} of {totalPages}
               </span>
               <button
                 type="button"
                 onClick={() => void goToPage(page + 1)}
                 disabled={page >= totalPages || loading}
-                className="rounded-xl border border-zinc-600 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800/50 disabled:cursor-not-allowed disabled:opacity-40"
+                className={communityButton}
               >
                 {loading ? "Loading…" : "Next"}
               </button>

@@ -12,6 +12,7 @@ import { getCommunityMembersRoster } from "@/lib/community/get-community-members
 import { getCommunityMemberStatsWithRoles } from "@/lib/community/get-community-member-stats";
 import { getWeeklyLeaderboard } from "@/lib/community/getWeeklyLeaderboard";
 import { getCommunityMatch } from "@/lib/taste/getCommunityMatch";
+import { communityBody } from "@/lib/ui/surface";
 
 export async function CommunityTasteMatchSlot({
   userId,
@@ -54,7 +55,7 @@ export async function CommunityMembersSlot({
     { page: 1 },
   );
   if (result.total === 0) {
-    return <p className="text-sm text-zinc-500">No members to show yet.</p>;
+    return <p className={`${communityBody} text-zinc-500`}>No members to show yet.</p>;
   }
   return (
     <CommunityMembersSectionClient

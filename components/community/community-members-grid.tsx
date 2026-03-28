@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { CommunityMemberRosterEntry } from "@/lib/community/community-member-roster-types";
 import { FollowButton } from "@/components/follow-button";
+import {
+  communityBody,
+  communityHeadline,
+  communityMeta,
+} from "@/lib/ui/surface";
 
 type Props = {
   communityId: string;
@@ -47,7 +52,7 @@ export function CommunityMembersGrid({
   return (
     <div className="space-y-4">
       {error ? (
-        <p className="text-sm text-red-400" role="alert">
+        <p className={`${communityBody} text-red-400`} role="alert">
           {error}
         </p>
       ) : null}
@@ -82,7 +87,7 @@ function CommunityMemberCard(props: {
   return (
     <article
       tabIndex={0}
-      className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/55 to-zinc-950/90 p-4 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.55)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-zinc-600/80 hover:shadow-[0_16px_40px_-14px_rgba(0,0,0,0.65)] focus-within:-translate-y-0.5 focus-within:border-zinc-600/80 focus-within:shadow-[0_16px_40px_-14px_rgba(0,0,0,0.65)] sm:min-h-[9.5rem] sm:p-5"
+      className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900/55 to-zinc-950/90 p-4 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-14px_rgba(0,0,0,0.65)] hover:ring-white/[0.1] focus-within:-translate-y-0.5 focus-within:shadow-[0_16px_40px_-14px_rgba(0,0,0,0.65)] focus-within:ring-white/[0.1] sm:min-h-[9.5rem] sm:p-5"
     >
       <div className="flex gap-3 sm:gap-4">
         <Link
@@ -93,10 +98,10 @@ function CommunityMemberCard(props: {
             <img
               src={m.avatar_url}
               alt=""
-              className="h-14 w-14 rounded-full border border-zinc-700 object-cover sm:h-16 sm:w-16"
+              className="h-14 w-14 rounded-full object-cover ring-1 ring-white/10 sm:h-16 sm:w-16"
             />
           ) : (
-            <span className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-lg font-medium text-zinc-300 sm:h-16 sm:w-16">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800 text-lg font-medium text-zinc-300 ring-1 ring-white/10 sm:h-16 sm:w-16">
               {m.username[0]?.toUpperCase() ?? "?"}
             </span>
           )}
@@ -106,23 +111,25 @@ function CommunityMemberCard(props: {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/profile/${m.user_id}`}
-              className="truncate text-base font-semibold text-white transition hover:text-emerald-400 hover:underline sm:text-lg"
+              className={`truncate font-semibold text-white transition hover:text-emerald-400 hover:underline ${communityHeadline}`}
             >
               {m.username}
             </Link>
             {m.role === "admin" ? (
-              <span className="shrink-0 rounded-md bg-zinc-800 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-300">
+              <span
+                className={`shrink-0 rounded-md bg-zinc-800 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-zinc-300 ${communityMeta}`}
+              >
                 Admin
               </span>
             ) : null}
             {m.is_community_creator ? (
-              <span className="shrink-0 text-[0.65rem] font-medium text-amber-500/95">
+              <span className={`shrink-0 font-medium text-amber-500/95 ${communityMeta}`}>
                 Creator
               </span>
             ) : null}
             {m.taste_neighbor ? (
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ${
+                className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${communityMeta} ${
                   m.taste_neighbor.kind === "similar"
                     ? "bg-emerald-950/80 text-emerald-200/95 ring-1 ring-emerald-500/25"
                     : "bg-amber-950/60 text-amber-200/90 ring-1 ring-amber-500/20"
@@ -140,12 +147,12 @@ function CommunityMemberCard(props: {
           </div>
 
           {m.taste_summary ? (
-            <p className="mt-2 line-clamp-2 text-sm leading-snug text-zinc-400">
+            <p className={`mt-2 line-clamp-2 leading-snug text-zinc-400 ${communityBody}`}>
               <span className="text-zinc-500">Taste · </span>
               {m.taste_summary}
             </p>
           ) : (
-            <p className="mt-2 text-sm italic text-zinc-600">
+            <p className={`mt-2 italic text-zinc-600 ${communityBody}`}>
               Taste profile fills in as they log listens.
             </p>
           )}
@@ -164,7 +171,7 @@ function CommunityMemberCard(props: {
                 {m.top_artists.slice(0, 2).map((a) => (
                   <span
                     key={a}
-                    className="rounded-full bg-emerald-950/50 px-2 py-0.5 text-[0.65rem] text-emerald-200/90"
+                    className={`rounded-full bg-emerald-950/50 px-2 py-0.5 text-emerald-200/90 ${communityMeta}`}
                   >
                     {a}
                   </span>
@@ -174,9 +181,9 @@ function CommunityMemberCard(props: {
           ) : null}
 
           {m.activity_line ? (
-            <p className="mt-2 text-xs text-zinc-500">{m.activity_line}</p>
+            <p className={`mt-2 ${communityMeta}`}>{m.activity_line}</p>
           ) : (
-            <p className="mt-2 text-xs text-zinc-600">No listening stats this week.</p>
+            <p className={`mt-2 ${communityMeta} text-zinc-600`}>No listening stats this week.</p>
           )}
         </div>
       </div>
@@ -193,7 +200,7 @@ function CommunityMemberCard(props: {
               type="button"
               onClick={onPromote}
               disabled={promoting}
-              className="rounded-full border border-zinc-600 bg-zinc-900/80 px-3 py-2 text-xs font-medium text-zinc-200 transition hover:bg-zinc-800 disabled:opacity-50"
+              className={`rounded-full bg-zinc-900/80 px-3 py-2 font-medium text-zinc-200 ring-1 ring-white/[0.1] transition hover:bg-zinc-800 disabled:opacity-50 ${communityMeta}`}
             >
               {promoting ? "…" : "Make admin"}
             </button>

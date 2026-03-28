@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import {
+  communityBody,
+  communityButton,
+  communityCard,
+  communityHeadline,
+  communityMeta,
+} from "@/lib/ui/surface";
 
 type EntityTab = "track" | "album" | "artist";
 type RangeTab = "week" | "month" | "all";
@@ -98,13 +105,16 @@ export function CommunityConsensusSection(props: { communityId: string }) {
 
   const rankBase = (page - 1) * PAGE_SIZE;
 
+  const rowShell =
+    "flex items-center gap-3 rounded-xl bg-zinc-950/40 px-3 py-2.5 ring-1 ring-white/[0.05] transition hover:bg-zinc-900/40 hover:ring-white/[0.08]";
+
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-      <h2 className="text-lg font-semibold text-white">
+    <section className={communityCard}>
+      <h2 className={communityHeadline}>
         <span aria-hidden>🔥 </span>
         Community Consensus
       </h2>
-      <p className="mt-1 text-xs text-zinc-500">
+      <p className={`mt-2 ${communityMeta} max-w-2xl`}>
         Ranked by shared listening: unique members plus capped plays per person (max 3 each)
         toward the score — not raw volume alone.
       </p>
@@ -150,7 +160,7 @@ export function CommunityConsensusSection(props: { communityId: string }) {
       </div>
 
       {error ? (
-        <p className="mt-3 text-sm text-red-400">{error}</p>
+        <p className={`mt-3 ${communityBody} text-red-400`}>{error}</p>
       ) : null}
 
       <div className="mt-4" aria-busy={loading}>
@@ -172,7 +182,7 @@ export function CommunityConsensusSection(props: { communityId: string }) {
         ) : null}
 
         {!loading && items.length === 0 ? (
-          <p className="text-sm text-zinc-500">No listens in this range yet.</p>
+          <p className={`${communityBody} text-zinc-500`}>No listens in this range yet.</p>
         ) : null}
 
         {!loading && items.length > 0 ? (
@@ -180,11 +190,9 @@ export function CommunityConsensusSection(props: { communityId: string }) {
             <ol className="space-y-2">
               {items.map((row, i) => {
                 const href = itemHref(entity, row);
-                const rowClass =
-                  "flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 transition hover:border-zinc-600 hover:bg-zinc-900/70";
                 const inner = (
                   <>
-                    <span className="w-6 shrink-0 text-sm tabular-nums text-zinc-500">
+                    <span className={`w-6 shrink-0 tabular-nums ${communityMeta}`}>
                       {rankBase + i + 1}
                     </span>
                     {row.image ? (
@@ -200,8 +208,8 @@ export function CommunityConsensusSection(props: { communityId: string }) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-white">{row.name}</p>
-                      <p className="text-xs text-zinc-500">
+                      <p className={`font-medium text-white ${communityBody}`}>{row.name}</p>
+                      <p className={communityMeta}>
                         {row.uniqueListeners} member
                         {row.uniqueListeners !== 1 ? "s" : ""} listened
                         {row.totalPlays > 0 ? (
@@ -217,11 +225,11 @@ export function CommunityConsensusSection(props: { communityId: string }) {
                 return (
                   <li key={`${row.entityId}-${i}`}>
                     {href ? (
-                      <Link href={href} className={rowClass}>
+                      <Link href={href} className={rowShell}>
                         {inner}
                       </Link>
                     ) : (
-                      <div className={rowClass}>{inner}</div>
+                      <div className={rowShell}>{inner}</div>
                     )}
                   </li>
                 );
@@ -229,25 +237,25 @@ export function CommunityConsensusSection(props: { communityId: string }) {
             </ol>
 
             <nav
-              className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-zinc-800/80 pt-4"
+              className="mt-6 flex flex-wrap items-center justify-center gap-3"
               aria-label="Consensus pagination"
             >
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={loading || page <= 1}
-                className="min-h-10 rounded-full border border-zinc-600 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className={`min-h-10 ${communityButton}`}
               >
                 Previous
               </button>
-              <span className="min-w-[5rem] text-center text-sm tabular-nums text-zinc-400">
+              <span className={`min-w-[5rem] text-center tabular-nums ${communityBody} text-zinc-400`}>
                 Page {page}
               </span>
               <button
                 type="button"
                 onClick={() => setPage((p) => p + 1)}
                 disabled={loading || !hasNextPage}
-                className="min-h-10 rounded-full border border-zinc-600 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className={`min-h-10 ${communityButton}`}
               >
                 Next
               </button>

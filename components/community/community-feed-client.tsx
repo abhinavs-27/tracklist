@@ -12,16 +12,18 @@ import {
   LISTEN_SESSIONS_DISPLAY_CAP,
 } from "@/components/listen-session-row";
 import { formatRelativeTime } from "@/lib/time";
-import { sectionTitle } from "@/lib/ui/surface";
+import {
+  communityBody,
+  communityFeedCard,
+  communityFeedCardTrending,
+  communityHeadline,
+  communityMeta,
+  communityMetaLabel,
+  communityButton,
+} from "@/lib/ui/surface";
 import type { FeedListenSession } from "@/types";
 
 type Filter = "all" | "streaks" | "listens" | "reviews" | "members";
-
-const cardBase =
-  "rounded-2xl border bg-zinc-900/45 p-5 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)] transition-colors sm:p-6";
-const cardBorder = "border-zinc-800/90";
-const cardTrending =
-  "border-emerald-500/35 shadow-[0_0_48px_-14px_rgba(16,185,129,0.22)] ring-2 ring-emerald-500/20";
 
 function CommunityListenSessionsSummaryCard(props: {
   item: CommunityFeedItemV2;
@@ -41,12 +43,12 @@ function CommunityListenSessionsSummaryCard(props: {
 
   return (
     <article
-      className={`${cardBase} ${trending ? cardTrending : cardBorder} hover:bg-zinc-900/65`}
+      className={`${trending ? communityFeedCardTrending : communityFeedCard} hover:bg-zinc-900/65`}
     >
       <div className="flex flex-wrap items-start gap-4">
         <Link
           href={`/profile/${item.user_id}`}
-          className="inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800"
+          className="inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-zinc-800 ring-1 ring-white/10"
           onClick={(e) => e.stopPropagation()}
         >
           {item.avatar_url ? (
@@ -67,7 +69,7 @@ function CommunityListenSessionsSummaryCard(props: {
             onClick={() => setExpanded((e) => !e)}
             className="w-full text-left"
           >
-            <p className="text-base text-zinc-200">
+            <p className={`${communityBody} text-zinc-200`}>
               <Link
                 href={`/profile/${item.user_id}`}
                 onClick={(e) => e.stopPropagation()}
@@ -85,7 +87,7 @@ function CommunityListenSessionsSummaryCard(props: {
                 </span>
               </span>
             </p>
-            <p className="mt-1.5 text-sm text-zinc-500">
+            <p className={`mt-1.5 ${communityMeta}`}>
               {formatRelativeTime(item.created_at)}
               <span className="ml-1 text-zinc-600">{expanded ? "▼" : "▶"}</span>
             </p>
@@ -95,12 +97,12 @@ function CommunityListenSessionsSummaryCard(props: {
           <img
             src={item.artwork_url}
             alt=""
-            className={`h-20 w-20 shrink-0 rounded-xl border border-zinc-700 object-cover sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-1 ring-emerald-500/30" : ""}`}
+            className={`h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-white/10 sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-emerald-500/30" : ""}`}
           />
         ) : null}
       </div>
       {expanded && sessions.length > 0 ? (
-        <div className="mt-4 border-t border-zinc-800/90 pt-4">
+        <div className="mt-5 pt-4">
           <ul className="m-0 list-none space-y-2.5 p-0">
             {sessions.map((sess) => (
               <li key={`${sess.track_id}-${sess.created_at}`}>
@@ -110,7 +112,7 @@ function CommunityListenSessionsSummaryCard(props: {
           </ul>
         </div>
       ) : null}
-      <div className="mt-4 border-t border-zinc-800/80 pt-4">
+      <div className="mt-5 pt-5">
         <CommunityFeedCommentThread
           communityId={communityId}
           {...commentThreadTarget(item)}
@@ -133,7 +135,7 @@ function AlbumListenClusterCard(props: {
 
   return (
     <article
-      className={`${cardBase} ${cardBorder} bg-gradient-to-br from-zinc-900/80 via-zinc-950/90 to-zinc-950 hover:from-zinc-900/90`}
+      className={`${communityFeedCard} bg-gradient-to-br from-zinc-900/80 via-zinc-950/90 to-zinc-950 hover:from-zinc-900/90`}
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
         <div className="relative shrink-0">
@@ -142,20 +144,22 @@ function AlbumListenClusterCard(props: {
               <img
                 src={artworkUrl}
                 alt=""
-                className="h-28 w-28 rounded-2xl border border-white/[0.08] object-cover shadow-lg shadow-black/40 sm:h-32 sm:w-32"
+                className="h-28 w-28 rounded-2xl object-cover shadow-lg shadow-black/40 ring-1 ring-white/[0.08] sm:h-32 sm:w-32"
               />
             </Link>
           ) : (
-            <div className="flex h-28 w-28 items-center justify-center rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/60 text-xs text-zinc-600 sm:h-32 sm:w-32">
-              Album
+            <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-zinc-900/60 text-zinc-600 ring-1 ring-dashed ring-zinc-600/80 sm:h-32 sm:w-32">
+              <span className={communityMeta}>Album</span>
             </div>
           )}
-          <span className="absolute -bottom-1 -right-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-white shadow-md">
+          <span
+            className={`absolute -bottom-1 -right-1 rounded-full bg-emerald-600 px-2 py-0.5 font-semibold uppercase tracking-wide text-white shadow-md ${communityMeta}`}
+          >
             Live
           </span>
         </div>
         <div className="min-w-0 flex-1 space-y-3">
-          <p className="text-lg font-semibold leading-snug text-white sm:text-xl">
+          <p className={`font-semibold leading-snug text-white ${communityHeadline}`}>
             <span className="text-emerald-400/95">{uniqueUserCount}</span>{" "}
             {uniqueUserCount === 1 ? "person is" : "people are"} listening to{" "}
             <Link
@@ -165,7 +169,7 @@ function AlbumListenClusterCard(props: {
               this album
             </Link>
           </p>
-          <p className="text-sm text-zinc-500">{formatRelativeTime(latestAt)}</p>
+          <p className={communityMeta}>{formatRelativeTime(latestAt)}</p>
           <div className="flex -space-x-2">
             {avatars.map((u) => (
               <Link
@@ -181,7 +185,7 @@ function AlbumListenClusterCard(props: {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="flex h-full w-full items-center justify-center text-[0.65rem] text-zinc-400">
+                  <span className={`flex h-full w-full items-center justify-center text-zinc-400 ${communityMeta}`}>
                     {u.username[0]?.toUpperCase() ?? "?"}
                   </span>
                 )}
@@ -221,17 +225,17 @@ function LiveFeedItemCard(props: {
 
   return (
     <article
-      className={`${cardBase} ${trending ? cardTrending : cardBorder} hover:bg-zinc-900/70`}
+      className={`${trending ? communityFeedCardTrending : communityFeedCard} hover:bg-zinc-900/70`}
     >
       {trending ? (
-        <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider text-emerald-400/95 ring-1 ring-emerald-500/25">
+        <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-semibold uppercase tracking-[0.12em] text-emerald-400/95 ring-1 ring-emerald-500/25">
           Trending
         </div>
       ) : null}
       <div className="flex gap-4">
         <Link
           href={`/profile/${item.user_id}`}
-          className="inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800"
+          className="inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-zinc-800 ring-1 ring-white/10"
         >
           {item.avatar_url ? (
             <img
@@ -247,7 +251,7 @@ function LiveFeedItemCard(props: {
         </Link>
         <div className="min-w-0 flex-1">
           {showEntityLink ? (
-            <p className="text-base text-zinc-200">
+            <p className={`${communityBody} text-zinc-200`}>
               <Link
                 href={`/profile/${item.user_id}`}
                 className="font-semibold text-white hover:text-emerald-400 hover:underline"
@@ -265,9 +269,9 @@ function LiveFeedItemCard(props: {
               <span className="text-zinc-300"> {rating}/5</span>
             </p>
           ) : isFullLineLabel ? (
-            <p className="text-base leading-relaxed text-zinc-200">{item.label}</p>
+            <p className={`${communityBody} leading-relaxed text-zinc-200`}>{item.label}</p>
           ) : (
-            <p className="text-base text-zinc-200">
+            <p className={`${communityBody} text-zinc-200`}>
               <Link
                 href={`/profile/${item.user_id}`}
                 className="font-semibold text-white hover:text-emerald-400 hover:underline"
@@ -279,11 +283,11 @@ function LiveFeedItemCard(props: {
             </p>
           )}
           {item.sublabel ? (
-            <p className="mt-1.5 line-clamp-4 text-sm text-zinc-500">
+            <p className={`mt-1.5 line-clamp-4 ${communityMeta}`}>
               {item.sublabel}
             </p>
           ) : null}
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className={`mt-2 ${communityMeta}`}>
             {formatRelativeTime(item.created_at)}
           </p>
         </div>
@@ -297,19 +301,19 @@ function LiveFeedItemCard(props: {
               <img
                 src={item.artwork_url}
                 alt=""
-                className={`h-20 w-20 rounded-xl border border-zinc-700 object-cover transition hover:opacity-90 sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-1 ring-emerald-500/35" : ""}`}
+                className={`h-20 w-20 rounded-xl object-cover ring-1 ring-white/10 transition hover:opacity-90 sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-emerald-500/35" : ""}`}
               />
             </Link>
           ) : (
             <img
               src={item.artwork_url}
               alt=""
-              className="h-20 w-20 shrink-0 rounded-xl border border-zinc-700 object-cover sm:h-[5.5rem] sm:w-[5.5rem]"
+              className="h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-white/10 sm:h-[5.5rem] sm:w-[5.5rem]"
             />
           )
         ) : null}
       </div>
-      <div className="mt-4 border-t border-zinc-800/80 pt-4">
+      <div className="mt-5 pt-5">
         <CommunityFeedCommentThread
           communityId={communityId}
           {...commentThreadTarget(item)}
@@ -468,21 +472,21 @@ export function CommunityFeedClient(props: {
 
   return (
     <div ref={feedTopRef} className="scroll-mt-4 pr-1">
-      <header className="mb-6">
-        <h2 className={sectionTitle}>Live in this community</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
+      <header className="mb-8">
+        <h2 className={communityHeadline}>Live in this community</h2>
+        <p className={`mt-2 max-w-2xl ${communityMeta}`}>
           Real-time listens, reviews, and milestones from members — updated as
           people listen and share.
         </p>
       </header>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-8 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <button
             key={f.value}
             type="button"
             onClick={() => setFilter(f.value)}
-            className={`rounded-full px-3.5 py-2 text-xs font-medium transition sm:text-sm ${
+            className={`rounded-full px-3.5 py-2 font-medium transition ${communityBody} ${
               filter === f.value
                 ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/30"
                 : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
@@ -494,9 +498,9 @@ export function CommunityFeedClient(props: {
       </div>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <p className={`${communityBody} text-zinc-500`}>Loading…</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-zinc-500">
+        <p className={`${communityBody} text-zinc-500`}>
           No activity for this filter yet. Member listens, reviews, follows, feed
           stories, and milestones appear here.
         </p>
@@ -522,7 +526,7 @@ export function CommunityFeedClient(props: {
               if (row.kind === "section") {
                 return (
                   <motion.li key={row.id} layout {...motionProps}>
-                    <h3 className="border-b border-white/[0.06] pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-500/90">
+                    <h3 className={`${communityMetaLabel} pb-1 text-emerald-500/90`}>
                       {row.title}
                     </h3>
                   </motion.li>
@@ -571,21 +575,21 @@ export function CommunityFeedClient(props: {
       )}
 
       {!loading && items.length > 0 ? (
-        <div className="flex items-center justify-between gap-4 pt-8">
+        <div className="flex items-center justify-between gap-4 pt-10">
           <button
             type="button"
             onClick={() => void goPrev()}
             disabled={page <= 1 || navLoading}
-            className="rounded-xl border border-zinc-600 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700/50 disabled:cursor-not-allowed disabled:opacity-40"
+            className={communityButton}
           >
             {navLoading ? "Loading…" : "Previous"}
           </button>
-          <span className="text-sm tabular-nums text-zinc-500">Page {page}</span>
+          <span className={`tabular-nums ${communityMeta}`}>Page {page}</span>
           <button
             type="button"
             onClick={() => void goNext()}
             disabled={!hasNextPage || navLoading}
-            className="rounded-xl border border-zinc-600 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700/50 disabled:cursor-not-allowed disabled:opacity-40"
+            className={communityButton}
           >
             {navLoading ? "Loading…" : "Next"}
           </button>

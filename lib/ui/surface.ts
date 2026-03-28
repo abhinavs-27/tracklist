@@ -38,3 +38,39 @@ export const segmentedButtonActive =
 
 export const segmentedButtonIdle =
   "text-zinc-400 transition-colors hover:text-white";
+
+/* ── Community detail page: unified cards + 3 text tiers (headline / body / meta) ── */
+
+/** Primary section card: rounded-2xl, soft shadow, subtle ring (no heavy borders). */
+export const communityCard =
+  "rounded-2xl bg-zinc-900/50 p-5 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06] sm:p-6";
+
+/** Inset panel inside a community card (nested blocks). */
+export const communityInset =
+  "rounded-2xl bg-zinc-950/40 ring-1 ring-white/[0.05]";
+
+/** Section / card titles. */
+export const communityHeadline =
+  "text-lg font-semibold tracking-tight text-white sm:text-xl";
+
+/** Primary reading text. */
+export const communityBody = "text-sm leading-relaxed text-zinc-300";
+
+/** Captions, timestamps, secondary lines. */
+export const communityMeta = "text-xs text-zinc-500";
+
+/** Eyebrow labels (still metadata size). */
+export const communityMetaLabel =
+  "text-xs font-medium uppercase tracking-[0.12em] text-zinc-500";
+
+/** Pagination & low-emphasis actions. */
+export const communityButton =
+  "rounded-xl bg-zinc-800/80 px-4 py-2.5 text-sm font-medium text-zinc-200 ring-1 ring-white/[0.08] transition hover:bg-zinc-700/80 disabled:cursor-not-allowed disabled:opacity-40";
+
+/** Feed row cards — same shell as `communityCard` with hover. */
+export const communityFeedCard =
+  "rounded-2xl bg-zinc-900/50 p-5 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06] transition-colors hover:bg-zinc-900/58 sm:p-6";
+
+/** Trending emphasis for feed rows (replaces default ring). */
+export const communityFeedCardTrending =
+  "rounded-2xl bg-zinc-900/50 p-5 shadow-[0_0_48px_-14px_rgba(16,185,129,0.18)] ring-2 ring-emerald-500/20 transition-colors hover:bg-zinc-900/58 sm:p-6";

@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  communityBody,
+  communityCard,
+  communityInset,
+  communityHeadline,
+  communityMeta,
+  communityMetaLabel,
+} from "@/lib/ui/surface";
 
 type SearchUser = {
   id: string;
@@ -169,22 +177,22 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <h3 className="text-sm font-semibold text-white">Invite people</h3>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+    <div className={communityCard}>
+      <h3 className={communityHeadline}>Invite people</h3>
+      <p className={`mt-2 ${communityMeta} leading-relaxed`}>
         Share a link anyone can use, or invite someone by username (they get a
         notification).
       </p>
 
       {/* Share link */}
-      <div className="mt-5 rounded-xl border border-zinc-800/90 bg-zinc-950/50 p-4">
+      <div className={`mt-6 p-4 ${communityInset}`}>
         <div className="flex items-start gap-2">
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-800/80 text-zinc-400">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-800/80 text-zinc-400 ring-1 ring-white/[0.06]">
             <ClipboardIcon className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-zinc-200">Invite link</p>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            <p className={`font-medium text-zinc-200 ${communityBody}`}>Invite link</p>
+            <p className={`mt-1 leading-relaxed ${communityMeta}`}>
               We&apos;ll <span className="font-medium text-zinc-400">copy the URL to your clipboard</span>{" "}
               so you can paste it in a message, email, or anywhere else.
             </p>
@@ -209,7 +217,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
 
         {justCopied && inviteUrl ? (
           <div
-            className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-800/60 bg-emerald-950/40 px-3 py-2.5 text-sm text-emerald-200"
+            className={`mt-3 flex items-center gap-2 rounded-xl bg-emerald-950/40 px-3 py-2.5 text-emerald-200 ring-1 ring-emerald-500/25 ${communityBody}`}
             role="status"
           >
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
@@ -221,18 +229,16 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
 
         {inviteUrl ? (
           <div className="mt-3 space-y-2">
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
-                Link
-              </p>
-              <p className="mt-1 break-all font-mono text-xs text-zinc-300">
+            <div className={`rounded-xl bg-zinc-900/80 px-3 py-2 ring-1 ring-white/[0.06]`}>
+              <p className={`${communityMetaLabel} text-zinc-600`}>Link</p>
+              <p className={`mt-1 break-all font-mono text-zinc-300 ${communityMeta}`}>
                 {inviteUrl}
               </p>
             </div>
             <button
               type="button"
               onClick={() => void copyAgain()}
-              className="text-xs font-medium text-emerald-400/90 hover:text-emerald-300"
+              className={`font-medium text-emerald-400/90 hover:text-emerald-300 ${communityMeta}`}
             >
               Copy again
             </button>
@@ -240,17 +246,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
         ) : null}
       </div>
 
-      {/* Divider + search */}
-      <div className="relative my-5">
-        <div className="absolute inset-0 flex items-center" aria-hidden>
-          <div className="w-full border-t border-zinc-800" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="bg-zinc-900/40 px-2 text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-            Or search
-          </span>
-        </div>
-      </div>
+      <p className={`mt-8 text-center ${communityMetaLabel} text-zinc-600`}>Or search</p>
 
       <label className="sr-only" htmlFor="invite-user-search">
         Search users by username
@@ -260,17 +256,17 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search username…"
-        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-600"
+        className={`mt-3 w-full rounded-xl bg-zinc-900 px-3 py-2.5 text-white placeholder:text-zinc-600 ring-1 ring-white/[0.08] ${communityBody}`}
         autoComplete="off"
       />
       {searching ? (
-        <p className="mt-2 text-xs text-zinc-500">Searching…</p>
+        <p className={`mt-2 ${communityMeta}`}>Searching…</p>
       ) : results.length > 0 ? (
         <ul className="mt-3 space-y-2">
           {results.map((u) => (
             <li
               key={u.id}
-              className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5"
+              className={`flex items-center justify-between gap-2 rounded-xl bg-zinc-950/50 px-2 py-2 ring-1 ring-white/[0.05]`}
             >
               <div className="flex min-w-0 items-center gap-2">
                 {u.avatar_url ? (
@@ -284,7 +280,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
                     {u.username[0]?.toUpperCase() ?? "?"}
                   </span>
                 )}
-                <span className="truncate text-sm text-zinc-200">{u.username}</span>
+                <span className={`truncate text-zinc-200 ${communityBody}`}>{u.username}</span>
               </div>
               <button
                 type="button"
@@ -298,15 +294,15 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
           ))}
         </ul>
       ) : q.trim().length >= 2 && !searching ? (
-        <p className="mt-2 text-xs text-zinc-500">No users found.</p>
+        <p className={`mt-2 ${communityMeta}`}>No users found.</p>
       ) : null}
 
       {feedback ? (
         <p
           className={
             feedback.tone === "success"
-              ? "mt-3 text-xs text-emerald-400/90"
-              : "mt-3 text-xs text-amber-400/90"
+              ? `mt-3 ${communityMeta} text-emerald-400/90`
+              : `mt-3 ${communityMeta} text-amber-400/90`
           }
         >
           {feedback.text}

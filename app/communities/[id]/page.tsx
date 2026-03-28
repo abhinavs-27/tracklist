@@ -25,7 +25,7 @@ import {
   getCommunityMemberGrowthThisWeek,
 } from "@/lib/community/get-community-hero-data";
 import { isValidUuid } from "@/lib/validation";
-import { sectionGap } from "@/lib/ui/surface";
+import { communityBody, sectionGap } from "@/lib/ui/surface";
 import { CommunityHero } from "@/components/community/community-hero";
 import { CommunityMemberHeroShell } from "@/components/community/community-member-hero-shell";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
@@ -138,7 +138,7 @@ export default async function CommunityDetailPage({
       ) : null}
 
       {!isMember ? (
-        <p className="text-sm text-zinc-500">
+        <p className={`${communityBody} text-zinc-500`}>
           {community.is_private
             ? pendingInvite
               ? "You’ve been invited to this private community."
