@@ -59,13 +59,17 @@ export function SimilarUsersSection() {
                   </Text>
                 </View>
               )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{m.username}</Text>
+              <View style={styles.nameBlock}>
+                <Text style={styles.name} numberOfLines={1}>
+                  {m.username}
+                </Text>
                 <Text style={styles.meta}>
                   {pct}% · {m.label}
                 </Text>
               </View>
-              <Text style={styles.pct}>{pct}%</Text>
+              <Text style={styles.pct} numberOfLines={1}>
+                {pct}%
+              </Text>
             </Pressable>
           );
         })}
@@ -93,7 +97,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
+    minWidth: 0,
   },
+  nameBlock: { flex: 1, minWidth: 0 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   avatarPh: {
     width: 40,
@@ -106,5 +112,10 @@ const styles = StyleSheet.create({
   avatarPhText: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
   name: { fontSize: 15, fontWeight: "600", color: theme.colors.text },
   meta: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
-  pct: { fontSize: 15, fontWeight: "800", color: theme.colors.emerald },
+  pct: {
+    flexShrink: 0,
+    fontSize: 15,
+    fontWeight: "800",
+    color: theme.colors.emerald,
+  },
 });

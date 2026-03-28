@@ -19,7 +19,7 @@ export async function CommunityDiscoveryCarousels({ communityId }: Props) {
       <div>
         <p className={communityMetaLabel}>Top albums</p>
         <p className={`mt-1 max-w-xl ${communityMeta}`}>
-          Shared favorites this week — swipe or scroll sideways.
+          Shared favorites this week.
         </p>
         {albums.items.length === 0 ? (
           <p className={`mt-4 ${communityMeta} text-zinc-500`}>
@@ -51,7 +51,8 @@ export async function CommunityDiscoveryCarousels({ communityId }: Props) {
                     {a.name}
                   </p>
                   <p className={communityMeta}>
-                    {a.uniqueListeners} listener{a.uniqueListeners === 1 ? "" : "s"}
+                    {a.uniqueListeners} listener
+                    {a.uniqueListeners === 1 ? "" : "s"}
                   </p>
                 </Link>
               </li>
@@ -95,7 +96,8 @@ export async function CommunityDiscoveryCarousels({ communityId }: Props) {
                     {a.name}
                   </p>
                   <p className={communityMeta}>
-                    {a.uniqueListeners} listener{a.uniqueListeners === 1 ? "" : "s"}
+                    {a.uniqueListeners} listener
+                    {a.uniqueListeners === 1 ? "" : "s"}
                   </p>
                 </Link>
               </li>

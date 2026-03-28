@@ -22,6 +22,8 @@ type Props = {
   initialRoster: CommunityMemberRosterEntry[];
   /** When true, skip outer card and "People in this community" heading (e.g. inside a collapsible). */
   embedded?: boolean;
+  /** Directory rows vs 2-column social cards (mobile web People tab). */
+  variant?: "list" | "social";
 };
 
 export function CommunityMembersSectionClient({
@@ -34,6 +36,7 @@ export function CommunityMembersSectionClient({
   initialTotalPages,
   initialRoster,
   embedded = false,
+  variant = "list",
 }: Props) {
   const [page, setPage] = useState(initialPage);
   const [total, setTotal] = useState(initialTotal);
@@ -89,6 +92,7 @@ export function CommunityMembersSectionClient({
       viewerId={viewerId}
       roster={roster}
       showPromote={showPromote}
+      variant={variant}
     />
   );
 

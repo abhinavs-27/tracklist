@@ -266,9 +266,9 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
           {results.map((u) => (
             <li
               key={u.id}
-              className={`flex items-center justify-between gap-2 rounded-xl bg-zinc-950/50 px-2 py-2 ring-1 ring-white/[0.05]`}
+              className={`flex min-w-0 items-center justify-between gap-2 rounded-xl bg-zinc-950/50 px-2 py-2 ring-1 ring-white/[0.05]`}
             >
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 {u.avatar_url ? (
                   <img
                     src={u.avatar_url}
@@ -280,7 +280,12 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
                     {u.username[0]?.toUpperCase() ?? "?"}
                   </span>
                 )}
-                <span className={`truncate text-zinc-200 ${communityBody}`}>{u.username}</span>
+                <span
+                  className={`min-w-0 flex-1 truncate text-zinc-200 ${communityBody}`}
+                  title={u.username}
+                >
+                  {u.username}
+                </span>
               </div>
               <button
                 type="button"

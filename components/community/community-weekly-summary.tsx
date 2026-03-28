@@ -87,6 +87,10 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
   const maxShare = localBuckets?.length
     ? Math.max(...localBuckets.map((b) => b.share))
     : 0;
+  const maxGenreWeight = Math.max(
+    1,
+    ...current.top_genres.map((g) => g.weight),
+  );
 
   return (
     <section className={communityCard}>
@@ -98,14 +102,28 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
       {current.top_genres.length > 0 ? (
         <div className="mt-5">
           <p className={communityMetaLabel}>Top genres</p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {current.top_genres.slice(0, 8).map((g) => (
-              <li
-                key={g.name}
-                className={`rounded-full bg-zinc-800/90 px-2.5 py-0.5 ${communityBody} text-zinc-200`}
-              >
-                {g.name}
-                <span className="ml-1 text-zinc-500">({g.weight})</span>
+          <p className={`mt-1 ${communityMeta} text-zinc-600`}>
+            Weighted by group listening (same chart as the mobile Vibe tab)
+          </p>
+          <ul className="mt-3 space-y-2.5">
+            {current.top_genres.slice(0, 10).map((g) => (
+              <li key={g.name}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className={`truncate font-medium text-zinc-200 ${communityBody}`}>
+                    {g.name}
+                  </span>
+                  <span className={`shrink-0 tabular-nums ${communityMeta}`}>
+                    {g.weight}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-emerald-500"
+                    style={{
+                      width: `${Math.max(8, (g.weight / maxGenreWeight) * 100)}%`,
+                    }}
+                  />
+                </div>
               </li>
             ))}
           </ul>
@@ -114,17 +132,20 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
 
       {current.top_styles.length > 0 ? (
         <div className="mt-5">
-          <p className={communityMetaLabel}>Listening styles (members)</p>
-          <ul className="mt-2 space-y-1.5">
-            {current.top_styles.slice(0, 5).map((s) => (
-              <li key={s.style} className={`flex justify-between gap-2 ${communityBody}`}>
-                <span className="capitalize">{s.style.replace(/-/g, " ")}</span>
-                <span className={`tabular-nums ${communityMeta}`}>
-                  {Math.round(s.share * 100)}%
-                </span>
-              </li>
+          <p className={communityMetaLabel}>Listening styles</p>
+          <p className={`mt-1 ${communityMeta} text-zinc-600`}>
+            Share of group taste this week
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {current.top_styles.slice(0, 12).map((s) => (
+              <span
+                key={s.style}
+                className="rounded-full border border-white/[0.08] bg-zinc-900/80 px-3 py-1.5 text-sm font-semibold text-zinc-200"
+              >
+                {s.style.replace(/-/g, " ")} · {Math.round(s.share * 100)}%
+              </span>
             ))}
-          </ul>
+          </div>
         </div>
       ) : null}
 
@@ -201,20 +222,44 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
       ) : null}
 
       {trend && (trend.genres.gained.length > 0 || trend.genres.lost.length > 0) ? (
-        <div className={`mt-6 ${communityMeta} text-zinc-400`}>
-          <span className="text-zinc-500">vs last week: </span>
+        <div className="mt-8 rounded-xl border border-emerald-500/20 bg-emerald-950/15 px-4 py-4 ring-1 ring-emerald-500/10">
+          <p className={communityMetaLabel}>This week&apos;s genre leaders</p>
+          <p className={`mt-1 ${communityMeta} text-zinc-500`}>
+            Momentum vs last week — genres surging or cooling in the group
+          </p>
           {trend.genres.gained.length > 0 ? (
-            <span className="text-emerald-400">
-              + {trend.genres.gained.join(", ")}
-            </span>
+            <div className="mt-3">
+              <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-500/90 ${communityMeta}`}>
+                Gaining
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {trend.genres.gained.slice(0, 12).map((g) => (
+                  <span
+                    key={g}
+                    className="rounded-full border border-emerald-500/35 bg-emerald-950/50 px-3 py-1.5 text-sm font-medium text-emerald-200"
+                  >
+                    ↑ {g}
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : null}
-          {trend.genres.gained.length > 0 && trend.genres.lost.length > 0
-            ? " · "
-            : null}
           {trend.genres.lost.length > 0 ? (
-            <span className="text-rose-400/90">
-              − {trend.genres.lost.join(", ")}
-            </span>
+            <div className={trend.genres.gained.length > 0 ? "mt-4" : "mt-3"}>
+              <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-rose-400/90 ${communityMeta}`}>
+                Cooling
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {trend.genres.lost.slice(0, 12).map((g) => (
+                  <span
+                    key={g}
+                    className="rounded-full border border-rose-500/30 bg-rose-950/40 px-3 py-1.5 text-sm font-medium text-rose-200/95"
+                  >
+                    ↓ {g}
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : null}
         </div>
       ) : null}

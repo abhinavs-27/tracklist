@@ -116,8 +116,11 @@ export function DiscoverUsersGrid({ limit = 16 }: { limit?: number }) {
         const cover = album?.images?.[0]?.url;
         return (
           <article key={u.id} className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <Link href={`/profile/${u.id}`} className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <Link
+                href={`/profile/${u.id}`}
+                className="flex min-w-0 flex-1 items-center gap-3"
+              >
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800">
                   {u.avatar_url ? (
                     <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
@@ -127,8 +130,13 @@ export function DiscoverUsersGrid({ limit = 16 }: { limit?: number }) {
                     </div>
                   )}
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-white hover:underline">{u.username}</div>
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="truncate font-medium text-white hover:underline"
+                    title={u.username}
+                  >
+                    {u.username}
+                  </div>
                   <div className="mt-0.5 text-xs text-zinc-500">Recently active</div>
                 </div>
               </Link>

@@ -141,7 +141,6 @@ export default async function CommunityDetailPage({
             viewerId={session.user.id}
             canInvite={canInvite}
             showPromote={showAdminSection}
-            communityCreatedBy={community.created_by}
             initialFeedItems={memberFeedPreload.items}
             initialFeedNextOffset={memberFeedPreload.nextOffset}
           />
@@ -155,7 +154,7 @@ export default async function CommunityDetailPage({
               ? pendingInvite
                 ? "You’ve been invited to this private community."
                 : "This community is private. Ask a member for an invite, or check your invites."
-              : "Join to see the weekly leaderboard and activity feed."}
+              : "Join to see the community vibe, people, and activity feed."}
           </p>
         </div>
       ) : null}
@@ -173,7 +172,10 @@ export default async function CommunityDetailPage({
               <div className="h-24 animate-pulse rounded-xl bg-zinc-900/50" />
             }
           >
-            <CommunityTasteMatchSlot userId={session.user.id} communityId={id} />
+            <CommunityTasteMatchSlot
+              userId={session.user.id}
+              communityId={id}
+            />
           </Suspense>
           {canInvite ? <InviteMembersPanel communityId={id} /> : null}
         </div>
@@ -184,7 +186,7 @@ export default async function CommunityDetailPage({
           <CommunityPageSection
             eyebrow="Community pulse"
             title="Listening & trends"
-            description="How this group listens — last 7 days and this week’s vibe."
+            description="Exploration, weekly identity, and shared favorites."
           >
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 [&>*]:min-w-0">
               <Suspense fallback={<CommunitySectionSkeleton />}>
@@ -212,7 +214,7 @@ export default async function CommunityDetailPage({
           <CommunityPageSection
             eyebrow="This week"
             title="Rankings & people"
-            description="Rankings from the last seven days, then the full member list."
+            description="Weekly listen leaders, then members in a card grid (compatibility, top artist) with pagination — same idea as the People tab on small screens."
           >
             <div className="flex flex-col gap-6 [&>*]:min-w-0">
               <Suspense fallback={<CommunitySectionSkeleton />}>

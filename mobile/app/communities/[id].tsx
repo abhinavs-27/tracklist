@@ -11,7 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { CommunityActivityFeed } from "../../components/community/CommunityActivityFeed";
-import { CommunityTopDiscoverTab } from "../../components/community/CommunityTopDiscoverTab";
+import { CommunityPeopleTab } from "../../components/community/CommunityPeopleTab";
+import { CommunityVibeTab } from "../../components/community/CommunityVibeTab";
 import {
   acceptCommunityInviteApi,
   declineCommunityInviteApi,
@@ -20,6 +21,7 @@ import {
   fetchCommunityFeed,
   fetchCommunityInsights,
   fetchCommunityLeaderboard,
+  fetchCommunityWeeklySummary,
   joinCommunity,
   type CommunityFeedItemV2,
 } from "../../lib/api-communities";
@@ -40,8 +42,15 @@ export default function CommunityDetailScreen() {
   const [joining, setJoining] = useState(false);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [joinErr, setJoinErr] = useState<string | null>(null);
-  const [memberTab, setMemberTab] = useState<"top" | "activity">("top");
+  const [memberTab, setMemberTab] = useState<"vibe" | "people" | "activity">(
+    "vibe",
+  );
+  const [tz, setTz] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
 
   const { data: meta, isPending: metaPending } = useQuery({
     queryKey: queryKeys.community(id),
@@ -85,6 +94,12 @@ export default function CommunityDetailScreen() {
     queryKey: queryKeys.communityConsensus(id, "artist", "week"),
     queryFn: () => fetchCommunityConsensus(id, { type: "artist", limit: 20 }),
     enabled: !!id && isMember,
+  });
+
+  const { data: weeklyData, isPending: weeklyPending } = useQuery({
+    queryKey: queryKeys.communityWeeklySummary(id, tz ?? "UTC"),
+    queryFn: () => fetchCommunityWeeklySummary(id, tz ?? "UTC"),
+    enabled: !!id && isMember && !!tz,
   });
 
   const [feedExtra, setFeedExtra] = useState<CommunityFeedItemV2[]>([]);
@@ -143,6 +158,9 @@ export default function CommunityDetailScreen() {
           Array.isArray(q.queryKey) &&
           q.queryKey[0] === "communityWeeklySummary" &&
           q.queryKey[1] === id,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.communityMembersInfinite(id),
       });
     } catch (e) {
       setJoinErr(e instanceof Error ? e.message : "Could not accept");
@@ -213,6 +231,9 @@ export default function CommunityDetailScreen() {
           Array.isArray(q.queryKey) &&
           q.queryKey[0] === "communityWeeklySummary" &&
           q.queryKey[1] === id,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.communityMembersInfinite(id),
       });
     } catch (e) {
       setJoinErr(e instanceof Error ? e.message : "Could not join");
@@ -294,7 +315,7 @@ export default function CommunityDetailScreen() {
                 ) : (
                   <>
                     <Text style={styles.muted}>
-                      Join to see discovery, leaderboard, and the activity feed.
+                      Join to see the community vibe, member grid, and activity feed.
                     </Text>
                     <Pressable
                       style={[styles.joinBtn, joining && styles.joinBtnDisabled]}
@@ -315,19 +336,35 @@ export default function CommunityDetailScreen() {
               <>
                 <View style={styles.tabBar}>
                   <Pressable
-                    onPress={() => setMemberTab("top")}
+                    onPress={() => setMemberTab("vibe")}
                     style={[
                       styles.tabBtn,
-                      memberTab === "top" && styles.tabBtnActive,
+                      memberTab === "vibe" && styles.tabBtnActive,
                     ]}
                   >
                     <Text
                       style={[
                         styles.tabLabel,
-                        memberTab === "top" && styles.tabLabelActive,
+                        memberTab === "vibe" && styles.tabLabelActive,
                       ]}
                     >
-                      Top
+                      Vibe
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setMemberTab("people")}
+                    style={[
+                      styles.tabBtn,
+                      memberTab === "people" && styles.tabBtnActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        memberTab === "people" && styles.tabLabelActive,
+                      ]}
+                    >
+                      People
                     </Text>
                   </Pressable>
                   <Pressable
@@ -348,8 +385,8 @@ export default function CommunityDetailScreen() {
                   </Pressable>
                 </View>
 
-                {memberTab === "top" ? (
-                  <CommunityTopDiscoverTab
+                {memberTab === "vibe" ? (
+                  <CommunityVibeTab
                     communityId={id}
                     canInvite={canInvite}
                     tasteMatch={tasteMatch ?? undefined}
@@ -358,9 +395,13 @@ export default function CommunityDetailScreen() {
                     albumItems={albumConsensus?.items ?? []}
                     artistItems={artistConsensus?.items ?? []}
                     consensusPending={consensusPending}
+                    weekly={weeklyData ?? undefined}
+                    weeklyPending={weeklyPending}
                     leaderboard={leaderboard}
                     lbPending={lbPending}
                   />
+                ) : memberTab === "people" ? (
+                  <CommunityPeopleTab communityId={id} />
                 ) : (
                   <View style={styles.activityPane}>
                     <Text style={styles.activityIntro}>

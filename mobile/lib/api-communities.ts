@@ -259,3 +259,40 @@ export async function fetchCommunityWeeklySummary(
     `/api/communities/${encodeURIComponent(communityId)}/weekly-summary?${q.toString()}`,
   );
 }
+
+/** Mirrors server `CommunityMemberRosterEntry`. */
+export type CommunityMemberRosterEntry = {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  role: "admin" | "member";
+  joined_at: string;
+  taste_summary: string | null;
+  top_genres: string[];
+  top_artists: string[];
+  activity_line: string | null;
+  viewer_follows: boolean;
+  is_community_creator: boolean;
+  taste_neighbor?: {
+    similarity_pct: number;
+    kind: "similar" | "opposite";
+  };
+};
+
+export type CommunityMembersRosterResponse = {
+  roster: CommunityMemberRosterEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export async function fetchCommunityMembers(
+  communityId: string,
+  page: number,
+): Promise<CommunityMembersRosterResponse> {
+  const q = new URLSearchParams({ page: String(page) });
+  return fetcher<CommunityMembersRosterResponse>(
+    `/api/communities/${encodeURIComponent(communityId)}/members?${q.toString()}`,
+  );
+}

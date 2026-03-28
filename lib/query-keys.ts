@@ -60,4 +60,7 @@ export const queryKeys = {
     type: "track" | "album" | "artist",
     range: "week" | "month" | "all",
   ) => ["community", communityId, "consensus", type, range] as const,
+  /** Paginated member roster (`GET /api/communities/:id/members`). */
+  communityMembersInfinite: (communityId: string) =>
+    ["community", communityId, "members", "infinite"] as const,
 };

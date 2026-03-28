@@ -95,6 +95,7 @@ export async function CommunityMembersSlot({
       initialPageSize={result.pageSize}
       initialTotalPages={result.totalPages}
       initialRoster={result.roster}
+      variant="social"
     />
   );
 }
