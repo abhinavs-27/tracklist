@@ -89,6 +89,9 @@ test.describe("Lists", () => {
       test.skip();
       return;
     }
-    await expect(page.getByRole("heading", { name: /^lists$/i })).toBeVisible();
+    await page.getByRole("tab", { name: "Lists" }).click();
+    await expect(
+      page.getByRole("heading", { name: /^(your )?lists$/i }),
+    ).toBeVisible();
   });
 });

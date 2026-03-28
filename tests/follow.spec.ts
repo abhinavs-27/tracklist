@@ -19,6 +19,7 @@ test.describe('Profile and follow', () => {
       test.skip();
       return;
     }
+    await page.getByRole('tab', { name: 'Activity' }).click();
     await expect(page.getByRole('heading', { name: /recent activity/i })).toBeVisible();
     const hasEmptyState = await page.getByText(/no recent activity yet/i).isVisible();
     const hasList = await page.locator('ul').filter({ has: page.locator('li') }).first().isVisible();
