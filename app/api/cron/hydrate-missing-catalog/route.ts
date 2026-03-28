@@ -7,9 +7,11 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 /**
- * Repairs catalog rows for Last.fm imports / logs that reference Spotify track IDs before `songs`
- * existed (enrichment failed, rate limits, downtime). Also re-fetches placeholder `songs` rows
- * (`name = Track`, no artist) created by legacy paths.
+ * Repairs catalog for **Spotify-native** `logs.track_id` values (not `lfm:*` synthetic ids).
+ * Last.fm enrichment + `listens` backfill use `/api/cron/spotify-enrichment-retry` and
+ * `/api/cron/repair-lastfm-aggregates` instead.
+ *
+ * Also re-fetches placeholder `songs` rows (`name = Track`, no artist) from legacy paths.
  *
  * Query: `batch` — max tracks to hydrate per run (default 50, max 50). `scan` — log rows to scan (default 4000).
  *

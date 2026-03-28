@@ -145,7 +145,11 @@ function maybeLogSpotifyHealth(): void {
   const denom = total > 0 ? total : 1;
   const hitRate = metrics.cacheHits / denom;
   const warn429 = metrics.rate429Hits > 10;
-  const warnHit = total > 30 && hitRate < 0.7;
+  /** Unique search URLs during Last.fm enrichment are almost all misses — not an outage. */
+  const warnHit =
+    total > 30 &&
+    hitRate < 0.7 &&
+    (metrics.rate429Hits > 0 || total > 400);
   if (warn429 || warnHit) {
     console.warn("[spotify-client] Spotify health degraded", {
       ...metrics,

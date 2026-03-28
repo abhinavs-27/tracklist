@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/listening-aggregates",
       "schedule": "20 1 * * *"
+    },
+    {
+      "path": "/api/cron/repair-lastfm-aggregates",
+      "schedule": "40 1 * * *"
     }
   ]
 }
