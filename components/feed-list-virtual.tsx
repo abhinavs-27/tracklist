@@ -1,19 +1,15 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { FeedItem } from './feed-item';
-import type { FeedActivity } from '@/types';
+import { ListenSessionGroupStoryCard } from '@/components/feed/listen-session-feed-card';
+import {
+  groupConsecutiveListenSessions,
+  feedRowKey,
+  type EnrichedFeedActivity,
+} from '@/components/feed/group-feed-items';
 
-/** Enriched feed activity with optional spotifyName (from API). */
-export type EnrichedFeedActivity = FeedActivity & { spotifyName?: string };
-
-function feedItemKey(activity: EnrichedFeedActivity): string {
-  if (activity.type === 'review') return activity.review.id;
-  if (activity.type === 'follow') return activity.id;
-  if (activity.type === 'feed_story') return `story-${activity.id}`;
-  if (activity.type === 'listen_sessions_summary') return `summary-${activity.user_id}-${activity.created_at}`;
-  return `${activity.user_id}-${activity.album_id}-${activity.created_at}`;
-}
+export type { EnrichedFeedActivity } from '@/components/feed/group-feed-items';
 
 interface FeedListVirtualProps {
   initialItems: EnrichedFeedActivity[];
@@ -23,7 +19,7 @@ interface FeedListVirtualProps {
   maxHeight?: string;
 }
 
-/** Feed list with consistent spacing; expandable rows push content down instead of overlapping. */
+/** Story-style feed: grouped listen sessions, scroll fade-in + motion on each card. */
 export function FeedListVirtual({
   initialItems,
   initialCursor,
@@ -33,6 +29,8 @@ export function FeedListVirtual({
   const [items, setItems] = useState<EnrichedFeedActivity[]>(initialItems);
   const [nextCursor, setNextCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
+
+  const rows = useMemo(() => groupConsecutiveListenSessions(items), [items]);
 
   useEffect(() => {
     setItems(initialItems);
@@ -65,15 +63,19 @@ export function FeedListVirtual({
 
   return (
     <div className={`overflow-auto ${className}`} style={{ maxHeight }}>
-      <ul className="space-y-4 list-none pl-0 m-0">
-        {items.map((activity, index) => (
-          <li key={feedItemKey(activity)} data-index={index}>
-            <FeedItem activity={activity} spotifyName={getSpotifyName(activity)} />
+      <ul className="m-0 list-none space-y-10 pl-0">
+        {rows.map((row, index) => (
+          <li key={feedRowKey(row, index)} data-index={index}>
+            {row.kind === 'listen_group' ? (
+              <ListenSessionGroupStoryCard sessions={row.sessions} />
+            ) : (
+              <FeedItem activity={row.activity} spotifyName={getSpotifyName(row.activity)} />
+            )}
           </li>
         ))}
       </ul>
       {nextCursor && (
-        <div className="pt-4">
+        <div className="pt-8">
           <button
             type="button"
             onClick={loadMore}

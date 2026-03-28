@@ -10,6 +10,8 @@ import {
 import { ReviewCard } from './review-card';
 import { formatRelativeTime } from '@/lib/time';
 import type { FeedActivity } from '@/types';
+import { StoryFeedCard } from '@/components/feed/story-feed-card';
+import { ListenSessionSingleStoryCard } from '@/components/feed/listen-session-feed-card';
 
 const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   activity,
@@ -23,56 +25,67 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   const showPlus = songCount > LISTEN_SESSIONS_DISPLAY_CAP;
   const timeAgo = formatRelativeTime(activity.created_at);
   const sessions = activity.sessions ?? [];
+  const first = sessions[0];
+  const heroUrl = first?.album?.images?.[0]?.url ?? null;
 
   return (
-    <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 transition-colors hover:bg-zinc-900/70">
+    <StoryFeedCard className="overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="w-full p-4 text-left"
+        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/80"
       >
-        <div className="flex items-center gap-3">
-          <Link
-            href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0"
-          >
-            {activity.user?.avatar_url ? (
-              <img
-                src={activity.user.avatar_url}
-                alt=""
-                className="h-9 w-9 rounded-full object-cover border border-zinc-700"
-              />
-            ) : (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-200 border border-zinc-700">
-                {username[0]?.toUpperCase() ?? '?'}
-              </span>
-            )}
-          </Link>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-zinc-300">
-              <Link
-                href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
-                onClick={(e) => e.stopPropagation()}
-                className="font-medium text-white hover:text-emerald-400 hover:underline"
-              >
-                {username}
-              </Link>
-              {' listened to '}
-              <span className="text-zinc-400">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-950">
+          {heroUrl ? (
+            <img src={heroUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
+              <CatalogArtworkPlaceholder size="lg" className="h-24 w-24 text-4xl" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              Listening
+            </p>
+            <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-white sm:text-2xl">
+              <span className="font-semibold text-white">{username}</span>
+              <span className="font-normal text-zinc-200"> listened to </span>
+              <span className="text-white">
                 {displayCount}{showPlus ? '+' : ''} song{(displayCount !== 1 || showPlus) ? 's' : ''}
               </span>
-            </p>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              {timeAgo}
-              <span className="ml-1 text-zinc-600">{expanded ? '▼' : '▶'}</span>
-            </p>
+            </h2>
           </div>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3.5 text-xs text-zinc-500">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            >
+              {activity.user?.avatar_url ? (
+                <img
+                  src={activity.user.avatar_url}
+                  alt=""
+                  className="h-8 w-8 rounded-full border border-zinc-700 object-cover"
+                />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-200">
+                  {username[0]?.toUpperCase() ?? '?'}
+                </span>
+              )}
+            </Link>
+            <span className="tabular-nums">{timeAgo}</span>
+          </div>
+          <span className="shrink-0 text-zinc-500" aria-hidden>
+            {expanded ? '▼' : '▶'}
+          </span>
         </div>
       </button>
       {expanded && sessions.length > 0 && (
-        <div className="border-t border-zinc-800 px-4 pb-3 pt-2">
-          <ul className="space-y-2">
+        <div className="border-t border-zinc-800/90 px-4 pb-4 pt-1">
+          <ul className="mt-3 space-y-2">
             {sessions.map((sess) => (
               <li key={`${sess.track_id}-${sess.created_at}`}>
                 <ListenSessionRow session={sess} />
@@ -81,7 +94,7 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
           </ul>
         </div>
       )}
-    </article>
+    </StoryFeedCard>
   );
 });
 
@@ -113,17 +126,17 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <>
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-medium text-white hover:text-emerald-400 hover:underline"
+              className="font-semibold text-white hover:text-emerald-400 hover:underline"
             >
               {username}
             </Link>
             {" discovered "}
             {id ? (
-              <Link href={`/artist/${id}`} className="text-emerald-400 hover:underline">
+              <Link href={`/artist/${id}`} className="text-white hover:text-emerald-400 hover:underline">
                 {name}
               </Link>
             ) : (
-              <span className="text-zinc-200">{name}</span>
+              <span className="text-zinc-100">{name}</span>
             )}
           </>
         );
@@ -135,17 +148,17 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <>
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-medium text-white hover:text-emerald-400 hover:underline"
+              className="font-semibold text-white hover:text-emerald-400 hover:underline"
             >
               {username}
             </Link>
             {" is really into "}
             {id ? (
-              <Link href={`/artist/${id}`} className="text-emerald-400 hover:underline">
+              <Link href={`/artist/${id}`} className="text-white hover:text-emerald-400 hover:underline">
                 {name}
               </Link>
             ) : (
-              <span className="text-zinc-200">{name}</span>
+              <span className="text-zinc-100">{name}</span>
             )}
             {" lately"}
           </>
@@ -162,15 +175,15 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <>
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-medium text-white hover:text-emerald-400 hover:underline"
+              className="font-semibold text-white hover:text-emerald-400 hover:underline"
             >
               {username}
             </Link>
             {" rated "}
-            <Link href={href} className="text-emerald-400 hover:underline">
+            <Link href={href} className="text-white hover:text-emerald-400 hover:underline">
               {title}
             </Link>
-            <span className="ml-1.5 text-amber-400/95" aria-label={`${rating} stars`}>
+            <span className="ml-2 text-amber-400/95" aria-label={`${rating} stars`}>
               {starsRow(rating)}
             </span>
           </>
@@ -182,7 +195,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <>
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-medium text-white hover:text-emerald-400 hover:underline"
+              className="font-semibold text-white hover:text-emerald-400 hover:underline"
             >
               {username}
             </Link>
@@ -195,7 +208,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <>
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-medium text-white hover:text-emerald-400 hover:underline"
+              className="font-semibold text-white hover:text-emerald-400 hover:underline"
             >
               {username}
             </Link>
@@ -210,17 +223,17 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <>
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-medium text-white hover:text-emerald-400 hover:underline"
+              className="font-semibold text-white hover:text-emerald-400 hover:underline"
             >
               {username}
             </Link>
             {" created a list: "}
             {lid ? (
-              <Link href={`/lists/${lid}`} className="text-emerald-400 hover:underline">
+              <Link href={`/lists/${lid}`} className="text-white hover:text-emerald-400 hover:underline">
                 {title}
               </Link>
             ) : (
-              <span className="text-zinc-200">{title}</span>
+              <span className="text-zinc-100">{title}</span>
             )}
           </>
         );
@@ -231,7 +244,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <>
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-medium text-white hover:text-emerald-400 hover:underline"
+              className="font-semibold text-white hover:text-emerald-400 hover:underline"
             >
               {username}
             </Link>
@@ -266,40 +279,49 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
   })();
 
   return (
-    <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
-      <div className="flex items-start gap-3">
-        <Link
-          href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-          className="shrink-0"
-        >
-          {activity.user?.avatar_url ? (
-            <img
-              src={activity.user.avatar_url}
-              alt=""
-              className="h-9 w-9 rounded-full border border-zinc-700 object-cover"
-            />
-          ) : (
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-200">
-              {username[0]?.toUpperCase() ?? "?"}
-            </span>
-          )}
-        </Link>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm leading-relaxed text-zinc-300">{headline}</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            <span className="text-zinc-600">{kindLabel}</span>
-            <span className="mx-1.5">·</span>
-            {timeAgo}
-          </p>
+    <StoryFeedCard className="overflow-hidden">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950">
+        <div className="absolute inset-0 flex items-center justify-center py-10">
+          <Link
+            href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
+            className="relative z-10"
+          >
+            {activity.user?.avatar_url ? (
+              <img
+                src={activity.user.avatar_url}
+                alt=""
+                className="h-28 w-28 rounded-full border-4 border-zinc-700/80 object-cover shadow-xl shadow-black/40 sm:h-32 sm:w-32"
+              />
+            ) : (
+              <span className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-zinc-700/80 bg-zinc-800 text-3xl font-semibold text-zinc-200 shadow-xl sm:h-32 sm:w-32">
+                {username[0]?.toUpperCase() ?? "?"}
+              </span>
+            )}
+          </Link>
         </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
       </div>
-    </article>
+      <div className="px-5 pb-5 pt-5">
+        <h2 className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
+          {headline}
+        </h2>
+        <p className="mt-3 text-xs text-zinc-500">
+          <span className="text-zinc-500">{kindLabel}</span>
+          <span className="mx-2 text-zinc-600">·</span>
+          <span className="tabular-nums">{timeAgo}</span>
+        </p>
+      </div>
+    </StoryFeedCard>
   );
 });
 
 function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
   if (activity.type === 'review') {
-    return <ReviewCard review={activity.review} spotifyName={spotifyName} />;
+    return (
+      <StoryFeedCard>
+        <ReviewCard review={activity.review} spotifyName={spotifyName} variant="story" />
+      </StoryFeedCard>
+    );
   }
 
   if (activity.type === 'feed_story') {
@@ -311,92 +333,59 @@ function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
   }
 
   if (activity.type === 'listen_session') {
-    const username = activity.user?.username ?? 'Someone';
-    const album = activity.album;
-    const image = album?.images?.[0]?.url;
-    const trackName = activity.track_name ?? album?.name ?? 'Track';
-    const artistName = activity.artist_name ?? album?.artists?.map((a) => a.name).join(', ') ?? '';
-
-    return (
-      <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
-        <div className="flex items-center gap-3">
-          <Link
-            href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
-            className="shrink-0"
-          >
-            {activity.user?.avatar_url ? (
-              <img
-                src={activity.user.avatar_url}
-                alt=""
-                className="h-9 w-9 rounded-full object-cover border border-zinc-700"
-              />
-            ) : (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-200 border border-zinc-700">
-                {username[0]?.toUpperCase() ?? '?'}
-              </span>
-            )}
-          </Link>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-zinc-300">
-              <Link
-                href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
-                className="font-medium text-white hover:text-emerald-400 hover:underline"
-              >
-                {username}
-              </Link>
-              {' listened to '}
-            </p>
-            <Link
-              href={`/album/${activity.album_id}`}
-              className="group mt-1 flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-2 transition hover:border-zinc-600 hover:bg-zinc-800/50"
-            >
-              {image ? (
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-800">
-                  <img src={image} alt="" className="h-full w-full object-cover" />
-                </div>
-              ) : (
-                <CatalogArtworkPlaceholder size="md" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-white group-hover:text-emerald-400">{trackName}</p>
-                {artistName ? (
-                  <p className="truncate text-xs text-zinc-500">{artistName}</p>
-                ) : null}
-              </div>
-            </Link>
-            <p className="mt-1 text-xs text-zinc-500">
-              {formatRelativeTime(activity.created_at)}
-            </p>
-          </div>
-        </div>
-      </article>
-    );
+    return <ListenSessionSingleStoryCard activity={activity} />;
   }
 
   const follower = activity.follower_username ?? 'Someone';
   const following = activity.following_username ?? 'someone';
 
   return (
-    <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
-      <p className="text-sm text-zinc-300">
-        <Link
-          href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
-          className="font-medium text-white hover:text-emerald-400 hover:underline"
-        >
-          {follower}
-        </Link>
-        {' followed '}
-        <Link
-          href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
-          className="font-medium text-white hover:text-emerald-400 hover:underline"
-        >
-          {following}
-        </Link>
-      </p>
-      <p className="mt-0.5 text-xs text-zinc-500">
-        {formatRelativeTime(activity.created_at)}
-      </p>
-    </article>
+    <StoryFeedCard className="overflow-hidden">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-emerald-950/40 via-zinc-900 to-zinc-950">
+        <div className="absolute inset-0 flex items-center justify-center gap-4 px-6">
+          <Link
+            href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
+            className="relative z-10"
+          >
+            <span className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800 text-2xl font-semibold text-zinc-200 shadow-lg sm:h-24 sm:w-24">
+              {follower[0]?.toUpperCase() ?? '?'}
+            </span>
+          </Link>
+          <span className="text-2xl text-zinc-600" aria-hidden>
+            →
+          </span>
+          <Link
+            href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
+            className="relative z-10"
+          >
+            <span className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-700/50 bg-zinc-800 text-2xl font-semibold text-zinc-200 shadow-lg sm:h-24 sm:w-24">
+              {following[0]?.toUpperCase() ?? '?'}
+            </span>
+          </Link>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+      </div>
+      <div className="px-5 pb-5 pt-5">
+        <h2 className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
+          <Link
+            href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
+            className="hover:text-emerald-400 hover:underline"
+          >
+            {follower}
+          </Link>
+          <span className="font-normal text-zinc-400"> followed </span>
+          <Link
+            href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
+            className="hover:text-emerald-400 hover:underline"
+          >
+            {following}
+          </Link>
+        </h2>
+        <p className="mt-3 text-xs text-zinc-500 tabular-nums">
+          {formatRelativeTime(activity.created_at)}
+        </p>
+      </div>
+    </StoryFeedCard>
   );
 }
 

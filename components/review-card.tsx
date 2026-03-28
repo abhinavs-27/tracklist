@@ -14,6 +14,8 @@ interface ReviewCardProps {
   commentCount?: number;
   liked?: boolean;
   showComments?: boolean;
+  /** Flatter layout for story-style feed cards (no inner border). */
+  variant?: "default" | "story";
 }
 
 function ReviewCardInner({
@@ -23,6 +25,7 @@ function ReviewCardInner({
   commentCount = 0,
   liked = false,
   showComments = true,
+  variant = "default",
 }: ReviewCardProps) {
   const user = review.user;
   const rating = Math.max(0, Math.min(5, Math.floor(review.rating)));
@@ -37,6 +40,44 @@ function ReviewCardInner({
     review.entity_type === 'album'
       ? `/album/${review.entity_id}`
       : `/song/${review.entity_id}`;
+
+  if (variant === "story") {
+    return (
+      <div className="min-w-0 p-5 pt-6">
+        <h2 className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
+          <Link
+            href={user?.id ? `/profile/${user.id}` : "#"}
+            className="hover:text-emerald-400 hover:underline"
+          >
+            {user?.username ?? "Unknown"}
+          </Link>
+          <span className="font-normal text-zinc-400"> reviewed </span>
+          <Link href={entityHref} className="text-white hover:text-emerald-400 hover:underline">
+            {displayName}
+          </Link>
+        </h2>
+        <p className="mt-2 text-[11px] uppercase tracking-wide text-zinc-500">{typeLabel}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+          <span className="text-amber-400" aria-label={`Rating: ${rating} out of 5`}>
+            {"★".repeat(rating)}
+            {"☆".repeat(5 - rating)}
+          </span>
+          <span className="tabular-nums">{formatRelativeTime(review.created_at)}</span>
+        </div>
+        {review.review_text ? (
+          <p className="mt-4 line-clamp-6 text-[15px] leading-relaxed text-zinc-300 whitespace-pre-line">
+            {review.review_text}
+          </p>
+        ) : null}
+        <div className="relative mt-5 flex items-center gap-4">
+          <LikeButton reviewId={review.id} initialLiked={liked} initialCount={likeCount} />
+          {showComments ? (
+            <CommentThread reviewId={review.id} initialCount={commentCount} />
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
