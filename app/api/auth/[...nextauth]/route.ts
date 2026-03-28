@@ -60,7 +60,11 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user }) {
       const email = (user?.email ?? token?.email) as string | undefined;
-      if (email && typeof token.id !== 'string') {
+      // Always resolve `token.id` from our `users` row. OAuth sets `user.id` / `sub`
+      // to the provider subject (e.g. Google), which is a string — if we only ran
+      // this when `token.id` was missing, we'd skip the lookup and middleware would
+      // query `users` by the wrong id, so new accounts never hit onboarding.
+      if (email) {
         try {
           const supabase = await createSupabaseServerClient();
           const { data: dbUser, error } = await supabase

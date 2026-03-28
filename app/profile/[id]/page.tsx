@@ -104,14 +104,6 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
-  if (
-    session?.user?.id &&
-    session.user.id === user.id &&
-    user.onboarding_completed !== true
-  ) {
-    redirect("/onboarding");
-  }
-
   const profileSettled = await Promise.allSettled([
     getFollowCounts(user.id),
     session?.user?.id && session.user.id !== user.id

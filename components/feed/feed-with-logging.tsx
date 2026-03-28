@@ -47,7 +47,7 @@ export function FeedWithLogging({
           initialItems={initialItems}
           initialCursor={initialCursor}
           className="pr-1"
-          maxHeight="70vh"
+          maxHeight="72vh"
         />
       )}
     </>

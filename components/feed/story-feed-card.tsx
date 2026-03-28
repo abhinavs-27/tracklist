@@ -28,8 +28,8 @@ export function StoryFeedCard({ children, className = "" }: StoryFeedCardProps) 
         reduceMotion
           ? undefined
           : {
-              scale: 1.035,
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.45)",
+              scale: 1.015,
+              boxShadow: "0 18px 40px -12px rgba(0, 0, 0, 0.4)",
             }
       }
       whileTap={reduceMotion ? undefined : { scale: 0.99 }}

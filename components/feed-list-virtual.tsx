@@ -15,7 +15,7 @@ interface FeedListVirtualProps {
   initialItems: EnrichedFeedActivity[];
   initialCursor: string | null;
   className?: string;
-  /** Max height of the scroll container (default 70vh). */
+  /** Max height of the scroll container (default 72vh). */
   maxHeight?: string;
 }
 
@@ -24,7 +24,7 @@ export function FeedListVirtual({
   initialItems,
   initialCursor,
   className = '',
-  maxHeight = '70vh',
+  maxHeight = '72vh',
 }: FeedListVirtualProps) {
   const [items, setItems] = useState<EnrichedFeedActivity[]>(initialItems);
   const [nextCursor, setNextCursor] = useState<string | null>(initialCursor);
@@ -63,7 +63,7 @@ export function FeedListVirtual({
 
   return (
     <div className={`overflow-auto ${className}`} style={{ maxHeight }}>
-      <ul className="m-0 list-none space-y-10 pl-0">
+      <ul className="m-0 list-none space-y-4 pl-0 sm:space-y-5">
         {rows.map((row, index) => (
           <li key={feedRowKey(row, index)} data-index={index}>
             {row.kind === 'listen_group' ? (

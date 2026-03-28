@@ -1,31 +1,49 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   FavoriteAlbumsPicker,
+  MAX_FAVORITE_ALBUMS,
   type FavoriteAlbumPick,
 } from "@/components/favorite-albums-picker";
 import { LastfmConnectModal } from "@/components/onboarding/lastfm-connect-modal";
 import { LastfmSkipWarningDialog } from "@/components/onboarding/lastfm-skip-warning-dialog";
+import { FollowButton } from "@/components/follow-button";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { queryKeys } from "@/lib/query-keys";
+
+function pathWithWelcome(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const u = new URL(normalized, "http://local");
+  u.searchParams.set("welcome", "1");
+  return `${u.pathname}${u.search}`;
+}
+
+type SuggestedUser = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  followers_count?: number;
+  reasons?: string[];
+};
 
 type Props = {
   userId: string;
   initialUsername: string;
   initialFavoriteAlbums: FavoriteAlbumPick[];
-  /** If Last.fm was linked outside this wizard, step 3 is a single “Finish”. */
+  /** If Last.fm was linked before this wizard, step 3 is a single “Continue”. */
   hasLastfmAlready?: boolean;
-  /** Deep-link from invite join: scroll into view (embedded only). */
-  scrollIntoView?: boolean;
-  /** Full-page onboarding route: larger layout and navigate after completion. */
-  variant?: "embedded" | "fullPage";
-  /** Server-validated path (e.g. `/communities/…`) after onboarding on full page. */
+  /** Server-validated path after onboarding (e.g. `/communities/…`). */
   nextPath?: string | null;
-  /** User arrived from a community invite link; show contextual copy. */
+  /** User arrived from a community invite link (validated server-side). */
   inviteFlow?: boolean;
+  /** Invite token for joining after bootstrap (only when `inviteFlow`). */
+  inviteToken?: string | null;
+  /** Community name for invite UI (only when `inviteFlow`). */
+  communityInviteName?: string | null;
 };
 
 export function ProfileOnboarding({
@@ -33,17 +51,15 @@ export function ProfileOnboarding({
   initialUsername,
   initialFavoriteAlbums,
   hasLastfmAlready = false,
-  scrollIntoView = false,
-  variant = "embedded",
   nextPath = null,
   inviteFlow = false,
+  inviteToken = null,
+  communityInviteName = null,
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const fullPage = variant === "fullPage";
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [usernameInput, setUsernameInput] = useState(initialUsername);
 
   useEffect(() => {
@@ -52,44 +68,112 @@ export function ProfileOnboarding({
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [favorites, setFavorites] =
     useState<FavoriteAlbumPick[]>(initialFavoriteAlbums);
-
-  const [stepBusy, setStepBusy] = useState(false);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
+  const [stepBusy, setStepBusy] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [finishing, setFinishing] = useState(false);
+  const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [lastfmSkipWarningOpen, setLastfmSkipWarningOpen] = useState(false);
 
-  useEffect(() => {
-    if (fullPage || !scrollIntoView || !rootRef.current) return;
-    rootRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [fullPage, scrollIntoView]);
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   const finishAndGo = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.tasteIdentity(userId),
+    });
     void queryClient.invalidateQueries({ queryKey: queryKeys.favorites(userId) });
-    if (fullPage) {
-      router.replace(nextPath ?? "/feed");
-    } else {
-      router.refresh();
-    }
-  }, [fullPage, nextPath, queryClient, router, userId]);
-
-  const completeOnboarding = useCallback(async () => {
-    setFinishing(true);
-    try {
-      const res = await fetch("/api/users/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ onboarding_completed: true }),
+    void queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.discover() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tasteMatches() });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.recommendedCommunities(),
+    });
+    if (inviteFlow) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.communitiesMine(),
       });
-      if (res.ok) {
-        finishAndGo();
-      }
-    } finally {
-      setFinishing(false);
     }
-  }, [finishAndGo]);
+    const dest = pathWithWelcome(nextPath ?? "/");
+    router.replace(dest);
+  }, [nextPath, queryClient, router, userId, inviteFlow]);
+
+  const completeBootstrap = useCallback(async () => {
+    setBootstrapError(null);
+    setStepBusy(true);
+    try {
+      const res = await fetch("/api/onboarding/bootstrap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        ok?: boolean;
+      };
+      if (!res.ok) {
+        setBootstrapError(data.error ?? "Could not finish setup");
+        return;
+      }
+      const token = inviteToken?.trim();
+      if (inviteFlow && token) {
+        const jr = await fetch(
+          `/api/community/join/${encodeURIComponent(token)}`,
+          { method: "POST" },
+        );
+        const jd = (await jr.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        if (!jr.ok) {
+          setBootstrapError(
+            typeof jd.error === "string"
+              ? jd.error
+              : "Could not join the community. Your profile is ready — try the invite link again.",
+          );
+          return;
+        }
+      }
+      finishAndGo();
+    } finally {
+      setStepBusy(false);
+    }
+  }, [finishAndGo, inviteFlow, inviteToken]);
+
+  useEffect(() => {
+    if (step !== 4) return;
+    let cancelled = false;
+    (async () => {
+      setSuggestionsLoading(true);
+      try {
+        if (inviteFlow && inviteToken?.trim()) {
+          const sRes = await fetch(
+            `/api/onboarding/community-invite-suggestions?token=${encodeURIComponent(
+              inviteToken.trim(),
+            )}`,
+            { cache: "no-store" },
+          );
+          if (!cancelled && sRes.ok) {
+            const sData = (await sRes.json()) as { users?: SuggestedUser[] };
+            setSuggestedUsers(sData.users ?? []);
+          }
+        } else if (!inviteFlow) {
+          const sRes = await fetch("/api/onboarding/suggestions", {
+            cache: "no-store",
+          });
+          if (!cancelled && sRes.ok) {
+            const sData = (await sRes.json()) as { users?: SuggestedUser[] };
+            setSuggestedUsers(sData.users ?? []);
+          }
+        }
+      } finally {
+        if (!cancelled) setSuggestionsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, inviteFlow, inviteToken]);
 
   const goStep1 = useCallback(async () => {
     setUsernameError(null);
@@ -120,6 +204,10 @@ export function ProfileOnboarding({
 
   const goStep2 = useCallback(async () => {
     setFavoritesError(null);
+    if (favorites.length < 1) {
+      setFavoritesError("Pick at least one album.");
+      return;
+    }
     setStepBusy(true);
     try {
       const res = await fetch("/api/users/me/favorites", {
@@ -141,54 +229,32 @@ export function ProfileOnboarding({
     }
   }, [favorites, queryClient, userId]);
 
-  const skipFavorites = useCallback(() => {
-    setFavoritesError(null);
-    setStep(3);
+  const advanceFromLastfm = useCallback(() => {
+    setLastfmModalOpen(false);
+    setStep(4);
   }, []);
 
-  const onLastfmConnected = useCallback(async () => {
-    await fetch("/api/users/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ onboarding_completed: true }),
-    }).catch(() => {});
-    finishAndGo();
-  }, [finishAndGo]);
+  const onLastfmConnected = useCallback(() => {
+    advanceFromLastfm();
+  }, [advanceFromLastfm]);
 
-  const h2 = fullPage
-    ? "text-2xl font-semibold tracking-tight text-white sm:text-3xl"
-    : "text-lg font-semibold text-white";
-  const bodyMuted = fullPage
-    ? "mt-3 text-base leading-relaxed text-zinc-400 sm:text-lg"
-    : "mt-2 text-sm leading-relaxed text-zinc-400";
-  const bodyBright = fullPage
-    ? "mt-3 text-base leading-relaxed text-zinc-300 sm:text-lg"
-    : "mt-2 text-sm leading-relaxed text-zinc-300";
-  const stepperRow = fullPage
-    ? "flex flex-wrap items-center gap-3 text-sm font-medium text-zinc-500 sm:text-base"
-    : "flex flex-wrap items-center gap-2 text-xs font-medium text-zinc-500";
-  const primaryBtn = fullPage
-    ? "inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-    : "inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50";
-  const secondaryBtn = fullPage
-    ? "rounded-xl border border-zinc-600 px-5 py-3 text-base text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
-    : "rounded-xl border border-zinc-600 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50";
-  const ghostBtn = fullPage
-    ? "rounded-xl px-5 py-3 text-base text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
-    : "rounded-xl px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50";
-  const inputClass = fullPage
-    ? "mt-1 w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-base text-white placeholder:text-zinc-600 disabled:opacity-50"
-    : "mt-1 w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 disabled:opacity-50";
-  const labelClass = fullPage ? "text-sm font-medium text-zinc-400" : "text-xs font-medium text-zinc-400";
-  const lastfmActionBtn = fullPage
-    ? "rounded-xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-    : "rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50";
-  const lastfmGhostBtn = fullPage
-    ? "flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-base text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
-    : "flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50";
-  const backSmall = fullPage
-    ? "rounded-xl border border-zinc-600 px-5 py-2.5 text-base text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
-    : "rounded-xl border border-zinc-600 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50";
+  const h2 = "text-2xl font-semibold tracking-tight text-white sm:text-3xl";
+  const bodyMuted =
+    "mt-3 text-base leading-relaxed text-zinc-400 sm:text-lg";
+  const stepperRow =
+    "flex flex-wrap items-center gap-2 text-sm font-medium text-zinc-500 sm:text-base";
+  const primaryBtn =
+    "inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white hover:bg-emerald-500 disabled:opacity-50";
+  const secondaryBtn =
+    "rounded-xl border border-zinc-600 px-5 py-3 text-base text-zinc-300 hover:bg-zinc-800 disabled:opacity-50";
+  const ghostBtn =
+    "rounded-xl px-5 py-3 text-base text-zinc-500 hover:text-zinc-300 disabled:opacity-50";
+  const inputClass =
+    "mt-1 w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-base text-white placeholder:text-zinc-600 disabled:opacity-50";
+  const labelClass = "text-sm font-medium text-zinc-400";
+  const lastfmActionBtn = primaryBtn;
+  const lastfmGhostBtn = ghostBtn;
+  const backSmall = secondaryBtn;
 
   return (
     <>
@@ -197,58 +263,58 @@ export function ProfileOnboarding({
         onCancel={() => setLastfmSkipWarningOpen(false)}
         onConfirm={() => {
           setLastfmSkipWarningOpen(false);
-          void completeOnboarding();
+          advanceFromLastfm();
         }}
       />
 
       <LastfmConnectModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSkip={() => void completeOnboarding()}
+        open={lastfmModalOpen}
+        onClose={() => setLastfmModalOpen(false)}
+        onSkip={advanceFromLastfm}
         onConnected={onLastfmConnected}
         title="Connect Last.fm (about a minute)"
-        subtitle={`We’ll attach Last.fm to @${usernameInput.trim() || initialUsername} so your profile and communities stay in sync with what you listen to.`}
+        subtitle={`We’ll attach Last.fm to @${usernameInput.trim() || initialUsername} so your profile and feeds stay in sync with what you listen to.`}
       />
 
-      <div className={fullPage ? "mx-auto w-full max-w-2xl py-4 sm:py-10" : ""}>
-        {fullPage && inviteFlow ? (
+      <div className="mx-auto w-full max-w-2xl py-4 sm:py-10">
+        {inviteFlow ? (
           <div className="mb-8 rounded-2xl border border-emerald-800/45 bg-emerald-950/50 px-5 py-4 text-center sm:px-6">
             <p className="text-sm font-medium text-emerald-100 sm:text-base">
-              You joined a community — finish setup and we&apos;ll take you
-              there.
+              You&apos;re joining{" "}
+              <span className="text-white">
+                {communityInviteName ?? "a community"}
+              </span>{" "}
+              — finish setup and we&apos;ll add you and open it when you&apos;re
+              done.
             </p>
             <p className="mt-2 text-sm text-emerald-200/75">
-              Username, a few favorite albums, then Last.fm (about a minute).
+              Username, favorite albums, Last.fm, then meet members — same steps
+              as everyone else.
             </p>
           </div>
         ) : null}
 
         <div
-          ref={rootRef}
           id="profile-onboarding"
-          className={
-            fullPage
-              ? "rounded-2xl border border-emerald-900/40 bg-emerald-950/25 p-8 shadow-xl shadow-black/20 sm:p-10"
-              : "rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-6"
-          }
+          className="rounded-2xl border border-emerald-900/40 bg-emerald-950/25 p-8 shadow-xl shadow-black/20 sm:p-10"
         >
           <div className={stepperRow}>
-            <span
-              className={step === 1 ? "text-emerald-400" : "text-zinc-500"}
-            >
+            <span className={step === 1 ? "text-emerald-400" : "text-zinc-500"}>
               1 · Username
             </span>
             <span className="text-zinc-600">→</span>
-            <span
-              className={step === 2 ? "text-emerald-400" : "text-zinc-500"}
-            >
-              2 · Favorite albums
+            <span className={step === 2 ? "text-emerald-400" : "text-zinc-500"}>
+              2 · Albums
+            </span>
+            <span className="text-zinc-600">→</span>
+            <span className={step === 3 ? "text-emerald-400" : "text-zinc-500"}>
+              3 · Last.fm
             </span>
             <span className="text-zinc-600">→</span>
             <span
-              className={step === 3 ? "text-emerald-400" : "text-zinc-500"}
+              className={step === 4 ? "text-emerald-400" : "text-zinc-500"}
             >
-              3 · Last.fm
+              {inviteFlow ? "4 · Community" : "4 · People"}
             </span>
           </div>
 
@@ -332,7 +398,7 @@ export function ProfileOnboarding({
                 <button
                   type="button"
                   onClick={() => void goStep2()}
-                  disabled={stepBusy}
+                  disabled={stepBusy || favorites.length < 1}
                   className={primaryBtn}
                 >
                   {stepBusy ? (
@@ -344,14 +410,6 @@ export function ProfileOnboarding({
                     "Continue"
                   )}
                 </button>
-                <button
-                  type="button"
-                  onClick={skipFavorites}
-                  disabled={stepBusy}
-                  className={ghostBtn}
-                >
-                  Skip for now
-                </button>
               </div>
             </div>
           ) : null}
@@ -362,29 +420,21 @@ export function ProfileOnboarding({
                 <>
                   <h2 className={h2}>Last.fm is already linked</h2>
                   <p className={bodyMuted}>
-                    You’re all set on the listening side. Finish onboarding to
-                    unlock your full profile.
+                    {inviteFlow
+                      ? "Continue to see people in this community you might follow before we open it."
+                      : "You’re set on the listening side. Continue to see who we suggest you follow."}
                   </p>
                   <button
                     type="button"
-                    onClick={() => void completeOnboarding()}
-                    disabled={finishing}
+                    onClick={advanceFromLastfm}
                     className={primaryBtn}
                   >
-                    {finishing ? (
-                      <>
-                        <InlineSpinner tone="emerald" />
-                        Finishing…
-                      </>
-                    ) : (
-                      "Finish"
-                    )}
+                    Continue
                   </button>
                   <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      disabled={finishing}
                       className={backSmall}
                     >
                       Back
@@ -396,7 +446,7 @@ export function ProfileOnboarding({
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <h2 className={h2}>Connect Last.fm — about a minute</h2>
-                      <p className={bodyBright}>
+                      <p className={bodyMuted}>
                         <span className="font-medium text-zinc-100">
                           Strongly recommended:
                         </span>{" "}
@@ -411,8 +461,7 @@ export function ProfileOnboarding({
                     <div className="flex shrink-0 flex-col gap-2 sm:items-end">
                       <button
                         type="button"
-                        onClick={() => setModalOpen(true)}
-                        disabled={finishing}
+                        onClick={() => setLastfmModalOpen(true)}
                         className={lastfmActionBtn}
                       >
                         Set up Last.fm
@@ -420,17 +469,9 @@ export function ProfileOnboarding({
                       <button
                         type="button"
                         onClick={() => setLastfmSkipWarningOpen(true)}
-                        disabled={finishing}
                         className={lastfmGhostBtn}
                       >
-                        {finishing ? (
-                          <>
-                            <InlineSpinner label="Finishing" />
-                            Finishing…
-                          </>
-                        ) : (
-                          "Finish without Last.fm"
-                        )}
+                        Finish without Last.fm
                       </button>
                     </div>
                   </div>
@@ -452,7 +493,6 @@ export function ProfileOnboarding({
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      disabled={finishing}
                       className={backSmall}
                     >
                       Back
@@ -460,6 +500,123 @@ export function ProfileOnboarding({
                   </div>
                 </>
               )}
+            </div>
+          ) : null}
+
+          {step === 4 ? (
+            <div className="mt-6 space-y-6 sm:mt-8">
+              <div>
+                <h2 className={h2}>You&apos;re almost there</h2>
+                <p className={bodyMuted}>
+                  {inviteFlow ? (
+                    <>
+                      People already in{" "}
+                      <span className="font-medium text-zinc-200">
+                        {communityInviteName ?? "this community"}
+                      </span>
+                      . Follow anyone you like — you can change this anytime.
+                      When you continue, we&apos;ll add you to the community and
+                      take you there.
+                    </>
+                  ) : (
+                    <>
+                      Suggested from others’ recent listens (last 30 days) that
+                      match your favorite albums or those albums’ artists. Follow
+                      anyone you like — you can change this anytime.
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {suggestionsLoading ? (
+                <p className="text-sm text-zinc-500">Loading suggestions…</p>
+              ) : suggestedUsers.length > 0 ? (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    {inviteFlow ? "Community members" : "Suggested people"}
+                  </p>
+                  <ul className="mt-3 space-y-2">
+                    {suggestedUsers.map((u) => (
+                      <li
+                        key={u.id}
+                        className="flex items-start justify-between gap-3 rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-3 py-2.5"
+                      >
+                        <Link
+                          href={`/profile/${u.id}`}
+                          className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-start sm:gap-3"
+                        >
+                          <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800">
+                            {u.avatar_url ? (
+                              <img
+                                src={u.avatar_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-sm font-medium text-zinc-300">
+                                {u.username[0]?.toUpperCase() ?? "?"}
+                              </span>
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <span className="block truncate font-medium text-white hover:underline">
+                              @{u.username}
+                            </span>
+                            {u.reasons && u.reasons.length > 0 ? (
+                              <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-zinc-400">
+                                {u.reasons.map((line, i) => (
+                                  <li key={i}>{line}</li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
+                        </Link>
+                        <FollowButton userId={u.id} initialFollowing={false} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  {inviteFlow
+                    ? "No other members to show yet — you can still continue and join the community."
+                    : "No suggestions yet — as more people log music, we&apos;ll find listeners who match your albums."}
+                </p>
+              )}
+
+              {bootstrapError ? (
+                <p className="text-sm text-red-400" role="alert">
+                  {bootstrapError}
+                </p>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void completeBootstrap()}
+                  disabled={stepBusy}
+                  className={primaryBtn}
+                >
+                  {stepBusy ? (
+                    <>
+                      <InlineSpinner tone="emerald" />
+                      Finishing setup…
+                    </>
+                  ) : inviteFlow ? (
+                    "Join community & continue"
+                  ) : (
+                    "Enter Tracklist"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  disabled={stepBusy}
+                  className={secondaryBtn}
+                >
+                  Back
+                </button>
+              </div>
             </div>
           ) : null}
         </div>

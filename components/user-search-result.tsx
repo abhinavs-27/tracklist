@@ -36,6 +36,13 @@ export function UserSearchResult({ user, showFollowButton = true, onFollowChange
           <p className="text-xs text-zinc-500">
             {user.followers_count} follower{user.followers_count !== 1 ? 's' : ''}
           </p>
+          {user.reasons && user.reasons.length > 0 ? (
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-zinc-400">
+              {user.reasons.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </Link>
       {showFollowButton && (

@@ -35,20 +35,20 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
         onClick={() => setExpanded((e) => !e)}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/80"
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-950">
+        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-zinc-950 sm:h-[112px]">
           {heroUrl ? (
             <img src={heroUrl} alt="" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
-              <CatalogArtworkPlaceholder size="lg" className="h-24 w-24 text-4xl" />
+              <CatalogArtworkPlaceholder size="lg" className="h-16 w-16 text-2xl" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+          <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
               Listening
             </p>
-            <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-white sm:text-2xl">
+            <h2 className="mt-0.5 line-clamp-2 text-base font-bold leading-snug tracking-tight text-white sm:text-[17px]">
               <span className="font-semibold text-white">{username}</span>
               <span className="font-normal text-zinc-200"> listened to </span>
               <span className="text-white">
@@ -57,7 +57,7 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
             </h2>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3.5 text-xs text-zinc-500">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-zinc-500 sm:px-4">
           <div className="flex min-w-0 items-center gap-2">
             <Link
               href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
@@ -68,10 +68,10 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
                 <img
                   src={activity.user.avatar_url}
                   alt=""
-                  className="h-8 w-8 rounded-full border border-zinc-700 object-cover"
+                  className="h-7 w-7 rounded-full border border-zinc-700 object-cover"
                 />
               ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-200">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-[11px] font-medium text-zinc-200">
                   {username[0]?.toUpperCase() ?? '?'}
                 </span>
               )}
@@ -280,8 +280,8 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
 
   return (
     <StoryFeedCard className="overflow-hidden">
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950">
-        <div className="absolute inset-0 flex items-center justify-center py-10">
+      <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 sm:h-[112px]">
+        <div className="absolute inset-0 flex items-center justify-center py-4">
           <Link
             href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
             className="relative z-10"
@@ -290,10 +290,10 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
               <img
                 src={activity.user.avatar_url}
                 alt=""
-                className="h-28 w-28 rounded-full border-4 border-zinc-700/80 object-cover shadow-xl shadow-black/40 sm:h-32 sm:w-32"
+                className="h-[72px] w-[72px] rounded-full border-[3px] border-zinc-700/80 object-cover shadow-lg shadow-black/40 sm:h-20 sm:w-20"
               />
             ) : (
-              <span className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-zinc-700/80 bg-zinc-800 text-3xl font-semibold text-zinc-200 shadow-xl sm:h-32 sm:w-32">
+              <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[3px] border-zinc-700/80 bg-zinc-800 text-xl font-semibold text-zinc-200 shadow-lg sm:h-20 sm:w-20 sm:text-2xl">
                 {username[0]?.toUpperCase() ?? "?"}
               </span>
             )}
@@ -301,11 +301,11 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
       </div>
-      <div className="px-5 pb-5 pt-5">
-        <h2 className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
+      <div className="px-4 pb-3 pt-3 sm:px-5">
+        <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
           {headline}
         </h2>
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className="mt-2 text-[11px] text-zinc-500">
           <span className="text-zinc-500">{kindLabel}</span>
           <span className="mx-2 text-zinc-600">·</span>
           <span className="tabular-nums">{timeAgo}</span>
@@ -341,32 +341,32 @@ function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
 
   return (
     <StoryFeedCard className="overflow-hidden">
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-emerald-950/40 via-zinc-900 to-zinc-950">
-        <div className="absolute inset-0 flex items-center justify-center gap-4 px-6">
+      <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-gradient-to-br from-emerald-950/40 via-zinc-900 to-zinc-950 sm:h-[112px]">
+        <div className="absolute inset-0 flex items-center justify-center gap-2 px-3 sm:gap-3 sm:px-5">
           <Link
             href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
             className="relative z-10"
           >
-            <span className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800 text-2xl font-semibold text-zinc-200 shadow-lg sm:h-24 sm:w-24">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
               {follower[0]?.toUpperCase() ?? '?'}
             </span>
           </Link>
-          <span className="text-2xl text-zinc-600" aria-hidden>
+          <span className="text-lg text-zinc-600 sm:text-xl" aria-hidden>
             →
           </span>
           <Link
             href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
             className="relative z-10"
           >
-            <span className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-700/50 bg-zinc-800 text-2xl font-semibold text-zinc-200 shadow-lg sm:h-24 sm:w-24">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-700/50 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
               {following[0]?.toUpperCase() ?? '?'}
             </span>
           </Link>
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
       </div>
-      <div className="px-5 pb-5 pt-5">
-        <h2 className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
+      <div className="px-4 pb-3 pt-3 sm:px-5">
+        <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
           <Link
             href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
             className="hover:text-emerald-400 hover:underline"
@@ -381,7 +381,7 @@ function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
             {following}
           </Link>
         </h2>
-        <p className="mt-3 text-xs text-zinc-500 tabular-nums">
+        <p className="mt-2 text-[11px] text-zinc-500 tabular-nums">
           {formatRelativeTime(activity.created_at)}
         </p>
       </div>

@@ -5,38 +5,70 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getUserFavoriteAlbums } from "@/lib/queries";
 import { safeOnboardingNextPath } from "@/lib/onboarding/safe-next-path";
 import { ProfileOnboarding } from "@/components/onboarding/profile-onboarding";
+import {
+  getInviteLinkByToken,
+  isInviteLinkExpired,
+} from "@/lib/community/invite-links";
+import { getCommunityById } from "@/lib/community/queries";
+
+function communityIdFromNextPath(path: string | null): string | null {
+  if (!path) return null;
+  const m = path.match(/^\/communities\/([0-9a-f-]{36})/i);
+  return m?.[1] ?? null;
+}
 
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ next?: string; from?: string }>;
+  searchParams?: Promise<{
+    next?: string;
+    from?: string;
+    inviteToken?: string;
+  }>;
 }) {
   const sp = searchParams != null ? await searchParams : {};
   const rawNext = typeof sp.next === "string" ? sp.next : undefined;
   const nextPath = safeOnboardingNextPath(rawNext);
-  const fromInvite = sp.from === "invite";
+  const fromInviteRaw = sp.from === "invite";
+  const rawInviteToken =
+    typeof sp.inviteToken === "string" ? sp.inviteToken.trim() : "";
+
+  let inviteToken: string | null = null;
+  let communityInviteName: string | null = null;
+  if (fromInviteRaw && rawInviteToken) {
+    const link = await getInviteLinkByToken(rawInviteToken);
+    const expectedCommunityId = communityIdFromNextPath(nextPath);
+    if (
+      link &&
+      !isInviteLinkExpired(link) &&
+      (!expectedCommunityId || link.community_id === expectedCommunityId)
+    ) {
+      inviteToken = rawInviteToken;
+      const c = await getCommunityById(link.community_id);
+      communityInviteName = c?.name ?? null;
+    }
+  }
+
+  const inviteFlow = Boolean(inviteToken);
 
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? null;
 
   if (!userId) {
-    const callbackPath =
-      nextPath != null
-        ? `/onboarding?next=${encodeURIComponent(nextPath)}${fromInvite ? "&from=invite" : ""}`
-        : fromInvite
-          ? "/onboarding?from=invite"
-          : "/onboarding";
-    redirect(
-      `/auth/signin?callbackUrl=${encodeURIComponent(callbackPath)}`,
-    );
+    const q = new URLSearchParams();
+    if (nextPath) q.set("next", nextPath);
+    if (inviteFlow) {
+      q.set("from", "invite");
+      q.set("inviteToken", inviteToken!);
+    }
+    const callbackPath = `/onboarding?${q.toString()}`;
+    redirect(`/auth/signin?callbackUrl=${encodeURIComponent(callbackPath)}`);
   }
 
   const admin = createSupabaseAdminClient();
   const { data: user, error: userErr } = await admin
     .from("users")
-    .select(
-      "id, username, lastfm_username, onboarding_completed",
-    )
+    .select("id, username, lastfm_username, onboarding_completed")
     .eq("id", userId)
     .maybeSingle();
 
@@ -52,7 +84,7 @@ export default async function OnboardingPage({
   };
 
   if (row.onboarding_completed === true) {
-    redirect(nextPath ?? "/feed");
+    redirect(nextPath ?? "/");
   }
 
   const favoriteAlbums = await getUserFavoriteAlbums(row.id);
@@ -67,9 +99,10 @@ export default async function OnboardingPage({
         image_url: f.image_url,
       }))}
       hasLastfmAlready={Boolean(row.lastfm_username?.trim())}
-      variant="fullPage"
       nextPath={nextPath}
-      inviteFlow={fromInvite}
+      inviteFlow={inviteFlow}
+      inviteToken={inviteToken}
+      communityInviteName={communityInviteName}
     />
   );
 }

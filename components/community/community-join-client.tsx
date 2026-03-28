@@ -38,7 +38,7 @@ type Props = {
   viewer: {
     isLoggedIn: boolean;
     hasLastfm: boolean;
-    /** False until profile onboarding (username, favorites, Last.fm) is finished. */
+    /** False until profile onboarding (username + favorite albums) is finished. */
     onboardingComplete: boolean;
     joinOk: boolean;
     joinError: string | null;

@@ -49,32 +49,37 @@ export default async function CommunityJoinPage({
 
   if (userId) {
     const admin = createSupabaseAdminClient();
-    const [jr, uRes] = await Promise.all([
-      joinCommunityViaInviteLink(token, userId, { link }),
-      admin
-        .from("users")
-        .select("lastfm_username, onboarding_completed")
-        .eq("id", userId)
-        .maybeSingle(),
-    ]);
-    const uRow = uRes.data as {
+    const { data: uRes, error: uErr } = await admin
+      .from("users")
+      .select("lastfm_username, onboarding_completed")
+      .eq("id", userId)
+      .maybeSingle();
+    if (uErr) {
+      console.error("[community/join] user lookup failed", uErr);
+    }
+    const uRow = uRes as {
       lastfm_username: string | null;
       onboarding_completed: boolean;
     } | null;
     lastfmUsername = uRow?.lastfm_username ?? null;
     onboardingCompleted = uRow?.onboarding_completed === true;
 
+    if (!onboardingCompleted) {
+      const dest = new URL("/onboarding", "http://local");
+      dest.searchParams.set(
+        "next",
+        `/communities/${preview.community.id}`,
+      );
+      dest.searchParams.set("from", "invite");
+      dest.searchParams.set("inviteToken", token);
+      redirect(`${dest.pathname}${dest.search}`);
+    }
+
+    const jr = await joinCommunityViaInviteLink(token, userId, { link });
+
     if (jr.ok) {
       joinOk = true;
-      if (!onboardingCompleted) {
-        const next = `/communities/${jr.communityId}`;
-        redirect(
-          `/onboarding?next=${encodeURIComponent(next)}&from=invite`,
-        );
-      }
-      if (lastfmUsername?.trim()) {
-        redirect(`/communities/${jr.communityId}`);
-      }
+      redirect(`/communities/${jr.communityId}`);
     } else {
       joinError =
         jr.reason === "invalid_or_expired"

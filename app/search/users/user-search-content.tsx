@@ -13,6 +13,8 @@ export function UserSearchContent() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [overlap, setOverlap] = useState<UserSearchResult[]>([]);
+  const [overlapLoading, setOverlapLoading] = useState(true);
   const [browse, setBrowse] = useState<UserSearchResult[]>([]);
   const [browseHasMore, setBrowseHasMore] = useState(false);
   const [browseLoading, setBrowseLoading] = useState(true);
@@ -54,6 +56,29 @@ export function UserSearchContent() {
     void loadBrowse(0);
   }, [loadBrowse]);
 
+  const loadOverlap = useCallback(async () => {
+    setOverlapLoading(true);
+    try {
+      const res = await fetch('/api/search/users/taste-overlap?limit=10', {
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        setOverlap([]);
+        return;
+      }
+      const data = (await res.json()) as { users?: UserSearchResult[] };
+      setOverlap(Array.isArray(data.users) ? data.users : []);
+    } catch {
+      setOverlap([]);
+    } finally {
+      setOverlapLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOverlap();
+  }, [loadOverlap]);
+
   const search = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (trimmed.length < MIN_QUERY_LENGTH) {
@@ -93,6 +118,9 @@ export function UserSearchContent() {
     setBrowse((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, is_following: !u.is_following } : u)),
     );
+    setOverlap((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, is_following: !u.is_following } : u)),
+    );
   }, []);
 
   const searching = query.trim().length >= MIN_QUERY_LENGTH;
@@ -108,6 +136,38 @@ export function UserSearchContent() {
         maxLength={50}
         autoFocus
       />
+
+      {showBrowse ? (
+        <section aria-labelledby="overlap-heading" className="border-b border-zinc-800 pb-8">
+          <h2 id="overlap-heading" className="mb-2 text-base font-semibold text-white">
+            Because of your favorite albums
+          </h2>
+          <p className="mb-3 text-sm text-zinc-500">
+            People whose recent listens overlap albums or artists you picked as favorites (last 30 days).
+          </p>
+          {overlapLoading ? (
+            <p className="text-sm text-zinc-500" role="status">
+              Loading suggestions…
+            </p>
+          ) : overlap.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              Add favorite albums on your profile to get overlap-based suggestions, or check back as more people log listens.
+            </p>
+          ) : (
+            <ul className="space-y-2" role="list">
+              {overlap.map((u) => (
+                <li key={u.id}>
+                  <UserSearchResultComponent
+                    user={u}
+                    showFollowButton
+                    onFollowChange={() => handleFollowChange(u.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       {showBrowse ? (
         <section aria-labelledby="browse-heading">

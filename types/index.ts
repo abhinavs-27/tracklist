@@ -280,6 +280,8 @@ export type UserSearchResult = {
   avatar_url: string | null;
   followers_count: number;
   is_following: boolean;
+  /** Why they appear (favorite-album / artist overlap from recent logs). */
+  reasons?: string[];
 };
 
 // Suggested users (getSuggestedUsers / discover block)
@@ -410,6 +412,6 @@ export interface ProfileUpdateBody {
   username?: string;
   bio?: string | null;
   lastfm_username?: string | null;
-  /** Profile onboarding wizard finished (username, favorites, Last.fm). */
+  /** Profile onboarding wizard finished (username + favorite albums). */
   onboarding_completed?: boolean;
 }

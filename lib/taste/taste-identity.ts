@@ -4,7 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getArtists } from "@/lib/spotify";
-import { upsertArtistFromSpotify } from "@/lib/spotify-cache";
+import {
+  getOrFetchAlbumsBatch,
+  getOrFetchArtistsBatch,
+  upsertArtistFromSpotify,
+} from "@/lib/spotify-cache";
 import { scheduleEnrichArtistGenresForArtistIds } from "./enrich-artist-genres";
 import {
   normalizeListeningStyle,
@@ -181,6 +185,13 @@ function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   const diversityScore = normalizeDiversityScore(cached.diversityScore);
   const base = { ...cached, listeningStyle, diversityScore };
   if (base.totalLogs === 0) {
+    /** Onboarding seed: favorite albums and/or artist picks before first log. */
+    if (
+      (base.topArtists.length > 0 || base.topAlbums.length > 0) &&
+      base.summary?.trim()
+    ) {
+      return { ...base, recent: undefined };
+    }
     return { ...base, summary: EMPTY.summary, recent: undefined };
   }
   return { ...base, summary: buildSummary(base) };
@@ -846,6 +857,99 @@ export async function refreshTasteIdentityCacheForUser(
   const hydrated = await hydrateTasteIdentityArtwork(admin, computed);
   await upsertTasteIdentityCache(admin, userId, hydrated);
   return hydrated;
+}
+
+/**
+ * Cold-start `taste_identity_cache` from onboarding favorite albums (no logs yet).
+ * Replaced on first real `refreshTasteIdentityCacheForUser` / cron when logs exist.
+ */
+export async function seedTasteIdentityFromFavoriteAlbums(
+  userId: string,
+  albumIds: string[],
+): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  const ids = [...new Set(albumIds.map((id) => id.trim()).filter(Boolean))].slice(
+    0,
+    4,
+  );
+  if (ids.length === 0) return;
+
+  await getOrFetchAlbumsBatch(ids);
+
+  const albumMeta = await fetchAlbumsBatch(admin, ids);
+  const artistIds = [
+    ...new Set(
+      ids
+        .map((id) => albumMeta.get(id)?.artist_id)
+        .filter((x): x is string => Boolean(x)),
+    ),
+  ];
+
+  if (artistIds.length > 0) {
+    await getOrFetchArtistsBatch(artistIds);
+  }
+
+  const artistMeta = await fetchArtistsBatch(admin, artistIds);
+
+  const artistCounts = new Map<string, number>();
+  for (const id of ids) {
+    const aid = albumMeta.get(id)?.artist_id;
+    if (aid) artistCounts.set(aid, (artistCounts.get(aid) ?? 0) + 1);
+  }
+
+  const topGenres = genreWeightsFromArtistCounts(artistCounts, artistMeta);
+
+  const topAlbums: TasteTopAlbum[] = ids.map((id) => {
+    const al = albumMeta.get(id);
+    const artistName = al?.artist_id
+      ? artistMeta.get(al.artist_id)?.name ?? "Unknown"
+      : "Unknown";
+    return {
+      id,
+      name: al?.name ?? "Album",
+      artistName,
+      listenCount: 5,
+      imageUrl: al?.image_url ?? null,
+    };
+  });
+
+  const topArtists: TasteTopArtist[] = [...artistCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, TOP_N)
+    .map(([id, count]) => {
+      const m = artistMeta.get(id);
+      return {
+        id,
+        name: m?.name ?? "Artist",
+        listenCount: count * 5,
+        imageUrl: m?.image_url ?? null,
+      };
+    });
+
+  const diversityScore =
+    topGenres.length === 0 ? 0 : Math.min(10, topGenres.length);
+
+  const summary =
+    topGenres.length > 0
+      ? `Your taste starts with ${topGenres
+          .slice(0, 3)
+          .map((g) => g.name)
+          .join(", ")} — log listens to go deeper.`
+      : "Your taste starts with albums you picked — log listens to unlock richer genres.";
+
+  const payload: TasteIdentity = {
+    topArtists,
+    topAlbums,
+    topGenres,
+    obscurityScore: null,
+    diversityScore,
+    listeningStyle: ids.length >= 3 ? "omnivore-mode" : "plotting-the-plot",
+    avgTracksPerSession: 1,
+    totalLogs: 0,
+    summary,
+  };
+
+  await upsertTasteIdentityCache(admin, userId, payload);
 }
 
 /** Single read of `taste_identity_cache` — no log scans, no Spotify, no artwork hydration. */

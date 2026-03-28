@@ -1,12 +1,23 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { getFeedForUser, enrichFeedActivitiesWithEntityNames, enrichListenSessionsWithAlbums } from '@/lib/feed';
 import { getRecommendedCommunities } from '@/lib/community/getRecommendedCommunities';
 import { FeedListVirtual } from '@/components/feed-list-virtual';
 import { RecommendedCommunitiesSection } from '@/components/discover/recommended-communities-section';
+import { HomeWelcomeOverlay } from '@/components/home-welcome-overlay';
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ welcome?: string }>;
+}) {
+  const sp = searchParams != null ? await searchParams : {};
+  const welcomeOnboarding = sp.welcome === "1";
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -34,6 +45,22 @@ export default async function HomePage() {
     );
   }
 
+  const admin = createSupabaseAdminClient();
+  const { data: onboardingRow, error: onboardingErr } = await admin
+    .from("users")
+    .select("onboarding_completed")
+    .eq("id", session.user.id)
+    .maybeSingle();
+  if (onboardingErr) {
+    console.error("[home] onboarding_completed lookup failed", onboardingErr);
+  } else if (
+    onboardingRow &&
+    (onboardingRow as { onboarding_completed: boolean }).onboarding_completed !==
+      true
+  ) {
+    redirect("/onboarding");
+  }
+
   const [feedResult, recommendedCommunities] = await Promise.all([
     getFeedForUser(session.user.id, 50, null),
     getRecommendedCommunities(session.user.id),
@@ -49,6 +76,9 @@ export default async function HomePage() {
 
   return (
     <div>
+      <Suspense fallback={null}>
+        <HomeWelcomeOverlay initialActive={welcomeOnboarding} />
+      </Suspense>
       <h1 className="mb-4 text-xl font-bold text-white sm:text-2xl">Your feed</h1>
       {recommendedCommunities.length > 0 ? (
         <div className="mb-8">
@@ -70,7 +100,7 @@ export default async function HomePage() {
           initialItems={enrichedItems}
           initialCursor={feedNextCursor}
           className="pr-1"
-          maxHeight="70vh"
+          maxHeight="72vh"
         />
       )}
     </div>

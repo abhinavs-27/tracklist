@@ -56,7 +56,7 @@ export const ListenSessionSingleStoryCard = memo(function ListenSessionSingleSto
         href={`/album/${activity.album_id}`}
         className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-950">
+        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-zinc-950 sm:h-[112px]">
           {image ? (
             <img
               src={image}
@@ -65,29 +65,29 @@ export const ListenSessionSingleStoryCard = memo(function ListenSessionSingleSto
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
-              <CatalogArtworkPlaceholder size="md" className="h-24 w-24 text-4xl" />
+              <CatalogArtworkPlaceholder size="md" className="h-16 w-16 text-2xl" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+          <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
               Listening
             </p>
-            <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-white sm:text-2xl">
+            <h2 className="mt-0.5 line-clamp-2 text-base font-bold leading-snug tracking-tight text-white sm:text-[17px]">
               <span className="font-semibold text-white">{username}</span>
               <span className="font-normal text-zinc-200"> is listening to </span>
               <span className="text-white">{albumName}</span>
             </h2>
             {trackLabel !== albumName ? (
-              <p className="mt-1 line-clamp-1 text-sm text-zinc-300">{trackLabel}</p>
+              <p className="mt-0.5 line-clamp-1 text-xs text-zinc-300">{trackLabel}</p>
             ) : null}
             {artistLine ? (
-              <p className="mt-0.5 line-clamp-1 text-xs text-zinc-400">{artistLine}</p>
+              <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-400">{artistLine}</p>
             ) : null}
           </div>
         </div>
       </Link>
-      <div className="flex items-center justify-between gap-3 px-4 py-3.5 text-xs text-zinc-500">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-zinc-500 sm:px-4">
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
@@ -98,10 +98,10 @@ export const ListenSessionSingleStoryCard = memo(function ListenSessionSingleSto
               <img
                 src={activity.user.avatar_url}
                 alt=""
-                className="h-8 w-8 rounded-full border border-zinc-700 object-cover"
+                className="h-7 w-7 rounded-full border border-zinc-700 object-cover"
               />
             ) : (
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-200">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-[11px] font-medium text-zinc-200">
                 {username[0]?.toUpperCase() ?? "?"}
               </span>
             )}
@@ -137,35 +137,35 @@ export const ListenSessionGroupStoryCard = memo(function ListenSessionGroupStory
         onClick={() => setExpanded((e) => !e)}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/80"
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-950">
+        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-zinc-950 sm:h-[112px]">
           {image ? (
             <img src={image} alt="" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
-              <CatalogArtworkPlaceholder size="md" className="h-24 w-24 text-4xl" />
+              <CatalogArtworkPlaceholder size="md" className="h-16 w-16 text-2xl" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
           {n > 1 ? (
-            <div className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+            <div className="absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
               +{n - 1}
             </div>
           ) : null}
-          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+          <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
               Session
             </p>
-            <h2 className="mt-1 text-xl font-bold leading-snug tracking-tight text-white sm:text-2xl">
+            <h2 className="mt-0.5 line-clamp-2 text-base font-bold leading-snug tracking-tight text-white sm:text-[17px]">
               <span className="font-semibold text-white">{username}</span>
               <span className="font-normal text-zinc-200"> listened to </span>
               <span className="text-white">{n} tracks</span>
             </h2>
-            <p className="mt-1 line-clamp-1 text-sm text-zinc-300">
+            <p className="mt-0.5 line-clamp-1 text-xs text-zinc-300">
               Starting with {sessionTrackLabel(first)}
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3.5 text-xs text-zinc-500">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-zinc-500 sm:px-4">
           <div className="flex min-w-0 items-center gap-2">
             <Link
               href={first.user?.id ? `/profile/${first.user.id}` : "#"}
@@ -176,10 +176,10 @@ export const ListenSessionGroupStoryCard = memo(function ListenSessionGroupStory
                 <img
                   src={first.user.avatar_url}
                   alt=""
-                  className="h-8 w-8 rounded-full border border-zinc-700 object-cover"
+                  className="h-7 w-7 rounded-full border border-zinc-700 object-cover"
                 />
               ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-200">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-[11px] font-medium text-zinc-200">
                   {username[0]?.toUpperCase() ?? "?"}
                 </span>
               )}

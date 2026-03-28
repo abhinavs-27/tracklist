@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { createClient } from "@supabase/supabase-js";
 
 /** Set `MAINTENANCE_MODE=true` in env to show a site-wide maintenance page (503). */
 function isMaintenanceMode(): boolean {
@@ -82,10 +84,93 @@ function maintenanceResponse(request: NextRequest): NextResponse {
  * Set in `.env` (e.g. `API_BACKEND_URL=http://127.0.0.1:3001`) while Next.js serves
  * the site on port 3000 (default).
  */
+function shouldSkipOnboardingGate(pathname: string): boolean {
+  if (
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/community/join") ||
+    pathname.startsWith("/communities") ||
+    pathname.startsWith("/e2e") ||
+    pathname === "/favicon.ico"
+  ) {
+    return true;
+  }
+  if (/\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$/i.test(pathname)) {
+    return true;
+  }
+  return false;
+}
+
+let warnedOnboardingMissingSecret = false;
+let warnedOnboardingMissingSupabase = false;
+
+/**
+ * Signed-in users who haven't finished profile onboarding are sent to `/onboarding`
+ * immediately (not only when opening profile).
+ */
+async function onboardingIncompleteRedirect(
+  request: NextRequest,
+): Promise<NextResponse | null> {
+  const pathname = request.nextUrl.pathname;
+  if (shouldSkipOnboardingGate(pathname)) return null;
+
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    if (!warnedOnboardingMissingSecret) {
+      warnedOnboardingMissingSecret = true;
+      console.warn(
+        "[middleware] onboarding gate skipped: set NEXTAUTH_SECRET so signed-in users can be checked for incomplete onboarding",
+      );
+    }
+    return null;
+  }
+
+  const token = await getToken({ req: request, secret });
+  const userId = typeof token?.id === "string" ? token.id : null;
+  if (!userId) return null;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl?.trim() || !key?.trim()) {
+    if (!warnedOnboardingMissingSupabase) {
+      warnedOnboardingMissingSupabase = true;
+      console.warn(
+        "[middleware] onboarding gate skipped: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for the onboarding redirect",
+      );
+    }
+    return null;
+  }
+
+  const supabase = createClient(supabaseUrl, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await supabase
+    .from("users")
+    .select("onboarding_completed")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[middleware] onboarding gate users lookup failed", error);
+    return null;
+  }
+  if (data?.onboarding_completed === true) return null;
+
+  const dest = request.nextUrl.clone();
+  dest.pathname = "/onboarding";
+  dest.search = "";
+  return NextResponse.redirect(dest);
+}
+
 export async function middleware(request: NextRequest) {
   if (isMaintenanceMode()) {
     return maintenanceResponse(request);
   }
+
+  const onboardingRedirect = await onboardingIncompleteRedirect(request);
+  if (onboardingRedirect) return onboardingRedirect;
 
   const backend = process.env.API_BACKEND_URL?.trim();
   if (!backend) return NextResponse.next();

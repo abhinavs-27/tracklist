@@ -43,8 +43,8 @@ function ReviewCardInner({
 
   if (variant === "story") {
     return (
-      <div className="min-w-0 p-5 pt-6">
-        <h2 className="text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
+      <div className="min-w-0 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
+        <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
           <Link
             href={user?.id ? `/profile/${user.id}` : "#"}
             className="hover:text-emerald-400 hover:underline"
@@ -65,11 +65,11 @@ function ReviewCardInner({
           <span className="tabular-nums">{formatRelativeTime(review.created_at)}</span>
         </div>
         {review.review_text ? (
-          <p className="mt-4 line-clamp-6 text-[15px] leading-relaxed text-zinc-300 whitespace-pre-line">
+          <p className="mt-3 line-clamp-4 text-[14px] leading-relaxed text-zinc-300 whitespace-pre-line sm:text-[15px]">
             {review.review_text}
           </p>
         ) : null}
-        <div className="relative mt-5 flex items-center gap-4">
+        <div className="relative mt-4 flex items-center gap-3">
           <LikeButton reviewId={review.id} initialLiked={liked} initialCount={likeCount} />
           {showComments ? (
             <CommentThread reviewId={review.id} initialCount={commentCount} />
