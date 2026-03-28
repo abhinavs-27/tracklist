@@ -85,17 +85,21 @@ export function ProfileHeader({
             {keyStatLine}
           </p>
         ) : null}
-        <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${keyStatLine ? "mt-2" : "mt-1"}`}>
+        <div
+          className={`flex flex-wrap items-center gap-x-5 gap-y-1 ${keyStatLine ? "mt-2" : "mt-1"}`}
+        >
           <button
             type="button"
             onClick={() => {
               setInitialTab("followers");
               setFollowersOpen(true);
             }}
-            className="inline-flex min-h-9 min-w-[44px] items-center justify-center gap-1 rounded-full px-1 py-0.5 text-zinc-400 touch-manipulation hover:text-zinc-200"
+            className="inline-flex min-h-9 items-baseline justify-start gap-1.5 rounded-full px-1 py-0.5 text-left text-zinc-400 touch-manipulation hover:text-zinc-200"
           >
-            <span className="font-semibold text-white">{optimisticFollowerCount}</span>
-            <span>followers</span>
+            <span className="inline-block min-w-[4ch] text-right font-semibold tabular-nums text-white">
+              {optimisticFollowerCount}
+            </span>
+            <span className="text-sm">followers</span>
           </button>
           <button
             type="button"
@@ -103,10 +107,12 @@ export function ProfileHeader({
               setInitialTab("following");
               setFollowersOpen(true);
             }}
-            className="inline-flex min-h-9 min-w-[44px] items-center justify-center gap-1 rounded-full px-1 py-0.5 text-zinc-400 touch-manipulation hover:text-zinc-200"
+            className="inline-flex min-h-9 items-baseline justify-start gap-1.5 rounded-full px-1 py-0.5 text-left text-zinc-400 touch-manipulation hover:text-zinc-200"
           >
-            <span className="font-semibold text-white">{followingCount}</span>
-            <span>following</span>
+            <span className="inline-block min-w-[4ch] text-right font-semibold tabular-nums text-white">
+              {followingCount}
+            </span>
+            <span className="text-sm">following</span>
           </button>
         </div>
         {vibeLine ? (

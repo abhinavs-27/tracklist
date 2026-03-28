@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -23,6 +23,22 @@ type FollowersModalProps = {
 type TabKind = "followers" | "following";
 
 const PAGE_SIZE = 20;
+
+function ListSkeleton() {
+  return (
+    <ul className="space-y-2 px-2 pt-2 pb-10" aria-hidden>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <li
+          key={i}
+          className="flex animate-pulse items-center gap-2 rounded-lg border border-transparent px-2 py-2"
+        >
+          <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-800" />
+          <div className="h-4 flex-1 rounded bg-zinc-800/80" />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function FollowersModal({
   userId,
@@ -49,47 +65,108 @@ export function FollowersModal({
   followersRef.current = followers;
   followingRef.current = following;
 
+  /** Lock page scroll while open (mobile + desktop). */
+  useEffect(() => {
+    if (!isOpen) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, [isOpen]);
+
+  /** Escape closes; backdrop click handled on overlay. */
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
     setActiveTab(initialTab);
   }, [isOpen, initialTab]);
 
+  /** When the modal opens, prefetch both tabs in parallel so switching is instant. */
   useEffect(() => {
     if (!isOpen) return;
+
     setFollowers([]);
-    setFollowersHasMore(true);
     setFollowing([]);
+    setFollowersHasMore(true);
     setFollowingHasMore(true);
     setError(null);
-  }, [isOpen, userId]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    if (activeTab === "followers" && followers.length === 0 && !followersLoading) {
-      void loadTab("followers", false);
-    }
-    if (activeTab === "following" && following.length === 0 && !followingLoading) {
-      void loadTab("following", false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, activeTab, userId]);
+    const ac = new AbortController();
 
-  const loadTab = async (tab: TabKind, append: boolean) => {
+    (async () => {
+      setFollowersLoading(true);
+      setFollowingLoading(true);
+      try {
+        const q = new URLSearchParams();
+        q.set("limit", String(PAGE_SIZE));
+        q.set("offset", "0");
+
+        const [fRes, gRes] = await Promise.all([
+          fetch(
+            `/api/users/${encodeURIComponent(username)}/followers?${q.toString()}`,
+            { signal: ac.signal },
+          ),
+          fetch(
+            `/api/users/${encodeURIComponent(username)}/following?${q.toString()}`,
+            { signal: ac.signal },
+          ),
+        ]);
+
+        if (!fRes.ok || !gRes.ok) {
+          setError("Failed to load users.");
+          return;
+        }
+
+        const fData = (await fRes.json()) as unknown;
+        const gData = (await gRes.json()) as unknown;
+
+        const fArr = Array.isArray(fData) ? fData : [];
+        const gArr = Array.isArray(gData) ? gData : [];
+
+        setFollowers(fArr);
+        setFollowing(gArr);
+        setFollowersHasMore(fArr.length === PAGE_SIZE);
+        setFollowingHasMore(gArr.length === PAGE_SIZE);
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+        setError("Failed to load users.");
+      } finally {
+        setFollowersLoading(false);
+        setFollowingLoading(false);
+      }
+    })();
+
+    return () => ac.abort();
+  }, [isOpen, userId, username]);
+
+  const loadMore = async (tab: TabKind) => {
     const isFollowers = tab === "followers";
     const loading = isFollowers ? followersLoading : followingLoading;
     const hasMore = isFollowers ? followersHasMore : followingHasMore;
     const list = isFollowers ? followersRef.current : followingRef.current;
 
-    if (loading || (!append && !isOpen)) return;
-    if (append && !hasMore) return;
+    if (loading || !hasMore) return;
 
     isFollowers ? setFollowersLoading(true) : setFollowingLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
       params.set("limit", String(PAGE_SIZE));
-      const offset = append ? list.length : 0;
-      params.set("offset", String(offset));
+      params.set("offset", String(list.length));
 
       const res = await fetch(
         `/api/users/${encodeURIComponent(username)}/${isFollowers ? "followers" : "following"}?${params.toString()}`,
@@ -104,10 +181,10 @@ export function FollowersModal({
         return;
       }
       if (isFollowers) {
-        setFollowers((prev) => (append ? [...prev, ...data] : data));
+        setFollowers((prev) => [...prev, ...data]);
         setFollowersHasMore(data.length === PAGE_SIZE);
       } else {
-        setFollowing((prev) => (append ? [...prev, ...data] : data));
+        setFollowing((prev) => [...prev, ...data]);
         setFollowingHasMore(data.length === PAGE_SIZE);
       }
     } catch {
@@ -121,111 +198,136 @@ export function FollowersModal({
 
   const isFollowersTab = activeTab === "followers";
   const items = isFollowersTab ? followers : following;
-  const loading = isFollowersTab ? followersLoading : followingLoading;
+  const tabLoading = isFollowersTab ? followersLoading : followingLoading;
   const hasMore = isFollowersTab ? followersHasMore : followingHasMore;
+  const showSkeleton = tabLoading && items.length === 0 && !error;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/60 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`${username}'s followers and following`}
+      aria-labelledby="followers-modal-title"
+      onClick={onClose}
     >
-      <div className="flex w-full max-w-md flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-xl">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">{username}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-          >
-            Close
-          </button>
+      <div
+        className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-zinc-800 border-b-0 bg-zinc-900 shadow-xl sm:my-auto sm:rounded-2xl sm:border-b"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800/80 px-4 pb-3 pt-4 sm:px-4 sm:pt-4">
+          <h2 id="followers-modal-title" className="truncate text-lg font-semibold text-white">
+            {username}
+          </h2>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-zinc-500 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
         </div>
 
-        <div className="mt-3 flex rounded-full bg-zinc-800 p-1 text-xs font-medium text-zinc-400">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("followers");
-              if (followers.length === 0) void loadTab("followers", false);
-            }}
-            className={`flex-1 rounded-full px-3 py-1 ${
-              isFollowersTab ? "bg-zinc-900 text-white" : "hover:text-zinc-200"
-            }`}
-          >
-            Followers
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("following");
-              if (following.length === 0) void loadTab("following", false);
-            }}
-            className={`flex-1 rounded-full px-3 py-1 ${
-              !isFollowersTab ? "bg-zinc-900 text-white" : "hover:text-zinc-200"
-            }`}
-          >
-            Following
-          </button>
+        <div className="shrink-0 px-4 pb-2 pt-3">
+          <div className="flex rounded-full bg-zinc-800 p-1 text-xs font-medium text-zinc-400">
+            <button
+              type="button"
+              onClick={() => setActiveTab("followers")}
+              className={`flex-1 rounded-full px-3 py-1.5 transition ${
+                isFollowersTab ? "bg-zinc-900 text-white" : "hover:text-zinc-200"
+              }`}
+            >
+              Followers
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("following")}
+              className={`flex-1 rounded-full px-3 py-1.5 transition ${
+                !isFollowersTab ? "bg-zinc-900 text-white" : "hover:text-zinc-200"
+              }`}
+            >
+              Following
+            </button>
+          </div>
         </div>
 
-        <div className="mt-3 flex-1 overflow-hidden">
-          {error && <p className="mb-2 text-xs text-red-400">{error}</p>}
-          {items.length === 0 && !loading ? (
-            <p className="text-sm text-zinc-500">
-              {isFollowersTab ? "No followers yet." : "Not following anyone yet."}
-            </p>
-          ) : (
-            <ul className="max-h-72 space-y-2 overflow-y-auto pr-1 text-sm">
-              {items.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
-                >
-                  <Link
-                    href={`/profile/${encodeURIComponent(u.id)}`}
-                    onClick={onClose}
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-0.5 text-left hover:bg-zinc-800/80"
-                  >
-                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-800">
-                      {u.avatar_url ? (
-                        <img
-                          src={u.avatar_url}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                          {u.username[0]?.toUpperCase() ?? "?"}
+        {/* Scrolls inside panel; header + tabs stay fixed */}
+        <div className="flex min-h-0 flex-1 flex-col px-4">
+          <div
+            className="min-h-0 max-h-[calc(92dvh-10.5rem)] flex-1 scroll-pb-4 overflow-y-auto overscroll-contain rounded-lg border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.04)] sm:max-h-[calc(85dvh-10rem)]"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+              {error ? (
+                <p className="px-3 py-8 pb-10 text-center text-sm text-red-300">
+                  {error}
+                </p>
+              ) : showSkeleton ? (
+                <ListSkeleton />
+              ) : items.length === 0 ? (
+                <div className="flex min-h-[200px] items-center justify-center px-3 py-10 pb-12 text-center text-sm text-zinc-500">
+                  {isFollowersTab
+                    ? "No followers yet."
+                    : "Not following anyone yet."}
+                </div>
+              ) : (
+                <ul className="space-y-2 px-2 pt-2 pb-10 text-sm">
+                  {items.map((u) => (
+                    <li
+                      key={u.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+                    >
+                      <Link
+                        href={`/profile/${encodeURIComponent(u.id)}`}
+                        onClick={onClose}
+                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-0.5 text-left hover:bg-zinc-800/80"
+                      >
+                        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-800">
+                          {u.avatar_url ? (
+                            <img
+                              src={u.avatar_url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                              {u.username[0]?.toUpperCase() ?? "?"}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <span className="min-w-0 truncate font-medium text-white">
-                      {u.username}
-                    </span>
-                  </Link>
-                  {viewerUserId && u.id !== viewerUserId ? (
-                    <FollowButton
-                      userId={u.id}
-                      initialFollowing={u.is_following}
-                    />
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
+                        <span className="min-w-0 truncate font-medium text-white">
+                          {u.username}
+                        </span>
+                      </Link>
+                      {viewerUserId && u.id !== viewerUserId ? (
+                        <FollowButton
+                          userId={u.id}
+                          initialFollowing={u.is_following}
+                        />
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+          </div>
         </div>
 
-        {hasMore && (
-          <button
-            type="button"
-            onClick={() => void loadTab(activeTab, true)}
-            disabled={loading}
-            className="mt-3 w-full rounded-full bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
-          >
-            {loading ? "Loading..." : "Load more"}
-          </button>
+        {hasMore && !error && !showSkeleton && items.length > 0 ? (
+          <div className="shrink-0 border-t border-zinc-800/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              onClick={() => void loadMore(activeTab)}
+              disabled={tabLoading}
+              className="w-full rounded-full bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+            >
+              {tabLoading ? "Loading…" : "Load more"}
+            </button>
+          </div>
+        ) : (
+          <div
+            className="shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1"
+            aria-hidden
+          />
         )}
       </div>
     </div>

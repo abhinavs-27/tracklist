@@ -33,7 +33,11 @@ import { getTasteIdentity } from "@/lib/taste/taste-identity";
 import type { TasteIdentity } from "@/lib/taste/types";
 import { buildProfileHeroLines } from "@/lib/profile/hero-lines";
 import { ProfileTopThisWeekSection } from "@/components/profile/profile-top-this-week";
+import { ProfileListeningReportPreview } from "@/components/profile/profile-listening-report-preview";
+import { getListeningReportPreview } from "@/lib/profile/listening-report-preview";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
+
+const LISTS_PREVIEW_MAX = 6;
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -135,6 +139,7 @@ export default async function ProfilePage({
     getUserAchievements(user.id),
     getUserFavoriteAlbums(user.id),
     getTasteIdentity(user.id),
+    getListeningReportPreview(user.id),
   ]);
 
   const counts =
@@ -206,6 +211,16 @@ export default async function ProfilePage({
     console.error(
       "[profile] getTasteIdentity failed:",
       profileSettled[7].reason,
+    );
+
+  const listeningReportPreview =
+    profileSettled[8].status === "fulfilled"
+      ? profileSettled[8].value
+      : null;
+  if (profileSettled[8].status === "rejected")
+    console.error(
+      "[profile] getListeningReportPreview failed:",
+      profileSettled[8].reason,
     );
 
   const heroLines = buildProfileHeroLines(tasteIdentity, streak);
@@ -341,6 +356,14 @@ export default async function ProfilePage({
         />
       </SectionBlock>
 
+      <SectionBlock
+        title="Listening report"
+        description="Weekly snapshot: top artist and genre from your history (UTC)."
+        action={{ label: "View full report", href: "/reports/listening" }}
+      >
+        <ProfileListeningReportPreview data={listeningReportPreview} />
+      </SectionBlock>
+
       {session?.user?.id ? (
         <SectionBlock
           title="Listening habits"
@@ -382,24 +405,36 @@ export default async function ProfilePage({
 
       <SectionBlock
         title={isOwnProfile ? "Your lists" : "Lists"}
-        description="Curated albums and tracks you share."
+        description={
+          isOwnProfile
+            ? "Collections of albums and tracks — tap a card to open or create a new list."
+            : "Curated albums and tracks they share."
+        }
         action={
           isOwnProfile && userLists.length > 0
-            ? { label: "View all", href: "/lists" }
+            ? {
+                label:
+                  userLists.length > LISTS_PREVIEW_MAX
+                    ? `View all (${userLists.length})`
+                    : "View all lists",
+                href: "/lists",
+              }
             : undefined
         }
         headerRight={isOwnProfile ? <ProfileListsSection /> : undefined}
       >
         <div id="lists">
           {userLists.length === 0 ? (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
+            <div
+              className={`${cardElevated} px-4 py-8 text-center sm:px-6 sm:py-10`}
+            >
               <p className="text-zinc-500">
                 {isOwnProfile
                   ? "You haven't created any lists yet."
                   : "No lists yet."}
               </p>
               {isOwnProfile && (
-                <div className="mt-3 flex justify-center">
+                <div className="mt-4 flex justify-center">
                   <ProfileListsSection triggerLabel="Create your first list" />
                 </div>
               )}
@@ -414,8 +449,11 @@ export default async function ProfilePage({
             </div>
           ) : (
             <>
-              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-                {userLists.map((list) => (
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+                {(isOwnProfile
+                  ? userLists.slice(0, LISTS_PREVIEW_MAX)
+                  : userLists
+                ).map((list) => (
                   <li key={list.id}>
                     <ListCard
                       id={list.id}
@@ -427,11 +465,23 @@ export default async function ProfilePage({
                       emoji={list.emoji}
                       image_url={list.image_url}
                       preview_labels={list.preview_labels}
+                      profilePreview
                     />
                   </li>
                 ))}
               </ul>
-              {isOwnProfile && (
+              {isOwnProfile && userLists.length > LISTS_PREVIEW_MAX ? (
+                <p className="mt-4 text-sm text-zinc-500">
+                  Showing {LISTS_PREVIEW_MAX} of {userLists.length} lists.{" "}
+                  <Link
+                    href="/lists"
+                    className="font-medium text-emerald-400 hover:underline"
+                  >
+                    Manage all lists
+                  </Link>
+                </p>
+              ) : null}
+              {isOwnProfile && userLists.length > 0 ? (
                 <p className="mt-4 text-sm text-zinc-500">
                   <Link
                     href="/search/users"
@@ -441,7 +491,7 @@ export default async function ProfilePage({
                   </Link>
                   {" to discover more lists."}
                 </p>
-              )}
+              ) : null}
             </>
           )}
         </div>

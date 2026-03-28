@@ -14,6 +14,8 @@ export type ListCardProps = {
   image_url?: string | null;
   /** First few album or track names from the list */
   preview_labels?: string[];
+  /** Slightly larger preview line for profile grid */
+  profilePreview?: boolean;
 };
 
 export function ListCard({
@@ -27,6 +29,7 @@ export function ListCard({
   emoji,
   image_url,
   preview_labels,
+  profilePreview = false,
 }: ListCardProps) {
   const displayTitle = emoji ? `${emoji} ${title}` : title;
   const previewLine =
@@ -69,7 +72,11 @@ export function ListCard({
       </div>
 
       {previewLine ? (
-        <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-zinc-400">
+        <p
+          className={`mt-3 line-clamp-3 leading-relaxed text-zinc-300 ${
+            profilePreview ? "text-sm" : "text-xs"
+          }`}
+        >
           <span className="font-medium text-zinc-500">Includes </span>
           {previewLine}
         </p>
