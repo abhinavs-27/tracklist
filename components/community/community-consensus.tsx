@@ -6,7 +6,6 @@ import {
   communityBody,
   communityButton,
   communityCard,
-  communityHeadline,
   communityMeta,
 } from "@/lib/ui/surface";
 
@@ -47,7 +46,14 @@ function itemHref(type: EntityTab, row: ConsensusApiItem): string | null {
 
 const PAGE_SIZE = 10;
 
-export function CommunityConsensusSection(props: { communityId: string }) {
+export function CommunityConsensusSection({
+  communityId,
+  embedded = false,
+}: {
+  communityId: string;
+  /** When true, omits outer card shell (use inside a collapsible). */
+  embedded?: boolean;
+}) {
   const [entity, setEntity] = useState<EntityTab>("track");
   const [range, setRange] = useState<RangeTab>("week");
   const [page, setPage] = useState(1);
@@ -58,7 +64,7 @@ export function CommunityConsensusSection(props: { communityId: string }) {
 
   useEffect(() => {
     setPage(1);
-  }, [props.communityId]);
+  }, [communityId]);
 
   const fetchPage = useCallback(async () => {
     setLoading(true);
@@ -72,7 +78,7 @@ export function CommunityConsensusSection(props: { communityId: string }) {
         offset: String(offset),
       });
       const res = await fetch(
-        `/api/communities/${encodeURIComponent(props.communityId)}/consensus?${q}`,
+        `/api/communities/${encodeURIComponent(communityId)}/consensus?${q}`,
         { cache: "no-store" },
       );
       const json = (await res.json().catch(() => null)) as
@@ -97,7 +103,7 @@ export function CommunityConsensusSection(props: { communityId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [entity, range, page, props.communityId]);
+  }, [entity, range, page, communityId]);
 
   useEffect(() => {
     void fetchPage();
@@ -108,18 +114,9 @@ export function CommunityConsensusSection(props: { communityId: string }) {
   const rowShell =
     "flex items-center gap-3 rounded-xl bg-zinc-950/40 px-3 py-2.5 ring-1 ring-white/[0.05] transition hover:bg-zinc-900/40 hover:ring-white/[0.08]";
 
-  return (
-    <section className={communityCard}>
-      <h2 className={communityHeadline}>
-        <span aria-hidden>🔥 </span>
-        Community Consensus
-      </h2>
-      <p className={`mt-2 ${communityMeta} max-w-2xl`}>
-        Ranked by shared listening: unique members plus capped plays per person (max 3 each)
-        toward the score — not raw volume alone.
-      </p>
-
-      <div className="mt-3 flex flex-wrap gap-2">
+  const consensusBody = (
+    <>
+      <div className="flex flex-wrap gap-2">
         {ENTITY_TABS.map((t) => (
           <button
             key={t.value}
@@ -263,6 +260,12 @@ export function CommunityConsensusSection(props: { communityId: string }) {
           </>
         ) : null}
       </div>
-    </section>
+    </>
+  );
+
+  return embedded ? (
+    <div className="space-y-4">{consensusBody}</div>
+  ) : (
+    <section className={communityCard}>{consensusBody}</section>
   );
 }

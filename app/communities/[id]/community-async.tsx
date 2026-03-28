@@ -6,6 +6,7 @@ import { CommunityLeaderboardSection } from "@/components/community/community-le
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { COMMUNITY_FEED_PAGE_SIZE } from "@/lib/community/community-feed-page-size";
 import { CommunityMembersSectionClient } from "@/components/community/community-members-section-client";
+import type { CommunityFeedItemV2 } from "@/lib/community/community-feed-types";
 import { getCommunityFeedV2 } from "@/lib/community/get-community-feed-v2";
 import { getCommunityInsights } from "@/lib/community/getCommunityInsights";
 import { getCommunityMembersRoster } from "@/lib/community/get-community-members-roster";
@@ -13,6 +14,25 @@ import { getCommunityMemberStatsWithRoles } from "@/lib/community/get-community-
 import { getWeeklyLeaderboard } from "@/lib/community/getWeeklyLeaderboard";
 import { getCommunityMatch } from "@/lib/taste/getCommunityMatch";
 import { communityBody } from "@/lib/ui/surface";
+
+export type CommunityFeedPreload = {
+  items: CommunityFeedItemV2[];
+  nextOffset: number | null;
+};
+
+export async function getCommunityFeedPreload(
+  communityId: string,
+): Promise<CommunityFeedPreload> {
+  const items = await getCommunityFeedV2(
+    communityId,
+    COMMUNITY_FEED_PAGE_SIZE,
+    "all",
+    0,
+  );
+  const nextOffset =
+    items.length >= COMMUNITY_FEED_PAGE_SIZE ? COMMUNITY_FEED_PAGE_SIZE : null;
+  return { items, nextOffset };
+}
 
 export async function CommunityTasteMatchSlot({
   userId,
@@ -27,14 +47,22 @@ export async function CommunityTasteMatchSlot({
 
 export async function CommunityInsightsSlot({
   communityId,
+  hideTopArtists = false,
 }: {
   communityId: string;
+  /** When true, omits the "Top artists" block (e.g. when discovery carousels show artists). */
+  hideTopArtists?: boolean;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
   const insights = await getCommunityInsights(communityId);
   if (!insights) return null;
-  return <CommunityInsights insights={insights} />;
+  return (
+    <CommunityInsights
+      insights={insights}
+      hideTopArtists={hideTopArtists}
+    />
+  );
 }
 
 export async function CommunityMembersSlot({
@@ -90,19 +118,15 @@ export async function CommunityLeaderboardSlot({
 
 export async function CommunityFeedSlot({
   communityId,
+  preload,
 }: {
   communityId: string;
+  /** When set (e.g. shared with mobile web shell), avoids a second feed query. */
+  preload?: CommunityFeedPreload;
 }) {
-  const initialCommunityFeed = await getCommunityFeedV2(
-    communityId,
-    COMMUNITY_FEED_PAGE_SIZE,
-    "all",
-    0,
-  );
-  const initialFeedNextOffset =
-    initialCommunityFeed.length >= COMMUNITY_FEED_PAGE_SIZE
-      ? COMMUNITY_FEED_PAGE_SIZE
-      : null;
+  const bundle = preload ?? (await getCommunityFeedPreload(communityId));
+  const initialCommunityFeed = bundle.items;
+  const initialFeedNextOffset = bundle.nextOffset;
   if (initialCommunityFeed.length === 0) {
     return <p className="text-sm text-zinc-500">No activity yet.</p>;
   }

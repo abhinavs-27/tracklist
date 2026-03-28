@@ -11,13 +11,21 @@ import { theme } from "../../lib/theme";
 
 type Props = {
   insights: CommunityInsightsPayload;
+  /** Hide the horizontal “Top artists” strip (e.g. when shown in a discovery carousel elsewhere). */
+  hideTopArtists?: boolean;
+  /** When true, omit “Group insights” title block (use inside a collapsible). */
+  embedded?: boolean;
 };
 
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
 
-export function CommunityInsights({ insights }: Props) {
+export function CommunityInsights({
+  insights,
+  hideTopArtists = false,
+  embedded = false,
+}: Props) {
   const router = useRouter();
   const {
     summary,
@@ -38,39 +46,45 @@ export function CommunityInsights({ insights }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
-        <Text style={styles.h2}>Group insights</Text>
-        <Text style={styles.sub}>
-          Based on all members&apos; listens from the last 7 days (UTC time-of-day).
-        </Text>
-      </View>
+      {embedded ? null : (
+        <View style={styles.header}>
+          <Text style={styles.h2}>Group insights</Text>
+          <Text style={styles.sub}>
+            Based on all members&apos; listens from the last 7 days (UTC time-of-day).
+          </Text>
+        </View>
+      )}
 
       <Text style={styles.summary}>{summary}</Text>
 
-      <Text style={styles.sectionLabel}>Top artists</Text>
-      {topArtists.length === 0 ? (
-        <Text style={styles.muted}>No artist data in this window yet.</Text>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.artistRow}
-        >
-          {topArtists.map((a) => (
-            <Pressable
-              key={a.artistId}
-              style={styles.artistCard}
-              onPress={() =>
-                router.push(`/artist/${encodeURIComponent(a.artistId)}`)
-              }
+      {hideTopArtists ? null : (
+        <>
+          <Text style={styles.sectionLabel}>Top artists</Text>
+          {topArtists.length === 0 ? (
+            <Text style={styles.muted}>No artist data in this window yet.</Text>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.artistRow}
             >
-              <Text style={styles.artistName} numberOfLines={2}>
-                {a.name}
-              </Text>
-              <Text style={styles.artistCount}>{a.count} listens</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+              {topArtists.map((a) => (
+                <Pressable
+                  key={a.artistId}
+                  style={styles.artistCard}
+                  onPress={() =>
+                    router.push(`/artist/${encodeURIComponent(a.artistId)}`)
+                  }
+                >
+                  <Text style={styles.artistName} numberOfLines={2}>
+                    {a.name}
+                  </Text>
+                  <Text style={styles.artistCount}>{a.count} listens</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </>
       )}
 
       <View style={styles.metricsRow}>

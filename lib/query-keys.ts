@@ -54,4 +54,10 @@ export const queryKeys = {
   /** Weekly summary (`GET /api/communities/:id/weekly-summary?timeZone=`). */
   communityWeeklySummary: (communityId: string, timeZone: string) =>
     ["communityWeeklySummary", communityId, timeZone] as const,
+  /** Consensus rankings (`GET /api/communities/:id/consensus?type=&range=`). */
+  communityConsensus: (
+    communityId: string,
+    type: "track" | "album" | "artist",
+    range: "week" | "month" | "all",
+  ) => ["community", communityId, "consensus", type, range] as const,
 };

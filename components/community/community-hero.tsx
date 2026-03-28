@@ -67,11 +67,6 @@ function HeroBackground({ imageUrls }: { imageUrls: string[] }) {
   );
 }
 
-function formatGrowth(n: number): string {
-  if (n <= 0) return "No new members this week";
-  return `+${n} this week`;
-}
-
 export function CommunityHero({
   name,
   description,
@@ -85,13 +80,12 @@ export function CommunityHero({
   const descriptionText = description?.trim() ?? "";
 
   return (
-    <div className="relative mb-10 w-full min-w-0 sm:mb-12">
+    <div className="relative mb-8 w-full min-w-0 sm:mb-10">
       <div className="relative overflow-hidden rounded-2xl shadow-[0_24px_80px_-20px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.08] sm:rounded-[1.75rem]">
         <HeroBackground imageUrls={backgroundImageUrls} />
 
-        {/* Same horizontal rhythm as navbar / search row: px-4 sm:px-6 lg:px-8 */}
-        <div className="relative z-10 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="relative z-10 border-b border-white/[0.07] bg-zinc-950/20 px-4 py-4 backdrop-blur-[2px] sm:px-6 sm:py-5 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
             <Link
               href="/communities"
               className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium text-emerald-400/95 transition hover:text-emerald-300"
@@ -106,60 +100,58 @@ export function CommunityHero({
             </div>
           </div>
 
-          <div className="mt-6 space-y-5 sm:mt-7">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className={`text-balance ${pageTitle}`}>
-                  {name}
-                </h1>
-                {isPrivate ? (
-                  <span
-                    className={`shrink-0 rounded-full bg-white/[0.06] px-2.5 py-0.5 ring-1 ring-white/10 ${communityMeta} font-medium uppercase tracking-wide text-zinc-300`}
-                  >
-                    Private
-                  </span>
-                ) : null}
-              </div>
-              {descriptionText ? (
-                <p className={`max-w-2xl text-pretty ${communityBody}`}>
-                  {descriptionText}
-                </p>
+          <div className="mt-4 sm:mt-5">
+            <div className="flex flex-wrap items-center gap-2.5 gap-y-2">
+              <h1 className={`text-balance ${pageTitle}`}>{name}</h1>
+              {isPrivate ? (
+                <span
+                  className={`shrink-0 rounded-full bg-white/[0.06] px-2.5 py-0.5 ring-1 ring-white/10 ${communityMeta} font-medium uppercase tracking-wide text-zinc-300`}
+                >
+                  Private
+                </span>
               ) : null}
             </div>
 
-            <div className={`flex flex-wrap items-baseline gap-x-4 gap-y-1 ${communityBody} text-zinc-400`}>
-              <span className="font-medium text-zinc-200">
-                {memberCount.toLocaleString()}{" "}
-                <span className="font-normal text-zinc-500">
-                  member{memberCount !== 1 ? "s" : ""}
+            <p className={`mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${communityMeta}`}>
+              <span className="text-zinc-400">
+                <span className="font-semibold tabular-nums text-zinc-100">
+                  {memberCount.toLocaleString()}
                 </span>
+                {" "}
+                member{memberCount !== 1 ? "s" : ""}
               </span>
-              <span className="hidden text-zinc-600 sm:inline" aria-hidden>
-                ·
-              </span>
-              <span
-                className={
-                  membersJoinedThisWeek > 0
-                    ? "font-medium text-emerald-400/95"
-                    : communityMeta
-                }
-              >
-                {formatGrowth(membersJoinedThisWeek)}
-              </span>
-            </div>
+              {membersJoinedThisWeek > 0 ? (
+                <>
+                  <span className="text-zinc-700" aria-hidden>
+                    ·
+                  </span>
+                  <span className="font-medium text-emerald-400/95">
+                    +{membersJoinedThisWeek} new this week
+                  </span>
+                </>
+              ) : null}
+            </p>
 
-            {topThisWeek.length > 0 ? (
-              <div
-                className={`${communityInset} px-4 py-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-5 sm:py-4`}
-              >
-                <p className={communityMetaLabel}>Top this week</p>
-                <ul className="mt-3 flex flex-wrap gap-4 sm:gap-5">
-                  {topThisWeek.map((a) => (
-                    <li key={a.id} className="flex min-w-0 items-center gap-3">
-                      <Link
-                        href={`/artist/${a.id}`}
-                        className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-zinc-800/80 shadow-inner ring-1 ring-white/10 transition hover:ring-emerald-500/30"
-                      >
+            {descriptionText ? (
+              <p className={`mt-3 max-w-2xl text-pretty sm:mt-4 ${communityBody}`}>
+                {descriptionText}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="relative z-10 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4 lg:px-8">
+          {topThisWeek.length > 0 ? (
+            <div>
+              <p className={communityMetaLabel}>Top this week</p>
+              <ul className="mt-2.5 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] sm:gap-3">
+                {topThisWeek.map((a) => (
+                  <li key={a.id} className="shrink-0">
+                    <Link
+                      href={`/artist/${a.id}`}
+                      className={`flex items-center gap-2.5 rounded-xl py-1 pr-3 pl-1 transition ${communityInset} hover:bg-zinc-900/50 hover:ring-emerald-500/20`}
+                    >
+                      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-zinc-800/80 ring-1 ring-white/10">
                         {a.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -168,35 +160,31 @@ export function CommunityHero({
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-zinc-800 text-xs font-medium text-zinc-500">
+                          <span className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
                             ?
-                          </div>
+                          </span>
                         )}
-                      </Link>
-                      <div className="min-w-0">
-                        <Link
-                          href={`/artist/${a.id}`}
-                          className="truncate font-medium text-zinc-100 transition hover:text-emerald-400"
-                        >
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block max-w-[10rem] truncate font-medium text-zinc-100 sm:max-w-[12rem]">
                           {a.name}
-                        </Link>
-                        <p className="text-xs text-zinc-500">
+                        </span>
+                        <span className={communityMeta}>
                           {a.listens.toLocaleString()} listens
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div
-                className={`rounded-2xl bg-zinc-950/25 px-4 py-3 backdrop-blur-sm ring-1 ring-dashed ring-white/[0.1] ${communityBody} text-zinc-500`}
-              >
-                Listening picks will appear here once members log music this
-                week.
-              </div>
-            )}
-          </div>
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div
+              className={`rounded-xl bg-zinc-950/30 px-3 py-2.5 ring-1 ring-dashed ring-white/[0.08] ${communityBody} text-zinc-500`}
+            >
+              Listening picks will appear once members log music this week.
+            </div>
+          )}
         </div>
       </div>
     </div>

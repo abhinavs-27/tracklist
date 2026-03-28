@@ -22,7 +22,7 @@ const rowClass =
 export function CommunityLeaderboardSection({ memberStats, leaderboard }: Props) {
   return (
     <section className={communityCard}>
-      <h2 className={communityHeadline}>This week&apos;s leaderboard</h2>
+      <h3 className={communityHeadline}>This week&apos;s leaderboard</h3>
       <p className={`mb-5 mt-2 ${communityMeta}`}>
         Last 7 days · sorted by total listens. Badges update with the weekly job.
       </p>

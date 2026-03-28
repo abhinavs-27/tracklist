@@ -198,3 +198,64 @@ export async function searchUsersForInvite(q: string): Promise<SearchUserRow[]> 
     `/api/search/users?q=${encodeURIComponent(t)}&limit=12`,
   );
 }
+
+/** Mirrors server `CommunityConsensusRow`. */
+export type CommunityConsensusItem = {
+  entityId: string;
+  name: string;
+  image: string | null;
+  uniqueListeners: number;
+  cappedPlays: number;
+  totalPlays: number;
+  score: number;
+  albumId?: string | null;
+};
+
+export type CommunityConsensusResponse = {
+  items: CommunityConsensusItem[];
+  type: string;
+  range: string;
+};
+
+export async function fetchCommunityConsensus(
+  communityId: string,
+  options: {
+    type: "track" | "album" | "artist";
+    range?: "week" | "month" | "all";
+    limit?: number;
+  },
+): Promise<CommunityConsensusResponse> {
+  const q = new URLSearchParams();
+  q.set("type", options.type);
+  q.set("range", options.range ?? "week");
+  q.set("limit", String(options.limit ?? 16));
+  return fetcher<CommunityConsensusResponse>(
+    `/api/communities/${encodeURIComponent(communityId)}/consensus?${q.toString()}`,
+  );
+}
+
+export type CommunityWeeklySummaryPayload = {
+  week_start: string;
+  top_genres: { name: string; weight: number }[];
+  top_styles: { style: string; share: number }[];
+  activity_pattern: Record<string, number>;
+  updated_at: string | null;
+};
+
+export type CommunityWeeklySummaryApiResponse = {
+  current: CommunityWeeklySummaryPayload | null;
+  previous: CommunityWeeklySummaryPayload | null;
+  trend: { genres: { gained: string[]; lost: string[] } } | null;
+};
+
+export async function fetchCommunityWeeklySummary(
+  communityId: string,
+  timeZone: string,
+): Promise<CommunityWeeklySummaryApiResponse> {
+  const q = new URLSearchParams({
+    timeZone,
+  });
+  return fetcher<CommunityWeeklySummaryApiResponse>(
+    `/api/communities/${encodeURIComponent(communityId)}/weekly-summary?${q.toString()}`,
+  );
+}

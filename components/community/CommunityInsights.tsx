@@ -11,13 +11,21 @@ import {
 
 type Props = {
   insights: CommunityInsightsData;
+  /** When true, hides the "Top artists" block (e.g. when discovery carousels show the same). */
+  hideTopArtists?: boolean;
+  /** When true, omits outer card and "Group insights" heading (use inside a collapsible). */
+  embedded?: boolean;
 };
 
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
 
-export function CommunityInsights({ insights }: Props) {
+export function CommunityInsights({
+  insights,
+  hideTopArtists = false,
+  embedded = false,
+}: Props) {
   const {
     summary,
     topArtists,
@@ -38,36 +46,43 @@ export function CommunityInsights({ insights }: Props) {
   const bar = (count: number) =>
     totalTime === 0 ? 0 : Math.round((count / totalTime) * 100);
 
+  const shellClass = embedded ? "space-y-6" : `space-y-6 ${communityCard}`;
+  const Shell = embedded ? "div" : "section";
+
   return (
-    <section className={`space-y-6 ${communityCard}`}>
-      <div>
-        <h2 className={communityHeadline}>Group insights</h2>
-        <p className={`mt-2 ${communityMeta}`}>
-          Based on all members&apos; listens from the last 7 days (UTC time-of-day).
-        </p>
-      </div>
+    <Shell className={shellClass}>
+      {!embedded ? (
+        <div>
+          <h3 className={communityHeadline}>Group insights</h3>
+          <p className={`mt-2 ${communityMeta}`}>
+            Based on all members&apos; listens from the last 7 days (UTC time-of-day).
+          </p>
+        </div>
+      ) : null}
 
       <p className={`font-medium text-zinc-100 ${communityBody}`}>{summary}</p>
 
-      <div>
-        <h3 className={`mb-3 ${communityMetaLabel}`}>Top artists</h3>
-        {topArtists.length === 0 ? (
-          <p className={`${communityBody} text-zinc-500`}>No artist data in this window yet.</p>
-        ) : (
-          <div className="flex gap-3 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
-            {topArtists.map((a) => (
-              <Link
-                key={a.artistId}
-                href={`/artist/${encodeURIComponent(a.artistId)}`}
-                className={`min-w-[140px] shrink-0 px-3 py-2.5 transition hover:bg-zinc-900/50 ${communityInset}`}
-              >
-                <p className={`truncate font-medium text-white ${communityBody}`}>{a.name}</p>
-                <p className={communityMeta}>{a.count} listens</p>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+      {!hideTopArtists ? (
+        <div>
+          <h3 className={`mb-3 ${communityMetaLabel}`}>Top artists</h3>
+          {topArtists.length === 0 ? (
+            <p className={`${communityBody} text-zinc-500`}>No artist data in this window yet.</p>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+              {topArtists.map((a) => (
+                <Link
+                  key={a.artistId}
+                  href={`/artist/${encodeURIComponent(a.artistId)}`}
+                  className={`min-w-[140px] shrink-0 px-3 py-2.5 transition hover:bg-zinc-900/50 ${communityInset}`}
+                >
+                  <p className={`truncate font-medium text-white ${communityBody}`}>{a.name}</p>
+                  <p className={communityMeta}>{a.count} listens</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className={`p-4 ${communityInset}`}>
@@ -153,6 +168,6 @@ export function CommunityInsights({ insights }: Props) {
           </>
         )}
       </div>
-    </section>
+    </Shell>
   );
 }

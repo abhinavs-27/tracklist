@@ -336,6 +336,8 @@ export function CommunityFeedClient(props: {
   communityId: string;
   initialItems: CommunityFeedItemV2[];
   initialNextOffset?: number | null;
+  /** Vertical gap between feed cards (Tailwind spacing scale), e.g. `space-y-5` for mobile. */
+  listSpacingClassName?: string;
 }) {
   const pageSize = COMMUNITY_FEED_PAGE_SIZE;
   const reduceMotion = useReducedMotion();
@@ -472,15 +474,7 @@ export function CommunityFeedClient(props: {
 
   return (
     <div ref={feedTopRef} className="scroll-mt-4 pr-1">
-      <header className="mb-8">
-        <h2 className={communityHeadline}>Live in this community</h2>
-        <p className={`mt-2 max-w-2xl ${communityMeta}`}>
-          Real-time listens, reviews, and milestones from members — updated as
-          people listen and share.
-        </p>
-      </header>
-
-      <div className="mb-8 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-wrap gap-2 sm:mb-8">
         {FILTERS.map((f) => (
           <button
             key={f.value}
@@ -508,7 +502,7 @@ export function CommunityFeedClient(props: {
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.ul
             key={`feed-${filter}-${page}`}
-            className="m-0 list-none space-y-7 p-0"
+            className={`m-0 list-none p-0 ${props.listSpacingClassName ?? "space-y-7"}`}
             initial={false}
           >
             {rows.map((row, index) => {

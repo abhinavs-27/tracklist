@@ -18,6 +18,10 @@ type Props = {
   showPromote: boolean;
 };
 
+/** Matches leaderboard row weight — full-width list, not tall cards. */
+const rowShell =
+  "flex flex-col gap-3 rounded-xl bg-zinc-950/40 p-3 ring-1 ring-white/[0.05] sm:flex-row sm:items-stretch sm:gap-4 sm:p-3.5";
+
 export function CommunityMembersGrid({
   communityId,
   viewerId,
@@ -50,13 +54,13 @@ export function CommunityMembersGrid({
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       {error ? (
-        <p className={`${communityBody} text-red-400`} role="alert">
+        <p className={`mb-3 ${communityBody} text-red-400`} role="alert">
           {error}
         </p>
       ) : null}
-      <ul className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="m-0 list-none space-y-2.5 p-0">
         {roster.map((m) => (
           <li key={m.user_id} className="min-w-0">
             <CommunityMemberCard
@@ -85,30 +89,28 @@ function CommunityMemberCard(props: {
   const showFollow = !isSelf;
 
   return (
-    <article
-      tabIndex={0}
-      className="group relative flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900/55 to-zinc-950/90 p-4 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-14px_rgba(0,0,0,0.65)] hover:ring-white/[0.1] focus-within:-translate-y-0.5 focus-within:shadow-[0_16px_40px_-14px_rgba(0,0,0,0.65)] focus-within:ring-white/[0.1] sm:min-h-[9.5rem] sm:p-5"
-    >
-      <div className="flex gap-3 sm:gap-4">
+    <article className={rowShell}>
+      <div className="flex min-w-0 flex-1 gap-3">
         <Link
           href={`/profile/${m.user_id}`}
-          className="relative shrink-0 transition group-hover:ring-2 group-hover:ring-emerald-500/25 group-hover:ring-offset-2 group-hover:ring-offset-zinc-950 rounded-full"
+          className="relative h-10 w-10 shrink-0 self-start rounded-full ring-1 ring-white/10 transition hover:ring-2 hover:ring-emerald-500/30"
         >
           {m.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- remote avatar URLs
             <img
               src={m.avatar_url}
               alt=""
-              className="h-14 w-14 rounded-full object-cover ring-1 ring-white/10 sm:h-16 sm:w-16"
+              className="h-10 w-10 rounded-full object-cover"
             />
           ) : (
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800 text-lg font-medium text-zinc-300 ring-1 ring-white/10 sm:h-16 sm:w-16">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium text-zinc-300">
               {m.username[0]?.toUpperCase() ?? "?"}
             </span>
           )}
         </Link>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Link
               href={`/profile/${m.user_id}`}
               className={`truncate font-semibold text-white transition hover:text-emerald-400 hover:underline ${communityHeadline}`}
@@ -129,7 +131,7 @@ function CommunityMemberCard(props: {
             ) : null}
             {m.taste_neighbor ? (
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${communityMeta} ${
+                className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${communityMeta} ${
                   m.taste_neighbor.kind === "similar"
                     ? "bg-emerald-950/80 text-emerald-200/95 ring-1 ring-emerald-500/25"
                     : "bg-amber-950/60 text-amber-200/90 ring-1 ring-amber-500/20"
@@ -147,53 +149,49 @@ function CommunityMemberCard(props: {
           </div>
 
           {m.taste_summary ? (
-            <p className={`mt-2 line-clamp-2 leading-snug text-zinc-400 ${communityBody}`}>
-              <span className="text-zinc-500">Taste · </span>
+            <p className={`line-clamp-2 leading-snug text-zinc-400 ${communityBody}`}>
+              <span className="text-zinc-600">Taste · </span>
               {m.taste_summary}
             </p>
           ) : (
-            <p className={`mt-2 italic text-zinc-600 ${communityBody}`}>
+            <p className={`italic text-zinc-600 ${communityBody}`}>
               Taste profile fills in as they log listens.
             </p>
           )}
 
           {m.top_genres.length + m.top_artists.length > 0 ? (
-            <div className="mt-2 max-h-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover:max-h-28 group-hover:opacity-100 group-focus-within:max-h-28 group-focus-within:opacity-100">
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {m.top_genres.slice(0, 3).map((g) => (
-                  <span
-                    key={g}
-                    className="rounded-full bg-zinc-800/90 px-2 py-0.5 text-[0.65rem] text-zinc-300"
-                  >
-                    {g}
-                  </span>
-                ))}
-                {m.top_artists.slice(0, 2).map((a) => (
-                  <span
-                    key={a}
-                    className={`rounded-full bg-emerald-950/50 px-2 py-0.5 text-emerald-200/90 ${communityMeta}`}
-                  >
-                    {a}
-                  </span>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {m.top_genres.slice(0, 3).map((g) => (
+                <span
+                  key={g}
+                  className="rounded-full bg-zinc-800/90 px-2 py-0.5 text-[0.65rem] text-zinc-300"
+                >
+                  {g}
+                </span>
+              ))}
+              {m.top_artists.slice(0, 2).map((a) => (
+                <span
+                  key={a}
+                  className={`rounded-full bg-emerald-950/50 px-2 py-0.5 text-emerald-200/90 ${communityMeta}`}
+                >
+                  {a}
+                </span>
+              ))}
             </div>
           ) : null}
 
           {m.activity_line ? (
-            <p className={`mt-2 ${communityMeta}`}>{m.activity_line}</p>
+            <p className={`${communityMeta} text-zinc-500`}>{m.activity_line}</p>
           ) : (
-            <p className={`mt-2 ${communityMeta} text-zinc-600`}>No listening stats this week.</p>
+            <p className={`${communityMeta} text-zinc-600`}>No listening stats this week.</p>
           )}
         </div>
       </div>
 
       {showFollow || (showPromote && m.role === "member" && !isSelf) ? (
-        <div className="mt-3 flex min-h-[2.75rem] flex-wrap items-end justify-end gap-2 opacity-100 transition-opacity duration-200 max-md:opacity-100 md:pointer-events-none md:opacity-0 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-white/[0.06] pt-2 sm:ml-auto sm:w-auto sm:border-t-0 sm:pt-0 sm:pl-2">
           {showFollow ? (
-            <div className="md:scale-[0.96] md:transition-transform md:group-hover:scale-100">
-              <FollowButton userId={m.user_id} initialFollowing={m.viewer_follows} />
-            </div>
+            <FollowButton userId={m.user_id} initialFollowing={m.viewer_follows} />
           ) : null}
           {showPromote && m.role === "member" && !isSelf ? (
             <button
