@@ -63,7 +63,7 @@ export default async function RootLayout({
           <ProfilingHydrationMarker />
           <Navbar />
           <main
-            className={`mx-auto w-full max-w-6xl min-w-0 px-4 pt-8 sm:px-6 sm:pt-10 lg:px-10 ${mainPaddingBottom}`}
+            className={`mx-auto w-full max-w-6xl min-w-0 px-4 pt-8 sm:px-6 sm:pt-10 lg:px-8 ${mainPaddingBottom}`}
           >
             {children}
           </main>

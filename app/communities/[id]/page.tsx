@@ -22,9 +22,14 @@ import {
   isCommunityMember,
   listCommunityMembersForSettings,
 } from "@/lib/community/queries";
+import {
+  getCommunityHeroListeningData,
+  getCommunityMemberGrowthThisWeek,
+} from "@/lib/community/get-community-hero-data";
 import { isValidUuid } from "@/lib/validation";
-import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
-import { CommunitySettings } from "@/components/community/CommunitySettings";
+import { sectionGap, sectionTitle } from "@/lib/ui/surface";
+import { CommunityHero } from "@/components/community/community-hero";
+import { CommunityMemberHeroShell } from "@/components/community/community-member-hero-shell";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import { CommunityActions } from "@/components/community/community-actions";
 import {
@@ -73,75 +78,63 @@ export default async function CommunityDetailPage({
       ? await getPendingInviteForUserToCommunity(id, userId)
       : null;
 
+  const [memberGrowthWeek, heroListening] = await Promise.all([
+    getCommunityMemberGrowthThisWeek(id),
+    getCommunityHeroListeningData(id),
+  ]);
+
+  const communityActions = (
+    <CommunityActions
+      variant="hero"
+      communityId={id}
+      communityName={community.name}
+      isPrivate={community.is_private}
+      isMember={isMember}
+      pendingInviteId={pendingInvite?.id ?? null}
+    />
+  );
+
+  const heroProps = {
+    name: community.name,
+    description: community.description,
+    isPrivate: community.is_private,
+    memberCount,
+    membersJoinedThisWeek: memberGrowthWeek,
+    topThisWeek: heroListening.topArtists,
+    backgroundImageUrls: heroListening.backgroundImageUrls,
+  };
+
   return (
     <div className={`${sectionGap} py-2`}>
-      <Link
-        href="/communities"
-        className="inline-block text-sm font-medium text-emerald-400 transition hover:text-emerald-300 hover:underline"
-      >
-        ← Communities
-      </Link>
-
-      <header className="pb-8 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.06)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          {isMember && session?.user?.id ? (
-            <CommunitySettings
-              communityId={id}
-              community={community}
-              memberCount={memberCount}
-              members={membersForSettings}
-              viewerId={session.user.id}
-              canEdit={canEdit}
-              showAdminSection={showAdminSection}
-              headerActions={
-                <CommunityActions
-                  communityId={id}
-                  communityName={community.name}
-                  isPrivate={community.is_private}
-                  isMember={isMember}
-                  pendingInviteId={pendingInvite?.id ?? null}
-                />
-              }
-            />
-          ) : (
-            <>
-              <div className="min-w-0 flex-1">
-                <h1 className={pageTitle}>{community.name}</h1>
-                {community.description ? (
-                  <p className="mt-3 text-base text-zinc-400 sm:text-lg">
-                    {community.description}
-                  </p>
-                ) : null}
-                <p className="mt-3 text-sm text-zinc-500">
-                  {memberCount} member{memberCount !== 1 ? "s" : ""}
-                  {community.is_private ? (
-                    <span className="ml-2 rounded bg-zinc-800 px-2 py-0.5 text-xs">
-                      Private
-                    </span>
-                  ) : null}
-                </p>
-              </div>
-              {session?.user?.id ? (
-                <CommunityActions
-                  communityId={id}
-                  communityName={community.name}
-                  isPrivate={community.is_private}
-                  isMember={isMember}
-                  pendingInviteId={pendingInvite?.id ?? null}
-                />
-              ) : (
-                <Link
-                  prefetch={false}
-                  href={`/auth/signin?callbackUrl=${encodeURIComponent(`/communities/${id}`)}`}
-                  className="shrink-0 rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/25 transition hover:bg-emerald-500"
-                >
-                  Sign in
-                </Link>
-              )}
-            </>
-          )}
-        </div>
-      </header>
+      {isMember && session?.user?.id ? (
+        <CommunityMemberHeroShell
+          communityId={id}
+          community={community}
+          memberCount={memberCount}
+          members={membersForSettings}
+          viewerId={session.user.id}
+          canEdit={canEdit}
+          showAdminSection={showAdminSection}
+          heroProps={heroProps}
+        />
+      ) : (
+        <CommunityHero
+          {...heroProps}
+          actions={
+            session?.user?.id ? (
+              communityActions
+            ) : (
+              <Link
+                prefetch={false}
+                href={`/auth/signin?callbackUrl=${encodeURIComponent(`/communities/${id}`)}`}
+                className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500"
+              >
+                Sign in to join
+              </Link>
+            )
+          }
+        />
+      )}
 
       {session?.user?.id && isMember ? (
         <Suspense

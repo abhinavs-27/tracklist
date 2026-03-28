@@ -10,6 +10,8 @@ type Props = {
   isPrivate: boolean;
   isMember: boolean;
   pendingInviteId: string | null;
+  /** Larger, hero-appropriate controls (community page header). */
+  variant?: "default" | "hero";
 };
 
 export function CommunityActions({
@@ -18,7 +20,9 @@ export function CommunityActions({
   isPrivate,
   isMember,
   pendingInviteId,
+  variant = "default",
 }: Props) {
+  const hero = variant === "hero";
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,16 +124,49 @@ export function CommunityActions({
   if (isMember) {
     return (
       <>
-        <button
-          type="button"
-          onClick={() => {
-            setLeaveError(null);
-            setLeaveOpen(true);
-          }}
-          className="rounded-lg px-2 py-1.5 text-sm text-zinc-500 transition hover:bg-zinc-800/80 hover:text-red-400"
-        >
-          Leave
-        </button>
+        {hero ? (
+          <div
+            className="inline-flex items-stretch rounded-full bg-zinc-950/70 p-0.5 ring-1 ring-white/[0.1] backdrop-blur-md"
+            role="group"
+            aria-label="Membership"
+          >
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-emerald-100/95 sm:text-[0.8125rem]"
+              role="status"
+            >
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+                aria-hidden
+              />
+              Joined
+            </span>
+            <span
+              className="mx-0.5 w-px shrink-0 self-stretch bg-white/[0.08]"
+              aria-hidden
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setLeaveError(null);
+                setLeaveOpen(true);
+              }}
+              className="rounded-full px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-white/[0.06] hover:text-red-400 sm:text-[0.8125rem]"
+            >
+              Leave
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setLeaveError(null);
+              setLeaveOpen(true);
+            }}
+            className="rounded-lg px-2 py-1.5 text-sm text-zinc-500 transition hover:bg-zinc-800/80 hover:text-red-400"
+          >
+            Leave community
+          </button>
+        )}
 
         {leaveOpen ? (
           <div
@@ -249,13 +286,29 @@ export function CommunityActions({
 
   if (isPrivate && pendingInviteId) {
     return (
-      <div className="flex flex-col items-end gap-2">
-        <div className="flex flex-wrap justify-end gap-2">
+      <div
+        className={
+          hero
+            ? "flex flex-col items-end gap-1.5"
+            : "flex flex-col items-end gap-2"
+        }
+      >
+        <div
+          className={
+            hero
+              ? "inline-flex flex-wrap items-center justify-end gap-2"
+              : "flex flex-wrap justify-end gap-2"
+          }
+        >
           <button
             type="button"
             onClick={declineInvite}
             disabled={loading}
-            className="rounded-lg border border-zinc-600 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+            className={
+              hero
+                ? "rounded-full border border-white/[0.12] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.08] disabled:opacity-50 sm:text-[0.8125rem]"
+                : "rounded-lg border border-zinc-600 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+            }
           >
             Decline
           </button>
@@ -263,34 +316,72 @@ export function CommunityActions({
             type="button"
             onClick={acceptInvite}
             disabled={loading}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            className={
+              hero
+                ? "rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-emerald-950/30 transition hover:bg-emerald-500 disabled:opacity-50 sm:text-[0.8125rem]"
+                : "rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            }
           >
             {loading ? "…" : "Accept invite"}
           </button>
         </div>
         {error ? (
-          <p className="max-w-xs text-right text-xs text-red-400">{error}</p>
+          <p
+            className={
+              hero
+                ? "text-center text-xs text-red-400 sm:text-right"
+                : "max-w-xs text-right text-xs text-red-400"
+            }
+          >
+            {error}
+          </p>
         ) : null}
       </div>
     );
   }
 
   if (isPrivate) {
-    return <span className="text-sm text-zinc-500">Invite only</span>;
+    return (
+      <span
+        className={
+          hero
+            ? "block text-center text-sm text-zinc-400 sm:text-right"
+            : "text-sm text-zinc-500"
+        }
+      >
+        Invite only
+      </span>
+    );
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div
+      className={
+        hero ? "flex flex-col items-end gap-1" : "flex flex-col items-end gap-1"
+      }
+    >
       <button
         type="button"
         onClick={join}
         disabled={loading}
-        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+        className={
+          hero
+            ? "rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 disabled:opacity-50"
+            : "rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+        }
       >
         {loading ? "Joining…" : "Join community"}
       </button>
       {error ? (
-        <p className="max-w-xs text-right text-xs text-red-400">{error}</p>
+        <p
+          className={
+            hero
+              ? "text-center text-xs text-red-400 sm:text-right"
+              : "max-w-xs text-right text-xs text-red-400"
+          }
+        >
+          {error}
+        </p>
       ) : null}
     </div>
   );
