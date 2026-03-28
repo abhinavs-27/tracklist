@@ -13,6 +13,7 @@ import {
 } from "@/lib/queries";
 import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
+import { sectionGap } from "@/lib/ui/surface";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -69,7 +70,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
 
   return (
     <AlbumReviewsProvider albumId={id}>
-      <div className="space-y-8">
+      <div className={sectionGap}>
         <AlbumPageClient
           id={id}
           album={album}
@@ -82,8 +83,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         <Suspense
           fallback={
             <div>
-              <div className="mb-3 h-6 w-48 animate-pulse rounded bg-zinc-800/50" />
-              <div className="min-h-[80px] animate-pulse rounded-xl bg-zinc-800/30" />
+              <div className="mb-4 h-7 w-56 animate-pulse rounded-lg bg-zinc-800/60" />
+              <div className="min-h-[88px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />
             </div>
           }
         >

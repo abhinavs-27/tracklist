@@ -14,8 +14,8 @@ export function RecommendedCommunitiesSection({
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-base font-semibold text-white sm:text-lg">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+        <h2 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
           {title}
         </h2>
         {showBrowseAll ? (
@@ -27,7 +27,7 @@ export function RecommendedCommunitiesSection({
           </Link>
         ) : null}
       </div>
-      <p className="mb-3 text-sm text-zinc-500">
+      <p className="mb-4 text-base text-zinc-500">
         Public groups matched to your last 30 days of listening.
       </p>
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:px-0">
@@ -37,7 +37,7 @@ export function RecommendedCommunitiesSection({
             <Link
               key={c.communityId}
               href={`/communities/${c.communityId}`}
-              className="min-w-[220px] max-w-[260px] shrink-0 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 transition hover:border-zinc-600 hover:bg-zinc-900/80"
+              className="min-w-[220px] max-w-[260px] shrink-0 rounded-2xl bg-zinc-900/55 p-5 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.07] transition-all duration-300 ease-out hover:bg-zinc-900/80 hover:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.45)] hover:ring-white/[0.1]"
             >
               <p className="line-clamp-2 font-medium text-white">{c.name}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">

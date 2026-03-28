@@ -10,7 +10,9 @@ import { DiscoverTastePreview } from "@/components/discover/discover-taste-previ
 import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, getOrFetchArtistsBatch, batchResultsToMap } from "@/lib/spotify-cache";
 
 function DiscoverSectionSkeleton() {
-  return <div className="min-h-[140px] animate-pulse rounded-xl bg-zinc-800/30" />;
+  return (
+    <div className="min-h-[160px] animate-pulse rounded-2xl bg-zinc-900/50 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.45)] ring-1 ring-inset ring-white/[0.06]" />
+  );
 }
 
 const TrendingSection = dynamic(
@@ -102,10 +104,12 @@ export default async function DiscoverPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10 sm:space-y-12">
       <header>
-        <h1 className="text-xl font-bold text-white sm:text-2xl">Discover</h1>
-        <p className="mt-1 text-sm text-zinc-400 sm:text-base">
+        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Discover
+        </h1>
+        <p className="mt-3 text-base text-zinc-400 sm:text-lg">
           Trending tracks, rising artists, and hidden gems.
         </p>
         <div className="mt-2 flex flex-wrap gap-4 text-sm">

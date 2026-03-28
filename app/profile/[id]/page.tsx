@@ -28,6 +28,7 @@ import { isValidUuid } from "@/lib/validation";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
 import { DeleteAccountSection } from "@/components/profile/delete-account-section";
+import { SignOutSection } from "@/components/profile/sign-out-section";
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -358,6 +359,8 @@ export default async function ProfilePage({
           </>
         )}
       </section>
+
+      {isOwnProfile ? <SignOutSection /> : null}
 
       {isOwnProfile ? <DeleteAccountSection username={profile.username} /> : null}
     </div>

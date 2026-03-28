@@ -238,7 +238,8 @@ export function ProfileOnboarding({
     advanceFromLastfm();
   }, [advanceFromLastfm]);
 
-  const h2 = "text-2xl font-semibold tracking-tight text-white sm:text-3xl";
+  const h2 =
+    "text-3xl font-semibold tracking-tight text-white sm:text-[2rem] sm:leading-tight";
   const bodyMuted =
     "mt-3 text-base leading-relaxed text-zinc-400 sm:text-lg";
   const stepperRow =
@@ -278,7 +279,7 @@ export function ProfileOnboarding({
 
       <div className="mx-auto w-full max-w-2xl py-4 sm:py-10">
         {inviteFlow ? (
-          <div className="mb-8 rounded-2xl border border-emerald-800/45 bg-emerald-950/50 px-5 py-4 text-center sm:px-6">
+          <div className="mb-10 rounded-2xl bg-emerald-950/45 px-5 py-5 text-center shadow-[0_12px_40px_-12px_rgba(6,78,59,0.35)] ring-1 ring-inset ring-emerald-400/20 sm:px-6">
             <p className="text-sm font-medium text-emerald-100 sm:text-base">
               You&apos;re joining{" "}
               <span className="text-white">
@@ -296,7 +297,7 @@ export function ProfileOnboarding({
 
         <div
           id="profile-onboarding"
-          className="rounded-2xl border border-emerald-900/40 bg-emerald-950/25 p-8 shadow-xl shadow-black/20 sm:p-10"
+          className="rounded-2xl bg-emerald-950/20 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-emerald-500/15 sm:p-10"
         >
           <div className={stepperRow}>
             <span className={step === 1 ? "text-emerald-400" : "text-zinc-500"}>

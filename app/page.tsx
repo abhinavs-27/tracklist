@@ -1,14 +1,13 @@
-import Link from 'next/link';
-import { Suspense } from 'react';
-import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { getFeedForUser, enrichFeedActivitiesWithEntityNames, enrichListenSessionsWithAlbums } from '@/lib/feed';
-import { getRecommendedCommunities } from '@/lib/community/getRecommendedCommunities';
-import { FeedListVirtual } from '@/components/feed-list-virtual';
-import { RecommendedCommunitiesSection } from '@/components/discover/recommended-communities-section';
-import { HomeWelcomeOverlay } from '@/components/home-welcome-overlay';
+import Link from "next/link";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { HomeWelcomeOverlay } from "@/components/home-welcome-overlay";
+import { HomeFeedSection } from "@/components/home/home-feed-section";
+import { HomeFeedSkeleton } from "@/components/skeletons/home-feed-skeleton";
+import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
 export default async function HomePage({
   searchParams,
@@ -22,22 +21,23 @@ export default async function HomePage({
 
   if (!session?.user?.id) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h1 className="px-2 text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+      <div className={`flex flex-col items-center justify-center py-24 text-center sm:py-28`}>
+        <h1 className={`px-2 ${pageTitle} max-w-2xl`}>
           Log your music. Share with friends.
         </h1>
-        <p className="mt-4 max-w-md px-2 text-base text-zinc-400 sm:text-lg">
-          Tracklist is like Letterboxd for music. Search for albums and tracks, rate and review your listens, and follow friends to see their activity.
+        <p className="mt-6 max-w-md px-2 text-lg text-zinc-400 sm:text-xl">
+          Tracklist is like Letterboxd for music. Search for albums and tracks,
+          rate and review your listens, and follow friends to see their activity.
         </p>
         <Link
           href="/auth/signin"
-          className="mt-8 inline-flex min-h-11 items-center justify-center rounded-full bg-emerald-600 px-8 py-3 font-medium text-white transition hover:bg-emerald-500 touch-manipulation"
+          className="mt-10 inline-flex min-h-12 items-center justify-center rounded-2xl bg-emerald-600 px-10 py-3.5 text-base font-medium text-white shadow-lg shadow-emerald-950/35 transition hover:bg-emerald-500 hover:shadow-xl hover:shadow-emerald-950/40"
         >
           Sign in with Google
         </Link>
         <Link
           href="/search"
-          className="mt-4 text-sm text-zinc-400 underline hover:text-white"
+          className="mt-6 text-base text-zinc-400 underline-offset-4 transition hover:text-white hover:underline"
         >
           or explore search
         </Link>
@@ -61,48 +61,14 @@ export default async function HomePage({
     redirect("/onboarding");
   }
 
-  const [feedResult, recommendedCommunities] = await Promise.all([
-    getFeedForUser(session.user.id, 50, null),
-    getRecommendedCommunities(session.user.id),
-  ]);
-  const { items: feedItems, next_cursor: feedNextCursor } = feedResult;
-  const withNames = await enrichFeedActivitiesWithEntityNames(feedItems);
-  const withAlbums = await enrichListenSessionsWithAlbums(feedItems);
-  const enrichedItems = withAlbums.map((activity, i) =>
-    activity.type === "review" && withNames[i]
-      ? { ...activity, spotifyName: (withNames[i] as { spotifyName?: string }).spotifyName }
-      : activity,
-  );
-
   return (
-    <div>
+    <div className={sectionGap}>
       <Suspense fallback={null}>
         <HomeWelcomeOverlay initialActive={welcomeOnboarding} />
       </Suspense>
-      <h1 className="mb-4 text-xl font-bold text-white sm:text-2xl">Your feed</h1>
-      {recommendedCommunities.length > 0 ? (
-        <div className="mb-8">
-          <RecommendedCommunitiesSection items={recommendedCommunities} />
-        </div>
-      ) : null}
-      {feedItems.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-          <p className="text-zinc-400">Your feed is empty. Follow people to see what they&apos;re listening to.</p>
-          <Link
-            href="/search"
-            className="mt-4 inline-block text-emerald-400 hover:underline"
-          >
-            Find people to follow
-          </Link>
-        </div>
-      ) : (
-        <FeedListVirtual
-          initialItems={enrichedItems}
-          initialCursor={feedNextCursor}
-          className="pr-1"
-          maxHeight="72vh"
-        />
-      )}
+      <Suspense fallback={<HomeFeedSkeleton />}>
+        <HomeFeedSection userId={session.user.id} />
+      </Suspense>
     </div>
   );
 }

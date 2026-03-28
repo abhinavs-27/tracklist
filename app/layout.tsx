@@ -57,13 +57,13 @@ export default async function RootLayout({
   return (
     <html lang="en" className="overflow-x-clip">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen overflow-x-clip bg-zinc-950 text-zinc-100 antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen overflow-x-clip bg-zinc-950 font-sans text-zinc-100 antialiased`}
       >
         <Providers session={session} hideQuickLogFab={hideQuickLogFab}>
           <ProfilingHydrationMarker />
           <Navbar />
           <main
-            className={`mx-auto w-full max-w-6xl min-w-0 px-4 pt-6 sm:px-6 lg:px-8 ${mainPaddingBottom}`}
+            className={`mx-auto w-full max-w-6xl min-w-0 px-4 pt-8 sm:px-6 sm:pt-10 lg:px-10 ${mainPaddingBottom}`}
           >
             {children}
           </main>

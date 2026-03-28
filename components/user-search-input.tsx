@@ -37,7 +37,7 @@ export function UserSearchInput({
       aria-label={ariaLabel}
       minLength={minLength}
       maxLength={maxLength}
-      className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+      className="w-full max-w-md rounded-2xl bg-zinc-900/70 px-4 py-3.5 text-base text-white shadow-inner shadow-black/20 ring-1 ring-inset ring-white/[0.08] placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50"
     />
   );
 }

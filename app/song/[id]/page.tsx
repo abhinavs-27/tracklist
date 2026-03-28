@@ -16,6 +16,7 @@ import {
   getEntityStats,
   getListenLogsForTrack,
 } from "@/lib/queries";
+import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -89,7 +90,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const primaryArtist = track.artists?.[0];
 
   return (
-    <div className="space-y-8">
+    <div className={sectionGap}>
       {session ? (
         <RecordRecentView
           kind="song"
@@ -103,8 +104,8 @@ export default async function SongPage({ params }: { params: PageParams }) {
         />
       ) : null}
       {/* Track header */}
-      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
-        <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:mx-0 sm:h-56 sm:w-56">
+      <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-end sm:gap-10">
+        <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.08] sm:mx-0 sm:h-56 sm:w-56">
           {image ? (
             <img src={image} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -114,7 +115,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
           )}
         </div>
         <div className="w-full min-w-0 flex-1 text-left">
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">{track.name}</h1>
+          <h1 className={pageTitle}>{track.name}</h1>
           <p className="mt-1 text-zinc-400">
             {track.artists?.map((a, i) => (
               <span key={a.id}>
@@ -192,10 +193,8 @@ export default async function SongPage({ params }: { params: PageParams }) {
       {/* Recent listens */}
       {recentListens.length > 0 && (
         <section>
-          <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">
-            Recent listens
-          </h2>
-          <ul className="space-y-2">
+          <h2 className={`mb-4 ${sectionTitle}`}>Recent listens</h2>
+          <ul className="space-y-3">
             {recentListens.map((log) => (
               <li key={log.id}>
                 <ListenCard log={log} trackName={track.name} />

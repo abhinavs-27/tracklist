@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { PageHeading } from '@/components/ui/page-heading';
 import { UserSearchContent } from './user-search-content';
+import { sectionGap } from '@/lib/ui/surface';
 
 export default async function SearchUsersPage() {
   const session = await getServerSession(authOptions);
@@ -10,11 +12,11 @@ export default async function SearchUsersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-2 sm:px-0">
-      <h1 className="mb-4 text-2xl font-bold text-white">Find users</h1>
-      <p className="mb-4 text-zinc-400">
-        Browse everyone who joined, or search by username.
-      </p>
+    <div className={`mx-auto max-w-2xl px-2 sm:px-0 ${sectionGap}`}>
+      <PageHeading
+        title="Find users"
+        description="Browse everyone who joined, or search by username."
+      />
       <UserSearchContent />
     </div>
   );

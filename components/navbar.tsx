@@ -6,7 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { SearchBar } from "./search-bar";
 
 const navLinkClass =
-  "inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation";
+  "inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl px-3 py-2 text-sm text-zinc-400 transition-all duration-200 ease-out hover:bg-zinc-800/90 hover:text-white hover:shadow-sm active:scale-[0.98] touch-manipulation";
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -15,7 +15,7 @@ export function Navbar() {
 
   if (onboardingOnly) {
     return (
-      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <nav className="sticky top-0 z-50 bg-zinc-950/90 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.06)] backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <Link
             href="/"
@@ -29,7 +29,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation"
+              className="hidden rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation sm:inline-flex sm:items-center sm:justify-center"
             >
               Sign out
             </button>
@@ -48,7 +48,7 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+    <nav className="sticky top-0 z-50 bg-zinc-950/90 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.06)] backdrop-blur-xl backdrop-saturate-150">
       <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6 lg:px-8">
         {/* Row 1: brand, links, account — search moved to row 2 so it can use full width */}
         <div className="flex min-h-11 items-center gap-2">
@@ -145,10 +145,9 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation"
+                className="hidden min-h-11 items-center justify-center rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white touch-manipulation sm:inline-flex"
               >
-                <span className="max-sm:hidden">Sign out</span>
-                <span className="hidden max-sm:inline">Out</span>
+                Sign out
               </button>
             </>
           ) : (

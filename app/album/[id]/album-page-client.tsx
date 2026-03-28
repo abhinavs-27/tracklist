@@ -9,12 +9,13 @@ import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
 import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
+import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
 
 function AlbumLazySectionSkeleton() {
   return (
     <section>
-      <div className="mb-3 h-6 w-48 animate-pulse rounded bg-zinc-800/50" />
-      <div className="min-h-[80px] animate-pulse rounded-xl bg-zinc-800/30" />
+      <div className="mb-4 h-7 w-56 animate-pulse rounded-lg bg-zinc-800/60" />
+      <div className="min-h-[88px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />
     </section>
   );
 }
@@ -155,7 +156,7 @@ export function AlbumPageClient({
   };
 
   return (
-      <div className="space-y-8">
+      <div className={sectionGap}>
         {session && firstTrack ? (
           <RecordRecentView
             kind="album"
@@ -171,8 +172,8 @@ export function AlbumPageClient({
           />
         ) : null}
         {/* Album header */}
-        <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
-          <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-xl bg-zinc-800 sm:mx-0 sm:h-56 sm:w-56">
+        <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-end sm:gap-10">
+          <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.08] sm:mx-0 sm:h-56 sm:w-56">
             {image ? (
               <img src={image} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -182,7 +183,7 @@ export function AlbumPageClient({
             )}
           </div>
           <div className="w-full min-w-0 flex-1 text-left">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">{album.name}</h1>
+            <h1 className={pageTitle}>{album.name}</h1>
             <p className="mt-1 text-zinc-400">
               {album.artists?.map((a, i) => (
                 <span key={a.id}>
@@ -270,7 +271,7 @@ export function AlbumPageClient({
 
         {tracks.items?.length ? (
           <section>
-            <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">Tracks</h2>
+            <h2 className={`mb-5 ${sectionTitle}`}>Tracks</h2>
             <div className="space-y-1">
               {tracks.items.map((t, i) => {
                 const songStats = trackStats[t.id] ?? emptyTrackStat;

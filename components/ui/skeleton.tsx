@@ -8,7 +8,7 @@ export function Skeleton({
 }) {
   return (
     <div
-      className={`animate-pulse rounded-md bg-muted ${className}`}
+      className={`animate-pulse rounded-lg bg-zinc-800/90 ${className}`}
     />
   );
 }
@@ -72,11 +72,13 @@ export function SkeletonCard({
   lines?: number;
 }) {
   return (
-    <div className={`overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 ${className}`}>
-      <SkeletonBlock style={{ width: "100%", height: imageHeight }} />
-      <div className="p-3 space-y-2">
-        <SkeletonBlock className="h-4 w-full" />
-        {lines > 1 && <SkeletonBlock className="h-3 w-[75%]" />}
+    <div
+      className={`overflow-hidden rounded-2xl bg-zinc-900/55 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.07] ${className}`}
+    >
+      <SkeletonBlock className="rounded-none" style={{ width: "100%", height: imageHeight }} />
+      <div className="space-y-2 p-4">
+        <SkeletonBlock className="h-4 w-full rounded-md" />
+        {lines > 1 && <SkeletonBlock className="h-3 w-[75%] rounded-md" />}
       </div>
     </div>
   );

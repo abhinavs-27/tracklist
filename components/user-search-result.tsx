@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { UserSearchResult as UserSearchResultType } from '@/types';
 import { FollowButton } from '@/components/follow-button';
+import { cardElevatedInteractive } from '@/lib/ui/surface';
 
 interface UserSearchResultProps {
   user: UserSearchResultType;
@@ -12,7 +13,9 @@ interface UserSearchResultProps {
 
 export function UserSearchResult({ user, showFollowButton = true, onFollowChange }: UserSearchResultProps) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50">
+    <div
+      className={`flex animate-fade-in-up items-center justify-between gap-3 p-4 ${cardElevatedInteractive}`}
+    >
       <Link
         href={`/profile/${user.id}`}
         className="flex min-w-0 flex-1 items-center gap-3"

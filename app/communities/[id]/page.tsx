@@ -23,6 +23,7 @@ import {
   listCommunityMembersForSettings,
 } from "@/lib/community/queries";
 import { isValidUuid } from "@/lib/validation";
+import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
 import { CommunitySettings } from "@/components/community/CommunitySettings";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import { CommunityActions } from "@/components/community/community-actions";
@@ -73,15 +74,15 @@ export default async function CommunityDetailPage({
       : null;
 
   return (
-    <div className="space-y-8 py-2">
+    <div className={`${sectionGap} py-2`}>
       <Link
         href="/communities"
-        className="inline-block text-sm text-emerald-400 hover:underline"
+        className="inline-block text-sm font-medium text-emerald-400 transition hover:text-emerald-300 hover:underline"
       >
         ← Communities
       </Link>
 
-      <header className="border-b border-zinc-800 pb-6">
+      <header className="pb-8 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.06)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           {isMember && session?.user?.id ? (
             <CommunitySettings
@@ -105,11 +106,13 @@ export default async function CommunityDetailPage({
           ) : (
             <>
               <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-bold text-white">{community.name}</h1>
+                <h1 className={pageTitle}>{community.name}</h1>
                 {community.description ? (
-                  <p className="mt-2 text-zinc-400">{community.description}</p>
+                  <p className="mt-3 text-base text-zinc-400 sm:text-lg">
+                    {community.description}
+                  </p>
                 ) : null}
-                <p className="mt-2 text-sm text-zinc-500">
+                <p className="mt-3 text-sm text-zinc-500">
                   {memberCount} member{memberCount !== 1 ? "s" : ""}
                   {community.is_private ? (
                     <span className="ml-2 rounded bg-zinc-800 px-2 py-0.5 text-xs">
@@ -130,7 +133,7 @@ export default async function CommunityDetailPage({
                 <Link
                   prefetch={false}
                   href={`/auth/signin?callbackUrl=${encodeURIComponent(`/communities/${id}`)}`}
-                  className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white"
+                  className="shrink-0 rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/25 transition hover:bg-emerald-500"
                 >
                   Sign in
                 </Link>
@@ -189,7 +192,7 @@ export default async function CommunityDetailPage({
           </Suspense>
 
           <section>
-            <h2 className="mb-4 text-xl font-bold text-white sm:text-2xl">Activity</h2>
+            <h2 className={`mb-6 ${sectionTitle}`}>Activity</h2>
             <Suspense fallback={<CommunityFeedSkeleton />}>
               <CommunityFeedSlot communityId={id} />
             </Suspense>

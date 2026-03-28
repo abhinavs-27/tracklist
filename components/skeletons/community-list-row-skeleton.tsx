@@ -1,8 +1,9 @@
 import { SkeletonBlock } from "@/components/ui/skeleton";
+import { cardElevated } from "@/lib/ui/surface";
 
 export function CommunityListRowSkeleton() {
   return (
-    <li className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+    <li className={`px-4 py-4 ${cardElevated}`}>
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 flex-1 space-y-2">
           <SkeletonBlock className="h-5 w-48 max-w-[70%]" />

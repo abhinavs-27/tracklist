@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getUserCommunities } from "@/lib/community/queries";
 import { CommunityListRowSkeleton } from "@/components/skeletons/community-list-row-skeleton";
+import { cardElevated, cardElevatedInteractive } from "@/lib/ui/surface";
 
 export function YourCommunitiesSkeleton() {
   return (
@@ -17,13 +18,13 @@ export async function YourCommunitiesSection({ userId }: { userId: string }) {
 
   if (communities.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-8 text-center">
-        <p className="text-zinc-400">
+      <div className={`p-10 text-center sm:p-12 ${cardElevated}`}>
+        <p className="text-base text-zinc-400">
           You&apos;re not in a community yet. Create one to compete with friends.
         </p>
         <Link
           href="/communities/new"
-          className="mt-4 inline-block text-emerald-400 hover:underline"
+          className="mt-6 inline-block font-medium text-emerald-400 transition hover:text-emerald-300 hover:underline"
         >
           Create a community →
         </Link>
@@ -32,12 +33,12 @@ export async function YourCommunitiesSection({ userId }: { userId: string }) {
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-3">
       {communities.map((c) => (
         <li key={c.id}>
           <Link
             href={`/communities/${c.id}`}
-            className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 transition hover:border-zinc-600 hover:bg-zinc-900/70"
+            className={`flex items-center justify-between px-4 py-4 ${cardElevatedInteractive}`}
           >
             <div className="min-w-0">
               <p className="font-medium text-white">{c.name}</p>

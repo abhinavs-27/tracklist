@@ -10,6 +10,16 @@ import {
 import { YearRangeFilter, type YearRange } from "@/components/year-range-filter";
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+import {
+  cardElevated,
+  cardElevatedInteractive,
+  pageSubtitle,
+  pageTitle,
+  segmentedButtonActive,
+  segmentedButtonIdle,
+  segmentedShell,
+  sectionGap,
+} from "@/lib/ui/surface";
 
 function LeaderboardListRow({
   rank,
@@ -25,7 +35,7 @@ function LeaderboardListRow({
   return (
     <Link
       href={href}
-      className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 transition hover:border-zinc-600 hover:bg-zinc-800/50 active:bg-zinc-800/40 touch-manipulation sm:flex-row sm:items-center sm:gap-3"
+      className={`flex flex-col gap-2 p-4 touch-manipulation sm:flex-row sm:items-center sm:gap-3 ${cardElevatedInteractive}`}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <span className="w-6 shrink-0 text-right text-sm font-medium text-zinc-500 tabular-nums">
@@ -51,7 +61,7 @@ function LeaderboardListRow({
           <p className="truncate text-xs text-zinc-500 sm:text-sm">{entry.artist}</p>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-800/80 pt-2 text-xs text-zinc-400 tabular-nums sm:border-0 sm:pt-0 sm:text-sm sm:shrink-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 text-xs text-zinc-400 tabular-nums shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05)] sm:pt-0 sm:shadow-none sm:text-sm sm:shrink-0">
         <span>{entry.total_plays.toLocaleString()} plays</span>
         {entry.average_rating != null ? (
           <span className="text-amber-400">
@@ -118,23 +128,23 @@ function ListIcon({ className }: { className?: string }) {
 
 function LeaderboardSkeleton() {
   return (
-    <div className="space-y-2" aria-hidden>
+    <div className="space-y-3" aria-hidden>
       {Array.from({ length: 12 }).map((_, i) => (
         <div
           key={i}
-          className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 sm:flex-row sm:items-center sm:gap-3"
+          className={`flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-3 ${cardElevated}`}
         >
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <div className="h-6 w-6 shrink-0 animate-pulse rounded bg-zinc-700" />
-            <div className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-zinc-700 sm:h-12 sm:w-12" />
+            <div className="h-10 w-10 shrink-0 animate-pulse rounded-lg bg-zinc-700 sm:h-12 sm:w-12" />
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="h-4 max-w-[12rem] animate-pulse rounded bg-zinc-700" />
-              <div className="h-3 max-w-[8rem] animate-pulse rounded bg-zinc-700/80" />
+              <div className="h-4 max-w-[12rem] animate-pulse rounded-md bg-zinc-700" />
+              <div className="h-3 max-w-[8rem] animate-pulse rounded-md bg-zinc-700/80" />
             </div>
           </div>
-          <div className="flex gap-3 border-t border-zinc-800/80 pt-2 sm:border-0 sm:pt-0">
-            <div className="h-4 w-16 animate-pulse rounded bg-zinc-700/80" />
-            <div className="h-4 w-12 animate-pulse rounded bg-zinc-700/80" />
+          <div className="flex gap-3 pt-2 shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05)] sm:pt-0 sm:shadow-none">
+            <div className="h-4 w-16 animate-pulse rounded-md bg-zinc-700/80" />
+            <div className="h-4 w-12 animate-pulse rounded-md bg-zinc-700/80" />
           </div>
         </div>
       ))}
@@ -161,23 +171,22 @@ export default function LeaderboardPage() {
   const { data, isLoading, error } = useLeaderboard(type, filters, entity);
 
   return (
-    <div className="space-y-6">
+    <div className={sectionGap}>
       <header>
-        <h1 className="text-xl font-bold text-white sm:text-2xl">Leaderboard</h1>
-        <p className="mt-1 text-sm text-zinc-400 sm:text-base">
-          Most popular and top rated {entity === "album" ? "albums" : "songs"}. Adjust filters to change the time period.
+        <h1 className={pageTitle}>Leaderboard</h1>
+        <p className={pageSubtitle}>
+          Most popular and top rated {entity === "album" ? "albums" : "songs"}.
+          Adjust filters to change the time period.
         </p>
       </header>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full min-w-0 flex-wrap rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5 sm:w-auto">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex w-full min-w-0 flex-wrap sm:w-auto ${segmentedShell}`}>
           <button
             type="button"
             onClick={() => setType("popular")}
-            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
-              type === "popular"
-                ? "bg-zinc-700 text-white"
-                : "text-zinc-400 hover:text-white"
+            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
+              type === "popular" ? segmentedButtonActive : segmentedButtonIdle
             }`}
           >
             {getChartConfig("popular")?.label ?? "Most Popular"}
@@ -185,10 +194,8 @@ export default function LeaderboardPage() {
           <button
             type="button"
             onClick={() => setType("topRated")}
-            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
-              type === "topRated"
-                ? "bg-zinc-700 text-white"
-                : "text-zinc-400 hover:text-white"
+            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
+              type === "topRated" ? segmentedButtonActive : segmentedButtonIdle
             }`}
           >
             {getChartConfig("top_rated")?.label ?? "Top Rated"}
@@ -198,10 +205,10 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setType("mostFavorited")}
-              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
+              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
                 type === "mostFavorited"
-                  ? "bg-zinc-700 text-white"
-                  : "text-zinc-400 hover:text-white"
+                  ? segmentedButtonActive
+                  : segmentedButtonIdle
               }`}
             >
               {getChartConfig("favorited")?.label ?? "Most Favorited"}
@@ -209,7 +216,7 @@ export default function LeaderboardPage() {
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="flex rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5">
+          <div className={`flex ${segmentedShell}`}>
             <button
               type="button"
               onClick={() => {
@@ -217,10 +224,8 @@ export default function LeaderboardPage() {
                 // If we were on "Most Favorited" (albums-only), switch back to a valid type.
                 if (type === "mostFavorited") setType("popular");
               }}
-              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
-                entity === "song"
-                  ? "bg-zinc-700 text-white"
-                  : "text-zinc-400 hover:text-white"
+              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
+                entity === "song" ? segmentedButtonActive : segmentedButtonIdle
               }`}
             >
               Songs
@@ -228,10 +233,8 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setEntity("album")}
-              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
-                entity === "album"
-                  ? "bg-zinc-700 text-white"
-                  : "text-zinc-400 hover:text-white"
+              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
+                entity === "album" ? segmentedButtonActive : segmentedButtonIdle
               }`}
             >
               Albums
@@ -239,17 +242,15 @@ export default function LeaderboardPage() {
           </div>
           <YearRangeFilter value={yearRange} onChange={setYearRange} />
           <div
-            className="flex shrink-0 rounded-lg border border-zinc-800 bg-zinc-900/50 p-0.5"
+            className={`flex shrink-0 ${segmentedShell}`}
             role="group"
             aria-label="View"
           >
             <button
               type="button"
               onClick={() => setView("grid")}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 transition ${
-                view === "grid"
-                  ? "bg-zinc-700 text-white"
-                  : "text-zinc-400 hover:text-white"
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2 transition ${
+                view === "grid" ? segmentedButtonActive : segmentedButtonIdle
               }`}
               title="Grid view"
               aria-pressed={view === "grid"}
@@ -259,10 +260,8 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setView("list")}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 transition ${
-                view === "list"
-                  ? "bg-zinc-700 text-white"
-                  : "text-zinc-400 hover:text-white"
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2 transition ${
+                view === "list" ? segmentedButtonActive : segmentedButtonIdle
               }`}
               title="List view"
               aria-pressed={view === "list"}
@@ -275,7 +274,7 @@ export default function LeaderboardPage() {
 
       <section className="min-h-[400px]">
         {error && (
-          <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-red-400">
+          <div className="rounded-2xl bg-red-950/25 p-5 text-red-300 ring-1 ring-inset ring-red-500/20">
             {error instanceof Error
               ? error.message
               : "Failed to load leaderboard."}
@@ -285,11 +284,11 @@ export default function LeaderboardPage() {
         {!error && isLoading && <LeaderboardSkeleton />}
 
         {!error && !isLoading && data.length === 0 && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-            <p className="text-zinc-500">
+          <div className={`p-10 text-center sm:p-12 ${cardElevated}`}>
+            <p className="text-base text-zinc-400">
               No {entity === "album" ? "albums" : "tracks"} found for this filter.
             </p>
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-zinc-500">
               Try another time period or check back later.
             </p>
           </div>
@@ -317,7 +316,7 @@ export default function LeaderboardPage() {
         )}
 
         {!error && !isLoading && data.length > 0 && view === "list" && (
-          <div className="space-y-2" role="list">
+          <div className="space-y-3" role="list">
             {data.map((entry, i) => (
               <LeaderboardListRow
                 key={entry.id}

@@ -4,9 +4,9 @@ import { SkeletonBlock } from "@/components/ui/skeleton";
 
 export function PendingInvitesSkeleton() {
   return (
-    <div className="space-y-2" aria-hidden>
-      <SkeletonBlock className="h-14 w-full rounded-lg" />
-      <SkeletonBlock className="h-14 w-full rounded-lg" />
+    <div className="space-y-3" aria-hidden>
+      <SkeletonBlock className="h-16 w-full rounded-2xl" />
+      <SkeletonBlock className="h-16 w-full rounded-2xl" />
     </div>
   );
 }
