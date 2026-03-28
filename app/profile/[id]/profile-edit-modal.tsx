@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
@@ -10,15 +10,29 @@ interface ProfileEditModalProps {
   username: string;
   bio: string | null;
   avatarUrl: string | null;
+  triggerClassName?: string;
+  triggerLabel?: ReactNode;
 }
 
-export function ProfileEditModal({ userId, username, bio, avatarUrl }: ProfileEditModalProps) {
+export function ProfileEditModal({
+  userId,
+  username,
+  bio,
+  avatarUrl,
+  triggerClassName,
+  triggerLabel,
+}: ProfileEditModalProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [formUsername, setFormUsername] = useState(username);
   const [formBio, setFormBio] = useState(bio ?? '');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setFormUsername(username);
+    setFormBio(bio ?? '');
+  }, [username, bio]);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -54,9 +68,12 @@ export function ProfileEditModal({ userId, username, bio, avatarUrl }: ProfileEd
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-full border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800"
+        className={
+          triggerClassName ??
+          'rounded-full border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800'
+        }
       >
-        Edit profile
+        {triggerLabel ?? 'Edit profile'}
       </button>
       {open && (
         <div

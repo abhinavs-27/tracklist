@@ -14,9 +14,15 @@ type RecentAlbumItem = {
 export function RecentAlbumsGrid({
   userId,
   refreshKey,
+  layout = "grid",
+  showSectionHeader = true,
 }: {
   userId: string;
   refreshKey?: number | string;
+  /** Horizontal strip on profile hub vs full grid elsewhere */
+  layout?: "grid" | "strip";
+  /** False when a parent SectionBlock provides the title */
+  showSectionHeader?: boolean;
 }) {
   const [albums, setAlbums] = useState<RecentAlbumItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,12 +79,18 @@ export function RecentAlbumsGrid({
 
   return (
     <section>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-white">Recent albums</h2>
-        {albums.length > 0 ? (
-          <p className="text-xs text-zinc-500">Last {albums.length}</p>
-        ) : null}
-      </div>
+      {showSectionHeader ? (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-white">Recent albums</h2>
+          {albums.length > 0 ? (
+            <p className="text-xs text-zinc-500">Last {albums.length}</p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Albums
+        </p>
+      )}
 
       {albums.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
@@ -86,6 +98,44 @@ export function RecentAlbumsGrid({
           <p className="mt-1 text-sm text-zinc-500">
             Log listens (Spotify sync, Last.fm, or quick log) to see albums here.
           </p>
+        </div>
+      ) : layout === "strip" ? (
+        <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {albums.slice(0, 16).map((album) => {
+            const lastPlayed = new Date(album.last_played_at).toLocaleDateString();
+            return (
+              <Link
+                key={album.album_id}
+                href={`/album/${album.album_id}`}
+                className="group relative aspect-square w-[min(42vw,140px)] shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 sm:w-[132px]"
+                aria-label={album.album_name ?? "Album"}
+              >
+                {album.album_image ? (
+                  <img
+                    src={album.album_image}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-5xl text-zinc-600">
+                    ♪
+                  </div>
+                )}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 p-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <div className="min-w-0">
+                    <div className="truncate text-[11px] text-zinc-200">
+                      {album.album_name ?? "Unknown album"}
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-zinc-400">
+                      {album.artist_name || "—"}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-zinc-500">{lastPlayed}</div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">

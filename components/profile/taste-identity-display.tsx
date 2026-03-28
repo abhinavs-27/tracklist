@@ -5,9 +5,11 @@ import type { TasteIdentity } from "@/lib/taste/types";
 
 type Props = {
   data: TasteIdentity;
+  /** Nested under a SectionBlock; flattens chrome and hides duplicate TasteCard title */
+  hubMode?: boolean;
 };
 
-export function TasteIdentityDisplay({ data: t }: Props) {
+export function TasteIdentityDisplay({ data: t, hubMode = false }: Props) {
   const hasAny =
     t.totalLogs > 0 ||
     t.topArtists.length > 0 ||
@@ -29,17 +31,23 @@ export function TasteIdentityDisplay({ data: t }: Props) {
     : "All-time listening · from your logs";
   const genresLabel = t.recent?.topGenres7d?.length ? "This week" : "Top genres";
 
+  const Shell = hubMode ? "div" : "section";
+  const shellClass = hubMode
+    ? "space-y-4"
+    : "rounded-xl border border-zinc-800 bg-zinc-900/30 p-4";
+
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+    <Shell className={shellClass}>
       <TasteCard
         mode="identity"
         title="Taste identity"
+        hideTitle={hubMode}
         subtitle={t.totalLogs > 0 ? `From ${t.totalLogs} logs` : undefined}
         insight={cardInsight}
         genres={cardGenres}
         insightSource={insightSource}
         genresLabel={genresLabel}
-        className="mb-5"
+        className={hubMode ? "mb-4" : "mb-5"}
       />
 
       {!hasAny ? (
@@ -132,9 +140,18 @@ export function TasteIdentityDisplay({ data: t }: Props) {
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Top albums
           </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          <ul
+            className={
+              hubMode
+                ? "mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                : "mt-3 grid gap-2 sm:grid-cols-2"
+            }
+          >
             {t.topAlbums.slice(0, 6).map((al) => (
-              <li key={al.id}>
+              <li
+                key={al.id}
+                className={hubMode ? "w-[min(100%,280px)] shrink-0" : ""}
+              >
                 <Link
                   href={`/album/${al.id}`}
                   className="flex items-center gap-3 rounded-lg border border-zinc-800/60 bg-zinc-950/30 p-2 transition hover:border-zinc-500/50"
@@ -165,6 +182,6 @@ export function TasteIdentityDisplay({ data: t }: Props) {
           </ul>
         </div>
       ) : null}
-    </section>
+    </Shell>
   );
 }

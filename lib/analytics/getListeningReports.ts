@@ -170,8 +170,11 @@ async function enrichReportItems(
   }
 
   const ids = rows.map((r) => r.entity_id);
+  /** User-facing report: hydrate missing catalog rows from Spotify (not default for batch helpers). */
+  const catalogOpts = { allowNetwork: true as const };
+
   if (entityType === "artist") {
-    const list = await getOrFetchArtistsBatch(ids);
+    const list = await getOrFetchArtistsBatch(ids, catalogOpts);
     const byEntityId = new Map(
       ids.map((id, i) => [id, list[i] ?? null] as const),
     );
@@ -193,7 +196,7 @@ async function enrichReportItems(
     });
   }
   if (entityType === "album") {
-    const list = await getOrFetchAlbumsBatch(ids);
+    const list = await getOrFetchAlbumsBatch(ids, catalogOpts);
     const byEntityId = new Map(
       ids.map((id, i) => [id, list[i] ?? null] as const),
     );
@@ -214,7 +217,7 @@ async function enrichReportItems(
       };
     });
   }
-  const list = await getOrFetchTracksBatch(ids);
+  const list = await getOrFetchTracksBatch(ids, catalogOpts);
   const byEntityId = new Map(
     ids.map((id, i) => [id, list[i] ?? null] as const),
   );

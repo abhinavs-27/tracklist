@@ -2950,6 +2950,11 @@ export type UserListSummary = {
   item_count: number;
 };
 
+export type UserListWithPreview = UserListSummary & {
+  /** First few item titles (album or track names) for profile cards */
+  preview_labels: string[];
+};
+
 async function getListItemCountsMap(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   listIds: string[],
@@ -3028,6 +3033,104 @@ export async function getUserLists(
   } catch (e) {
     console.error("[queries] getUserLists failed:", e);
     return [];
+  }
+}
+
+/** Lists with up to four preview titles from list_items (album/song names). */
+export async function getUserListsWithPreviews(
+  userId: string,
+  limit = 50,
+  offset = 0,
+): Promise<UserListWithPreview[]> {
+  const lists = await getUserLists(userId, limit, offset);
+  if (lists.length === 0) return [];
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const listIds = lists.map((l) => l.id);
+
+    const { data: itemRows, error: itemErr } = await supabase
+      .from("list_items")
+      .select("list_id, entity_type, entity_id, position")
+      .in("list_id", listIds);
+
+    if (itemErr || !itemRows?.length) {
+      return lists.map((l) => ({ ...l, preview_labels: [] }));
+    }
+
+    type ItemRow = {
+      list_id: string;
+      entity_type: string;
+      entity_id: string;
+      position: number | null;
+    };
+
+    const byList = new Map<string, ItemRow[]>();
+    for (const r of itemRows as ItemRow[]) {
+      const arr = byList.get(r.list_id) ?? [];
+      arr.push(r);
+      byList.set(r.list_id, arr);
+    }
+    for (const arr of byList.values()) {
+      arr.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    }
+
+    const albumIds = new Set<string>();
+    const songIds = new Set<string>();
+    for (const listId of listIds) {
+      for (const r of (byList.get(listId) ?? []).slice(0, 4)) {
+        if (r.entity_type === "album") albumIds.add(r.entity_id);
+        else if (r.entity_type === "song") songIds.add(r.entity_id);
+      }
+    }
+
+    const albumNames = new Map<string, string>();
+    const songNames = new Map<string, string>();
+
+    const idChunks = <T>(ids: T[], size: number): T[][] => {
+      const out: T[][] = [];
+      for (let i = 0; i < ids.length; i += size)
+        out.push(ids.slice(i, i + size));
+      return out;
+    };
+
+    for (const part of idChunks([...albumIds], 100)) {
+      const { data: albums } = await supabase
+        .from("albums")
+        .select("id, name")
+        .in("id", part);
+      for (const a of albums ?? []) {
+        albumNames.set(a.id as string, a.name as string);
+      }
+    }
+
+    for (const part of idChunks([...songIds], 100)) {
+      const { data: songs } = await supabase
+        .from("songs")
+        .select("id, name")
+        .in("id", part);
+      for (const s of songs ?? []) {
+        songNames.set(s.id as string, s.name as string);
+      }
+    }
+
+    return lists.map((list) => {
+      const rows = (byList.get(list.id) ?? []).slice(0, 4);
+      const preview_labels: string[] = [];
+      for (const r of rows) {
+        if (r.entity_type === "album") {
+          const n = albumNames.get(r.entity_id);
+          if (n) preview_labels.push(n);
+        } else if (r.entity_type === "song") {
+          const n = songNames.get(r.entity_id);
+          if (n) preview_labels.push(n);
+        }
+      }
+      return { ...list, preview_labels };
+    });
+  } catch (e) {
+    console.error("[queries] getUserListsWithPreviews failed:", e);
+    return lists.map((l) => ({ ...l, preview_labels: [] as string[] }));
   }
 }
 

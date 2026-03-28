@@ -9,12 +9,16 @@ export function ProfileRecentAlbumsWithSync({
   username,
   showSpotifyControls,
   spotifyConnected = false,
+  albumsLayout = "grid",
+  showAlbumSectionHeader = true,
 }: {
   userId: string;
   username: string;
   showSpotifyControls: boolean;
   /** Server-derived: user has a row in spotify_tokens. Passed from profile page. */
   spotifyConnected?: boolean;
+  albumsLayout?: "grid" | "strip";
+  showAlbumSectionHeader?: boolean;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -28,7 +32,12 @@ export function ProfileRecentAlbumsWithSync({
         />
       ) : null}
 
-      <RecentAlbumsGrid userId={userId} refreshKey={refreshKey} />
+      <RecentAlbumsGrid
+        userId={userId}
+        refreshKey={refreshKey}
+        layout={albumsLayout}
+        showSectionHeader={showAlbumSectionHeader}
+      />
     </div>
   );
 }

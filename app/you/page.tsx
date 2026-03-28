@@ -3,9 +3,13 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getUserLists } from "@/lib/queries";
+import { getUserListsWithPreviews } from "@/lib/queries";
 import { SectionBlock } from "@/components/layout/section-block";
+import { ListCard } from "@/components/list-card";
+import { ProfileTopThisWeekSection } from "@/components/profile/profile-top-this-week";
 import { cardElevated, pageTitle, sectionGap } from "@/lib/ui/surface";
+
+const profileLinkCard = `${cardElevated} bg-gradient-to-br from-zinc-900/95 via-zinc-900/90 to-emerald-950/25 ring-1 ring-white/[0.08]`;
 
 export default async function YouHubPage() {
   const session = await getServerSession(authOptions);
@@ -21,7 +25,7 @@ export default async function YouHubPage() {
     .eq("id", userId)
     .maybeSingle();
 
-  const lists = await getUserLists(userId, 4, 0);
+  const lists = await getUserListsWithPreviews(userId, 4, 0);
 
   const u = user as {
     id: string;
@@ -35,13 +39,14 @@ export default async function YouHubPage() {
       <header>
         <h1 className={pageTitle}>You</h1>
         <p className="mt-3 text-base text-zinc-400 sm:text-lg">
-          Your profile, lists, and listening insights.
+          Hub for your stats and lists. Open your profile for the full experience —
+          weekly tops, recent activity, taste, and account settings.
         </p>
       </header>
 
       <Link
         href={`/profile/${userId}`}
-        className={`block ${cardElevated} p-5 transition hover:bg-zinc-900/70 sm:p-6`}
+        className={`block ${profileLinkCard} p-5 transition hover:bg-zinc-900/70 sm:p-6`}
       >
         <div className="flex items-start gap-4">
           {u?.avatar_url ? (
@@ -63,46 +68,52 @@ export default async function YouHubPage() {
             {u?.bio?.trim() ? (
               <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{u.bio}</p>
             ) : (
-              <p className="mt-2 text-sm text-zinc-500">View and edit your public profile →</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                View and edit your public profile →
+              </p>
             )}
             <span className="mt-3 inline-flex text-sm font-medium text-emerald-400">
-              Open profile
+              Open full profile
             </span>
           </div>
         </div>
       </Link>
 
+      <ProfileTopThisWeekSection userId={userId} compact />
+
       <SectionBlock
         title="Your lists"
         description="Curated albums and tracks."
         action={
-          lists.length > 0 ? { label: "Browse all lists →", href: "/lists" } : undefined
+          lists.length > 0 ? { label: "View all", href: "/lists" } : undefined
         }
       >
         {lists.length === 0 ? (
           <div className={`${cardElevated} px-4 py-6 text-center text-sm text-zinc-500`}>
             No lists yet.{" "}
-            <Link href={`/profile/${userId}#lists`} className="text-emerald-400 hover:underline">
+            <Link
+              href={`/profile/${userId}#lists`}
+              className="text-emerald-400 hover:underline"
+            >
               Create one on your profile
             </Link>
             .
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {lists.map((list) => (
               <li key={list.id}>
-                <Link
-                  href={`/lists/${list.id}`}
-                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3 ${cardElevated} transition hover:bg-zinc-900/70`}
-                >
-                  <span className="min-w-0 truncate font-medium text-white">
-                    {list.emoji ? `${list.emoji} ` : ""}
-                    {list.title}
-                  </span>
-                  <span className="shrink-0 text-xs text-zinc-500">
-                    {list.item_count ?? 0} items
-                  </span>
-                </Link>
+                <ListCard
+                  id={list.id}
+                  title={list.title}
+                  description={list.description}
+                  created_at={list.created_at}
+                  item_count={list.item_count}
+                  visibility={list.visibility}
+                  emoji={list.emoji}
+                  image_url={list.image_url}
+                  preview_labels={list.preview_labels}
+                />
               </li>
             ))}
           </ul>

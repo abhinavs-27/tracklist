@@ -12,12 +12,15 @@ type ProfileFavoriteAlbumsSectionProps = {
   userId?: string;
   favoriteAlbums: FavoriteAlbum[];
   isOwnProfile: boolean;
+  /** Hide H2 when a parent SectionBlock provides the title */
+  showHeading?: boolean;
 };
 
 export function ProfileFavoriteAlbumsSection({
   userId,
   favoriteAlbums,
   isOwnProfile,
+  showHeading = true,
 }: ProfileFavoriteAlbumsSectionProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -32,7 +35,11 @@ export function ProfileFavoriteAlbumsSection({
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-white sm:text-lg">Favorite albums</h2>
+        {showHeading ? (
+          <h2 className="text-base font-semibold text-white sm:text-lg">Favorite albums</h2>
+        ) : (
+          <span className="sr-only">Favorite albums</span>
+        )}
         {isOwnProfile && (
           <button
             type="button"

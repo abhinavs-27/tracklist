@@ -5,6 +5,8 @@ type Props = {
   title: string;
   description?: string;
   action?: { label: string; href: string };
+  /** e.g. a client button next to the section title */
+  headerRight?: ReactNode;
   children: ReactNode;
   className?: string;
 };
@@ -16,6 +18,7 @@ export function SectionBlock({
   title,
   description,
   action,
+  headerRight,
   children,
   className = "",
 }: Props) {
@@ -30,14 +33,17 @@ export function SectionBlock({
             <p className="mt-1 max-w-2xl text-sm text-zinc-500">{description}</p>
           ) : null}
         </div>
-        {action ? (
-          <Link
-            href={action.href}
-            className="shrink-0 text-sm font-medium text-emerald-400/95 transition hover:text-emerald-300"
-          >
-            {action.label}
-          </Link>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {headerRight}
+          {action ? (
+            <Link
+              href={action.href}
+              className="shrink-0 text-sm font-medium text-emerald-400/95 transition hover:text-emerald-300"
+            >
+              {action.label}
+            </Link>
+          ) : null}
+        </div>
       </div>
       {children}
     </section>

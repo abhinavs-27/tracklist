@@ -2,6 +2,10 @@ import type { ListeningInsightsResult } from "@/lib/taste/listening-insights";
 
 type Props = {
   data: ListeningInsightsResult;
+  /** Limit rows; use with “View all” to reports */
+  maxLines?: number;
+  /** Omit duplicate title when wrapped in SectionBlock */
+  embedded?: boolean;
 };
 
 function InsightGlyph({ text }: { text: string }) {
@@ -117,27 +121,47 @@ function InsightGlyph({ text }: { text: string }) {
   );
 }
 
-export function ListeningInsights({ data }: Props) {
+export function ListeningInsights({ data, maxLines, embedded = false }: Props) {
   const { insights } = data;
   const insufficient =
     insights.length === 1 && insights[0] === "Not enough listening data yet";
+  const lines =
+    maxLines != null && maxLines > 0
+      ? insights.slice(0, maxLines)
+      : insights;
+  const hiddenCount =
+    maxLines != null && maxLines > 0
+      ? Math.max(0, insights.length - lines.length)
+      : 0;
 
   return (
-    <section className="rounded-xl border border-zinc-800/90 bg-zinc-950/40 p-5">
-      <div className="border-b border-zinc-800/80 pb-4">
-        <h2 className="text-base font-semibold tracking-tight text-white sm:text-lg">
-          Listening insights
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Recent habits — behavioral, not your taste profile
+    <section
+      className={`rounded-xl border border-zinc-800/90 bg-zinc-950/40 p-5 ${embedded ? "pt-4" : ""}`}
+    >
+      {embedded ? null : (
+        <div className="border-b border-zinc-800/80 pb-4">
+          <h2 className="text-base font-semibold tracking-tight text-white sm:text-lg">
+            Listening insights
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Recent habits — behavioral, not your taste profile
+          </p>
+        </div>
+      )}
+
+      {embedded ? (
+        <p className="mb-3 text-xs text-zinc-500">
+          Behavioral patterns from your recent logs — not your taste profile.
         </p>
-      </div>
+      ) : null}
 
       {insufficient ? (
-        <p className="mt-4 text-sm leading-relaxed text-zinc-500">{insights[0]}</p>
+        <p className={`text-sm leading-relaxed text-zinc-500 ${embedded ? "" : "mt-4"}`}>
+          {insights[0]}
+        </p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-0">
-          {insights.map((line, i) => (
+        <ul className={`flex flex-col gap-0 ${embedded ? "" : "mt-4"}`}>
+          {lines.map((line, i) => (
             <li
               key={`${line}-${i}`}
               className="flex gap-3 border-b border-zinc-800/50 py-3.5 last:border-b-0 last:pb-0 first:pt-0"
@@ -150,6 +174,11 @@ export function ListeningInsights({ data }: Props) {
           ))}
         </ul>
       )}
+      {!insufficient && hiddenCount > 0 ? (
+        <p className="mt-3 text-xs text-zinc-500">
+          +{hiddenCount} more in listening reports
+        </p>
+      ) : null}
     </section>
   );
 }

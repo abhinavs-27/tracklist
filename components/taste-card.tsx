@@ -55,6 +55,8 @@ export type TasteCardIdentityProps = {
   insight: string;
   genres: TasteCardGenre[];
   title?: string;
+  /** Hide the H3 when the parent section already provides a title */
+  hideTitle?: boolean;
   subtitle?: string;
   /** e.g. “Last 7 days vs last 30 days” or “All-time listening”. */
   insightSource?: string;
@@ -90,6 +92,7 @@ export function TasteCard(props: TasteCardProps) {
       insight,
       genres,
       title = "Your taste",
+      hideTitle = false,
       subtitle,
       insightSource,
       genresLabel = "Top genres",
@@ -113,15 +116,17 @@ export function TasteCard(props: TasteCardProps) {
         <div
           className={`border-b border-white/5 bg-gradient-to-r from-emerald-950/20 via-transparent to-violet-950/30 ${padHeader}`}
         >
-          <h3
-            className={
-              density === "compact"
-                ? "text-sm font-semibold tracking-tight text-white sm:text-base"
-                : "text-base font-semibold tracking-tight text-white sm:text-lg"
-            }
-          >
-            {title}
-          </h3>
+          {!hideTitle ? (
+            <h3
+              className={
+                density === "compact"
+                  ? "text-sm font-semibold tracking-tight text-white sm:text-base"
+                  : "text-base font-semibold tracking-tight text-white sm:text-lg"
+              }
+            >
+              {title}
+            </h3>
+          ) : null}
           {subtitle ? (
             <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>
           ) : null}

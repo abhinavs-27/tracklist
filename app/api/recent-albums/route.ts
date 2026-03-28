@@ -20,7 +20,12 @@ export async function GET(request: NextRequest) {
     await getUserFromRequest(request);
     const supabase = createSupabaseAdminClient();
 
-    const albums = await getRecentAlbumsFromLogs(supabase, userId);
+    const limitRaw = searchParams.get("limit");
+    const limit = limitRaw
+      ? Math.min(48, Math.max(1, parseInt(limitRaw, 10) || 12))
+      : 12;
+
+    const albums = await getRecentAlbumsFromLogs(supabase, userId, limit);
     return apiOk({ albums });
   } catch (e) {
     return apiInternalError(e);
