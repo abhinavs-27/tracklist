@@ -36,7 +36,7 @@ export const GET = withHandler(
     const { searchParams } = new URL(request.url);
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") ?? "30", 10) || 30),
+      Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10) || 10),
     );
     const offset = Math.max(
       0,

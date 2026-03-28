@@ -120,41 +120,16 @@ export function CommunityActions({
   if (isMember) {
     return (
       <>
-        <div className="flex flex-col items-stretch gap-2 sm:items-end">
-          <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 sm:items-end sm:pl-4">
-            <span className="inline-flex w-fit items-center gap-2 rounded-lg border border-emerald-500/35 bg-emerald-950/40 px-2.5 py-1 text-xs font-medium text-emerald-400">
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
-                aria-hidden
-              />
-              Member
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setLeaveError(null);
-                setLeaveOpen(true);
-              }}
-              className="group inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-red-900/60 hover:bg-red-950/25 hover:text-red-200 sm:w-auto sm:justify-end"
-            >
-              <svg
-                className="h-4 w-4 text-zinc-500 transition group-hover:text-red-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.75}
-                aria-hidden
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
-                />
-              </svg>
-              Leave community
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setLeaveError(null);
+            setLeaveOpen(true);
+          }}
+          className="rounded-lg px-2 py-1.5 text-sm text-zinc-500 transition hover:bg-zinc-800/80 hover:text-red-400"
+        >
+          Leave
+        </button>
 
         {leaveOpen ? (
           <div

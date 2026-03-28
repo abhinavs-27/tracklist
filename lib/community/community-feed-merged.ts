@@ -9,6 +9,9 @@ import {
   type CommunityListenSessionRow,
 } from "@/lib/community/community-listen-sessions-rpc";
 
+/** Same cap as main feed `getActivityFeed` / `LISTEN_SESSIONS_DISPLAY_CAP`. */
+const LISTEN_SESSIONS_SUMMARY_CAP = 10;
+
 export type CommunityFeedFilter =
   | "all"
   | "streaks"
@@ -274,7 +277,7 @@ function collapseListenSessions(
         label: `${first.username} listened to ${run.length} songs`,
         metadata: {
           song_count: run.length,
-          sessions: metaSessions,
+          sessions: metaSessions.slice(0, LISTEN_SESSIONS_SUMMARY_CAP),
         },
       });
     }

@@ -6,6 +6,7 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { getAppBaseUrl, getRequestOrigin, isLocalhostUrl } from "@/lib/app-url";
 import { createCommunityInviteLink } from "@/lib/community/invite-links";
 import { isValidUuid } from "@/lib/validation";
 
@@ -54,8 +55,10 @@ export const POST = withHandler(
       }
     }
 
-    const base =
-      process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "";
+    const origin = getRequestOrigin(request);
+    const base = isLocalhostUrl(origin)
+      ? getAppBaseUrl()
+      : origin.replace(/\/$/, "");
     const invite_url = `${base}/community/join/${result.token}`;
 
     return apiOk({

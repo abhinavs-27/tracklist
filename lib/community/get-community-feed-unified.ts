@@ -407,8 +407,34 @@ async function mergedItemsToV2(
     }
 
     if (item.kind === "listen_sessions_summary") {
-      const sessions = item.metadata.sessions ?? [];
-      const firstTid = sessions[0]?.track_id;
+      const sessionsRaw = item.metadata.sessions ?? [];
+      const sessionsEnriched = sessionsRaw.map((s) => {
+        const tid = s.track_id?.trim();
+        const meta = tid ? trackMeta.get(tid) : undefined;
+        const trackName = meta?.name ?? s.track_name ?? null;
+        const artistName =
+          meta?.artists?.[0]?.name ?? s.artist_name ?? null;
+        const alb = meta?.album;
+        return {
+          type: "listen_session" as const,
+          user_id: s.user_id,
+          track_id: s.track_id,
+          album_id: s.album_id,
+          song_count: s.song_count,
+          first_listened_at: s.first_listened_at,
+          created_at: s.created_at,
+          track_name: trackName,
+          artist_name: artistName,
+          album: alb
+            ? {
+                images: alb.images,
+                name: trackName ?? undefined,
+                artists: meta.artists as { name: string }[],
+              }
+            : undefined,
+        };
+      });
+      const firstTid = sessionsEnriched[0]?.track_id;
       let artwork: string | null = null;
       if (firstTid) {
         const meta = trackMeta.get(firstTid);
@@ -422,7 +448,7 @@ async function mergedItemsToV2(
         payload: {
           kind: "listen_sessions_summary",
           song_count: item.metadata.song_count,
-          sessions,
+          sessions: sessionsEnriched,
         },
         created_at: item.created_at,
         username: item.username,

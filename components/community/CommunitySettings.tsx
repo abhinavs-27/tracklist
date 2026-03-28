@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { CommunityMemberListRow } from "@/lib/community/member-list";
 import type { CommunityRow } from "@/types";
 
@@ -15,6 +15,8 @@ type Props = {
   canEdit: boolean;
   /** Public communities only: list + promote (admins only). */
   showAdminSection: boolean;
+  /** Join / leave / invite actions — rendered beside Edit in the header row. */
+  headerActions?: ReactNode;
 };
 
 export function CommunitySettings({
@@ -25,6 +27,7 @@ export function CommunitySettings({
   viewerId,
   canEdit,
   showAdminSection,
+  headerActions,
 }: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -174,19 +177,24 @@ export function CommunitySettings({
       ) : (
         <>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h1 className="text-2xl font-bold text-white">{community.name}</h1>
-            {canEdit ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setEditing(true);
-                }}
-                className="shrink-0 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
-              >
-                Edit
-              </button>
-            ) : null}
+            <h1 className="min-w-0 text-2xl font-bold leading-tight text-white">
+              {community.name}
+            </h1>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setEditing(true);
+                  }}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+                >
+                  Edit
+                </button>
+              ) : null}
+              {headerActions}
+            </div>
           </div>
           {community.description ? (
             <p className="text-zinc-400">{community.description}</p>

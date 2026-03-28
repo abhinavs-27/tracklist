@@ -3,36 +3,13 @@
 import { useState, memo } from 'react';
 import Link from 'next/link';
 import { CatalogArtworkPlaceholder } from '@/components/catalog-artwork-placeholder';
+import {
+  ListenSessionRow,
+  LISTEN_SESSIONS_DISPLAY_CAP,
+} from "@/components/listen-session-row";
 import { ReviewCard } from './review-card';
 import { formatRelativeTime } from '@/lib/time';
-import type { FeedActivity, FeedListenSession } from '@/types';
-
-const DISPLAY_CAP = 10;
-
-const ListenSessionRow = memo(function ListenSessionRow({ session }: { session: FeedListenSession }) {
-  const album = session.album;
-  const image = album?.images?.[0]?.url;
-  const trackName = session.track_name ?? album?.name ?? 'Track';
-  const artistName = session.artist_name ?? album?.artists?.map((a) => a.name).join(', ') ?? '';
-  return (
-    <Link
-      href={`/album/${session.album_id}`}
-      className="group flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-2 transition hover:border-zinc-600 hover:bg-zinc-800/50"
-    >
-      {image ? (
-        <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
-          <img src={image} alt="" className="h-full w-full object-cover" />
-        </div>
-      ) : (
-        <CatalogArtworkPlaceholder size="sm" />
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-white group-hover:text-emerald-400">{trackName}</p>
-        {artistName ? <p className="truncate text-xs text-zinc-500">{artistName}</p> : null}
-      </div>
-    </Link>
-  );
-});
+import type { FeedActivity } from '@/types';
 
 const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   activity,
@@ -42,8 +19,8 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   const [expanded, setExpanded] = useState(false);
   const username = activity.user?.username ?? 'Someone';
   const songCount = activity.song_count;
-  const displayCount = Math.min(songCount, DISPLAY_CAP);
-  const showPlus = songCount > DISPLAY_CAP;
+  const displayCount = Math.min(songCount, LISTEN_SESSIONS_DISPLAY_CAP);
+  const showPlus = songCount > LISTEN_SESSIONS_DISPLAY_CAP;
   const timeAgo = formatRelativeTime(activity.created_at);
   const sessions = activity.sessions ?? [];
 
