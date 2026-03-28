@@ -38,13 +38,15 @@ export async function getLeaderboard(
         .from("albums")
         .select("id, release_date")
         .gte("release_date", `${from}-01-01`)
-        .lte("release_date", `${to}-12-31`);
+        .lte("release_date", `${to}-12-31`)
+        .limit(1000);
       albumIds = (albums ?? []).map((a) => a.id);
     } else if (year != null) {
       const { data: albums } = await supabase
         .from("albums")
         .select("id")
-        .like("release_date", `${year}%`);
+        .like("release_date", `${year}%`)
+        .limit(1000);
       albumIds = (albums ?? []).map((a) => a.id);
     } else if (decade != null) {
       const yearNum = decade + 10;

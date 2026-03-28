@@ -1,4 +1,37 @@
 import { getSupabase } from "../lib/supabase";
+
+const LOG_COUNT_CHUNK = 400;
+
+/** One GROUP BY query per chunk. */
+async function countLogsByTrackIds(
+  trackIds: string[],
+): Promise<Map<string, number>> {
+  const supabase = getSupabase();
+  const unique = [...new Set(trackIds)];
+  const map = new Map<string, number>();
+  if (unique.length === 0) return map;
+
+  for (let i = 0; i < unique.length; i += LOG_COUNT_CHUNK) {
+    const slice = unique.slice(i, i + LOG_COUNT_CHUNK);
+    const { data, error } = await supabase.rpc("count_logs_by_track_ids", {
+      p_track_ids: slice,
+    });
+    if (error || data == null) {
+      // Fallback is not needed here as this is a backend service where RPC is expected to work.
+      console.error("[statsService] count_logs_by_track_ids RPC failed:", error);
+      continue;
+    }
+    for (const row of data as { track_id: string; play_count: number | string }[]) {
+      map.set(row.track_id, Number(row.play_count));
+    }
+  }
+
+  for (const id of unique) {
+    if (!map.has(id)) map.set(id, 0);
+  }
+  return map;
+}
+
 // ---------------------------------------------------------------------------
 // Entity stats (listen count + rating aggregation)
 // ---------------------------------------------------------------------------
@@ -256,22 +289,14 @@ export async function getTrackStatsForTrackIds(
 
     const missingIds = uniqueIds.filter((id) => !(id in result));
     if (missingIds.length > 0) {
-      const [logsRes, reviewsRes] = await Promise.all([
-        supabase.from("logs").select("track_id").in("track_id", missingIds),
+      const [listenCounts, reviewsRes] = await Promise.all([
+        countLogsByTrackIds(missingIds),
         supabase
           .from("reviews")
           .select("entity_id, rating")
           .eq("entity_type", "song")
           .in("entity_id", missingIds),
       ]);
-
-      const listenCounts = new Map<string, number>();
-      for (const row of logsRes.data ?? []) {
-        listenCounts.set(
-          row.track_id,
-          (listenCounts.get(row.track_id) ?? 0) + 1,
-        );
-      }
       const reviewCounts = new Map<string, number>();
       const ratingSums = new Map<string, number>();
       for (const row of reviewsRes.data ?? []) {

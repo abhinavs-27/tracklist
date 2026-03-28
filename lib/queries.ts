@@ -529,22 +529,14 @@ async function getTrackStatsForTrackIdsSingleBatch(
 
   const missingIds = uniqueIds.filter((id) => !(id in result));
   if (missingIds.length > 0) {
-    const [logsRes, reviewsRes] = await Promise.all([
-      supabase.from("logs").select("track_id").in("track_id", missingIds),
+    const [listenCounts, reviewsRes] = await Promise.all([
+      countLogsByTrackIds(supabase, missingIds),
       supabase
         .from("reviews")
         .select("entity_id, rating")
         .eq("entity_type", "song")
         .in("entity_id", missingIds),
     ]);
-
-    const listenCounts = new Map<string, number>();
-    for (const row of logsRes.data ?? []) {
-      listenCounts.set(
-        row.track_id,
-        (listenCounts.get(row.track_id) ?? 0) + 1,
-      );
-    }
     const reviewCounts = new Map<string, number>();
     const ratingSums = new Map<string, number>();
     for (const row of reviewsRes.data ?? []) {
@@ -998,8 +990,8 @@ export async function getReviewsForArtist(
     const supabase = await createSupabaseServerClient();
 
     const [{ data: albumRows }, { data: songRows }] = await Promise.all([
-      supabase.from("albums").select("id").eq("artist_id", artistId),
-      supabase.from("songs").select("id").eq("artist_id", artistId),
+      supabase.from("albums").select("id").eq("artist_id", artistId).limit(1000),
+      supabase.from("songs").select("id").eq("artist_id", artistId).limit(1000),
     ]);
 
     const entityIds = [
@@ -1092,11 +1084,14 @@ export async function getTopTracksForArtist(
     const artistIds = [...new Set(songRows.map((s) => s.artist_id))];
 
     const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
-      supabase.from("albums").select("id, name, image_url").in("id", albumIds),
+      supabase
+        .from("albums")
+        .select("id, name, image_url")
+        .in("id", albumIds.slice(0, 500)),
       supabase
         .from("artists")
         .select("id, name")
-        .in("id", artistIds.filter(Boolean) as string[]),
+        .in("id", artistIds.filter(Boolean).slice(0, 500) as string[]),
     ]);
     const albumMap = new Map((albumRows ?? []).map((a) => [a.id, a]));
     const artistMap = new Map((artistRows ?? []).map((a) => [a.id, a]));
@@ -3048,7 +3043,7 @@ export async function getList(
     const { data: listRow, error: listError } = await supabase
       .from("lists")
       .select(
-        "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+        "user_id, title, description, type, visibility, emoji, image_url, created_at",
       )
       .eq("id", listId)
       .maybeSingle();
@@ -3108,7 +3103,7 @@ export async function getList(
       .maybeSingle();
 
     return {
-      list: listRow as ListRow,
+      list: { ...listRow, id: listId } as ListRow,
       items: safeItemRows as ListItemRow[],
       owner_username: owner?.username ?? null,
     };
