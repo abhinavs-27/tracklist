@@ -1,10 +1,11 @@
 -- Migration 091: Community query optimizations and missing indexes
 -- These indexes support common query patterns for community discovery and user-specific community lists.
 
--- Community Members: optimize for fetching a user's communities ordered by join date.
-CREATE INDEX IF NOT EXISTS idx_community_members_user_joined_at ON community_members(user_id, joined_at DESC);
+-- Community Members: optimize for fetching a user's communities ordered by join date (created_at).
+CREATE INDEX IF NOT EXISTS idx_community_members_user_created_at ON community_members(user_id, created_at DESC);
 
 -- Communities: optimize for discovery (newest communities first).
+-- idx_communities_created already exists in 066, but we ensure it for consistency in this audit.
 CREATE INDEX IF NOT EXISTS idx_communities_created_at ON communities(created_at DESC);
 
 -- Logs: composite index for artist-level history queries identified in getReviewsForArtist/getTopTracksForArtist.
