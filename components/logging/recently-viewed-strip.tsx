@@ -1,25 +1,56 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
+import {
+  dismissFeedPickupStrip,
+  isFeedPickupStripDismissed,
+} from "@/lib/logging/feed-pickup-dismiss";
 import type { RecentViewItem } from "@/lib/logging/types";
 import { useLogging } from "./logging-context";
 
 type Props = {
   items: RecentViewItem[];
+  /** When true (e.g. Last.fm linked), hide the strip entirely — scrobbling covers logging. */
+  suppressForLastfm?: boolean;
 };
 
-export function RecentlyViewedLogStrip({ items }: Props) {
+export function RecentlyViewedLogStrip({
+  items,
+  suppressForLastfm = false,
+}: Props) {
   const { logListen, logBusy } = useLogging();
   const { toast } = useToast();
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    setDismissed(isFeedPickupStripDismissed());
+  }, []);
+
   const slice = items.slice(0, 5);
 
-  if (slice.length === 0) return null;
+  if (suppressForLastfm || dismissed || slice.length === 0) return null;
 
   return (
     <div className="mb-4 space-y-2.5">
-      <h2 className="px-1 text-[15px] font-extrabold text-white">
-        Pick up where you left off
-      </h2>
+      <div className="flex items-start justify-between gap-2 px-1">
+        <h2 className="text-[15px] font-extrabold text-white">
+          Pick up where you left off
+        </h2>
+        <button
+          type="button"
+          aria-label="Dismiss"
+          className="-mr-1 -mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
+          onClick={() => {
+            dismissFeedPickupStrip();
+            setDismissed(true);
+          }}
+        >
+          <span className="text-lg leading-none" aria-hidden>
+            ×
+          </span>
+        </button>
+      </div>
       <div className="-mx-1 flex gap-3 overflow-x-auto pb-1 pt-0.5 [scrollbar-width:thin]">
         {slice.map((item) => (
           <div

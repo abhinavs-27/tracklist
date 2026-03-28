@@ -11,15 +11,24 @@ import { useRecentViews } from "@/components/logging/recent-views-provider";
 type Props = {
   initialItems: EnrichedFeedActivity[];
   initialCursor: string | null;
+  /** Hide “pick up where you left off” when user has Last.fm connected. */
+  suppressPickupStrip?: boolean;
 };
 
-export function FeedWithLogging({ initialItems, initialCursor }: Props) {
+export function FeedWithLogging({
+  initialItems,
+  initialCursor,
+  suppressPickupStrip = false,
+}: Props) {
   const { items: recentItems } = useRecentViews();
 
   return (
     <>
       {recentItems.length > 0 ? (
-        <RecentlyViewedLogStrip items={recentItems} />
+        <RecentlyViewedLogStrip
+          items={recentItems}
+          suppressForLastfm={suppressPickupStrip}
+        />
       ) : null}
       {initialItems.length === 0 && !initialCursor ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">

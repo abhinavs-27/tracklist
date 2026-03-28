@@ -169,7 +169,7 @@ export async function computeAlbumCooccurrence(): Promise<{
     supabase
       .from("user_favorite_albums")
       .select("user_id, album_id")
-      .order("created_at", { ascending: false })
+      .order("position", { ascending: true })
       .limit(100000),
     supabase
       .from("logs")
