@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
-import { CommunityTastePeers } from "@/components/community/community-taste-peers";
 import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
 import {
   CommunityFeedSkeleton,
@@ -20,7 +19,6 @@ import {
   getCommunityMemberCount,
   getCommunityMemberRole,
   isCommunityMember,
-  listCommunityMembersForSettings,
 } from "@/lib/community/queries";
 import {
   getCommunityHeroListeningData,
@@ -36,8 +34,8 @@ import {
   CommunityFeedSlot,
   CommunityInsightsSlot,
   CommunityLeaderboardSlot,
+  CommunityMembersSlot,
   CommunityTasteMatchSlot,
-  CommunityTastePeersSlot,
 } from "./community-async";
 
 export default async function CommunityDetailPage({
@@ -65,10 +63,6 @@ export default async function CommunityDetailPage({
     userId && isMember && myRole
       ? !community.is_private && canEdit && myRole === "admin"
       : false;
-  const membersForSettings =
-    userId && isMember && showAdminSection
-      ? await listCommunityMembersForSettings(id)
-      : [];
   const canInvite =
     userId && isMember && myRole
       ? canInviteToCommunity(community.is_private, true, myRole)
@@ -111,10 +105,7 @@ export default async function CommunityDetailPage({
           communityId={id}
           community={community}
           memberCount={memberCount}
-          members={membersForSettings}
-          viewerId={session.user.id}
           canEdit={canEdit}
-          showAdminSection={showAdminSection}
           heroProps={heroProps}
         />
       ) : (
@@ -174,7 +165,12 @@ export default async function CommunityDetailPage({
 
       {isMember && session?.user?.id ? (
         <Suspense fallback={<CommunitySectionSkeleton />}>
-          <CommunityTastePeersSlot communityId={id} userId={session.user.id} />
+          <CommunityMembersSlot
+            communityId={id}
+            viewerId={session.user.id}
+            communityCreatedBy={community.created_by}
+            showPromote={showAdminSection}
+          />
         </Suspense>
       ) : null}
 

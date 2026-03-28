@@ -70,3 +70,33 @@ export async function getCommunityTasteMatchesForViewer(
     opposite: mapRows(low as { member_id: string; similarity_score: number }[]),
   };
 }
+
+/**
+ * All viewer→member cosine scores for a community (weekly job). Used to sort the full roster.
+ */
+export async function getCommunityTasteSimilarityScoresForViewer(
+  communityId: string,
+  viewerUserId: string,
+): Promise<Map<string, number>> {
+  const admin = createSupabaseAdminClient();
+  const cid = communityId?.trim();
+  const vid = viewerUserId?.trim();
+  if (!cid || !vid) return new Map();
+
+  const { data, error } = await admin
+    .from("community_taste_match")
+    .select("member_id, similarity_score")
+    .eq("community_id", cid)
+    .eq("user_id", vid);
+
+  if (error || !data?.length) {
+    if (error) console.error("[taste-matches] all scores", error);
+    return new Map();
+  }
+
+  const m = new Map<string, number>();
+  for (const row of data as { member_id: string; similarity_score: number }[]) {
+    m.set(row.member_id, Number(row.similarity_score) || 0);
+  }
+  return m;
+}

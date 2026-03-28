@@ -4,7 +4,6 @@ import { CommunityHero } from "@/components/community/community-hero";
 import { CommunitySettings } from "@/components/community/CommunitySettings";
 import { CommunityActions } from "@/components/community/community-actions";
 import type { CommunityHeroTopArtist } from "@/lib/community/get-community-hero-data";
-import type { CommunityMemberListRow } from "@/lib/community/member-list";
 import type { CommunityRow } from "@/types";
 
 export type CommunityHeroStaticProps = {
@@ -21,10 +20,7 @@ type Props = {
   communityId: string;
   community: CommunityRow;
   memberCount: number;
-  members: CommunityMemberListRow[];
-  viewerId: string;
   canEdit: boolean;
-  showAdminSection: boolean;
   heroProps: CommunityHeroStaticProps;
 };
 
@@ -37,10 +33,7 @@ export function CommunityMemberHeroShell({
   communityId,
   community,
   memberCount,
-  members,
-  viewerId,
   canEdit,
-  showAdminSection,
   heroProps,
 }: Props) {
   const communityActions = (
@@ -59,10 +52,7 @@ export function CommunityMemberHeroShell({
       communityId={communityId}
       community={community}
       memberCount={memberCount}
-      members={members}
-      viewerId={viewerId}
       canEdit={canEdit}
-      showAdminSection={showAdminSection}
       headerActions={communityActions}
     >
       {({ heroActions, settingsBody }) => (

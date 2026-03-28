@@ -1,15 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import type { CommunityMemberListRow } from "@/lib/community/member-list";
 import type { CommunityRow } from "@/types";
 
 export type CommunitySettingsRenderProps = {
   /** Edit + join/leave — place inside `CommunityHero` actions. */
   heroActions: ReactNode;
-  /** Warning + admins — below the hero (edit opens in a modal). */
+  /** Warning line for non-editors — below the hero (edit opens in a modal). */
   settingsBody: ReactNode;
 };
 
@@ -17,11 +15,7 @@ type Props = {
   communityId: string;
   community: CommunityRow;
   memberCount: number;
-  members: CommunityMemberListRow[];
-  viewerId: string;
   canEdit: boolean;
-  /** Public communities only: list + promote (admins only). */
-  showAdminSection: boolean;
   /** Join / leave / invite — stacked under Edit in the hero when using `children`. */
   headerActions?: ReactNode;
   /** When true, hide title/description/member line (legacy layout without hero). */
@@ -37,10 +31,7 @@ export function CommunitySettings({
   communityId,
   community,
   memberCount,
-  members,
-  viewerId,
   canEdit,
-  showAdminSection,
   headerActions,
   suppressBranding = false,
   children,
@@ -52,8 +43,6 @@ export function CommunitySettings({
   const [isPrivate, setIsPrivate] = useState(community.is_private);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [promoting, setPromoting] = useState<string | null>(null);
-
   useEffect(() => {
     setName(community.name);
     setDescription(community.description ?? "");
@@ -115,27 +104,6 @@ export function CommunitySettings({
       router.refresh();
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function promote(userId: string) {
-    if (!showAdminSection || promoting) return;
-    setError(null);
-    setPromoting(userId);
-    try {
-      const res = await fetch(`/api/communities/${communityId}/promote`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError((data as { error?: string }).error ?? "Could not promote");
-        return;
-      }
-      router.refresh();
-    } finally {
-      setPromoting(null);
     }
   }
 
@@ -212,60 +180,6 @@ export function CommunitySettings({
 
   const editForm = editing ? editFormInner : null;
 
-  const adminSection = showAdminSection ? (
-        <section className="space-y-2 border-t border-zinc-800 pt-4">
-          <h2 className="text-sm font-semibold text-white">Admins</h2>
-          <p className="text-xs text-zinc-500">
-            Promote members to help manage this public community.
-          </p>
-          <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-            {members.map((m) => {
-              const isCreator = m.user_id === community.created_by;
-              return (
-                <li
-                  key={m.user_id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Link
-                      href={`/profile/${m.user_id}`}
-                      className="font-medium text-white hover:text-emerald-400 hover:underline"
-                    >
-                      {m.username}
-                    </Link>
-                    {m.role === "admin" ? (
-                      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300">
-                        Admin
-                      </span>
-                    ) : (
-                      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500">
-                        Member
-                      </span>
-                    )}
-                    {isCreator ? (
-                      <span className="text-xs text-amber-500/90">Creator</span>
-                    ) : null}
-                  </div>
-                  {m.role === "member" && m.user_id !== viewerId ? (
-                    <button
-                      type="button"
-                      onClick={() => void promote(m.user_id)}
-                      disabled={promoting === m.user_id}
-                      className="shrink-0 rounded border border-zinc-600 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
-                    >
-                      {promoting === m.user_id ? "…" : "Make admin"}
-                    </button>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          {error && !editing ? (
-            <p className="text-sm text-red-400">{error}</p>
-          ) : null}
-        </section>
-      ) : null;
-
   if (children) {
     const heroActions = (
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -288,7 +202,6 @@ export function CommunitySettings({
     const settingsBody = (
       <div className="min-w-0 flex-1 space-y-4">
         {publicCommunityWarning}
-        {adminSection}
       </div>
     );
 
@@ -382,7 +295,6 @@ export function CommunitySettings({
         </>
       )}
 
-      {adminSection}
     </div>
   );
 }
