@@ -573,6 +573,47 @@ async function getTrackStatsForTrackIdsSingleBatch(
 
 const TRACK_STATS_CHUNK = 120;
 
+/** PostgREST `.in()` size + songs pagination; must match chunked reads elsewhere. */
+const LEADERBOARD_ALBUM_IN_CHUNK = 120;
+
+/** All song IDs for albums in range (chunked `.in`, paginated past Supabase 1k default). */
+async function fetchSongIdsForAlbumIdsForLeaderboard(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  albumIds: string[],
+): Promise<string[]> {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (let i = 0; i < albumIds.length; i += LEADERBOARD_ALBUM_IN_CHUNK) {
+    const albumChunk = albumIds.slice(i, i + LEADERBOARD_ALBUM_IN_CHUNK);
+    let from = 0;
+    const pageSize = 1000;
+    for (;;) {
+      const { data, error } = await supabase
+        .from("songs")
+        .select("id")
+        .in("album_id", albumChunk)
+        .range(from, from + pageSize - 1);
+      if (error) {
+        console.error(
+          "[queries] fetchSongIdsForAlbumIdsForLeaderboard songs:",
+          error,
+        );
+        break;
+      }
+      const rows = data ?? [];
+      for (const r of rows) {
+        if (!seen.has(r.id)) {
+          seen.add(r.id);
+          out.push(r.id);
+        }
+      }
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+  }
+  return out;
+}
+
 /** Per-track stats for multiple song IDs. Reads from track_stats first; fallback aggregation for missing. */
 export async function getTrackStatsForTrackIds(
   trackIds: string[],
@@ -671,31 +712,78 @@ export async function getLeaderboard(
 
     let albumIds: string[] | null = null;
 
-    // Prefer explicit year range if provided
+    // Prefer explicit year range if provided (paginate: default PostgREST cap is 1000 rows)
     if (startYear != null || endYear != null) {
       const from = startYear ?? endYear!;
       const to = endYear ?? startYear!;
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id")
-        .gte("release_date", `${from}-01-01`)
-        .lte("release_date", `${to}-12-31`);
-      albumIds = (albums ?? []).map((a) => a.id);
+      const acc: string[] = [];
+      let rangeFrom = 0;
+      const pageSize = 1000;
+      let failed = false;
+      for (;;) {
+        const { data: albums, error } = await supabase
+          .from("albums")
+          .select("id")
+          .gte("release_date", `${from}-01-01`)
+          .lte("release_date", `${to}-12-31`)
+          .range(rangeFrom, rangeFrom + pageSize - 1);
+        if (error) {
+          console.error("[queries] getLeaderboard albums (year range):", error);
+          failed = true;
+          break;
+        }
+        const rows = albums ?? [];
+        acc.push(...rows.map((a) => a.id));
+        if (rows.length < pageSize) break;
+        rangeFrom += pageSize;
+      }
+      albumIds = failed ? [] : acc;
     } else if (year != null) {
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id")
-        .like("release_date", `${year}%`);
-      albumIds = (albums ?? []).map((a) => a.id);
+      const acc: string[] = [];
+      let rangeFrom = 0;
+      const pageSize = 1000;
+      let failed = false;
+      for (;;) {
+        const { data: albums, error } = await supabase
+          .from("albums")
+          .select("id")
+          .like("release_date", `${year}%`)
+          .range(rangeFrom, rangeFrom + pageSize - 1);
+        if (error) {
+          console.error("[queries] getLeaderboard albums (year):", error);
+          failed = true;
+          break;
+        }
+        const rows = albums ?? [];
+        acc.push(...rows.map((a) => a.id));
+        if (rows.length < pageSize) break;
+        rangeFrom += pageSize;
+      }
+      albumIds = failed ? [] : acc;
     } else if (decade != null) {
       const yearNum = decade + 10;
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id")
-        .gte("release_date", `${decade}-01-01`)
-        .lt("release_date", `${yearNum}-01-01`)
-        .limit(1000); // Prevent oversized ID lists in subsequent .in() filters
-      albumIds = (albums ?? []).map((a) => a.id);
+      const acc: string[] = [];
+      let rangeFrom = 0;
+      const pageSize = 1000;
+      let failed = false;
+      for (;;) {
+        const { data: albums, error } = await supabase
+          .from("albums")
+          .select("id")
+          .gte("release_date", `${decade}-01-01`)
+          .lt("release_date", `${yearNum}-01-01`)
+          .range(rangeFrom, rangeFrom + pageSize - 1);
+        if (error) {
+          console.error("[queries] getLeaderboard albums (decade):", error);
+          failed = true;
+          break;
+        }
+        const rows = albums ?? [];
+        acc.push(...rows.map((a) => a.id));
+        if (rows.length < pageSize) break;
+        rangeFrom += pageSize;
+      }
+      albumIds = failed ? [] : acc;
     }
 
     if (albumIds !== null && albumIds.length === 0) return [];
@@ -775,22 +863,40 @@ export async function getLeaderboard(
       }[];
 
       if (albumIds && albumIds.length > 0) {
-        const { data: songs } = await supabase
-          .from("songs")
-          .select("id")
-          .in("album_id", albumIds);
-        const trackIds = (songs ?? []).map((s) => s.id);
+        const trackIds = await fetchSongIdsForAlbumIdsForLeaderboard(
+          supabase,
+          albumIds,
+        );
         if (trackIds.length === 0) return [];
-        const { data: rows, error: statsError } = await supabase
-          .from("track_stats")
-          .select("track_id, listen_count, avg_rating")
-          .in("track_id", trackIds);
-        if (statsError || !rows?.length) return [];
-        statsRows = rows as {
+        const merged: {
           track_id: string;
           listen_count: number;
           avg_rating: number | null;
-        }[];
+        }[] = [];
+        for (let i = 0; i < trackIds.length; i += TRACK_STATS_CHUNK) {
+          const chunk = trackIds.slice(i, i + TRACK_STATS_CHUNK);
+          const { data: rows, error: statsError } = await supabase
+            .from("track_stats")
+            .select("track_id, listen_count, avg_rating")
+            .in("track_id", chunk);
+          if (statsError) {
+            console.error(
+              "[queries] getLeaderboard track_stats (year filter):",
+              statsError,
+            );
+            return [];
+          }
+          if (rows?.length)
+            merged.push(
+              ...(rows as {
+                track_id: string;
+                listen_count: number;
+                avg_rating: number | null;
+              }[]),
+            );
+        }
+        if (merged.length === 0) return [];
+        statsRows = merged;
       } else {
         const { data: rows, error: statsError } = await supabase
           .from("track_stats")
@@ -805,46 +911,57 @@ export async function getLeaderboard(
         }[];
       }
 
-      const { data: songRows } = await supabase
-        .from("songs")
-        .select("id, name, album_id, artist_id")
-        .in(
-          "id",
-          statsRows.map((r) => r.track_id),
+      const statTrackIds = statsRows.map((r) => r.track_id);
+      const songArray: {
+        id: string;
+        name: string;
+        album_id: string;
+        artist_id: string;
+      }[] = [];
+      for (let i = 0; i < statTrackIds.length; i += TRACK_STATS_CHUNK) {
+        const chunk = statTrackIds.slice(i, i + TRACK_STATS_CHUNK);
+        const { data: songRows } = await supabase
+          .from("songs")
+          .select("id, name, album_id, artist_id")
+          .in("id", chunk);
+        songArray.push(
+          ...((songRows ?? []) as {
+            id: string;
+            name: string;
+            album_id: string;
+            artist_id: string;
+          }[]),
         );
+      }
 
-      const songArray =
-        (songRows ?? []) as {
-          id: string;
-          name: string;
-          album_id: string;
-          artist_id: string;
-        }[];
       const songMap = new Map(songArray.map((s) => [s.id, s]));
       const albumIdsForSongs = [...new Set(songArray.map((s) => s.album_id))];
       const artistIds = [...new Set(songArray.map((s) => s.artist_id))];
 
-      const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
-        supabase
+      const albumRowsFlat: { id: string; image_url: string | null }[] = [];
+      for (let i = 0; i < albumIdsForSongs.length; i += TRACK_STATS_CHUNK) {
+        const chunk = albumIdsForSongs.slice(i, i + TRACK_STATS_CHUNK);
+        const { data } = await supabase
           .from("albums")
           .select("id, image_url")
-          .in("id", albumIdsForSongs),
-        supabase
+          .in("id", chunk);
+        albumRowsFlat.push(...((data ?? []) as typeof albumRowsFlat));
+      }
+      const artistRowsFlat: { id: string; name: string }[] = [];
+      for (let i = 0; i < artistIds.length; i += TRACK_STATS_CHUNK) {
+        const chunk = artistIds.slice(i, i + TRACK_STATS_CHUNK);
+        const { data } = await supabase
           .from("artists")
           .select("id, name")
-          .in("id", artistIds),
-      ]);
+          .in("id", chunk);
+        artistRowsFlat.push(...((data ?? []) as typeof artistRowsFlat));
+      }
 
       const albumMap = new Map(
-        (albumRows ?? []).map((a: { id: string; image_url: string | null }) => [
-          a.id,
-          a.image_url ?? null,
-        ]),
+        albumRowsFlat.map((a) => [a.id, a.image_url ?? null]),
       );
       const artistMap = new Map(
-        (artistRows ?? []).map(
-          (a: { id: string; name: string }) => [a.id, a.name] as const,
-        ),
+        artistRowsFlat.map((a) => [a.id, a.name] as const),
       );
 
       const entries: LeaderboardEntry[] = statsRows
@@ -894,16 +1011,35 @@ export async function getLeaderboard(
       | null = null;
 
     if (albumIds && albumIds.length > 0) {
-      const { data: rows, error: statsError } = await supabase
-        .from("album_stats")
-        .select("album_id, listen_count, avg_rating")
-        .in("album_id", albumIds);
-      if (statsError || !rows?.length) return [];
-      albumStatsRows = rows as {
+      const mergedAlbumStats: {
         album_id: string;
         listen_count: number;
         avg_rating: number | null;
-      }[];
+      }[] = [];
+      for (let i = 0; i < albumIds.length; i += LEADERBOARD_ALBUM_IN_CHUNK) {
+        const chunk = albumIds.slice(i, i + LEADERBOARD_ALBUM_IN_CHUNK);
+        const { data: rows, error: statsError } = await supabase
+          .from("album_stats")
+          .select("album_id, listen_count, avg_rating")
+          .in("album_id", chunk);
+        if (statsError) {
+          console.error(
+            "[queries] getLeaderboard album_stats (year filter):",
+            statsError,
+          );
+          return [];
+        }
+        if (rows?.length)
+          mergedAlbumStats.push(
+            ...(rows as {
+              album_id: string;
+              listen_count: number;
+              avg_rating: number | null;
+            }[]),
+          );
+      }
+      if (mergedAlbumStats.length === 0) return [];
+      albumStatsRows = mergedAlbumStats;
     } else {
       const { data: rows, error: statsError } = await supabase
         .from("album_stats")

@@ -1524,6 +1524,63 @@ async function getOrFetchTracksBatchInner(
     lookup.set(song.id, buildTrackFromRows(song, album, artistName));
   }
 
+  if (net) {
+    const canonicalsBySpotifyId = new Map<string, string[]>();
+    for (const song of songs) {
+      const t = lookup.get(song.id);
+      if (!t) continue;
+      if (t.album?.images?.[0]?.url) continue;
+      const spotifyId = song.id.startsWith("lfm:")
+        ? trimmedSpotifyId(song)
+        : song.id;
+      if (!spotifyId) continue;
+      const list = canonicalsBySpotifyId.get(spotifyId) ?? [];
+      list.push(song.id);
+      canonicalsBySpotifyId.set(spotifyId, list);
+    }
+    if (canonicalsBySpotifyId.size > 0) {
+      try {
+        const spotifyIds = [...canonicalsBySpotifyId.keys()];
+        for (const idChunk of chunkArray(spotifyIds, MAX_SPOTIFY_ITEMS)) {
+          const fetched = await getTracks(idChunk);
+          for (let i = 0; i < idChunk.length; i++) {
+            const track = fetched[i];
+            if (!track) continue;
+            const sid = idChunk[i];
+            const canonicalIds = canonicalsBySpotifyId.get(sid) ?? [];
+            const alb = track.album;
+            for (const canonicalId of canonicalIds) {
+              if (alb) {
+                try {
+                  await upsertTrackFromSpotify(
+                    supabase,
+                    track,
+                    alb.id,
+                    alb.name,
+                    alb.images?.[0]?.url ?? null,
+                    "release_date" in alb ? alb.release_date : undefined,
+                  );
+                } catch (e) {
+                  console.warn(
+                    `${LOG_PREFIX} upsertTrackFromSpotify (artwork supplement) failed`,
+                    canonicalId,
+                    e,
+                  );
+                }
+              }
+              const final = canonicalId.startsWith("lfm:")
+                ? withCanonicalSongId(canonicalId, track)
+                : track;
+              lookup.set(canonicalId, final);
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`${LOG_PREFIX} getTracks artwork supplement failed`, e);
+      }
+    }
+  }
+
   for (const song of allSongs) {
     if (lookup.has(song.id)) continue;
     if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {

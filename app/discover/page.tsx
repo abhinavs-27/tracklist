@@ -30,6 +30,9 @@ const HiddenGemsSection = dynamic(
 
 const MAX_ITEMS = 20;
 
+/** Discover is a user-facing surface; allow Spotify for batch hydration (default catalog policy is DB-only). */
+const DISCOVER_CATALOG_OPTS = { allowNetwork: true as const };
+
 export default async function DiscoverPage() {
   const session = await getServerSession(authOptions);
   const recommendedCommunitiesPromise = session?.user?.id
@@ -71,11 +74,17 @@ export default async function DiscoverPage() {
   const discoverTrackIds = [...trendingTrackIds, ...hiddenGemsByType.song];
   const discoverAlbumIds = hiddenGemsByType.album;
   const risingArtistIds = risingArtists.map((a) => a.artist_id);
-  const trackArr = await getOrFetchTracksBatch(discoverTrackIds);
-  const albumArr = await getOrFetchAlbumsBatch(discoverAlbumIds);
+  const trackArr = await getOrFetchTracksBatch(
+    discoverTrackIds,
+    DISCOVER_CATALOG_OPTS,
+  );
+  const albumArr = await getOrFetchAlbumsBatch(
+    discoverAlbumIds,
+    DISCOVER_CATALOG_OPTS,
+  );
   const artistArr =
     risingArtistIds.length > 0
-      ? await getOrFetchArtistsBatch(risingArtistIds)
+      ? await getOrFetchArtistsBatch(risingArtistIds, DISCOVER_CATALOG_OPTS)
       : [];
   const tracksMap = batchResultsToMap(discoverTrackIds, trackArr);
   const albumsMap = batchResultsToMap(discoverAlbumIds, albumArr);
