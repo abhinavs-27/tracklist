@@ -13,8 +13,8 @@ export default async function ListeningReportsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-8">
-      <Link href="/" className="text-sm text-emerald-400 hover:underline">
-        ← Home
+      <Link href="/you" className="text-sm text-emerald-400 hover:underline">
+        ← You
       </Link>
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">Listening reports</h1>

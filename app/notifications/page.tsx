@@ -2,13 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getNotifications } from "@/lib/queries";
+import { NotificationsAcknowledge } from "@/components/notifications/notifications-acknowledge";
+import { getNotifications, markNotificationsRead } from "@/lib/queries";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export default async function NotificationsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/auth/signin");
 
+  await markNotificationsRead(session.user.id);
   const notifications = await getNotifications(session.user.id, 50);
   const actorIds = [...new Set((notifications.map((n) => n.actor_user_id).filter(Boolean) as string[]))];
   const supabase = await createSupabaseServerClient();
@@ -19,6 +21,7 @@ export default async function NotificationsPage() {
 
   return (
     <div className="space-y-6">
+      <NotificationsAcknowledge />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Notifications</h1>
         <Link href="/" className="text-sm text-emerald-400 hover:underline">← Home</Link>

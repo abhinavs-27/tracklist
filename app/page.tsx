@@ -36,10 +36,10 @@ export default async function HomePage({
           Sign in with Google
         </Link>
         <Link
-          href="/search"
+          href="/explore"
           className="mt-6 text-base text-zinc-400 underline-offset-4 transition hover:text-white hover:underline"
         >
-          or explore search
+          Explore Tracklist
         </Link>
       </div>
     );

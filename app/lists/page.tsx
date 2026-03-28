@@ -19,11 +19,8 @@ export default async function ListsPage() {
 
       {userId && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
-          <Link
-            href={`/profile/${userId}#lists`}
-            className="text-emerald-400 hover:underline"
-          >
-            Your lists →
+          <Link href="/you" className="text-emerald-400 hover:underline">
+            You hub →
           </Link>
           <span className="ml-2 text-zinc-500">
             Create and view your lists on your profile.

@@ -570,7 +570,7 @@ export function LastfmSection({
             )}
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
-                href="/feed"
+                href="/"
                 className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-700"
               >
                 View your logs

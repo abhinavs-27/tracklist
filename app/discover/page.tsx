@@ -106,7 +106,13 @@ export default async function DiscoverPage() {
   return (
     <div className="space-y-10 sm:space-y-12">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+        <Link
+          href="/explore"
+          className="text-sm font-medium text-zinc-500 transition hover:text-emerald-400"
+        >
+          ← Explore
+        </Link>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
           Discover
         </h1>
         <p className="mt-3 text-base text-zinc-400 sm:text-lg">

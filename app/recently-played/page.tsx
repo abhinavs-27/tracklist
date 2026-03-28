@@ -57,7 +57,7 @@ export default function RecentlyPlayedPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link
-          href="/feed"
+          href="/"
           className="text-sm text-zinc-400 hover:text-white"
         >
           ← Back

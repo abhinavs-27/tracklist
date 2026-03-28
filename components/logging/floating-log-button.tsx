@@ -6,7 +6,7 @@ export function FloatingLogButton() {
   const { setQuickLogOpen, logBusy } = useLogging();
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[80] flex justify-end p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+    <div className="pointer-events-none fixed inset-x-0 z-[80] flex justify-end p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 bottom-0 max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-0">
       <button
         type="button"
         aria-label="Quick log listen"

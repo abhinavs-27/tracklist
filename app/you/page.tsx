@@ -1,0 +1,139 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getUserLists } from "@/lib/queries";
+import { SectionBlock } from "@/components/layout/section-block";
+import { cardElevated, pageTitle, sectionGap } from "@/lib/ui/surface";
+
+export default async function YouHubPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect("/auth/signin?callbackUrl=/you");
+  }
+
+  const userId = session.user.id;
+  const supabase = createSupabaseAdminClient();
+  const { data: user } = await supabase
+    .from("users")
+    .select("id, username, avatar_url, bio")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const lists = await getUserLists(userId, 4, 0);
+
+  const u = user as {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    bio: string | null;
+  } | null;
+
+  return (
+    <div className={sectionGap}>
+      <header>
+        <h1 className={pageTitle}>You</h1>
+        <p className="mt-3 text-base text-zinc-400 sm:text-lg">
+          Your profile, lists, and listening insights.
+        </p>
+      </header>
+
+      <Link
+        href={`/profile/${userId}`}
+        className={`block ${cardElevated} p-5 transition hover:bg-zinc-900/70 sm:p-6`}
+      >
+        <div className="flex items-start gap-4">
+          {u?.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={u.avatar_url}
+              alt=""
+              className="h-16 w-16 shrink-0 rounded-full object-cover ring-1 ring-white/10 sm:h-20 sm:w-20"
+            />
+          ) : (
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xl text-zinc-300 ring-1 ring-white/10 sm:h-20 sm:w-20">
+              {(u?.username ?? "?")[0]?.toUpperCase() ?? "?"}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold text-white">
+              {u?.username ?? "Profile"}
+            </h2>
+            {u?.bio?.trim() ? (
+              <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{u.bio}</p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-500">View and edit your public profile →</p>
+            )}
+            <span className="mt-3 inline-flex text-sm font-medium text-emerald-400">
+              Open profile
+            </span>
+          </div>
+        </div>
+      </Link>
+
+      <SectionBlock
+        title="Your lists"
+        description="Curated albums and tracks."
+        action={
+          lists.length > 0 ? { label: "Browse all lists →", href: "/lists" } : undefined
+        }
+      >
+        {lists.length === 0 ? (
+          <div className={`${cardElevated} px-4 py-6 text-center text-sm text-zinc-500`}>
+            No lists yet.{" "}
+            <Link href={`/profile/${userId}#lists`} className="text-emerald-400 hover:underline">
+              Create one on your profile
+            </Link>
+            .
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {lists.map((list) => (
+              <li key={list.id}>
+                <Link
+                  href={`/lists/${list.id}`}
+                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3 ${cardElevated} transition hover:bg-zinc-900/70`}
+                >
+                  <span className="min-w-0 truncate font-medium text-white">
+                    {list.emoji ? `${list.emoji} ` : ""}
+                    {list.title}
+                  </span>
+                  <span className="shrink-0 text-xs text-zinc-500">
+                    {list.item_count ?? 0} items
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionBlock>
+
+      <SectionBlock
+        title="Listening reports"
+        description="Top artists, albums, and genres across your history."
+        action={{ label: "Open reports →", href: "/reports/listening" }}
+      >
+        <Link
+          href="/reports/listening"
+          className={`block ${cardElevated} p-5 transition hover:bg-zinc-900/70 sm:p-6`}
+        >
+          <p className="text-sm leading-relaxed text-zinc-400">
+            Deep dives into what you listen to — preset ranges and custom windows.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <span className="inline-flex rounded-xl bg-emerald-600/20 px-3 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+              Weekly insights
+            </span>
+            <span className="inline-flex rounded-xl bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400 ring-1 ring-white/[0.06]">
+              Custom ranges
+            </span>
+          </div>
+          <span className="mt-4 inline-flex text-sm font-medium text-emerald-400">
+            View listening reports →
+          </span>
+        </Link>
+      </SectionBlock>
+    </div>
+  );
+}

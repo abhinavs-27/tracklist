@@ -3,10 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { getServerSession } from "next-auth";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { Navbar } from "@/components/navbar";
+import { AppLayout } from "@/components/layout/app-layout";
 import { ProfilingHydrationMarker } from "@/components/profiling-hydration-marker";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { countUnreadNotifications } from "@/lib/queries";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -50,9 +51,10 @@ export default async function RootLayout({
     }
   }
 
-  const mainPaddingBottom = hideQuickLogFab
-    ? "pb-6 sm:pb-8"
-    : "pb-24";
+  let unreadCount = 0;
+  if (session?.user?.id) {
+    unreadCount = await countUnreadNotifications(session.user.id);
+  }
 
   return (
     <html lang="en" className="overflow-x-clip">
@@ -61,12 +63,9 @@ export default async function RootLayout({
       >
         <Providers session={session} hideQuickLogFab={hideQuickLogFab}>
           <ProfilingHydrationMarker />
-          <Navbar />
-          <main
-            className={`mx-auto w-full max-w-6xl min-w-0 px-4 pt-8 sm:px-6 sm:pt-10 lg:px-8 ${mainPaddingBottom}`}
-          >
+          <AppLayout unreadCount={unreadCount} hideQuickLogFab={hideQuickLogFab}>
             {children}
-          </main>
+          </AppLayout>
           <Analytics />
           <SpeedInsights />
         </Providers>

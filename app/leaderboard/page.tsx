@@ -173,7 +173,13 @@ export default function LeaderboardPage() {
   return (
     <div className={sectionGap}>
       <header>
-        <h1 className={pageTitle}>Leaderboard</h1>
+        <Link
+          href="/explore"
+          className="text-sm font-medium text-zinc-500 transition hover:text-emerald-400"
+        >
+          ← Explore
+        </Link>
+        <h1 className={`${pageTitle} mt-3`}>Leaderboard</h1>
         <p className={pageSubtitle}>
           Most popular and top rated {entity === "album" ? "albums" : "songs"}.
           Adjust filters to change the time period.

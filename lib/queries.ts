@@ -1812,6 +1812,24 @@ export type NotificationRow = {
   created_at: string;
 };
 
+export async function countUnreadNotifications(
+  userId: string,
+): Promise<number> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { count, error } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("read", false);
+    if (error) return 0;
+    return count ?? 0;
+  } catch (e) {
+    console.error("[queries] countUnreadNotifications failed:", e);
+    return 0;
+  }
+}
+
 export async function getNotifications(
   userId: string,
   limit = 50,
