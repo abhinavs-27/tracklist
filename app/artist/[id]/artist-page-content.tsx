@@ -24,7 +24,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
   let artist: SpotifyApi.ArtistObjectFull;
   try {
-    artist = await getOrFetchArtist(id);
+    artist = await getOrFetchArtist(id, { allowNetwork: true });
   } catch {
     notFound();
   }

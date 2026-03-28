@@ -621,7 +621,7 @@ async function getOrFetchArtistInner(
     try {
       const artist = await getArtist(id);
       try {
-        await upsertArtistFromSpotify(supabase, artist);
+        await upsertArtistFromSpotify(createSupabaseAdminClient(), artist);
       } catch (e) {
         console.error(
           `${LOG_PREFIX} upsertArtistFromSpotify (backfill image) error`,
@@ -662,7 +662,7 @@ async function getOrFetchArtistInner(
   try {
     const artist = await getArtist(id);
     try {
-      await upsertArtistFromSpotify(supabase, artist);
+      await upsertArtistFromSpotify(createSupabaseAdminClient(), artist);
     } catch (e) {
       console.error(`${LOG_PREFIX} upsertArtistFromSpotify error`, e);
     }
@@ -1203,16 +1203,23 @@ export async function getOrFetchAlbum(
 
 /** Fetch album + tracks from Spotify and upsert (album once, each artist once, each song once). Returns the fetched data or null on error. */
 async function refreshAlbumFromSpotify(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   id: string,
 ): Promise<{
   album: SpotifyApi.AlbumObjectFull | null;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> | null;
 }> {
+  /** Catalog tables are RLS read-only for anon; writes require service role (see 009_spotify_entities.sql). */
+  const db = createSupabaseAdminClient();
   try {
-    const albumResp = await getAlbum(id);
-    const tracksResp = await getAllAlbumTracks(id);
-    await upsertAlbumFromSpotify(supabase, albumResp);
+    const albumResp = await getAlbum(id, { skipCache: true });
+    const tracksResp = await getAllAlbumTracks(id, { skipCache: true });
+    if ((tracksResp.items ?? []).length === 0) {
+      console.warn(
+        `${LOG_PREFIX} Spotify returned 0 tracks for album ${id} (${albumResp.name ?? "?"})`,
+      );
+    }
+    await upsertAlbumFromSpotify(db, albumResp);
     const albumArtistId = albumResp.artists?.[0]?.id;
     const artistIds = new Set<string>();
     for (const t of tracksResp.items ?? []) {
@@ -1223,11 +1230,11 @@ async function refreshAlbumFromSpotify(
       if (aid === albumArtistId) continue;
       const art = tracksResp.items?.find((tr) => tr.artists?.[0]?.id === aid)
         ?.artists?.[0];
-      if (art) await upsertArtistFromSpotify(supabase, art);
+      if (art) await upsertArtistFromSpotify(db, art);
     }
     for (const t of tracksResp.items ?? []) {
       const firstId = t.artists?.[0]?.id ?? albumArtistId;
-      if (firstId) await upsertSongRowOnly(supabase, t, albumResp.id, firstId);
+      if (firstId) await upsertSongRowOnly(db, t, albumResp.id, firstId);
     }
     return { album: albumResp, tracks: tracksResp };
   } catch (e) {

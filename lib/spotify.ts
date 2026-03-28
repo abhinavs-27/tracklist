@@ -92,8 +92,13 @@ export async function getArtistAlbums(
 
 export async function getAlbum(
   spotifyId: string,
+  opts?: { skipCache?: boolean },
 ): Promise<SpotifyApi.AlbumObjectFull> {
-  return spotifyFetch<SpotifyApi.AlbumObjectFull>(`/albums/${spotifyId}`);
+  return spotifyFetch<SpotifyApi.AlbumObjectFull>(
+    `/albums/${spotifyId}`,
+    undefined,
+    { skipCache: opts?.skipCache },
+  );
 }
 
 /**
@@ -121,16 +126,22 @@ export async function getAlbumTracks(
   spotifyId: string,
   limit = 50,
   offset = 0,
+  opts?: { skipCache?: boolean },
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>> {
-  return spotifyFetch(`/albums/${spotifyId}/tracks`, {
-    limit: String(limit),
-    offset: String(offset),
-  });
+  return spotifyFetch(
+    `/albums/${spotifyId}/tracks`,
+    {
+      limit: String(limit),
+      offset: String(offset),
+    },
+    { skipCache: opts?.skipCache },
+  );
 }
 
 /** All album tracks (Spotify caps each request at 50; follows pagination). */
 export async function getAllAlbumTracks(
   spotifyId: string,
+  opts?: { skipCache?: boolean },
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>> {
   const pageLimit = 50;
   let offset = 0;
@@ -138,7 +149,7 @@ export async function getAllAlbumTracks(
   let first: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> | null =
     null;
   for (;;) {
-    const page = await getAlbumTracks(spotifyId, pageLimit, offset);
+    const page = await getAlbumTracks(spotifyId, pageLimit, offset, opts);
     if (!first) first = page;
     const items = page.items ?? [];
     allItems.push(...items);

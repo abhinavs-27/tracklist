@@ -28,7 +28,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     "albumPage",
     async () => {
       const settledInner = await Promise.allSettled([
-        getOrFetchAlbum(id),
+        getOrFetchAlbum(id, { allowNetwork: true }),
         getEntityStats("album", id),
         getAlbumEngagementStats(id),
         viewerId

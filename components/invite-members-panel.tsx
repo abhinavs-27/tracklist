@@ -67,6 +67,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
 
   const [linkBusy, setLinkBusy] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [invitePrefetchDone, setInvitePrefetchDone] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
 
   useEffect(() => {
@@ -74,6 +75,30 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
     const t = window.setTimeout(() => setJustCopied(false), 2800);
     return () => window.clearTimeout(t);
   }, [justCopied]);
+
+  /** Reuse latest invite link from the server so copy is instant (no POST per tap). */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/community/invite?communityId=${encodeURIComponent(communityId)}`,
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          invite_url?: string | null;
+        };
+        if (cancelled) return;
+        if (res.ok && typeof data.invite_url === "string" && data.invite_url) {
+          setInviteUrl(data.invite_url);
+        }
+      } finally {
+        if (!cancelled) setInvitePrefetchDone(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [communityId]);
 
   const runSearch = useCallback(async (query: string) => {
     const t = query.trim();
@@ -119,7 +144,39 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
     }
   }, []);
 
-  async function generateAndCopyLink() {
+  async function copyOrCreateInviteLink() {
+    setFeedback(null);
+    if (inviteUrl) {
+      await copyUrlToClipboard(inviteUrl);
+      return;
+    }
+    setLinkBusy(true);
+    try {
+      const res = await fetch("/api/community/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ communityId, expiresInDays: null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFeedback({
+          tone: "warning",
+          text:
+            (data as { error?: string }).error ?? "Could not create invite link",
+        });
+        return;
+      }
+      const url = (data as { invite_url?: string }).invite_url;
+      if (url) {
+        setInviteUrl(url);
+        await copyUrlToClipboard(url);
+      }
+    } finally {
+      setLinkBusy(false);
+    }
+  }
+
+  async function createNewInviteLink() {
     setFeedback(null);
     setLinkBusy(true);
     try {
@@ -201,16 +258,18 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
 
         <button
           type="button"
-          disabled={linkBusy}
-          onClick={() => void generateAndCopyLink()}
+          disabled={linkBusy || !invitePrefetchDone}
+          onClick={() => void copyOrCreateInviteLink()}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100 disabled:opacity-50"
         >
-          {linkBusy ? (
-            "Creating link…"
+          {!invitePrefetchDone ? (
+            "Loading link…"
+          ) : linkBusy ? (
+            inviteUrl ? "Copying…" : "Creating link…"
           ) : (
             <>
               <ClipboardIcon className="h-4 w-4" />
-              Generate link &amp; copy
+              {inviteUrl ? "Copy invite link" : "Generate link & copy"}
             </>
           )}
         </button>
@@ -235,13 +294,23 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
                 {inviteUrl}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void copyAgain()}
-              className={`font-medium text-emerald-400/90 hover:text-emerald-300 ${communityMeta}`}
-            >
-              Copy again
-            </button>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <button
+                type="button"
+                onClick={() => void copyAgain()}
+                className={`font-medium text-emerald-400/90 hover:text-emerald-300 ${communityMeta}`}
+              >
+                Copy again
+              </button>
+              <button
+                type="button"
+                disabled={linkBusy}
+                onClick={() => void createNewInviteLink()}
+                className={`font-medium text-zinc-500 hover:text-zinc-300 disabled:opacity-50 ${communityMeta}`}
+              >
+                New link
+              </button>
+            </div>
           </div>
         ) : null}
       </div>

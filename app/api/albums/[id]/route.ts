@@ -23,7 +23,7 @@ export async function GET(
 
     let albumResp: Awaited<ReturnType<typeof getOrFetchAlbum>>;
     try {
-      albumResp = await getOrFetchAlbum(id);
+      albumResp = await getOrFetchAlbum(id, { allowNetwork: true });
     } catch {
       return apiNotFound("Album not found");
     }

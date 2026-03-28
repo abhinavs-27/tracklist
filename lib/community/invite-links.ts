@@ -48,6 +48,58 @@ export function isInviteLinkExpired(row: CommunityInviteLinkRow): boolean {
 }
 
 /**
+ * Returns the most recent non-expired invite token for this community, if any.
+ * Same permission rules as {@link createCommunityInviteLink} (reuses one link for faster copy UX).
+ */
+export async function getLatestActiveInviteLinkTokenForCommunity(args: {
+  communityId: string;
+  actorUserId: string;
+}): Promise<
+  | { ok: true; token: string | null }
+  | { ok: false; reason: "not_found" | "forbidden" | "error" }
+> {
+  const cid = args.communityId.trim();
+  const actor = args.actorUserId.trim();
+  if (!cid || !actor) return { ok: false, reason: "error" };
+
+  const community = await getCommunityById(cid);
+  if (!community) return { ok: false, reason: "not_found" };
+
+  const isMember = await isCommunityMember(cid, actor);
+  const role = await getCommunityMemberRole(cid, actor);
+  if (
+    !isMember ||
+    role === null ||
+    !canInviteToCommunity(community.is_private, true, role as CommunityMemberRole)
+  ) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: rows, error } = await admin
+    .from("community_invite_links")
+    .select("token, expires_at")
+    .eq("community_id", cid)
+    .order("created_at", { ascending: false })
+    .limit(12);
+
+  if (error) {
+    console.error("[community] get latest invite link", error);
+    return { ok: false, reason: "error" };
+  }
+
+  const now = Date.now();
+  for (const row of rows ?? []) {
+    const r = row as { token: string; expires_at: string | null };
+    if (!r.expires_at || new Date(r.expires_at).getTime() > now) {
+      return { ok: true, token: r.token };
+    }
+  }
+
+  return { ok: true, token: null };
+}
+
+/**
  * Creates a shareable invite link. Only community admins (or any member for private communities).
  */
 export async function createCommunityInviteLink(args: {
