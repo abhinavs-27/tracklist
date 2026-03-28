@@ -155,11 +155,7 @@ export async function ingestLastfmScrobbles(
       console.warn("[lastfm ingest] song upsert failed", songErr);
     }
 
-    void enqueueSpotifyEnrich({
-      name: "resolve_artist_spotify",
-      lfmArtistId: artistId,
-      artistName,
-    });
+    /** Track job maps Last.fm → Spotify and links the synthetic `lfm:*` artist row (see resolveTrackSpotifyJob). */
     void enqueueSpotifyEnrich({
       name: "resolve_track_spotify",
       lfmSongId: songId,

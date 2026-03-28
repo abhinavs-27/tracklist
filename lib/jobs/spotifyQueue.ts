@@ -62,9 +62,22 @@ export function getSpotifyEnrichQueue(): Queue | null {
  * Enqueue catalog hydration (requires `REDIS_URL` + a running worker).
  * No-op when Redis is not configured — callers should fall back to direct cache reads.
  */
-/** BullMQ: 0 = highest priority (see bullmq Job.priority). */
+/** BullMQ: lower number = higher priority (see bullmq Job.priority). */
 const PRIORITY_USER = 0;
+/** Last.fm synthetic id resolution — ahead of generic catalog enrichment. */
+const PRIORITY_LASTFM = 2;
 const PRIORITY_BACKGROUND = 10;
+
+function priorityForJob(job: SpotifyEnrichJobData): number {
+  if (job.name === "user_fetch") return PRIORITY_USER;
+  if (
+    job.name === "resolve_artist_spotify" ||
+    job.name === "resolve_track_spotify"
+  ) {
+    return PRIORITY_LASTFM;
+  }
+  return PRIORITY_BACKGROUND;
+}
 
 type EnrichQueueMetrics = {
   enqueued: number;
@@ -76,7 +89,8 @@ type EnrichQueueMetrics = {
   usingInMemoryQueue: boolean;
 };
 
-const inMemoryQueueHigh: SpotifyEnrichJobData[] = [];
+const inMemoryQueueUserFetch: SpotifyEnrichJobData[] = [];
+const inMemoryQueueLastfm: SpotifyEnrichJobData[] = [];
 const inMemoryQueueBackground: SpotifyEnrichJobData[] = [];
 const inMemoryDedupe = new Set<string>();
 let inMemoryProcessing = false;
@@ -90,10 +104,6 @@ const queueMetrics: EnrichQueueMetrics = {
   dbFallbackHits: 0,
   usingInMemoryQueue: false,
 };
-
-function isHighPriorityJob(job: SpotifyEnrichJobData): boolean {
-  return job.name === "user_fetch";
-}
 
 function jobKey(job: SpotifyEnrichJobData): string {
   switch (job.name) {
@@ -113,7 +123,9 @@ function jobKey(job: SpotifyEnrichJobData): string {
 
 function recalcPendingEnrichments(): void {
   queueMetrics.pendingEnrichments =
-    inMemoryQueueHigh.length + inMemoryQueueBackground.length;
+    inMemoryQueueUserFetch.length +
+    inMemoryQueueLastfm.length +
+    inMemoryQueueBackground.length;
 }
 
 function scheduleInMemoryProcessor(delayMs = 0): void {
@@ -129,7 +141,10 @@ async function processInMemoryQueue(): Promise<void> {
   inMemoryProcessing = true;
   try {
     for (;;) {
-      const next = inMemoryQueueHigh.shift() ?? inMemoryQueueBackground.shift();
+      const next =
+        inMemoryQueueUserFetch.shift() ??
+        inMemoryQueueLastfm.shift() ??
+        inMemoryQueueBackground.shift();
       if (!next) break;
       recalcPendingEnrichments();
       const key = jobKey(next);
@@ -153,7 +168,11 @@ async function processInMemoryQueue(): Promise<void> {
   } finally {
     inMemoryProcessing = false;
     recalcPendingEnrichments();
-    if (inMemoryQueueHigh.length > 0 || inMemoryQueueBackground.length > 0) {
+    if (
+      inMemoryQueueUserFetch.length > 0 ||
+      inMemoryQueueLastfm.length > 0 ||
+      inMemoryQueueBackground.length > 0
+    ) {
       scheduleInMemoryProcessor(0);
     }
   }
@@ -167,8 +186,15 @@ async function enqueueInMemory(job: SpotifyEnrichJobData): Promise<void> {
     return;
   }
   inMemoryDedupe.add(key);
-  if (isHighPriorityJob(job)) inMemoryQueueHigh.push(job);
-  else inMemoryQueueBackground.push(job);
+  if (job.name === "user_fetch") inMemoryQueueUserFetch.push(job);
+  else if (
+    job.name === "resolve_artist_spotify" ||
+    job.name === "resolve_track_spotify"
+  ) {
+    inMemoryQueueLastfm.push(job);
+  } else {
+    inMemoryQueueBackground.push(job);
+  }
   queueMetrics.enqueued += 1;
   recalcPendingEnrichments();
   scheduleInMemoryProcessor(0);
@@ -182,9 +208,8 @@ export async function enqueueSpotifyEnrich(
     await enqueueInMemory(job);
     return;
   }
-  const priority = job.name === "user_fetch" ? PRIORITY_USER : PRIORITY_BACKGROUND;
   await q.add(job.name, job, {
-    priority,
+    priority: priorityForJob(job),
     removeOnComplete: 500,
     removeOnFail: 200,
   });
@@ -251,7 +276,9 @@ export function getSpotifyEnrichMetrics(): Readonly<
     ...queueMetrics,
     pendingEnrichments:
       queueMetrics.usingInMemoryQueue
-        ? inMemoryQueueHigh.length + inMemoryQueueBackground.length
+        ? inMemoryQueueUserFetch.length +
+          inMemoryQueueLastfm.length +
+          inMemoryQueueBackground.length
         : queueMetrics.pendingEnrichments,
     spotifyClient: getSpotifyClientMetrics(),
   };

@@ -62,6 +62,23 @@ const metrics: SpotifyMetrics = {
 
 let inMemoryCircuitUntil = 0;
 
+function parsePositiveIntEnv(name: string, fallback: number): number {
+  const v = process.env[name]?.trim();
+  if (!v) return fallback;
+  const n = Number.parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * Self-throttle to stay under Spotify Web API limits. Tune via env without code changes.
+ * Defaults are slightly conservative vs historical 200ms / 30·min⁻¹ to reduce 429s under burst load.
+ */
+const SPOTIFY_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_MIN_TIME_MS", 300);
+const SPOTIFY_RESERVOIR_PER_MIN = parsePositiveIntEnv(
+  "SPOTIFY_RESERVOIR_PER_MIN",
+  24,
+);
+
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */
 export const spotifyLimiter = (() => {
   const url = process.env.REDIS_URL?.trim();
@@ -72,17 +89,17 @@ export const spotifyLimiter = (() => {
       id: "spotify-catalog-limiter",
       clientOptions: url,
       maxConcurrent: 1,
-      minTime: 200,
-      reservoir: 30,
-      reservoirRefreshAmount: 30,
+      minTime: SPOTIFY_MIN_TIME_MS,
+      reservoir: SPOTIFY_RESERVOIR_PER_MIN,
+      reservoirRefreshAmount: SPOTIFY_RESERVOIR_PER_MIN,
       reservoirRefreshInterval: 60 * 1000,
     });
   }
   return new Bottleneck({
     maxConcurrent: 1,
-    minTime: 200,
-    reservoir: 30,
-    reservoirRefreshAmount: 30,
+    minTime: SPOTIFY_MIN_TIME_MS,
+    reservoir: SPOTIFY_RESERVOIR_PER_MIN,
+    reservoirRefreshAmount: SPOTIFY_RESERVOIR_PER_MIN,
     reservoirRefreshInterval: 60 * 1000,
   });
 })();

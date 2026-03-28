@@ -1,8 +1,9 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { lfmArtistId } from "@/lib/lastfm/lfm-ids";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
-import { getArtist, getTrack, searchSpotify } from "@/lib/spotify";
+import { getTrack, searchSpotify } from "@/lib/spotify";
 import { pickBestArtistMatch } from "@/lib/spotify/matching";
 import {
   upsertAlbumFromSpotify,
@@ -13,9 +14,53 @@ function clampPopularity(n: number): number {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
+async function linkLfmArtistRowToSpotify(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  lfmRowId: string,
+  spotify: SpotifyApi.ArtistObjectFull | SpotifyApi.ArtistObjectSimplified,
+): Promise<void> {
+  const fullPop = spotify as SpotifyApi.ArtistObjectFull & {
+    popularity?: number;
+  };
+  const genres =
+    "genres" in spotify && Array.isArray(spotify.genres) && spotify.genres.length > 0
+      ? spotify.genres
+      : null;
+  const pop =
+    typeof fullPop.popularity === "number"
+      ? clampPopularity(fullPop.popularity)
+      : 0;
+  const imageUrl =
+    "images" in spotify && spotify.images?.[0]?.url
+      ? spotify.images[0].url
+      : null;
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("artists")
+    .update({
+      spotify_id: spotify.id,
+      name: spotify.name,
+      image_url: imageUrl,
+      genres,
+      popularity: pop,
+      needs_spotify_enrichment: false,
+      data_source: "mixed",
+      last_updated: now,
+      updated_at: now,
+      cached_at: now,
+    })
+    .eq("id", lfmRowId);
+
+  if (error) {
+    console.warn("[resolve-spotify] lfm artist row update failed", error);
+  }
+}
+
 /**
  * Best-effort Spotify artist resolution for a synthetic `lfm:*` artist row.
  * Never throws — failures are logged and retried later via cron.
+ *
+ * Uses search + match only (no extra GET /artists/{id}) to minimize API calls.
  */
 export async function resolveArtistSpotifyJob(data: {
   lfmArtistId: string;
@@ -30,34 +75,8 @@ export async function resolveArtistSpotifyJob(data: {
     const pick = pickBestArtistMatch(data.artistName, items);
     if (!pick) return;
 
-    const full = await getArtist(pick.id, { allowClientCredentials: true });
-    await upsertArtistFromSpotify(supabase, full);
-
-    const fullPop = full as SpotifyApi.ArtistObjectFull & {
-      popularity?: number;
-    };
-    const now = new Date().toISOString();
-    const { error } = await supabase
-      .from("artists")
-      .update({
-        spotify_id: full.id,
-        name: full.name,
-        image_url: full.images?.[0]?.url ?? null,
-        genres: full.genres ?? null,
-        popularity: clampPopularity(
-          typeof fullPop.popularity === "number" ? fullPop.popularity : 0,
-        ),
-        needs_spotify_enrichment: false,
-        data_source: "mixed",
-        last_updated: now,
-        updated_at: now,
-        cached_at: now,
-      })
-      .eq("id", data.lfmArtistId);
-
-    if (error) {
-      console.warn("[resolve-artist-spotify] artists update failed", error);
-    }
+    await upsertArtistFromSpotify(supabase, pick);
+    await linkLfmArtistRowToSpotify(supabase, data.lfmArtistId, pick);
   } catch (e) {
     console.warn("[resolve-artist-spotify] skipped", {
       lfmArtistId: data.lfmArtistId,
@@ -93,6 +112,9 @@ export async function resolveTrackSpotifyJob(data: {
 
     await upsertArtistFromSpotify(supabase, first);
     await upsertAlbumFromSpotify(supabase, alb);
+
+    const lfmAid = lfmArtistId(data.artistName);
+    await linkLfmArtistRowToSpotify(supabase, lfmAid, first);
 
     const now = new Date().toISOString();
     const trackWithPop = track as SpotifyApi.TrackObjectFull & {
