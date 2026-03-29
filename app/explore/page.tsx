@@ -14,6 +14,9 @@ import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
 const MAX_TRENDING = 20;
 
+/** Match discover / other hubs: allow Spotify so new tracks get artwork before DB backfill. */
+const EXPLORE_CATALOG_OPTS = { allowNetwork: true as const };
+
 export default async function ExploreHubPage() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? null;
@@ -25,7 +28,10 @@ export default async function ExploreHubPage() {
   ]);
 
   const trendingTrackIds = trendingRaw.map((e) => e.entity_id);
-  const trackArr = await getOrFetchTracksBatch(trendingTrackIds);
+  const trackArr = await getOrFetchTracksBatch(
+    trendingTrackIds,
+    EXPLORE_CATALOG_OPTS,
+  );
   const tracksMap = batchResultsToMap(trendingTrackIds, trackArr);
   const trendingEnriched = trendingRaw.map((entity) => ({
     entity,

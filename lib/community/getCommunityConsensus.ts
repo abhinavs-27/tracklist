@@ -3,6 +3,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import {
+  batchResultsToMap,
+  getOrFetchTracksBatch,
+} from "@/lib/spotify-cache";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 export type ConsensusEntityType = "track" | "album" | "artist";
 export type ConsensusRange = "week" | "month" | "all";
@@ -134,6 +139,33 @@ async function enrichRows(
   });
 }
 
+function coverUrlFromTrack(
+  t: SpotifyApi.TrackObjectFull | null | undefined,
+): string | null {
+  const imgs = t?.album?.images;
+  if (!imgs?.length) return null;
+  const u = imgs.find((im) => im?.url?.trim())?.url?.trim();
+  return u ?? null;
+}
+
+/** When album rows have no `image_url` yet, pull cover art from Spotify (same as discover / explore). */
+async function hydrateTrackImagesFromCatalog(
+  rows: CommunityConsensusRow[],
+): Promise<CommunityConsensusRow[]> {
+  const missing = rows.filter((r) => !r.image?.trim());
+  if (missing.length === 0) return rows;
+  const ids = [...new Set(missing.map((r) => r.entityId))];
+  const fetched = await getOrFetchTracksBatch(ids, { allowNetwork: true });
+  const normIds = ids.map((id) => normalizeReviewEntityId(id));
+  const map = batchResultsToMap(normIds, fetched);
+  return rows.map((r) => {
+    if (r.image?.trim()) return r;
+    const t = map.get(normalizeReviewEntityId(r.entityId));
+    const url = coverUrlFromTrack(t);
+    return url ? { ...r, image: url } : r;
+  });
+}
+
 export type CommunityConsensusPage = {
   items: CommunityConsensusRow[];
   hasMore: boolean;
@@ -168,7 +200,10 @@ async function computeCommunityConsensus(
     const rows = data as RpcRow[];
     const hasMore = rows.length > lim;
     const slice = rows.slice(0, lim);
-    const items = await enrichRows(admin, entityType, slice);
+    let items = await enrichRows(admin, entityType, slice);
+    if (entityType === "track") {
+      items = await hydrateTrackImagesFromCatalog(items);
+    }
     return { items, hasMore };
   }
 
@@ -199,7 +234,10 @@ async function computeCommunityConsensus(
   const all = (Array.isArray(legacy) ? legacy : []) as RpcRow[];
   const hasMore = all.length > off + lim;
   const rpcRows = all.slice(off, off + lim);
-  const items = await enrichRows(admin, entityType, rpcRows);
+  let items = await enrichRows(admin, entityType, rpcRows);
+  if (entityType === "track") {
+    items = await hydrateTrackImagesFromCatalog(items);
+  }
   return { items, hasMore };
 }
 

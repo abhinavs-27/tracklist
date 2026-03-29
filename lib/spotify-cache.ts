@@ -57,8 +57,17 @@ const batchMemoryCache = new Map<
   string,
   { data: Map<string, unknown>; at: number }
 >();
-function getBatchCacheKey(prefix: string, ids: string[]): string {
-  return `${prefix}:${[...new Set(ids)].filter(Boolean).sort().join(",")}`;
+/**
+ * Batch in-memory cache (short TTL). Must include whether Spotify was allowed:
+ * otherwise a DB-only pass poisons the key for a follow-up `{ allowNetwork: true }` call.
+ */
+function getBatchCacheKey(
+  prefix: string,
+  ids: string[],
+  catalogAllowsNet: boolean,
+): string {
+  const sorted = [...new Set(ids)].filter(Boolean).sort().join(",");
+  return `${prefix}:${sorted}:cn=${catalogAllowsNet ? "1" : "0"}`;
 }
 function getFromBatchMemoryMap(key: string): Map<string, unknown> | null {
   const entry = batchMemoryCache.get(key);
@@ -1407,7 +1416,7 @@ async function getOrFetchTracksBatchInner(
 
   const net = catalogReadsAllowSpotifyNetwork(opts);
 
-  const memKey = getBatchCacheKey("tracks", ids);
+  const memKey = getBatchCacheKey("tracks", ids, net);
   const cached = getFromBatchMemoryMap(memKey);
   if (cached)
     return ids.map(
@@ -1650,7 +1659,7 @@ async function getOrFetchAlbumsBatchInner(
 
   const net = catalogReadsAllowSpotifyNetwork(opts);
 
-  const memKey = getBatchCacheKey("albums", ids);
+  const memKey = getBatchCacheKey("albums", ids, net);
   const cached = getFromBatchMemoryMap(memKey);
   if (cached)
     return ids.map(
@@ -1758,7 +1767,7 @@ async function getOrFetchArtistsBatchInner(
 
   const net = catalogReadsAllowSpotifyNetwork(opts);
 
-  const memKey = getBatchCacheKey("artists", ids);
+  const memKey = getBatchCacheKey("artists", ids, net);
   const cached = getFromBatchMemoryMap(memKey);
   if (cached)
     return ids.map(
