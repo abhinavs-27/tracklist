@@ -10,7 +10,9 @@ type Props = {
 
 export function LogToast({ message, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
+  // eslint-disable-next-line react-hooks/refs
   const opacity = useRef(new Animated.Value(0)).current;
+  // eslint-disable-next-line react-hooks/refs
   const translateY = useRef(new Animated.Value(12)).current;
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export function LogToast({ message, onDismiss }: Props) {
       pointerEvents="box-none"
       style={[
         styles.wrap,
+        // eslint-disable-next-line react-hooks/refs
         {
           paddingBottom: Math.max(insets.bottom, 12) + 56,
           opacity,

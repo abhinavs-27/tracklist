@@ -25,7 +25,7 @@ export function useTrending(limit = 10) {
 export function useRisingArtists(limit = 10) {
   return useQuery({
     queryKey: [...queryKeys.discover(), "rising-artists", limit],
-    queryFn: () => fetcher<any[]>(`/api/discover/rising-artists?limit=${limit}`),
+    queryFn: () => fetcher<unknown[]>(`/api/discover/rising-artists?limit=${limit}`),
     staleTime: 5 * 60 * 1000,
   });
 }

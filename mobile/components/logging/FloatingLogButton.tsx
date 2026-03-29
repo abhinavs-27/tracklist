@@ -7,6 +7,7 @@ import { theme } from "../../lib/theme";
 export function FloatingLogButton() {
   const insets = useSafeAreaInsets();
   const { setQuickLogOpen, logBusy } = useLogging();
+  // eslint-disable-next-line react-hooks/refs
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {

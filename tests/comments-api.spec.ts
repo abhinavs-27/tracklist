@@ -14,7 +14,7 @@ test.describe("Comments API", () => {
     if (lb.items.length === 0) test.skip(true, "no leaderboard data");
 
     let reviewId: string | undefined;
-    const candidates = lb.items.slice(0, 5).map((x: any) => x.id).filter(Boolean);
+    const candidates = lb.items.slice(0, 5).map((x: { id: string }) => x.id).filter(Boolean);
     for (const songId of candidates) {
       const reviewsRes = await request.get(
         `/api/reviews?entity_type=song&entity_id=${encodeURIComponent(
