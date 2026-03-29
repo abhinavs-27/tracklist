@@ -79,6 +79,19 @@ const SPOTIFY_RESERVOIR_PER_MIN = parsePositiveIntEnv(
   24,
 );
 
+/**
+ * Stricter bucket for `GET /v1/tracks/{id}` only (single-entity fetches).
+ * Cron hydration issues many of these in a row; tune via env to avoid Spotify 429s.
+ */
+const SPOTIFY_SINGLE_TRACK_MIN_TIME_MS = parsePositiveIntEnv(
+  "SPOTIFY_SINGLE_TRACK_MIN_TIME_MS",
+  900,
+);
+const SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN = parsePositiveIntEnv(
+  "SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN",
+  10,
+);
+
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */
 export const spotifyLimiter = (() => {
   const url = process.env.REDIS_URL?.trim();
@@ -103,6 +116,33 @@ export const spotifyLimiter = (() => {
     reservoirRefreshInterval: 60 * 1000,
   });
 })();
+
+/** Separate limiter so burst single-track GETs do not compete with albums/artists/search. */
+const spotifySingleTrackLimiter = (() => {
+  const url = process.env.REDIS_URL?.trim();
+  const opts = {
+    maxConcurrent: 1,
+    minTime: SPOTIFY_SINGLE_TRACK_MIN_TIME_MS,
+    reservoir: SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN,
+    reservoirRefreshAmount: SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN,
+    reservoirRefreshInterval: 60 * 1000,
+  } as const;
+  if (url) {
+    return new Bottleneck({
+      datastore: "ioredis",
+      clearDatastore: false,
+      id: "spotify-single-track-limiter",
+      clientOptions: url,
+      ...opts,
+    });
+  }
+  return new Bottleneck({ ...opts });
+})();
+
+/** True for catalog paths like `/tracks/{id}` (not `/albums/{id}/tracks`). */
+function catalogPathUsesSingleTrackLimiter(path: string): boolean {
+  return /^\/tracks\/[^/]+$/.test(path);
+}
 
 let redisClient: Redis | null | undefined;
 
@@ -421,7 +461,11 @@ async function fetchCatalogResponseWithRetry(
   const token = await getClientCredentialsToken();
   metrics.apiCalls++;
 
-  const res = await spotifyLimiter.schedule(() =>
+  const limiter = catalogPathUsesSingleTrackLimiter(path)
+    ? spotifySingleTrackLimiter
+    : spotifyLimiter;
+
+  const res = await limiter.schedule(() =>
     withTimeout(
       url,
       {

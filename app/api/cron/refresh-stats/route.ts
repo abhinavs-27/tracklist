@@ -1,14 +1,18 @@
-import { NextRequest } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
-import { isProd } from "@/lib/env";
+import { apiError, apiOk } from "@/lib/api-response";
+import {
+  hydrateStatsCatalogFromSpotify,
+  type HydrateStatsCatalogResult,
+} from "@/lib/cron/hydrate-stats-catalog";
+
+const LOG = "[cron][refresh-stats]";
 
 /**
  * Cron: refresh precomputed entity stats (album_stats, track_stats) and discovery MVs.
  * Call with: Authorization: Bearer <CRON_SECRET>
  * Schedule periodically (e.g. every 10–15 min) to keep stats and discover cache fresh.
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   // if (!isProd()) {
   //   return apiOk({ ok: false, message: "cron disabled outside prod" });
   // }
@@ -18,36 +22,112 @@ export async function GET(request: NextRequest) {
   //   return apiUnauthorized();
   // }
 
+  const runStarted = Date.now();
+  console.log(LOG, "start", {
+    SPOTIFY_REFRESH_DISABLED: process.env.SPOTIFY_REFRESH_DISABLED === "true",
+  });
+
   const supabase = createSupabaseAdminClient();
 
+  let t = Date.now();
   const { error: statsError } = await supabase.rpc("refresh_entity_stats");
+  console.log(LOG, "refresh_entity_stats", {
+    ok: !statsError,
+    ms: Date.now() - t,
+    error: statsError?.message,
+  });
   if (statsError) {
-    console.error("[cron] refresh_entity_stats RPC failed", statsError);
-    console.log("[cron] refresh-stats-complete", { success: false });
+    console.error(LOG, "refresh_entity_stats failed", statsError);
+    console.log(LOG, "done", { success: false, totalMs: Date.now() - runStarted });
     return apiError(statsError.message, 500);
   }
 
+  t = Date.now();
   const { error: favError } = await supabase.rpc(
     "sync_favorite_counts_from_user_favorite_albums",
   );
+  console.log(LOG, "sync_favorite_counts_from_user_favorite_albums", {
+    ok: !favError,
+    ms: Date.now() - t,
+    error: favError?.message,
+  });
   if (favError) {
-    console.error(
-      "[cron] sync_favorite_counts_from_user_favorite_albums failed",
-      favError,
-    );
-    console.log("[cron] refresh-stats-complete", { success: false });
+    console.error(LOG, "sync_favorite_counts failed", favError);
+    console.log(LOG, "done", { success: false, totalMs: Date.now() - runStarted });
     return apiError(favError.message, 500);
   }
 
+  t = Date.now();
   const { error: discoverError } = await supabase.rpc("refresh_discover_mvs");
+  console.log(LOG, "refresh_discover_mvs", {
+    ok: !discoverError,
+    ms: Date.now() - t,
+    error: discoverError?.message ?? null,
+  });
   if (discoverError) {
     console.warn(
-      "[cron] refresh_discover_mvs skipped (apply migration 038 for discover cache):",
+      LOG,
+      "refresh_discover_mvs skipped (non-fatal if migration missing):",
       discoverError.message,
     );
-    // Non-fatal if the RPC doesn't exist yet
   }
 
-  console.log("[cron] refresh-stats-complete", { success: true });
-  return apiOk({ ok: true });
+  let catalogHydration: HydrateStatsCatalogResult | null = null;
+  let catalogHydrationError: string | null = null;
+  try {
+    const maxAlbums = parseInt(
+      process.env.STATS_HYDRATE_MAX_ALBUMS ?? "500",
+      10,
+    );
+    const maxTracks = parseInt(
+      process.env.STATS_HYDRATE_MAX_TRACKS ?? "200",
+      10,
+    );
+    console.log(LOG, "hydrate_stats_catalog_begin", {
+      STATS_HYDRATE_MAX_ALBUMS: Number.isFinite(maxAlbums) ? maxAlbums : 500,
+      STATS_HYDRATE_MAX_TRACKS: Number.isFinite(maxTracks) ? maxTracks : 200,
+    });
+    t = Date.now();
+    catalogHydration = await hydrateStatsCatalogFromSpotify(supabase, {
+      maxAlbums: Number.isFinite(maxAlbums) ? maxAlbums : 500,
+      maxTracks: Number.isFinite(maxTracks) ? maxTracks : 200,
+    });
+    console.log(LOG, "hydrate_stats_catalog_summary", {
+      ms: Date.now() - t,
+      hydrationMode: catalogHydration.hydrationMode,
+      trendingSongIdsFromMv: catalogHydration.trendingSongIdsFromMv,
+      lfmOrphanSongsLinked: catalogHydration.lfmOrphanSongsLinked,
+      albumIdsAttempted: catalogHydration.albumIdsAttempted,
+      albumsUpserted: catalogHydration.albumsUpserted,
+      albumsSpotifyFetched: catalogHydration.albumsSpotifyFetched,
+      albumsSpotifyFetchFailures: catalogHydration.albumsSpotifyFetchFailures,
+      albumsMissingCoverAfter: catalogHydration.albumsMissingCoverAfter,
+      trackIdsAttempted: catalogHydration.trackIdsAttempted,
+      tracksSkippedAlreadyHadCover: catalogHydration.tracksSkippedAlreadyHadCover,
+      tracksUpserted: catalogHydration.tracksUpserted,
+      tracksSpotifyFetched: catalogHydration.tracksSpotifyFetched,
+      tracksSpotifyFetchFailures: catalogHydration.tracksSpotifyFetchFailures,
+      albumCoversFilledFromLastfm: catalogHydration.albumCoversFilledFromLastfm,
+      albumsMissingCoverForTrackScopeAfter:
+        catalogHydration.albumsMissingCoverForTrackScopeAfter,
+      skippedNonSpotifyTrackIds: catalogHydration.skippedNonSpotifyTrackIds,
+    });
+  } catch (e) {
+    catalogHydrationError =
+      e instanceof Error ? e.message : String(e);
+    console.error(
+      LOG,
+      "hydrate_stats_catalog_failed (DB stats already refreshed)",
+      catalogHydrationError,
+    );
+  }
+
+  const totalMs = Date.now() - runStarted;
+  console.log(LOG, "done", { success: true, totalMs });
+  return apiOk({
+    ok: true,
+    totalMs,
+    catalogHydration,
+    catalogHydrationError,
+  });
 }

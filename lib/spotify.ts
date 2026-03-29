@@ -102,24 +102,40 @@ export async function getAlbum(
 }
 
 /**
- * Resolves albums via GET /albums/{id} only.
+ * Like {@link getAlbums} but reports how many GET /albums/{id} calls failed (errors are still swallowed).
  * Bulk GET /albums?ids= is removed for Spotify Development Mode apps (Feb 2026); batch calls return 403.
  */
+export async function getAlbumsWithFetchStats(spotifyIds: string[]): Promise<{
+  albums: SpotifyApi.AlbumObjectFull[];
+  requested: number;
+  fetchFailures: number;
+  failedIds: string[];
+}> {
+  assertBatchSize(spotifyIds, "getAlbums");
+  const unique = [...new Set(spotifyIds)].filter(Boolean);
+  if (unique.length === 0) {
+    return { albums: [], requested: 0, fetchFailures: 0, failedIds: [] };
+  }
+  const out: SpotifyApi.AlbumObjectFull[] = [];
+  const failedIds: string[] = [];
+  let fetchFailures = 0;
+  for (let i = 0; i < unique.length; i++) {
+    const id = unique[i]!;
+    try {
+      out.push(await getAlbum(id));
+    } catch {
+      fetchFailures += 1;
+      failedIds.push(id);
+    }
+  }
+  return { albums: out, requested: unique.length, fetchFailures, failedIds };
+}
+
 export async function getAlbums(
   spotifyIds: string[],
 ): Promise<SpotifyApi.AlbumObjectFull[]> {
-  assertBatchSize(spotifyIds, "getAlbums");
-  const unique = [...new Set(spotifyIds)].filter(Boolean);
-  if (unique.length === 0) return [];
-  const out: SpotifyApi.AlbumObjectFull[] = [];
-  for (let i = 0; i < unique.length; i++) {
-    try {
-      out.push(await getAlbum(unique[i]!));
-    } catch {
-      /* invalid id or API error */
-    }
-  }
-  return out;
+  const { albums } = await getAlbumsWithFetchStats(spotifyIds);
+  return albums;
 }
 
 export async function getAlbumTracks(
@@ -191,6 +207,39 @@ export async function getTrack(
 }
 
 /**
+ * Like {@link getTracks} but reports how many GET /tracks/{id} calls failed (errors are still swallowed).
+ * Use for observability; bulk ?ids= is not used (Development Mode).
+ */
+export async function getTracksWithFetchStats(
+  spotifyIds: string[],
+  opts?: { allowLastfmMapping?: boolean },
+): Promise<{
+  tracks: SpotifyApi.TrackObjectFull[];
+  requested: number;
+  fetchFailures: number;
+  failedIds: string[];
+}> {
+  assertBatchSize(spotifyIds, "getTracks");
+  const unique = [...new Set(spotifyIds)].filter(Boolean);
+  if (unique.length === 0) {
+    return { tracks: [], requested: 0, fetchFailures: 0, failedIds: [] };
+  }
+  const out: SpotifyApi.TrackObjectFull[] = [];
+  const failedIds: string[] = [];
+  let fetchFailures = 0;
+  for (let i = 0; i < unique.length; i++) {
+    const id = unique[i]!;
+    try {
+      out.push(await getTrack(id, opts));
+    } catch {
+      fetchFailures += 1;
+      failedIds.push(id);
+    }
+  }
+  return { tracks: out, requested: unique.length, fetchFailures, failedIds };
+}
+
+/**
  * Resolves tracks via GET /tracks/{id} only.
  * Bulk GET /tracks?ids= is removed for Spotify Development Mode apps (Feb 2026); batch calls return 403.
  */
@@ -198,18 +247,8 @@ export async function getTracks(
   spotifyIds: string[],
   opts?: { allowLastfmMapping?: boolean },
 ): Promise<SpotifyApi.TrackObjectFull[]> {
-  assertBatchSize(spotifyIds, "getTracks");
-  const unique = [...new Set(spotifyIds)].filter(Boolean);
-  if (unique.length === 0) return [];
-  const out: SpotifyApi.TrackObjectFull[] = [];
-  for (let i = 0; i < unique.length; i++) {
-    try {
-      out.push(await getTrack(unique[i]!, opts));
-    } catch {
-      /* invalid id or API error */
-    }
-  }
-  return out;
+  const { tracks } = await getTracksWithFetchStats(spotifyIds, opts);
+  return tracks;
 }
 
 /**

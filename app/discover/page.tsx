@@ -7,7 +7,14 @@ import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
-import { getOrFetchTracksBatch, getOrFetchAlbumsBatch, getOrFetchArtistsBatch, batchResultsToMap } from "@/lib/spotify-cache";
+import {
+  getOrFetchTracksBatch,
+  getOrFetchAlbumsBatch,
+  getOrFetchArtistsBatch,
+  batchResultsToMap,
+  batchTracksToNormalizedMap,
+  getTrackFromNormalizedBatchMap,
+} from "@/lib/spotify-cache";
 
 function DiscoverSectionSkeleton() {
   return (
@@ -30,8 +37,13 @@ const HiddenGemsSection = dynamic(
 
 const MAX_ITEMS = 20;
 
-/** Discover is a user-facing surface; allow Spotify for batch hydration (default catalog policy is DB-only). */
-const DISCOVER_CATALOG_OPTS = { allowNetwork: true as const };
+/**
+ * When `SPOTIFY_REFRESH_DISABLED` is set (cron uses Last.fm only), skip Spotify on this page too
+ * so trending rows use DB album art from the cron job instead of failed API calls.
+ */
+const DISCOVER_CATALOG_OPTS = {
+  allowNetwork: process.env.SPOTIFY_REFRESH_DISABLED !== "true",
+} as const;
 
 export default async function DiscoverPage() {
   const session = await getServerSession(authOptions);
@@ -86,7 +98,7 @@ export default async function DiscoverPage() {
     risingArtistIds.length > 0
       ? await getOrFetchArtistsBatch(risingArtistIds, DISCOVER_CATALOG_OPTS)
       : [];
-  const tracksMap = batchResultsToMap(discoverTrackIds, trackArr);
+  const tracksMap = batchTracksToNormalizedMap(discoverTrackIds, trackArr);
   const albumsMap = batchResultsToMap(discoverAlbumIds, albumArr);
   const artistImageMap = new Map<string, string | null>();
   artistArr.forEach((a, i) => {
@@ -95,7 +107,7 @@ export default async function DiscoverPage() {
 
   const trendingEnriched = trendingRaw.map((entity) => ({
     entity,
-    track: tracksMap.get(entity.entity_id) ?? null,
+    track: getTrackFromNormalizedBatchMap(tracksMap, entity.entity_id),
   }));
 
   const risingArtistsWithImages = risingArtists.map((a) => ({
@@ -108,7 +120,7 @@ export default async function DiscoverPage() {
       const album = albumsMap.get(gem.entity_id) ?? null;
       return { gem, album, track: null };
     }
-    const track = tracksMap.get(gem.entity_id) ?? null;
+    const track = getTrackFromNormalizedBatchMap(tracksMap, gem.entity_id);
     return { gem, album: null, track };
   });
 

@@ -1,6 +1,17 @@
 import type { TrendingEntity } from "@/types";
-import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+import { getChartConfig } from "@/lib/discovery/chartConfigs";
+
+const TRENDING_MIN_LISTENS =
+  getChartConfig("trending")?.filters?.min_listens_7d ?? 2;
+
+function trackAlbumArtworkUrl(
+  track: SpotifyApi.TrackObjectFull,
+): string | null {
+  const imgs = track.album?.images;
+  if (!imgs?.length) return null;
+  return imgs.find((im) => im?.url?.trim())?.url?.trim() ?? null;
+}
 
 type TrendingSectionProps = {
   items: { entity: TrendingEntity; track: SpotifyApi.TrackObjectFull | null }[];
@@ -19,18 +30,23 @@ export function TrendingSection({ items }: TrendingSectionProps) {
     type: "song",
     title: track.name,
     artist: track.artists?.map((a) => a.name).join(", ") ?? "",
-    artworkUrl: track.album?.images?.[0]?.url ?? null,
+    artworkUrl: trackAlbumArtworkUrl(track),
     totalPlays: entity.listen_count,
   }));
 
   return (
     <section>
-      <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">
-        {title} (last 24h)
+      <h2 className="mb-1 text-base font-semibold text-white sm:text-lg">
+        {title} (last 7 days)
       </h2>
+      <p className="mb-3 text-xs text-zinc-500">
+        Ranked by total listens in the last 7 days. A track needs at least{" "}
+        {TRENDING_MIN_LISTENS} listens in that window to show up here.
+      </p>
       {mediaItems.length === 0 ? (
         <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">
-          No trending tracks in the last 24 hours. Start logging listens to see what&apos;s hot.
+          No trending tracks in the last 7 days yet. Start logging listens to
+          see what&apos;s hot.
         </p>
       ) : (
         <MediaGrid items={mediaItems} />

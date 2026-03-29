@@ -8,7 +8,11 @@ import { RecommendedCommunitiesSection } from "@/components/discover/recommended
 import { getTrendingEntitiesCached } from "@/lib/discover-cache";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { getLeaderboard } from "@/lib/queries";
-import { getOrFetchTracksBatch, batchResultsToMap } from "@/lib/spotify-cache";
+import {
+  getOrFetchTracksBatch,
+  batchTracksToNormalizedMap,
+  getTrackFromNormalizedBatchMap,
+} from "@/lib/spotify-cache";
 import { SectionBlock } from "@/components/layout/section-block";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
@@ -32,10 +36,10 @@ export default async function ExploreHubPage() {
     trendingTrackIds,
     EXPLORE_CATALOG_OPTS,
   );
-  const tracksMap = batchResultsToMap(trendingTrackIds, trackArr);
+  const tracksMap = batchTracksToNormalizedMap(trendingTrackIds, trackArr);
   const trendingEnriched = trendingRaw.map((entity) => ({
     entity,
-    track: tracksMap.get(entity.entity_id) ?? null,
+    track: getTrackFromNormalizedBatchMap(tracksMap, entity.entity_id),
   }));
 
   return (

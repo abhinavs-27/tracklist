@@ -43,6 +43,10 @@ export const CHART_CONFIGS: Record<string, ChartConfig> = {
     id: "trending",
     label: "Trending",
     metric: "listen_count_recent",
+    /** Aligned with `mv_trending_entities` (migrations 091–093): rolling 7d window, min listens. */
+    filters: {
+      min_listens_7d: 2,
+    },
   },
   polarizing: {
     id: "polarizing",

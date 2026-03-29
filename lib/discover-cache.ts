@@ -10,6 +10,8 @@ import {
 import type { TrendingEntity, RisingArtist, HiddenGem } from "@/types";
 
 const TTL_MS = 15 * 60 * 1000; // 15 min (server-side cache; MVs refreshed every 5–15 min)
+/** Avoid caching “no trending” for 15m after MV/cron starts returning rows. */
+const EMPTY_TTL_MS = 60 * 1000;
 
 type CacheEntry<T> = { data: T; expiresAt: number };
 
@@ -124,7 +126,8 @@ export async function getTrendingEntitiesCached(
   if (hit && hit.expiresAt > now) return hit.data;
   prune(trendingCache);
   const data = await getTrendingFromMvOrLive(limit);
-  trendingCache.set(key, { data, expiresAt: now + TTL_MS });
+  const ttl = data.length === 0 ? EMPTY_TTL_MS : TTL_MS;
+  trendingCache.set(key, { data, expiresAt: now + ttl });
   return data;
 }
 

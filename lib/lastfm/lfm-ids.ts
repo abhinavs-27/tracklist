@@ -19,3 +19,14 @@ export function lfmSongId(artistName: string, trackName: string): string {
     .slice(0, 16);
   return `lfm:${h}`;
 }
+
+/** Deterministic synthetic album id from Last.fm artist + album title strings. */
+export function lfmAlbumId(artistName: string, albumTitle: string): string {
+  const h = createHash("sha256")
+    .update(
+      `album|${artistName.toLowerCase().trim()}|${albumTitle.toLowerCase().trim()}`,
+    )
+    .digest("hex")
+    .slice(0, 16);
+  return `lfm:${h}`;
+}

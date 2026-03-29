@@ -42,6 +42,9 @@ export const CHART_CONFIGS: Record<string, ChartConfig> = {
     id: "trending",
     label: "Trending",
     metric: "listen_count_recent",
+    filters: {
+      min_listens_7d: 2,
+    },
   },
   polarizing: {
     id: "polarizing",

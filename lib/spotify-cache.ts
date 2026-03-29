@@ -19,7 +19,7 @@ import {
 } from "@/lib/spotify/catalog-read-policy";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { normalizeReviewEntityId } from "@/lib/validation";
+import { isValidSpotifyId, normalizeReviewEntityId } from "@/lib/validation";
 
 export type { CatalogFetchOpts } from "@/lib/spotify/catalog-read-policy";
 
@@ -340,6 +340,35 @@ async function trackFromDbSongRow(
 
 // --- Helpers: upsert from Spotify payloads
 
+/** Spotify returns several sizes; `images[0]` is not always the first non-empty URL. */
+export function firstSpotifyImageUrl(
+  images: SpotifyApi.ImageObject[] | undefined | null,
+): string | null {
+  if (!images?.length) return null;
+  return images.find((im) => im?.url?.trim())?.url?.trim() ?? null;
+}
+
+function albumCoverUrlFromTrackPayload(
+  track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified,
+): string | null {
+  const album = "album" in track ? track.album : undefined;
+  if (!album || !("images" in album)) return null;
+  return firstSpotifyImageUrl(album.images);
+}
+
+/** Persist the best cover we can when first inserting or refreshing a track + album row. */
+function resolveAlbumImageForTrackUpsert(
+  track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified,
+  explicitAlbumImageUrl: string | null,
+  existingAlbumImageUrl: string | null | undefined,
+): string | null {
+  if (explicitAlbumImageUrl?.trim()) return explicitAlbumImageUrl.trim();
+  const fromTrack = albumCoverUrlFromTrackPayload(track);
+  if (fromTrack) return fromTrack;
+  if (existingAlbumImageUrl?.trim()) return existingAlbumImageUrl.trim();
+  return null;
+}
+
 function clampPopularity(n: number): number {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
@@ -388,8 +417,8 @@ export async function upsertArtistFromSpotify(
       : (ex?.popularity ?? null);
 
   const newImage =
-    "images" in a && a.images?.[0]?.url
-      ? a.images[0].url
+    "images" in a && a.images?.length
+      ? firstSpotifyImageUrl(a.images) ?? ex?.image_url ?? null
       : (ex?.image_url ?? null);
 
   const row = {
@@ -432,7 +461,7 @@ export async function upsertAlbumFromSpotify(
     id: album.id,
     name: album.name,
     artist_id: first.id,
-    image_url: album.images?.[0]?.url ?? null,
+    image_url: firstSpotifyImageUrl(album.images) ?? null,
     release_date: "release_date" in album ? (album.release_date ?? null) : null,
     total_tracks: "total_tracks" in album ? (album.total_tracks ?? null) : null,
     updated_at: now,
@@ -471,16 +500,22 @@ export async function upsertTrackFromSpotify(
 
   const { data: existingAlbum } = await supabase
     .from("albums")
-    .select("total_tracks")
+    .select("total_tracks, image_url")
     .eq("id", albumId)
     .maybeSingle();
+
+  const resolvedAlbumImage = resolveAlbumImageForTrackUpsert(
+    track,
+    albumImageUrl,
+    (existingAlbum as { image_url?: string | null } | null)?.image_url,
+  );
 
   const now = new Date().toISOString();
   const albumRow = {
     id: albumId,
     name: albumName,
     artist_id: first.id,
-    image_url: albumImageUrl,
+    image_url: resolvedAlbumImage,
     release_date: albumReleaseDate ?? null,
     total_tracks:
       (existingAlbum as { total_tracks?: number | null } | null)?.total_tracks ??
@@ -1327,7 +1362,7 @@ async function getOrFetchTrackInner(
         track,
         alb.id,
         alb.name,
-        alb.images?.[0]?.url ?? null,
+        firstSpotifyImageUrl(alb.images),
         "release_date" in alb ? alb.release_date : undefined,
       );
     } catch (e) {
@@ -1374,6 +1409,29 @@ export function batchResultsToMap<T>(
   const map = new Map<string, T | null>();
   ids.forEach((id, i) => map.set(id, results[i] ?? null));
   return map;
+}
+
+/**
+ * Like {@link batchResultsToMap} for track batches, but keys are
+ * {@link normalizeReviewEntityId}(id). Use with {@link getTrackFromNormalizedBatchMap} so MV/RPC
+ * `entity_id` matches even when encoding differs from the batch input (e.g. `lfm%3A` vs `lfm:`).
+ */
+export function batchTracksToNormalizedMap(
+  ids: string[],
+  results: (SpotifyApi.TrackObjectFull | null)[],
+): Map<string, SpotifyApi.TrackObjectFull | null> {
+  const map = new Map<string, SpotifyApi.TrackObjectFull | null>();
+  ids.forEach((id, i) => {
+    map.set(normalizeReviewEntityId(id), results[i] ?? null);
+  });
+  return map;
+}
+
+export function getTrackFromNormalizedBatchMap(
+  map: Map<string, SpotifyApi.TrackObjectFull | null>,
+  entityId: string,
+): SpotifyApi.TrackObjectFull | null {
+  return map.get(normalizeReviewEntityId(entityId)) ?? null;
 }
 
 function buildTrackFromRows(
@@ -1538,7 +1596,7 @@ async function getOrFetchTracksBatchInner(
     for (const song of songs) {
       const t = lookup.get(song.id);
       if (!t) continue;
-      if (t.album?.images?.[0]?.url) continue;
+      if (firstSpotifyImageUrl(t.album?.images)) continue;
       const spotifyId = song.id.startsWith("lfm:")
         ? trimmedSpotifyId(song)
         : song.id;
@@ -1566,7 +1624,7 @@ async function getOrFetchTracksBatchInner(
                     track,
                     alb.id,
                     alb.name,
-                    alb.images?.[0]?.url ?? null,
+                    firstSpotifyImageUrl(alb.images),
                     "release_date" in alb ? alb.release_date : undefined,
                   );
                 } catch (e) {
@@ -1590,46 +1648,84 @@ async function getOrFetchTracksBatchInner(
     }
   }
 
+  // Stale rows are skipped in `songs` for Spotify refresh; still build display tracks from DB.
   for (const song of allSongs) {
     if (lookup.has(song.id)) continue;
     if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
       lookup.set(song.id, buildSyntheticLfmTrack(song));
+      continue;
     }
+    const album =
+      song.album_id != null ? (albumMap.get(song.album_id) ?? null) : null;
+    const artistName =
+      song.artist_id != null
+        ? (artistMap.get(song.artist_id) ?? "")
+        : (song.lastfm_artist_name ?? "");
+    lookup.set(song.id, buildTrackFromRows(song, album, artistName));
   }
 
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0) {
-    try {
-      for (const idChunk of chunkArray(missingIds, MAX_SPOTIFY_ITEMS)) {
-        const fetched = await getTracks(idChunk);
-        for (const track of fetched) {
-          const alb = track.album;
-          if (!alb) continue;
-          try {
-            await upsertTrackFromSpotify(
-              supabase,
-              track,
-              alb.id,
-              alb.name,
-              alb.images?.[0]?.url ?? null,
-              "release_date" in alb ? alb.release_date : undefined,
-            );
-          } catch (e) {
-            console.warn(
-              `${LOG_PREFIX} upsertTrackFromSpotify (batch) failed for ${track.id}`,
-              e,
-            );
-          }
-          lookup.set(track.id, track);
-        }
-      }
-      missingIds.forEach((id) => {
-        if (!lookup.has(id)) lookup.set(id, null);
-      });
-    } catch (e) {
-      console.error(`${LOG_PREFIX} getTracks batch failed`, e);
-      missingIds.forEach((id) => lookup.set(id, null));
+    const spotifyOnly: string[] = [];
+    const nonSpotify: string[] = [];
+    for (const id of missingIds) {
+      if (isValidSpotifyId(id)) spotifyOnly.push(id);
+      else nonSpotify.push(id);
     }
+
+    if (spotifyOnly.length > 0) {
+      try {
+        for (const idChunk of chunkArray(spotifyOnly, MAX_SPOTIFY_ITEMS)) {
+          const fetched = await getTracks(idChunk);
+          for (const track of fetched) {
+            const alb = track.album;
+            if (!alb) continue;
+            try {
+              await upsertTrackFromSpotify(
+                supabase,
+                track,
+                alb.id,
+                alb.name,
+                firstSpotifyImageUrl(alb.images),
+                "release_date" in alb ? alb.release_date : undefined,
+              );
+            } catch (e) {
+              console.warn(
+                `${LOG_PREFIX} upsertTrackFromSpotify (batch) failed for ${track.id}`,
+                e,
+              );
+            }
+            lookup.set(track.id, track);
+          }
+        }
+      } catch (e) {
+        console.error(`${LOG_PREFIX} getTracks batch failed`, e);
+        spotifyOnly.forEach((id) => {
+          if (!lookup.has(id)) lookup.set(id, null);
+        });
+      }
+    }
+
+    // `getTracks` only accepts Spotify ids. Trending MV uses `logs.track_id` (often `lfm:…` with no
+    // `songs` row) — resolve those the same way as single-track fetch (Last.fm mapping, etc.).
+    for (const id of nonSpotify) {
+      if (lookup.has(id)) continue;
+      try {
+        const mergedOpts: CatalogFetchOpts = {
+          ...opts,
+          allowNetwork: id.startsWith("lfm:") ? true : opts?.allowNetwork,
+          allowLastfmMapping: id.startsWith("lfm:") ? true : opts?.allowLastfmMapping,
+        };
+        const t = await getOrFetchTrackInner(id, mergedOpts);
+        lookup.set(id, t);
+      } catch {
+        lookup.set(id, null);
+      }
+    }
+
+    missingIds.forEach((id) => {
+      if (!lookup.has(id)) lookup.set(id, null);
+    });
   }
 
   setBatchMemoryMap(memKey, lookup as Map<string, unknown>);

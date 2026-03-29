@@ -1,6 +1,12 @@
 import Link from "next/link";
 import type { TrendingEntity } from "@/types";
 
+function trackAlbumArtworkUrl(track: SpotifyApi.TrackObjectFull): string | null {
+  const imgs = track.album?.images;
+  if (!imgs?.length) return null;
+  return imgs.find((im) => im?.url?.trim())?.url?.trim() ?? null;
+}
+
 type Item = {
   entity: TrendingEntity;
   track: SpotifyApi.TrackObjectFull | null;
@@ -22,17 +28,19 @@ export function TrendingStrip({ items }: { items: Item[] }) {
 
   return (
     <div className="-mx-1 flex gap-3 overflow-x-auto overscroll-x-contain pb-1 pt-0.5 [-webkit-overflow-scrolling:touch] px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {valid.slice(0, 16).map(({ entity, track }) => (
+      {valid.slice(0, 16).map(({ entity, track }) => {
+        const art = trackAlbumArtworkUrl(track);
+        return (
         <Link
           key={entity.entity_id}
           href={`/song/${track.id}`}
           className="w-[7.25rem] shrink-0 snap-start sm:w-[8rem]"
         >
           <div className="overflow-hidden rounded-xl bg-zinc-800 ring-1 ring-white/[0.06]">
-            {track.album?.images?.[0]?.url ? (
+            {art ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={track.album.images[0].url}
+                src={art}
                 alt=""
                 className="aspect-square w-full object-cover"
               />
@@ -49,7 +57,8 @@ export function TrendingStrip({ items }: { items: Item[] }) {
             {entity.listen_count?.toLocaleString() ?? 0} plays
           </p>
         </Link>
-      ))}
+        );
+      })}
     </div>
   );
 }

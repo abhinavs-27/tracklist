@@ -2,6 +2,14 @@ import type { HiddenGem } from "@/types";
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 
+function trackAlbumArtworkUrl(
+  track: SpotifyApi.TrackObjectSimplified | SpotifyApi.TrackObjectFull,
+): string | null {
+  const imgs = "album" in track ? track.album?.images : undefined;
+  if (!imgs?.length) return null;
+  return imgs.find((im) => im?.url?.trim())?.url?.trim() ?? null;
+}
+
 type HiddenGemsSectionProps = {
   items: {
     gem: HiddenGem;
@@ -32,13 +40,7 @@ export function HiddenGemsSection({ items }: HiddenGemsSectionProps) {
       };
     }
     const t = track!;
-    const artworkUrl: string | null =
-      "album" in t &&
-      t.album &&
-      Array.isArray(t.album.images) &&
-      t.album.images.length > 0
-        ? t.album.images[0]!.url
-        : null;
+    const artworkUrl: string | null = trackAlbumArtworkUrl(t);
     return {
       id: t.id,
       type: "song" as const,

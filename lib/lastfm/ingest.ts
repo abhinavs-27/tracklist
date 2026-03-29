@@ -9,7 +9,7 @@ import type { LastfmNormalizedScrobble } from "@/lib/lastfm/types";
 import { syncBatchLogSideEffects } from "@/lib/sync-manual-log-side-effects";
 import { DEFAULT_SCROBBLE_DEDUP_MS } from "@/lib/lastfm/dedupe";
 
-import { lfmArtistId, lfmSongId } from "./lfm-ids";
+import { lfmAlbumId, lfmArtistId, lfmSongId } from "./lfm-ids";
 
 export type IngestLastfmResult = {
   /** New rows inserted into `logs`. */
@@ -137,14 +137,46 @@ export async function ingestLastfmScrobbles(
       console.warn("[lastfm ingest] artist upsert failed", artistErr);
     }
 
+    const albumTitle = albumName?.trim() || null;
+    let resolvedAlbumId: string | null = null;
+    if (albumTitle) {
+      resolvedAlbumId = lfmAlbumId(artistName, albumTitle);
+      const coverFromScrobble =
+        typeof scrobble.artworkUrl === "string" && scrobble.artworkUrl.trim()
+          ? scrobble.artworkUrl.trim()
+          : null;
+      const { data: existingAlb } = await supabase
+        .from("albums")
+        .select("image_url")
+        .eq("id", resolvedAlbumId)
+        .maybeSingle();
+      const keepImg = (existingAlb as { image_url?: string | null } | null)
+        ?.image_url?.trim();
+      const { error: albErr } = await supabase.from("albums").upsert(
+        {
+          id: resolvedAlbumId,
+          name: albumTitle,
+          artist_id: artistId,
+          image_url: coverFromScrobble || keepImg || null,
+          updated_at: now,
+          cached_at: now,
+        },
+        { onConflict: "id" },
+      );
+      if (albErr) {
+        console.warn("[lastfm ingest] album upsert failed", albErr);
+        resolvedAlbumId = null;
+      }
+    }
+
     const { error: songErr } = await supabase.from("songs").upsert(
       {
         id: songId,
         name: trackName,
         lastfm_name: trackName,
         lastfm_artist_name: artistName,
-        album_id: null,
-        artist_id: null,
+        album_id: resolvedAlbumId,
+        artist_id: artistId,
         data_source: "lastfm",
         needs_spotify_enrichment: true,
         updated_at: now,
