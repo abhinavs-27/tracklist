@@ -7,6 +7,7 @@ export async function searchUsers(
   query: string,
   limit = 20,
   excludeUserId: string | null = null,
+  offset = 0,
 ): Promise<
   {
     id: string;
@@ -28,6 +29,7 @@ export async function searchUsers(
         p_query: sanitized,
         p_limit: cappedLimit,
         p_exclude_user_id: excludeUserId || null,
+        p_offset: offset,
       },
     );
 
@@ -59,7 +61,7 @@ export async function searchUsers(
       .select("id, username, avatar_url")
       .ilike("username", `%${sanitized}%`)
       .order("username", { ascending: true })
-      .limit(cappedLimit);
+      .range(offset, offset + cappedLimit - 1);
     if (excludeUserId) q = q.neq("id", excludeUserId);
     const { data, error } = await q;
     if (error) throw error;

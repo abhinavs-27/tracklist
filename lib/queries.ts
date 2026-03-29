@@ -122,25 +122,28 @@ async function getListenLogsInternal(opts: {
 // Active reviews (ratings + optional text)
 // ---------------------------------------------------------------------------
 
-/** Reviews for an entity. Capped at 20 for performance. */
+/** Reviews for an entity. Capped at 20 per page for performance. */
 export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
+  offset = 0,
 ): Promise<ReviewsResult | null> {
   const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
     const supabase = await createSupabaseServerClient();
+    const from = offset;
+    const to = offset + cappedLimit - 1;
 
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, user_id, rating, review_text, created_at, updated_at",
       )
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
       .order("created_at", { ascending: false })
-      .limit(cappedLimit);
+      .range(from, to);
 
     if (error) return null;
 
@@ -157,8 +160,8 @@ export async function getReviewsForEntity(
         id: r.id,
         user_id: r.user_id,
         username: u?.username ?? null,
-        entity_type: r.entity_type as "album" | "song",
-        entity_id: r.entity_id,
+        entity_type: entityType as "album" | "song",
+        entity_id: entityId,
         rating: r.rating,
         review_text: r.review_text ?? null,
         created_at: r.created_at,
@@ -185,7 +188,7 @@ export async function getReviewsForEntity(
       const { data: myRow } = await supabase
         .from("reviews")
         .select(
-          "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+          "id, user_id, rating, review_text, created_at, updated_at",
         )
         .eq("entity_type", entityType)
         .eq("entity_id", entityId)
@@ -199,8 +202,8 @@ export async function getReviewsForEntity(
           id: myRow.id,
           user_id: myRow.user_id,
           username: sessionUsername,
-          entity_type: myRow.entity_type,
-          entity_id: myRow.entity_id,
+          entity_type: entityType as "album" | "song",
+          entity_id: entityId,
           rating: myRow.rating,
           review_text: myRow.review_text ?? null,
           created_at: myRow.created_at,
@@ -235,7 +238,7 @@ export async function getReviewsForUser(
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -252,7 +255,7 @@ export async function getReviewsForUser(
 
     return rows.map((r) => ({
       id: r.id,
-      user_id: r.user_id,
+      user_id: userId,
       entity_type: r.entity_type as "album" | "song",
       entity_id: r.entity_id,
       rating: r.rating,
@@ -1269,6 +1272,7 @@ export async function getFriendsAlbumActivity(
   viewerId: string,
   albumId: string,
   limit = 10,
+  offset = 0,
 ): Promise<FriendAlbumActivityRow[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -1290,6 +1294,7 @@ export async function getFriendsAlbumActivity(
     const thirtyDaysAgo = new Date(
       Date.now() - 30 * 24 * 60 * 60 * 1000,
     ).toISOString();
+
     const { data: logs, error } = await supabase
       .from("logs")
       .select("user_id, listened_at")
@@ -1297,7 +1302,7 @@ export async function getFriendsAlbumActivity(
       .in("user_id", followingIds)
       .gte("listened_at", thirtyDaysAgo)
       .order("listened_at", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     if (error || !logs?.length) return [];
 
@@ -1307,7 +1312,7 @@ export async function getFriendsAlbumActivity(
       seen.add(l.user_id);
       return true;
     });
-    const limited = onePerUser.slice(0, limit);
+    const limited = onePerUser.slice(offset, offset + limit);
 
     const userIds = limited.map((l) => l.user_id);
     const [usersRes, reviewsRes] = await Promise.all([
@@ -1351,6 +1356,7 @@ export async function getAlbumListeners(
   albumId: string,
   limit = 10,
   viewerId: string | null = null,
+  offset = 0,
 ): Promise<
   {
     user_id: string;
@@ -1377,7 +1383,7 @@ export async function getAlbumListeners(
       .select("user_id, listened_at")
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
-      .limit(200);
+      .limit(300);
 
     if (error || !logs?.length) return [];
 
@@ -1394,19 +1400,20 @@ export async function getAlbumListeners(
       if (seen.has(l.user_id)) continue;
       seen.add(l.user_id);
       unique.push(l);
-      if (unique.length >= limit) break;
     }
 
-    if (unique.length === 0) return [];
+    const limited = unique.slice(offset, offset + limit);
 
-    const userIds = unique.map((u) => u.user_id);
+    if (limited.length === 0) return [];
+
+    const userIds = limited.map((u) => u.user_id);
     const { data: users } = await supabase
       .from("users")
       .select("id, username, avatar_url")
       .in("id", userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
-    return unique
+    return limited
       .map((u) => {
         const user = userMap.get(u.user_id);
         if (!user) return null;
@@ -2023,6 +2030,7 @@ export async function searchUsers(
   query: string,
   limit = 20,
   excludeUserId: string | null = null,
+  offset = 0,
 ): Promise<
   {
     id: string;
@@ -2044,6 +2052,7 @@ export async function searchUsers(
         p_query: sanitized,
         p_limit: cappedLimit,
         p_exclude_user_id: excludeUserId || null,
+        p_offset: offset,
       },
     );
 
@@ -2075,7 +2084,7 @@ export async function searchUsers(
       .select("id, username, avatar_url")
       .ilike("username", `%${sanitized}%`)
       .order("username", { ascending: true })
-      .limit(cappedLimit);
+      .range(offset, offset + cappedLimit - 1);
     if (excludeUserId) q = q.neq("id", excludeUserId);
     const { data, error } = await q;
     if (error) throw error;

@@ -32,27 +32,30 @@ async function fetchUserMap(
   return new Map((users ?? []).map((u) => [u.id, u]));
 }
 
-/** Reviews for an entity. Capped at 20 for performance. */
+/** Reviews for an entity. Capped at 20 per page for performance. */
 export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
   viewerUserId: string | null,
   sessionUsername: string | null = null,
+  offset = 0,
 ): Promise<ReviewsResult | null> {
   const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
     const supabase = getSupabase();
+    const from = offset;
+    const to = offset + cappedLimit - 1;
 
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, user_id, rating, review_text, created_at, updated_at",
       )
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
       .order("created_at", { ascending: false })
-      .limit(cappedLimit);
+      .range(from, to);
 
     if (error) return null;
 
@@ -66,8 +69,8 @@ export async function getReviewsForEntity(
         id: r.id,
         user_id: r.user_id,
         username: u?.username ?? null,
-        entity_type: r.entity_type,
-        entity_id: r.entity_id,
+        entity_type: entityType,
+        entity_id: entityId,
         rating: r.rating,
         review_text: r.review_text ?? null,
         created_at: r.created_at,
@@ -94,7 +97,7 @@ export async function getReviewsForEntity(
       const { data: myRow } = await supabase
         .from("reviews")
         .select(
-          "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+          "id, user_id, rating, review_text, created_at, updated_at",
         )
         .eq("entity_type", entityType)
         .eq("entity_id", entityId)
@@ -105,8 +108,8 @@ export async function getReviewsForEntity(
           id: myRow.id,
           user_id: myRow.user_id,
           username: sessionUsername,
-          entity_type: myRow.entity_type,
-          entity_id: myRow.entity_id,
+          entity_type: entityType,
+          entity_id: entityId,
           rating: myRow.rating,
           review_text: myRow.review_text ?? null,
           created_at: myRow.created_at,
