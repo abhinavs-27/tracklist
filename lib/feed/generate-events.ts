@@ -153,7 +153,7 @@ export async function syncFeedEventsForUser(userId: string): Promise<void> {
       .select("artist_id, track_id")
       .eq("user_id", uid)
       .lt("listened_at", since)
-      .limit(12000);
+      .limit(5000);
     const priorArtists = new Set<string>();
     const pRows = (priorLogRows ?? []) as Pick<LogRow, "artist_id" | "track_id">[];
     const pTids = [...new Set(pRows.map((r) => r.track_id).filter(Boolean))] as string[];
@@ -214,7 +214,7 @@ export async function syncFeedEventsForUser(userId: string): Promise<void> {
         .eq("user_id", uid)
         .gte("listened_at", prevSince)
         .lt("listened_at", since)
-        .limit(8000);
+        .limit(5000);
       const prevRows = (prevLogs ?? []) as Pick<LogRow, "artist_id" | "track_id">[];
       const ptids2 = [...new Set(prevRows.map((r) => r.track_id).filter(Boolean))] as string[];
       const psm2 = await fetchSongsArtist(admin, ptids2);

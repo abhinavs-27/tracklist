@@ -34,27 +34,59 @@ export async function getLeaderboard(
     if (startYear != null || endYear != null) {
       const from = startYear ?? endYear!;
       const to = endYear ?? startYear!;
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id, release_date")
-        .gte("release_date", `${from}-01-01`)
-        .lte("release_date", `${to}-12-31`);
-      albumIds = (albums ?? []).map((a) => a.id);
+      const acc: string[] = [];
+      let rangeFrom = 0;
+      const pageSize = 1000;
+      for (;;) {
+        const { data: albums, error } = await supabase
+          .from("albums")
+          .select("id")
+          .gte("release_date", `${from}-01-01`)
+          .lte("release_date", `${to}-12-31`)
+          .range(rangeFrom, rangeFrom + pageSize - 1);
+        if (error) break;
+        const rows = albums ?? [];
+        acc.push(...rows.map((a) => a.id));
+        if (rows.length < pageSize) break;
+        rangeFrom += pageSize;
+      }
+      albumIds = acc;
     } else if (year != null) {
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id")
-        .like("release_date", `${year}%`);
-      albumIds = (albums ?? []).map((a) => a.id);
+      const acc: string[] = [];
+      let rangeFrom = 0;
+      const pageSize = 1000;
+      for (;;) {
+        const { data: albums, error } = await supabase
+          .from("albums")
+          .select("id")
+          .like("release_date", `${year}%`)
+          .range(rangeFrom, rangeFrom + pageSize - 1);
+        if (error) break;
+        const rows = albums ?? [];
+        acc.push(...rows.map((a) => a.id));
+        if (rows.length < pageSize) break;
+        rangeFrom += pageSize;
+      }
+      albumIds = acc;
     } else if (decade != null) {
       const yearNum = decade + 10;
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id")
-        .gte("release_date", `${decade}-01-01`)
-        .lt("release_date", `${yearNum}-01-01`)
-        .limit(1000); // Prevent oversized ID lists in subsequent .in() filters
-      albumIds = (albums ?? []).map((a) => a.id);
+      const acc: string[] = [];
+      let rangeFrom = 0;
+      const pageSize = 1000;
+      for (;;) {
+        const { data: albums, error } = await supabase
+          .from("albums")
+          .select("id")
+          .gte("release_date", `${decade}-01-01`)
+          .lt("release_date", `${yearNum}-01-01`)
+          .range(rangeFrom, rangeFrom + pageSize - 1);
+        if (error) break;
+        const rows = albums ?? [];
+        acc.push(...rows.map((a) => a.id));
+        if (rows.length < pageSize) break;
+        rangeFrom += pageSize;
+      }
+      albumIds = acc;
     }
 
     if (albumIds !== null && albumIds.length === 0) return [];
@@ -135,22 +167,31 @@ export async function getLeaderboard(
       }[];
 
       if (albumIds && albumIds.length > 0) {
-        const { data: songs } = await supabase
-          .from("songs")
-          .select("id")
-          .in("album_id", albumIds);
-        const trackIds = (songs ?? []).map((s) => s.id);
+        // Correct chunking for large IN lists (Supabase / PostgREST limits)
+        const trackIds: string[] = [];
+        const CHUNK = 100;
+        for (let i = 0; i < albumIds.length; i += CHUNK) {
+          const slice = albumIds.slice(i, i + CHUNK);
+          const { data: songs } = await supabase
+            .from("songs")
+            .select("id")
+            .in("album_id", slice);
+          if (songs) trackIds.push(...songs.map((s) => s.id));
+        }
+
         if (trackIds.length === 0) return [];
-        const { data: rows, error: statsError } = await supabase
-          .from("track_stats")
-          .select("track_id, listen_count, avg_rating")
-          .in("track_id", trackIds);
-        if (statsError || !rows?.length) return [];
-        statsRows = rows as {
-          track_id: string;
-          listen_count: number;
-          avg_rating: number | null;
-        }[];
+
+        const statsRowsMerged: any[] = [];
+        for (let i = 0; i < trackIds.length; i += CHUNK) {
+          const slice = trackIds.slice(i, i + CHUNK);
+          const { data: rows } = await supabase
+            .from("track_stats")
+            .select("track_id, listen_count, avg_rating")
+            .in("track_id", slice);
+          if (rows) statsRowsMerged.push(...rows);
+        }
+        if (statsRowsMerged.length === 0) return [];
+        statsRows = statsRowsMerged;
       } else {
         const { data: rows, error: statsError } = await supabase
           .from("track_stats")
@@ -254,16 +295,18 @@ export async function getLeaderboard(
       | null = null;
 
     if (albumIds && albumIds.length > 0) {
-      const { data: rows, error: statsError } = await supabase
-        .from("album_stats")
-        .select("album_id, listen_count, avg_rating")
-        .in("album_id", albumIds);
-      if (statsError || !rows?.length) return [];
-      albumStatsRows = rows as {
-        album_id: string;
-        listen_count: number;
-        avg_rating: number | null;
-      }[];
+      const albumStatsRowsMerged: any[] = [];
+      const CHUNK = 100;
+      for (let i = 0; i < albumIds.length; i += CHUNK) {
+        const slice = albumIds.slice(i, i + CHUNK);
+        const { data: rows } = await supabase
+          .from("album_stats")
+          .select("album_id, listen_count, avg_rating")
+          .in("album_id", slice);
+        if (rows) albumStatsRowsMerged.push(...rows);
+      }
+      if (albumStatsRowsMerged.length === 0) return [];
+      albumStatsRows = albumStatsRowsMerged;
     } else {
       const { data: rows, error: statsError } = await supabase
         .from("album_stats")

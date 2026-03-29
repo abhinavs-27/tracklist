@@ -42,6 +42,18 @@ The following indexes were added via migration `087_audit_optimizations.sql` to 
 | `community_members` | `(community_id, user_id)` | Optimized for membership checks and community lists. |
 | `community_member_roles` | `(community_id, user_id)` | Optimized for fetching roles for community members. |
 
+## New Recommended Indexes
+
+Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`, the following additional indexes are recommended:
+
+| Table | Index Columns | Rationale |
+|-------|---------------|-----------|
+| `logs` | `(track_id, user_id, listened_at DESC)` | Optimized for "friends who listened to this track" and per-user track activity. |
+| `songs` | `(album_id)` | Optimized for fetching all songs in an album (common in aggregation). |
+| `songs` | `(artist_id)` | Optimized for fetching all songs by an artist (common in artist-scoped queries). |
+| `albums` | `(artist_id)` | Optimized for fetching all albums by an artist. |
+| `reviews` | `(entity_id, created_at DESC)` | Optimized for fetching latest reviews for an entity when type is already filtered. |
+
 ## Recommendations for Future Queries
 
 1. **Always use explicit `.select()`**: Even if all columns are needed, explicit lists prevent over-fetching if the schema grows.

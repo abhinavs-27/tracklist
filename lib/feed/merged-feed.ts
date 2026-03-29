@@ -41,7 +41,8 @@ async function loadFollowingIds(
   const { data } = await admin
     .from("follows")
     .select("following_id")
-    .eq("follower_id", followerId);
+    .eq("follower_id", followerId)
+    .limit(500);
   return (data ?? [])
     .map((r) => (r as { following_id: string }).following_id)
     .filter(Boolean);

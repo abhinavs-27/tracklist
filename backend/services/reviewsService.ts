@@ -47,7 +47,7 @@ export async function getReviewsForEntity(
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, user_id, rating, review_text, created_at, updated_at",
       )
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
@@ -66,8 +66,8 @@ export async function getReviewsForEntity(
         id: r.id,
         user_id: r.user_id,
         username: u?.username ?? null,
-        entity_type: r.entity_type,
-        entity_id: r.entity_id,
+        entity_type: entityType,
+        entity_id: entityId,
         rating: r.rating,
         review_text: r.review_text ?? null,
         created_at: r.created_at,
@@ -94,7 +94,7 @@ export async function getReviewsForEntity(
       const { data: myRow } = await supabase
         .from("reviews")
         .select(
-          "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+          "id, rating, review_text, created_at, updated_at",
         )
         .eq("entity_type", entityType)
         .eq("entity_id", entityId)
@@ -103,10 +103,10 @@ export async function getReviewsForEntity(
       if (myRow) {
         my_review = {
           id: myRow.id,
-          user_id: myRow.user_id,
+          user_id: viewerUserId,
           username: sessionUsername,
-          entity_type: myRow.entity_type,
-          entity_id: myRow.entity_id,
+          entity_type: entityType,
+          entity_id: entityId,
           rating: myRow.rating,
           review_text: myRow.review_text ?? null,
           created_at: myRow.created_at,

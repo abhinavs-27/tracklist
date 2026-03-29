@@ -56,7 +56,7 @@ export async function getCommunityMemberGrowthThisWeek(
   const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
   const { count, error } = await admin
     .from("community_members")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("community_id", cid)
     .gte("created_at", since);
 
