@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import type {
   EnrichedFeedActivity,
@@ -38,36 +37,29 @@ function FeedEngagementFooter({
       subjectUserId !== viewerUserId,
   );
   const showReactions = LIKES_ENABLED && Boolean(reactionTarget);
-  const showActions = canEngage && subjectUserId;
+  const showSendRecommendation =
+    SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED && canEngage && subjectUserId;
 
-  if (!showReactions && !showActions) return null;
+  if (!showReactions && !showSendRecommendation) return null;
 
   return (
     <div className="border-t border-zinc-800/80">
       {showReactions && reactionTarget ? (
         <LikeReactionBar target={reactionTarget} noTopBorder />
       ) : null}
-      {showActions && subjectUserId ? (
+      {showSendRecommendation ? (
         <div
           className={`flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center ${
             showReactions ? "border-t border-zinc-800/55" : ""
           }`}
         >
-          {SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED ? (
-            <button
-              type="button"
-              onClick={() => setRecOpen(true)}
-              className={actionBtn}
-            >
-              Send recommendation
-            </button>
-          ) : null}
-          <Link
-            href={`/profile/${subjectUserId}#taste-match`}
+          <button
+            type="button"
+            onClick={() => setRecOpen(true)}
             className={actionBtn}
           >
-            Compare taste
-          </Link>
+            Send recommendation
+          </button>
         </div>
       ) : null}
       {SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED && recOpen && subjectUserId ? (

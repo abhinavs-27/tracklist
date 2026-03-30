@@ -48,7 +48,7 @@ export function feedRowReactionTarget(
   return feedActivityReactionTarget(row.activity);
 }
 
-/** User to target for Send rec / Compare taste (the actor of the activity). */
+/** User to target for Send recommendation (the actor of the activity). */
 export function feedActivityEngagementUserId(
   activity: EnrichedFeedActivity,
 ): string | null {
