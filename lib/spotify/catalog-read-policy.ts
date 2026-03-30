@@ -3,9 +3,9 @@ import "server-only";
 /**
  * Controls whether getOrFetch* helpers may call Spotify on cache miss / stale refresh.
  *
- * - Default (no env, opts.allowNetwork unset): **never** call Spotify from catalog reads — DB / placeholders only.
- * - Set `SPOTIFY_NETWORK_FOR_CATALOG_READS=1` on worker/cron processes that hydrate catalog.
- * - Or pass `{ allowNetwork: true }` for explicit warm paths (e.g. after Spotify user sync).
+ * - `{ allowNetwork: false }` — never call Spotify (DB / placeholders only), regardless of env.
+ * - `{ allowNetwork: true }` — allow Spotify for this call.
+ * - Default (unset): `SPOTIFY_NETWORK_FOR_CATALOG_READS=1` enables network (e.g. worker/cron hydration).
  */
 export type CatalogFetchOpts = {
   allowLastfmMapping?: boolean;
@@ -16,6 +16,7 @@ export type CatalogFetchOpts = {
 export function catalogReadsAllowSpotifyNetwork(
   opts?: CatalogFetchOpts,
 ): boolean {
+  if (opts?.allowNetwork === false) return false;
   if (opts?.allowNetwork === true) return true;
   return process.env.SPOTIFY_NETWORK_FOR_CATALOG_READS === "1";
 }

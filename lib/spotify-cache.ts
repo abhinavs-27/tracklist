@@ -1984,6 +1984,42 @@ async function getOrFetchAlbumsBatchInner(
     });
   }
 
+  /** DB row exists but `image_url` empty — same idea as track batch artwork supplement. */
+  if (net) {
+    const needAlbumArtwork: string[] = [];
+    for (const album of albums) {
+      if (album.image_url?.trim()) continue;
+      if (!isValidSpotifyId(album.id)) continue;
+      needAlbumArtwork.push(album.id);
+    }
+    if (needAlbumArtwork.length > 0) {
+      try {
+        for (const idChunk of chunkArray(needAlbumArtwork, MAX_SPOTIFY_ITEMS)) {
+          const fetched = await getAlbums(idChunk);
+          for (const album of fetched) {
+            try {
+              await upsertAlbumFromSpotify(supabase, album);
+            } catch (e) {
+              console.warn(
+                `${LOG_PREFIX} upsertAlbumFromSpotify (artwork supplement) failed for ${album.id}`,
+                e,
+              );
+            }
+            const first = album.artists?.[0];
+            lookup.set(album.id, {
+              id: album.id,
+              name: album.name,
+              artists: first ? [{ id: first.id, name: first.name }] : [],
+              images: album.images,
+            });
+          }
+        }
+      } catch (e) {
+        console.error(`${LOG_PREFIX} getAlbums artwork supplement failed`, e);
+      }
+    }
+  }
+
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0 && net) {
     try {

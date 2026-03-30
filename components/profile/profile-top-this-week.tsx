@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { SectionBlock } from "@/components/layout/section-block";
-import { getTopThisWeek } from "@/lib/profile/top-this-week";
+import {
+  getTopThisWeek,
+  type TopThisWeekResult,
+} from "@/lib/profile/top-this-week";
 import { cardElevated, cardElevatedInteractive } from "@/lib/ui/surface";
 
 const strip =
@@ -96,11 +99,14 @@ function ArtistCard({
 export async function ProfileTopThisWeekSection({
   userId,
   compact = false,
+  prefetched,
 }: {
   userId: string;
   compact?: boolean;
+  /** When set (e.g. parent already awaited `getTopThisWeek`), skip duplicate fetch. */
+  prefetched?: TopThisWeekResult | null;
 }) {
-  const data = await getTopThisWeek(userId);
+  const data = prefetched ?? (await getTopThisWeek(userId));
   const max = compact ? 5 : 10;
   const tracks = data.tracks.slice(0, max);
   const artists = data.artists.slice(0, max);

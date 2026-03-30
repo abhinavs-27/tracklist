@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getRolling7dVsPrior7dBounds } from "@/lib/analytics/rolling-windows";
+import type { CatalogFetchOpts } from "@/lib/spotify/catalog-read-policy";
 import {
   getOrFetchAlbumsBatch,
   getOrFetchArtistsBatch,
@@ -8,6 +9,79 @@ import {
 } from "@/lib/spotify-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+const CATALOG_OFFLINE: CatalogFetchOpts = { allowNetwork: false };
+const CATALOG_ONLINE: CatalogFetchOpts = { allowNetwork: true };
+
+function hasArtistArtwork(
+  a: SpotifyApi.ArtistObjectFull | null | undefined,
+): boolean {
+  return Boolean(a?.images?.[0]?.url?.trim());
+}
+
+function hasAlbumArtwork(
+  a: SpotifyApi.AlbumObjectSimplified | null | undefined,
+): boolean {
+  return Boolean(a?.images?.[0]?.url?.trim());
+}
+
+/** Track tile uses album cover — that is what we gate Spotify on. */
+function hasTrackAlbumArtwork(
+  t: SpotifyApi.TrackObjectFull | null | undefined,
+): boolean {
+  return Boolean(t?.album?.images?.[0]?.url?.trim());
+}
+
+function mergeArtistMeta(
+  prev: SpotifyApi.ArtistObjectFull | null,
+  next: SpotifyApi.ArtistObjectFull | null,
+): SpotifyApi.ArtistObjectFull | null {
+  if (hasArtistArtwork(next)) return next;
+  if (hasArtistArtwork(prev)) return prev;
+  return next ?? prev;
+}
+
+function mergeTrackMeta(
+  prev: SpotifyApi.TrackObjectFull | null,
+  next: SpotifyApi.TrackObjectFull | null,
+): SpotifyApi.TrackObjectFull | null {
+  if (hasTrackAlbumArtwork(next)) return next;
+  if (hasTrackAlbumArtwork(prev)) return prev;
+  return next ?? prev;
+}
+
+function mergeAlbumMeta(
+  prev: SpotifyApi.AlbumObjectSimplified | null,
+  next: SpotifyApi.AlbumObjectSimplified | null,
+): SpotifyApi.AlbumObjectSimplified | null {
+  if (hasAlbumArtwork(next)) return next;
+  if (hasAlbumArtwork(prev)) return prev;
+  return next ?? prev;
+}
+
+async function fetchCatalogBatches(
+  artistIds: string[],
+  trackIdsTop: string[],
+  albumIds: string[],
+  opts: CatalogFetchOpts,
+): Promise<{
+  artistMetaList: Awaited<ReturnType<typeof getOrFetchArtistsBatch>>;
+  trackMetaList: Awaited<ReturnType<typeof getOrFetchTracksBatch>>;
+  albumMetaList: Awaited<ReturnType<typeof getOrFetchAlbumsBatch>>;
+}> {
+  const [artistMetaList, trackMetaList, albumMetaList] = await Promise.all([
+    artistIds.length
+      ? getOrFetchArtistsBatch(artistIds, opts)
+      : Promise.resolve([] as Awaited<ReturnType<typeof getOrFetchArtistsBatch>>),
+    trackIdsTop.length
+      ? getOrFetchTracksBatch(trackIdsTop, opts)
+      : Promise.resolve([] as Awaited<ReturnType<typeof getOrFetchTracksBatch>>),
+    albumIds.length
+      ? getOrFetchAlbumsBatch(albumIds, opts)
+      : Promise.resolve([] as Awaited<ReturnType<typeof getOrFetchAlbumsBatch>>),
+  ]);
+  return { artistMetaList, trackMetaList, albumMetaList };
+}
 
 const TOP_N = 10;
 const MAX_LOGS = 20000;
@@ -96,7 +170,6 @@ export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult>
   if (!uid) return empty();
 
   const admin = createSupabaseAdminClient();
-  const catalogOpts = { allowNetwork: true as const };
 
   const { data: logRows, error: logErr } = await admin
     .from("logs")
@@ -127,7 +200,7 @@ export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult>
       trackCount.set(tid, (trackCount.get(tid) ?? 0) + 1);
     }
     const song = tid ? songMap.get(tid) : undefined;
-    let aid = r.artist_id?.trim() ?? song?.artist_id?.trim() ?? null;
+    const aid = r.artist_id?.trim() ?? song?.artist_id?.trim() ?? null;
     if (aid && isValidCatalogId(aid)) {
       artistCount.set(aid, (artistCount.get(aid) ?? 0) + 1);
     }
@@ -151,27 +224,66 @@ export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult>
   const trackIdsTop = sortedTracks.map(([id]) => id).filter(isValidCatalogId);
   const albumIds = sortedAlbums.map(([id]) => id).filter(isValidCatalogId);
 
-  const [artistMetaList, trackMetaList, albumMetaList] = await Promise.all([
-    artistIds.length
-      ? getOrFetchArtistsBatch(artistIds, catalogOpts)
-      : Promise.resolve([] as Awaited<ReturnType<typeof getOrFetchArtistsBatch>>),
-    trackIdsTop.length
-      ? getOrFetchTracksBatch(trackIdsTop, catalogOpts)
-      : Promise.resolve([] as Awaited<ReturnType<typeof getOrFetchTracksBatch>>),
-    albumIds.length
-      ? getOrFetchAlbumsBatch(albumIds, catalogOpts)
-      : Promise.resolve([] as Awaited<ReturnType<typeof getOrFetchAlbumsBatch>>),
-  ]);
+  const pass1 = await fetchCatalogBatches(
+    artistIds,
+    trackIdsTop,
+    albumIds,
+    CATALOG_OFFLINE,
+  );
 
   const artistMetaById = new Map(
-    artistIds.map((id, i) => [id, artistMetaList[i] ?? null] as const),
+    artistIds.map((id, i) => [id, pass1.artistMetaList[i] ?? null] as const),
   );
   const trackMetaById = new Map(
-    trackIdsTop.map((id, i) => [id, trackMetaList[i] ?? null] as const),
+    trackIdsTop.map((id, i) => [id, pass1.trackMetaList[i] ?? null] as const),
   );
   const albumMetaById = new Map(
-    albumIds.map((id, i) => [id, albumMetaList[i] ?? null] as const),
+    albumIds.map((id, i) => [id, pass1.albumMetaList[i] ?? null] as const),
   );
+
+  const artistNeedArtwork = artistIds.filter(
+    (id) => !hasArtistArtwork(artistMetaById.get(id)),
+  );
+  const trackNeedArtwork = trackIdsTop.filter(
+    (id) => !hasTrackAlbumArtwork(trackMetaById.get(id)),
+  );
+  const albumNeedArtwork = albumIds.filter(
+    (id) => !hasAlbumArtwork(albumMetaById.get(id)),
+  );
+
+  if (
+    artistNeedArtwork.length > 0 ||
+    trackNeedArtwork.length > 0 ||
+    albumNeedArtwork.length > 0
+  ) {
+    const pass2 = await fetchCatalogBatches(
+      artistNeedArtwork,
+      trackNeedArtwork,
+      albumNeedArtwork,
+      CATALOG_ONLINE,
+    );
+    for (let i = 0; i < artistNeedArtwork.length; i++) {
+      const id = artistNeedArtwork[i]!;
+      artistMetaById.set(
+        id,
+        mergeArtistMeta(artistMetaById.get(id) ?? null, pass2.artistMetaList[i] ?? null),
+      );
+    }
+    for (let i = 0; i < trackNeedArtwork.length; i++) {
+      const id = trackNeedArtwork[i]!;
+      trackMetaById.set(
+        id,
+        mergeTrackMeta(trackMetaById.get(id) ?? null, pass2.trackMetaList[i] ?? null),
+      );
+    }
+    for (let i = 0; i < albumNeedArtwork.length; i++) {
+      const id = albumNeedArtwork[i]!;
+      albumMetaById.set(
+        id,
+        mergeAlbumMeta(albumMetaById.get(id) ?? null, pass2.albumMetaList[i] ?? null),
+      );
+    }
+  }
 
   const artists: TopWeekArtist[] = [];
   for (const [entityId, count] of sortedArtists) {

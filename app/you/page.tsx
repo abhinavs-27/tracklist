@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getTopThisWeek } from "@/lib/profile/top-this-week";
 import { getUserListsWithPreviews } from "@/lib/queries";
 import { SectionBlock } from "@/components/layout/section-block";
 import { ListCard } from "@/components/list-card";
@@ -19,13 +20,17 @@ export default async function YouHubPage() {
 
   const userId = session.user.id;
   const supabase = createSupabaseAdminClient();
-  const { data: user } = await supabase
-    .from("users")
-    .select("id, username, avatar_url, bio")
-    .eq("id", userId)
-    .maybeSingle();
 
-  const lists = await getUserListsWithPreviews(userId, 4, 0);
+  const [userRes, lists, topWeek] = await Promise.all([
+    supabase
+      .from("users")
+      .select("id, username, avatar_url, bio")
+      .eq("id", userId)
+      .maybeSingle(),
+    getUserListsWithPreviews(userId, 4, 0),
+    getTopThisWeek(userId),
+  ]);
+  const { data: user } = userRes;
 
   const u = user as {
     id: string;
@@ -79,7 +84,11 @@ export default async function YouHubPage() {
         </div>
       </Link>
 
-      <ProfileTopThisWeekSection userId={userId} compact />
+      <ProfileTopThisWeekSection
+        userId={userId}
+        compact
+        prefetched={topWeek}
+      />
 
       <SectionBlock
         title="Your lists"
