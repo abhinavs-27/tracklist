@@ -13,7 +13,7 @@ export type { RecentAlbumItem };
 /** Recent unique albums — derived only from `logs` + catalog (all listen sources). */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const userId = searchParams.get("user_id");
     if (!userId || !isValidUuid(userId)) return apiBadRequest("Valid user_id required");
 

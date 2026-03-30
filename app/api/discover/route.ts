@@ -8,7 +8,7 @@ import type { DiscoverUsersResponse } from '@/types';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const limit = clampLimit(searchParams.get('limit'), 20, 16);
 
     const supabase = await createSupabaseServerClient();

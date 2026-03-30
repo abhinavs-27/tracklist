@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const limit = clampLimit(
       searchParams.get("limit"),
       LIMITS.FEED_LIMIT,

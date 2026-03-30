@@ -1,3 +1,4 @@
+import { withHandler } from "@/lib/api-handler";
 import { computeAllCommunitiesWeekly } from "@/lib/community/compute-community-weekly";
 import { apiOk } from "@/lib/api-response";
 
@@ -5,7 +6,7 @@ import { apiOk } from "@/lib/api-response";
  * Weekly community jobs: taste pairs, member stats, weekly summary, roles.
  * GET /api/cron/community-feature-weekly?limit=40
  */
-export async function GET(request: Request) {
+export const GET = withHandler(async (request) => {
   const url = new URL(request.url);
   const limit = Math.min(
     200,
@@ -13,4 +14,4 @@ export async function GET(request: Request) {
   );
   const { processed, failures } = await computeAllCommunitiesWeekly(limit);
   return apiOk({ ok: true, processed, failures });
-}
+});

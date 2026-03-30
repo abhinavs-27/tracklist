@@ -450,3 +450,26 @@ export interface ProfileUpdateBody {
   /** Profile onboarding wizard finished (username + favorite albums). */
   onboarding_completed?: boolean;
 }
+
+export interface CommunityCreateBody {
+  name: string;
+  description?: string | null;
+  is_private?: boolean;
+}
+
+export interface CommunityUpdateBody {
+  name?: string;
+  description?: string | null;
+  is_private?: boolean;
+}
+
+export interface ListCreateBody {
+  title: string;
+  description?: string | null;
+  type: 'song' | 'album';
+}
+
+export interface ListUpdateBody {
+  title?: string;
+  description?: string | null;
+}

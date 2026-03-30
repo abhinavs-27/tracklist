@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const defaultMinRating = hiddenGemsConfig?.filters?.min_rating ?? 4;
     const defaultMaxListens = hiddenGemsConfig?.filters?.max_plays ?? 50;
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const limit = clampLimit(searchParams.get("limit"), 20, 20);
     const minRating = Math.min(
       Math.max(0, parseFloat(searchParams.get("minRating") ?? String(defaultMinRating)) || defaultMinRating),

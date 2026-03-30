@@ -31,7 +31,7 @@ export async function GET(
     const viewer = await getUserFromRequest(request);
     const viewerId = viewer?.id ?? null;
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const limit = clampLimit(searchParams.get("limit"), 50, 20);
     const offset = Number(searchParams.get("offset")) || 0;
     if (offset < 0) return apiBadRequest("offset must be >= 0");

@@ -13,7 +13,7 @@ import { getLeaderboard } from "@/lib/queries";
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const typeParam = searchParams.get("type");
     const startYearParam = searchParams.get("startYear");
     const endYearParam = searchParams.get("endYear");

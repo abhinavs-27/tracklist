@@ -6,7 +6,7 @@ import {
 } from "@/lib/community/getCommunityConsensus";
 import { isCommunityMember } from "@/lib/community/queries";
 import { apiForbidden, apiNotFound, apiOk } from "@/lib/api-response";
-import { isValidUuid } from "@/lib/validation";
+import { validateUuidParam, getPaginationParams } from "@/lib/api-utils";
 
 const TYPES: ConsensusEntityType[] = ["track", "album", "artist"];
 const RANGES: ConsensusRange[] = ["week", "month", "all"];
@@ -28,25 +28,19 @@ function parseRange(raw: string | null): ConsensusRange {
 /** GET /api/communities/[id]/consensus — shared favorites ranking; members only. Cached ~5m. */
 export const GET = withHandler(
   async (request, { user: me, params }) => {
-    const id = params.id?.trim() ?? "";
-    if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
+    const idRes = validateUuidParam(params.id);
+    if (typeof idRes !== "string") return idRes;
+    const id = idRes;
 
     const member = await isCommunityMember(id, me!.id);
     if (!member) {
       return apiForbidden("Join this community to see consensus rankings");
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const type = parseType(searchParams.get("type"));
     const range = parseRange(searchParams.get("range"));
-    const limit = Math.min(
-      100,
-      Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10) || 10),
-    );
-    const offset = Math.max(
-      0,
-      parseInt(searchParams.get("offset") ?? "0", 10) || 0,
-    );
+    const { limit, offset } = getPaginationParams(searchParams, 10, 100);
 
     const { items, hasMore } = await getCommunityConsensusRankings(
       id,

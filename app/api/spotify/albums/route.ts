@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     return apiTooManyRequests();
   }
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const idsParam = searchParams.get("ids");
     if (!idsParam || typeof idsParam !== "string") {
       return apiBadRequest("Missing or invalid ids query (comma-separated album ids)");

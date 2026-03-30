@@ -118,7 +118,7 @@ export const POST = withHandler(
 
 export const GET = withHandler(
   async (request, { user: me }) => {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const spotifyId = searchParams.get('spotify_id');
     const limit = clampLimit(searchParams.get('limit'), LIMITS.LOGS_LIMIT, 20);
 

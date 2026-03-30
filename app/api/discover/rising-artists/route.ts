@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     return apiTooManyRequests();
   }
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const limit = clampLimit(searchParams.get("limit"), 20, 20);
     const windowDays = Math.min(
       Math.max(1, parseInt(searchParams.get("windowDays") ?? "7", 10) || 7),

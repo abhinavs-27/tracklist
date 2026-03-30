@@ -1,3 +1,4 @@
+import { withHandler } from "@/lib/api-handler";
 import { NextRequest } from "next/server";
 
 import { apiOk, apiError } from "@/lib/api-response";
@@ -14,7 +15,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
  * `filled=1` — refresh rows that already have popularity (e.g. migrate off legacy Spotify scores).
  * Check JSON: `totalSongsWithNullPopularity`, `errorSamples`, `warnings`, `dbError`.
  */
-export async function GET(request: NextRequest) {
+export const GET = withHandler(async (request) => {
   try {
     const lastfmConfigured = Boolean(process.env.LASTFM_API_KEY?.trim());
     if (!lastfmConfigured) {
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     const admin = createSupabaseAdminClient();
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
 
     const parseIntClamped = (key: string, def: number, max: number): number => {
       const v = parseInt(searchParams.get(key) ?? String(def), 10);
@@ -54,4 +55,4 @@ export async function GET(request: NextRequest) {
     console.error("[cron backfill-catalog-popularity]", e);
     return apiError(e instanceof Error ? e.message : "backfill failed", 500);
   }
-}
+});

@@ -1,3 +1,4 @@
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getArtists } from "@/lib/spotify";
 import { upsertArtistFromSpotify } from "@/lib/spotify-cache";
@@ -23,7 +24,7 @@ function lastfmStale(iso: string | null): boolean {
  *
  * GET /api/cron/backfill-artist-metadata
  */
-export async function GET() {
+export const GET = withHandler(async () => {
   const supabase = createSupabaseAdminClient();
 
   const { data: rows, error } = await supabase
@@ -122,4 +123,4 @@ export async function GET() {
     lastfm: { attempts: lastfmOk + lastfmFail, failures: lastfmFail },
     spotify: { ok: spotifyOk, fail: spotifyFail },
   });
-}
+});

@@ -17,7 +17,7 @@ import { isValidUuid } from "@/lib/validation";
 export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const userB = searchParams.get("userB")?.trim();
 
     const userAParam = searchParams.get("userA")?.trim();

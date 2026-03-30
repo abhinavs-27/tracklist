@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const raw = searchParams.get('q') ?? '';
     const q = sanitizeString(raw, MAX_QUERY_LENGTH) ?? '';
 

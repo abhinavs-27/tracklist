@@ -10,6 +10,7 @@ import {
   apiNotFound,
   apiOk,
 } from "@/lib/api-response";
+import { getPaginationParams } from "@/lib/api-utils";
 import { isValidUuid, LIMITS } from "@/lib/validation";
 
 const TYPES: ReportEntityType[] = ["artist", "album", "track", "genre"];
@@ -32,7 +33,7 @@ function parseRange(raw: string | null): ReportRange | null {
 /** GET /api/reports — listening rankings (precomputed + optional custom window). */
 export const GET = withHandler(
   async (request, { user: me }) => {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const userId = searchParams.get("userId")?.trim() ?? "";
     if (!userId || !isValidUuid(userId)) {
       return apiBadRequest("userId is required");
@@ -50,14 +51,7 @@ export const GET = withHandler(
       return apiBadRequest("range must be week, month, year, or custom");
     }
 
-    const limit = Math.min(
-      100,
-      Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10) || 50),
-    );
-    const offset = Math.max(
-      0,
-      parseInt(searchParams.get("offset") ?? "0", 10) || 0,
-    );
+    const { limit, offset } = getPaginationParams(searchParams, 50, 100);
 
     let startDate: string | null = null;
     let endDate: string | null = null;

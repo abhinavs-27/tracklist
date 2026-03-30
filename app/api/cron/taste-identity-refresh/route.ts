@@ -1,3 +1,4 @@
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { apiOk } from "@/lib/api-response";
 import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
@@ -64,12 +65,7 @@ async function resolveCronUserIds(): Promise<string[]> {
  * GET /api/cron/taste-identity-refresh
  * Optional: Authorization: Bearer CRON_SECRET (when enabled in route)
  */
-export async function GET() {
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return apiUnauthorized();
-  // }
-
+export const GET = withHandler(async () => {
   const userIds = await resolveCronUserIds();
   let processed = 0;
   let failures = 0;
@@ -97,5 +93,5 @@ export async function GET() {
     processed,
     failures,
   });
-}
+});
 

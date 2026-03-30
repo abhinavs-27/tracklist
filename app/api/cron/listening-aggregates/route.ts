@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { withHandler } from "@/lib/api-handler";
 import { updateListeningAggregates } from "@/lib/analytics/updateListeningAggregates";
 import { apiUnauthorized, apiOk, apiError } from "@/lib/api-response";
 
@@ -6,7 +6,7 @@ import { apiUnauthorized, apiOk, apiError } from "@/lib/api-response";
  * Daily: roll pending logs into `user_listening_aggregates`.
  * Authorization: Bearer CRON_SECRET (optional in dev).
  */
-export async function GET(request: NextRequest) {
+export const GET = withHandler(async (request) => {
   const secret = process.env.CRON_SECRET?.trim();
   if (secret) {
     const auth = request.headers.get("authorization");
@@ -22,4 +22,4 @@ export async function GET(request: NextRequest) {
     console.error("[cron] listening-aggregates", e);
     return apiError("Aggregation failed", 500);
   }
-}
+});

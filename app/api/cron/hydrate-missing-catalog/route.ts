@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-
+import { withHandler } from "@/lib/api-handler";
 import { apiError, apiOk } from "@/lib/api-response";
 import {
   runHydrateMissingCatalogFromLogs,
@@ -17,10 +16,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
  *
  * Safe to run on a schedule; uses Spotify client credentials + batch `getTracks`.
  */
-export async function GET(request: NextRequest) {
+export const GET = withHandler(async (request) => {
   try {
     const admin = createSupabaseAdminClient();
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
 
     const batch = Math.min(
       50,
@@ -44,4 +43,4 @@ export async function GET(request: NextRequest) {
     console.error("[cron hydrate-missing-catalog]", e);
     return apiError(e instanceof Error ? e.message : "hydration failed", 500);
   }
-}
+});

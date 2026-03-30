@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
 import { withHandler } from "@/lib/api-handler";
+import { requireApiAuth } from "@/lib/auth";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
 import {
   getCommunityById,
@@ -16,8 +16,9 @@ import {
   apiNotFound,
   apiOk,
 } from "@/lib/api-response";
-import { parseBody } from "@/lib/api-utils";
+import { parseBody, validateUuidParam } from "@/lib/api-utils";
 import { isValidUuid } from "@/lib/validation";
+import type { CommunityUpdateBody } from "@/types";
 
 /**
  * GET /api/communities/[id] — metadata + member count.
@@ -72,14 +73,11 @@ export async function GET(
 /** PATCH /api/communities/[id] — name, description, is_private (permission rules in `updateCommunitySettings`). */
 export const PATCH = withHandler(
   async (request, { user: me, params }) => {
-    const id = params.id?.trim() ?? "";
-    if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
+    const idRes = validateUuidParam(params.id);
+    if (typeof idRes !== "string") return idRes;
+    const id = idRes;
 
-    const { data: body, error: parseErr } = await parseBody<{
-      name?: unknown;
-      description?: unknown;
-      is_private?: unknown;
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<CommunityUpdateBody>(request);
     if (parseErr) return parseErr;
 
     const patch: {

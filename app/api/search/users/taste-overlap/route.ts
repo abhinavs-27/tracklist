@@ -10,7 +10,7 @@ const MAX_LIMIT = 20;
 export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const raw = parseInt(searchParams.get("limit") ?? String(DEFAULT_LIMIT), 10);
     const limit =
       Number.isFinite(raw) && raw >= 1 ? Math.min(raw, MAX_LIMIT) : DEFAULT_LIMIT;

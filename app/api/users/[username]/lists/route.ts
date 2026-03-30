@@ -24,7 +24,7 @@ export async function GET(
     if (error) return apiInternalError(error);
     if (!user) return apiNotFound("User not found");
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const limit = clampLimit(searchParams.get("limit"), 50, 20);
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 

@@ -16,6 +16,7 @@ import {
   validateListTitle,
   validateListDescription,
 } from "@/lib/validation";
+import type { ListUpdateBody } from "@/types";
 
 export type ListItemEnriched = {
   id: string;
@@ -76,9 +77,7 @@ export const PATCH = withHandler(
       return apiForbidden("You do not own this list");
     }
 
-    const { data: body, error: bodyError } = await parseBody<{
-      title?: unknown;
-      description?: unknown;
+    const { data: body, error: bodyError } = await parseBody<ListUpdateBody & {
       visibility?: unknown;
       emoji?: unknown;
       image_url?: unknown;

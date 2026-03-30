@@ -1,3 +1,4 @@
+import { withHandler } from "@/lib/api-handler";
 import { apiError, apiOk } from "@/lib/api-response";
 import { repairLastfmListeningAggregates } from "@/lib/analytics/repairLastfmAggregates";
 
@@ -7,9 +8,9 @@ import { repairLastfmListeningAggregates } from "@/lib/analytics/repairLastfmAgg
  *
  * Safe to run frequently; each log is repaired at most once.
  */
-export async function GET(request: Request) {
+export const GET = withHandler(async (request) => {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const batch = Math.min(
       2000,
       Math.max(50, parseInt(searchParams.get("batch") ?? "500", 10) || 500),
@@ -22,4 +23,4 @@ export async function GET(request: Request) {
     console.error("[cron repair-lastfm-aggregates]", e);
     return apiError(e instanceof Error ? e.message : "repair failed", 500);
   }
-}
+});

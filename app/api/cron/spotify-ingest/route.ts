@@ -1,22 +1,13 @@
-import { NextRequest } from "next/server";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { ingestRecentPlaysForUser } from "@/lib/logs-ingest";
 import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
-import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
-import { isProd } from "@/lib/env";
+import { apiError, apiOk } from "@/lib/api-response";
 
 const BATCH_SIZE = 50;
 const MAX_USERS_PER_RUN = 500;
 
-export async function GET(request: NextRequest) {
-  // if (!isProd()) {
-  //   return apiOk({ ok: false, message: "cron disabled outside prod" });
-  // }
-
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return apiUnauthorized();
-  // }
+export const GET = withHandler(async () => {
 
   if (!isSpotifyIntegrationEnabled()) {
     console.log("[cron] spotify-ingest-complete", {
@@ -81,4 +72,4 @@ export async function GET(request: NextRequest) {
     inserted: totalInserted,
     skipped: totalSkipped,
   });
-}
+});

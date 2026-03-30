@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const limit = clampLimit(searchParams.get("limit"), MAX_LIMIT, 50);
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 

@@ -9,10 +9,11 @@ import {
   validateListType,
   clampLimit,
 } from "@/lib/validation";
+import type { ListCreateBody } from "@/types";
 
 /** GET – search lists by title. ?q=...&limit= (public). Returns [] when q is missing or < 2 chars. */
 export const GET = withHandler(async (request: NextRequest) => {
-  const { searchParams } = new URL(request.url);
+  const { searchParams } = request.nextUrl;
   const q = searchParams.get("q")?.trim() ?? "";
   const limit = clampLimit(searchParams.get("limit"), 50, 20);
   if (q.length < 2) return apiOk([]);
@@ -23,10 +24,7 @@ export const GET = withHandler(async (request: NextRequest) => {
 /** POST – create a new list. Body: { title, description? }. Auth required. */
 export const POST = withHandler(
   async (request, { user: me }) => {
-    const { data: body, error: parseErr } = await parseBody<{
-      title?: unknown;
-      description?: unknown;
-      type?: unknown;
+    const { data: body, error: parseErr } = await parseBody<ListCreateBody & {
       visibility?: unknown;
       first_item?: { entity_type?: unknown; entity_id?: unknown };
       initial_items?: { entity_type?: unknown; entity_id?: unknown }[];

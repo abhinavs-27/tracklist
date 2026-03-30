@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getSession } from "../lib/auth";
+import { ok } from "../lib/http";
 
 /**
  * Minimal NextAuth-compatible session JSON for clients that call `GET /api/auth/session`
@@ -10,10 +11,9 @@ export const authCompatRouter = Router();
 authCompatRouter.get("/session", async (req, res) => {
   const s = await getSession(req);
   if (!s) {
-    res.status(200).json({});
-    return;
+    return ok(res, {});
   }
-  res.status(200).json({
+  return ok(res, {
     user: {
       id: s.id,
       name: s.username ?? null,

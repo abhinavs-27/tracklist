@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const rawOffset = parseInt(searchParams.get("offset") ?? "0", 10);
     const rawLimit = parseInt(searchParams.get("limit") ?? String(DEFAULT_LIMIT), 10);
     const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
