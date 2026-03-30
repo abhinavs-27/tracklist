@@ -61,8 +61,11 @@ async function buildFullCommunityMembersRoster(
   const userMap = await fetchUserMap(admin, userIds);
 
   const [stats, cacheResult, followResult, similarityScores] = await Promise.all([
-    getCommunityMemberStatsWithRoles(cid),
-    admin.from("taste_identity_cache").select("user_id, payload").in("user_id", userIds),
+    getCommunityMemberStatsWithRoles(cid, 1000, 0, userIds),
+    admin
+      .from("taste_identity_cache")
+      .select("user_id, payload")
+      .in("user_id", userIds.slice(0, 1000)),
     viewerId
       ? admin
           .from("follows")
