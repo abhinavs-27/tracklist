@@ -1,17 +1,24 @@
 import Link from "next/link";
 import { fetchUserMap } from "@/lib/queries";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import type { UserTasteMatch } from "@/lib/taste/getUserMatches";
 import { getUserMatches } from "@/lib/taste/getUserMatches";
 import { tasteSimilarityLabel } from "@/lib/taste/tasteLabels";
 
 export async function SimilarUsersSection({
   userId,
   variant = "list",
+  /** When set (e.g. prefetched on the profile page), skips duplicate getUserMatches. */
+  prefetchedMatches,
 }: {
   userId: string;
   variant?: "list" | "strip";
+  prefetchedMatches?: UserTasteMatch[];
 }) {
-  const matches = await getUserMatches(userId);
+  const matches =
+    prefetchedMatches !== undefined
+      ? prefetchedMatches
+      : await getUserMatches(userId);
   const top = matches.slice(0, variant === "strip" ? 8 : 5);
 
   if (top.length === 0) {

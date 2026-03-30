@@ -14,6 +14,14 @@ import { cosineSimilarity } from "@/lib/taste/cosineSimilarity";
 const CANDIDATE_LIMIT = 80;
 const TOP_N = 10;
 
+/** One query for all candidates’ logs; cap rows to keep PostgREST + Node work bounded. */
+function matchQueryLogLimit(): number {
+  const raw = process.env.TASTE_MATCH_LOGS_LIMIT?.trim();
+  if (!raw) return 12_000;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 50_000) : 12_000;
+}
+
 export type UserTasteMatch = {
   userId: string;
   similarityScore: number;
@@ -56,7 +64,7 @@ export async function getUserMatches(
     .in("user_id", candidateIds)
     .gte("listened_at", since)
     .order("listened_at", { ascending: true })
-    .limit(50000);
+    .limit(matchQueryLogLimit());
 
   if (logErr) {
     console.error("[getUserMatches] logs", logErr);

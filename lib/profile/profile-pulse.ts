@@ -43,9 +43,11 @@ export type ProfilePulseInsights = {
   soundShift: PulseSoundShift | null;
 };
 
-async function resolveArtistNames(ids: string[]): Promise<Map<string, string>> {
+async function resolveArtistNames(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  ids: string[],
+): Promise<Map<string, string>> {
   if (ids.length === 0) return new Map();
-  const admin = createSupabaseAdminClient();
   const { data } = await admin.from("artists").select("id, name").in("id", ids);
   const m = new Map<string, string>();
   for (const row of data ?? []) {
@@ -270,6 +272,7 @@ export async function getProfilePulseInsights(
   if (!uid) return null;
 
   const { current, previous, rangeCaption } = getRolling7dVsPrior7dBounds();
+  const admin = createSupabaseAdminClient();
 
   const [
     artistCmp,
@@ -306,7 +309,7 @@ export async function getProfilePulseInsights(
   const prevSet = new Set(prevIds);
   const freshIds = curIds.filter((id) => !prevSet.has(id)).slice(0, 6);
   const nameMap =
-    freshIds.length > 0 ? await resolveArtistNames(freshIds) : new Map();
+    freshIds.length > 0 ? await resolveArtistNames(admin, freshIds) : new Map();
   const newNames = freshIds
     .map((id) => nameMap.get(id))
     .filter((n): n is string => Boolean(n?.trim()));

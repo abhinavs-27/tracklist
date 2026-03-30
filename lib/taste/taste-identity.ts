@@ -252,6 +252,12 @@ function needsAlbumNameFallback(name: string, id: string): boolean {
   return false;
 }
 
+function tasteTopAlbumNeedsCatalogEnrichment(al: TasteTopAlbum): boolean {
+  if (needsAlbumNameFallback(al.name, al.id)) return true;
+  if (!String(al.imageUrl ?? "").trim()) return true;
+  return false;
+}
+
 function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   const listeningStyle = normalizeListeningStyle(String(cached.listeningStyle));
   const diversityScore = normalizeDiversityScore(cached.diversityScore);
@@ -408,17 +414,17 @@ async function hydrateTasteIdentityNamesFromCatalog(
     return { ...al, name, artistName };
   });
 
-  const stillBad = topAlbums.filter((a) => needsAlbumNameFallback(a.name, a.id));
-  if (stillBad.length > 0) {
-    const spotifyAlbums = await getOrFetchAlbumsBatch(
-      stillBad.map((a) => a.id),
-      { allowNetwork: true },
-    );
-    const spotifyById = new Map(
-      stillBad.map((a, i) => [a.id, spotifyAlbums[i] ?? null] as const),
-    );
-    topAlbums = topAlbums.map((al) => {
-      const sa = spotifyById.get(al.id);
+  let needAlbumIds = [
+    ...new Set(
+      topAlbums.filter(tasteTopAlbumNeedsCatalogEnrichment).map((a) => a.id),
+    ),
+  ];
+
+  if (needAlbumIds.length > 0) {
+    const mergeAlbumFromSpotify = (
+      al: TasteTopAlbum,
+      sa: Awaited<ReturnType<typeof getOrFetchAlbumsBatch>>[number],
+    ): TasteTopAlbum => {
       if (!sa?.name?.trim()) return al;
       const artistN = sa.artists?.[0]?.name?.trim();
       return {
@@ -427,7 +433,41 @@ async function hydrateTasteIdentityNamesFromCatalog(
         artistName: artistN ?? al.artistName,
         imageUrl: al.imageUrl ?? sa.images?.[0]?.url ?? null,
       };
+    };
+
+    const pass1 = await getOrFetchAlbumsBatch(needAlbumIds, {
+      allowNetwork: false,
     });
+    const byId1 = new Map(
+      needAlbumIds.map((id, i) => [id, pass1[i] ?? null] as const),
+    );
+    const needSet1 = new Set(needAlbumIds);
+    topAlbums = topAlbums.map((al) =>
+      needSet1.has(al.id)
+        ? mergeAlbumFromSpotify(al, byId1.get(al.id) ?? null)
+        : al,
+    );
+
+    needAlbumIds = [
+      ...new Set(
+        topAlbums.filter(tasteTopAlbumNeedsCatalogEnrichment).map((a) => a.id),
+      ),
+    ];
+    if (needAlbumIds.length > 0) {
+      const pass2 = await getOrFetchAlbumsBatch(needAlbumIds, {
+        allowNetwork: true,
+      });
+      const byId2 = new Map(
+        needAlbumIds.map((id, i) => [id, pass2[i] ?? null] as const),
+      );
+      const needSet2 = new Set(needAlbumIds);
+      topAlbums = topAlbums.map((al) =>
+        needSet2.has(al.id)
+          ? mergeAlbumFromSpotify(al, byId2.get(al.id) ?? null)
+          : al,
+      );
+    }
+
     const artistIdsMissing = [
       ...new Set(
         topAlbums
@@ -1096,8 +1136,23 @@ export async function computeTasteIdentity(
     return !m?.image_url;
   });
   if (missingImages.length > 0) {
-    await enrichTopArtistsFromSpotify(admin, missingImages.slice(0, 10));
+    const sliceIds = missingImages.slice(0, 10);
+    const offlineArtists = await getOrFetchArtistsBatch(sliceIds, {
+      allowNetwork: false,
+    });
+    for (let i = 0; i < sliceIds.length; i++) {
+      const a = offlineArtists[i];
+      if (a) await upsertArtistFromSpotify(admin, a);
+    }
     artistMeta = await fetchArtistsBatch(admin, [...artistIdsForMeta]);
+    const stillMissingImage = sliceIds.filter((id) => {
+      const m = artistMeta.get(id);
+      return !m?.image_url;
+    });
+    if (stillMissingImage.length > 0) {
+      await enrichTopArtistsFromSpotify(admin, stillMissingImage);
+      artistMeta = await fetchArtistsBatch(admin, [...artistIdsForMeta]);
+    }
   }
 
   scheduleEnrichArtistGenresForArtistIds(admin, topArtistIds, 14);
@@ -1118,27 +1173,48 @@ export async function computeTasteIdentity(
     .map(([id]) => id);
 
   let albumMeta = await fetchAlbumsBatch(admin, topAlbumIds);
-  const idsNeedingAlbumFill = topAlbumIds.filter((id) => {
+  const albumRowNeedsEnrichment = (id: string) => {
     const al = albumMeta.get(id);
-    return !al || !String(al.name ?? "").trim();
-  });
-  if (idsNeedingAlbumFill.length > 0) {
-    const spotifyAlbums = await getOrFetchAlbumsBatch(idsNeedingAlbumFill, {
-      allowNetwork: true,
-    });
-    albumMeta = new Map(albumMeta);
-    for (let i = 0; i < idsNeedingAlbumFill.length; i++) {
-      const id = idsNeedingAlbumFill[i]!;
+    return (
+      !al ||
+      !String(al.name ?? "").trim() ||
+      !String(al.image_url ?? "").trim()
+    );
+  };
+  let idsNeedingAlbumFill = topAlbumIds.filter(albumRowNeedsEnrichment);
+  const applySpotifyAlbumBatch = (
+    ids: string[],
+    spotifyAlbums: Awaited<ReturnType<typeof getOrFetchAlbumsBatch>>,
+  ) => {
+    const next = new Map(albumMeta);
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i]!;
       const sa = spotifyAlbums[i];
       if (!sa?.name?.trim()) continue;
-      const prev = albumMeta.get(id);
+      const prev = next.get(id);
       const artistId =
         sa.artists?.[0]?.id?.trim() ?? prev?.artist_id?.trim() ?? "";
-      albumMeta.set(id, {
+      next.set(id, {
         name: sa.name,
         artist_id: artistId || prev?.artist_id || "",
         image_url: prev?.image_url ?? sa.images?.[0]?.url ?? null,
       });
+    }
+    albumMeta = next;
+  };
+  if (idsNeedingAlbumFill.length > 0) {
+    const spotifyAlbumsOffline = await getOrFetchAlbumsBatch(
+      idsNeedingAlbumFill,
+      { allowNetwork: false },
+    );
+    applySpotifyAlbumBatch(idsNeedingAlbumFill, spotifyAlbumsOffline);
+    idsNeedingAlbumFill = topAlbumIds.filter(albumRowNeedsEnrichment);
+    if (idsNeedingAlbumFill.length > 0) {
+      const spotifyAlbumsOnline = await getOrFetchAlbumsBatch(
+        idsNeedingAlbumFill,
+        { allowNetwork: true },
+      );
+      applySpotifyAlbumBatch(idsNeedingAlbumFill, spotifyAlbumsOnline);
     }
   }
 
@@ -1235,9 +1311,23 @@ export async function seedTasteIdentityFromFavoriteAlbums(
   );
   if (ids.length === 0) return;
 
-  await getOrFetchAlbumsBatch(ids);
+  await getOrFetchAlbumsBatch(ids, { allowNetwork: false });
+  let albumMeta = await fetchAlbumsBatch(admin, ids);
+  const albumIdsNeedingNetwork = ids.filter((id) => {
+    const al = albumMeta.get(id);
+    return (
+      !al ||
+      !String(al.name ?? "").trim() ||
+      !String(al.image_url ?? "").trim()
+    );
+  });
+  if (albumIdsNeedingNetwork.length > 0) {
+    await getOrFetchAlbumsBatch(albumIdsNeedingNetwork, {
+      allowNetwork: true,
+    });
+    albumMeta = await fetchAlbumsBatch(admin, ids);
+  }
 
-  const albumMeta = await fetchAlbumsBatch(admin, ids);
   const artistIds = [
     ...new Set(
       ids
@@ -1246,11 +1336,21 @@ export async function seedTasteIdentityFromFavoriteAlbums(
     ),
   ];
 
+  let artistMeta = await fetchArtistsBatch(admin, artistIds);
   if (artistIds.length > 0) {
-    await getOrFetchArtistsBatch(artistIds);
+    await getOrFetchArtistsBatch(artistIds, { allowNetwork: false });
+    artistMeta = await fetchArtistsBatch(admin, artistIds);
+    const artistIdsNeedingNetwork = artistIds.filter((id) => {
+      const m = artistMeta.get(id);
+      return !m?.name?.trim() || !m?.image_url?.trim();
+    });
+    if (artistIdsNeedingNetwork.length > 0) {
+      await getOrFetchArtistsBatch(artistIdsNeedingNetwork, {
+        allowNetwork: true,
+      });
+      artistMeta = await fetchArtistsBatch(admin, artistIds);
+    }
   }
-
-  const artistMeta = await fetchArtistsBatch(admin, artistIds);
 
   const artistCounts = new Map<string, number>();
   for (const id of ids) {

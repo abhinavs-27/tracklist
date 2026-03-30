@@ -1633,7 +1633,8 @@ async function getOrFetchTracksBatchInner(
       (id) => (cached.get(id) as SpotifyApi.TrackObjectFull | null) ?? null,
     );
 
-  const supabase = await createSupabaseServerClient();
+  /** Service role: catalog reads/upserts must not use `cookies()` (e.g. inside `unstable_cache`). */
+  const supabase = createSupabaseAdminClient();
   const lookup = new Map<string, SpotifyApi.TrackObjectFull | null>();
 
   const songSelect =
@@ -1942,7 +1943,8 @@ async function getOrFetchAlbumsBatchInner(
         (cached.get(id) as SpotifyApi.AlbumObjectSimplified | null) ?? null,
     );
 
-  const supabase = await createSupabaseServerClient();
+  /** Service role: catalog reads/upserts must not use `cookies()` (e.g. inside `unstable_cache`). */
+  const supabase = createSupabaseAdminClient();
   const lookup = new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
 
   const allAlbums: AlbumRow[] = [];
@@ -2104,7 +2106,8 @@ async function getOrFetchArtistsBatchInner(
       (id) => (cached.get(id) as SpotifyApi.ArtistObjectFull | null) ?? null,
     );
 
-  const supabase = await createSupabaseServerClient();
+  /** Service role: catalog reads/upserts must not use `cookies()` (e.g. inside `unstable_cache`). */
+  const supabase = createSupabaseAdminClient();
   const lookup = new Map<string, SpotifyApi.ArtistObjectFull | null>();
 
   const artistSelect =
