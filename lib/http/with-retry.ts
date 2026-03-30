@@ -42,6 +42,13 @@ export async function withRetry<T>(
     } catch (e) {
       clearTimeout(tid);
       if (e instanceof SpotifyRateLimitError) throw e;
+      // Circuit is open — retries would only repeat the same failure and flood logs.
+      if (
+        e instanceof Error &&
+        e.message.includes("circuit breaker active")
+      ) {
+        throw e;
+      }
       lastErr = e;
       const detail =
         e instanceof Error

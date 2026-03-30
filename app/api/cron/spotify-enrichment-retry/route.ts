@@ -69,7 +69,7 @@ export async function GET() {
   }
 
   const queue = getSpotifyEnrichQueue();
-  let runMode: "redis" | "inline" = queue ? "redis" : "inline";
+  const runMode: "redis" | "inline" = queue ? "redis" : "inline";
   let inlineCompleted = 0;
   let inlineFailed = 0;
 
@@ -87,8 +87,8 @@ export async function GET() {
       }
     }
   } else {
-    for (const job of jobList) {
-      await enqueueSpotifyEnrich(job);
+    for (let i = 0; i < jobList.length; i++) {
+      await enqueueSpotifyEnrich(jobList[i]!, { staggerIndex: i });
     }
   }
 

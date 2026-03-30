@@ -103,6 +103,9 @@ export async function ingestLastfmScrobbles(
 
   const now = new Date().toISOString();
   let insertedListens = 0;
+  /** One resolve job per distinct song per batch (avoids duplicate BullMQ work + spreads load). */
+  const resolveQueuedForSong = new Set<string>();
+  let resolveStaggerSlot = 0;
 
   for (const p of pending) {
     const { scrobble, songId, artistId, listenedAt } = p;
@@ -187,14 +190,20 @@ export async function ingestLastfmScrobbles(
       console.warn("[lastfm ingest] song upsert failed", songErr);
     }
 
-    /** Track job maps Last.fm → Spotify and links the synthetic `lfm:*` artist row (see resolveTrackSpotifyJob). */
-    void enqueueSpotifyEnrich({
-      name: "resolve_track_spotify",
-      lfmSongId: songId,
-      artistName,
-      trackName,
-      albumName: albumName ?? null,
-    });
+    /** Track job maps Last.fm → Spotify and links catalog to real Spotify ids (see resolveTrackSpotifyJob). */
+    if (!resolveQueuedForSong.has(songId)) {
+      resolveQueuedForSong.add(songId);
+      void enqueueSpotifyEnrich(
+        {
+          name: "resolve_track_spotify",
+          lfmSongId: songId,
+          artistName,
+          trackName,
+          albumName: albumName ?? null,
+        },
+        { staggerIndex: resolveStaggerSlot++ },
+      );
+    }
   }
 
   const logRows = pending.map((p) => ({

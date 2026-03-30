@@ -28,6 +28,18 @@ export type SpotifyEnrichJobData =
 
 const QUEUE_NAME = "spotify-enrich";
 
+/** Space Last.fm → Spotify resolve jobs so many imports in one sync do not burst the Spotify API. */
+export function getSpotifyResolveStaggerMs(): number {
+  const raw = process.env.SPOTIFY_RESOLVE_STAGGER_MS?.trim();
+  if (!raw) return 2500;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 2500;
+}
+
+function resolveStaggerMs(): number {
+  return getSpotifyResolveStaggerMs();
+}
+
 let redisConnection: IORedis | null | undefined;
 let spotifyQueue: Queue | null | undefined;
 
@@ -136,9 +148,16 @@ function scheduleInMemoryProcessor(delayMs = 0): void {
   }, Math.max(0, delayMs));
 }
 
+function isLastfmResolveJob(job: SpotifyEnrichJobData): boolean {
+  return (
+    job.name === "resolve_track_spotify" || job.name === "resolve_artist_spotify"
+  );
+}
+
 async function processInMemoryQueue(): Promise<void> {
   if (inMemoryProcessing) return;
   inMemoryProcessing = true;
+  const gapMs = resolveStaggerMs();
   try {
     for (;;) {
       const next =
@@ -163,6 +182,10 @@ async function processInMemoryQueue(): Promise<void> {
         }
       } finally {
         inMemoryDedupe.delete(key);
+      }
+      // Serverless in-memory queue drains in one invocation — pause between Spotify resolves.
+      if (gapMs > 0 && isLastfmResolveJob(next)) {
+        await new Promise((r) => setTimeout(r, gapMs));
       }
     }
   } finally {
@@ -200,18 +223,36 @@ async function enqueueInMemory(job: SpotifyEnrichJobData): Promise<void> {
   scheduleInMemoryProcessor(0);
 }
 
+export type EnqueueSpotifyEnrichOptions = {
+  /**
+   * Spread Last.fm resolve jobs in time (BullMQ `delay`). Index 0 → no delay, 1 → 1×stagger, etc.
+   * Ignored for non–Last.fm-resolve jobs.
+   */
+  staggerIndex?: number;
+};
+
 export async function enqueueSpotifyEnrich(
   job: SpotifyEnrichJobData,
+  options?: EnqueueSpotifyEnrichOptions,
 ): Promise<void> {
   const q = getSpotifyEnrichQueue();
   if (!q) {
     await enqueueInMemory(job);
     return;
   }
+  const staggerMs = resolveStaggerMs();
+  const staggerIndex = options?.staggerIndex;
+  const delay =
+    isLastfmResolveJob(job) &&
+    typeof staggerIndex === "number" &&
+    staggerIndex > 0
+      ? staggerIndex * staggerMs
+      : undefined;
   await q.add(job.name, job, {
     priority: priorityForJob(job),
     removeOnComplete: 500,
     removeOnFail: 200,
+    ...(delay != null && delay > 0 ? { delay } : {}),
   });
 }
 
