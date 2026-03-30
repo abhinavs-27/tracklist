@@ -1,5 +1,10 @@
-/** Preset emoji for reaction bars (single source of truth for API + UI). */
-export const REACTION_EMOJIS = ["❤️", "🔥", "👏", "💯", "🎵", "✨"] as const;
+/**
+ * Likes are stored in `reactions.emoji` as this value (legacy rows may use other values).
+ * Only this value is accepted for new writes.
+ */
+export const LIKE_REACTION_EMOJI = "❤️" as const;
+
+export const REACTION_EMOJIS = [LIKE_REACTION_EMOJI] as const;
 
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
 

@@ -251,8 +251,9 @@ export function TasteCard(props: TasteCardProps) {
             <TasteMatchSocialActions
               profileUserId={profileUserId}
               shareSnapshot={{
-                score: match.score,
-                summary: match.summary,
+                match,
+                youLabel,
+                themLabel,
               }}
             />
           ) : null}

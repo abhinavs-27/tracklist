@@ -10,25 +10,6 @@ import type { ReactionSnapshot } from "@/lib/reactions/types";
 
 export type { ReactionSnapshot } from "@/lib/reactions/types";
 
-/** Session user id is missing from public.users (stale cookie / DB reset). */
-export class AuthUserMissingError extends Error {
-  constructor() {
-    super("AUTH_USER_MISSING");
-    this.name = "AuthUserMissingError";
-  }
-}
-
-async function assertReactionUserExists(userId: string): Promise<void> {
-  const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new AuthUserMissingError();
-}
-
 function dedupeTargets(
   targets: { targetType: string; targetId: string }[],
 ): { targetType: string; targetId: string }[] {
@@ -115,8 +96,6 @@ export async function setReactionForUser(
     throw new Error("Invalid target id");
   }
 
-  await assertReactionUserExists(userId);
-
   const admin = createSupabaseAdminClient();
 
   const { data: existing, error: selErr } = await admin
@@ -175,8 +154,6 @@ export async function clearReactionForUser(
   if (targetId.length > 500) {
     throw new Error("Invalid target id");
   }
-
-  await assertReactionUserExists(userId);
 
   const admin = createSupabaseAdminClient();
   const { error: delErr } = await admin

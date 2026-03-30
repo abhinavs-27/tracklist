@@ -7,6 +7,7 @@ import { DiscoverTastePreview } from "@/components/discover/discover-taste-previ
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
 import { getTrendingEntitiesCached } from "@/lib/discover-cache";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
+import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { getLeaderboard } from "@/lib/queries";
 import {
   getOrFetchTracksBatch,
@@ -24,9 +25,10 @@ const EXPLORE_CATALOG_OPTS = { allowNetwork: true as const };
 export default async function ExploreHubPage() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? null;
+  const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
   const [recommendedCommunities, trendingRaw, leaderboardTop] = await Promise.all([
-    userId ? getRecommendedCommunities(userId) : Promise.resolve([]),
+    socialMusicUi && userId ? getRecommendedCommunities(userId) : Promise.resolve([]),
     getTrendingEntitiesCached(MAX_TRENDING),
     getLeaderboard("popular", {}, "song", 8),
   ]);
@@ -51,11 +53,11 @@ export default async function ExploreHubPage() {
         </p>
       </header>
 
-      {userId && recommendedCommunities.length > 0 ? (
+      {socialMusicUi && userId && recommendedCommunities.length > 0 ? (
         <RecommendedCommunitiesSection items={recommendedCommunities} />
       ) : null}
 
-      {userId ? (
+      {socialMusicUi && userId ? (
         <DiscoverTastePreview userId={userId} />
       ) : null}
 
@@ -91,7 +93,7 @@ export default async function ExploreHubPage() {
             >
               Go to Discover
             </Link>
-            {userId ? (
+            {socialMusicUi && userId ? (
               <Link
                 href="/discover/recommended"
                 className="inline-flex rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-200 ring-1 ring-white/[0.08] transition hover:bg-zinc-700"

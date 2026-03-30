@@ -5,14 +5,16 @@ import {
   enrichListenSessionsWithAlbums,
 } from "@/lib/feed";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
+import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { FeedListVirtual } from "@/components/feed-list-virtual";
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
 import { cardElevated, sectionGap, sectionTitle } from "@/lib/ui/surface";
 
 export async function HomeFeedSection({ userId }: { userId: string }) {
+  const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
   const [feedResult, recommendedCommunities] = await Promise.all([
     getFeedForUser(userId, 50, null),
-    getRecommendedCommunities(userId),
+    socialMusicUi ? getRecommendedCommunities(userId) : Promise.resolve([]),
   ]);
   const { items: feedItems, next_cursor: feedNextCursor } = feedResult;
   const withNames = await enrichFeedActivitiesWithEntityNames(feedItems);
@@ -35,7 +37,7 @@ export async function HomeFeedSection({ userId }: { userId: string }) {
         </p>
       </div>
 
-      {recommendedCommunities.length > 0 ? (
+      {socialMusicUi && recommendedCommunities.length > 0 ? (
         <RecommendedCommunitiesSection items={recommendedCommunities} />
       ) : null}
 

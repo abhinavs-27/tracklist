@@ -29,6 +29,17 @@ export type SocialThreadListItem = SocialThreadRow & {
   last_reply_preview: string | null;
   last_reply_at: string | null;
   counterpart_user_id: string | null;
+  /** From `notifications` (actor = sender, user_id = recipient); only for kind recommendation. */
+  recommendation_sender_id: string | null;
+  recommendation_recipient_id: string | null;
+  /** Sum of reaction counts on `reaction_target_*`; 0 if no target or none yet. */
+  reaction_total: number;
+  /** Viewer’s current emoji on that target, if any. */
+  viewer_reaction_emoji: string | null;
+  /** `last_activity_at` is newer than this participant’s `last_read_at` (or never opened). */
+  is_unread: boolean;
+  /** Heuristic: viewer should react, reply, or send music back. */
+  needs_response: boolean;
 };
 
 export type SocialThreadReplyRow = {
@@ -46,6 +57,10 @@ export type SocialThreadDetail = {
   reactions: { emoji: string; count: number; mine: boolean }[];
   counterpart_user_id: string | null;
   counterpart_username: string | null;
+  recommendation_sender_id: string | null;
+  recommendation_recipient_id: string | null;
+  recommendation_sender_username: string | null;
+  recommendation_recipient_username: string | null;
 };
 
 function musicHref(
@@ -75,6 +90,55 @@ export function musicLabelForThread(t: SocialThreadRow): string {
 }
 
 export { musicHref as threadMusicHref };
+
+function threadNeedsResponse(
+  item: SocialThreadListItem,
+  viewerId: string,
+  lastReplyUserId: string | null,
+  viewerReplyCount: number,
+): boolean {
+  const replyCount = item.reply_count;
+  const lastFromOther =
+    lastReplyUserId != null && lastReplyUserId !== viewerId;
+
+  if (item.kind === "recommendation") {
+    const recipient = item.recommendation_recipient_id;
+    const sender = item.recommendation_sender_id;
+    if (recipient === viewerId) {
+      return !item.viewer_reaction_emoji && viewerReplyCount === 0;
+    }
+    if (sender === viewerId) {
+      return replyCount > 0 && lastFromOther;
+    }
+  }
+  if (item.kind === "taste_comparison" || item.kind === "activity") {
+    return replyCount > 0 && lastFromOther;
+  }
+  return false;
+}
+
+/** Mark thread read for inbox sorting / unread (call when opening thread). */
+export async function markThreadRead(
+  threadId: string,
+  userId: string,
+): Promise<void> {
+  noStore();
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin
+    .from("social_thread_participants")
+    .update({ last_read_at: new Date().toISOString() })
+    .eq("thread_id", threadId)
+    .eq("user_id", userId);
+  if (error) {
+    console.error("[markThreadRead]", error);
+  }
+}
+
+/** Recommendation threads use `anchor_key` = `notification:<uuid>`. */
+export function parseNotificationIdFromAnchor(anchorKey: string): string | null {
+  const m = /^notification:([0-9a-f-]{36})$/i.exec(anchorKey.trim());
+  return m?.[1] ?? null;
+}
 
 async function ensureParticipants(
   threadId: string,
@@ -381,23 +445,32 @@ export async function listThreadsForUser(
 
   const { data: replyStats } = await admin
     .from("social_thread_replies")
-    .select("thread_id, body, created_at")
+    .select("thread_id, user_id, body, created_at")
     .in("thread_id", threads.map((t) => t.id as string));
 
   const lastReplyByThread = new Map<
     string,
-    { body: string; at: string }
+    { body: string; at: string; userId: string }
   >();
   const countByThread = new Map<string, number>();
+  const viewerReplyCountByThread = new Map<string, number>();
   for (const r of replyStats ?? []) {
     const tid = r.thread_id as string;
+    const uid = r.user_id as string;
     countByThread.set(tid, (countByThread.get(tid) ?? 0) + 1);
+    if (uid === userId) {
+      viewerReplyCountByThread.set(
+        tid,
+        (viewerReplyCountByThread.get(tid) ?? 0) + 1,
+      );
+    }
     const prev = lastReplyByThread.get(tid);
     const at = r.created_at as string;
     if (!prev || new Date(at) > new Date(prev.at)) {
       lastReplyByThread.set(tid, {
         body: (r.body as string).trim(),
         at,
+        userId: uid,
       });
     }
   }
@@ -414,8 +487,114 @@ export async function listThreadsForUser(
       last_reply_preview: lr?.body ?? null,
       last_reply_at: lr?.at ?? null,
       counterpart_user_id: counterpart,
+      recommendation_sender_id: null,
+      recommendation_recipient_id: null,
+      reaction_total: 0,
+      viewer_reaction_emoji: null,
+      is_unread: false,
+      needs_response: false,
     });
   }
+
+  const recNotifIds = [
+    ...new Set(
+      out
+        .filter((x) => x.kind === "recommendation")
+        .map((x) => parseNotificationIdFromAnchor(x.anchor_key))
+        .filter((x): x is string => Boolean(x)),
+    ),
+  ];
+  if (recNotifIds.length > 0) {
+    const { data: notifRows } = await admin
+      .from("notifications")
+      .select("id, actor_user_id, user_id")
+      .in("id", recNotifIds);
+    const byNotifId = new Map(
+      (notifRows ?? []).map((n) => [
+        n.id as string,
+        {
+          sender: n.actor_user_id as string | null,
+          recipient: n.user_id as string | null,
+        },
+      ]),
+    );
+    for (const item of out) {
+      if (item.kind !== "recommendation") continue;
+      const nid = parseNotificationIdFromAnchor(item.anchor_key);
+      if (!nid) continue;
+      const pair = byNotifId.get(nid);
+      if (!pair) continue;
+      item.recommendation_sender_id = pair.sender;
+      item.recommendation_recipient_id = pair.recipient;
+    }
+  }
+
+  const targetsForReactions = out
+    .filter((t) => t.reaction_target_type && t.reaction_target_id)
+    .map((t) => ({
+      targetType: t.reaction_target_type as string,
+      targetId: t.reaction_target_id as string,
+    }));
+
+  if (targetsForReactions.length > 0) {
+    const reactionMap = await fetchReactionsBatch(userId, targetsForReactions);
+    for (const item of out) {
+      if (!item.reaction_target_type || !item.reaction_target_id) continue;
+      const key = reactionTargetKey({
+        targetType: item.reaction_target_type,
+        targetId: item.reaction_target_id,
+      });
+      const snap = reactionMap.get(key);
+      let total = 0;
+      if (snap) {
+        for (const c of Object.values(snap.counts)) total += c;
+      }
+      item.reaction_total = total;
+      item.viewer_reaction_emoji = snap?.mine ?? null;
+    }
+  }
+
+  const threadIds = out.map((x) => x.id);
+  const { data: readRows } = await admin
+    .from("social_thread_participants")
+    .select("thread_id, last_read_at")
+    .eq("user_id", userId)
+    .in("thread_id", threadIds);
+
+  const readAtByThread = new Map<string, string | null>(
+    (readRows ?? []).map((r) => [
+      r.thread_id as string,
+      (r.last_read_at as string | null) ?? null,
+    ]),
+  );
+
+  for (const item of out) {
+    const readAt = readAtByThread.get(item.id) ?? null;
+    const activity = new Date(item.last_activity_at).getTime();
+    const readTime = readAt ? new Date(readAt).getTime() : 0;
+    item.is_unread = activity > readTime;
+
+    const lr = lastReplyByThread.get(item.id);
+    const lastReplyUserId = lr?.userId ?? null;
+    const viewerReplyCount = viewerReplyCountByThread.get(item.id) ?? 0;
+    item.needs_response = threadNeedsResponse(
+      item,
+      userId,
+      lastReplyUserId,
+      viewerReplyCount,
+    );
+  }
+
+  out.sort((a, b) => {
+    const nr = Number(b.needs_response) - Number(a.needs_response);
+    if (nr !== 0) return nr;
+    const ur = Number(b.is_unread) - Number(a.is_unread);
+    if (ur !== 0) return ur;
+    return (
+      new Date(b.last_activity_at).getTime() -
+      new Date(a.last_activity_at).getTime()
+    );
+  });
 
   return out;
 }
@@ -509,6 +688,46 @@ export async function getThreadDetail(
     counterpart_username = (u?.username as string) ?? null;
   }
 
+  let recommendation_sender_id: string | null = null;
+  let recommendation_recipient_id: string | null = null;
+  let recommendation_sender_username: string | null = null;
+  let recommendation_recipient_username: string | null = null;
+  if (row.kind === "recommendation") {
+    const nid = parseNotificationIdFromAnchor(row.anchor_key);
+    if (nid) {
+      const { data: n } = await admin
+        .from("notifications")
+        .select("actor_user_id, user_id")
+        .eq("id", nid)
+        .maybeSingle();
+      if (n) {
+        recommendation_sender_id = (n.actor_user_id as string | null) ?? null;
+        recommendation_recipient_id = (n.user_id as string | null) ?? null;
+        const uidNeed = [
+          recommendation_sender_id,
+          recommendation_recipient_id,
+        ].filter((x): x is string => Boolean(x));
+        if (uidNeed.length > 0) {
+          const { data: unames } = await admin
+            .from("users")
+            .select("id, username")
+            .in("id", uidNeed);
+          const um = new Map(
+            (unames ?? []).map((u) => [u.id as string, u.username as string]),
+          );
+          recommendation_sender_username =
+            recommendation_sender_id != null
+              ? (um.get(recommendation_sender_id) ?? null)
+              : null;
+          recommendation_recipient_username =
+            recommendation_recipient_id != null
+              ? (um.get(recommendation_recipient_id) ?? null)
+              : null;
+        }
+      }
+    }
+  }
+
   return {
     thread: row,
     participants,
@@ -516,6 +735,10 @@ export async function getThreadDetail(
     reactions,
     counterpart_user_id: otherId,
     counterpart_username,
+    recommendation_sender_id,
+    recommendation_recipient_id,
+    recommendation_sender_username,
+    recommendation_recipient_username,
   };
 }
 

@@ -7,6 +7,7 @@ import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
+import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import {
   getOrFetchTracksBatch,
   getOrFetchAlbumsBatch,
@@ -47,9 +48,11 @@ const DISCOVER_CATALOG_OPTS = {
 
 export default async function DiscoverPage() {
   const session = await getServerSession(authOptions);
-  const recommendedCommunitiesPromise = session?.user?.id
-    ? getRecommendedCommunities(session.user.id)
-    : Promise.resolve([]);
+  const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
+  const recommendedCommunitiesPromise =
+    socialMusicUi && session?.user?.id
+      ? getRecommendedCommunities(session.user.id)
+      : Promise.resolve([]);
 
   const hiddenGemsConfig = getChartConfig("hidden_gems");
   const hiddenGemsMinRating = hiddenGemsConfig?.filters?.min_rating ?? 4;
@@ -143,19 +146,19 @@ export default async function DiscoverPage() {
           <Link href="/search/users" className="text-emerald-400 hover:underline">
             Find users →
           </Link>
-          {session?.user?.id && (
+          {socialMusicUi && session?.user?.id ? (
             <Link href="/discover/recommended" className="text-emerald-400 hover:underline">
               Recommended for you →
             </Link>
-          )}
+          ) : null}
         </div>
       </header>
 
-      {session?.user?.id && recommendedCommunities.length > 0 ? (
+      {socialMusicUi && session?.user?.id && recommendedCommunities.length > 0 ? (
         <RecommendedCommunitiesSection items={recommendedCommunities} />
       ) : null}
 
-      {session?.user?.id ? (
+      {socialMusicUi && session?.user?.id ? (
         <DiscoverTastePreview userId={session.user.id} />
       ) : null}
 

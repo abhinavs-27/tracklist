@@ -30,8 +30,8 @@ export function threadKindUi(kind: ThreadKindUiKey): ThreadKindUi {
     case "recommendation":
       return {
         label: "Recommendation",
-        listHint: "Shared music",
-        detailSubhead: "React on the recommendation or add a short note",
+        listHint: "Sender & recipient",
+        detailSubhead: "",
         replyPlaceholder: "Short note (optional)",
         accentBorder: "border-l-4 border-emerald-500/50",
         badge:
@@ -58,7 +58,7 @@ export function threadKindUi(kind: ThreadKindUiKey): ThreadKindUi {
         label: "Activity",
         listHint: "Review or feed",
         detailSubhead:
-          "Emoji reactions and light notes on this activity — same structure, different context.",
+          "Likes and light notes on this activity — same structure, different context.",
         replyPlaceholder: "Brief reply…",
         accentBorder: "border-l-4 border-sky-500/45",
         badge:

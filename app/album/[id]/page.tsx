@@ -15,6 +15,7 @@ import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { sectionGap } from "@/lib/ui/surface";
 import { normalizeReviewEntityId } from "@/lib/validation";
+import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -70,6 +71,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const friendActivity = settled[3].status === "fulfilled" ? settled[3].value : [];
   if (settled[3].status === "rejected") console.error("[album] getFriendsAlbumActivity failed:", settled[3].reason);
 
+  const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();
+
   return (
     <AlbumReviewsProvider albumId={id}>
       <div className={sectionGap}>
@@ -82,16 +85,18 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           engagementStats={engagementStats}
           friendActivity={friendActivity}
         />
-        <Suspense
-          fallback={
-            <div>
-              <div className="mb-4 h-7 w-56 animate-pulse rounded-lg bg-zinc-800/60" />
-              <div className="min-h-[88px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />
-            </div>
-          }
-        >
-          <AlbumRecommendationsLoader albumId={id} albumName={album.name} />
-        </Suspense>
+        {showAlbumRecUi ? (
+          <Suspense
+            fallback={
+              <div>
+                <div className="mb-4 h-7 w-56 animate-pulse rounded-lg bg-zinc-800/60" />
+                <div className="min-h-[88px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />
+              </div>
+            }
+          >
+            <AlbumRecommendationsLoader albumId={id} albumName={album.name} />
+          </Suspense>
+        ) : null}
         <AlbumReviews albumId={id} albumName={album.name} />
       </div>
     </AlbumReviewsProvider>

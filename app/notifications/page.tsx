@@ -12,6 +12,7 @@ import {
   getMusicRecommendationReciprocityState,
 } from "@/lib/social/reciprocity";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 
 function recommendationHref(n: NotificationRow): string | null {
   if (!n.entity_type || !n.entity_id) return null;
@@ -36,6 +37,8 @@ function recommendationTitle(n: NotificationRow): string {
 export default async function NotificationsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/auth/signin");
+
+  const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
   await markNotificationsRead(session.user.id);
   const notifications = await getNotifications(session.user.id, 50);
@@ -62,7 +65,9 @@ export default async function NotificationsPage() {
   ];
 
   const [reciprocityRec, followBackFlags] = await Promise.all([
-    getMusicRecommendationReciprocityState(session.user.id, recInputs),
+    socialMusicUi
+      ? getMusicRecommendationReciprocityState(session.user.id, recInputs)
+      : Promise.resolve(new Map()),
     getFollowBackFlags(session.user.id, followActorIds),
   ]);
 
@@ -72,9 +77,11 @@ export default async function NotificationsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Notifications</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <Link href="/social/inbox" className="text-emerald-400 hover:underline">
-            Social inbox
-          </Link>
+          {socialMusicUi ? (
+            <Link href="/social/inbox" className="text-emerald-400 hover:underline">
+              Social inbox
+            </Link>
+          ) : null}
           <Link href="/" className="text-zinc-400 hover:text-white hover:underline">
             ← Home
           </Link>
@@ -167,7 +174,7 @@ export default async function NotificationsPage() {
                   showFollowBack={followBackFlags.get(n.actor_user_id) ?? false}
                 />
               ) : null}
-              {n.type === "music_recommendation" ? (
+              {socialMusicUi && n.type === "music_recommendation" ? (
                 <MusicRecommendationNotificationFooter
                   notificationId={n.id}
                   actorUserId={n.actor_user_id}

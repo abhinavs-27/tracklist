@@ -27,6 +27,7 @@ import { SimilarUsersSection } from "@/components/similar-users-section";
 import { isValidUuid } from "@/lib/validation";
 import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
+import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { DeleteAccountSection } from "@/components/profile/delete-account-section";
 import { getTasteIdentity } from "@/lib/taste/taste-identity";
 import type { TasteIdentity } from "@/lib/taste/types";
@@ -256,7 +257,10 @@ export default async function ProfilePage({
   let recommendedCommunities: Awaited<
     ReturnType<typeof getRecommendedCommunities>
   > = [];
-  if (session?.user?.id === user.id) {
+  if (
+    isSocialInboxAndMusicRecUiEnabled() &&
+    session?.user?.id === user.id
+  ) {
     try {
       recommendedCommunities = await getRecommendedCommunities(user.id);
     } catch (e) {
@@ -345,7 +349,9 @@ export default async function ProfilePage({
           />
         </SectionBlock>
 
-        {isOwnProfile && recommendedCommunities.length > 0 ? (
+        {isSocialInboxAndMusicRecUiEnabled() &&
+        isOwnProfile &&
+        recommendedCommunities.length > 0 ? (
           <RecommendedCommunitiesSection
             title="Communities you'd like"
             items={recommendedCommunities}

@@ -1,5 +1,6 @@
 import "server-only";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { headers } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -211,6 +212,66 @@ export async function getUserFromRequest(
     console.error("[getUserFromRequest]", e);
     return null;
   }
+}
+
+/**
+ * Resolves `public.users.id` for DB writes (reactions, etc.).
+ * Always prefers email → {@link findOrCreateUser} so the FK targets `public.users`,
+ * not a stale `session.user.id` (JWT can desync from `public.users`; do not confuse
+ * with `auth.users` in the Supabase dashboard).
+ *
+ * Email is taken from `me`, then the signed JWT cookie via `getToken`, then `getServerSession`.
+ */
+export async function resolveUserIdForMutation(
+  me: User,
+  request?: NextRequest | Request | null,
+): Promise<string | null> {
+  const tryEmail = async (raw: string | null | undefined): Promise<string | null> => {
+    const e = raw?.trim();
+    if (!e) return null;
+    try {
+      return (await findOrCreateUser(e, { profile: {} })).id;
+    } catch (err) {
+      console.error("[resolveUserIdForMutation] findOrCreateUser", err);
+      return null;
+    }
+  };
+
+  let resolved = await tryEmail(me.email);
+  if (resolved) return resolved;
+
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (request && secret) {
+    try {
+      const token = await getToken({
+        req: request as Parameters<typeof getToken>[0]["req"],
+        secret,
+      });
+      resolved = await tryEmail(
+        typeof token?.email === "string" ? token.email : undefined,
+      );
+      if (resolved) return resolved;
+    } catch (e) {
+      console.error("[resolveUserIdForMutation] getToken", e);
+    }
+  }
+
+  resolved = await tryEmail(
+    (await getServerSession(authOptions))?.user?.email ?? undefined,
+  );
+  if (resolved) return resolved;
+
+  const supabase = createSupabaseServiceRoleClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", me.id)
+    .maybeSingle();
+  if (error) {
+    console.error("[resolveUserIdForMutation] users by id", error);
+    return null;
+  }
+  return data?.id ?? null;
 }
 
 /**

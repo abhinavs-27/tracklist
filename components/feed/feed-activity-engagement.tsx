@@ -6,8 +6,10 @@ import type {
   EnrichedFeedActivity,
   FeedListenSessionActivity,
 } from "@/components/feed/group-feed-items";
-import { EmojiReactionBar } from "@/components/reactions/emoji-reaction-bar";
+import { LikeReactionBar } from "@/components/reactions/like-reaction-bar";
 import { SendRecommendationModal } from "@/components/taste-match/send-recommendation-modal";
+import { LIKES_ENABLED } from "@/lib/feature-likes";
+import { SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED } from "@/lib/feature-social-music-rec-ui";
 import {
   feedActivityEngagementUserId,
   feedActivityReactionTarget,
@@ -35,7 +37,7 @@ function FeedEngagementFooter({
       subjectUserId &&
       subjectUserId !== viewerUserId,
   );
-  const showReactions = Boolean(reactionTarget);
+  const showReactions = LIKES_ENABLED && Boolean(reactionTarget);
   const showActions = canEngage && subjectUserId;
 
   if (!showReactions && !showActions) return null;
@@ -43,7 +45,7 @@ function FeedEngagementFooter({
   return (
     <div className="border-t border-zinc-800/80">
       {showReactions && reactionTarget ? (
-        <EmojiReactionBar target={reactionTarget} noTopBorder />
+        <LikeReactionBar target={reactionTarget} noTopBorder />
       ) : null}
       {showActions && subjectUserId ? (
         <div
@@ -51,13 +53,15 @@ function FeedEngagementFooter({
             showReactions ? "border-t border-zinc-800/55" : ""
           }`}
         >
-          <button
-            type="button"
-            onClick={() => setRecOpen(true)}
-            className={actionBtn}
-          >
-            Send recommendation
-          </button>
+          {SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED ? (
+            <button
+              type="button"
+              onClick={() => setRecOpen(true)}
+              className={actionBtn}
+            >
+              Send recommendation
+            </button>
+          ) : null}
           <Link
             href={`/profile/${subjectUserId}#taste-match`}
             className={actionBtn}
@@ -66,7 +70,7 @@ function FeedEngagementFooter({
           </Link>
         </div>
       ) : null}
-      {recOpen && subjectUserId ? (
+      {SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED && recOpen && subjectUserId ? (
         <SendRecommendationModal
           recipientUserId={subjectUserId}
           onClose={() => setRecOpen(false)}

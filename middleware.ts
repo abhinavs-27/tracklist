@@ -164,9 +164,30 @@ async function onboardingIncompleteRedirect(
   return NextResponse.redirect(dest);
 }
 
+/** When unset or not `1`, `/social/inbox` and `/discover/recommended` redirect to Discover. */
+function isSocialInboxAndMusicRecUiEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_FEATURE_SOCIAL_INBOX_MUSIC_REC_UI === "1";
+}
+
 export async function middleware(request: NextRequest) {
   if (isMaintenanceMode()) {
     return maintenanceResponse(request);
+  }
+
+  if (!isSocialInboxAndMusicRecUiEnabled()) {
+    const p = request.nextUrl.pathname;
+    if (p === "/social/inbox" || p.startsWith("/social/inbox/")) {
+      const dest = request.nextUrl.clone();
+      dest.pathname = "/discover";
+      dest.search = "";
+      return NextResponse.redirect(dest);
+    }
+    if (p === "/discover/recommended" || p.startsWith("/discover/recommended/")) {
+      const dest = request.nextUrl.clone();
+      dest.pathname = "/discover";
+      dest.search = "";
+      return NextResponse.redirect(dest);
+    }
   }
 
   const onboardingRedirect = await onboardingIncompleteRedirect(request);
@@ -185,6 +206,12 @@ export async function middleware(request: NextRequest) {
    * running (middleware `fetch` throws → 500) and duplicates backend logic.
    */
   if (pathname === "/api/leaderboard") return NextResponse.next();
+
+  /**
+   * Reactions use NextAuth session cookies + `app/api/reactions/*` + Supabase.
+   * Express does not decode those cookies → proxied POSTs return 401.
+   */
+  if (pathname.startsWith("/api/reactions")) return NextResponse.next();
 
   const base = backend.replace(/\/$/, "");
   const target = `${base}${pathname}${request.nextUrl.search}`;

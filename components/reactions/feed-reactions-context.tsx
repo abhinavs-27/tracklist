@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { FeedRow } from "@/components/feed/group-feed-items";
+import { LIKES_ENABLED } from "@/lib/feature-likes";
 import { feedRowReactionTarget } from "@/lib/reactions/feed-target";
 import { reactionTargetKey } from "@/lib/reactions/keys";
 import type { ReactionSnapshot } from "@/lib/reactions/types";
@@ -58,7 +59,7 @@ export function FeedReactionsProvider({
   );
 
   useEffect(() => {
-    if (targets.length === 0) {
+    if (!LIKES_ENABLED || targets.length === 0) {
       setMap(new Map());
       setLoaded(true);
       return;

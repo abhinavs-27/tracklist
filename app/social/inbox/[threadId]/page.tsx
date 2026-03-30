@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { EmojiReactionBar } from "@/components/reactions/emoji-reaction-bar";
+import { LikeReactionBar } from "@/components/reactions/like-reaction-bar";
+import { LIKES_ENABLED } from "@/lib/feature-likes";
 import { InboxPageNav } from "@/components/social/inbox-page-nav";
 import { ThreadReplyForm } from "@/components/social/thread-reply-form";
 import {
@@ -11,11 +12,14 @@ import {
   threadKindUi,
   type ThreadKindUiKey,
 } from "@/lib/social/thread-kind-ui";
+import { sendBackPrefillFromThread } from "@/lib/social/send-back-prefill";
 import {
   getThreadDetail,
+  markThreadRead,
   musicLabelForThread,
   threadMusicHref,
 } from "@/lib/social/threads";
+import { ThreadSendBackCta } from "@/components/social/thread-send-back-cta";
 import { formatRelativeTime } from "@/lib/time";
 import {
   communityBody,
@@ -45,7 +49,18 @@ export default async function SocialThreadPage({
   const detail = await getThreadDetail(threadId, session.user.id);
   if (!detail) notFound();
 
-  const { thread, replies, counterpart_user_id, counterpart_username } = detail;
+  await markThreadRead(threadId, session.user.id);
+
+  const {
+    thread,
+    replies,
+    counterpart_user_id,
+    counterpart_username,
+    recommendation_sender_id,
+    recommendation_recipient_id,
+    recommendation_sender_username,
+    recommendation_recipient_username,
+  } = detail;
   const ui = threadKindUi(thread.kind as ThreadKindUiKey);
   const musicHref = threadMusicHref(
     thread.music_entity_type,
@@ -62,22 +77,31 @@ export default async function SocialThreadPage({
       : null;
   const entityTag = entityTypeShort(thread.music_entity_type);
 
+  const sendBackRecipientId =
+    counterpart_user_id && counterpart_user_id !== session.user.id
+      ? counterpart_user_id
+      : null;
+  const sendBackPrefill = sendBackRecipientId
+    ? sendBackPrefillFromThread(thread)
+    : null;
+
   const heroArtwork =
     thread.music_image_url ? (
-      <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)] ring-1 ring-white/[0.08] sm:h-36 sm:w-36">
+      <div className="relative h-40 w-40 shrink-0 overflow-hidden rounded-3xl bg-zinc-900 shadow-[0_24px_64px_-20px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.1] sm:h-44 sm:w-44">
         <Image
           src={thread.music_image_url}
           alt=""
-          width={144}
-          height={144}
+          width={176}
+          height={176}
           className="h-full w-full object-cover"
           unoptimized
           priority
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-white/[0.03]" />
       </div>
     ) : (
       <div
-        className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-2xl text-4xl ring-1 sm:h-36 sm:w-36 sm:text-5xl ${
+        className={`flex h-40 w-40 shrink-0 items-center justify-center rounded-3xl text-5xl ring-1 sm:h-44 sm:w-44 sm:text-6xl ${
           thread.kind === "taste_comparison"
             ? "bg-violet-950/45 text-violet-400/95 ring-violet-500/25"
             : thread.kind === "activity"
@@ -91,7 +115,14 @@ export default async function SocialThreadPage({
     );
 
   return (
-    <div className={`mx-auto max-w-2xl px-4 py-8 sm:px-6 ${sectionGap}`}>
+    <div
+      className={`relative min-h-[calc(100vh-4rem)] bg-gradient-to-b from-zinc-950 via-zinc-950 to-black ${sectionGap}`}
+    >
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(ellipse_70%_50%_at_50%_-5%,rgba(16,185,129,0.1),transparent)]"
+        aria-hidden
+      />
+      <div className={`relative mx-auto max-w-2xl px-4 py-8 sm:px-6 ${sectionGap}`}>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/social/inbox"
@@ -108,13 +139,16 @@ export default async function SocialThreadPage({
         <InboxPageNav />
       </header>
 
-      <article className={`${communityCard} overflow-hidden p-0 ${ui.accentBorder}`}>
-        <div className="border-b border-white/[0.06] px-5 py-5 sm:px-6">
+      <article
+        className={`${communityCard} relative overflow-hidden p-0 backdrop-blur-sm ${ui.accentBorder}`}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent" />
+        <div className="relative border-b border-white/[0.06] px-5 py-5 sm:px-6">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`inline-flex rounded-lg px-2.5 py-1 ${ui.badge}`}>
               {ui.label}
             </span>
-            {counterpart_user_id ? (
+            {thread.kind !== "recommendation" && counterpart_user_id ? (
               <span className={communityMeta}>
                 with{" "}
                 <Link
@@ -128,27 +162,81 @@ export default async function SocialThreadPage({
               </span>
             ) : null}
           </div>
-          <p className={`mt-4 max-w-prose ${communityBody}`}>{ui.detailSubhead}</p>
+          <p className={`mt-4 max-w-prose text-sm text-zinc-500`}>
+            {ui.detailSubhead}
+          </p>
         </div>
 
         {thread.kind === "recommendation" ? (
-          <div className="border-b border-white/[0.06] bg-gradient-to-b from-zinc-950/40 to-transparent px-5 py-8 sm:px-6">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="relative border-b border-white/[0.06] bg-gradient-to-b from-zinc-950/50 via-zinc-950/25 to-transparent px-5 py-8 sm:px-6">
+            {recommendation_sender_id &&
+            recommendation_recipient_id &&
+            recommendation_sender_id !== recommendation_recipient_id ? (
+              <div className="mb-8 grid gap-3 sm:grid-cols-2 sm:gap-4">
+                <div className="min-w-0 rounded-xl bg-emerald-950/25 px-4 py-3 ring-1 ring-emerald-500/20">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-400/90">
+                    To
+                  </p>
+                  <p className="mt-1.5 text-lg font-semibold tracking-tight text-white">
+                    {recommendation_recipient_id === session.user.id ? (
+                      "You"
+                    ) : (
+                      <Link
+                        href={`/profile/${recommendation_recipient_id}`}
+                        className="hover:text-emerald-200 hover:underline"
+                      >
+                        @{recommendation_recipient_username ?? "recipient"}
+                      </Link>
+                    )}
+                  </p>
+                </div>
+                <div className="min-w-0 rounded-xl bg-zinc-900/60 px-4 py-3 ring-1 ring-white/[0.06]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    From
+                  </p>
+                  <p className="mt-1.5 text-lg font-semibold tracking-tight text-white">
+                    {recommendation_sender_id === session.user.id ? (
+                      "You"
+                    ) : (
+                      <Link
+                        href={`/profile/${recommendation_sender_id}`}
+                        className="hover:text-zinc-100 hover:underline"
+                      >
+                        @{recommendation_sender_username ?? "sender"}
+                      </Link>
+                    )}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            <div className="flex flex-col gap-8 sm:flex-row sm:items-end">
               {heroArtwork}
-              <div className="min-w-0 flex-1">
-                <h1 className={`${pageTitle} text-balance`}>{label}</h1>
+              <div className="min-w-0 flex-1 space-y-3">
+                <h1 className={`${pageTitle} text-balance text-2xl sm:text-3xl`}>
+                  {label}
+                </h1>
                 {thread.music_subtitle ? (
-                  <p className={`mt-2 ${pageSubtitle}`}>{thread.music_subtitle}</p>
+                  <p className={`${pageSubtitle} line-clamp-2`}>
+                    {thread.music_subtitle}
+                  </p>
                 ) : null}
+                <div className="flex flex-wrap items-center gap-3">
                 {musicHref ? (
                   <Link
                     href={musicHref}
-                    className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/25"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/25"
                   >
                     Open in catalog
                     <span aria-hidden>→</span>
                   </Link>
                 ) : null}
+                {sendBackRecipientId && sendBackPrefill ? (
+                  <ThreadSendBackCta
+                    recipientUserId={sendBackRecipientId}
+                    prefill={sendBackPrefill}
+                  />
+                ) : null}
+                </div>
               </div>
             </div>
           </div>
@@ -156,25 +244,33 @@ export default async function SocialThreadPage({
 
         {thread.kind === "taste_comparison" ? (
           <div
-            className={`border-b border-white/[0.06] px-5 py-10 sm:px-6 ${ui.heroPanel}`}
+            className={`relative border-b border-white/[0.06] px-5 py-12 sm:px-6 ${ui.heroPanel}`}
           >
             <div className="mx-auto flex max-w-md flex-col items-center text-center">
               <div
-                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/15 text-3xl text-violet-300 ring-1 ring-violet-400/25"
+                className="flex h-20 w-20 items-center justify-center rounded-3xl bg-violet-500/15 text-4xl text-violet-300 ring-1 ring-violet-400/25 shadow-[0_20px_48px_-16px_rgba(139,92,246,0.35)]"
                 aria-hidden
               >
                 {ui.iconPlaceholder}
               </div>
-              <h1 className={`mt-5 ${pageTitle}`}>Taste match</h1>
-              <p className={`mt-3 ${communityBody}`}>
-                Overlap and listening affinity — notes are optional side context.
+              <h1 className={`mt-6 ${pageTitle} text-2xl`}>Taste match</h1>
+              <p className="mt-3 text-sm text-zinc-500">
+                Overlap and affinity — notes are optional.
               </p>
+              {sendBackRecipientId && sendBackPrefill ? (
+                <div className="mt-8">
+                  <ThreadSendBackCta
+                    recipientUserId={sendBackRecipientId}
+                    prefill={sendBackPrefill}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
 
         {thread.kind === "activity" ? (
-          <div className="border-b border-white/[0.06] bg-gradient-to-b from-zinc-950/35 to-transparent px-5 py-8 sm:px-6">
+          <div className="relative border-b border-white/[0.06] bg-gradient-to-b from-zinc-950/40 to-transparent px-5 py-8 sm:px-6">
             <div className="flex flex-wrap items-center gap-2">
               {entityTag ? (
                 <span className="rounded-lg border border-sky-500/25 bg-sky-950/40 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-200/90">
@@ -182,49 +278,55 @@ export default async function SocialThreadPage({
                 </span>
               ) : null}
             </div>
-            <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-center">
+            <div className="mt-6 flex flex-col gap-8 sm:flex-row sm:items-end">
               {heroArtwork}
-              <div className="min-w-0 flex-1">
-                <h1 className={`${pageTitle} text-balance`}>{label}</h1>
+              <div className="min-w-0 flex-1 space-y-3">
+                <h1 className={`${pageTitle} text-balance text-2xl sm:text-3xl`}>
+                  {label}
+                </h1>
                 {thread.music_subtitle ? (
-                  <p className={`mt-2 ${pageSubtitle}`}>{thread.music_subtitle}</p>
+                  <p className={`${pageSubtitle} line-clamp-2`}>
+                    {thread.music_subtitle}
+                  </p>
                 ) : null}
+                <div className="flex flex-wrap items-center gap-3">
                 {musicHref ? (
                   <Link
                     href={musicHref}
-                    className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/25"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/25"
                   >
                     View in catalog
                     <span aria-hidden>→</span>
                   </Link>
                 ) : null}
+                {sendBackRecipientId && sendBackPrefill ? (
+                  <ThreadSendBackCta
+                    recipientUserId={sendBackRecipientId}
+                    prefill={sendBackPrefill}
+                  />
+                ) : null}
+                </div>
               </div>
             </div>
           </div>
         ) : null}
 
-        {reactionTarget ? (
+        {LIKES_ENABLED && reactionTarget ? (
           <div className="border-b border-white/[0.06] px-4 py-4 sm:px-5">
-            <EmojiReactionBar target={reactionTarget} standalone />
+            <LikeReactionBar target={reactionTarget} standalone />
           </div>
-        ) : detail.reactions.length > 0 ? (
+        ) : LIKES_ENABLED && detail.reactions.length > 0 ? (
           <div className="border-b border-white/[0.06] px-5 py-3 sm:px-6">
-            <div className="flex flex-wrap gap-3 text-sm">
-              {detail.reactions.map((r) => (
-                <span
-                  key={r.emoji}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 px-2.5 py-1 ring-1 ring-white/[0.06]"
-                >
-                  <span aria-hidden>{r.emoji}</span>
-                  <span className="tabular-nums text-zinc-400">{r.count}</span>
-                  {r.mine ? (
-                    <span className="text-[10px] font-medium uppercase text-zinc-500">
-                      you
-                    </span>
-                  ) : null}
-                </span>
-              ))}
-            </div>
+            <p className="text-sm text-zinc-400">
+              <span className="font-medium text-zinc-200">
+                {detail.reactions.reduce((n, r) => n + r.count, 0)}
+              </span>{" "}
+              like
+              {detail.reactions.reduce((n, r) => n + r.count, 0) === 1 ? "" : "s"}
+              {detail.reactions.some((r) => r.mine) ? (
+                <span className="text-zinc-500"> · You liked this</span>
+              ) : null}
+            </p>
           </div>
         ) : null}
 
@@ -274,6 +376,7 @@ export default async function SocialThreadPage({
           />
         </div>
       </article>
+      </div>
     </div>
   );
 }

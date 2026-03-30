@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { ProfileEditModal } from "@/app/profile/[id]/profile-edit-modal";
 import { SendRecommendationModal } from "@/components/taste-match/send-recommendation-modal";
+import { SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED } from "@/lib/feature-social-music-rec-ui";
 
 const quickBtn =
   "inline-flex min-h-11 min-w-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700/90 bg-zinc-900/60 px-3 py-2.5 text-sm font-medium text-zinc-200 shadow-sm ring-1 ring-white/[0.04] transition hover:border-zinc-600 hover:bg-zinc-800/80 sm:flex-none sm:px-4";
@@ -148,7 +149,10 @@ export function ProfileQuickActions({
 }: Props) {
   const router = useRouter();
   const [recOpen, setRecOpen] = useState(false);
-  const showSendRec = !isOwnProfile && Boolean(viewerUserId?.trim());
+  const showSendRec =
+    SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED &&
+    !isOwnProfile &&
+    Boolean(viewerUserId?.trim());
 
   return (
     <div className="flex flex-wrap gap-2 sm:gap-3">
@@ -193,7 +197,7 @@ export function ProfileQuickActions({
         </Link>
       ) : null}
 
-      {isOwnProfile ? (
+      {isOwnProfile && SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED ? (
         <Link
           href="/social/inbox"
           className={`${quickBtn} text-zinc-200 hover:border-zinc-500/50 hover:bg-zinc-800/80`}

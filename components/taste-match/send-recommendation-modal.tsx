@@ -9,6 +9,10 @@ type Props = {
   recipientUserId: string;
   onClose: () => void;
   onSent?: () => void;
+  /** Pre-fill search from thread context (artist / album / track). */
+  initialKind?: Kind;
+  initialQuery?: string;
+  contextHint?: string;
 };
 
 const kindLabel: Record<Kind, string> = {
@@ -21,9 +25,12 @@ export function SendRecommendationModal({
   recipientUserId,
   onClose,
   onSent,
+  initialKind,
+  initialQuery,
+  contextHint,
 }: Props) {
-  const [kind, setKind] = useState<Kind>("artist");
-  const [query, setQuery] = useState("");
+  const [kind, setKind] = useState<Kind>(initialKind ?? "artist");
+  const [query, setQuery] = useState(initialQuery?.trim() ?? "");
   const [results, setResults] = useState<SpotifySearchResponse | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -64,6 +71,15 @@ export function SendRecommendationModal({
     }, 280);
     return () => clearTimeout(t);
   }, [query, kind, search]);
+
+  useEffect(() => {
+    if (initialKind) setKind(initialKind);
+  }, [initialKind]);
+
+  useEffect(() => {
+    const q = initialQuery?.trim();
+    if (q) setQuery(q);
+  }, [initialQuery]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -135,6 +151,11 @@ export function SendRecommendationModal({
           <p className="mt-1 text-sm text-zinc-500">
             Pick something from Spotify — they’ll get a notification with a link.
           </p>
+          {contextHint ? (
+            <p className="mt-2 rounded-lg bg-emerald-950/25 px-3 py-2 text-[13px] leading-snug text-emerald-100/90 ring-1 ring-emerald-500/20">
+              {contextHint}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 gap-1 border-b border-zinc-800 px-4 py-3 sm:px-5">

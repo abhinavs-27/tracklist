@@ -3,7 +3,9 @@ import { withHandler } from "@/lib/api-handler";
 import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { getUserFromRequest } from "@/lib/auth/requireApiAuth";
+import { LIKES_ENABLED } from "@/lib/feature-likes";
 import { isAllowedReactionTargetType } from "@/lib/reactions/constants";
+import { reactionTargetKey } from "@/lib/reactions/keys";
 import { fetchReactionsBatch } from "@/lib/reactions/server";
 import type { ReactionSnapshot } from "@/lib/reactions/types";
 
@@ -39,6 +41,14 @@ export const POST = withHandler(async (request: NextRequest) => {
   }
   if (targets.length === 0) {
     return apiBadRequest("No valid targets");
+  }
+
+  if (!LIKES_ENABLED) {
+    const results: Record<string, ReactionSnapshot> = {};
+    for (const t of targets) {
+      results[reactionTargetKey(t)] = { counts: {}, mine: null };
+    }
+    return apiOk({ results });
   }
 
   const user = await getUserFromRequest(request);

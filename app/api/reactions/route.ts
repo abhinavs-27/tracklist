@@ -2,17 +2,17 @@ import { NextRequest } from "next/server";
 import { withHandler } from "@/lib/api-handler";
 import {
   apiBadRequest,
+  apiForbidden,
+  apiInternalError,
   apiOk,
   apiUnauthorized,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { resolveUserIdForMutation } from "@/lib/auth/requireApiAuth";
+import { LIKES_ENABLED } from "@/lib/feature-likes";
 import { isAllowedReactionEmoji, isAllowedReactionTargetType } from "@/lib/reactions/constants";
 import { reactionTargetKey } from "@/lib/reactions/keys";
-import {
-  AuthUserMissingError,
-  clearReactionForUser,
-  setReactionForUser,
-} from "@/lib/reactions/server";
+import { clearReactionForUser, setReactionForUser } from "@/lib/reactions/server";
 import { afterReactionHook } from "@/lib/social/threads";
 
 type PostBody = {
@@ -23,6 +23,9 @@ type PostBody = {
 
 export const POST = withHandler(
   async (request: NextRequest, { user: me }) => {
+    if (!LIKES_ENABLED) {
+      return apiForbidden("Likes are disabled");
+    }
     const parsed = await parseBody<PostBody>(request);
     if (parsed.error) return parsed.error;
     const body = parsed.data;
@@ -44,13 +47,20 @@ export const POST = withHandler(
     }
 
     try {
+      const userId = await resolveUserIdForMutation(me!, request);
+      if (!userId) {
+        return apiUnauthorized(
+          "Your account could not be loaded. Sign out and sign in again.",
+        );
+      }
+
       const { snapshot } = await setReactionForUser(
-        me!.id,
+        userId,
         targetType,
         targetId,
         emoji,
       );
-      void afterReactionHook(me!.id, targetType, targetId);
+      void afterReactionHook(userId, targetType, targetId);
       return apiOk({
         key: reactionTargetKey({ targetType, targetId }),
         snapshot,
@@ -60,7 +70,7 @@ export const POST = withHandler(
       if (msg === "Invalid target type" || msg === "Invalid emoji" || msg === "Invalid target id") {
         return apiBadRequest(msg);
       }
-      throw e;
+      return apiInternalError(e);
     }
   },
   { requireAuth: true },
@@ -68,6 +78,9 @@ export const POST = withHandler(
 
 export const DELETE = withHandler(
   async (request: NextRequest, { user: me }) => {
+    if (!LIKES_ENABLED) {
+      return apiForbidden("Likes are disabled");
+    }
     const { searchParams } = new URL(request.url);
     const targetType = searchParams.get("targetType")?.trim();
     const targetId = searchParams.get("targetId")?.trim();
@@ -82,29 +95,25 @@ export const DELETE = withHandler(
     }
 
     try {
-      const { snapshot } = await clearReactionForUser(me!.id, targetType, targetId);
-      void afterReactionHook(me!.id, targetType, targetId);
+      const userId = await resolveUserIdForMutation(me!, request);
+      if (!userId) {
+        return apiUnauthorized(
+          "Your account could not be loaded. Sign out and sign in again.",
+        );
+      }
+
+      const { snapshot } = await clearReactionForUser(userId, targetType, targetId);
+      void afterReactionHook(userId, targetType, targetId);
       return apiOk({
         key: reactionTargetKey({ targetType, targetId }),
         snapshot,
       });
     } catch (e) {
-      if (e instanceof AuthUserMissingError) {
-        return apiUnauthorized(
-          "Your session is out of date. Please sign out and sign in again.",
-        );
-      }
-      const pg = e as { code?: string };
-      if (pg?.code === "23503") {
-        return apiUnauthorized(
-          "Your session is out of date. Please sign out and sign in again.",
-        );
-      }
       const msg = e instanceof Error ? e.message : "Failed";
       if (msg === "Invalid target type" || msg === "Invalid target id") {
         return apiBadRequest(msg);
       }
-      throw e;
+      return apiInternalError(e);
     }
   },
   { requireAuth: true },
