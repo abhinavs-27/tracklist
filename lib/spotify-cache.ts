@@ -8,10 +8,11 @@ import {
   getAlbums,
   getArtist,
   getArtistAlbums,
-  getArtists,
   getTrack,
   getTracks,
+  searchSpotify,
 } from "@/lib/spotify";
+import { pickBestArtistMatch } from "@/lib/spotify/matching";
 import { MAX_SPOTIFY_ITEMS } from "@/lib/spotify/client";
 import {
   catalogReadsAllowSpotifyNetwork,
@@ -19,7 +20,11 @@ import {
 } from "@/lib/spotify/catalog-read-policy";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { isValidSpotifyId, normalizeReviewEntityId } from "@/lib/validation";
+import {
+  isValidLfmCatalogId,
+  isValidSpotifyId,
+  normalizeReviewEntityId,
+} from "@/lib/validation";
 
 export type { CatalogFetchOpts } from "@/lib/spotify/catalog-read-policy";
 
@@ -124,6 +129,7 @@ type ArtistRow = {
   image_url: string | null;
   genres: string[] | null;
   popularity?: number | null;
+  spotify_id?: string | null;
   lastfm_fetched_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -618,6 +624,97 @@ async function upsertSongRowOnly(
   }
 }
 
+/**
+ * Spotify Web API paths (`/artists/{id}`, `/artists/{id}/albums`) require a base62 catalog id.
+ * Our canonical `artists.id` may be `lfm:*` with the real id in `spotify_id`, or callers may pass
+ * either form — resolve before any Spotify GET by artist id.
+ *
+ * When `spotify_id` is empty on an `lfm:*` row, matches {@link resolveArtistSpotifyJob} (search + link).
+ */
+export async function resolveCanonicalArtistIdToSpotifyApiId(
+  rawId: string,
+): Promise<string | null> {
+  const id = normalizeReviewEntityId(rawId);
+  if (isValidSpotifyId(id)) return id;
+
+  /** Admin read: this runs inside `unstable_cache` (e.g. album list meta) where `cookies()` is forbidden. */
+  const supabase = createSupabaseAdminClient();
+  const { data: row } = await supabase
+    .from("artists")
+    .select("id, name, spotify_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!row) return null;
+
+  const linked =
+    typeof row.spotify_id === "string" ? row.spotify_id.trim() : "";
+  if (linked) return linked;
+
+  if (!isValidLfmCatalogId(row.id)) return null;
+
+  const name = row.name?.trim();
+  if (!name) return null;
+
+  try {
+    const res = await searchSpotify(name, ["artist"], 5, {
+      allowLastfmMapping: true,
+    });
+    const items = res.artists?.items ?? [];
+    const pick = pickBestArtistMatch(name, items);
+    if (!pick) return null;
+
+    const admin = createSupabaseAdminClient();
+    await upsertArtistFromSpotify(admin, pick);
+
+    const fullPop = pick as SpotifyApi.ArtistObjectFull & {
+      popularity?: number;
+    };
+    const pop =
+      typeof fullPop.popularity === "number"
+        ? clampPopularity(fullPop.popularity)
+        : 0;
+    const genres =
+      "genres" in pick && Array.isArray(pick.genres) && pick.genres.length > 0
+        ? pick.genres
+        : null;
+    const imageUrl =
+      "images" in pick && pick.images?.[0]?.url ? pick.images[0].url : null;
+    const now = new Date().toISOString();
+
+    const { error } = await admin
+      .from("artists")
+      .update({
+        spotify_id: pick.id,
+        name: pick.name,
+        image_url: imageUrl,
+        genres,
+        popularity: pop,
+        needs_spotify_enrichment: false,
+        data_source: "mixed",
+        last_updated: now,
+        updated_at: now,
+        cached_at: now,
+      })
+      .eq("id", row.id);
+
+    if (error) {
+      console.warn(
+        `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId link failed`,
+        error,
+      );
+    }
+    return pick.id;
+  } catch (e) {
+    console.warn(
+      `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId search failed`,
+      id,
+      e,
+    );
+    return null;
+  }
+}
+
 // --- getOrFetchArtist (DB-first cache + TTL)
 
 async function getOrFetchArtistInner(
@@ -663,7 +760,18 @@ async function getOrFetchArtistInner(
     }
 
     try {
-      const artist = await getArtist(id);
+      const apiId = await resolveCanonicalArtistIdToSpotifyApiId(a.id);
+      if (!apiId) {
+        return {
+          id: a.id,
+          name: a.name,
+          images: undefined,
+          genres: a.genres ?? undefined,
+          popularity: typeof a.popularity === "number" ? a.popularity : 0,
+          followers: { total: 0 },
+        } as SpotifyApi.ArtistObjectFull;
+      }
+      const artist = await getArtist(apiId);
       try {
         await upsertArtistFromSpotify(createSupabaseAdminClient(), artist);
       } catch (e) {
@@ -672,7 +780,7 @@ async function getOrFetchArtistInner(
           e,
         );
       }
-      return artist;
+      return { ...artist, id: a.id } as SpotifyApi.ArtistObjectFull;
     } catch (e) {
       console.warn(
         `${LOG_PREFIX} getArtist (no image in DB) failed, using cached row`,
@@ -704,7 +812,18 @@ async function getOrFetchArtistInner(
 
   const missStart = performance.now();
   try {
-    const artist = await getArtist(id);
+    const apiId = await resolveCanonicalArtistIdToSpotifyApiId(id);
+    if (!apiId) {
+      return {
+        id,
+        name: id,
+        images: undefined,
+        genres: [],
+        popularity: 0,
+        followers: { total: 0 },
+      } as SpotifyApi.ArtistObjectFull;
+    }
+    const artist = await getArtist(apiId);
     try {
       await upsertArtistFromSpotify(createSupabaseAdminClient(), artist);
     } catch (e) {
@@ -722,11 +841,12 @@ export async function getOrFetchArtist(
   id: string,
   opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.ArtistObjectFull> {
+  const canonicalId = normalizeReviewEntityId(id);
   return timeAsync(
     "cache",
     "getOrFetchArtist",
-    () => getOrFetchArtistInner(id, opts),
-    { id },
+    () => getOrFetchArtistInner(canonicalId, opts),
+    { id: canonicalId },
   );
 }
 
@@ -737,9 +857,21 @@ export async function getOrFetchArtistAlbums(
   limit = 20,
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
   const supabase = await createSupabaseServerClient();
+  const canonical = normalizeReviewEntityId(artistId);
 
   try {
-    const res = await getArtistAlbums(artistId, limit);
+    const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonical);
+    if (!apiId) {
+      return {
+        items: [],
+        total: 0,
+        limit,
+        offset: 0,
+        next: null,
+        previous: null,
+      };
+    }
+    const res = await getArtistAlbums(apiId, limit);
 
     for (const a of res.items ?? []) {
       try {
@@ -1235,12 +1367,13 @@ export async function getOrFetchAlbum(
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }> {
+  const canonicalId = normalizeReviewEntityId(id);
   return timeAsync(
     "cache",
     "getOrFetchAlbum",
-    () => getOrFetchAlbumInner(id, opts),
+    () => getOrFetchAlbumInner(canonicalId, opts),
     {
-      id,
+      id: canonicalId,
     },
   );
 }
@@ -1464,6 +1597,25 @@ function buildTrackFromRows(
   };
 }
 
+/**
+ * `logs.track_id` / MV `entity_id` is sometimes the Spotify track id while `songs.id` is canonical
+ * (`lfm:*` or another key). After building `lookup` keyed by `song.id`, copy entries so batch lookups
+ * by Spotify id match.
+ */
+function applySpotifyIdAliasesToLookup(
+  lookup: Map<string, SpotifyApi.TrackObjectFull | null>,
+  allSongs: SongRow[],
+  uniqueIds: string[],
+): void {
+  for (const uid of uniqueIds) {
+    if (lookup.has(uid)) continue;
+    const song = allSongs.find((s) => trimmedSpotifyId(s) === uid);
+    if (song && lookup.has(song.id)) {
+      lookup.set(uid, lookup.get(song.id)!);
+    }
+  }
+}
+
 /** Batch fetch tracks: DB first, then single getTracks() for missing (chunked 50). Returns array in input order. */
 async function getOrFetchTracksBatchInner(
   ids: string[],
@@ -1484,15 +1636,39 @@ async function getOrFetchTracksBatchInner(
   const supabase = await createSupabaseServerClient();
   const lookup = new Map<string, SpotifyApi.TrackObjectFull | null>();
 
+  const songSelect =
+    "id, name, album_id, artist_id, duration_ms, cached_at, updated_at, spotify_id, lastfm_name, lastfm_artist_name";
+
   const allSongs: SongRow[] = [];
+  const seenSongIds = new Set<string>();
   for (const idChunk of chunkArray(uniqueIds, SUPABASE_IN_CHUNK)) {
     const { data: songRows } = await supabase
       .from("songs")
-      .select(
-        "id, name, album_id, artist_id, duration_ms, cached_at, updated_at, spotify_id, lastfm_name, lastfm_artist_name",
-      )
+      .select(songSelect)
       .in("id", idChunk);
-    allSongs.push(...((songRows ?? []) as unknown as SongRow[]));
+    for (const s of (songRows ?? []) as unknown as SongRow[]) {
+      if (seenSongIds.has(s.id)) continue;
+      seenSongIds.add(s.id);
+      allSongs.push(s);
+    }
+  }
+
+  const byPrimaryId = new Set(allSongs.map((s) => s.id));
+  const spotifyLookupCandidates = uniqueIds.filter(
+    (uid) => !byPrimaryId.has(uid) && isValidSpotifyId(uid),
+  );
+  if (spotifyLookupCandidates.length > 0) {
+    for (const idChunk of chunkArray(spotifyLookupCandidates, SUPABASE_IN_CHUNK)) {
+      const { data: songRows } = await supabase
+        .from("songs")
+        .select(songSelect)
+        .in("spotify_id", idChunk);
+      for (const s of (songRows ?? []) as unknown as SongRow[]) {
+        if (seenSongIds.has(s.id)) continue;
+        seenSongIds.add(s.id);
+        allSongs.push(s);
+      }
+    }
   }
 
   if (net) {
@@ -1569,6 +1745,7 @@ async function getOrFetchTracksBatchInner(
           : (song.lastfm_artist_name ?? "");
       lookup.set(song.id, buildTrackFromRows(song, album, artistName));
     }
+    applySpotifyIdAliasesToLookup(lookup, allSongs, uniqueIds);
     uniqueIds.forEach((id) => {
       if (!lookup.has(id)) lookup.set(id, null);
     });
@@ -1663,6 +1840,8 @@ async function getOrFetchTracksBatchInner(
         : (song.lastfm_artist_name ?? "");
     lookup.set(song.id, buildTrackFromRows(song, album, artistName));
   }
+
+  applySpotifyIdAliasesToLookup(lookup, allSongs, uniqueIds);
 
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0) {
@@ -1853,7 +2032,26 @@ export async function getOrFetchAlbumsBatch(
   );
 }
 
-/** Batch fetch artists: DB first, then single getArtists() for missing (chunked 50). Returns array in input order. */
+function trimmedSpotifyArtistId(a: ArtistRow): string {
+  return typeof a.spotify_id === "string" ? a.spotify_id.trim() : "";
+}
+
+/** Same as {@link applySpotifyIdAliasesToLookup} for artists (`mv_rising` may use Spotify id). */
+function applySpotifyIdAliasesToArtistLookup(
+  lookup: Map<string, SpotifyApi.ArtistObjectFull | null>,
+  allArtists: ArtistRow[],
+  uniqueIds: string[],
+): void {
+  for (const uid of uniqueIds) {
+    if (lookup.has(uid)) continue;
+    const row = allArtists.find((a) => trimmedSpotifyArtistId(a) === uid);
+    if (row && lookup.has(row.id)) {
+      lookup.set(uid, lookup.get(row.id)!);
+    }
+  }
+}
+
+/** Batch fetch artists: DB first, then resolve Spotify id + {@link getArtist} for missing. */
 async function getOrFetchArtistsBatchInner(
   ids: string[],
   opts?: CatalogFetchOpts,
@@ -1873,14 +2071,41 @@ async function getOrFetchArtistsBatchInner(
   const supabase = await createSupabaseServerClient();
   const lookup = new Map<string, SpotifyApi.ArtistObjectFull | null>();
 
+  const artistSelect =
+    "id, name, image_url, genres, popularity, cached_at, updated_at, spotify_id";
+
   const allArtists: ArtistRow[] = [];
+  const seenArtistIds = new Set<string>();
   for (const idChunk of chunkArray(uniqueIds, SUPABASE_IN_CHUNK)) {
     const { data: artistRows } = await supabase
       .from("artists")
-      .select("id, name, image_url, genres, cached_at, updated_at")
+      .select(artistSelect)
       .in("id", idChunk);
-    allArtists.push(...((artistRows ?? []) as unknown as ArtistRow[]));
+    for (const a of (artistRows ?? []) as unknown as ArtistRow[]) {
+      if (seenArtistIds.has(a.id)) continue;
+      seenArtistIds.add(a.id);
+      allArtists.push(a);
+    }
   }
+
+  const byPrimaryId = new Set(allArtists.map((a) => a.id));
+  const spotifyLookupCandidates = uniqueIds.filter(
+    (uid) => !byPrimaryId.has(uid) && isValidSpotifyId(uid),
+  );
+  if (spotifyLookupCandidates.length > 0) {
+    for (const idChunk of chunkArray(spotifyLookupCandidates, SUPABASE_IN_CHUNK)) {
+      const { data: artistRows } = await supabase
+        .from("artists")
+        .select(artistSelect)
+        .in("spotify_id", idChunk);
+      for (const a of (artistRows ?? []) as unknown as ArtistRow[]) {
+        if (seenArtistIds.has(a.id)) continue;
+        seenArtistIds.add(a.id);
+        allArtists.push(a);
+      }
+    }
+  }
+
   const artistsWithImage = allArtists.filter(
     (a) => !isCacheStale(a.cached_at ?? a.updated_at) && a.image_url,
   );
@@ -1896,6 +2121,7 @@ async function getOrFetchArtistsBatchInner(
         followers: { total: 0 },
       } as SpotifyApi.ArtistObjectFull);
     }
+    applySpotifyIdAliasesToArtistLookup(lookup, allArtists, uniqueIds);
     uniqueIds.forEach((id) => {
       if (!lookup.has(id)) lookup.set(id, null);
     });
@@ -1913,29 +2139,37 @@ async function getOrFetchArtistsBatchInner(
     });
   }
 
+  applySpotifyIdAliasesToArtistLookup(lookup, allArtists, uniqueIds);
+
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0 && net) {
     try {
-      for (const idChunk of chunkArray(missingIds, MAX_SPOTIFY_ITEMS)) {
-        const fetched = await getArtists(idChunk);
-        for (const artist of fetched) {
+      for (const id of missingIds) {
+        const apiId = await resolveCanonicalArtistIdToSpotifyApiId(id);
+        if (!apiId) {
+          lookup.set(id, null);
+          continue;
+        }
+        try {
+          const artist = await getArtist(apiId);
           try {
             await upsertArtistFromSpotify(supabase, artist);
           } catch (e) {
             console.warn(
-              `${LOG_PREFIX} upsertArtistFromSpotify (batch) failed for ${artist.id}`,
+              `${LOG_PREFIX} upsertArtistFromSpotify (batch) failed for ${id}`,
               e,
             );
           }
-          lookup.set(artist.id, artist);
+          lookup.set(id, { ...artist, id } as SpotifyApi.ArtistObjectFull);
+        } catch {
+          lookup.set(id, null);
         }
       }
+    } catch (e) {
+      console.error(`${LOG_PREFIX} getArtist (batch) failed`, e);
       missingIds.forEach((id) => {
         if (!lookup.has(id)) lookup.set(id, null);
       });
-    } catch (e) {
-      console.error(`${LOG_PREFIX} getArtists batch failed`, e);
-      missingIds.forEach((id) => lookup.set(id, null));
     }
   }
 

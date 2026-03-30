@@ -8,6 +8,7 @@ import {
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { upsertRecommendationThread } from "@/lib/social/threads";
 import { isValidUuid } from "@/lib/validation";
 
 type EntityType = "artist" | "album" | "track";
@@ -74,18 +75,38 @@ export const POST = withHandler(
           }
         : null;
 
-    const { error: insErr } = await admin.from("notifications").insert({
-      user_id: recipientUserId,
-      actor_user_id: me!.id,
-      type: "music_recommendation",
-      entity_type: entityType,
-      entity_id: entityId,
-      payload: cleanPayload,
-    });
+    const { data: inserted, error: insErr } = await admin
+      .from("notifications")
+      .insert({
+        user_id: recipientUserId,
+        actor_user_id: me!.id,
+        type: "music_recommendation",
+        entity_type: entityType,
+        entity_id: entityId,
+        payload: cleanPayload,
+      })
+      .select("id")
+      .single();
 
     if (insErr) {
       console.error("[recommendations/send]", insErr);
       return apiInternalError(insErr);
+    }
+
+    if (inserted?.id) {
+      /** Must await: fire-and-forget is often dropped when the route returns (serverless). */
+      const threadRes = await upsertRecommendationThread({
+        notificationId: inserted.id as string,
+        actorUserId: me!.id,
+        recipientUserId,
+        entityType,
+        entityId,
+        payload: cleanPayload,
+      });
+      if (!threadRes.ok) {
+        console.error("[recommendations/send] social thread", threadRes.error);
+        return apiInternalError(new Error(threadRes.error));
+      }
     }
 
     return apiOk({ ok: true });

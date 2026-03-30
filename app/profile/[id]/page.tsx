@@ -297,6 +297,7 @@ export default async function ProfilePage({
         username={profile.username}
         bio={profile.bio}
         avatarUrl={profile.avatar_url}
+        viewerUserId={session?.user?.id ?? null}
       />
 
       {!isOwnProfile ? (

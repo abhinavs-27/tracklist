@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import { getArtistAlbumsWithEngagement } from "@/lib/queries";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -11,7 +12,8 @@ export async function ArtistAlbumsPageContent({
 }: {
   params: PageParams;
 }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = normalizeReviewEntityId(rawId);
 
   let artist: SpotifyApi.ArtistObjectFull;
   try {

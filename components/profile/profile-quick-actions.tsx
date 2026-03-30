@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { ProfileEditModal } from "@/app/profile/[id]/profile-edit-modal";
+import { SendRecommendationModal } from "@/components/taste-match/send-recommendation-modal";
 
 const quickBtn =
   "inline-flex min-h-11 min-w-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700/90 bg-zinc-900/60 px-3 py-2.5 text-sm font-medium text-zinc-200 shadow-sm ring-1 ring-white/[0.04] transition hover:border-zinc-600 hover:bg-zinc-800/80 sm:flex-none sm:px-4";
@@ -117,7 +119,23 @@ type Props = {
   username: string;
   bio: string | null;
   avatarUrl: string | null;
+  /** When set and viewing someone else, show “Send rec” next to Share. */
+  viewerUserId?: string | null;
 };
+
+function GiftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 7h9v4H3V7h9zm0 0V5a2 2 0 10-4 0v2m4 0V5a2 2 0 114 0v2M5 11v8a1 1 0 001 1h12a1 1 0 001-1v-8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function ProfileQuickActions({
   profilePath,
@@ -126,7 +144,12 @@ export function ProfileQuickActions({
   username,
   bio,
   avatarUrl,
+  viewerUserId = null,
 }: Props) {
+  const router = useRouter();
+  const [recOpen, setRecOpen] = useState(false);
+  const showSendRec = !isOwnProfile && Boolean(viewerUserId?.trim());
+
   return (
     <div className="flex flex-wrap gap-2 sm:gap-3">
       {isOwnProfile ? (
@@ -146,6 +169,18 @@ export function ProfileQuickActions({
       ) : null}
 
       <ShareProfileButton profilePath={profilePath} />
+
+      {showSendRec ? (
+        <button
+          type="button"
+          onClick={() => setRecOpen(true)}
+          className={quickBtn}
+          aria-label="Send a music recommendation"
+        >
+          <GiftIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+          Send rec
+        </button>
+      ) : null}
 
       {isOwnProfile ? (
         <Link
@@ -167,6 +202,14 @@ export function ProfileQuickActions({
           <InboxIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
           Inbox
         </Link>
+      ) : null}
+
+      {recOpen && showSendRec ? (
+        <SendRecommendationModal
+          recipientUserId={userId}
+          onClose={() => setRecOpen(false)}
+          onSent={() => router.refresh()}
+        />
       ) : null}
     </div>
   );

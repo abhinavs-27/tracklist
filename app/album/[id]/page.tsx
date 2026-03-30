@@ -14,11 +14,13 @@ import {
 import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { sectionGap } from "@/lib/ui/surface";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 type PageParams = Promise<{ id: string }>;
 
 export default async function AlbumPage({ params }: { params: PageParams }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = normalizeReviewEntityId(rawId);
   const session = await getServerSession(authOptions);
 
   const viewerId = session?.user?.id ?? null;

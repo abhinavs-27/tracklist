@@ -14,12 +14,15 @@ import {
   getListenLogsForArtist,
   getPopularAlbumsForArtist,
 } from "@/lib/queries";
+import { normalizeReviewEntityId } from "@/lib/validation";
 
 type PageParams = Promise<{ id: string }>;
 
 /** Async RSC: data fetching. Wrapped in Suspense from page.tsx so route-level loading can finish immediately. */
 export async function ArtistPageContent({ params }: { params: PageParams }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  /** Params may be `lfm%3A…` from links; DB + Spotify need `lfm:…`. */
+  const id = normalizeReviewEntityId(rawId);
   const session = await getServerSession(authOptions);
 
   let artist: SpotifyApi.ArtistObjectFull;

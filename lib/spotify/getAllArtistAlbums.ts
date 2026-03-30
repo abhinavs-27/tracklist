@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { getArtistAlbums } from "@/lib/spotify";
+import { resolveCanonicalArtistIdToSpotifyApiId } from "@/lib/spotify-cache";
 
 /**
  * Spotify page size for GET /v1/artists/{id}/albums (per request).
@@ -41,10 +42,29 @@ export type ArtistAlbumsFirstPageMeta = {
   rawCount: number;
 };
 
+async function getArtistAlbumsPageResolved(
+  canonicalArtistId: string,
+  limit: number,
+  offset: number,
+): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
+  const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonicalArtistId);
+  if (!apiId) {
+    return {
+      items: [],
+      total: 0,
+      limit,
+      offset,
+      next: null,
+      previous: null,
+    };
+  }
+  return getArtistAlbums(apiId, limit, offset);
+}
+
 export async function getArtistAlbumsFirstPageWithMeta(
   artistId: string,
 ): Promise<ArtistAlbumsFirstPageMeta> {
-  const page = await getArtistAlbums(
+  const page = await getArtistAlbumsPageResolved(
     artistId,
     SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
     0,
@@ -74,7 +94,7 @@ export async function getArtistAlbumsFirstPage(
 export async function peekArtistAlbumsHasMoreAfterFirstPage(
   artistId: string,
 ): Promise<boolean> {
-  const page = await getArtistAlbums(
+  const page = await getArtistAlbumsPageResolved(
     artistId,
     SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
     SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
@@ -88,12 +108,15 @@ export async function peekArtistAlbumsHasMoreAfterFirstPage(
 export async function getAllArtistAlbums(
   artistId: string,
 ): Promise<SpotifyApi.AlbumObjectSimplified[]> {
+  const apiId = await resolveCanonicalArtistIdToSpotifyApiId(artistId);
+  if (!apiId) return [];
+
   const merged: SpotifyApi.AlbumObjectSimplified[] = [];
   let offset = 0;
 
   for (;;) {
     const page = await getArtistAlbums(
-      artistId,
+      apiId,
       SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
       offset,
     );

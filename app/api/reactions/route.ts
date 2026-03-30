@@ -3,14 +3,17 @@ import { withHandler } from "@/lib/api-handler";
 import {
   apiBadRequest,
   apiOk,
+  apiUnauthorized,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { isAllowedReactionEmoji, isAllowedReactionTargetType } from "@/lib/reactions/constants";
 import { reactionTargetKey } from "@/lib/reactions/keys";
 import {
+  AuthUserMissingError,
   clearReactionForUser,
   setReactionForUser,
 } from "@/lib/reactions/server";
+import { afterReactionHook } from "@/lib/social/threads";
 
 type PostBody = {
   targetType?: string;
@@ -47,6 +50,7 @@ export const POST = withHandler(
         targetId,
         emoji,
       );
+      void afterReactionHook(me!.id, targetType, targetId);
       return apiOk({
         key: reactionTargetKey({ targetType, targetId }),
         snapshot,
@@ -79,11 +83,23 @@ export const DELETE = withHandler(
 
     try {
       const { snapshot } = await clearReactionForUser(me!.id, targetType, targetId);
+      void afterReactionHook(me!.id, targetType, targetId);
       return apiOk({
         key: reactionTargetKey({ targetType, targetId }),
         snapshot,
       });
     } catch (e) {
+      if (e instanceof AuthUserMissingError) {
+        return apiUnauthorized(
+          "Your session is out of date. Please sign out and sign in again.",
+        );
+      }
+      const pg = e as { code?: string };
+      if (pg?.code === "23503") {
+        return apiUnauthorized(
+          "Your session is out of date. Please sign out and sign in again.",
+        );
+      }
       const msg = e instanceof Error ? e.message : "Failed";
       if (msg === "Invalid target type" || msg === "Invalid target id") {
         return apiBadRequest(msg);

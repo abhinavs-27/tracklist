@@ -6,6 +6,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { apiUnauthorized } from "@/lib/api-response";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { normalizeEmail, generateUsernameFromEmail } from "./utils";
+import { isValidUuid } from "@/lib/validation";
 import type { User } from "@/types";
 
 export { normalizeEmail, type User };
@@ -148,6 +149,24 @@ export async function getUserFromRequest(
           image,
         },
       });
+    }
+
+    /** Email sometimes missing from the session; resolve by stable DB id if present. */
+    const sessionUserId =
+      session?.user &&
+      typeof (session.user as { id?: string }).id === "string"
+        ? (session.user as { id: string }).id
+        : null;
+    if (sessionUserId && isValidUuid(sessionUserId)) {
+      const supabase = createSupabaseServiceRoleClient();
+      const { data: byId, error: byIdErr } = await supabase
+        .from("users")
+        .select("id, email, username, avatar_url, bio, created_at")
+        .eq("id", sessionUserId)
+        .maybeSingle();
+      if (!byIdErr && byId) {
+        return rowToUser(byId);
+      }
     }
 
     let authHeader = getAuthorizationHeader(request);

@@ -248,7 +248,13 @@ export function TasteCard(props: TasteCardProps) {
             {match.summary}
           </p>
           {profileUserId ? (
-            <TasteMatchSocialActions profileUserId={profileUserId} />
+            <TasteMatchSocialActions
+              profileUserId={profileUserId}
+              shareSnapshot={{
+                score: match.score,
+                summary: match.summary,
+              }}
+            />
           ) : null}
         </div>
       </div>
