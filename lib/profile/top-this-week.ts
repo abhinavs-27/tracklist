@@ -238,6 +238,7 @@ async function enrichNamesFromCatalogTables(
 ): Promise<void> {
   const CHUNK = 300;
   const artistNameById = new Map<string, string>();
+  const albumNameById = new Map<string, string>();
   const idsToFetch = new Set<string>();
 
   for (const a of artists) {
@@ -260,6 +261,9 @@ async function enrichNamesFromCatalogTables(
       const r = row as { id: string; name: string | null; artist_id: string | null };
       const al = albums.find((x) => x.albumId === r.id);
       if (!al) continue;
+      if (r.name?.trim()) {
+        albumNameById.set(r.id, r.name.trim());
+      }
       if (r.name?.trim() && needsNameFallback(al.name, al.albumId)) {
         al.name = r.name.trim();
       }
@@ -296,7 +300,7 @@ async function enrichNamesFromCatalogTables(
 
   for (const al of albums) {
     if (needsNameFallback(al.name, al.albumId)) {
-      const n = artistNameById.get(al.albumId);
+      const n = albumNameById.get(al.albumId);
       if (n) al.name = n;
     }
     const albumArtistId = albumArtistIdByAlbum.get(al.albumId);

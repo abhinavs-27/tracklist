@@ -242,6 +242,16 @@ function buildSummary(t: TasteIdentity): string {
   return bits.join(" ");
 }
 
+/** Stale cache / raw Spotify id / placeholder title — prefer catalog or Spotify. */
+function needsAlbumNameFallback(name: string, id: string): boolean {
+  const n = name.trim();
+  if (!n) return true;
+  if (n === id) return true;
+  if (n === "Unknown album") return true;
+  if (n.length >= 16 && /^[0-9A-Za-z]+$/.test(n)) return true;
+  return false;
+}
+
 function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   const listeningStyle = normalizeListeningStyle(String(cached.listeningStyle));
   const diversityScore = normalizeDiversityScore(cached.diversityScore);
@@ -322,6 +332,126 @@ async function hydrateTasteIdentityArtwork(
       return { ...al, imageUrl: url ?? al.imageUrl ?? null };
     }),
   };
+}
+
+/**
+ * Cached taste can still say "Unknown album" after `albums` rows were filled by
+ * `/album/[id]` or Spotify sync. Refresh names from DB, then Spotify if needed.
+ */
+async function hydrateTasteIdentityNamesFromCatalog(
+  admin: SupabaseClient,
+  identity: TasteIdentity,
+): Promise<TasteIdentity> {
+  if (identity.topAlbums.length === 0) return identity;
+
+  const ids = [...new Set(identity.topAlbums.map((a) => a.id).filter(Boolean))];
+  const CHUNK = 300;
+  const albumRows = new Map<
+    string,
+    { name: string | null; artist_id: string | null }
+  >();
+
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const { data, error } = await admin
+      .from("albums")
+      .select("id, name, artist_id")
+      .in("id", chunk);
+    if (error) {
+      console.warn("[taste-identity] hydrate album names failed", error);
+      continue;
+    }
+    for (const row of data ?? []) {
+      const r = row as {
+        id: string;
+        name: string | null;
+        artist_id: string | null;
+      };
+      albumRows.set(r.id, { name: r.name, artist_id: r.artist_id });
+    }
+  }
+
+  const artistIds = new Set<string>();
+  for (const id of ids) {
+    const row = albumRows.get(id);
+    if (row?.artist_id?.trim()) artistIds.add(row.artist_id.trim());
+  }
+
+  const artistNames = new Map<string, string>();
+  const artistIdList = [...artistIds];
+  for (let i = 0; i < artistIdList.length; i += CHUNK) {
+    const chunk = artistIdList.slice(i, i + CHUNK);
+    const { data, error } = await admin
+      .from("artists")
+      .select("id, name")
+      .in("id", chunk);
+    if (error) continue;
+    for (const row of data ?? []) {
+      const r = row as { id: string; name: string | null };
+      if (r.name?.trim()) artistNames.set(r.id, r.name.trim());
+    }
+  }
+
+  let topAlbums = identity.topAlbums.map((al) => {
+    const row = albumRows.get(al.id);
+    let name = al.name;
+    let artistName = al.artistName;
+    if (row?.name?.trim() && needsAlbumNameFallback(al.name, al.id)) {
+      name = row.name.trim();
+    }
+    const aid = row?.artist_id?.trim();
+    if (aid && (artistName === "Unknown" || !artistName.trim())) {
+      const n = artistNames.get(aid);
+      if (n) artistName = n;
+    }
+    if (name === al.name && artistName === al.artistName) return al;
+    return { ...al, name, artistName };
+  });
+
+  const stillBad = topAlbums.filter((a) => needsAlbumNameFallback(a.name, a.id));
+  if (stillBad.length > 0) {
+    const spotifyAlbums = await getOrFetchAlbumsBatch(
+      stillBad.map((a) => a.id),
+      { allowNetwork: true },
+    );
+    const spotifyById = new Map(
+      stillBad.map((a, i) => [a.id, spotifyAlbums[i] ?? null] as const),
+    );
+    topAlbums = topAlbums.map((al) => {
+      const sa = spotifyById.get(al.id);
+      if (!sa?.name?.trim()) return al;
+      const artistN = sa.artists?.[0]?.name?.trim();
+      return {
+        ...al,
+        name: sa.name.trim(),
+        artistName: artistN ?? al.artistName,
+        imageUrl: al.imageUrl ?? sa.images?.[0]?.url ?? null,
+      };
+    });
+    const artistIdsMissing = [
+      ...new Set(
+        topAlbums
+          .filter((a) => a.artistName === "Unknown" || !a.artistName.trim())
+          .map((a) => albumRows.get(a.id)?.artist_id?.trim())
+          .filter((x): x is string => Boolean(x)),
+      ),
+    ].filter((id) => !artistNames.has(id));
+    if (artistIdsMissing.length > 0) {
+      const extra = await fetchArtistsBatch(admin, artistIdsMissing);
+      for (const [id, m] of extra) {
+        if (m.name?.trim()) artistNames.set(id, m.name.trim());
+      }
+      topAlbums = topAlbums.map((al) => {
+        if (al.artistName !== "Unknown" && al.artistName.trim()) return al;
+        const aid = albumRows.get(al.id)?.artist_id?.trim();
+        if (!aid) return al;
+        const n = artistNames.get(aid);
+        return n ? { ...al, artistName: n } : al;
+      });
+    }
+  }
+
+  return { ...identity, topAlbums };
 }
 
 async function fetchSongsBatch(
@@ -987,7 +1117,31 @@ export async function computeTasteIdentity(
     .slice(0, TOP_N)
     .map(([id]) => id);
 
-  const albumMeta = await fetchAlbumsBatch(admin, topAlbumIds);
+  let albumMeta = await fetchAlbumsBatch(admin, topAlbumIds);
+  const idsNeedingAlbumFill = topAlbumIds.filter((id) => {
+    const al = albumMeta.get(id);
+    return !al || !String(al.name ?? "").trim();
+  });
+  if (idsNeedingAlbumFill.length > 0) {
+    const spotifyAlbums = await getOrFetchAlbumsBatch(idsNeedingAlbumFill, {
+      allowNetwork: true,
+    });
+    albumMeta = new Map(albumMeta);
+    for (let i = 0; i < idsNeedingAlbumFill.length; i++) {
+      const id = idsNeedingAlbumFill[i]!;
+      const sa = spotifyAlbums[i];
+      if (!sa?.name?.trim()) continue;
+      const prev = albumMeta.get(id);
+      const artistId =
+        sa.artists?.[0]?.id?.trim() ?? prev?.artist_id?.trim() ?? "";
+      albumMeta.set(id, {
+        name: sa.name,
+        artist_id: artistId || prev?.artist_id || "",
+        image_url: prev?.image_url ?? sa.images?.[0]?.url ?? null,
+      });
+    }
+  }
+
   const albumArtistIds = new Set<string>();
   for (const id of topAlbumIds) {
     const al = albumMeta.get(id);
@@ -1159,7 +1313,10 @@ export async function seedTasteIdentityFromFavoriteAlbums(
   await upsertTasteIdentityCache(admin, userId, payload);
 }
 
-/** Single read of `taste_identity_cache` — no log scans, no Spotify, no artwork hydration. */
+/**
+ * Read `taste_identity_cache` (no log scan). Overlays fresh `image_url` from
+ * `albums`/`artists`, then rehydrates top-album titles/artists (DB + Spotify if needed).
+ */
 export async function getTasteIdentity(userId: string): Promise<TasteIdentity> {
   const admin = createSupabaseAdminClient();
 
@@ -1173,5 +1330,9 @@ export async function getTasteIdentity(userId: string): Promise<TasteIdentity> {
     return { ...EMPTY };
   }
 
-  return normalizeCachedTasteIdentity(cached.payload as TasteIdentity);
+  let identity = normalizeCachedTasteIdentity(
+    cached.payload as TasteIdentity,
+  );
+  identity = await hydrateTasteIdentityArtwork(admin, identity);
+  return hydrateTasteIdentityNamesFromCatalog(admin, identity);
 }
