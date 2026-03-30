@@ -4,9 +4,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { LeaderboardPreview } from "@/components/explore/leaderboard-preview";
 import { TrendingStrip } from "@/components/explore/trending-strip";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
-import { RecommendedCommunitiesSection } from "@/components/discover/recommended-communities-section";
+import { RecommendedCommunitiesSuspense } from "@/components/discover/recommended-communities-suspense";
 import { getTrendingEntitiesCached } from "@/lib/discover-cache";
-import { getRecommendedCommunities } from "@/lib/community/getRecommendedCommunities";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { getLeaderboard } from "@/lib/queries";
 import {
@@ -27,8 +26,7 @@ export default async function ExploreHubPage() {
   const userId = session?.user?.id ?? null;
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
-  const [recommendedCommunities, trendingRaw, leaderboardTop] = await Promise.all([
-    socialMusicUi && userId ? getRecommendedCommunities(userId) : Promise.resolve([]),
+  const [trendingRaw, leaderboardTop] = await Promise.all([
     getTrendingEntitiesCached(MAX_TRENDING),
     getLeaderboard("popular", {}, "song", 8),
   ]);
@@ -53,8 +51,8 @@ export default async function ExploreHubPage() {
         </p>
       </header>
 
-      {socialMusicUi && userId && recommendedCommunities.length > 0 ? (
-        <RecommendedCommunitiesSection items={recommendedCommunities} />
+      {socialMusicUi && userId ? (
+        <RecommendedCommunitiesSuspense userId={userId} />
       ) : null}
 
       {socialMusicUi && userId ? (
