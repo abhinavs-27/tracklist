@@ -54,6 +54,20 @@ function ChartIcon({ className }: { className?: string }) {
   );
 }
 
+function InboxIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function ShareProfileButton({ profilePath }: { profilePath: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -141,6 +155,17 @@ export function ProfileQuickActions({
         >
           <ChartIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
           Report
+        </Link>
+      ) : null}
+
+      {isOwnProfile ? (
+        <Link
+          href="/social/inbox"
+          className={`${quickBtn} text-zinc-200 hover:border-zinc-500/50 hover:bg-zinc-800/80`}
+          aria-label="Social inbox"
+        >
+          <InboxIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+          Inbox
         </Link>
       ) : null}
     </div>

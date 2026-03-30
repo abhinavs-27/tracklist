@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { FeedItem } from './feed-item';
 import type { FeedActivity } from '@/types';
 
@@ -21,6 +22,9 @@ interface FeedLoadMoreProps {
 }
 
 export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
+  const { data: session } = useSession();
+  const viewerUserId =
+    (session?.user as { id?: string } | undefined)?.id ?? '';
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<EnrichedFeedActivity[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(cursor);
@@ -53,6 +57,7 @@ export function FeedLoadMore({ cursor, className = '' }: FeedLoadMoreProps) {
               <FeedItem
                 activity={activity}
                 spotifyName={activity.spotifyName}
+                viewerUserId={viewerUserId}
               />
             </li>
           ))}

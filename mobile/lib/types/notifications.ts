@@ -6,6 +6,7 @@ export type NotificationRow = {
   type: string;
   entity_type: string | null;
   entity_id: string | null;
+  payload?: Record<string, unknown> | null;
   read: boolean;
   created_at: string;
 };

@@ -13,6 +13,11 @@ export function notificationPrimaryLine(
   if (n.type === "community_invite") {
     return `${actor?.username ?? "Someone"} invited you to a community`;
   }
+  if (n.type === "music_recommendation") {
+    const p = n.payload as { title?: string } | undefined;
+    const piece = p?.title?.trim() || "something";
+    return `${actor?.username ?? "Someone"} recommended ${piece}`;
+  }
   return humanizeNotificationType(n.type);
 }
 

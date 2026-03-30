@@ -6,6 +6,7 @@ import {
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
+import { logTasteComparison } from "@/lib/social/log-taste-comparison";
 import { getTasteMatch } from "@/lib/taste/taste-match";
 import { isValidUuid } from "@/lib/validation";
 
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     if (!isValidUuid(userB)) return apiBadRequest("Invalid user id");
 
     const result = await getTasteMatch(me.id, userB);
+    void logTasteComparison(me.id, userB);
     return apiOk(result);
   } catch (e) {
     const u = handleUnauthorized(e);

@@ -12,6 +12,8 @@ import { formatRelativeTime } from '@/lib/time';
 import type { FeedActivity } from '@/types';
 import { StoryFeedCard } from '@/components/feed/story-feed-card';
 import { ListenSessionSingleStoryCard } from '@/components/feed/listen-session-feed-card';
+import type { EnrichedFeedActivity } from '@/components/feed/group-feed-items';
+import { FeedActivityEngagement } from '@/components/feed/feed-activity-engagement';
 
 const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   activity,
@@ -101,6 +103,7 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
 interface FeedItemProps {
   activity: FeedActivity;
   spotifyName?: string;
+  viewerUserId: string;
 }
 
 function starsRow(rating: number): string {
@@ -315,77 +318,98 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
   );
 });
 
-function FeedItemInner({ activity, spotifyName }: FeedItemProps) {
+function FeedItemInner({ activity, spotifyName, viewerUserId }: FeedItemProps) {
   if (activity.type === 'review') {
     return (
-      <StoryFeedCard>
-        <ReviewCard review={activity.review} spotifyName={spotifyName} variant="story" />
-      </StoryFeedCard>
+      <>
+        <StoryFeedCard>
+          <ReviewCard review={activity.review} spotifyName={spotifyName} variant="story" />
+        </StoryFeedCard>
+        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
+      </>
     );
   }
 
   if (activity.type === 'feed_story') {
-    return <FeedStoryBlock activity={activity} />;
+    return (
+      <>
+        <FeedStoryBlock activity={activity} />
+        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
+      </>
+    );
   }
 
   if (activity.type === 'listen_sessions_summary') {
-    return <ListenSessionsSummaryBlock activity={activity} />;
+    return (
+      <>
+        <ListenSessionsSummaryBlock activity={activity} />
+        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
+      </>
+    );
   }
 
   if (activity.type === 'listen_session') {
-    return <ListenSessionSingleStoryCard activity={activity} />;
+    return (
+      <>
+        <ListenSessionSingleStoryCard activity={activity} />
+        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
+      </>
+    );
   }
 
   const follower = activity.follower_username ?? 'Someone';
   const following = activity.following_username ?? 'someone';
 
   return (
-    <StoryFeedCard className="overflow-hidden">
-      <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-gradient-to-br from-emerald-950/40 via-zinc-900 to-zinc-950 sm:h-[112px]">
-        <div className="absolute inset-0 flex items-center justify-center gap-2 px-3 sm:gap-3 sm:px-5">
-          <Link
-            href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
-            className="relative z-10"
-          >
-            <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
-              {follower[0]?.toUpperCase() ?? '?'}
+    <>
+      <StoryFeedCard className="overflow-hidden">
+        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-gradient-to-br from-emerald-950/40 via-zinc-900 to-zinc-950 sm:h-[112px]">
+          <div className="absolute inset-0 flex items-center justify-center gap-2 px-3 sm:gap-3 sm:px-5">
+            <Link
+              href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
+              className="relative z-10"
+            >
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
+                {follower[0]?.toUpperCase() ?? '?'}
+              </span>
+            </Link>
+            <span className="text-lg text-zinc-600 sm:text-xl" aria-hidden>
+              →
             </span>
-          </Link>
-          <span className="text-lg text-zinc-600 sm:text-xl" aria-hidden>
-            →
-          </span>
-          <Link
-            href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
-            className="relative z-10"
-          >
-            <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-700/50 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
-              {following[0]?.toUpperCase() ?? '?'}
-            </span>
-          </Link>
+            <Link
+              href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
+              className="relative z-10"
+            >
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-700/50 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
+                {following[0]?.toUpperCase() ?? '?'}
+              </span>
+            </Link>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-      </div>
-      <div className="px-4 pb-3 pt-3 sm:px-5">
-        <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
-          <Link
-            href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
-            className="hover:text-emerald-400 hover:underline"
-          >
-            {follower}
-          </Link>
-          <span className="font-normal text-zinc-400"> followed </span>
-          <Link
-            href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
-            className="hover:text-emerald-400 hover:underline"
-          >
-            {following}
-          </Link>
-        </h2>
-        <p className="mt-2 text-[11px] text-zinc-500 tabular-nums">
-          {formatRelativeTime(activity.created_at)}
-        </p>
-      </div>
-    </StoryFeedCard>
+        <div className="px-4 pb-3 pt-3 sm:px-5">
+          <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
+            <Link
+              href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
+              className="hover:text-emerald-400 hover:underline"
+            >
+              {follower}
+            </Link>
+            <span className="font-normal text-zinc-400"> followed </span>
+            <Link
+              href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
+              className="hover:text-emerald-400 hover:underline"
+            >
+              {following}
+            </Link>
+          </h2>
+          <p className="mt-2 text-[11px] text-zinc-500 tabular-nums">
+            {formatRelativeTime(activity.created_at)}
+          </p>
+        </div>
+      </StoryFeedCard>
+      <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
+    </>
   );
 }
 

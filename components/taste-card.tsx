@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import { TasteMatchSocialActions } from "@/components/taste-match/taste-match-social-actions";
 import type { TasteGenre } from "@/lib/taste/types";
-import type { TasteMatchResponse, TasteMatchSharedArtist } from "@/types";
+import type {
+  TasteMatchResponse,
+  TasteMatchSharedArtist,
+  TasteMatchStartHere,
+} from "@/types";
 
 export type TasteCardGenre = Pick<TasteGenre, "name" | "weight">;
 
@@ -46,6 +51,30 @@ function GenrePillGroup({
   );
 }
 
+function CompareSectionHeading({
+  title,
+  subtitle,
+  id,
+}: {
+  title: string;
+  subtitle?: string;
+  id?: string;
+}) {
+  return (
+    <div className="mb-5">
+      <h3
+        id={id}
+        className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400"
+      >
+        {title}
+      </h3>
+      {subtitle ? (
+        <p className="mt-1.5 text-sm leading-snug text-zinc-500">{subtitle}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export type TasteCardIdentityProps = {
   mode: "identity";
   /**
@@ -72,6 +101,8 @@ export type TasteCardCompareProps = {
   match: TasteMatchResponse;
   youLabel?: string;
   themLabel?: string;
+  /** Enables social CTAs (lists, recent plays, weekly challenge). */
+  profileUserId?: string;
   className?: string;
 };
 
@@ -149,6 +180,8 @@ export function TasteCard(props: TasteCardProps) {
   }
 
   const { match, youLabel = "You", themLabel = "Them", className = "" } = props;
+  const profileUserId =
+    props.mode === "compare" ? props.profileUserId : undefined;
 
   if (match.insufficientData) {
     return (
@@ -175,95 +208,402 @@ export function TasteCard(props: TasteCardProps) {
     right: `${Math.round(g.weight)}%`,
   }));
 
+  const sh = match.startHere;
+  const showStartHere =
+    !!sh &&
+    (sh.artistsToExplore.length > 0 || !!sh.topAlbum || !!sh.topTrack);
+
+  const hasSharedTaste =
+    match.sharedArtists.length > 0 || sharedGenrePills.length > 0;
+  const hasDifferences =
+    uniqueAPills.length > 0 || uniqueBPills.length > 0;
+
   return (
     <motion.div
       {...motionProps}
-      className={`overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/95 via-zinc-950/90 to-emerald-950/20 shadow-lg shadow-black/30 ${className}`}
+      className={`overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/98 via-zinc-950 to-zinc-950 shadow-xl shadow-black/40 ring-1 ring-white/[0.04] ${className}`}
     >
-      <div className="border-b border-white/5 bg-gradient-to-r from-emerald-950/30 via-zinc-950/40 to-violet-950/35 px-5 py-5 sm:px-6 sm:py-6">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">Taste match</p>
-        <p
-          className="mt-1 text-5xl font-bold tabular-nums tracking-tight text-white"
-          data-testid="taste-score"
-        >
-          {match.score}
-          <span className="text-2xl font-semibold text-zinc-500">%</span>
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-400">{match.summary}</p>
-      </div>
-
-      <div className="grid gap-px bg-zinc-800/80 sm:grid-cols-3">
-        <div className="bg-zinc-950/50 px-4 py-3 sm:px-5">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-500">Artist overlap</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-400">{match.overlapScore}%</p>
-        </div>
-        <div className="bg-zinc-950/50 px-4 py-3 sm:px-5">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-500">Genre overlap</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-violet-400">{match.genreOverlapScore}%</p>
-        </div>
-        <div className="bg-zinc-950/50 px-4 py-3 sm:px-5">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-500">Discovery</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-amber-400">{match.discoveryScore}%</p>
-          <p className="mt-0.5 text-[10px] leading-tight text-zinc-600">Their artists you don’t share</p>
-        </div>
-      </div>
-
-      <div className="space-y-5 px-5 py-5 sm:px-6">
-        {match.sharedArtists.length > 0 ? (
-          <SharedArtistsList artists={match.sharedArtists} />
-        ) : null}
-
-        {sharedGenrePills.length > 0 ? (
-          <GenrePillGroup label="Shared genres" pills={sharedGenrePills} />
-        ) : null}
-
-        {(uniqueAPills.length > 0 || uniqueBPills.length > 0) && (
-          <div className="grid gap-5 sm:grid-cols-2">
-            {uniqueAPills.length > 0 ? (
-              <GenrePillGroup label={`Only on ${youLabel}`} pills={uniqueAPills} />
-            ) : null}
-            {uniqueBPills.length > 0 ? (
-              <GenrePillGroup label={`Only on ${themLabel}`} pills={uniqueBPills} />
-            ) : null}
+      {/* Summary */}
+      <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-emerald-950/35 via-zinc-950 to-violet-950/25 px-6 pb-8 pt-8 sm:px-10 sm:pb-10 sm:pt-10">
+        <div
+          className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-emerald-500/[0.07] blur-3xl"
+          aria-hidden
+        />
+        <div className="relative">
+          <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-zinc-500">
+            Taste match
+          </p>
+          <div
+            className="mt-4 flex flex-wrap items-end gap-2 gap-y-0"
+            data-testid="taste-score"
+          >
+            <span className="text-6xl font-bold tabular-nums tracking-tight text-white sm:text-7xl md:text-8xl">
+              {match.score}
+            </span>
+            <span className="pb-1 text-3xl font-semibold text-zinc-500 sm:text-4xl md:pb-2">
+              %
+            </span>
           </div>
-        )}
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-zinc-300 sm:text-[1.05rem]">
+            {match.summary}
+          </p>
+          {profileUserId ? (
+            <TasteMatchSocialActions profileUserId={profileUserId} />
+          ) : null}
+        </div>
+      </div>
+
+      <div className="space-y-12 px-6 py-10 sm:px-10 sm:py-12">
+        {/* Shared taste */}
+        <section aria-labelledby="tm-shared-heading">
+          <CompareSectionHeading
+            id="tm-shared-heading"
+            title="Shared taste"
+            subtitle="Where your listening overlaps — artists you both spin and genres you agree on."
+          />
+          {hasSharedTaste ? (
+            <div className="space-y-8">
+              {match.sharedArtists.length > 0 ? (
+                <SharedArtistsList
+                  artists={match.sharedArtists}
+                  youLabel={youLabel}
+                  themLabel={themLabel}
+                />
+              ) : null}
+              {sharedGenrePills.length > 0 ? (
+                <GenrePillGroup label="Shared genres" pills={sharedGenrePills} />
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">
+              No shared top artists or genre overlap in the data yet — log more and
+              compare again.
+            </p>
+          )}
+        </section>
+
+        {/* Differences */}
+        {hasDifferences ? (
+          <section aria-labelledby="tm-diff-heading">
+            <CompareSectionHeading
+              id="tm-diff-heading"
+              title="Differences"
+              subtitle="Genre leanings that show up on one side more than the other."
+            />
+            <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
+              {uniqueAPills.length > 0 ? (
+                <GenrePillGroup label={`Only on ${youLabel}`} pills={uniqueAPills} />
+              ) : null}
+              {uniqueBPills.length > 0 ? (
+                <GenrePillGroup label={`Only on ${themLabel}`} pills={uniqueBPills} />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {/* Discovery */}
+        <section aria-labelledby="tm-discovery-heading">
+          <CompareSectionHeading
+            id="tm-discovery-heading"
+            title="Discovery"
+            subtitle="How your charts line up — and what from their rotation is still new to you."
+          />
+
+          <div className="overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ring-1 ring-white/[0.03]">
+            <div className="grid gap-px bg-zinc-800/90 sm:grid-cols-3">
+              <div className="bg-zinc-950/80 px-4 py-4 sm:px-5 sm:py-5">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Artist overlap
+                </p>
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-emerald-400 sm:text-3xl">
+                  {match.overlapScore}%
+                </p>
+              </div>
+              <div className="bg-zinc-950/80 px-4 py-4 sm:px-5 sm:py-5">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Genre overlap
+                </p>
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-violet-400 sm:text-3xl">
+                  {match.genreOverlapScore}%
+                </p>
+              </div>
+              <div className="bg-zinc-950/80 px-4 py-4 sm:px-5 sm:py-5">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Discovery
+                </p>
+                <p className="mt-2 text-xl font-bold leading-tight text-amber-100 sm:text-2xl">
+                  <span className="tabular-nums text-amber-400">
+                    {match.discoveryScore}%
+                  </span>
+                  <span className="text-base font-semibold tracking-tight">
+                    {" "}
+                    new to you
+                  </span>
+                </p>
+                <p className="mt-2 text-[10px] leading-snug text-zinc-500">
+                  Higher means more of their top-chart plays sit outside your top
+                  artists — more room to explore.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {showStartHere && sh ? (
+            <div className="mt-8">
+              <StartHereBlock themLabel={themLabel} startHere={sh} />
+            </div>
+          ) : null}
+        </section>
       </div>
     </motion.div>
   );
 }
 
-function SharedArtistsList({ artists }: { artists: TasteMatchSharedArtist[] }) {
+function StartHereBlock({
+  themLabel,
+  startHere,
+}: {
+  themLabel: string;
+  startHere: TasteMatchStartHere;
+}) {
+  const sub =
+    themLabel === "Them"
+      ? "Quick entry points from their history — tap to explore."
+      : `Quick entry points from ${themLabel} — tap to explore.`;
+
   return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Shared artists</p>
-      <ul className="mt-2 space-y-2">
-        {artists.map((a) => (
-          <li
-            key={a.id}
-            className="flex items-center gap-3 rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-3 py-2.5"
+    <div className="rounded-2xl border border-zinc-800/70 bg-gradient-to-br from-emerald-950/25 via-zinc-950/80 to-zinc-950 p-5 sm:p-6">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/90">
+        Start here
+      </p>
+      <p className="mt-1 text-xs text-zinc-500">{sub}</p>
+
+      {startHere.artistsToExplore.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-[11px] font-medium text-zinc-500">
+            Artists they repeat — new to your rotation
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {startHere.artistsToExplore.map((a) => (
+              <li key={a.id}>
+                <Link
+                  href={`/artist/${a.id}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-2.5 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
+                >
+                  {a.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={a.imageUrl}
+                      alt=""
+                      className="h-7 w-7 shrink-0 rounded-md object-cover"
+                      width={28}
+                      height={28}
+                    />
+                  ) : (
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-[10px] text-zinc-600">
+                      ♪
+                    </span>
+                  )}
+                  <span className="max-w-[140px] truncate">{a.name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {startHere.topAlbum ? (
+          <Link
+            href={`/album/${startHere.topAlbum.id}`}
+            className="flex gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 transition-colors hover:border-emerald-500/35"
           >
-            <Link href={`/artist/${a.id}`} className="shrink-0">
-              <div className="h-11 w-11 overflow-hidden rounded-lg bg-zinc-800">
-                {a.imageUrl ? (
-                  <img src={a.imageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-zinc-600">♪</div>
-                )}
-              </div>
-            </Link>
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+              {startHere.topAlbum.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={startHere.topAlbum.imageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  width={56}
+                  height={56}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-lg text-zinc-600">
+                  ♪
+                </div>
+              )}
+            </div>
             <div className="min-w-0 flex-1">
-              <Link
-                href={`/artist/${a.id}`}
-                className="truncate font-medium text-zinc-100 hover:text-emerald-400 hover:underline"
-              >
-                {a.name}
-              </Link>
-              <p className="text-xs text-zinc-500">
-                {a.listenCountUserA} plays · {a.listenCountUserB} plays
+              <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                Most-played album
+              </p>
+              <p className="mt-0.5 truncate font-medium text-zinc-100">
+                {startHere.topAlbum.name}
+              </p>
+              <p className="truncate text-xs text-zinc-500">
+                {startHere.topAlbum.artistName}
+              </p>
+              <p className="mt-1 text-[11px] tabular-nums text-zinc-600">
+                {startHere.topAlbum.playCount} plays
               </p>
             </div>
-          </li>
-        ))}
+          </Link>
+        ) : null}
+
+        {startHere.topTrack ? (
+          startHere.topTrack.albumId ? (
+            <Link
+              href={`/album/${startHere.topTrack.albumId}`}
+              className="flex gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 transition-colors hover:border-emerald-500/35"
+            >
+              <div className="flex min-w-0 flex-1 flex-col justify-center">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Most-played track
+                </p>
+                <p className="mt-0.5 truncate font-medium text-zinc-100">
+                  {startHere.topTrack.name}
+                </p>
+                <p className="truncate text-xs text-zinc-500">
+                  {[startHere.topTrack.artistName, startHere.topTrack.albumName]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <p className="mt-1 text-[11px] tabular-nums text-zinc-600">
+                  {startHere.topTrack.playCount} plays · open album
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <div className="flex gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Most-played track
+                </p>
+                <p className="mt-0.5 truncate font-medium text-zinc-100">
+                  {startHere.topTrack.name}
+                </p>
+                <p className="truncate text-xs text-zinc-500">
+                  {[startHere.topTrack.artistName, startHere.topTrack.albumName]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <p className="mt-1 text-[11px] tabular-nums text-zinc-600">
+                  {startHere.topTrack.playCount} plays
+                </p>
+              </div>
+            </div>
+          )
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function sharedArtistLeader(
+  a: number,
+  b: number,
+): "you" | "them" | "tie" {
+  if (a === b) return "tie";
+  return a > b ? "you" : "them";
+}
+
+function SharedArtistsList({
+  artists,
+  youLabel,
+  themLabel,
+}: {
+  artists: TasteMatchSharedArtist[];
+  youLabel: string;
+  themLabel: string;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+        Overlapping artists
+      </p>
+      <p className="mt-1 text-xs text-zinc-500">
+        Who has more plays on each — the bar shows the split.
+      </p>
+      <ul className="mt-3 space-y-2.5">
+        {artists.map((a) => {
+          const flexYou = Math.max(1, a.listenCountUserA);
+          const flexThem = Math.max(1, a.listenCountUserB);
+          const lead = sharedArtistLeader(a.listenCountUserA, a.listenCountUserB);
+
+          return (
+            <li
+              key={a.id}
+              className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-3 py-2.5"
+            >
+              <div className="flex items-start gap-3">
+                <Link href={`/artist/${a.id}`} className="shrink-0">
+                  <div className="h-11 w-11 overflow-hidden rounded-lg bg-zinc-800">
+                    {a.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={a.imageUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-zinc-600">
+                        ♪
+                      </div>
+                    )}
+                  </div>
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                    <Link
+                      href={`/artist/${a.id}`}
+                      className="truncate font-medium text-zinc-100 hover:text-emerald-400 hover:underline"
+                    >
+                      {a.name}
+                    </Link>
+                    {lead === "you" ? (
+                      <span className="inline-flex shrink-0 rounded-full border border-emerald-500/35 bg-emerald-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+                        {youLabel === "You" ? "You lead" : `${youLabel} leads`}
+                      </span>
+                    ) : lead === "them" ? (
+                      <span className="inline-flex shrink-0 rounded-full border border-violet-400/35 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
+                        {themLabel === "Them" ? "They lead" : `${themLabel} leads`}
+                      </span>
+                    ) : (
+                      <span className="inline-flex shrink-0 rounded-full border border-zinc-600/60 bg-zinc-800/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                        Neck & neck
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-zinc-800/90"
+                    aria-hidden
+                    title={`${youLabel} ${a.listenCountUserA} · ${themLabel} ${a.listenCountUserB}`}
+                  >
+                    <div
+                      className="h-full min-w-px bg-gradient-to-r from-emerald-500 to-emerald-400"
+                      style={{ flex: flexYou }}
+                    />
+                    <div
+                      className="h-full min-w-px bg-gradient-to-r from-violet-600 to-violet-500"
+                      style={{ flex: flexThem }}
+                    />
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] tabular-nums text-zinc-500">
+                    <span>
+                      <span className="text-emerald-400/95">{youLabel}</span>{" "}
+                      {a.listenCountUserA} plays
+                    </span>
+                    <span>
+                      <span className="text-violet-300/90">{themLabel}</span>{" "}
+                      {a.listenCountUserB} plays
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

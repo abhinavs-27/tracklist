@@ -15,6 +15,10 @@ import {
   type TasteListeningStyle,
 } from "./listening-style";
 import type {
+  TasteMatchEntryAlbum,
+  TasteMatchEntryTrack,
+} from "@/types";
+import type {
   TasteGenre,
   TasteIdentity,
   TasteRecentSnapshot,
@@ -366,6 +370,60 @@ async function fetchSongsBatch(
   return out;
 }
 
+async function fetchSongTitlesBatch(
+  admin: SupabaseClient,
+  ids: string[],
+): Promise<
+  Map<
+    string,
+    { name: string; album_id: string | null; artist_id: string | null }
+  >
+> {
+  const out = new Map<
+    string,
+    { name: string; album_id: string | null; artist_id: string | null }
+  >();
+  const unique = [...new Set(ids)].filter(Boolean);
+  const CHUNK = 400;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const { data, error } = await admin
+      .from("songs")
+      .select("id, name, album_id, artist_id")
+      .in("id", chunk);
+    if (error) {
+      console.error("[taste-identity] song titles batch failed", error);
+      continue;
+    }
+    for (const row of data ?? []) {
+      const r = row as {
+        id: string;
+        name: string;
+        album_id: string | null;
+        artist_id: string | null;
+      };
+      out.set(r.id, {
+        name: r.name,
+        album_id: r.album_id,
+        artist_id: r.artist_id,
+      });
+    }
+  }
+  return out;
+}
+
+function maxCountEntry<K extends string>(
+  counts: Map<K, number>,
+): [K, number] | null {
+  let best: [K, number] | null = null;
+  for (const [k, v] of counts) {
+    if (!best || v > best[1] || (v === best[1] && k < best[0])) {
+      best = [k, v];
+    }
+  }
+  return best;
+}
+
 async function fetchArtistsBatch(
   admin: SupabaseClient,
   ids: string[],
@@ -556,16 +614,24 @@ async function computeRecentTasteSnapshot(
 }
 
 /**
- * Top artists by play count from logs (not taste-identity cache). Taste match uses
- * this so overlap compares a larger pool (e.g. top 20) than cached identity (top 10),
- * and avoids stale/empty cache making shared artists look like zero.
+ * One log scan: top artists for overlap + their heaviest album/track for Taste Match “Start here”.
  */
-export async function getTopArtistsFromLogsForMatch(
+export async function aggregateLogsForTasteMatch(
   admin: SupabaseClient,
   userId: string,
-  limit: number,
-): Promise<TasteTopArtist[]> {
-  const cap = Math.min(Math.max(1, limit), 50);
+  artistLimit: number,
+): Promise<{
+  topArtists: TasteTopArtist[];
+  topAlbum: TasteMatchEntryAlbum | null;
+  topTrack: TasteMatchEntryTrack | null;
+}> {
+  const none = (): {
+    topArtists: TasteTopArtist[];
+    topAlbum: TasteMatchEntryAlbum | null;
+    topTrack: TasteMatchEntryTrack | null;
+  } => ({ topArtists: [], topAlbum: null, topTrack: null });
+
+  const cap = Math.min(Math.max(1, artistLimit), 50);
   const { data: logRows, error: logErr } = await admin
     .from("logs")
     .select("track_id, listened_at, album_id, artist_id")
@@ -577,7 +643,7 @@ export async function getTopArtistsFromLogsForMatch(
     if (logErr) {
       console.error("[taste-identity] logs query failed (match)", logErr);
     }
-    return [];
+    return none();
   }
 
   const logs = logRows as {
@@ -591,15 +657,27 @@ export async function getTopArtistsFromLogsForMatch(
   const songMap = await fetchSongsBatch(admin, trackIds);
 
   const artistCounts = new Map<string, number>();
+  const albumCounts = new Map<string, number>();
+  const trackCounts = new Map<string, number>();
+
   for (const log of logs) {
     const song = songMap.get(log.track_id);
     const artistId = log.artist_id ?? song?.artist_id ?? null;
     if (artistId) {
       artistCounts.set(artistId, (artistCounts.get(artistId) ?? 0) + 1);
     }
+    const albId =
+      log.album_id?.trim() || song?.album_id?.trim() || null;
+    if (albId) {
+      albumCounts.set(albId, (albumCounts.get(albId) ?? 0) + 1);
+    }
+    const tid = log.track_id?.trim();
+    if (tid) {
+      trackCounts.set(tid, (trackCounts.get(tid) ?? 0) + 1);
+    }
   }
 
-  if (artistCounts.size === 0) return [];
+  if (artistCounts.size === 0) return none();
 
   const topIds = [...artistCounts.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -607,7 +685,7 @@ export async function getTopArtistsFromLogsForMatch(
     .map(([id]) => id);
 
   const artistMeta = await fetchArtistsBatch(admin, topIds);
-  return topIds.map((id) => {
+  const topArtists: TasteTopArtist[] = topIds.map((id) => {
     const m = artistMeta.get(id);
     return {
       id,
@@ -616,6 +694,70 @@ export async function getTopArtistsFromLogsForMatch(
       imageUrl: m?.image_url ?? null,
     };
   });
+
+  let topAlbum: TasteMatchEntryAlbum | null = null;
+  const albumBest = maxCountEntry(albumCounts);
+  if (albumBest) {
+    const [albumId, playCount] = albumBest;
+    const albumMap = await fetchAlbumsBatch(admin, [albumId]);
+    const al = albumMap.get(albumId);
+    if (al) {
+      const am = await fetchArtistsBatch(admin, [al.artist_id]);
+      topAlbum = {
+        id: albumId,
+        name: al.name,
+        artistName: am.get(al.artist_id)?.name ?? "Unknown",
+        imageUrl: al.image_url,
+        playCount,
+      };
+    }
+  }
+
+  let topTrack: TasteMatchEntryTrack | null = null;
+  const trackBest = maxCountEntry(trackCounts);
+  if (trackBest) {
+    const [trId, playCount] = trackBest;
+    const sm = await fetchSongTitlesBatch(admin, [trId]);
+    const s = sm.get(trId);
+    if (s) {
+      const albumIds = s.album_id ? [s.album_id] : [];
+      const artistIds = s.artist_id ? [s.artist_id] : [];
+      const [albumMap2, artistMap2] = await Promise.all([
+        albumIds.length ? fetchAlbumsBatch(admin, albumIds) : Promise.resolve(new Map()),
+        artistIds.length ? fetchArtistsBatch(admin, artistIds) : Promise.resolve(new Map()),
+      ]);
+      const albumName = s.album_id
+        ? albumMap2.get(s.album_id)?.name ?? null
+        : null;
+      const artistName = s.artist_id
+        ? artistMap2.get(s.artist_id)?.name ?? null
+        : null;
+      topTrack = {
+        id: trId,
+        name: s.name,
+        albumId: s.album_id,
+        albumName,
+        artistName,
+        playCount,
+      };
+    }
+  }
+
+  return { topArtists, topAlbum, topTrack };
+}
+
+/**
+ * Top artists by play count from logs (not taste-identity cache). Taste match uses
+ * this so overlap compares a larger pool (e.g. top 20) than cached identity (top 10),
+ * and avoids stale/empty cache making shared artists look like zero.
+ */
+export async function getTopArtistsFromLogsForMatch(
+  admin: SupabaseClient,
+  userId: string,
+  limit: number,
+): Promise<TasteTopArtist[]> {
+  const r = await aggregateLogsForTasteMatch(admin, userId, limit);
+  return r.topArtists;
 }
 
 async function fetchAlbumsBatch(

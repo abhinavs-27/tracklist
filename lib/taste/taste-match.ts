@@ -4,11 +4,12 @@ import type {
   TasteMatchResponse,
   TasteMatchSharedArtist,
   TasteMatchSharedGenre,
+  TasteMatchStartHere,
   TasteMatchUniqueGenre,
 } from "@/types";
 import {
+  aggregateLogsForTasteMatch,
   getTasteIdentity,
-  getTopArtistsFromLogsForMatch,
 } from "@/lib/taste/taste-identity";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { TasteGenre, TasteTopArtist } from "@/lib/taste/types";
@@ -19,6 +20,7 @@ const ARTIST_WEIGHT = 0.6;
 const GENRE_WEIGHT = 0.4;
 const MAX_SHARED_ARTISTS = 5;
 const MAX_UNIQUE_GENRES = 8;
+const MAX_ARTISTS_TO_EXPLORE = 6;
 
 function clamp100(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
@@ -172,28 +174,65 @@ function buildSharedGenres(
   return out;
 }
 
-function buildSummary(
-  score: number,
-  sharedGenres: { name: string }[],
-  sharedArtistCount: number,
-): string {
-  const topLabels = sharedGenres.slice(0, 3).map((g) => g.name);
-  const genrePhrase =
-    topLabels.length > 0 ? ` in ${topLabels.join(", ")}` : "";
+function buildMatchSummary(args: {
+  score: number;
+  overlapScore: number;
+  genreOverlapScore: number;
+  discoveryScore: number;
+  sharedArtistCount: number;
+  sharedGenreCount: number;
+}): string {
+  const {
+    score,
+    overlapScore,
+    genreOverlapScore,
+    discoveryScore,
+    sharedArtistCount,
+    sharedGenreCount,
+  } = args;
 
-  if (score > 75) {
-    return sharedArtistCount > 0
-      ? `Very similar taste — strong overlap in artists and genres${genrePhrase}.`
-      : `Very similar taste — overlapping genres${genrePhrase}.`;
+  const gMinusA = genreOverlapScore - overlapScore;
+  const aMinusG = overlapScore - genreOverlapScore;
+
+  if (sharedArtistCount === 0 && sharedGenreCount === 0) {
+    return discoveryScore >= 52
+      ? "Almost no overlap yet — high discovery potential. Their charts are a clean slate for you."
+      : "Different lanes so far — thin overlap, but you can still use their top album or track as a way in.";
   }
-  if (score > 50) {
-    return sharedArtistCount > 0
-      ? `Somewhat similar — you share artists and some genre ground${genrePhrase}.`
-      : `Somewhat similar — some genre overlap${genrePhrase}, but different artist picks.`;
+
+  if (score >= 78) {
+    if (overlapScore >= 58 && genreOverlapScore >= 58) {
+      return sharedArtistCount >= 3
+        ? "Very similar taste — you line up on both shared artists and genre mix."
+        : "Very similar taste — genre and artist signals both read strong.";
+    }
+    if (gMinusA >= 20) {
+      return "Very similar genres — fewer overlapping artists, so there’s fresh territory in their rotation.";
+    }
+    if (aMinusG >= 18) {
+      return "Strong artist overlap — your genre tags differ a bit, but you’re clearly into the same acts.";
+    }
+    return "Very similar taste — your listening lines up closely overall.";
   }
-  return sharedArtistCount > 0
-    ? `Pretty different overall, but you still share a few artists — good for trading recs.`
-    : `Your tastes look quite different — great for discovering new music from each other.`;
+
+  if (score >= 52) {
+    if (genreOverlapScore >= 56 && overlapScore <= 42) {
+      return "Strong genre match, different artists — good for swapping recs without repeating the same rotation.";
+    }
+    if (overlapScore >= 48 && genreOverlapScore <= 44) {
+      return "Shared artists, different genre emphasis — common ground you can branch from.";
+    }
+    if (discoveryScore >= 58) {
+      return "Moderate match — lots in their top artists you haven’t leaned on yet.";
+    }
+    return "Somewhat similar — you share some ground, with different emphases.";
+  }
+
+  if (discoveryScore >= 55) {
+    return "Low overlap, high discovery potential — their listening has plenty you haven’t hit yet.";
+  }
+
+  return "Pretty different overall — overlap is thin, but their heavy repeats are a shortcut into their world.";
 }
 
 /**
@@ -216,6 +255,7 @@ export async function getTasteMatch(
     uniqueGenresUserB: [],
     summary,
     insufficientData: true,
+    startHere: null,
   });
 
   if (!userAId?.trim() || !userBId?.trim()) {
@@ -233,6 +273,7 @@ export async function getTasteMatch(
       uniqueGenresUserB: [],
       summary: "Same listener — that’s a perfect match (and no discovery gap).",
       insufficientData: false,
+      startHere: null,
     };
   }
 
@@ -240,15 +281,18 @@ export async function getTasteMatch(
   const uidB = userBId.trim();
   const admin = createSupabaseAdminClient();
 
-  const [identityA, identityB, topA, topB, logCountA, logCountB] =
+  const [identityA, identityB, aggA, aggB, logCountA, logCountB] =
     await Promise.all([
       getTasteIdentity(uidA),
       getTasteIdentity(uidB),
-      getTopArtistsFromLogsForMatch(admin, uidA, MATCH_ARTIST_POOL),
-      getTopArtistsFromLogsForMatch(admin, uidB, MATCH_ARTIST_POOL),
+      aggregateLogsForTasteMatch(admin, uidA, MATCH_ARTIST_POOL),
+      aggregateLogsForTasteMatch(admin, uidB, MATCH_ARTIST_POOL),
       countUserLogs(admin, uidA),
       countUserLogs(admin, uidB),
     ]);
+
+  const topA = aggA.topArtists;
+  const topB = aggB.topArtists;
 
   if (logCountA === 0 || logCountB === 0) {
     return empty(
@@ -296,7 +340,31 @@ export async function getTasteMatch(
     identityB.topGenres,
   );
 
-  const summary = buildSummary(score, sharedGenres, sharedArtists.length);
+  const summary = buildMatchSummary({
+    score,
+    overlapScore,
+    genreOverlapScore,
+    discoveryScore,
+    sharedArtistCount: sharedArtists.length,
+    sharedGenreCount: sharedGenres.length,
+  });
+
+  const artistsToExplore = topBNorm
+    .filter((a) => !setA.has(a.id))
+    .sort((a, b) => b.listenCount - a.listenCount)
+    .slice(0, MAX_ARTISTS_TO_EXPLORE)
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      imageUrl: a.imageUrl ?? null,
+      listenCount: a.listenCount,
+    }));
+
+  const startHere: TasteMatchStartHere = {
+    artistsToExplore,
+    topAlbum: aggB.topAlbum,
+    topTrack: aggB.topTrack,
+  };
 
   return {
     score,
@@ -309,5 +377,6 @@ export async function getTasteMatch(
     uniqueGenresUserB: uniqueB,
     summary,
     insufficientData: false,
+    startHere,
   };
 }

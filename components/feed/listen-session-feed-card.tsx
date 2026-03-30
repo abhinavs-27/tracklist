@@ -11,6 +11,7 @@ import { formatRelativeTime } from "@/lib/time";
 import type { FeedListenSession } from "@/types";
 import { StoryFeedCard } from "@/components/feed/story-feed-card";
 import type { FeedListenSessionActivity } from "@/components/feed/group-feed-items";
+import { FeedListenGroupEngagement } from "@/components/feed/feed-activity-engagement";
 
 function albumHeroImage(session: FeedListenSessionActivity) {
   const url = session.album?.images?.[0]?.url;
@@ -118,8 +119,10 @@ export const ListenSessionSingleStoryCard = memo(function ListenSessionSingleSto
 
 export const ListenSessionGroupStoryCard = memo(function ListenSessionGroupStoryCard({
   sessions,
+  viewerUserId,
 }: {
   sessions: FeedListenSessionActivity[];
+  viewerUserId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const first = sessions[0];
@@ -129,8 +132,8 @@ export const ListenSessionGroupStoryCard = memo(function ListenSessionGroupStory
   const time = formatRelativeTime(first.created_at);
   const displaySessions = sessions.slice(0, LISTEN_SESSIONS_DISPLAY_CAP);
   const showPlus = sessions.length > LISTEN_SESSIONS_DISPLAY_CAP;
-
   return (
+    <>
     <StoryFeedCard className="overflow-hidden">
       <button
         type="button"
@@ -208,5 +211,7 @@ export const ListenSessionGroupStoryCard = memo(function ListenSessionGroupStory
         </div>
       ) : null}
     </StoryFeedCard>
+    <FeedListenGroupEngagement sessions={sessions} viewerUserId={viewerUserId} />
+    </>
   );
 });

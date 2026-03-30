@@ -68,12 +68,14 @@ export function TasteMatchSection({
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+    <section className="rounded-2xl border border-zinc-800/80 bg-zinc-900/25 p-5 shadow-lg shadow-black/20 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-white">Taste match</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-white sm:text-xl">
+            Taste match
+          </h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Compare top artists and genres from your taste identities.
+            Compare overlap, differences, and discovery — then connect.
           </p>
         </div>
 
@@ -81,7 +83,7 @@ export function TasteMatchSection({
           type="button"
           onClick={onCompare}
           disabled={loading || !canQuery}
-          className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-emerald-500/70"
+          className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-emerald-500/70"
         >
           {loading ? "Comparing…" : "Compare taste"}
         </button>
@@ -90,8 +92,14 @@ export function TasteMatchSection({
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
 
       {data ? (
-        <div className="mt-5">
-          <TasteCard mode="compare" match={data} youLabel="You" themLabel="Them" />
+        <div className="mt-6 sm:mt-8">
+          <TasteCard
+            mode="compare"
+            match={data}
+            youLabel="You"
+            themLabel="Them"
+            profileUserId={profileUserId}
+          />
         </div>
       ) : null}
     </section>

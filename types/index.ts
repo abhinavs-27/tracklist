@@ -237,6 +237,39 @@ export type TasteMatchUniqueGenre = {
   weight: number;
 };
 
+/** Their top artists you don’t have in your rotation — for discovery. */
+export type TasteMatchArtistPick = {
+  id: string;
+  name: string;
+  imageUrl?: string | null;
+  listenCount: number;
+};
+
+export type TasteMatchEntryAlbum = {
+  id: string;
+  name: string;
+  artistName: string;
+  imageUrl: string | null;
+  playCount: number;
+};
+
+export type TasteMatchEntryTrack = {
+  id: string;
+  name: string;
+  /** Present when the song row has an album — link target for “entry point”. */
+  albumId: string | null;
+  albumName: string | null;
+  artistName: string | null;
+  playCount: number;
+};
+
+/** Actionable entry points from their listening (viewer = A, profile = B). */
+export type TasteMatchStartHere = {
+  artistsToExplore: TasteMatchArtistPick[];
+  topAlbum: TasteMatchEntryAlbum | null;
+  topTrack: TasteMatchEntryTrack | null;
+};
+
 export type TasteMatchResponse = {
   score: number;
   overlapScore: number;
@@ -250,6 +283,8 @@ export type TasteMatchResponse = {
   uniqueGenresUserB: TasteMatchUniqueGenre[];
   summary: string;
   insufficientData: boolean;
+  /** Discovery hooks — only when `insufficientData` is false and logs exist for both. */
+  startHere?: TasteMatchStartHere | null;
 };
 
 // Discover

@@ -7,6 +7,7 @@ export type NotificationRow = {
   type: string;
   entity_type: string | null;
   entity_id: string | null;
+  payload?: Record<string, unknown> | null;
   read: boolean;
   created_at: string;
 };
@@ -22,7 +23,7 @@ export async function listNotifications(
   const { data, error } = await supabase
     .from("notifications")
     .select(
-      "id, actor_user_id, type, entity_type, entity_id, read, created_at",
+      "id, actor_user_id, type, entity_type, entity_id, payload, read, created_at",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })

@@ -13,12 +13,14 @@ type Props = {
   initialCursor: string | null;
   /** Hide “pick up where you left off” when user has Last.fm connected. */
   suppressPickupStrip?: boolean;
+  viewerUserId?: string | null;
 };
 
 export function FeedWithLogging({
   initialItems,
   initialCursor,
   suppressPickupStrip = false,
+  viewerUserId,
 }: Props) {
   const { items: recentItems } = useRecentViews();
 
@@ -48,6 +50,7 @@ export function FeedWithLogging({
           initialCursor={initialCursor}
           className="pr-1"
           maxHeight="72vh"
+          viewerUserId={viewerUserId}
         />
       )}
     </>

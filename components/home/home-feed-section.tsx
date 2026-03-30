@@ -60,6 +60,7 @@ export async function HomeFeedSection({ userId }: { userId: string }) {
           initialCursor={feedNextCursor}
           className="pr-1"
           maxHeight="72vh"
+          viewerUserId={userId}
         />
       )}
     </div>
