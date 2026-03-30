@@ -301,7 +301,8 @@ export async function getCommunityFeedMerged(
   const { data: members, error: mErr } = await admin
     .from("community_members")
     .select("user_id")
-    .eq("community_id", cid);
+    .eq("community_id", cid)
+    .limit(1000);
   if (mErr || !members?.length) return [];
 
   const memberIds = [

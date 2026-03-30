@@ -32,7 +32,10 @@ export async function listNotifications(
     console.error("[notificationsService] list", error);
     return [];
   }
-  return (data ?? []).map((n: unknown) => ({ ...(n as Record<string, unknown>), user_id: userId })) as NotificationRow[];
+  return (data ?? []).map((n: unknown) => ({
+    ...(n as Record<string, unknown>),
+    user_id: userId,
+  })) as NotificationRow[];
 }
 
 export async function markNotificationsRead(

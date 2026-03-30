@@ -44,15 +44,16 @@ The following indexes were added via migration `087_audit_optimizations.sql` to 
 
 ## New Recommended Indexes
 
-Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`, the following additional indexes are recommended:
+Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`, the following additional indexes were identified and implemented:
 
-| Table | Index Columns | Rationale |
-|-------|---------------|-----------|
-| `logs` | `(track_id, user_id, listened_at DESC)` | Optimized for "friends who listened to this track" and per-user track activity. |
-| `songs` | `(album_id)` | Optimized for fetching all songs in an album (common in aggregation). |
-| `songs` | `(artist_id)` | Optimized for fetching all songs by an artist (common in artist-scoped queries). |
-| `albums` | `(artist_id)` | Optimized for fetching all albums by an artist. |
-| `reviews` | `(entity_id, created_at DESC)` | Optimized for fetching latest reviews for an entity when type is already filtered. |
+| Table | Index Columns | Migration | Rationale |
+|-------|---------------|-----------|-----------|
+| `logs` | `(track_id, user_id, listened_at DESC)` | `091` | Optimized for "friends who listened to this track" and per-user track activity. |
+| `songs` | `(album_id)` | `091` | Optimized for fetching all songs in an album (common in aggregation). |
+| `songs` | `(artist_id)` | `091` | Optimized for fetching all songs by an artist (common in artist-scoped queries). |
+| `albums` | `(artist_id)` | `091` | Optimized for fetching all albums by an artist. |
+| `reviews` | `(entity_id, created_at DESC)` | `091` | Optimized for fetching latest reviews for an entity when type is already filtered. |
+| `follows` | `(follower_id, created_at DESC)` | `100` | Optimized for "recent follows by a specific follower" and follower listing ordered by date. |
 
 ## Recommendations for Future Queries
 

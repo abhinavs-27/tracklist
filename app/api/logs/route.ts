@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
@@ -80,7 +79,7 @@ export const POST = withHandler(
         note,
       })
       .select(
-        'id, user_id, track_id, listened_at, source, created_at, album_id, artist_id, note',
+        'id, track_id, listened_at, source, created_at, album_id, artist_id, note',
       )
       .single();
 
