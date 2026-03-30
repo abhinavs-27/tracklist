@@ -92,7 +92,7 @@ export default async function YouHubPage() {
           <div className={`${cardElevated} px-4 py-6 text-center text-sm text-zinc-500`}>
             No lists yet.{" "}
             <Link
-              href={`/profile/${userId}#lists`}
+              href={`/profile/${userId}#profile-lists`}
               className="text-emerald-400 hover:underline"
             >
               Create one on your profile

@@ -7,6 +7,8 @@ export type TasteListeningStyle =
   | "deep-cuts-dept"
   | "album-gravity-well"
   | "omnivore-mode"
+  | "mainstay-mode"
+  | "steady-rhythm"
   | "session-maximalist"
   | "plotting-the-plot";
 
@@ -29,6 +31,14 @@ export const LISTENING_STYLE_COPY: Record<
   "omnivore-mode": {
     title: "Omnivore",
     subtitle: "Lots of different artists — hard to pin to one lane.",
+  },
+  "mainstay-mode": {
+    title: "Mainstay",
+    subtitle: "Most plays go to a small circle of favorites.",
+  },
+  "steady-rhythm": {
+    title: "Steady rhythm",
+    subtitle: "Regular listening — not huge spikes, not wild rotation.",
   },
   "session-maximalist": {
     title: "Long runs",

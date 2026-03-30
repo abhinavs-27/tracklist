@@ -31,12 +31,13 @@ import { DeleteAccountSection } from "@/components/profile/delete-account-sectio
 import { getTasteIdentity } from "@/lib/taste/taste-identity";
 import type { TasteIdentity } from "@/lib/taste/types";
 import { buildProfileHeroLines } from "@/lib/profile/hero-lines";
-import { ProfileTopThisWeekSection } from "@/components/profile/profile-top-this-week";
+import { getTopThisWeek } from "@/lib/profile/top-this-week";
 import { ProfileListeningReportPreview } from "@/components/profile/profile-listening-report-preview";
 import { getListeningReportPreview } from "@/lib/profile/listening-report-preview";
 import { getProfilePulseInsights } from "@/lib/profile/profile-pulse";
+import { buildWeeklyNarrative } from "@/lib/profile/weekly-narrative";
 import { ProfilePulseSection } from "@/components/profile/profile-pulse-section";
-import { ProfilePageTabs } from "@/components/profile/profile-page-tabs";
+import { ProfileWeeklyTopAlbumsSection } from "@/components/profile/profile-weekly-top-albums";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 
 const LISTS_PREVIEW_MAX = 6;
@@ -143,6 +144,7 @@ export default async function ProfilePage({
     getTasteIdentity(user.id),
     getListeningReportPreview(user.id),
     getProfilePulseInsights(user.id),
+    getTopThisWeek(user.id),
   ]);
 
   const counts =
@@ -234,6 +236,21 @@ export default async function ProfilePage({
       profileSettled[9].reason,
     );
 
+  const weeklyTop =
+    profileSettled[10].status === "fulfilled"
+      ? profileSettled[10].value
+      : null;
+  if (profileSettled[10].status === "rejected")
+    console.error("[profile] getTopThisWeek failed:", profileSettled[10].reason);
+
+  const weeklyNarrative = buildWeeklyNarrative({
+    username: profile.username,
+    isOwnProfile,
+    taste: tasteIdentity,
+    pulse: profilePulse,
+    weeklyTop,
+  });
+
   const heroLines = buildProfileHeroLines(tasteIdentity, streak);
 
   let recommendedCommunities: Awaited<
@@ -282,123 +299,139 @@ export default async function ProfilePage({
         avatarUrl={profile.avatar_url}
       />
 
-      <ProfilePageTabs
-        overview={
-          <>
-            {isOwnProfile ? (
-              <section className="grid min-w-0 max-w-full gap-4 sm:gap-6 lg:grid-cols-2 lg:items-start">
-                <div className="min-w-0 max-w-full">
-                  <LastfmSection
-                    key={`lastfm-${profile.id}`}
-                    userId={profile.id}
-                    username={profile.username}
-                    initialUsername={user.lastfm_username ?? null}
-                    initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
-                  />
-                </div>
-                <div className="min-w-0 max-w-full">
-                  <SimilarUsersSection userId={profile.id} variant="strip" />
-                </div>
-              </section>
-            ) : null}
+      {!isOwnProfile ? (
+        <div id="taste-match" className="scroll-mt-24">
+          <TasteMatchSection
+            profileUserId={profile.id}
+            viewerUserId={session?.user?.id ?? null}
+          />
+        </div>
+      ) : null}
 
-            {isOwnProfile && recommendedCommunities.length > 0 ? (
-              <RecommendedCommunitiesSection
-                title="Communities you'd like"
-                items={recommendedCommunities}
-              />
-            ) : null}
-
-            <SectionBlock
-              title="Favorite albums"
-              description="Albums you pin to your public profile."
-            >
-              <ProfileFavoriteAlbumsSection
+      <div className="space-y-8 sm:space-y-10">
+        {isOwnProfile ? (
+          <section className="grid min-w-0 max-w-full gap-4 sm:gap-6 lg:grid-cols-2 lg:items-start">
+            <div className="min-w-0 max-w-full">
+              <LastfmSection
+                key={`lastfm-${profile.id}`}
                 userId={profile.id}
-                favoriteAlbums={favoriteAlbums}
-                isOwnProfile={isOwnProfile}
-                showHeading={false}
+                username={profile.username}
+                initialUsername={user.lastfm_username ?? null}
+                initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
               />
-            </SectionBlock>
+            </div>
+            <div className="min-w-0 max-w-full">
+              <SimilarUsersSection userId={profile.id} variant="strip" />
+            </div>
+          </section>
+        ) : (
+          <SimilarUsersSection userId={profile.id} variant="strip" />
+        )}
 
-            <ProfilePulseSection insights={profilePulse} />
+        <SectionBlock
+          title="Favorite albums"
+          description={
+            isOwnProfile
+              ? "Albums you pin to your public profile."
+              : "Albums they pin to their public profile."
+          }
+        >
+          <ProfileFavoriteAlbumsSection
+            userId={profile.id}
+            favoriteAlbums={favoriteAlbums}
+            isOwnProfile={isOwnProfile}
+            showHeading={false}
+          />
+        </SectionBlock>
 
-            {isOwnProfile ? (
-              <ProfileTopThisWeekSection userId={profile.id} />
-            ) : null}
+        {isOwnProfile && recommendedCommunities.length > 0 ? (
+          <RecommendedCommunitiesSection
+            title="Communities you'd like"
+            items={recommendedCommunities}
+          />
+        ) : null}
 
-            {!isOwnProfile && (
-              <TasteMatchSection
-                profileUserId={profile.id}
-                viewerUserId={session?.user?.id ?? null}
-              />
-            )}
+        <div id="music-identity" className="scroll-mt-24">
+          <SectionBlock
+            title="Music identity"
+            description={
+              isOwnProfile
+                ? "Genres, listening style, and top artists & albums — derived from your listening history."
+                : "Genres, listening style, and top artists & albums — from their listening history."
+            }
+            action={{ label: "View all", href: "/reports/listening" }}
+          >
+            <TasteIdentitySection
+              userId={profile.id}
+              hubMode
+              initialData={tasteIdentity}
+              weeklyListening={isOwnProfile ? weeklyTop : null}
+              weeklyListeningHideInIdentity={
+                isOwnProfile &&
+                !!weeklyTop &&
+                (weeklyTop.artists.length > 0 || weeklyTop.albums.length > 0)
+              }
+            />
+          </SectionBlock>
+        </div>
 
+        {weeklyNarrative ? (
+          <div id="weekly-narrative" className="scroll-mt-24">
             <SectionBlock
-              title="Taste identity"
-              description="Top artists, genres, and how your listening comes together."
-              action={{ label: "View all", href: "/reports/listening" }}
-            >
-              <TasteIdentitySection
-                userId={profile.id}
-                hubMode
-                initialData={tasteIdentity}
-              />
-            </SectionBlock>
-
-            {achievements.length > 0 ? (
-              <SectionBlock
-                title="Achievements"
-                description="Milestones from your time on Tracklist."
-              >
-                <div className="flex flex-wrap gap-3">
-                  {achievements.map(({ achievement, earned_at }) => (
-                    <div
-                      key={achievement.id}
-                      className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
-                      title={achievement.description ?? achievement.name}
-                    >
-                      <span className="text-xl">{achievement.icon ?? "🏅"}</span>
-                      <div>
-                        <p className="font-medium text-white">{achievement.name}</p>
-                        <p className="text-xs text-zinc-500">
-                          {new Date(earned_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </SectionBlock>
-            ) : null}
-          </>
-        }
-        activity={
-          <div id="recent-activity" className="scroll-mt-24">
-            <SectionBlock
-              title="Recent activity"
+              title="Weekly narrative"
               description={
                 isOwnProfile
-                  ? "A short preview of albums from your logs and recent Spotify plays."
-                  : "Latest albums from their listening history."
+                  ? "Your listening identity, recent top artists, and pulse — rolling 7-day windows vs the prior 7 days (UTC)."
+                  : "Their listening style, recent chart, and pulse — rolling 7-day windows (UTC)."
               }
               action={
-                isOwnProfile
-                  ? { label: "View all activity", href: "/recently-played" }
-                  : undefined
+                profilePulse
+                  ? { label: "Pulse", href: "#profile-pulse" }
+                  : { label: "Music identity", href: "#music-identity" }
               }
             >
-              <ProfileRecentActivity
-                userId={profile.id}
-                isOwnProfile={isOwnProfile}
-                showSpotifyControls={
-                  isOwnProfile && spotifyProfileControlsVisible
-                }
-                spotifyConnected={spotifyConnected}
-              />
+              <div
+                className={`${cardElevated} px-4 py-4 text-sm leading-relaxed text-zinc-300 sm:px-5 sm:py-5`}
+              >
+                {weeklyNarrative}
+              </div>
             </SectionBlock>
           </div>
-        }
-        lists={
+        ) : null}
+
+        <ProfilePulseSection insights={profilePulse} />
+
+        <div id="profile-activity" className="scroll-mt-24 space-y-8 sm:space-y-10">
+          <SectionBlock
+            title="Recent activity"
+            description={
+              isOwnProfile
+                ? "A short preview of albums from your logs and recent Spotify plays."
+                : "Latest albums from their listening history."
+            }
+            action={
+              isOwnProfile
+                ? { label: "View all activity", href: "/recently-played" }
+                : undefined
+            }
+          >
+            <ProfileRecentActivity
+              userId={profile.id}
+              isOwnProfile={isOwnProfile}
+              showSpotifyControls={
+                isOwnProfile && spotifyProfileControlsVisible
+              }
+              spotifyConnected={spotifyConnected}
+            />
+          </SectionBlock>
+
+          <ProfileWeeklyTopAlbumsSection
+            weeklyTop={weeklyTop}
+            isOwnProfile={isOwnProfile}
+          />
+        </div>
+
+        <div id="profile-lists" className="scroll-mt-24">
           <SectionBlock
             title={isOwnProfile ? "Your lists" : "Lists"}
             description={
@@ -492,33 +525,57 @@ export default async function ProfilePage({
               )}
             </div>
           </SectionBlock>
-        }
-        reports={
-          <>
-            <SectionBlock
-              title="Listening report"
-              description="Weekly snapshot: top artist and genre from your history (UTC)."
-              action={{ label: "View full report", href: "/reports/listening" }}
-            >
-              <ProfileListeningReportPreview data={listeningReportPreview} />
-            </SectionBlock>
+        </div>
 
-            {session?.user?.id ? (
-              <SectionBlock
-                title="Listening habits"
-                description="Behavioral highlights from your recent logs."
-                action={{ label: "View all", href: "/reports/listening" }}
-              >
-                <ListeningInsightsSection
-                  userId={profile.id}
-                  maxLines={3}
-                  embedded
-                />
-              </SectionBlock>
-            ) : null}
-          </>
-        }
-      />
+        <div id="profile-reports" className="scroll-mt-24 space-y-8 sm:space-y-10">
+          <SectionBlock
+            title="Listening report"
+            description="Weekly snapshot: top artist and genre from your history (UTC)."
+            action={{ label: "View full report", href: "/reports/listening" }}
+          >
+            <ProfileListeningReportPreview data={listeningReportPreview} />
+          </SectionBlock>
+
+          {session?.user?.id ? (
+            <SectionBlock
+              title="Listening habits"
+              description="Behavioral highlights from your recent logs."
+              action={{ label: "View all", href: "/reports/listening" }}
+            >
+              <ListeningInsightsSection
+                userId={profile.id}
+                maxLines={3}
+                embedded
+              />
+            </SectionBlock>
+          ) : null}
+        </div>
+
+        {achievements.length > 0 ? (
+          <SectionBlock
+            title="Achievements"
+            description="Milestones from your time on Tracklist."
+          >
+            <div className="flex flex-wrap gap-3">
+              {achievements.map(({ achievement, earned_at }) => (
+                <div
+                  key={achievement.id}
+                  className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
+                  title={achievement.description ?? achievement.name}
+                >
+                  <span className="text-xl">{achievement.icon ?? "🏅"}</span>
+                  <div>
+                    <p className="font-medium text-white">{achievement.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      {new Date(earned_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionBlock>
+        ) : null}
+      </div>
 
       {isOwnProfile ? (
         <DeleteAccountSection username={profile.username} />

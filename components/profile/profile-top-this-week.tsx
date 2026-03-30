@@ -104,13 +104,15 @@ export async function ProfileTopThisWeekSection({
   const max = compact ? 5 : 10;
   const tracks = data.tracks.slice(0, max);
   const artists = data.artists.slice(0, max);
-  const empty = tracks.length === 0 && artists.length === 0;
+  const albums = data.albums.slice(0, max);
+  const empty =
+    tracks.length === 0 && artists.length === 0 && albums.length === 0;
 
   return (
     <section id="top-week" className="scroll-mt-24">
       <SectionBlock
         title="Top this week"
-        description={`${data.rangeLabel} · your most-played tracks and artists (UTC week)`}
+        description={`${data.rangeLabel} · your most-played tracks and artists (rolling last 7 days, UTC)`}
         action={
           compact
             ? {
@@ -167,12 +169,32 @@ export async function ProfileTopThisWeekSection({
                 </div>
               </div>
             ) : null}
+
+            {albums.length > 0 ? (
+              <div>
+                <h3 className="mb-3 text-sm font-semibold tracking-tight text-zinc-200">
+                  Top albums
+                </h3>
+                <div className={strip}>
+                  {albums.map((a) => (
+                    <TrackCard
+                      key={a.albumId}
+                      name={a.name}
+                      artistName={a.artistName}
+                      imageUrl={a.imageUrl}
+                      playCount={a.playCount}
+                      href={`/album/${a.albumId}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 
         {!compact ? (
           <p className="mt-4 text-xs text-zinc-600">
-            Same weekly aggregates as Listening reports (Mon–Sun, UTC).{" "}
+            Profile and Pulse use rolling 7-day windows; full reports may use calendar weeks.{" "}
             <Link href="/reports/listening" className="text-emerald-400/95 hover:underline">
               Custom ranges →
             </Link>

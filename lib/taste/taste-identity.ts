@@ -80,6 +80,8 @@ function pickListeningStyle(args: {
   uniqueGenres: number;
   daysSpan: number;
   maxLogsPerDay: number;
+  /** Max plays for a single artist / totalLogs */
+  topArtistShare: number;
 }): TasteListeningStyle {
   const {
     totalLogs,
@@ -89,10 +91,13 @@ function pickListeningStyle(args: {
     uniqueGenres,
     daysSpan,
     maxLogsPerDay,
+    topArtistShare,
   } = args;
 
   const albumRatio = uniqueAlbums / Math.max(totalLogs, 1);
   const logsPerDay = totalLogs / Math.max(daysSpan, 1 / 24);
+  /** Distinct artists per play — high means you rarely repeat the same artist. */
+  const diversityRate = uniqueArtists / Math.max(totalLogs, 1);
 
   type Scored = { style: TasteListeningStyle; score: number };
   const scores: Scored[] = [];
@@ -101,37 +106,84 @@ function pickListeningStyle(args: {
     scores.push({ style: "plotting-the-plot", score: 72 - totalLogs * 1.2 });
   }
 
-  if (avgTrackPopularity != null && avgTrackPopularity > 70) {
+  /** Mainstream vs niche — wide bands; capped so one signal does not always win. */
+  if (avgTrackPopularity != null && avgTrackPopularity > 64) {
+    const raw = 56 + (avgTrackPopularity - 64) * 0.62;
     scores.push({
       style: "chart-gravity",
-      score: 55 + (avgTrackPopularity - 70) * 1.1,
+      score: Math.min(78, raw),
     });
   }
 
-  if (avgTrackPopularity != null && avgTrackPopularity < 40) {
+  if (avgTrackPopularity != null && avgTrackPopularity < 48) {
+    const raw = 56 + (48 - avgTrackPopularity) * 0.62;
     scores.push({
       style: "deep-cuts-dept",
-      score: 55 + (40 - avgTrackPopularity) * 1.0,
+      score: Math.min(78, raw),
     });
   }
 
-  if (uniqueArtists >= 45) scores.push({ style: "omnivore-mode", score: 88 });
-  else if (uniqueArtists >= 30) scores.push({ style: "omnivore-mode", score: 74 });
-  else if (uniqueArtists >= 20) scores.push({ style: "omnivore-mode", score: 58 });
-  else if (uniqueGenres >= 14 && uniqueArtists >= 14) {
-    scores.push({ style: "omnivore-mode", score: 52 + uniqueGenres * 0.4 });
+  /**
+   * Omnivore: only for genuinely wide rotation (high diversity rate + many artists).
+   * Scores stay **below** chart/deep/session peaks so popularity and habits win a mix.
+   */
+  if (uniqueArtists >= 70 && diversityRate >= 0.034) {
+    scores.push({
+      style: "omnivore-mode",
+      score: 66 + Math.min(4, uniqueGenres * 0.1),
+    });
+  } else if (uniqueArtists >= 52 && diversityRate >= 0.04) {
+    scores.push({
+      style: "omnivore-mode",
+      score: 60 + Math.min(4, uniqueGenres * 0.12),
+    });
+  } else if (
+    uniqueArtists >= 42 &&
+    diversityRate >= 0.045 &&
+    uniqueGenres >= 11
+  ) {
+    scores.push({
+      style: "omnivore-mode",
+      score: 52 + Math.min(6, uniqueGenres * 0.35),
+    });
+  }
+
+  /** Plays cluster on a few favorites — downweight if rotation is actually wide. */
+  if (totalLogs >= 28 && topArtistShare >= 0.11) {
+    let s = 55 + Math.min(28, (topArtistShare - 0.11) * 125);
+    if (diversityRate > 0.045) s *= 0.9;
+    if (diversityRate > 0.07) s *= 0.85;
+    scores.push({ style: "mainstay-mode", score: s });
+  }
+
+  /** Consistent day-to-day volume, moderate spikes, mid rotation — not omnivore, not mainstay. */
+  if (
+    totalLogs >= 40 &&
+    daysSpan >= 7 &&
+    maxLogsPerDay >= 4 &&
+    maxLogsPerDay <= 34 &&
+    logsPerDay >= 3 &&
+    logsPerDay <= 24 &&
+    topArtistShare >= 0.06 &&
+    topArtistShare <= 0.29 &&
+    diversityRate >= 0.0025 &&
+    diversityRate <= 0.022 &&
+    uniqueArtists >= 8 &&
+    uniqueArtists <= 72
+  ) {
+    scores.push({ style: "steady-rhythm", score: 68 });
   }
 
   if (totalLogs >= 28 && albumRatio < 0.2 && uniqueAlbums >= 3) {
-    scores.push({ style: "album-gravity-well", score: 78 });
+    scores.push({ style: "album-gravity-well", score: 80 });
   } else if (totalLogs >= 18 && albumRatio < 0.28 && uniqueAlbums >= 2) {
-    scores.push({ style: "album-gravity-well", score: 60 });
+    scores.push({ style: "album-gravity-well", score: 64 });
   }
 
   if (maxLogsPerDay >= 90 || logsPerDay >= 45) {
-    scores.push({ style: "session-maximalist", score: 82 });
+    scores.push({ style: "session-maximalist", score: 84 });
   } else if (maxLogsPerDay >= 45 || logsPerDay >= 28) {
-    scores.push({ style: "session-maximalist", score: 64 });
+    scores.push({ style: "session-maximalist", score: 68 });
   }
 
   if (scores.length === 0) return "plotting-the-plot";
@@ -161,6 +213,12 @@ function buildSummary(t: TasteIdentity): string {
       break;
     case "omnivore-mode":
       bits.push("You jump between a lot of different artists.");
+      break;
+    case "mainstay-mode":
+      bits.push("Your plays keep circling back to the same few artists.");
+      break;
+    case "steady-rhythm":
+      bits.push("You listen steadily without wild swings or huge binges.");
       break;
     case "chart-gravity":
       bits.push("A lot of your plays sit on the popular side.");
@@ -734,6 +792,12 @@ export async function computeTasteIdentity(
 
   const mlpd = maxLogsPerDay(logs);
 
+  let maxArtistPlays = 0;
+  for (const c of artistCounts.values()) {
+    if (c > maxArtistPlays) maxArtistPlays = c;
+  }
+  const topArtistShare = totalLogs > 0 ? maxArtistPlays / totalLogs : 0;
+
   const avgTrackPopularity =
     popularities.length > 0
       ? popularities.reduce((a, b) => a + b, 0) / popularities.length
@@ -747,6 +811,7 @@ export async function computeTasteIdentity(
     uniqueGenres,
     daysSpan,
     maxLogsPerDay: mlpd,
+    topArtistShare,
   });
 
   const topArtistIds = [...artistCounts.entries()]
@@ -943,7 +1008,7 @@ export async function seedTasteIdentityFromFavoriteAlbums(
     topGenres,
     obscurityScore: null,
     diversityScore,
-    listeningStyle: ids.length >= 3 ? "omnivore-mode" : "plotting-the-plot",
+    listeningStyle: "plotting-the-plot",
     avgTracksPerSession: 1,
     totalLogs: 0,
     summary,
