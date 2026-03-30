@@ -11,13 +11,13 @@
   "dependencies": {
     "@tracklist/spotify-client": "file:../packages/spotify-client",
     "bottleneck": "^2.19.5",
-    "ioredis": "^5.8.2",
-    "@supabase/supabase-js": "^2.49.1",
+    "ioredis": "^5.10.1",
+    "@supabase/supabase-js": "^2.100.1",
     "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "http-proxy-middleware": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.22.1",
+    "http-proxy-middleware": "^3.0.5",
     "next-auth": "^4.24.13"
   },
   "devDependencies": {
