@@ -95,28 +95,40 @@ async function getListenLogsInternal(opts: {
     const from = opts.offset ?? 0;
     const to = from + opts.limit - 1;
 
+    const selectFields = ["id", "listened_at", "source", "created_at"];
+    if (!opts.userId) selectFields.push("user_id");
+    if (!opts.spotifyTrackId) selectFields.push("track_id");
+
     let query = supabase
       .from("logs")
-      .select("id, user_id, track_id, listened_at, source, created_at")
+      .select(selectFields.join(", "))
       .order("listened_at", { ascending: false })
       .range(from, to);
 
     if (opts.userId) query = query.eq("user_id", opts.userId);
     if (opts.spotifyTrackId) query = query.eq("track_id", opts.spotifyTrackId);
 
-    const { data: logs, error } = await query;
-    if (error || !logs?.length) return [];
+    const { data: rawLogs, error } = await query;
+    if (error || !rawLogs?.length) return [];
+
+    const logs = rawLogs.map((l: any) => ({
+      ...l,
+      user_id: opts.userId ?? l.user_id,
+      track_id: opts.spotifyTrackId ?? l.track_id,
+    })) as {
+      id: string;
+      user_id: string;
+      track_id: string;
+      listened_at: string;
+      source: string | null;
+      created_at: string;
+    }[];
 
     const userIds = [...new Set(logs.map((l) => l.user_id))];
     const userMap = await fetchUserMap(supabase, userIds);
 
     return logs.map((log) => ({
-      id: log.id,
-      user_id: log.user_id,
-      track_id: log.track_id,
-      listened_at: log.listened_at,
-      source: log.source ?? null,
-      created_at: log.created_at,
+      ...log,
       user: userMap.get(log.user_id) ?? null,
     }));
   } catch (e) {
@@ -1134,8 +1146,8 @@ export async function getReviewsForArtist(
     const supabase = await createSupabaseServerClient();
 
     const [{ data: albumRows }, { data: songRows }] = await Promise.all([
-      supabase.from("albums").select("id").eq("artist_id", artistId),
-      supabase.from("songs").select("id").eq("artist_id", artistId),
+      supabase.from("albums").select("id").eq("artist_id", artistId).limit(1000),
+      supabase.from("songs").select("id").eq("artist_id", artistId).limit(1000),
     ]);
 
     const entityIds = [
@@ -1203,10 +1215,14 @@ export async function getTopTracksForArtist(
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: songRows } = await supabase
+    const { data: songRowsRaw } = await supabase
       .from("songs")
-      .select("id, name, album_id, artist_id, duration_ms")
-      .eq("artist_id", artistId);
+      .select("id, name, album_id, duration_ms")
+      .eq("artist_id", artistId)
+      .limit(1000);
+    if (!songRowsRaw?.length) return [];
+
+    const songRows = songRowsRaw.map((s: any) => ({ ...s, artist_id: artistId }));
     if (!songRows?.length) return [];
 
     const trackIds = songRows.map((s) => s.id);
@@ -1289,7 +1305,8 @@ export async function getListenLogsForArtist(
     const { data: songRows } = await supabase
       .from("songs")
       .select("id")
-      .eq("artist_id", artistId);
+      .eq("artist_id", artistId)
+      .limit(1000);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
@@ -1336,7 +1353,8 @@ export async function getListenLogsForAlbum(
     const { data: songRows } = await supabase
       .from("songs")
       .select("id")
-      .eq("album_id", albumId);
+      .eq("album_id", albumId)
+      .limit(1000);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
@@ -3311,11 +3329,11 @@ export async function getList(
 
     const itemsResult = await supabase
       .from("list_items")
-      .select("id, list_id, entity_type, entity_id, position, added_at")
+      .select("id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)
       .order("position", { ascending: true })
       .range(from, to);
-    itemRows = itemsResult.data;
+    itemRows = (itemsResult.data ?? []).map((r: any) => ({ ...r, list_id: listId }));
     itemsError = itemsResult.error;
 
     // If column missing (e.g. added_at), retry with minimal columns and default added_at.
