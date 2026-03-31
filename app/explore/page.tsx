@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { Suspense } from "react";
+import { getSession } from "@/lib/auth";
 import { LeaderboardPreview } from "@/components/explore/leaderboard-preview";
 import { TrendingStrip } from "@/components/explore/trending-strip";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
@@ -21,8 +21,17 @@ const MAX_TRENDING = 20;
 /** Match discover / other hubs: allow Spotify so new tracks get artwork before DB backfill. */
 const EXPLORE_CATALOG_OPTS = { allowNetwork: true as const };
 
+function TastePreviewSkeleton() {
+  return (
+    <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 p-4">
+      <div className="mb-3 h-4 w-28 animate-pulse rounded bg-zinc-800/60" />
+      <div className="h-24 animate-pulse rounded-lg bg-zinc-800/40" />
+    </section>
+  );
+}
+
 export default async function ExploreHubPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id ?? null;
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
@@ -56,7 +65,9 @@ export default async function ExploreHubPage() {
       ) : null}
 
       {socialMusicUi && userId ? (
-        <DiscoverTastePreview userId={userId} />
+        <Suspense fallback={<TastePreviewSkeleton />}>
+          <DiscoverTastePreview userId={userId} />
+        </Suspense>
       ) : null}
 
       <SectionBlock

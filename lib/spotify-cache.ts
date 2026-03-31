@@ -2080,22 +2080,29 @@ async function getOrFetchTracksBatchInner(
   }
 
   if (net && allSongs.length > 0) {
-    for (const song of allSongs) {
-      const lfm = lfmByTrackId.get(song.id);
-      const sp = spotifyByTrackId.get(song.id);
-      if (!lfm || !sp) continue;
-      try {
-        const t = await getTrack(sp, {
-          allowLastfmMapping: opts?.allowLastfmMapping,
-        });
-        lookup.set(song.id, withCanonicalSongId(lfm, t));
-      } catch (e) {
-        console.warn(
-          `${LOG_PREFIX} batch lfm+spotify hydrate failed`,
-          song.id,
-          e,
-        );
-      }
+    const lfmSpotifyHydrate = allSongs
+      .map((song) => {
+        const lfm = lfmByTrackId.get(song.id);
+        const sp = spotifyByTrackId.get(song.id);
+        if (!lfm || !sp) return null;
+        return (async () => {
+          try {
+            const t = await getTrack(sp, {
+              allowLastfmMapping: opts?.allowLastfmMapping,
+            });
+            lookup.set(song.id, withCanonicalSongId(lfm, t));
+          } catch (e) {
+            console.warn(
+              `${LOG_PREFIX} batch lfm+spotify hydrate failed`,
+              song.id,
+              e,
+            );
+          }
+        })();
+      })
+      .filter((x): x is Promise<void> => x != null);
+    if (lfmSpotifyHydrate.length > 0) {
+      await Promise.all(lfmSpotifyHydrate);
     }
   }
 
@@ -2274,26 +2281,28 @@ async function getOrFetchTracksBatchInner(
       try {
         for (const idChunk of chunkArray(spotifyOnly, MAX_SPOTIFY_ITEMS)) {
           const fetched = await getTracks(idChunk);
-          for (const track of fetched) {
-            const alb = track.album;
-            if (!alb) continue;
-            try {
-              await upsertTrackFromSpotify(
-                supabase,
-                track,
-                alb.id,
-                alb.name,
-                firstSpotifyImageUrl(alb.images),
-                "release_date" in alb ? alb.release_date : undefined,
-              );
-            } catch (e) {
-              console.warn(
-                `${LOG_PREFIX} upsertTrackFromSpotify (batch) failed for ${track.id}`,
-                e,
-              );
-            }
-            lookup.set(track.id, track);
-          }
+          await Promise.all(
+            fetched.map(async (track) => {
+              const alb = track.album;
+              if (!alb) return;
+              try {
+                await upsertTrackFromSpotify(
+                  supabase,
+                  track,
+                  alb.id,
+                  alb.name,
+                  firstSpotifyImageUrl(alb.images),
+                  "release_date" in alb ? alb.release_date : undefined,
+                );
+              } catch (e) {
+                console.warn(
+                  `${LOG_PREFIX} upsertTrackFromSpotify (batch) failed for ${track.id}`,
+                  e,
+                );
+              }
+              lookup.set(track.id, track);
+            }),
+          );
         }
       } catch (e) {
         console.error(`${LOG_PREFIX} getTracks batch failed`, e);
@@ -2305,21 +2314,25 @@ async function getOrFetchTracksBatchInner(
 
     // `getTracks` only accepts Spotify ids. Trending MV uses `logs.track_id` (often `lfm:…` with no
     // `songs` row) — resolve those the same way as single-track fetch (Last.fm mapping, etc.).
-    for (const id of nonSpotify) {
-      if (lookup.has(id)) continue;
-      try {
-        const mergedOpts: CatalogFetchOpts = {
-          ...opts,
-          allowNetwork: isValidLfmCatalogId(id) ? true : opts?.allowNetwork,
-          allowLastfmMapping: isValidLfmCatalogId(id)
-            ? true
-            : opts?.allowLastfmMapping,
-        };
-        const t = await getOrFetchTrackInner(id, mergedOpts);
-        lookup.set(id, t);
-      } catch {
-        lookup.set(id, null);
-      }
+    const nonSpotifyTasks = nonSpotify
+      .filter((id) => !lookup.has(id))
+      .map(async (id) => {
+        try {
+          const mergedOpts: CatalogFetchOpts = {
+            ...opts,
+            allowNetwork: isValidLfmCatalogId(id) ? true : opts?.allowNetwork,
+            allowLastfmMapping: isValidLfmCatalogId(id)
+              ? true
+              : opts?.allowLastfmMapping,
+          };
+          const t = await getOrFetchTrackInner(id, mergedOpts);
+          lookup.set(id, t);
+        } catch {
+          lookup.set(id, null);
+        }
+      });
+    if (nonSpotifyTasks.length > 0) {
+      await Promise.all(nonSpotifyTasks);
     }
 
     missingIds.forEach((id) => {

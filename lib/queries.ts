@@ -963,11 +963,13 @@ export async function getLeaderboard(
         if (merged.length === 0) return [];
         statsRows = merged;
       } else {
+        /** Unfiltered charts: only need `limit` rows after join; cap fetch to avoid loading 500 songs. */
+        const statsCap = Math.min(500, Math.max(limit * 20, 40));
         const { data: rows, error: statsError } = await supabase
           .from("track_stats")
           .select("track_id, listen_count, avg_rating")
           .order("listen_count", { ascending: false })
-          .limit(500);
+          .limit(statsCap);
         if (statsError || !rows?.length) return [];
         statsRows = rows as {
           track_id: string;
