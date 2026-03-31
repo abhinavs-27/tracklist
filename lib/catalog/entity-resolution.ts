@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
 
 export type MusicExternalSource = "spotify" | "lastfm";
 
@@ -49,6 +50,51 @@ export async function getTrackIdByExternalId(
     .eq("external_id", externalId)
     .maybeSingle();
   return (data as { track_id?: string } | null)?.track_id ?? null;
+}
+
+/**
+ * Resolve route/API artist id (canonical UUID, Spotify base62, or `lfm:*`) to `artists.id`.
+ */
+export async function resolveCanonicalArtistUuidFromEntityId(
+  supabase: SupabaseClient,
+  rawId: string,
+): Promise<string | null> {
+  const id = rawId.trim();
+  if (!id) return null;
+  if (isValidUuid(id)) return id;
+  if (isValidSpotifyId(id)) {
+    return getArtistIdByExternalId(supabase, "spotify", id);
+  }
+  if (isValidLfmCatalogId(id)) {
+    return getArtistIdByExternalId(supabase, "lastfm", id);
+  }
+  return null;
+}
+
+const SPOTIFY_ALBUM_EXTERNAL_CHUNK = 120;
+
+/** Spotify catalog album id → canonical `albums.id` (batched). */
+export async function mapSpotifyAlbumIdsToCanonical(
+  supabase: SupabaseClient,
+  spotifyAlbumIds: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = [...new Set(spotifyAlbumIds.filter(Boolean))];
+  for (let i = 0; i < unique.length; i += SPOTIFY_ALBUM_EXTERNAL_CHUNK) {
+    const chunk = unique.slice(i, i + SPOTIFY_ALBUM_EXTERNAL_CHUNK);
+    const { data: rows } = await supabase
+      .from("album_external_ids")
+      .select("external_id, album_id")
+      .eq("source", "spotify")
+      .in("external_id", chunk);
+    for (const row of (rows ?? []) as {
+      external_id: string;
+      album_id: string;
+    }[]) {
+      map.set(row.external_id, row.album_id);
+    }
+  }
+  return map;
 }
 
 export async function findArtistIdByNormalizedName(

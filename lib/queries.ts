@@ -13,7 +13,11 @@ import {
   SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
 } from "@/lib/spotify/getAllArtistAlbums";
 import { upsertAlbumFromSpotify } from "@/lib/spotify-cache";
-import { getTrackIdByExternalId } from "@/lib/catalog/entity-resolution";
+import {
+  getTrackIdByExternalId,
+  mapSpotifyAlbumIdsToCanonical,
+  resolveCanonicalArtistUuidFromEntityId,
+} from "@/lib/catalog/entity-resolution";
 import { isValidSpotifyId, isValidUuid, sanitizeString } from "@/lib/validation";
 import type {
   ListenLogWithUser,
@@ -1424,18 +1428,38 @@ async function enrichSpotifyAlbumsForArtist(
   const supabase = await createSupabaseServerClient();
   const albumIds = spotifyAlbums.map((a) => a.id);
 
+  const canonicalArtistId =
+    await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+  const spotifyToCanonicalAlbum = await mapSpotifyAlbumIdsToCanonical(
+    supabase,
+    albumIds,
+  );
+  const canonicalToSpotifyAlbum = new Map<string, string>();
+  for (const [spotifyAid, canonicalAid] of spotifyToCanonicalAlbum) {
+    canonicalToSpotifyAlbum.set(canonicalAid, spotifyAid);
+  }
+
   const albumToTracks = new Map<string, string[]>();
-  for (let i = 0; i < albumIds.length; i += ALBUM_ID_IN_CHUNK) {
-    const chunk = albumIds.slice(i, i + ALBUM_ID_IN_CHUNK);
-    const { data: songRows } = await supabase
-      .from("tracks")
-      .select("id, album_id")
-      .eq("artist_id", artistId)
-      .in("album_id", chunk);
-    for (const s of songRows ?? []) {
-      const list = albumToTracks.get(s.album_id) ?? [];
-      list.push(s.id);
-      albumToTracks.set(s.album_id, list);
+  if (canonicalArtistId) {
+    for (let i = 0; i < albumIds.length; i += ALBUM_ID_IN_CHUNK) {
+      const chunk = albumIds.slice(i, i + ALBUM_ID_IN_CHUNK);
+      const canonicalChunk = chunk
+        .map((sid) => spotifyToCanonicalAlbum.get(sid))
+        .filter((id): id is string => Boolean(id));
+      if (canonicalChunk.length === 0) continue;
+
+      const { data: songRows } = await supabase
+        .from("tracks")
+        .select("id, album_id")
+        .eq("artist_id", canonicalArtistId)
+        .in("album_id", canonicalChunk);
+      for (const s of songRows ?? []) {
+        const spotifyAid = canonicalToSpotifyAlbum.get(s.album_id);
+        if (!spotifyAid) continue;
+        const list = albumToTracks.get(spotifyAid) ?? [];
+        list.push(s.id);
+        albumToTracks.set(spotifyAid, list);
+      }
     }
   }
 
@@ -1445,16 +1469,22 @@ async function enrichSpotifyAlbumsForArtist(
   const reviewAgg = new Map<string, { count: number; sum: number }>();
   for (let i = 0; i < albumIds.length; i += REVIEW_IN_CHUNK) {
     const chunk = albumIds.slice(i, i + REVIEW_IN_CHUNK);
+    const canonicalChunk = chunk
+      .map((sid) => spotifyToCanonicalAlbum.get(sid))
+      .filter((id): id is string => Boolean(id));
+    if (canonicalChunk.length === 0) continue;
     const { data: revRows } = await supabase
       .from("reviews")
       .select("entity_id, rating")
       .eq("entity_type", "album")
-      .in("entity_id", chunk);
+      .in("entity_id", canonicalChunk);
     for (const r of revRows ?? []) {
-      const cur = reviewAgg.get(r.entity_id) ?? { count: 0, sum: 0 };
+      const spotifyEntity = canonicalToSpotifyAlbum.get(r.entity_id);
+      if (!spotifyEntity) continue;
+      const cur = reviewAgg.get(spotifyEntity) ?? { count: 0, sum: 0 };
       cur.count += 1;
       cur.sum += r.rating;
-      reviewAgg.set(r.entity_id, cur);
+      reviewAgg.set(spotifyEntity, cur);
     }
   }
 
