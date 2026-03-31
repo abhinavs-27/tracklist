@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity -- server-only explore perf timings (Date.now) */
 import Link from "next/link";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
@@ -13,13 +14,18 @@ import {
   batchTracksToNormalizedMap,
   getTrackFromNormalizedBatchMap,
 } from "@/lib/spotify-cache";
+import {
+  collectTrackIdsNeedingEnrichment,
+  scheduleExploreTrackEnrichment,
+} from "@/lib/explore-enrich";
 import { SectionBlock } from "@/components/layout/section-block";
+import { exploreLog, exploreLogLine } from "@/lib/explore-perf";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
 const MAX_TRENDING = 20;
 
-/** Match discover / other hubs: allow Spotify so new tracks get artwork before DB backfill. */
-const EXPLORE_CATALOG_OPTS = { allowNetwork: true as const };
+/** DB / cache only — Spotify enrichment runs in background via `scheduleExploreTrackEnrichment`. */
+const EXPLORE_CATALOG_DB_ONLY = { allowNetwork: false as const };
 
 function TastePreviewSkeleton() {
   return (
@@ -31,25 +37,52 @@ function TastePreviewSkeleton() {
 }
 
 export default async function ExploreHubPage() {
+  const start = Date.now();
+  exploreLogLine("explore: page start");
+
+  const tSession = Date.now();
   const session = await getSession();
+  exploreLog("auth getSession", Date.now() - tSession);
+
   const userId = session?.user?.id ?? null;
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
-  const [trendingRaw, leaderboardTop] = await Promise.all([
-    getTrendingEntitiesCached(MAX_TRENDING),
-    getLeaderboard("popular", {}, "song", 8),
-  ]);
+  const tParallel = Date.now();
+  const trendingP = (async () => {
+    const t = Date.now();
+    const r = await getTrendingEntitiesCached(MAX_TRENDING);
+    exploreLog("db getTrendingEntitiesCached", Date.now() - t);
+    return r;
+  })();
+  const leaderboardP = (async () => {
+    const t = Date.now();
+    const r = await getLeaderboard("popular", {}, "song", 8);
+    exploreLog("db getLeaderboard", Date.now() - t);
+    return r;
+  })();
+  const [trendingRaw, leaderboardTop] = await Promise.all([trendingP, leaderboardP]);
+  exploreLog("db parallel (wall)", Date.now() - tParallel);
 
   const trendingTrackIds = trendingRaw.map((e) => e.entity_id);
+  const tTracks = Date.now();
   const trackArr = await getOrFetchTracksBatch(
     trendingTrackIds,
-    EXPLORE_CATALOG_OPTS,
+    EXPLORE_CATALOG_DB_ONLY,
   );
+  exploreLog("db getOrFetchTracksBatch (no network)", Date.now() - tTracks);
+
+  const tProcess = Date.now();
   const tracksMap = batchTracksToNormalizedMap(trendingTrackIds, trackArr);
   const trendingEnriched = trendingRaw.map((entity) => ({
     entity,
     track: getTrackFromNormalizedBatchMap(tracksMap, entity.entity_id),
   }));
+  exploreLog("process enrich trending", Date.now() - tProcess);
+
+  const toEnrich = collectTrackIdsNeedingEnrichment(trendingTrackIds, tracksMap);
+  scheduleExploreTrackEnrichment(toEnrich);
+
+  exploreLogLine(`explore: page shell (before Suspense children stream): ${Date.now() - start} ms`);
 
   return (
     <div className={sectionGap}>

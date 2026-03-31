@@ -426,12 +426,32 @@ async function trackFromDbSongRow(
 
 // --- Helpers: upsert from Spotify payloads
 
-/** Spotify returns several sizes; `images[0]` is not always the first non-empty URL. */
+/**
+ * Spotify returns several sizes per cover. Prefer the largest bitmap when width/height
+ * are present (nested track→album payloads often list multiple entries ascending by size,
+ * so taking `[0]` or “first URL” can persist a 64px asset and look soft on feed heroes).
+ * If no dimensions are given, prefer the **last** URL (common ascending order); if only
+ * one URL exists, use it.
+ */
 export function firstSpotifyImageUrl(
   images: SpotifyApi.ImageObject[] | undefined | null,
 ): string | null {
   if (!images?.length) return null;
-  return images.find((im) => im?.url?.trim())?.url?.trim() ?? null;
+  const valid = images.filter((im) => im?.url?.trim());
+  if (valid.length === 0) return null;
+  if (valid.length === 1) return valid[0]!.url!.trim();
+
+  const scored = valid.map((im) => {
+    const w = im.width ?? 0;
+    const h = im.height ?? 0;
+    const area = w > 0 && h > 0 ? w * h : 0;
+    return { im, area };
+  });
+  if (scored.some((s) => s.area > 0)) {
+    scored.sort((a, b) => b.area - a.area);
+    return scored[0]!.im.url!.trim();
+  }
+  return valid[valid.length - 1]!.url!.trim();
 }
 
 function albumCoverUrlFromTrackPayload(
