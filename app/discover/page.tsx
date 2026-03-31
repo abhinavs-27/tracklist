@@ -16,6 +16,7 @@ import {
   batchTracksToNormalizedMap,
   getTrackFromNormalizedBatchMap,
 } from "@/lib/spotify-cache";
+import { enrichTracksAsync } from "@/lib/discover-enrich";
 import { discoverLog, discoverLogLine } from "@/lib/discover-perf";
 
 function DiscoverSectionSkeleton() {
@@ -40,12 +41,15 @@ const HiddenGemsSection = dynamic(
 const MAX_ITEMS = 20;
 
 /**
- * When `SPOTIFY_REFRESH_DISABLED` is set (cron uses Last.fm only), skip Spotify on this page too
- * so trending rows use DB album art from the cron job instead of failed API calls.
+ * When `SPOTIFY_REFRESH_DISABLED` is set (cron uses Last.fm only), skip Spotify for albums/artists
+ * on this page so rows use DB data from cron instead of failed API calls.
  */
 const DISCOVER_CATALOG_OPTS = {
   allowNetwork: process.env.SPOTIFY_REFRESH_DISABLED !== "true",
 } as const;
+
+/** Request path is DB/cache only; `enrichTracksAsync` hydrates missing metadata after respond. */
+const DISCOVER_TRACKS_DB_ONLY = { allowNetwork: false as const };
 
 export default async function DiscoverPage() {
   const start = Date.now();
@@ -128,14 +132,9 @@ export default async function DiscoverPage() {
   const tTracks = Date.now();
   const trackArr = await getOrFetchTracksBatch(
     discoverTrackIds,
-    DISCOVER_CATALOG_OPTS,
+    DISCOVER_TRACKS_DB_ONLY,
   );
-  discoverLog(
-    catalogNet
-      ? "external getOrFetchTracksBatch (Spotify/catalog allowed)"
-      : "db getOrFetchTracksBatch (no network)",
-    Date.now() - tTracks,
-  );
+  discoverLog("db getOrFetchTracksBatch (no network)", Date.now() - tTracks);
 
   const tAlbums = Date.now();
   const albumArr = await getOrFetchAlbumsBatch(
@@ -190,6 +189,8 @@ export default async function DiscoverPage() {
     return { gem, album: null, track };
   });
   discoverLog("process enrich maps + hidden gems", Date.now() - tProcess);
+
+  enrichTracksAsync({ tracksMap, entityIds: discoverTrackIds });
 
   discoverLogLine(
     `discover: page shell (before dynamic sections stream): ${Date.now() - start} ms`,
