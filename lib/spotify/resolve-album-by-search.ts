@@ -2,8 +2,13 @@ import "server-only";
 
 import { withRetry } from "@/lib/http/with-retry";
 import { getAlbumIdByExternalId } from "@/lib/catalog/entity-resolution";
-import { albumMatches, artistMatches } from "@/lib/lastfm/normalize-lastfm-search";
+import {
+  albumMatches,
+  artistMatches,
+  trackTitleSimilarity,
+} from "@/lib/lastfm/normalize-lastfm-search";
 import { searchSpotify } from "@/lib/spotify";
+import { resolveSpotifyAlbumIdFromAlbumTracks } from "@/lib/spotify/resolve-album-from-track-externals";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -11,6 +16,30 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * (album name up to ~20, artist up to ~30 — see normalize-lastfm-search.)
  */
 const SCORE_THRESHOLD = 38;
+
+/**
+ * Singles: Spotify’s release “album” name often matches the **track** title, not the
+ * Last.fm album string, so album-only search can miss while track search finds it.
+ */
+function scoreAlbumFromTrackSearchHit(
+  expectedAlbum: string,
+  expectedArtist: string,
+  t: SpotifyApi.TrackObjectFull,
+): number {
+  const alb = t.album;
+  if (!alb?.id) return 0;
+  const base = scoreAlbumCandidate(expectedAlbum, expectedArtist, alb);
+  if (base >= SCORE_THRESHOLD) return base;
+  const tt = trackTitleSimilarity(expectedAlbum, t.name);
+  const ar = artistMatches(
+    expectedArtist,
+    (t.artists ?? []).map((a) => a.name),
+  );
+  if (tt.score >= 40 && ar.score >= 22) {
+    return Math.max(base, SCORE_THRESHOLD);
+  }
+  return base;
+}
 
 function escapeSpotifyField(s: string): string {
   return s.replace(/"/g, "").replace(/\s+/g, " ").trim();
@@ -44,8 +73,14 @@ function dedupeAlbums(
 }
 
 /**
- * Find a Spotify album id via search when we have a canonical row but no `album_external_ids`
- * mapping. Skips candidates whose Spotify id is already linked to a different album.
+ * Find a Spotify album id when we have a canonical row but no `album_external_ids` (spotify).
+ *
+ * Order:
+ * 1. **Tracks on this album** that already have `track_external_ids.spotify` → GET track → `album.id`
+ * 2. **Album search** (strict fielded + relaxed)
+ * 3. **Track search** (same names) — catches singles where the “album” title matches the track
+ *
+ * Skips candidates whose Spotify id is already linked to a different canonical album.
  */
 export async function resolveSpotifyAlbumIdBySearch(
   admin: SupabaseClient,
@@ -56,6 +91,11 @@ export async function resolveSpotifyAlbumIdBySearch(
   const an = albumName.trim();
   const arn = artistName.trim();
   if (!an || !arn) return null;
+
+  const fromLinkedTracks = await resolveSpotifyAlbumIdFromAlbumTracks(
+    canonicalAlbumId,
+  );
+  if (fromLinkedTracks) return fromLinkedTracks;
 
   const candidates: SpotifyApi.AlbumObjectSimplified[] = [];
 
@@ -113,6 +153,62 @@ export async function resolveSpotifyAlbumIdBySearch(
     if (existing && existing !== canonicalAlbumId) continue;
 
     if (!best || sc > best.score) best = { id, score: sc };
+  }
+
+  if (best) return best.id;
+
+  const trackRows: SpotifyApi.TrackObjectFull[] = [];
+  try {
+    const trackStrict = await withRetry(
+      (sig) =>
+        searchSpotify(`track:"${ea}" artist:"${er}"`, ["track"], 10, {
+          signal: sig,
+          allowLastfmMapping: true,
+        }),
+      {
+        label: "spotify/search/track-strict",
+        timeoutMs: 8000,
+        maxAttempts: 2,
+        backoffBaseMs: 400,
+      },
+    );
+    trackRows.push(...(trackStrict.tracks?.items ?? []));
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    const trackLoose = await withRetry(
+      (sig) =>
+        searchSpotify(`${ea} ${er}`, ["track"], 10, {
+          signal: sig,
+          allowLastfmMapping: true,
+        }),
+      {
+        label: "spotify/search/track-loose",
+        timeoutMs: 8000,
+        maxAttempts: 2,
+        backoffBaseMs: 400,
+      },
+    );
+    trackRows.push(...(trackLoose.tracks?.items ?? []));
+  } catch {
+    /* ignore */
+  }
+
+  const seenTrackAlbums = new Set<string>();
+  for (const t of trackRows) {
+    const alb = t.album;
+    const aid = alb?.id?.trim();
+    if (!aid || seenTrackAlbums.has(aid)) continue;
+    seenTrackAlbums.add(aid);
+    const sc = scoreAlbumFromTrackSearchHit(an, arn, t);
+    if (sc < SCORE_THRESHOLD) continue;
+
+    const existing = await getAlbumIdByExternalId(admin, "spotify", aid);
+    if (existing && existing !== canonicalAlbumId) continue;
+
+    if (!best || sc > best.score) best = { id: aid, score: sc };
   }
 
   return best?.id ?? null;

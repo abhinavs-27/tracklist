@@ -107,6 +107,8 @@ export function ListeningReportsClient(props: { userId: string }) {
   const [linkCopiedHighlight, setLinkCopiedHighlight] = useState(false);
   const linkCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchGenRef = useRef(0);
+  /** Cleared when range / type / custom dates change; avoids repeat warm+refetch loops. */
+  const catalogWarmAttemptedIdsRef = useRef<Set<string>>(new Set());
 
   const flashLinkCopied = useCallback(() => {
     if (linkCopiedTimerRef.current) {
@@ -287,6 +289,10 @@ export function ListeningReportsClient(props: { userId: string }) {
     void loadCompare();
   }, [loadCompare]);
 
+  useEffect(() => {
+    catalogWarmAttemptedIdsRef.current.clear();
+  }, [range, entityType, startDate, endDate]);
+
   const load = useCallback(
     async (opts: {
       range: Range;
@@ -295,6 +301,8 @@ export function ListeningReportsClient(props: { userId: string }) {
       append: boolean;
       startDate?: string;
       endDate?: string;
+      /** Default 50; use up to 100 after catalog warm to refetch a longer first view. */
+      limit?: number;
     }) => {
       const gen = ++fetchGenRef.current;
       if (!opts.append) {
@@ -303,11 +311,12 @@ export function ListeningReportsClient(props: { userId: string }) {
       setLoading(true);
       setError(null);
       try {
+        const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
         const q = new URLSearchParams({
           userId: props.userId,
           type: opts.entityType,
           range: opts.range,
-          limit: "50",
+          limit: String(limit),
           offset: String(opts.offset),
         });
         if (opts.range === "custom" && opts.startDate && opts.endDate) {
@@ -353,6 +362,53 @@ export function ListeningReportsClient(props: { userId: string }) {
     if (range === "custom") return;
     void load({ range, entityType, offset: 0, append: false });
   }, [range, entityType, load]);
+
+  /** After first paint, warm missing catalog metadata from Spotify, then refetch (≤100 rows) so images fill in. */
+  useEffect(() => {
+    if (!data || loading || entityType === "genre") return;
+    const missing = data.items.filter(
+      (i) =>
+        !i.image && !catalogWarmAttemptedIdsRef.current.has(i.entityId),
+    );
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      const ids = missing.map((i) => i.entityId);
+      for (let i = 0; i < ids.length; i += 100) {
+        const chunk = ids.slice(i, i + 100);
+        const res = await fetch("/api/reports/warm-catalog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entityType, entityIds: chunk }),
+        });
+        if (!res.ok || cancelled) return;
+        chunk.forEach((id) => catalogWarmAttemptedIdsRef.current.add(id));
+      }
+      if (cancelled) return;
+      if (data.items.length > 100) return;
+      await load({
+        range,
+        entityType,
+        offset: 0,
+        append: false,
+        startDate: range === "custom" ? startDate : undefined,
+        endDate: range === "custom" ? endDate : undefined,
+        limit: Math.min(100, Math.max(50, data.items.length)),
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    data,
+    loading,
+    entityType,
+    range,
+    startDate,
+    endDate,
+    load,
+  ]);
 
   function selectRange(next: Range) {
     setRange(next);

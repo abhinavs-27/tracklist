@@ -170,8 +170,8 @@ async function enrichReportItems(
   }
 
   const ids = rows.map((r) => r.entity_id);
-  /** User-facing report: hydrate missing catalog rows from Spotify (not default for batch helpers). */
-  const catalogOpts = { allowNetwork: true as const };
+  /** DB/cache only on the request path — Spotify hydration runs separately (e.g. POST /api/reports/warm-catalog). */
+  const catalogOpts = { allowNetwork: false as const };
 
   if (entityType === "artist") {
     const list = await getOrFetchArtistsBatch(ids, catalogOpts);
@@ -186,7 +186,8 @@ async function enrichReportItems(
       return {
         entityId: r.entity_id,
         name: a?.name ?? r.entity_id,
-        image: a?.images?.[0]?.url ?? null,
+        image:
+          a?.images?.[0]?.url ?? r.cover_image_url?.trim() ?? null,
         count: r.count,
         rank,
         previousRank: pr,
@@ -208,7 +209,8 @@ async function enrichReportItems(
       return {
         entityId: r.entity_id,
         name: a?.name ?? r.entity_id,
-        image: a?.images?.[0]?.url ?? null,
+        image:
+          a?.images?.[0]?.url ?? r.cover_image_url?.trim() ?? null,
         count: r.count,
         rank,
         previousRank: pr,
@@ -225,11 +227,12 @@ async function enrichReportItems(
     const rank = rankOffset + i + 1;
     const t = byEntityId.get(r.entity_id) ?? list[i];
     const pr = prevRankMap.get(r.entity_id) ?? null;
-    const isNew = !prevRankMap.has(r.entity_id);
-    return {
-      entityId: r.entity_id,
-      name: t?.name ?? r.entity_id,
-      image: t?.album?.images?.[0]?.url ?? null,
+      const isNew = !prevRankMap.has(r.entity_id);
+      return {
+        entityId: r.entity_id,
+        name: t?.name ?? r.entity_id,
+        image:
+        t?.album?.images?.[0]?.url ?? r.cover_image_url?.trim() ?? null,
       count: r.count,
       rank,
       previousRank: pr,

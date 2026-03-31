@@ -11,7 +11,6 @@ import {
   previousMonthStart,
   previousWeekStart,
 } from "@/lib/analytics/period-now";
-import { getAlbum, getArtist, getTrack } from "@/lib/spotify";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export type ReportCompareRange = "week" | "month" | "year";
@@ -112,7 +111,7 @@ async function fetchAllEntityRows(args: {
   return (data ?? []) as AggRow[];
 }
 
-/** DB + catalog (no cookie client) — safe inside cached compare + API routes. */
+/** DB only — no Spotify on the compare path (canonical UUIDs are not Spotify API ids). */
 async function resolveArtistName(artistId: string): Promise<string> {
   const admin = createSupabaseAdminClient();
   const { data: row } = await admin
@@ -121,13 +120,7 @@ async function resolveArtistName(artistId: string): Promise<string> {
     .eq("id", artistId)
     .maybeSingle();
   const fromDb = (row as { name?: string } | null)?.name?.trim();
-  if (fromDb) return fromDb;
-  try {
-    const a = await getArtist(artistId);
-    return a.name?.trim() || artistId;
-  } catch {
-    return artistId;
-  }
+  return fromDb || artistId;
 }
 
 async function resolveEntityDisplayName(
@@ -148,13 +141,7 @@ async function resolveEntityDisplayName(
       .eq("id", entityId)
       .maybeSingle();
     const fromDb = (row as { name?: string } | null)?.name?.trim();
-    if (fromDb) return fromDb;
-    try {
-      const a = await getAlbum(entityId);
-      return a.name?.trim() || entityId;
-    } catch {
-      return entityId;
-    }
+    return fromDb || entityId;
   }
   const { data: row } = await admin
     .from("tracks")
@@ -162,13 +149,7 @@ async function resolveEntityDisplayName(
     .eq("id", entityId)
     .maybeSingle();
   const fromDb = (row as { name?: string } | null)?.name?.trim();
-  if (fromDb) return fromDb;
-  try {
-    const t = await getTrack(entityId);
-    return t.name?.trim() || entityId;
-  } catch {
-    return entityId;
-  }
+  return fromDb || entityId;
 }
 
 function pickTopMovers(
