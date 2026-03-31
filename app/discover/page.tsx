@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity -- server-only discover perf timings (Date.now) */
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { getServerSession } from "next-auth";
@@ -15,6 +16,7 @@ import {
   batchTracksToNormalizedMap,
   getTrackFromNormalizedBatchMap,
 } from "@/lib/spotify-cache";
+import { discoverLog, discoverLogLine } from "@/lib/discover-perf";
 
 function DiscoverSectionSkeleton() {
   return (
@@ -46,18 +48,60 @@ const DISCOVER_CATALOG_OPTS = {
 } as const;
 
 export default async function DiscoverPage() {
+  const start = Date.now();
+  discoverLogLine("discover: page start");
+
+  const tSession = Date.now();
   const session = await getServerSession(authOptions);
+  discoverLog("auth getServerSession", Date.now() - tSession);
+
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
   const hiddenGemsConfig = getChartConfig("hidden_gems");
   const hiddenGemsMinRating = hiddenGemsConfig?.filters?.min_rating ?? 4;
   const hiddenGemsMaxListens = hiddenGemsConfig?.filters?.max_plays ?? 50;
 
-  const discoverSettled = await Promise.allSettled([
-    getTrendingEntitiesCached(MAX_ITEMS),
-    getRisingArtistsCached(MAX_ITEMS, 7),
-    getHiddenGemsCached(MAX_ITEMS, hiddenGemsMinRating, hiddenGemsMaxListens),
-  ]);
+  const tParallel = Date.now();
+  const trendingP = (async () => {
+    const t = Date.now();
+    try {
+      const r = await getTrendingEntitiesCached(MAX_ITEMS);
+      discoverLog("db getTrendingEntitiesCached", Date.now() - t);
+      return r;
+    } catch (e) {
+      discoverLog("db getTrendingEntitiesCached (rejected)", Date.now() - t);
+      throw e;
+    }
+  })();
+  const risingP = (async () => {
+    const t = Date.now();
+    try {
+      const r = await getRisingArtistsCached(MAX_ITEMS, 7);
+      discoverLog("db getRisingArtistsCached", Date.now() - t);
+      return r;
+    } catch (e) {
+      discoverLog("db getRisingArtistsCached (rejected)", Date.now() - t);
+      throw e;
+    }
+  })();
+  const hiddenP = (async () => {
+    const t = Date.now();
+    try {
+      const r = await getHiddenGemsCached(
+        MAX_ITEMS,
+        hiddenGemsMinRating,
+        hiddenGemsMaxListens,
+      );
+      discoverLog("db getHiddenGemsCached", Date.now() - t);
+      return r;
+    } catch (e) {
+      discoverLog("db getHiddenGemsCached (rejected)", Date.now() - t);
+      throw e;
+    }
+  })();
+
+  const discoverSettled = await Promise.allSettled([trendingP, risingP, hiddenP]);
+  discoverLog("db discover caches parallel (wall)", Date.now() - tParallel);
 
   const trendingRaw = discoverSettled[0].status === "fulfilled" ? discoverSettled[0].value : [];
   if (discoverSettled[0].status === "rejected") console.error("[discover] getTrendingEntitiesCached failed:", discoverSettled[0].reason);
@@ -78,18 +122,48 @@ export default async function DiscoverPage() {
   const discoverTrackIds = [...trendingTrackIds, ...hiddenGemsByType.song];
   const discoverAlbumIds = hiddenGemsByType.album;
   const risingArtistIds = risingArtists.map((a) => a.artist_id);
+  const catalogNet =
+    process.env.SPOTIFY_REFRESH_DISABLED !== "true";
+
+  const tTracks = Date.now();
   const trackArr = await getOrFetchTracksBatch(
     discoverTrackIds,
     DISCOVER_CATALOG_OPTS,
   );
+  discoverLog(
+    catalogNet
+      ? "external getOrFetchTracksBatch (Spotify/catalog allowed)"
+      : "db getOrFetchTracksBatch (no network)",
+    Date.now() - tTracks,
+  );
+
+  const tAlbums = Date.now();
   const albumArr = await getOrFetchAlbumsBatch(
     discoverAlbumIds,
     DISCOVER_CATALOG_OPTS,
   );
+  discoverLog(
+    catalogNet
+      ? "external getOrFetchAlbumsBatch (Spotify/catalog allowed)"
+      : "db getOrFetchAlbumsBatch (no network)",
+    Date.now() - tAlbums,
+  );
+
+  const tArtists = Date.now();
   const artistArr =
     risingArtistIds.length > 0
       ? await getOrFetchArtistsBatch(risingArtistIds, DISCOVER_CATALOG_OPTS)
       : [];
+  if (risingArtistIds.length > 0) {
+    discoverLog(
+      catalogNet
+        ? "external getOrFetchArtistsBatch (Spotify/catalog allowed)"
+        : "db getOrFetchArtistsBatch (no network)",
+      Date.now() - tArtists,
+    );
+  }
+
+  const tProcess = Date.now();
   const tracksMap = batchTracksToNormalizedMap(discoverTrackIds, trackArr);
   const albumsMap = batchResultsToMap(discoverAlbumIds, albumArr);
   const artistImageMap = new Map<string, string | null>();
@@ -115,6 +189,11 @@ export default async function DiscoverPage() {
     const track = getTrackFromNormalizedBatchMap(tracksMap, gem.entity_id);
     return { gem, album: null, track };
   });
+  discoverLog("process enrich maps + hidden gems", Date.now() - tProcess);
+
+  discoverLogLine(
+    `discover: page shell (before dynamic sections stream): ${Date.now() - start} ms`,
+  );
 
   return (
     <div className="space-y-10 sm:space-y-12">

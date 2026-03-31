@@ -1694,8 +1694,12 @@ export async function getOrFetchAlbum(
   );
 }
 
-/** Fetch album + tracks from Spotify and upsert (album once, each artist once, each song once). Returns the fetched data or null on error. */
-async function refreshAlbumFromSpotify(
+/**
+ * Fetch album + tracks from Spotify and upsert (album once, each artist once, each song once).
+ * Returns the fetched data or null on error.
+ * Exported for cron / low-priority cover upgrades (e.g. replace Last.fm CDN with Spotify art).
+ */
+export async function refreshAlbumFromSpotify(
   _supabase: SupabaseClient,
   id: string,
 ): Promise<{
@@ -1759,7 +1763,7 @@ async function getOrFetchTrackInner(
   const net = catalogReadsAllowSpotifyNetwork(opts);
   const normalized = normalizeReviewEntityId(id);
 
-  let canon = await resolveTrackCanonicalId(supabase, normalized);
+  const canon = await resolveTrackCanonicalId(supabase, normalized);
 
   if (!canon && isValidSpotifyId(normalized) && net) {
     logCacheMiss("song", normalized);

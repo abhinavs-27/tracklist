@@ -27,6 +27,10 @@
     {
       "path": "/api/cron/repair-lastfm-aggregates",
       "schedule": "40 1 * * *"
+    },
+    {
+      "path": "/api/cron/upgrade-lastfm-album-covers",
+      "schedule": "50 2 * * *"
     }
   ]
 }
