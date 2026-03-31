@@ -23,7 +23,10 @@ const CIRCUIT_REDIS_KEY = "spotify:circuit:blocked-until";
 /** Max IDs per batch helper (sequential Spotify calls). */
 export const MAX_SPOTIFY_ITEMS = 50;
 
-export function enforceSpotifyBatchLimit(items: unknown[], label = "batch"): void {
+export function enforceSpotifyBatchLimit(
+  items: unknown[],
+  label = "batch",
+): void {
   if (items.length > MAX_SPOTIFY_ITEMS) {
     throw new Error(
       `Exceeded safe Spotify request limit (${label}: ${items.length} > ${MAX_SPOTIFY_ITEMS})`,
@@ -92,6 +95,20 @@ const SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN = parsePositiveIntEnv(
   10,
 );
 
+/**
+ * GET /v1/artists/{id}/albums is paginated (max 10/albums per call). Full discography
+ * can issue many sequential requests; pace them separately from search/albums/artists
+ * so they do not exhaust the main catalog reservoir and trigger Spotify 429s.
+ */
+const SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS = parsePositiveIntEnv(
+  "SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS",
+  250,
+);
+const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN = parsePositiveIntEnv(
+  "SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN",
+  18,
+);
+
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */
 export const spotifyLimiter = (() => {
   const url = process.env.REDIS_URL?.trim();
@@ -139,9 +156,43 @@ const spotifySingleTrackLimiter = (() => {
   return new Bottleneck({ ...opts });
 })();
 
+/** Paginated artist discography — stricter than the main catalog limiter. */
+const spotifyArtistAlbumsLimiter = (() => {
+  const url = process.env.REDIS_URL?.trim();
+  const opts = {
+    maxConcurrent: 1,
+    minTime: SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS,
+    reservoir: SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN,
+    reservoirRefreshAmount: SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN,
+    reservoirRefreshInterval: 60 * 1000,
+  } as const;
+  if (url) {
+    return new Bottleneck({
+      datastore: "ioredis",
+      clearDatastore: false,
+      id: "spotify-artist-albums-limiter",
+      clientOptions: url,
+      ...opts,
+    });
+  }
+  return new Bottleneck({ ...opts });
+})();
+
 /** True for catalog paths like `/tracks/{id}` (not `/albums/{id}/tracks`). */
 function catalogPathUsesSingleTrackLimiter(path: string): boolean {
   return /^\/tracks\/[^/]+$/.test(path);
+}
+
+/** True for `GET /v1/artists/{id}/albums` (pathname only, no query). */
+function catalogPathUsesArtistAlbumsLimiter(path: string): boolean {
+  return /^\/artists\/[^/]+\/albums$/.test(path);
+}
+
+function selectCatalogLimiter(path: string): Bottleneck {
+  if (catalogPathUsesSingleTrackLimiter(path)) return spotifySingleTrackLimiter;
+  if (catalogPathUsesArtistAlbumsLimiter(path))
+    return spotifyArtistAlbumsLimiter;
+  return spotifyLimiter;
 }
 
 let redisClient: Redis | null | undefined;
@@ -187,9 +238,7 @@ function maybeLogSpotifyHealth(): void {
   const warn429 = metrics.rate429Hits > 10;
   /** Unique search URLs during Last.fm enrichment are almost all misses — not an outage. */
   const warnHit =
-    total > 30 &&
-    hitRate < 0.7 &&
-    (metrics.rate429Hits > 0 || total > 400);
+    total > 30 && hitRate < 0.7 && (metrics.rate429Hits > 0 || total > 400);
   if (warn429 || warnHit) {
     console.warn("[spotify-client] Spotify health degraded", {
       ...metrics,
@@ -243,7 +292,11 @@ async function getCached(
   }
 }
 
-async function setCached(key: string, value: unknown, ttlSec: number): Promise<void> {
+async function setCached(
+  key: string,
+  value: unknown,
+  ttlSec: number,
+): Promise<void> {
   const expiresAt = Date.now() + ttlSec * 1000;
   const envelope: CachedEnvelope = { data: value, expiresAt };
   const payload = JSON.stringify(envelope);
@@ -270,7 +323,10 @@ async function setCached(key: string, value: unknown, ttlSec: number): Promise<v
 const inFlight = new Map<string, Promise<unknown>>();
 const revalidateInFlight = new Set<string>();
 
-export async function withDedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
+export async function withDedupe<T>(
+  key: string,
+  fn: () => Promise<T>,
+): Promise<T> {
   const existing = inFlight.get(key);
   if (existing) {
     metrics.dedupeHits++;
@@ -461,9 +517,7 @@ async function fetchCatalogResponseWithRetry(
   const token = await getClientCredentialsToken();
   metrics.apiCalls++;
 
-  const limiter = catalogPathUsesSingleTrackLimiter(path)
-    ? spotifySingleTrackLimiter
-    : spotifyLimiter;
+  const limiter = selectCatalogLimiter(path);
 
   const res = await limiter.schedule(() =>
     withTimeout(
@@ -492,10 +546,7 @@ async function fetchCatalogResponseWithRetry(
         ra,
       );
     }
-    const waitMs = Math.min(
-      120_000,
-      Math.max(1000, retryAfterSec * 1000),
-    );
+    const waitMs = Math.min(120_000, Math.max(1000, retryAfterSec * 1000));
     spotifyDebugLog(`429 — retry after ${waitMs}ms (${retriesLeft} left)`);
     if (retriesLeft <= 0) {
       const ra = Number.isFinite(retryAfter) ? retryAfter : null;
@@ -627,22 +678,12 @@ export async function catalogSpotifyFetchJson<T>(
         return cached.data as T;
       }
       if (cached && cached.isExpired) {
-        revalidateInBackground(
-          cacheKey,
-          url,
-          path,
-          ttl,
-          options?.signal,
-        );
+        revalidateInBackground(cacheKey, url, path, ttl, options?.signal);
         return cached.data as T;
       }
     }
 
-    const data = await fetchCatalogJsonNetwork<T>(
-      url,
-      path,
-      options?.signal,
-    );
+    const data = await fetchCatalogJsonNetwork<T>(url, path, options?.signal);
     if (!options?.skipCache) {
       await setCached(cacheKey, data, ttl);
     }
@@ -691,7 +732,9 @@ export async function bearerSpotifyFetchJson<T>(
       metrics.rate429Hits++;
       maybeLogSpotifyHealth();
       const retryAfterSec = Number(res.headers.get("Retry-After") || 2);
-      await tripCircuitBreaker(Number.isFinite(retryAfterSec) ? retryAfterSec : 2);
+      await tripCircuitBreaker(
+        Number.isFinite(retryAfterSec) ? retryAfterSec : 2,
+      );
       if (FAIL_FAST_ON_429) {
         const ra = Number.parseInt(res.headers.get("Retry-After") || "1", 10);
         throw new SpotifyRateLimitError(
