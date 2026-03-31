@@ -68,8 +68,8 @@ export const GET = withHandler(async (_request, { params }) => {
 /** PATCH – update list metadata (title, description, visibility, emoji/image). Auth + ownership required. */
 export const PATCH = withHandler(
   async (request, { user: me, params }) => {
-    const { listId } = params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+    const listId = params.listId?.trim() ?? "";
+    if (!listId || !isValidUuid(listId)) return apiNotFound("List not found");
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId || ownerId !== me!.id) {
@@ -139,8 +139,8 @@ export const PATCH = withHandler(
 /** DELETE – delete a list (and its items via CASCADE). Auth + ownership required. */
 export const DELETE = withHandler(
   async (request, { user: me, params }) => {
-    const { listId } = params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+    const listId = params.listId?.trim() ?? "";
+    if (!listId || !isValidUuid(listId)) return apiNotFound("List not found");
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId || ownerId !== me!.id) {

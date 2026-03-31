@@ -89,7 +89,7 @@ export const POST = withHandler(
 );
 
 export const GET = withHandler(async (request: NextRequest) => {
-  const { searchParams } = new URL(request.url);
+  const { searchParams } = request.nextUrl;
   const reviewId = searchParams.get('review_id');
   if (!reviewId) return apiBadRequest('review_id is required');
   if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');

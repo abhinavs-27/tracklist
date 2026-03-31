@@ -7,7 +7,7 @@ import { isValidUuid } from "@/lib/validation";
 
 /** POST /api/communities/join — body: { communityId } — public communities only. */
 export const POST = withHandler(
-  async (request: NextRequest, { user: me }) => {
+  async (request, { user: me }) => {
     const { data: body, error: parseErr } = await parseBody<{
       communityId?: unknown;
     }>(request);

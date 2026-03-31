@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { healthRouter } from "./health";
+import { notFound } from "../lib/http";
 import { leaderboardRouter } from "./leaderboard";
 import { discoverRouter } from "./discover";
 import { reviewsRouter } from "./reviews";
@@ -74,10 +75,10 @@ export function createApiRouter(): Router {
     );
   } else {
     api.use((_req, res) => {
-      res.status(404).json({
-        error: "Not found",
-        hint: "Set NEXT_API_FALLBACK to your Next.js origin (e.g. http://127.0.0.1:3000) so unimplemented /api routes proxy during migration.",
-      });
+      return notFound(
+        res,
+        "Not found. Hint: Set NEXT_API_FALLBACK to your Next.js origin (e.g. http://127.0.0.1:3000) so unimplemented /api routes proxy during migration.",
+      );
     });
   }
 

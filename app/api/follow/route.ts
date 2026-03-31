@@ -59,7 +59,7 @@ export const POST = withHandler(
 
 export const DELETE = withHandler(
   async (request, { user: me }) => {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const followingId = searchParams.get('following_id');
     if (!followingId) return apiBadRequest('following_id is required');
     if (!isValidUuid(followingId)) return apiBadRequest('Invalid following_id');

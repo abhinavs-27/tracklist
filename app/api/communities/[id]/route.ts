@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
+import { getUserFromRequest } from "@/lib/auth";
 import { withHandler } from "@/lib/api-handler";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
 import {
@@ -23,24 +23,14 @@ import { isValidUuid } from "@/lib/validation";
  * GET /api/communities/[id] — metadata + member count.
  * If signed in, includes is_member.
  */
-export async function GET(
-  request: NextRequest,
-  segment: { params: Promise<{ id: string }> },
-) {
-  try {
-    const params = await segment.params;
-    const id = params.id?.trim() ?? "";
-    if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
+export const GET = withHandler(async (request, { params }) => {
+  const id = params.id?.trim() ?? "";
+  if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
 
-    let userId: string | null = null;
-    try {
-      const me = await requireApiAuth(request);
-      userId = me.id;
-    } catch {
-      userId = null;
-    }
+  const me = await getUserFromRequest(request);
+  const userId = me?.id ?? null;
 
-    const community = await getCommunityById(id);
+  const community = await getCommunityById(id);
     if (!community) return apiNotFound("Community not found");
 
     const member_count = await getCommunityMemberCount(id);
@@ -57,17 +47,14 @@ export async function GET(
       }
     }
 
-    return apiOk({
-      community,
-      member_count,
-      is_member,
-      my_role,
-      pending_invite_id,
-    });
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  return apiOk({
+    community,
+    member_count,
+    is_member,
+    my_role,
+    pending_invite_id,
+  });
+});
 
 /** PATCH /api/communities/[id] — name, description, is_private (permission rules in `updateCommunitySettings`). */
 export const PATCH = withHandler(

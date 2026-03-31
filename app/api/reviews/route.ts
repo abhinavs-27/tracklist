@@ -6,7 +6,7 @@ import {
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
-import { parseBody } from "@/lib/api-utils";
+import { parseBody, getPaginationParams } from "@/lib/api-utils";
 import { ReviewCreateBody } from "@/types";
 import {
   isValidReviewEntityId,
@@ -20,11 +20,11 @@ import { getReviewsForEntity } from "@/lib/queries";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_or_lfm_id>&limit= optional */
 export const GET = withHandler(async (request: NextRequest) => {
-  const { searchParams } = new URL(request.url);
+  const { searchParams } = request.nextUrl;
   const entityType = searchParams.get("entity_type");
   const rawEntityId = searchParams.get("entity_id");
   const entityId = rawEntityId ? normalizeReviewEntityId(rawEntityId) : null;
-  const limit = clampLimit(searchParams.get("limit"), 20, 10);
+  const { limit } = getPaginationParams(searchParams, 10, 20);
 
   if (!entityType || !entityId) {
     return apiBadRequest("entity_type and entity_id required");

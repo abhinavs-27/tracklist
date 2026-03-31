@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
 import { isValidUuid } from "../lib/validation";
 import { getRecentAlbumsFromLogs } from "../lib/recentAlbumsFromLogs";
+import { badRequest, internalError, ok } from "../lib/http";
 
 const MAX_ALBUMS = 12;
 
@@ -10,22 +11,20 @@ const MAX_ALBUMS = 12;
  */
 export const recentAlbumsRouter = Router();
 
-recentAlbumsRouter.get("/", async (req, res, next) => {
+recentAlbumsRouter.get("/", async (req, res) => {
   try {
     const userId = typeof req.query.user_id === "string" ? req.query.user_id : "";
     if (!userId || !isValidUuid(userId)) {
-      res.status(400).json({ error: "Valid user_id required" });
-      return;
+      return badRequest(res, "Valid user_id required");
     }
     if (!isSupabaseConfigured()) {
-      res.status(500).json({ error: "Server misconfigured" });
-      return;
+      return internalError(res, "Server misconfigured");
     }
 
     const supabase = getSupabase();
     const albums = await getRecentAlbumsFromLogs(supabase, userId, MAX_ALBUMS);
-    res.status(200).json({ albums });
+    return ok(res, { albums });
   } catch (e) {
-    next(e);
+    return internalError(res, e);
   }
 });
