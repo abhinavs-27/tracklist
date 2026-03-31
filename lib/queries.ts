@@ -3358,21 +3358,26 @@ export async function getUserListsWithPreviews(
       return out;
     };
 
-    for (const part of idChunks([...albumIds], 100)) {
-      const { data: albums } = await supabase
-        .from("albums")
-        .select("id, name")
-        .in("id", part);
+    const albumParts = idChunks([...albumIds], 100);
+    const songParts = idChunks([...songIds], 100);
+    const [albumRowsList, songRowsList] = await Promise.all([
+      Promise.all(
+        albumParts.map((part) =>
+          supabase.from("albums").select("id, name").in("id", part),
+        ),
+      ),
+      Promise.all(
+        songParts.map((part) =>
+          supabase.from("tracks").select("id, name").in("id", part),
+        ),
+      ),
+    ]);
+    for (const { data: albums } of albumRowsList) {
       for (const a of albums ?? []) {
         albumNames.set(a.id as string, a.name as string);
       }
     }
-
-    for (const part of idChunks([...songIds], 100)) {
-      const { data: songs } = await supabase
-        .from("tracks")
-        .select("id, name")
-        .in("id", part);
+    for (const { data: songs } of songRowsList) {
       for (const s of songs ?? []) {
         songNames.set(s.id as string, s.name as string);
       }

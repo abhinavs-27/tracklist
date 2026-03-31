@@ -1,9 +1,9 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { cache } from "react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-export async function getSession() {
-  return getServerSession(authOptions);
-}
+/** One `getServerSession` per request when used from RSC (layout + page). */
+export const getSession = cache(async () => getServerSession(authOptions));
 
 export async function getCurrentUser() {
   const session = await getSession();

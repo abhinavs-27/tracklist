@@ -13,6 +13,7 @@ import {
   searchSpotify,
 } from "@/lib/spotify";
 import { pickBestArtistMatch } from "@/lib/spotify/matching";
+import { resolveSpotifyAlbumIdBySearch } from "@/lib/spotify/resolve-album-by-search";
 import { MAX_SPOTIFY_ITEMS } from "@/lib/spotify/client";
 import {
   catalogReadsAllowSpotifyNetwork,
@@ -1348,11 +1349,36 @@ async function getOrFetchAlbumInner(
 
       let songs = (songRows ?? []) as unknown as SongRow[];
 
-      if (
-        net &&
-        spotifyAlbumApiId &&
-        albumNeedsTrackBackfill(songs.length, album.total_tracks)
-      ) {
+      const needsSpotifyHydrate =
+        albumNeedsTrackBackfill(songs.length, album.total_tracks) ||
+        !album.image_url?.trim();
+
+      if (!spotifyAlbumApiId && net && needsSpotifyHydrate) {
+        const arName = artist?.name?.trim();
+        const albumTitle = album.name?.trim();
+        if (arName && albumTitle) {
+          try {
+            const admin = createSupabaseAdminClient();
+            const found = await resolveSpotifyAlbumIdBySearch(
+              admin,
+              dbAlbumId,
+              albumTitle,
+              arName,
+            );
+            if (found) {
+              await linkAlbumExternalId(admin, dbAlbumId, "spotify", found);
+              spotifyAlbumApiId = found;
+            }
+          } catch (e) {
+            console.warn(
+              `${LOG_PREFIX} album Spotify id search failed for ${dbAlbumId}`,
+              e,
+            );
+          }
+        }
+      }
+
+      if (net && spotifyAlbumApiId && needsSpotifyHydrate) {
         try {
           const result = await refreshAlbumFromSpotify(
             supabase,
@@ -1464,11 +1490,36 @@ async function getOrFetchAlbumInner(
     let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
 
     let ranStaleSyncBackfill = false;
-    if (
-      net &&
-      spotifyAlbumApiId &&
-      albumNeedsTrackBackfill(songsStale.length, album.total_tracks)
-    ) {
+    const needsStaleSpotifyHydrate =
+      albumNeedsTrackBackfill(songsStale.length, album.total_tracks) ||
+      !album.image_url?.trim();
+
+    if (!spotifyAlbumApiId && net && needsStaleSpotifyHydrate) {
+      const arName = artistStale?.name?.trim();
+      const albumTitle = album.name?.trim();
+      if (arName && albumTitle) {
+        try {
+          const admin = createSupabaseAdminClient();
+          const found = await resolveSpotifyAlbumIdBySearch(
+            admin,
+            dbAlbumId,
+            albumTitle,
+            arName,
+          );
+          if (found) {
+            await linkAlbumExternalId(admin, dbAlbumId, "spotify", found);
+            spotifyAlbumApiId = found;
+          }
+        } catch (e) {
+          console.warn(
+            `${LOG_PREFIX} album Spotify id search (stale) failed for ${dbAlbumId}`,
+            e,
+          );
+        }
+      }
+    }
+
+    if (net && spotifyAlbumApiId && needsStaleSpotifyHydrate) {
       ranStaleSyncBackfill = true;
       try {
         const result = await refreshAlbumFromSpotify(

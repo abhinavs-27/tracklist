@@ -11,53 +11,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const CATALOG_OFFLINE: CatalogFetchOpts = { allowNetwork: false };
-const CATALOG_ONLINE: CatalogFetchOpts = { allowNetwork: true };
-
-function hasArtistArtwork(
-  a: SpotifyApi.ArtistObjectFull | null | undefined,
-): boolean {
-  return Boolean(a?.images?.[0]?.url?.trim());
-}
-
-function hasAlbumArtwork(
-  a: SpotifyApi.AlbumObjectSimplified | null | undefined,
-): boolean {
-  return Boolean(a?.images?.[0]?.url?.trim());
-}
-
-/** Track tile uses album cover — that is what we gate Spotify on. */
-function hasTrackAlbumArtwork(
-  t: SpotifyApi.TrackObjectFull | null | undefined,
-): boolean {
-  return Boolean(t?.album?.images?.[0]?.url?.trim());
-}
-
-function mergeArtistMeta(
-  prev: SpotifyApi.ArtistObjectFull | null,
-  next: SpotifyApi.ArtistObjectFull | null,
-): SpotifyApi.ArtistObjectFull | null {
-  if (hasArtistArtwork(next)) return next;
-  if (hasArtistArtwork(prev)) return prev;
-  return next ?? prev;
-}
-
-function mergeTrackMeta(
-  prev: SpotifyApi.TrackObjectFull | null,
-  next: SpotifyApi.TrackObjectFull | null,
-): SpotifyApi.TrackObjectFull | null {
-  if (hasTrackAlbumArtwork(next)) return next;
-  if (hasTrackAlbumArtwork(prev)) return prev;
-  return next ?? prev;
-}
-
-function mergeAlbumMeta(
-  prev: SpotifyApi.AlbumObjectSimplified | null,
-  next: SpotifyApi.AlbumObjectSimplified | null,
-): SpotifyApi.AlbumObjectSimplified | null {
-  if (hasAlbumArtwork(next)) return next;
-  if (hasAlbumArtwork(prev)) return prev;
-  return next ?? prev;
-}
 
 async function fetchCatalogBatches(
   artistIds: string[],
@@ -111,14 +64,12 @@ export type TopWeekAlbum = {
 };
 
 export type TopThisWeekResult = {
-  /** Rolling window label, e.g. date span · UTC */
   rangeLabel: string;
   tracks: TopWeekTrack[];
   artists: TopWeekArtist[];
   albums: TopWeekAlbum[];
 };
 
-/** Reject null DB values and string placeholders that become `/artist/null` in URLs. */
 function isValidCatalogId(id: unknown): id is string {
   if (id == null || typeof id !== "string") return false;
   const t = id.trim();
@@ -127,34 +78,102 @@ function isValidCatalogId(id: unknown): id is string {
   return true;
 }
 
-async function fetchSongsBatch(
+type RpcAgg = {
+  tracks: { track_id: string; play_count: number }[];
+  artists: { artist_id: string; play_count: number }[];
+  albums: { album_id: string; play_count: number }[];
+};
+
+function parseTopWeekRpcPayload(raw: unknown): RpcAgg {
+  const empty: RpcAgg = { tracks: [], artists: [], albums: [] };
+  if (raw == null || typeof raw !== "object") return empty;
+  const o = raw as Record<string, unknown>;
+
+  const parseTrackRows = (): RpcAgg["tracks"] => {
+    const a = o.tracks;
+    if (!Array.isArray(a)) return [];
+    const out: RpcAgg["tracks"] = [];
+    for (const row of a) {
+      if (!row || typeof row !== "object") continue;
+      const r = row as Record<string, unknown>;
+      const tid = r.track_id;
+      const c = r.play_count;
+      if (typeof tid !== "string" || !isValidCatalogId(tid)) continue;
+      const n = typeof c === "number" ? c : Number(c);
+      if (!Number.isFinite(n) || n < 0) continue;
+      out.push({ track_id: tid.trim(), play_count: Math.floor(n) });
+    }
+    return out;
+  };
+
+  const parseArtistRows = (): RpcAgg["artists"] => {
+    const a = o.artists;
+    if (!Array.isArray(a)) return [];
+    const out: RpcAgg["artists"] = [];
+    for (const row of a) {
+      if (!row || typeof row !== "object") continue;
+      const r = row as Record<string, unknown>;
+      const id = r.artist_id;
+      const c = r.play_count;
+      if (typeof id !== "string" || !isValidCatalogId(id)) continue;
+      const n = typeof c === "number" ? c : Number(c);
+      if (!Number.isFinite(n) || n < 0) continue;
+      out.push({ artist_id: id.trim(), play_count: Math.floor(n) });
+    }
+    return out;
+  };
+
+  const parseAlbumRows = (): RpcAgg["albums"] => {
+    const a = o.albums;
+    if (!Array.isArray(a)) return [];
+    const out: RpcAgg["albums"] = [];
+    for (const row of a) {
+      if (!row || typeof row !== "object") continue;
+      const r = row as Record<string, unknown>;
+      const id = r.album_id;
+      const c = r.play_count;
+      if (typeof id !== "string" || !isValidCatalogId(id)) continue;
+      const n = typeof c === "number" ? c : Number(c);
+      if (!Number.isFinite(n) || n < 0) continue;
+      out.push({ album_id: id.trim(), play_count: Math.floor(n) });
+    }
+    return out;
+  };
+
+  return {
+    tracks: parseTrackRows(),
+    artists: parseArtistRows(),
+    albums: parseAlbumRows(),
+  };
+}
+
+/** `tracks.id` → `album_id` for hrefs when catalog cache has no album on the track. */
+async function fetchTrackAlbumIds(
   admin: SupabaseClient,
-  ids: string[],
-): Promise<Map<string, { album_id: string; artist_id: string }>> {
-  const out = new Map<string, { album_id: string; artist_id: string }>();
-  const unique = [...new Set(ids)].filter(Boolean);
-  const CHUNK = 400;
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const { data, error } = await admin
-      .from("tracks")
-      .select("id, album_id, artist_id")
-      .in("id", chunk);
-    if (error) {
-      console.error("[top-this-week] songs batch", error.message);
-      continue;
-    }
-    for (const row of data ?? []) {
-      const r = row as { id: string; album_id: string; artist_id: string };
-      out.set(r.id, { album_id: r.album_id, artist_id: r.artist_id });
-    }
+  trackIds: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const unique = [...new Set(trackIds)].filter(isValidCatalogId);
+  if (unique.length === 0) return out;
+  const { data, error } = await admin
+    .from("tracks")
+    .select("id, album_id")
+    .in("id", unique);
+  if (error) {
+    console.warn("[top-this-week] fetchTrackAlbumIds", error.message);
+    return out;
+  }
+  for (const row of data ?? []) {
+    const r = row as { id: string; album_id: string | null };
+    if (r.album_id && isValidCatalogId(r.album_id)) out.set(r.id, r.album_id.trim());
   }
   return out;
 }
 
 /**
- * Top tracks, artists, and albums over the **rolling last 7 days** (UTC) from `logs`,
- * so charts stay full at the start of a calendar week.
+ * Top tracks, artists, and albums over the rolling last 7 days from `logs`.
+ * Aggregates in Postgres (`get_top_this_week_aggregates`); metadata from DB cache only.
+ * Spotify artwork is filled client-side via `/api/profile/top-week-catalog`.
  */
 export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult> {
   const { current, rangeLabel } = getRolling7dVsPrior7dBounds();
@@ -171,54 +190,37 @@ export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult>
 
   const admin = createSupabaseAdminClient();
 
-  const { data: logRows, error: logErr } = await admin
-    .from("logs")
-    .select("track_id, artist_id")
-    .eq("user_id", uid)
-    .gte("listened_at", current.startIso)
-    .lt("listened_at", current.endExclusiveIso)
-    .limit(MAX_LOGS);
+  const { data: aggRaw, error: rpcErr } = await admin.rpc("get_top_this_week_aggregates", {
+    p_user_id: uid,
+    p_start: current.startIso,
+    p_end_exclusive: current.endExclusiveIso,
+    p_top_n: TOP_N,
+    p_log_cap: MAX_LOGS,
+  });
 
-  if (logErr) {
-    console.error("[top-this-week] logs:", logErr);
+  if (rpcErr) {
+    console.error("[top-this-week] get_top_this_week_aggregates:", rpcErr);
     return empty();
   }
 
-  const rows = (logRows ?? []) as { track_id: string; artist_id: string | null }[];
-  if (rows.length === 0) return empty();
-
-  const trackIds = [...new Set(rows.map((r) => r.track_id).filter(Boolean))] as string[];
-  const songMap = trackIds.length ? await fetchSongsBatch(admin, trackIds) : new Map();
-
-  const trackCount = new Map<string, number>();
-  const artistCount = new Map<string, number>();
-  const albumCount = new Map<string, number>();
-
-  for (const r of rows) {
-    const tid = r.track_id?.trim();
-    if (tid && isValidCatalogId(tid)) {
-      trackCount.set(tid, (trackCount.get(tid) ?? 0) + 1);
-    }
-    const song = tid ? songMap.get(tid) : undefined;
-    const aid = r.artist_id?.trim() ?? song?.artist_id?.trim() ?? null;
-    if (aid && isValidCatalogId(aid)) {
-      artistCount.set(aid, (artistCount.get(aid) ?? 0) + 1);
-    }
-    const albid = song?.album_id?.trim();
-    if (albid && isValidCatalogId(albid)) {
-      albumCount.set(albid, (albumCount.get(albid) ?? 0) + 1);
-    }
+  const agg = parseTopWeekRpcPayload(aggRaw);
+  if (
+    agg.tracks.length === 0 &&
+    agg.artists.length === 0 &&
+    agg.albums.length === 0
+  ) {
+    return empty();
   }
 
-  const sortedTracks = [...trackCount.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_N);
-  const sortedArtists = [...artistCount.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_N);
-  const sortedAlbums = [...albumCount.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_N);
+  const sortedTracks = agg.tracks.map(
+    (r) => [r.track_id, r.play_count] as [string, number],
+  );
+  const sortedArtists = agg.artists.map(
+    (r) => [r.artist_id, r.play_count] as [string, number],
+  );
+  const sortedAlbums = agg.albums.map(
+    (r) => [r.album_id, r.play_count] as [string, number],
+  );
 
   const artistIds = sortedArtists.map(([id]) => id).filter(isValidCatalogId);
   const trackIdsTop = sortedTracks.map(([id]) => id).filter(isValidCatalogId);
@@ -241,49 +243,7 @@ export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult>
     albumIds.map((id, i) => [id, pass1.albumMetaList[i] ?? null] as const),
   );
 
-  const artistNeedArtwork = artistIds.filter(
-    (id) => !hasArtistArtwork(artistMetaById.get(id)),
-  );
-  const trackNeedArtwork = trackIdsTop.filter(
-    (id) => !hasTrackAlbumArtwork(trackMetaById.get(id)),
-  );
-  const albumNeedArtwork = albumIds.filter(
-    (id) => !hasAlbumArtwork(albumMetaById.get(id)),
-  );
-
-  if (
-    artistNeedArtwork.length > 0 ||
-    trackNeedArtwork.length > 0 ||
-    albumNeedArtwork.length > 0
-  ) {
-    const pass2 = await fetchCatalogBatches(
-      artistNeedArtwork,
-      trackNeedArtwork,
-      albumNeedArtwork,
-      CATALOG_ONLINE,
-    );
-    for (let i = 0; i < artistNeedArtwork.length; i++) {
-      const id = artistNeedArtwork[i]!;
-      artistMetaById.set(
-        id,
-        mergeArtistMeta(artistMetaById.get(id) ?? null, pass2.artistMetaList[i] ?? null),
-      );
-    }
-    for (let i = 0; i < trackNeedArtwork.length; i++) {
-      const id = trackNeedArtwork[i]!;
-      trackMetaById.set(
-        id,
-        mergeTrackMeta(trackMetaById.get(id) ?? null, pass2.trackMetaList[i] ?? null),
-      );
-    }
-    for (let i = 0; i < albumNeedArtwork.length; i++) {
-      const id = albumNeedArtwork[i]!;
-      albumMetaById.set(
-        id,
-        mergeAlbumMeta(albumMetaById.get(id) ?? null, pass2.albumMetaList[i] ?? null),
-      );
-    }
-  }
+  const albumIdByTrackId = await fetchTrackAlbumIds(admin, trackIdsTop);
 
   const artists: TopWeekArtist[] = [];
   for (const [entityId, count] of sortedArtists) {
@@ -301,7 +261,8 @@ export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult>
   for (const [entityId, count] of sortedTracks) {
     if (!isValidCatalogId(entityId)) continue;
     const t = trackMetaById.get(entityId);
-    const albumId = t?.album?.id?.trim();
+    const albumId =
+      t?.album?.id?.trim() ?? albumIdByTrackId.get(entityId) ?? null;
     if (!isValidCatalogId(albumId)) continue;
     tracks.push({
       trackId: entityId,
@@ -339,10 +300,6 @@ function needsNameFallback(name: string, id: string): boolean {
   return false;
 }
 
-/**
- * When Spotify/cache returns null, UI fell back to raw catalog ids — fill from
- * `artists` / `albums` rows (incl. Last.fm–backed ids).
- */
 async function enrichNamesFromCatalogTables(
   admin: SupabaseClient,
   artists: TopWeekArtist[],
@@ -358,9 +315,9 @@ async function enrichNamesFromCatalogTables(
   }
 
   const albumArtistIdByAlbum = new Map<string, string>();
-  const albumIds = albums.map((a) => a.albumId).filter(isValidCatalogId);
-  for (let i = 0; i < albumIds.length; i += CHUNK) {
-    const chunk = albumIds.slice(i, i + CHUNK);
+  const albumIdList = albums.map((a) => a.albumId).filter(isValidCatalogId);
+  for (let i = 0; i < albumIdList.length; i += CHUNK) {
+    const chunk = albumIdList.slice(i, i + CHUNK);
     const { data, error } = await admin
       .from("albums")
       .select("id, name, artist_id")

@@ -8,6 +8,9 @@ import { queryKeys } from "@/lib/query-keys";
 
 const STORAGE_KEY = "tracklist-community-onboarding-dismissed";
 
+/** One in-flight recommended fetch per user (avoids Strict Mode double POST in dev). */
+const recommendedInflight = new Map<string, Promise<void>>();
+
 type Rec = {
   communityId: string;
   name: string;
@@ -30,27 +33,53 @@ export function CommunityOnboarding() {
     if (typeof window === "undefined") return;
     if (localStorage.getItem(STORAGE_KEY) === "1") return;
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/communities/recommended", {
-        cache: "no-store",
-      });
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        recommendations?: Rec[];
-        isNewUser?: boolean;
-      };
-      if (!data.isNewUser) return;
-      const recs = data.recommendations ?? [];
-      setItems(recs);
-      if (recs.length > 0) setOpen(true);
-    } finally {
-      setLoading(false);
+    const uid = session.user.id;
+    let p = recommendedInflight.get(uid);
+    if (p) {
+      await p;
+      return;
     }
+
+    p = (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/communities/recommended", {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          recommendations?: Rec[];
+          isNewUser?: boolean;
+        };
+        if (!data.isNewUser) return;
+        const recs = data.recommendations ?? [];
+        setItems(recs);
+        if (recs.length > 0) setOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    })().finally(() => {
+      recommendedInflight.delete(uid);
+    });
+    recommendedInflight.set(uid, p);
+    await p;
   }, [status, session?.user?.id]);
 
   useEffect(() => {
-    void checkAndLoad();
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const run = () => {
+      void checkAndLoad();
+    };
+    if (typeof requestIdleCallback !== "undefined") {
+      idleId = requestIdleCallback(run);
+    } else {
+      timeoutId = setTimeout(run, 1);
+    }
+    return () => {
+      if (idleId !== undefined) cancelIdleCallback(idleId);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    };
   }, [checkAndLoad]);
 
   function dismiss() {

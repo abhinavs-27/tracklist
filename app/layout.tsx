@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { getServerSession } from "next-auth";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ProfilingHydrationMarker } from "@/components/profiling-hydration-marker";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { countUnreadNotifications } from "@/lib/queries";
 import { Analytics } from "@vercel/analytics/next";
@@ -32,28 +31,34 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   let hideQuickLogFab = false;
+  let unreadCount = 0;
   if (session?.user?.id) {
+    const uid = session.user.id;
     try {
       const supabase = await createSupabaseServerClient();
-      const { data: meRow } = await supabase
-        .from("users")
-        .select("lastfm_username")
-        .eq("id", session.user.id)
-        .maybeSingle();
+      const [{ data: meRow }, unread] = await Promise.all([
+        supabase
+          .from("users")
+          .select("lastfm_username")
+          .eq("id", uid)
+          .maybeSingle(),
+        countUnreadNotifications(uid),
+      ]);
       hideQuickLogFab = Boolean(
         (meRow as { lastfm_username?: string | null } | null)?.lastfm_username?.trim(),
       );
+      unreadCount = unread;
     } catch {
       hideQuickLogFab = false;
+      try {
+        unreadCount = await countUnreadNotifications(uid);
+      } catch {
+        unreadCount = 0;
+      }
     }
-  }
-
-  let unreadCount = 0;
-  if (session?.user?.id) {
-    unreadCount = await countUnreadNotifications(session.user.id);
   }
 
   return (

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getTopThisWeek } from "@/lib/profile/top-this-week";
 import { getUserListsWithPreviews } from "@/lib/queries";
@@ -13,7 +12,7 @@ import { cardElevated, pageTitle, sectionGap } from "@/lib/ui/surface";
 const profileLinkCard = `${cardElevated} bg-gradient-to-br from-zinc-900/95 via-zinc-900/90 to-emerald-950/25 ring-1 ring-white/[0.08]`;
 
 export default async function YouHubPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/auth/signin?callbackUrl=/you");
   }
