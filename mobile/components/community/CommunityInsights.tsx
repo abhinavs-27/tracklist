@@ -50,7 +50,7 @@ export function CommunityInsights({
         <View style={styles.header}>
           <Text style={styles.h2}>Group insights</Text>
           <Text style={styles.sub}>
-            Based on all members&apos; listens from the last 7 days (UTC time-of-day).
+            Based on everyone&apos;s listens from the last seven days, by time of day.
           </Text>
         </View>
       )}
@@ -61,7 +61,7 @@ export function CommunityInsights({
         <>
           <Text style={styles.sectionLabel}>Top artists</Text>
           {topArtists.length === 0 ? (
-            <Text style={styles.muted}>No artist data in this window yet.</Text>
+            <Text style={styles.muted}>No artist data for this period yet.</Text>
           ) : (
             <ScrollView
               horizontal

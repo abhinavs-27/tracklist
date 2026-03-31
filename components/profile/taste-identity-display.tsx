@@ -31,7 +31,7 @@ function WeeklyListeningContext({ data }: { data: TopThisWeekResult }) {
         Driven by your recent listening
       </p>
       <p className="mt-1 text-xs text-zinc-500">
-        {data.rangeLabel} · rolling last 7 days (UTC) · same window as Pulse and top charts
+        {data.rangeLabel} · last seven days · same period as Pulse and top charts
       </p>
 
       {artists.length > 0 ? (

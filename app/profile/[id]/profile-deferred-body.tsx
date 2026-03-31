@@ -256,8 +256,8 @@ export async function ProfileDeferredBody({
               title="Weekly narrative"
               description={
                 isOwnProfile
-                  ? "Your listening identity, recent top artists, and pulse — rolling 7-day windows vs the prior 7 days (UTC)."
-                  : "Their listening style, recent chart, and pulse — rolling 7-day windows (UTC)."
+                  ? "Your listening identity, recent top artists, and pulse — each block compares the last seven days to the seven days before that."
+                  : "Their listening style, recent chart, and pulse — based on the last seven days."
               }
               action={
                 profilePulse
@@ -405,7 +405,7 @@ export async function ProfileDeferredBody({
         <div id="profile-reports" className="scroll-mt-24 space-y-8 sm:space-y-10">
           <SectionBlock
             title="Listening report"
-            description="Weekly snapshot: top artist and genre from your history (UTC)."
+            description="Weekly snapshot: top artist and genre from your listening history."
             action={{ label: "View full report", href: "/reports/listening" }}
           >
             <ProfileListeningReportPreview data={listeningReportPreview} />
@@ -414,7 +414,7 @@ export async function ProfileDeferredBody({
           {session?.user?.id ? (
             <SectionBlock
               title="Listening habits"
-              description="Behavioral highlights from your recent logs."
+              description="Patterns from your recent listening."
               action={{ label: "View all", href: "/reports/listening" }}
             >
               <ListeningInsightsSection

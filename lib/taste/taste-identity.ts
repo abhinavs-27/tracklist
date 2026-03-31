@@ -49,7 +49,7 @@ const EMPTY: TasteIdentity = {
   listeningStyle: "plotting-the-plot",
   avgTracksPerSession: 0,
   totalLogs: 0,
-  summary: "Log more listens to unlock your taste identity.",
+  summary: "Log more listens to build your taste profile.",
 };
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -1396,7 +1396,7 @@ export async function seedTasteIdentityFromFavoriteAlbums(
           .slice(0, 3)
           .map((g) => g.name)
           .join(", ")} — log listens to go deeper.`
-      : "Your taste starts with albums you picked — log listens to unlock richer genres.";
+      : "Your taste starts with albums you picked — log listens to fill in more genres.";
 
   const payload: TasteIdentity = {
     topArtists,

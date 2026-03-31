@@ -279,7 +279,7 @@ export function CommunityMobileWebShell({
                   Listening clock
                 </p>
                 <p className={`mt-1 text-xs text-zinc-500 ${communityMeta}`}>
-                  Strongest: {insights.dominantTime} · UTC buckets
+                  Strongest: {insights.dominantTime} · by time of day
                 </p>
                 <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-zinc-800">
                   <div

@@ -392,7 +392,7 @@ function WeeklyStoryPage({
           {summary}
         </p>
         <p className="text-sm text-zinc-500">
-          Based on your logs from the past seven days (UTC week).
+          Based on your listens from the past seven days (week starting Monday).
         </p>
       </header>
 

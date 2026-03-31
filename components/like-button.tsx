@@ -36,7 +36,7 @@ export function LikeButton({ reviewId, initialLiked, initialCount }: LikeButtonP
     onError: (_err, nextLiked) => {
       setLiked(!nextLiked);
       setCount((c) => c - (nextLiked ? 1 : -1));
-      toast('Action failed, please try again.');
+      toast("Couldn’t save your like. Try again.");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reviewsPrefix() });

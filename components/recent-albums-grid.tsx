@@ -34,7 +34,7 @@ export function RecentAlbumsGrid({
       cache: "no-store",
     })
       .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load recent albums (${res.status})`);
+        if (!res.ok) throw new Error("Couldn’t load recent albums");
         return res.json();
       })
       .then((data: { albums: RecentAlbumItem[] }) => {

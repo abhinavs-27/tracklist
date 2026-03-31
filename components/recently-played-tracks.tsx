@@ -35,7 +35,7 @@ export function RecentlyPlayedTracks({
     let cancelled = false;
     fetch(`/api/spotify/recently-played?limit=${PROFILE_LIMIT}&offset=0`, { cache: 'no-store' })
       .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load (${res.status})`);
+        if (!res.ok) throw new Error("Couldn’t load recent plays");
         return res.json() as Promise<ApiResponse>;
       })
       .then((data) => {
@@ -46,7 +46,7 @@ export function RecentlyPlayedTracks({
       })
       .catch((e) => {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load');
+          setError(e instanceof Error ? e.message : "Couldn’t load recent plays");
           setItems([]);
           setHasMore(false);
         }

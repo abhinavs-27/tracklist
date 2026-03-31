@@ -87,7 +87,7 @@ export function AddToListModal({
         const data = await res.json();
         setError(data.error ?? "Failed to add");
         onAddFailed?.();
-        toast("Action failed, please try again.");
+        toast("Couldn’t add to list. Try again.");
         return;
       }
       onAdded?.();
@@ -95,7 +95,7 @@ export function AddToListModal({
     } catch {
       setError("Failed to add");
       onAddFailed?.();
-      toast("Action failed, please try again.");
+      toast("Couldn’t add to list. Try again.");
     } finally {
       setAdding(null);
     }
@@ -115,7 +115,7 @@ export function AddToListModal({
         const data = await res.json();
         setError(data.error ?? "Failed to add");
         onAddFailed?.();
-        toast("Action failed, please try again.");
+        toast("Couldn’t add to list. Try again.");
         return;
       }
       onAdded?.();
@@ -123,7 +123,7 @@ export function AddToListModal({
     } catch {
       setError("Failed to add");
       onAddFailed?.();
-      toast("Action failed, please try again.");
+      toast("Couldn’t add to list. Try again.");
     } finally {
       setAdding(null);
     }

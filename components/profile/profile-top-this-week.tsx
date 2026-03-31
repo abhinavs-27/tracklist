@@ -118,7 +118,7 @@ export async function ProfileTopThisWeekSection({
     <section id="top-week" className="scroll-mt-24">
       <SectionBlock
         title="Top this week"
-        description={`${data.rangeLabel} · your most-played tracks and artists (rolling last 7 days, UTC)`}
+        description={`${data.rangeLabel} · your most-played tracks and artists over the last seven days`}
         action={
           compact
             ? {
@@ -200,9 +200,9 @@ export async function ProfileTopThisWeekSection({
 
         {!compact ? (
           <p className="mt-4 text-xs text-zinc-600">
-            Profile and Pulse use rolling 7-day windows; full reports may use calendar weeks.{" "}
+            Profile and Pulse use the last seven days; full reports can use calendar weeks.{" "}
             <Link href="/reports/listening" className="text-emerald-400/95 hover:underline">
-              Custom ranges →
+              Pick a date range →
             </Link>
           </p>
         ) : null}

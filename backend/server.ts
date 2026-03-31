@@ -58,7 +58,7 @@ app.use((_req, res) => {
 
 app.use((err: unknown, _req: Request, res: express.Response, _next: express.NextFunction) => {
   console.error("[server] unhandled error:", err);
-  res.status(500).json({ error: "An unexpected error occurred. Please try again." });
+  res.status(500).json({ error: "Something went wrong. Please try again." });
 });
 
 /** Default 3001 so Next.js can use 3000 for the web app on the same machine. */

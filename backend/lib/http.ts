@@ -38,5 +38,5 @@ export function noContent(res: Response): void {
 
 export function internalError(res: Response, err: unknown): void {
   console.error("[api] internal error:", err);
-  apiError(res, "An unexpected error occurred. Please try again.", 500);
+  apiError(res, "Something went wrong. Please try again.", 500);
 }

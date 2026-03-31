@@ -81,7 +81,7 @@ export function ListItemsClient({
   const handleAddFailed = () => {
     setPendingAdd(null);
     queryClient.invalidateQueries({ queryKey: listItemsKey });
-    toast("Action failed, please try again.");
+    toast("Couldn’t update the list. Try again.");
   };
 
   const handleAdded = () => {
@@ -106,7 +106,7 @@ export function ListItemsClient({
     },
     onError: (_err, _itemId, context) => {
       if (context?.previous) queryClient.setQueryData(listItemsKey, context.previous);
-      toast("Action failed, please try again.");
+      toast("Couldn’t update the list. Try again.");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listItemsKey });

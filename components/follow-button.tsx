@@ -39,7 +39,7 @@ export function FollowButton({ userId, initialFollowing, onFollowChange }: Follo
     onError: (_err, nextFollowing) => {
       setFollowing(!nextFollowing);
       onFollowChange?.(!nextFollowing);
-      toast('Action failed, please try again.');
+      toast("Couldn’t update follow. Try again.");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });

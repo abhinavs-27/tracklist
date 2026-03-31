@@ -139,7 +139,7 @@ export default async function YouHubPage() {
           className={`block ${cardElevated} p-5 transition hover:bg-zinc-900/70 sm:p-6`}
         >
           <p className="text-sm leading-relaxed text-zinc-400">
-            Deep dives into what you listen to — preset ranges and custom windows.
+            See patterns in what you listen to — pick a preset or choose your own dates.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <span className="inline-flex rounded-xl bg-emerald-600/20 px-3 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30">

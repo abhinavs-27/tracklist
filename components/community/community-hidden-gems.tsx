@@ -137,8 +137,8 @@ export function CommunityHiddenGemsSection(props: { communityId: string }) {
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
             {rankBy === "catalog"
-              ? "Community overlap vs Last.fm catalog scale (with play-count fallback). Shorter windows use a lower overlap bar so this week can still surface gems."
-              : "Community overlap vs how often this is played across all of Tracklist — finds gems that are quiet app-wide but shared in your group."}
+              ? "Highlights tracks your group cares about using Last.fm and play counts. Shorter date ranges use a gentler bar so new weeks can still show picks."
+              : "Finds tracks your group plays that aren’t huge everywhere else on Tracklist."}
           </p>
         </div>
         <div

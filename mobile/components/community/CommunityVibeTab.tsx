@@ -165,7 +165,7 @@ export function CommunityVibeTab({
             />
           </View>
           <Text style={styles.clockLegend}>
-            Morning → afternoon → evening → late night (UTC buckets)
+            Morning → afternoon → evening → late night
           </Text>
         </View>
       ) : null}

@@ -41,7 +41,7 @@ export function TrendingSection({ items }: TrendingSectionProps) {
       </h2>
       <p className="mb-3 text-xs text-zinc-500">
         Ranked by total listens in the last 7 days. A track needs at least{" "}
-        {TRENDING_MIN_LISTENS} listens in that window to show up here.
+        {TRENDING_MIN_LISTENS} listens in that period to show up here.
       </p>
       {mediaItems.length === 0 ? (
         <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">

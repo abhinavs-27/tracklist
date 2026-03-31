@@ -152,7 +152,7 @@ export function ProfileRecentActivity({
       { cache: "no-store" },
     )
       .then((res) => {
-        if (!res.ok) throw new Error(`Albums (${res.status})`);
+        if (!res.ok) throw new Error("Couldn’t load recent albums");
         return res.json() as Promise<{ albums: RecentAlbumItem[] }>;
       })
       .then((data) => {
@@ -179,7 +179,7 @@ export function ProfileRecentActivity({
       cache: "no-store",
     })
       .then((res) => {
-        if (!res.ok) throw new Error(`Tracks (${res.status})`);
+        if (!res.ok) throw new Error("Couldn’t load recent plays");
         return res.json() as Promise<{ items: RecentTrack[] }>;
       })
       .then((data) => {

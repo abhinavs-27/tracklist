@@ -55,7 +55,7 @@ export function CommunityInsights({
         <div>
           <h3 className={communityHeadline}>Group insights</h3>
           <p className={`mt-2 ${communityMeta}`}>
-            Based on all members&apos; listens from the last 7 days (UTC time-of-day).
+            Based on everyone&apos;s listens from the last seven days, by time of day.
           </p>
         </div>
       ) : null}
@@ -66,7 +66,7 @@ export function CommunityInsights({
         <div>
           <h3 className={`mb-3 ${communityMetaLabel}`}>Top artists</h3>
           {topArtists.length === 0 ? (
-            <p className={`${communityBody} text-zinc-500`}>No artist data in this window yet.</p>
+            <p className={`${communityBody} text-zinc-500`}>No artist data for this period yet.</p>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
               {topArtists.map((a) => (

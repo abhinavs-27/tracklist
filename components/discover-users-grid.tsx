@@ -26,7 +26,7 @@ export function DiscoverUsersGrid({ limit = 16 }: { limit?: number }) {
         const res = await fetch(`/api/discover?limit=${encodeURIComponent(String(limit))}`, { cache: 'no-store' });
         if (!res.ok) {
           const body = (await res.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error || `Discover failed (${res.status})`);
+          throw new Error(body?.error || "Couldn’t load people to follow");
         }
         const json = (await res.json()) as DiscoverUsersResponse;
         if (cancelled) return;

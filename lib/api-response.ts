@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const GENERIC_ERROR = 'An unexpected error occurred. Please try again.';
+const GENERIC_ERROR = "Something went wrong. Please try again.";
 
 /**
  * Standard API success response.

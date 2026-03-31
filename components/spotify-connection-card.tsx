@@ -22,10 +22,10 @@ export function SpotifyConnectionCard({
     setError(null);
     try {
       const res = await fetch('/api/spotify/status', { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Status failed (${res.status})`);
+      if (!res.ok) throw new Error("Couldn’t load Spotify connection");
       setStatus((await res.json()) as SpotifyStatusResponse);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load Spotify status');
+      setError(e instanceof Error ? e.message : "Couldn’t load Spotify connection");
       setStatus({ connected: false });
     }
   }
@@ -41,7 +41,7 @@ export function SpotifyConnectionCard({
       const res = await fetch('/api/spotify/sync', { method: 'POST' });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error || `Sync failed (${res.status})`);
+        throw new Error(body?.error || "Sync didn’t finish. Try again.");
       }
       onSynced?.();
     } catch (e) {
@@ -64,10 +64,13 @@ export function SpotifyConnectionCard({
         <div>
           <h2 className="text-lg font-semibold text-white">Spotify</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Status:{' '}
-            <span className={connected ? 'text-emerald-400' : 'text-zinc-400'}>
-              {!known ? 'Loading…' : connected ? 'Connected' : 'Not connected'}
-            </span>
+            {!known ? (
+              "Checking connection…"
+            ) : connected ? (
+              <span className="text-emerald-400">Connected to Spotify</span>
+            ) : (
+              <span className="text-zinc-400">Not connected</span>
+            )}
           </p>
         </div>
 
@@ -110,7 +113,9 @@ export function SpotifyConnectionCard({
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
 
       {connected && status?.expires_at ? (
-        <p className="mt-3 text-xs text-zinc-600">Token expires: {new Date(status.expires_at).toLocaleString()}</p>
+        <p className="mt-3 text-xs text-zinc-600">
+          Signed in until {new Date(status.expires_at).toLocaleString()}
+        </p>
       ) : null}
     </section>
   );

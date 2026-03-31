@@ -39,7 +39,7 @@ export function TasteMatchSection({
         const body = (await res.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(body?.error || `Taste match failed (${res.status})`);
+        throw new Error(body?.error || "Couldn’t load taste comparison");
       }
       const json = (await res.json()) as TasteMatchResponse;
       setData(json);

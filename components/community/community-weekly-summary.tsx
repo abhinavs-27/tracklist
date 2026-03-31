@@ -96,7 +96,7 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
     <section className={communityCard}>
       <h3 className={communityHeadline}>This week&apos;s vibe</h3>
       <p className={`mt-1.5 ${communityMeta}`}>
-        Week of {current.week_start} · calendar week (UTC)
+        Week of {current.week_start} · Monday–Sunday
       </p>
 
       {current.top_genres.length > 0 ? (
@@ -163,7 +163,7 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
 
           {maxShare <= 0 ? (
             <p className={`mt-4 ${communityBody} text-zinc-500`}>
-              No listens in this community for that window yet — check back after people log
+              No listens in this community for that week yet — check back after people log
               music.
             </p>
           ) : null}

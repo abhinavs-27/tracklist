@@ -32,12 +32,12 @@ export default function RecentlyPlayedPage() {
         `/api/spotify/recently-played?limit=${PAGE_SIZE}&offset=${offset}`,
         { cache: "no-store" },
       );
-      if (!res.ok) throw new Error(`Failed to load (${res.status})`);
+      if (!res.ok) throw new Error("Couldn’t load recent plays");
       const data = (await res.json()) as ApiResponse;
       setItems((prev) => (append ? [...prev, ...(data.items ?? [])] : data.items ?? []));
       setHasMore(data.hasMore ?? false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(e instanceof Error ? e.message : "Couldn’t load recent plays");
       if (!append) setItems([]);
     } finally {
       setLoadingState(false);

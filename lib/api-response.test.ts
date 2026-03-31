@@ -46,7 +46,7 @@ describe('api-response helpers', () => {
     const response = apiInternalError(new Error('Sensitive database detail'));
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body.error).toBe('An unexpected error occurred. Please try again.');
+    expect(body.error).toBe("Something went wrong. Please try again.");
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });

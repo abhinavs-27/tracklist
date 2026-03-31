@@ -131,7 +131,10 @@ export function AlbumPageClient({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ track_ids: chunk }),
           });
-          if (!res.ok) throw new Error(String(res.status));
+          if (!res.ok) {
+            if (!cancelled) setTrackStats({});
+            return;
+          }
           const payload = (await res.json()) as {
             stats?: Record<string, TrackStatRow>;
           };
