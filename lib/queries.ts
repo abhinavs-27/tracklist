@@ -16,9 +16,16 @@ import { upsertAlbumFromSpotify } from "@/lib/spotify-cache";
 import {
   getTrackIdByExternalId,
   mapSpotifyAlbumIdsToCanonical,
+  resolveCanonicalAlbumUuidFromEntityId,
   resolveCanonicalArtistUuidFromEntityId,
+  resolveCanonicalTrackUuidFromEntityId,
 } from "@/lib/catalog/entity-resolution";
-import { isValidSpotifyId, isValidUuid, sanitizeString } from "@/lib/validation";
+import {
+  isValidLfmCatalogId,
+  isValidSpotifyId,
+  isValidUuid,
+  sanitizeString,
+} from "@/lib/validation";
 import type {
   ListenLogWithUser,
   ReviewWithUser,
@@ -119,6 +126,10 @@ async function getListenLogsInternal(opts: {
         const uuid = await getTrackIdByExternalId(supabase, "spotify", tf);
         if (!uuid) return [];
         tf = uuid;
+      } else if (isValidLfmCatalogId(tf)) {
+        const uuid = await getTrackIdByExternalId(supabase, "lastfm", tf);
+        if (!uuid) return [];
+        tf = uuid;
       } else if (!isValidUuid(tf)) {
         return [];
       }
@@ -169,13 +180,26 @@ export async function getReviewsForEntity(
   try {
     const supabase = await createSupabaseServerClient();
 
+    const canonicalEntityId =
+      entityType === "album"
+        ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
+        : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
+    if (!canonicalEntityId) {
+      return {
+        reviews: [],
+        average_rating: null,
+        count: 0,
+        my_review: null,
+      };
+    }
+
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
         "id, user_id, rating, review_text, created_at, updated_at",
       )
       .eq("entity_type", entityType)
-      .eq("entity_id", entityId)
+      .eq("entity_id", canonicalEntityId)
       .order("created_at", { ascending: false })
       .limit(cappedLimit);
 
@@ -215,7 +239,7 @@ export async function getReviewsForEntity(
       .from("reviews")
       .select("id", { count: "exact", head: true })
       .eq("entity_type", entityType)
-      .eq("entity_id", entityId);
+      .eq("entity_id", canonicalEntityId);
 
     let my_review: ReviewWithUser | null = null;
     if (userId) {
@@ -225,7 +249,7 @@ export async function getReviewsForEntity(
           "id, rating, review_text, created_at, updated_at",
         )
         .eq("entity_type", entityType)
-        .eq("entity_id", entityId)
+        .eq("entity_id", canonicalEntityId)
         .eq("user_id", userId)
         .maybeSingle();
       if (myRow) {
@@ -372,7 +396,8 @@ function mapTrackStatsRow(row: {
 /** Aggregates from reviews + logs (used when precomputed stats are missing). */
 async function getEntityStatsLive(
   entityType: "album" | "song",
-  entityId: string,
+  /** Canonical `albums.id` or `tracks.id` UUID. */
+  canonicalEntityId: string,
 ): Promise<EntityStats> {
   const supabase = await createSupabaseServerClient();
 
@@ -381,13 +406,13 @@ async function getEntityStatsLive(
     const { count } = await supabase
       .from("logs")
       .select("id", { count: "exact", head: true })
-      .eq("track_id", entityId);
+      .eq("track_id", canonicalEntityId);
     listen_count = count ?? 0;
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", entityId);
+      .eq("album_id", canonicalEntityId);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const { count } = await supabase
@@ -402,7 +427,7 @@ async function getEntityStatsLive(
     .from("reviews")
     .select("rating")
     .eq("entity_type", entityType)
-    .eq("entity_id", entityId);
+    .eq("entity_id", canonicalEntityId);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
   const review_count = ratings.length;
@@ -475,13 +500,23 @@ export async function getEntityStats(
 
   try {
     const supabase = await createSupabaseServerClient();
+    const canonicalId =
+      entityType === "album"
+        ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
+        : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
+    if (!canonicalId) {
+      const empty = { ...DEFAULT_ENTITY_STATS };
+      setEntityStatsMemory(entityType, entityId, empty);
+      return empty;
+    }
+
     let result: EntityStats | null = null;
 
     if (entityType === "album") {
       const { data: row, error } = await supabase
         .from("album_stats")
         .select("listen_count, review_count, avg_rating, rating_distribution")
-        .eq("album_id", entityId)
+        .eq("album_id", canonicalId)
         .maybeSingle();
 
       if (!error && row) {
@@ -501,7 +536,7 @@ export async function getEntityStats(
       const { data: row, error } = await supabase
         .from("track_stats")
         .select("listen_count, review_count, avg_rating")
-        .eq("track_id", entityId)
+        .eq("track_id", canonicalId)
         .maybeSingle();
 
       if (!error && row) {
@@ -518,7 +553,7 @@ export async function getEntityStats(
       }
     }
 
-    if (!result) result = await getEntityStatsLive(entityType, entityId);
+    if (!result) result = await getEntityStatsLive(entityType, canonicalId);
     setEntityStatsMemory(entityType, entityId, result);
     return result;
   } catch (e) {
@@ -1163,9 +1198,21 @@ export async function getReviewsForArtist(
   try {
     const supabase = await createSupabaseServerClient();
 
+    const canonicalArtistId =
+      await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+    if (!canonicalArtistId) return [];
+
     const [{ data: albumRows }, { data: songRows }] = await Promise.all([
-      supabase.from("albums").select("id").eq("artist_id", artistId).limit(1000),
-      supabase.from("tracks").select("id").eq("artist_id", artistId).limit(1000),
+      supabase
+        .from("albums")
+        .select("id")
+        .eq("artist_id", canonicalArtistId)
+        .limit(1000),
+      supabase
+        .from("tracks")
+        .select("id")
+        .eq("artist_id", canonicalArtistId)
+        .limit(1000),
     ]);
 
     const entityIds = [
@@ -1233,15 +1280,24 @@ export async function getTopTracksForArtist(
   try {
     const supabase = await createSupabaseServerClient();
 
+    const canonicalArtistId =
+      await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+    if (!canonicalArtistId) return [];
+
     const { data: songRowsRaw } = await supabase
       .from("tracks")
-      .select("id, name, album_id, duration_ms")
-      .eq("artist_id", artistId)
+      .select("id, name, album_id, duration_ms, artist_id")
+      .eq("artist_id", canonicalArtistId)
       .limit(1000);
     if (!songRowsRaw?.length) return [];
 
-    const songRows = songRowsRaw.map((s: any) => ({ ...s, artist_id: artistId }));
-    if (!songRows?.length) return [];
+    const songRows = songRowsRaw as {
+      id: string;
+      name: string;
+      album_id: string;
+      duration_ms: number | null;
+      artist_id: string;
+    }[];
 
     const trackIds = songRows.map((s) => s.id);
     const statsMap = await getTrackStatsForTrackIds(trackIds);
@@ -1274,7 +1330,7 @@ export async function getTopTracksForArtist(
     return sortedIds
       .map((id) => {
         const song = songMap.get(id);
-        if (!song || song.artist_id !== artistId) return null;
+        if (!song || song.artist_id !== canonicalArtistId) return null;
         const album = albumMap.get(song.album_id);
         const st = statsMap[id];
         const track = {
@@ -1320,10 +1376,14 @@ export async function getListenLogsForArtist(
   try {
     const supabase = await createSupabaseServerClient();
 
+    const canonicalArtistId =
+      await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+    if (!canonicalArtistId) return [];
+
     const { data: songRows } = await supabase
       .from("tracks")
       .select("id")
-      .eq("artist_id", artistId)
+      .eq("artist_id", canonicalArtistId)
       .limit(1000);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
@@ -1368,10 +1428,14 @@ export async function getListenLogsForAlbum(
   try {
     const supabase = await createSupabaseServerClient();
 
+    const canonicalAlbumId =
+      await resolveCanonicalAlbumUuidFromEntityId(supabase, albumId);
+    if (!canonicalAlbumId) return [];
+
     const { data: songRows } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", albumId)
+      .eq("album_id", canonicalAlbumId)
       .limit(1000);
 
     const trackIds = (songRows ?? []).map((s) => s.id);

@@ -8,6 +8,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 /** Spotify IDs are 22-char alphanumeric (base62) */
 const SPOTIFY_ID_REGEX = /^[a-zA-Z0-9]{22}$/;
 
+/** Synthetic Last.fm cache keys: `lfm:` + 16 hex chars (aligned with app `lib/validation.ts`). */
+const LFM_CATALOG_ID_REGEX = /^lfm:[0-9a-f]{16}$/;
+
 /** Same rules as `lib/validation.ts` (Next app): auto-generated names can be up to ~27 chars. */
 const USERNAME_REGEX = /^[a-z0-9_]{3,32}$/;
 
@@ -32,6 +35,11 @@ export function isValidUuid(value: unknown): value is string {
 
 export function isValidSpotifyId(value: unknown): value is string {
   return typeof value === 'string' && value.length <= 22 && SPOTIFY_ID_REGEX.test(value);
+}
+
+export function isValidLfmCatalogId(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  return LFM_CATALOG_ID_REGEX.test(value.trim());
 }
 
 export function isValidUsername(value: unknown): value is string {

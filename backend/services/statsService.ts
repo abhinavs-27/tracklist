@@ -1,3 +1,7 @@
+import {
+  resolveCanonicalAlbumUuidFromEntityId,
+  resolveCanonicalTrackUuidFromEntityId,
+} from "../lib/catalogEntityResolution";
 import { getSupabase } from "../lib/supabase";
 // ---------------------------------------------------------------------------
 // Entity stats (listen count + rating aggregation)
@@ -67,7 +71,8 @@ function mapTrackStatsRow(row: {
 /** Aggregates from reviews + logs (used when precomputed stats are missing). */
 async function getEntityStatsLive(
   entityType: "album" | "song",
-  entityId: string,
+  /** Canonical album or track UUID. */
+  canonicalEntityId: string,
 ): Promise<EntityStats> {
   const supabase = getSupabase();
 
@@ -76,13 +81,13 @@ async function getEntityStatsLive(
     const { count } = await supabase
       .from("logs")
       .select("id", { count: "exact", head: true })
-      .eq("track_id", entityId);
+      .eq("track_id", canonicalEntityId);
     listen_count = count ?? 0;
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", entityId);
+      .eq("album_id", canonicalEntityId);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const { count } = await supabase
@@ -97,7 +102,7 @@ async function getEntityStatsLive(
     .from("reviews")
     .select("rating")
     .eq("entity_type", entityType)
-    .eq("entity_id", entityId);
+    .eq("entity_id", canonicalEntityId);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
   const review_count = ratings.length;
@@ -170,13 +175,23 @@ export async function getEntityStats(
 
   try {
     const supabase = getSupabase();
+    const canonicalId =
+      entityType === "album"
+        ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
+        : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
+    if (!canonicalId) {
+      const empty = { ...DEFAULT_ENTITY_STATS };
+      setEntityStatsMemory(entityType, entityId, empty);
+      return empty;
+    }
+
     let result: EntityStats | null = null;
 
     if (entityType === "album") {
       const { data: row, error } = await supabase
         .from("album_stats")
         .select("listen_count, review_count, avg_rating, rating_distribution")
-        .eq("album_id", entityId)
+        .eq("album_id", canonicalId)
         .maybeSingle();
 
       if (!error && row) {
@@ -196,7 +211,7 @@ export async function getEntityStats(
       const { data: row, error } = await supabase
         .from("track_stats")
         .select("listen_count, review_count, avg_rating")
-        .eq("track_id", entityId)
+        .eq("track_id", canonicalId)
         .maybeSingle();
 
       if (!error && row) {
@@ -213,7 +228,7 @@ export async function getEntityStats(
       }
     }
 
-    if (!result) result = await getEntityStatsLive(entityType, entityId);
+    if (!result) result = await getEntityStatsLive(entityType, canonicalId);
     setEntityStatsMemory(entityType, entityId, result);
     return result;
   } catch (e) {

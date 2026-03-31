@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { resolveCanonicalArtistUuidFromEntityId } from "./catalogEntityResolution";
 
 /** Album row for mobile /api/artists — same source as web `getPopularAlbumsForArtist`. */
 export type ArtistMobileAlbum = {
@@ -27,6 +28,10 @@ export async function fetchArtistAlbumsFromDb(
   limit = 12,
 ): Promise<ArtistMobileAlbum[]> {
   try {
+    const canonicalArtistId =
+      await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+    if (!canonicalArtistId) return [];
+
     const { data: statsRows, error: statsError } = await supabase
       .from("album_stats")
       .select(`
@@ -41,7 +46,7 @@ export async function fetchArtistAlbumsFromDb(
           artist_id
         )
       `)
-      .eq("albums.artist_id", artistId)
+      .eq("albums.artist_id", canonicalArtistId)
       .order("listen_count", { ascending: false })
       .limit(limit);
 
@@ -95,10 +100,14 @@ export async function fetchArtistTracksFromDb(
   limit = 10,
 ): Promise<ArtistMobileTrackRow[]> {
   try {
+    const canonicalArtistId =
+      await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+    if (!canonicalArtistId) return [];
+
     const { data: songRows } = await supabase
       .from("tracks")
       .select("id, name, album_id, artist_id, duration_ms")
-      .eq("artist_id", artistId);
+      .eq("artist_id", canonicalArtistId);
     if (!songRows?.length) return [];
 
     const trackIds = songRows.map((s) => s.id);
@@ -128,7 +137,7 @@ export async function fetchArtistTracksFromDb(
     return sortedIds
       .map((tid) => {
         const song = songMap.get(tid);
-        if (!song || song.artist_id !== artistId) return null;
+        if (!song || song.artist_id !== canonicalArtistId) return null;
         return {
           id: song.id,
           name: song.name,

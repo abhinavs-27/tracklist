@@ -71,6 +71,38 @@ export async function resolveCanonicalArtistUuidFromEntityId(
   return null;
 }
 
+export async function resolveCanonicalAlbumUuidFromEntityId(
+  supabase: SupabaseClient,
+  rawId: string,
+): Promise<string | null> {
+  const id = rawId.trim();
+  if (!id) return null;
+  if (isValidUuid(id)) return id;
+  if (isValidSpotifyId(id)) {
+    return getAlbumIdByExternalId(supabase, "spotify", id);
+  }
+  if (isValidLfmCatalogId(id)) {
+    return getAlbumIdByExternalId(supabase, "lastfm", id);
+  }
+  return null;
+}
+
+export async function resolveCanonicalTrackUuidFromEntityId(
+  supabase: SupabaseClient,
+  rawId: string,
+): Promise<string | null> {
+  const id = rawId.trim();
+  if (!id) return null;
+  if (isValidUuid(id)) return id;
+  if (isValidSpotifyId(id)) {
+    return getTrackIdByExternalId(supabase, "spotify", id);
+  }
+  if (isValidLfmCatalogId(id)) {
+    return getTrackIdByExternalId(supabase, "lastfm", id);
+  }
+  return null;
+}
+
 const SPOTIFY_ALBUM_EXTERNAL_CHUNK = 120;
 
 /** Spotify catalog album id → canonical `albums.id` (batched). */
