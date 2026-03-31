@@ -6,6 +6,7 @@ import {
   validateSearchQuery,
   validateUsernameUpdate,
   isValidUuid,
+  isValidReviewEntityId,
 } from './validation';
 
 describe('validation utilities', () => {
@@ -84,6 +85,20 @@ describe('validation utilities', () => {
 
     it('should return false for invalid UUIDs', () => {
       expect(isValidUuid('not-a-uuid')).toBe(false);
+    });
+  });
+
+  describe('isValidReviewEntityId', () => {
+    it('should return true for valid entity IDs (UUID, Spotify, LFM)', () => {
+      expect(isValidReviewEntityId('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+      expect(isValidReviewEntityId('2nLhD10Z7Sb4RFyCX2ZCyx')).toBe(true);
+      expect(isValidReviewEntityId('lfm:0123456789abcdef')).toBe(true);
+    });
+
+    it('should return false for invalid entity IDs', () => {
+      expect(isValidReviewEntityId('too-short')).toBe(false);
+      expect(isValidReviewEntityId('')).toBe(false);
+      expect(isValidReviewEntityId('a'.repeat(65))).toBe(false);
     });
   });
 });

@@ -1,0 +1,84 @@
+
+> music-social-media@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 511ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Tracklist running in development
+[next-auth][warn][NEXTAUTH_URL]
+https://next-auth.js.org/warnings#nextauth_url
+[next-auth][warn][NO_SECRET]
+https://next-auth.js.org/warnings#no_secret
+ GET /e2e/logging 200 in 1377ms (next.js: 381ms, proxy.ts: 134ms, application-code: 863ms)
+Tracklist running in development
+[queries] getReviewsForEntity failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getReviewsForEntity (lib/queries.ts:181:54)
+    at <unknown> (app/api/reviews/route.ts:40:43)
+    at <unknown> (lib/api-handler.ts:35:20)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+Failed to fetch reviews
+ GET /api/reviews?entity_type=album&entity_id=2nLhD10Z7Sb4RFyCX2ZCyx&limit=20 500 in 656ms (next.js: 368ms, proxy.ts: 21ms, application-code: 267ms)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <ToastProvider>
+      <RecentViewsProvider>
+        <LoggingProvider>
+          <ProfilingHydrationMarker>
+          <AppLayout unreadCount={0} hideQuickLogFab={false}>
+            <TopNav unreadCount={0}>
+              <header className="sticky top...">
+                <div className="mx-auto fl...">
+                  <LinkComponent>
+                  <div className="flex min-w...">
+                    <SearchBar placeholder="Search…" compact={true}>
+                      <form onSubmit={function SearchBar.useCallback[handleSubmit]} className="flex w-ful...">
+                        <input
+                          type="search"
+                          value=""
+                          onChange={function onChange}
+                          placeholder="Search…"
+                          className="w-full min-w-0 h-9 rounded-lg border border-zinc-700 bg-zinc-800/50 px-2.5 py-0 t..."
+                          aria-label="Search"
+-                         style={{caret-color:"transparent"}}
+                        >
+                  ...
+                <div className="mx-auto hi...">
+                  <div>
+                  <div className="mt-3 w-full">
+                    <SearchBar placeholder="Search art...">
+                      <form onSubmit={function SearchBar.useCallback[handleSubmit]} className="flex w-ful...">
+                        <input
+                          type="search"
+                          value=""
+                          onChange={function onChange}
+                          placeholder="Search artists, albums, tracks..."
+                          className="w-full min-w-0 min-h-10 rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-..."
+                          aria-label="Search"
+-                         style={{caret-color:"transparent"}}
+                        >
+            ...
+          ...
+          ...
+    ...
