@@ -5,7 +5,6 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { getOrFetchArtist, getOrFetchTracksBatch } from "@/lib/spotify-cache";
-import { TrackCard } from "@/components/track-card";
 import { ListenCard } from "@/components/listen-card";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import {
@@ -15,6 +14,7 @@ import {
   getPopularAlbumsForArtist,
 } from "@/lib/queries";
 import { normalizeReviewEntityId } from "@/lib/validation";
+import { ArtistPopularTracks } from "@/app/artist/[id]/artist-popular-tracks";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -107,28 +107,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
         </div>
       </div>
 
-      {topTracks?.length ? (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
-            Popular tracks
-          </h2>
-          <div className="space-y-2">
-            {topTracks.slice(0, 10).map(({ track: t, playCount, avgRating, ratingCount }) => (
-              <TrackCard
-                key={t.id}
-                track={t}
-                showAlbum
-                songPageLink
-                engagement={{
-                  playCount,
-                  avgRating,
-                  ratingCount,
-                }}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {topTracks?.length ? <ArtistPopularTracks tracks={topTracks} /> : null}
 
       {popularAlbums.length > 0 ? (
         <section>
