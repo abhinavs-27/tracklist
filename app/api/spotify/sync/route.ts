@@ -18,6 +18,7 @@ import { getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist-genres";
 import { fanOutListenForUserCommunities } from "@/lib/community/community-feed-insert";
+import { bustRecentActivityCacheForUser } from "@/lib/profile/recent-activity-cache";
 import type { SyncResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -174,6 +175,8 @@ export async function POST(request: NextRequest) {
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,
     });
+
+    bustRecentActivityCacheForUser(me.id);
 
     return apiOk({
       inserted: toInsert.length,

@@ -1,0 +1,4 @@
+-- Profile / recent-activity paths use:
+--   - logs(user_id, listened_at DESC) — idx_logs_user_listened_at (migration 100) and related
+--   - spotify_tokens.user_id — PRIMARY KEY (migration 005); redundant index spotify_tokens_user_id_idx
+-- Catalog tables public.tracks / public.albums have no user_id (global entities).

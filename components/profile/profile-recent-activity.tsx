@@ -30,6 +30,41 @@ type RecentTrack = {
   played_at: string;
 };
 
+type ProfileSummaryJson = {
+  albums: RecentAlbumItem[];
+  recent_tracks: RecentTrack[];
+};
+
+/** Dedupe concurrent profile-summary fetches (e.g. React Strict Mode double effect). */
+const profileSummaryInflight = new Map<string, Promise<ProfileSummaryJson>>();
+
+async function loadProfileSummary(
+  userId: string,
+  refresh: boolean,
+): Promise<ProfileSummaryJson> {
+  const key = `${userId}:${refresh ? "1" : "0"}`;
+  let p = profileSummaryInflight.get(key);
+  if (!p) {
+    p = (async () => {
+      const qs = new URLSearchParams({
+        user_id: userId,
+        albums_limit: String(ALBUM_FETCH),
+        tracks_limit: String(TRACK_FETCH),
+      });
+      if (refresh) qs.set("refresh", "1");
+      const res = await fetch(`/api/profile-summary?${qs.toString()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Couldn’t load profile activity");
+      return (await res.json()) as ProfileSummaryJson;
+    })().finally(() => {
+      profileSummaryInflight.delete(key);
+    });
+    profileSummaryInflight.set(key, p);
+  }
+  return p;
+}
+
 type ActivityRow =
   | {
       kind: "album";
@@ -147,51 +182,24 @@ export function ProfileRecentActivity({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(
-      `/api/recent-albums?user_id=${encodeURIComponent(userId)}&limit=${ALBUM_FETCH}`,
-      { cache: "no-store" },
-    )
-      .then((res) => {
-        if (!res.ok) throw new Error("Couldn’t load recent albums");
-        return res.json() as Promise<{ albums: RecentAlbumItem[] }>;
-      })
+    const bust = refreshKey > 0;
+    void loadProfileSummary(userId, bust)
       .then((data) => {
-        if (!cancelled) setAlbums(data.albums ?? []);
+        if (cancelled) return;
+        setAlbums(data.albums ?? []);
+        setTracks(isOwnProfile ? (data.recent_tracks ?? []) : []);
       })
       .catch((e) => {
         if (!cancelled) {
-          console.error("[recent-activity] albums:", e);
+          console.error("[recent-activity] profile-summary:", e);
           setAlbums([]);
+          setTracks(isOwnProfile ? [] : []);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [userId, refreshKey]);
-
-  useEffect(() => {
-    if (!isOwnProfile) {
-      setTracks([]);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/spotify/recently-played?limit=${TRACK_FETCH}&offset=0`, {
-      cache: "no-store",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Couldn’t load recent plays");
-        return res.json() as Promise<{ items: RecentTrack[] }>;
-      })
-      .then((data) => {
-        if (!cancelled) setTracks(data.items ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setTracks([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOwnProfile, refreshKey]);
+  }, [userId, refreshKey, isOwnProfile]);
 
   const rows = useMemo(() => {
     if (albums === null || tracks === null) return null;

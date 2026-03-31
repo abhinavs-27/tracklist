@@ -58,7 +58,16 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === 'update' && session && typeof session === 'object') {
+        const s = session as {
+          onboarding_completed?: boolean;
+        };
+        if (typeof s.onboarding_completed === 'boolean') {
+          token.onboarding_completed = s.onboarding_completed;
+        }
+      }
+
       const email = (user?.email ?? token?.email) as string | undefined;
       // Always resolve `token.id` from our `users` row. OAuth sets `user.id` / `sub`
       // to the provider subject (e.g. Google), which is a string — if we only ran
@@ -69,7 +78,7 @@ export const authOptions: NextAuthOptions = {
           const supabase = await createSupabaseServerClient();
           const { data: dbUser, error } = await supabase
             .from('users')
-            .select('id, username, avatar_url, bio')
+            .select('id, username, avatar_url, bio, onboarding_completed')
             .eq('email', email)
             .maybeSingle();
 
@@ -80,6 +89,7 @@ export const authOptions: NextAuthOptions = {
             token.username = dbUser.username;
             token.avatar_url = dbUser.avatar_url;
             token.bio = dbUser.bio;
+            token.onboarding_completed = dbUser.onboarding_completed === true;
           }
         } catch (err) {
           console.error('[users] jwt-error', { error: err });
@@ -101,6 +111,9 @@ export const authOptions: NextAuthOptions = {
         }
         if ('bio' in token) {
           session.user.bio = (token as { bio?: string | null }).bio ?? null;
+        }
+        if (typeof (token as { onboarding_completed?: boolean }).onboarding_completed === 'boolean') {
+          session.user.onboarding_completed = (token as { onboarding_completed: boolean }).onboarding_completed;
         }
       }
       return session;

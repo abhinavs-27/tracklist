@@ -171,12 +171,20 @@ export async function getValidSpotifyAccessToken(
     .from("spotify_tokens")
     .select("access_token, refresh_token, expires_at")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  if (fetchError || !row?.access_token || !row?.refresh_token) {
-    console.warn("getValidSpotifyAccessToken: no tokens for user", {
+  if (fetchError) {
+    console.error("getValidSpotifyAccessToken: query error (not empty row)", {
       userId,
-      fetchError: fetchError?.message,
+      code: fetchError.code,
+      message: fetchError.message,
+    });
+    throw new Error("Spotify not connected");
+  }
+
+  if (!row?.access_token?.trim() || !row?.refresh_token?.trim()) {
+    console.warn("getValidSpotifyAccessToken: no token row for user", {
+      userId,
     });
     throw new Error("Spotify not connected");
   }

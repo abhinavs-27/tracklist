@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   FavoriteAlbumsPicker,
@@ -58,6 +59,7 @@ export function ProfileOnboarding({
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { update: updateSession } = useSession();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [usernameInput, setUsernameInput] = useState(initialUsername);
@@ -116,6 +118,11 @@ export function ProfileOnboarding({
         setBootstrapError(data.error ?? "Could not finish setup");
         return;
       }
+      try {
+        await updateSession?.({ onboarding_completed: true });
+      } catch {
+        /* JWT refresh is best-effort; DB row is already updated */
+      }
       const token = inviteToken?.trim();
       if (inviteFlow && token) {
         const jr = await fetch(
@@ -138,7 +145,7 @@ export function ProfileOnboarding({
     } finally {
       setStepBusy(false);
     }
-  }, [finishAndGo, inviteFlow, inviteToken]);
+  }, [finishAndGo, inviteFlow, inviteToken, updateSession]);
 
   useEffect(() => {
     if (step !== 4) return;

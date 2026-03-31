@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getValidSpotifyAccessToken } from "@/lib/spotify-user";
-import { syncRecentlyPlayed } from "@/lib/spotify-sync";
-import { getRecentTracksFromLogs } from "@/lib/recent-from-logs";
+import { getCachedRecentTracksFromLogs } from "@/lib/profile/recent-activity-cache";
 import { apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
-import { isSpotifyIntegrationEnabled } from "@/lib/spotify-integration-enabled";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import { clampLimit } from "@/lib/validation";
 
@@ -23,26 +19,13 @@ export async function GET(request: NextRequest) {
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
     const userId = me.id;
-    const supabase = createSupabaseAdminClient();
+    const bust = searchParams.get("refresh") === "1";
 
-    if (offset === 0 && isSpotifyIntegrationEnabled()) {
-      try {
-        const accessToken = await getValidSpotifyAccessToken(userId);
-        await syncRecentlyPlayed(userId, accessToken);
-      } catch (e) {
-        if (e instanceof Error && e.message === "Spotify not connected") {
-          // Fall through — show listens from logs only (Last.fm, manual, etc.)
-        } else {
-          console.warn("[recently-played] syncRecentlyPlayed skipped", e);
-        }
-      }
-    }
-
-    const { items, hasMore } = await getRecentTracksFromLogs(
-      supabase,
+    const { items, hasMore } = await getCachedRecentTracksFromLogs(
       userId,
       limit,
       offset,
+      { bust, trySpotifySync: true },
     );
 
     return apiOk({ items, hasMore });

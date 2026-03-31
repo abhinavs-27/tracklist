@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { createClient } from "@supabase/supabase-js";
+
+/** Set `MIDDLEWARE_DEBUG=1` to log timings (dev only recommended). */
+function mwDebugEnabled(): boolean {
+  return process.env.MIDDLEWARE_DEBUG === "1";
+}
+
+function mwLog(phase: string, t0: number): void {
+  if (!mwDebugEnabled()) return;
+  const ms = Math.round(performance.now() - t0);
+  console.log(`[middleware] ${phase} +${ms}ms (total ${ms}ms from start)`);
+}
 
 /** Set `MAINTENANCE_MODE=true` in env to show a site-wide maintenance page (503). */
 function isMaintenanceMode(): boolean {
@@ -83,6 +93,9 @@ function maintenanceResponse(request: NextRequest): NextResponse {
  *
  * Set in `.env` (e.g. `API_BACKEND_URL=http://127.0.0.1:3001`) while Next.js serves
  * the site on port 3000 (default).
+ *
+ * Note: this path is network-bound (not O(1) latency). Unset `API_BACKEND_URL` when
+ * not using the Express bridge to avoid extra hops.
  */
 function shouldSkipOnboardingGate(pathname: string): boolean {
   if (
@@ -104,60 +117,29 @@ function shouldSkipOnboardingGate(pathname: string): boolean {
 }
 
 let warnedOnboardingMissingSecret = false;
-let warnedOnboardingMissingSupabase = false;
 
 /**
- * Signed-in users who haven't finished profile onboarding are sent to `/onboarding`
- * immediately (not only when opening profile).
+ * Signed-in users who haven't finished onboarding are sent to `/onboarding`.
+ * Uses only the JWT (no DB) — `onboarding_completed` is synced from `users` in the
+ * NextAuth `jwt` callback and via `session.update()` after bootstrap.
  */
-async function onboardingIncompleteRedirect(
+function onboardingIncompleteRedirect(
   request: NextRequest,
-): Promise<NextResponse | null> {
+  token: Awaited<ReturnType<typeof getToken>>,
+  t0: number,
+): NextResponse | null {
   const pathname = request.nextUrl.pathname;
   if (shouldSkipOnboardingGate(pathname)) return null;
 
-  const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) {
-    if (!warnedOnboardingMissingSecret) {
-      warnedOnboardingMissingSecret = true;
-      console.warn(
-        "[middleware] onboarding gate skipped: set NEXTAUTH_SECRET so signed-in users can be checked for incomplete onboarding",
-      );
-    }
-    return null;
-  }
+  const jwt = token as { id?: string; onboarding_completed?: boolean } | null;
+  const userId = typeof jwt?.id === "string" ? jwt.id : null;
+  if (!userId || !jwt) return null;
 
-  const token = await getToken({ req: request, secret });
-  const userId = typeof token?.id === "string" ? token.id : null;
-  if (!userId) return null;
+  const done = jwt.onboarding_completed;
+  /** Legacy sessions without the claim: do not redirect here (onboarding page still validates server-side). */
+  if (done !== false) return null;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl?.trim() || !key?.trim()) {
-    if (!warnedOnboardingMissingSupabase) {
-      warnedOnboardingMissingSupabase = true;
-      console.warn(
-        "[middleware] onboarding gate skipped: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for the onboarding redirect",
-      );
-    }
-    return null;
-  }
-
-  const supabase = createClient(supabaseUrl, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await supabase
-    .from("users")
-    .select("onboarding_completed")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[middleware] onboarding gate users lookup failed", error);
-    return null;
-  }
-  if (data?.onboarding_completed === true) return null;
-
+  mwLog("onboarding_redirect", t0);
   const dest = request.nextUrl.clone();
   dest.pathname = "/onboarding";
   dest.search = "";
@@ -170,7 +152,11 @@ function isSocialInboxAndMusicRecUiEnabled(): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  const t0 = performance.now();
+  mwLog("start", t0);
+
   if (isMaintenanceMode()) {
+    mwLog("maintenance", t0);
     return maintenanceResponse(request);
   }
 
@@ -193,15 +179,42 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const onboardingRedirect = await onboardingIncompleteRedirect(request);
+  const secret = process.env.NEXTAUTH_SECRET;
+  let token: Awaited<ReturnType<typeof getToken>> = null;
+  if (secret && !shouldSkipOnboardingGate(request.nextUrl.pathname)) {
+    const tJwt = performance.now();
+    token = await getToken({ req: request, secret });
+    mwLog(`getToken(${Math.round(performance.now() - tJwt)}ms)`, t0);
+  } else if (!secret && !shouldSkipOnboardingGate(request.nextUrl.pathname)) {
+    if (!warnedOnboardingMissingSecret) {
+      warnedOnboardingMissingSecret = true;
+      console.warn(
+        "[middleware] onboarding gate skipped: set NEXTAUTH_SECRET so signed-in users can be checked for incomplete onboarding",
+      );
+    }
+  }
+
+  const onboardingRedirect =
+    token && secret
+      ? onboardingIncompleteRedirect(request, token, t0)
+      : null;
   if (onboardingRedirect) return onboardingRedirect;
 
   const backend = process.env.API_BACKEND_URL?.trim();
-  if (!backend) return NextResponse.next();
+  if (!backend) {
+    mwLog("next (no API_BACKEND_URL)", t0);
+    return NextResponse.next();
+  }
 
   const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/api/")) return NextResponse.next();
-  if (pathname.startsWith("/api/auth")) return NextResponse.next();
+  if (!pathname.startsWith("/api/")) {
+    mwLog("next (not /api)", t0);
+    return NextResponse.next();
+  }
+  if (pathname.startsWith("/api/auth")) {
+    mwLog("next (/api/auth)", t0);
+    return NextResponse.next();
+  }
 
   /**
    * Implemented in Next (`app/api/leaderboard/route.ts` + `lib/queries`).
@@ -235,12 +248,15 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const tFetch = performance.now();
   try {
     const res = await fetch(target, {
       method: request.method,
       headers,
       body: body && body.byteLength > 0 ? body : undefined,
     });
+
+    mwLog(`proxy_fetch(${Math.round(performance.now() - tFetch)}ms)`, t0);
 
     const out = new NextResponse(res.body, { status: res.status });
     res.headers.forEach((value, key) => {

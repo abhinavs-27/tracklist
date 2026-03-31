@@ -15,6 +15,9 @@ export const queryKeys = {
   list: (listId: string) => ["list", listId] as const,
   listItems: (listId: string) => ["list", listId, "items"] as const,
   profile: (userId: string) => ["profile", userId] as const,
+  /** Aggregated recent albums + tracks (`GET /api/profile-summary`). */
+  profileSummary: (userId: string, refresh: boolean) =>
+    ["profileSummary", userId, refresh ? 1 : 0] as const,
   /** Lists created by a user (`GET /api/users/:userId/lists`). */
   userLists: (userId: string) => ["userLists", userId] as const,
   discover: () => ["discover"] as const,

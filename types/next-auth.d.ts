@@ -11,6 +11,8 @@ declare module 'next-auth' {
       username?: string;
       avatar_url?: string | null;
       bio?: string | null;
+      /** Mirrors `users.onboarding_completed`; set in JWT to avoid DB in middleware. */
+      onboarding_completed?: boolean;
     };
   }
 }
@@ -21,5 +23,6 @@ declare module 'next-auth/jwt' {
     username?: string;
     avatar_url?: string | null;
     bio?: string | null;
+    onboarding_completed?: boolean;
   }
 }

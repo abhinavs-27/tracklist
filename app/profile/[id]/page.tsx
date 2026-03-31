@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { ProfileHeader } from "@/components/profile-header";
 import { ProfileQuickActions } from "@/components/profile/profile-quick-actions";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -54,7 +53,7 @@ export default async function ProfilePage({
     typeof paramsResolved?.id === "string" ? paramsResolved.id.trim() : "";
   if (!segment) notFound();
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   const supabase = createSupabaseAdminClient();
   let user: {
