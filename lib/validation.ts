@@ -61,13 +61,13 @@ export function isValidLfmCatalogId(value: unknown): value is string {
 }
 
 /**
- * Spotify catalog id OR synthetic `lfm:*` song/album/artist row id (reviews, lists, etc.).
+ * Canonical catalog UUID OR Spotify id OR synthetic `lfm:*` key (reviews, lists, legacy URLs).
  */
 export function isValidReviewEntityId(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const s = value.trim();
   if (s.length === 0 || s.length > 64) return false;
-  return isValidSpotifyId(s) || isValidLfmCatalogId(s);
+  return isValidUuid(s) || isValidSpotifyId(s) || isValidLfmCatalogId(s);
 }
 
 /**

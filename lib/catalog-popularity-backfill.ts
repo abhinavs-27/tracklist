@@ -47,7 +47,7 @@ async function processSong(
   spotifyId: string,
 ): Promise<void> {
   const { data: song, error: songErr } = await supabase
-    .from("songs")
+    .from("tracks")
     .select("id, name, artist_id")
     .eq("id", spotifyId)
     .maybeSingle();
@@ -84,7 +84,7 @@ async function processSong(
 
   const now = new Date().toISOString();
   const { error: updErr } = await supabase
-    .from("songs")
+    .from("tracks")
     .update({
       popularity: resolved,
       updated_at: now,
@@ -169,7 +169,7 @@ export async function runCatalogPopularityBackfill(
   let dbError: string | undefined;
 
   const { count: totalSongsNull, error: countSongErr } = await supabase
-    .from("songs")
+    .from("tracks")
     .select("id", { count: "exact", head: true })
     .is("popularity", null);
 
@@ -185,7 +185,7 @@ export async function runCatalogPopularityBackfill(
   }
 
   let songQuery = supabase
-    .from("songs")
+    .from("tracks")
     .select("id")
     .order("updated_at", { ascending: true })
     .limit(songBatch);

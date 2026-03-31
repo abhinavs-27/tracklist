@@ -2,7 +2,18 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import {
+  getAlbumIdByExternalId,
+  getArtistIdByExternalId,
+  getTrackIdByExternalId,
+} from "@/lib/catalog/entity-resolution";
+import {
+  getOrFetchAlbum,
+  getOrFetchArtist,
+  getOrFetchTrack,
+} from "@/lib/spotify-cache";
 import { syncBatchLogSideEffects } from "@/lib/sync-manual-log-side-effects";
+import { isValidSpotifyId } from "@/lib/validation";
 
 import { dedupeImportBatchByTimeWindow } from "./dedupe";
 import { filterAgainstExistingLogs } from "./filter-existing-logs";
@@ -30,6 +41,7 @@ function buildHighlights(
   afterFilter: LastfmImportEntry[],
   inserted: { track_id: string; listened_at: string }[] | null,
   metaByKey: Map<string, { trackName?: string; artistName?: string; artworkUrl?: string | null }>,
+  trackUuidBySpotify: Map<string, string>,
 ): LastfmImportHighlight[] {
   const insertedSet = new Set(
     (inserted ?? []).map((r) => `${r.track_id}|${r.listened_at}`),
@@ -38,7 +50,8 @@ function buildHighlights(
   for (const e of afterFilter) {
     if (out.length >= 3) break;
     const k = entryKey(e);
-    if (!insertedSet.has(k)) continue;
+    const tid = trackUuidBySpotify.get(e.spotifyTrackId);
+    if (!tid || !insertedSet.has(`${tid}|${e.listenedAt}`)) continue;
     const meta = metaByKey.get(k) ?? {};
     out.push({
       spotifyTrackId: e.spotifyTrackId,
@@ -90,15 +103,75 @@ export async function insertLastfmImportEntries(
     };
   }
 
-  const rows = afterFilter.map((e) => ({
-    user_id: userId,
-    track_id: e.spotifyTrackId,
-    listened_at: e.listenedAt,
-    source: "lastfm" as const,
-    album_id: e.albumId ?? null,
-    artist_id: e.artistId ?? null,
-    note: null as string | null,
-  }));
+  const uniqueSpotifyTracks = [...new Set(afterFilter.map((e) => e.spotifyTrackId))];
+  const trackUuidBySpotify = new Map<string, string>();
+  for (const sid of uniqueSpotifyTracks) {
+    let u = await getTrackIdByExternalId(supabase, "spotify", sid);
+    if (!u) {
+      await getOrFetchTrack(sid, { allowNetwork: true });
+      u = await getTrackIdByExternalId(supabase, "spotify", sid);
+    }
+    if (u) trackUuidBySpotify.set(sid, u);
+  }
+
+  async function optionalSpotifyAlbumToUuid(
+    spotifyAlbumId: string | null | undefined,
+  ): Promise<string | null> {
+    if (!spotifyAlbumId || !isValidSpotifyId(spotifyAlbumId)) return null;
+    let u = await getAlbumIdByExternalId(supabase, "spotify", spotifyAlbumId);
+    if (!u) {
+      await getOrFetchAlbum(spotifyAlbumId, { allowNetwork: true });
+      u = await getAlbumIdByExternalId(supabase, "spotify", spotifyAlbumId);
+    }
+    return u;
+  }
+
+  async function optionalSpotifyArtistToUuid(
+    spotifyArtistId: string | null | undefined,
+  ): Promise<string | null> {
+    if (!spotifyArtistId || !isValidSpotifyId(spotifyArtistId)) return null;
+    let u = await getArtistIdByExternalId(supabase, "spotify", spotifyArtistId);
+    if (!u) {
+      await getOrFetchArtist(spotifyArtistId, { allowNetwork: true });
+      u = await getArtistIdByExternalId(supabase, "spotify", spotifyArtistId);
+    }
+    return u;
+  }
+
+  const rows: {
+    user_id: string;
+    track_id: string;
+    listened_at: string;
+    source: "lastfm";
+    album_id: string | null;
+    artist_id: string | null;
+    note: null;
+  }[] = [];
+
+  for (const e of afterFilter) {
+    const tid = trackUuidBySpotify.get(e.spotifyTrackId);
+    if (!tid) continue;
+    const album_id = await optionalSpotifyAlbumToUuid(e.albumId);
+    const artist_id = await optionalSpotifyArtistToUuid(e.artistId);
+    rows.push({
+      user_id: userId,
+      track_id: tid,
+      listened_at: e.listenedAt,
+      source: "lastfm",
+      album_id,
+      artist_id,
+      note: null,
+    });
+  }
+
+  if (rows.length === 0) {
+    return {
+      imported: 0,
+      requested,
+      skipped: dupSkipped + existingSkipped + afterFilter.length,
+      highlights: [],
+    };
+  }
 
   const { data: inserted, error: insertError } = await supabase
     .from("logs")
@@ -113,13 +186,15 @@ export async function insertLastfmImportEntries(
   }
 
   const imported = inserted?.length ?? 0;
-  const conflictSkipped = afterFilter.length - imported;
-  const skipped = dupSkipped + existingSkipped + conflictSkipped;
+  const droppedNoUuid = afterFilter.length - rows.length;
+  const conflictSkipped = rows.length - imported;
+  const skipped = dupSkipped + existingSkipped + droppedNoUuid + conflictSkipped;
 
   const highlights = buildHighlights(
     afterFilter,
     inserted as { track_id: string; listened_at: string }[] | null,
     metaByKey,
+    trackUuidBySpotify,
   );
 
   if (imported > 0) {
@@ -129,13 +204,13 @@ export async function insertLastfmImportEntries(
     if (achErr) {
       console.warn("[lastfm import] grant_achievements_on_listen failed", achErr);
     }
-    await syncBatchLogSideEffects(
-      userId,
-      afterFilter.map((e) => ({
-        trackId: e.spotifyTrackId,
-        listenedAtIso: e.listenedAt,
-      })),
-    );
+    const sideEffectEntries = (inserted ?? [])
+      .map((r) => ({
+        trackId: r.track_id,
+        listenedAtIso: r.listened_at,
+      }))
+      .filter((x) => x.trackId);
+    await syncBatchLogSideEffects(userId, sideEffectEntries);
   }
 
   return {

@@ -35,29 +35,57 @@ export async function getRecentAlbumsFromLogs(
 
   if (error || !logRows?.length) return [];
 
-  const trackIdsNeedingSong = [
+  /** Resolve album for each log: prefer log.album_id when it still exists; else use the track's album (survives catalog merges that left stale log.album_id). */
+  const trackIdsForAlbum = [
     ...new Set(
-      logRows
-        .filter((r) => !r.album_id && r.track_id)
-        .map((r) => r.track_id as string),
+      logRows.filter((r) => r.track_id).map((r) => r.track_id as string),
     ),
   ];
   const songAlbumMap = new Map<string, string>();
-  if (trackIdsNeedingSong.length > 0) {
+  if (trackIdsForAlbum.length > 0) {
     const { data: songs } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, album_id")
-      .in("id", trackIdsNeedingSong);
+      .in("id", trackIdsForAlbum);
     for (const s of songs ?? []) {
       if (s.album_id) songAlbumMap.set(s.id, s.album_id);
     }
   }
 
+  const candidateAlbumIds = new Set<string>();
+  for (const row of logRows) {
+    const al = row.album_id as string | null;
+    if (al) candidateAlbumIds.add(al);
+    const tid = row.track_id as string | null;
+    if (tid) {
+      const a = songAlbumMap.get(tid);
+      if (a) candidateAlbumIds.add(a);
+    }
+  }
+
+  let validAlbumIds = new Set<string>();
+  if (candidateAlbumIds.size > 0) {
+    const { data: existingAlbums } = await supabase
+      .from("albums")
+      .select("id")
+      .in("id", [...candidateAlbumIds]);
+    validAlbumIds = new Set(
+      (existingAlbums ?? []).map((a) => a.id as string),
+    );
+  }
+
   const albumLatest = new Map<string, string>();
   for (const row of logRows) {
+    const fromLog = row.album_id as string | null;
+    const fromTrack = row.track_id
+      ? songAlbumMap.get(row.track_id as string)
+      : undefined;
     const aid =
-      (row.album_id as string | null) ??
-      (row.track_id ? songAlbumMap.get(row.track_id as string) : null);
+      fromLog && validAlbumIds.has(fromLog)
+        ? fromLog
+        : fromTrack && validAlbumIds.has(fromTrack)
+          ? fromTrack
+          : null;
     if (!aid) continue;
     const at = row.listened_at as string;
     const prev = albumLatest.get(aid);
@@ -158,7 +186,7 @@ export async function getRecentTracksFromLogs(
   const songMap = new Map<string, { name: string; album_id: string; artist_id: string }>();
   if (trackIds.length > 0) {
     const { data: songs } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, name, album_id, artist_id")
       .in("id", trackIds);
     for (const s of songs ?? []) {
@@ -213,11 +241,13 @@ export async function getRecentTracksFromLogs(
   const items: RecentTrackRow[] = [];
   for (const r of slice) {
     const song = songMap.get(r.track_id as string);
-    const aid = song?.album_id ?? null;
+    /** Log still points at a track row removed by merge — omit so links match catalog. */
+    if (!song) continue;
+    const aid = song.album_id ?? null;
     const album = aid ? albumMap.get(aid) : null;
-    const arid = song?.artist_id ?? album?.artist_id ?? null;
+    const arid = song.artist_id ?? album?.artist_id ?? null;
     const artistName = arid ? (artistMap.get(arid) ?? "") : "";
-    const trackName = song?.name ?? "Unknown track";
+    const trackName = song.name;
     const albumName = album?.name ?? null;
     const albumImage = album?.image_url ?? null;
 

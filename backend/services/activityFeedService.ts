@@ -223,7 +223,7 @@ async function getEntityDisplayNames(
 
   if (songIds.length > 0) {
     const { data: songs } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, name")
       .in("id", songIds);
     for (const s of songs ?? []) {

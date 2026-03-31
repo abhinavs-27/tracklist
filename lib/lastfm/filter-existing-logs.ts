@@ -2,6 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { getTrackIdByExternalId } from "@/lib/catalog/entity-resolution";
+
 import type { LastfmImportEntry } from "./types";
 import { DEFAULT_SCROBBLE_DEDUP_MS } from "./dedupe";
 
@@ -17,18 +19,27 @@ export async function filterAgainstExistingLogs(
 ): Promise<LastfmImportEntry[]> {
   if (entries.length === 0) return [];
 
-  const trackIds = [...new Set(entries.map((e) => e.spotifyTrackId))];
+  const spotifyTrackIds = [...new Set(entries.map((e) => e.spotifyTrackId))];
+  const spotifyToCanonical = new Map<string, string>();
+  for (const sid of spotifyTrackIds) {
+    const u = await getTrackIdByExternalId(supabase, "spotify", sid);
+    if (u) spotifyToCanonical.set(sid, u);
+  }
+
   const times = entries.map((e) => new Date(e.listenedAt).getTime()).filter((t) => !Number.isNaN(t));
   if (times.length === 0) return [];
 
   const minT = Math.min(...times) - windowMs;
   const maxT = Math.max(...times) + windowMs;
 
+  const canonicalIds = [...new Set(spotifyToCanonical.values())];
+  if (canonicalIds.length === 0) return entries;
+
   const { data, error } = await supabase
     .from("logs")
     .select("track_id, listened_at")
     .eq("user_id", userId)
-    .in("track_id", trackIds)
+    .in("track_id", canonicalIds)
     .gte("listened_at", new Date(minT).toISOString())
     .lte("listened_at", new Date(maxT).toISOString());
 
@@ -42,8 +53,10 @@ export async function filterAgainstExistingLogs(
   return entries.filter((e) => {
     const t = new Date(e.listenedAt).getTime();
     if (Number.isNaN(t)) return false;
+    const canon = spotifyToCanonical.get(e.spotifyTrackId);
+    if (!canon) return true;
     const conflict = existing.some((row) => {
-      if (row.track_id !== e.spotifyTrackId) return false;
+      if (row.track_id !== canon) return false;
       const rt = new Date(row.listened_at).getTime();
       return Math.abs(rt - t) < windowMs;
     });

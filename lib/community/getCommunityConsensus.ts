@@ -59,7 +59,7 @@ async function enrichRows(
 
   if (entityType === "track") {
     const { data: songs } = await admin
-      .from("songs")
+      .from("tracks")
       .select("id, name, album_id")
       .in("id", ids);
     const songList = (songs ?? []) as {

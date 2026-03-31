@@ -25,14 +25,20 @@ export async function GET(request: NextRequest) {
     const recentReviews = reviews ?? [];
     const seen = new Set<string>();
     const userIds: string[] = [];
-    const latestAlbumByUser = new Map<string, { spotify_id: string; created_at: string }>();
+    const latestAlbumByUser = new Map<
+      string,
+      { album_id: string; created_at: string }
+    >();
 
     for (const r of recentReviews) {
       if (!r?.user_id || !r?.entity_id) continue;
       if (seen.has(r.user_id)) continue;
       seen.add(r.user_id);
       userIds.push(r.user_id);
-      latestAlbumByUser.set(r.user_id, { spotify_id: r.entity_id, created_at: r.created_at });
+      latestAlbumByUser.set(r.user_id, {
+        album_id: r.entity_id as string,
+        created_at: r.created_at,
+      });
       if (userIds.length >= limit) break;
     }
 
@@ -64,16 +70,37 @@ export async function GET(request: NextRequest) {
 
     const userMap = new Map(enrichedUsers.map((u) => [u.id, u]));
 
+    const albumUuids = [
+      ...new Set(
+        [...latestAlbumByUser.values()].map((v) => v.album_id).filter(Boolean),
+      ),
+    ];
+    const spotifyAlbumIdByUuid = new Map<string, string>();
+    if (albumUuids.length > 0) {
+      const { data: extRows } = await supabase
+        .from("album_external_ids")
+        .select("album_id, external_id")
+        .eq("source", "spotify")
+        .in("album_id", albumUuids);
+      for (const row of extRows ?? []) {
+        const rid = row as { album_id: string; external_id: string };
+        spotifyAlbumIdByUuid.set(rid.album_id, rid.external_id);
+      }
+    }
+
     const result = userIds
       .map((id) => {
         const u = userMap.get(id);
         if (!u) return null;
         const latest = latestAlbumByUser.get(id);
+        const spotifyAlbumId = latest?.album_id
+          ? spotifyAlbumIdByUuid.get(latest.album_id) ?? null
+          : null;
         return {
           id: u.id,
           username: u.username,
           avatar_url: u.avatar_url,
-          latest_album_spotify_id: latest?.spotify_id ?? null,
+          latest_album_spotify_id: spotifyAlbumId,
           latest_log_created_at: latest?.created_at ?? null,
           is_following: u.is_following,
           is_viewer: viewerId ? viewerId === u.id : false,

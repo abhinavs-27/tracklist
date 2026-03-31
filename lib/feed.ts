@@ -81,7 +81,7 @@ export async function enrichListenSessionsWithAlbums(
       : Promise.resolve({ data: [] as DbAlbum[] }),
     trackIdList.length > 0
       ? supabase
-          .from("songs")
+          .from("tracks")
           .select("id, name, artist_id")
           .in("id", trackIdList)
       : Promise.resolve({ data: [] as DbTrack[] }),

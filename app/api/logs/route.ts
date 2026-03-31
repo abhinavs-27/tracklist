@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
@@ -10,11 +11,56 @@ import {
 import { parseBody } from '@/lib/api-utils';
 import { LogCreateBody } from '@/types';
 import {
+  getAlbumIdByExternalId,
+  getArtistIdByExternalId,
+  getTrackIdByExternalId,
+} from '@/lib/catalog/entity-resolution';
+import {
+  getOrFetchAlbum,
+  getOrFetchArtist,
+  getOrFetchTrack,
+} from '@/lib/spotify-cache';
+import {
   isValidSpotifyId,
+  isValidUuid,
   clampLimit,
   LIMITS,
   sanitizeString,
 } from '@/lib/validation';
+
+async function resolveLogEntityId(
+  supabase: SupabaseClient,
+  raw: string | null | undefined,
+  kind: 'track' | 'album' | 'artist',
+): Promise<string | null> {
+  if (raw == null) return null;
+  const s = typeof raw === 'string' ? raw.trim() : '';
+  if (!s) return null;
+  if (isValidUuid(s)) return s;
+  if (!isValidSpotifyId(s)) return null;
+  if (kind === 'track') {
+    let u = await getTrackIdByExternalId(supabase, 'spotify', s);
+    if (!u) {
+      await getOrFetchTrack(s, { allowNetwork: true });
+      u = await getTrackIdByExternalId(supabase, 'spotify', s);
+    }
+    return u;
+  }
+  if (kind === 'album') {
+    let u = await getAlbumIdByExternalId(supabase, 'spotify', s);
+    if (!u) {
+      await getOrFetchAlbum(s, { allowNetwork: true });
+      u = await getAlbumIdByExternalId(supabase, 'spotify', s);
+    }
+    return u;
+  }
+  let u = await getArtistIdByExternalId(supabase, 'spotify', s);
+  if (!u) {
+    await getOrFetchArtist(s, { allowNetwork: true });
+    u = await getArtistIdByExternalId(supabase, 'spotify', s);
+  }
+  return u;
+}
 
 const LOG_SOURCES = new Set([
   'spotify',
@@ -32,13 +78,10 @@ export const POST = withHandler(
 
     const b = body!;
     const { track_id: bodyTrackId, spotify_id, listened_at } = b;
-    const trackId = (bodyTrackId ?? spotify_id) as string | undefined;
+    const trackRaw = (bodyTrackId ?? spotify_id) as string | undefined;
 
-    if (!trackId) {
+    if (!trackRaw?.trim()) {
       return apiBadRequest('Missing required field: track_id or spotify_id');
-    }
-    if (!isValidSpotifyId(trackId)) {
-      return apiBadRequest('Invalid track_id format');
     }
     let listenedAt: string;
     try {
@@ -53,20 +96,16 @@ export const POST = withHandler(
     const rawSource = typeof b.source === 'string' ? b.source : 'manual_import';
     const source = LOG_SOURCES.has(rawSource) ? rawSource : 'manual_import';
 
-    const albumIdRaw = b.album_id;
-    const artistIdRaw = b.artist_id;
-    const albumId =
-      albumIdRaw != null && typeof albumIdRaw === 'string' && isValidSpotifyId(albumIdRaw)
-        ? albumIdRaw
-        : null;
-    const artistId =
-      artistIdRaw != null && typeof artistIdRaw === 'string' && isValidSpotifyId(artistIdRaw)
-        ? artistIdRaw
-        : null;
-
     const note = sanitizeString(b.note, LIMITS.COMMENT_CONTENT);
 
     const supabase = await createSupabaseServerClient();
+    const trackId = await resolveLogEntityId(supabase, trackRaw, 'track');
+    if (!trackId) {
+      return apiBadRequest('Invalid or unknown track_id / spotify_id');
+    }
+    const albumId = await resolveLogEntityId(supabase, b.album_id, 'album');
+    const artistId = await resolveLogEntityId(supabase, b.artist_id, 'artist');
+
     const { data, error } = await supabase
       .from('logs')
       .insert({

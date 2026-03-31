@@ -80,7 +80,7 @@ export function scheduleEnrichArtistGenresForTrackIds(
       if (unique.length === 0) return;
 
       const { data: songs, error: songErr } = await supabase
-        .from("songs")
+        .from("tracks")
         .select("artist_id")
         .in("id", unique);
       if (songErr || !songs?.length) return;

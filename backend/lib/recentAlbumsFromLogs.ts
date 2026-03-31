@@ -36,7 +36,7 @@ export async function getRecentAlbumsFromLogs(
   const songAlbumMap = new Map<string, string>();
   if (trackIdsNeedingSong.length > 0) {
     const { data: songs } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, album_id")
       .in("id", trackIdsNeedingSong);
     for (const s of songs ?? []) {

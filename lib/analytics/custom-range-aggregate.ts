@@ -39,7 +39,7 @@ export async function customRangeAggregate(args: {
   ];
 
   const { data: songs } = trackIds.length
-    ? await admin.from("songs").select("id, artist_id, album_id").in("id", trackIds)
+    ? await admin.from("tracks").select("id, artist_id, album_id").in("id", trackIds)
     : { data: [] };
 
   const songById = new Map(

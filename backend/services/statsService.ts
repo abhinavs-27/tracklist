@@ -80,7 +80,7 @@ async function getEntityStatsLive(
     listen_count = count ?? 0;
   } else {
     const { data: tracks } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id")
       .eq("album_id", entityId);
     if (tracks?.length) {

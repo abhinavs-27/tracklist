@@ -84,7 +84,7 @@ async function enrichPayloadsFromDb(
       ? admin.from("albums").select("id, name").in("id", [...albumIds])
       : Promise.resolve({ data: [] as { id: string; name: string }[] }),
     trackIds.size > 0
-      ? admin.from("songs").select("id, name").in("id", [...trackIds])
+      ? admin.from("tracks").select("id, name").in("id", [...trackIds])
       : Promise.resolve({ data: [] as { id: string; name: string }[] }),
   ]);
 

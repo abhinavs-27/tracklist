@@ -173,7 +173,7 @@ export async function getLeaderboard(
         for (let i = 0; i < albumIds.length; i += CHUNK) {
           const slice = albumIds.slice(i, i + CHUNK);
           const { data: songs } = await supabase
-            .from("songs")
+            .from("tracks")
             .select("id")
             .in("album_id", slice);
           if (songs) trackIds.push(...songs.map((s) => s.id));
@@ -207,7 +207,7 @@ export async function getLeaderboard(
       }
 
       const { data: songRows } = await supabase
-        .from("songs")
+        .from("tracks")
         .select("id, name, album_id, artist_id")
         .in(
           "id",

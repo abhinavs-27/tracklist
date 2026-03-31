@@ -66,7 +66,7 @@ async function fetchPopularityMap(
   for (let i = 0; i < trackIds.length; i += chunk) {
     const slice = trackIds.slice(i, i + chunk);
     const { data, error } = await admin
-      .from("songs")
+      .from("tracks")
       .select("id, popularity")
       .in("id", slice);
     if (error) {
@@ -117,7 +117,7 @@ async function listeningWindowStats(
     for (let i = 0; i < trackIds.length; i += chunk) {
       const slice = trackIds.slice(i, i + chunk);
       const { data: songs } = await admin
-        .from("songs")
+        .from("tracks")
         .select("id, artist_id")
         .in("id", slice);
       for (const s of songs ?? []) {

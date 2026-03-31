@@ -168,7 +168,7 @@ async function computeHiddenGemsFull(
 
   if (entityType === "track") {
     const { data: songs } = await admin
-      .from("songs")
+      .from("tracks")
       .select("id, name, album_id, artist_id, popularity")
       .in("id", ids);
     const songList = (songs ?? []) as {

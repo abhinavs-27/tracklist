@@ -113,7 +113,7 @@ export async function runHydrateMissingCatalogFromLogs(
   const existing = new Set<string>();
   for (const part of chunk(distinct, IN_CHUNK)) {
     const { data: songRows, error: songErr } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id")
       .in("id", part);
     if (songErr) {
@@ -136,7 +136,7 @@ export async function runHydrateMissingCatalogFromLogs(
   const missingFromLogs = distinct.filter((id) => !existing.has(id));
 
   const { data: badPlaceholders, error: badErr } = await supabase
-    .from("songs")
+    .from("tracks")
     .select("id")
     .not("id", "like", "lfm:%")
     .eq("name", "Track")

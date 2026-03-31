@@ -5,8 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { lfmSongId } from "@/lib/lastfm/lfm-ids";
 
 /**
- * Fills `listens.spotify_track_id` from `songs.spotify_id` when the song row was enriched
- * but the listen row was never updated (e.g. enrichment failed mid-job, or rate limits).
+ * Fills `listens.spotify_track_id` when the canonical track has a Spotify mapping in
+ * `track_external_ids` but the listen row was never updated.
  * No Spotify API calls.
  */
 export async function syncListensSpotifyTrackIdsFromSongs(
@@ -33,7 +33,7 @@ export async function syncListensSpotifyTrackIdsFromSongs(
     return { scanned: 0, updated: 0 };
   }
 
-  const songIds = [
+  const lfmKeys = [
     ...new Set(
       list.map((r) =>
         lfmSongId(
@@ -44,20 +44,51 @@ export async function syncListensSpotifyTrackIdsFromSongs(
     ),
   ];
 
-  const { data: songs, error: songErr } = await supabase
-    .from("songs")
-    .select("id, spotify_id")
-    .in("id", songIds)
-    .not("spotify_id", "is", null);
+  const { data: lfmMaps, error: lfmErr } = await supabase
+    .from("track_external_ids")
+    .select("track_id, external_id")
+    .eq("source", "lastfm")
+    .in("external_id", lfmKeys);
 
-  if (songErr) {
-    console.warn("[sync-listens-spotify] songs query failed", songErr);
+  if (lfmErr || !lfmMaps?.length) {
+    if (lfmErr) {
+      console.warn("[sync-listens-spotify] lfm mappings query failed", lfmErr);
+    }
     return { scanned: list.length, updated: 0 };
   }
 
-  const spotifyBySongId = new Map(
-    (songs ?? []).map((s) => [s.id as string, s.spotify_id as string]),
+  const lfmKeyToTrackUuid = new Map(
+    lfmMaps.map((m) => [
+      (m as { external_id: string }).external_id,
+      (m as { track_id: string }).track_id,
+    ]),
   );
+
+  const trackUuids = [...new Set(lfmMaps.map((m) => (m as { track_id: string }).track_id))];
+
+  const { data: spotMaps, error: spotErr } = await supabase
+    .from("track_external_ids")
+    .select("track_id, external_id")
+    .eq("source", "spotify")
+    .in("track_id", trackUuids);
+
+  if (spotErr) {
+    console.warn("[sync-listens-spotify] spotify mappings query failed", spotErr);
+    return { scanned: list.length, updated: 0 };
+  }
+
+  const spotifyByTrackUuid = new Map(
+    (spotMaps ?? []).map((m) => [
+      (m as { track_id: string }).track_id,
+      (m as { external_id: string }).external_id,
+    ]),
+  );
+
+  const spotifyByLfmKey = new Map<string, string>();
+  for (const [lfmKey, tid] of lfmKeyToTrackUuid) {
+    const sid = spotifyByTrackUuid.get(tid);
+    if (sid) spotifyByLfmKey.set(lfmKey, sid);
+  }
 
   let updated = 0;
   for (const r of list) {
@@ -67,13 +98,12 @@ export async function syncListensSpotifyTrackIdsFromSongs(
       track_name: string;
       listened_at: string;
     };
-    const sid = lfmSongId(row.artist_name, row.track_name);
-    const spotifyTrackId = spotifyBySongId.get(sid);
-    if (!spotifyTrackId) continue;
+    const sid = spotifyByLfmKey.get(lfmSongId(row.artist_name, row.track_name));
+    if (!sid) continue;
 
     const { error: upErr } = await supabase
       .from("listens")
-      .update({ spotify_track_id: spotifyTrackId })
+      .update({ spotify_track_id: sid })
       .eq("user_id", row.user_id)
       .eq("artist_name", row.artist_name)
       .eq("track_name", row.track_name)

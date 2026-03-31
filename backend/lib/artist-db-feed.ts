@@ -96,7 +96,7 @@ export async function fetchArtistTracksFromDb(
 ): Promise<ArtistMobileTrackRow[]> {
   try {
     const { data: songRows } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, name, album_id, artist_id, duration_ms")
       .eq("artist_id", artistId);
     if (!songRows?.length) return [];

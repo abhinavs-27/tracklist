@@ -182,7 +182,10 @@ export async function middleware(request: NextRequest) {
       dest.search = "";
       return NextResponse.redirect(dest);
     }
-    if (p === "/discover/recommended" || p.startsWith("/discover/recommended/")) {
+    if (
+      p === "/discover/recommended" ||
+      p.startsWith("/discover/recommended/")
+    ) {
       const dest = request.nextUrl.clone();
       dest.pathname = "/discover";
       dest.search = "";

@@ -29,7 +29,7 @@ export async function GET() {
   const [{ data: songs, error: songErr }, { data: artists, error: artistErr }] =
     await Promise.all([
       supabase
-        .from("songs")
+        .from("tracks")
         .select("id, lastfm_name, lastfm_artist_name")
         .eq("needs_spotify_enrichment", true)
         .not("lastfm_name", "is", null)

@@ -172,6 +172,7 @@ export interface List {
   created_at: string;
 }
 
+/** Legacy name: `spotify_id` is the catalog entity id (canonical UUID for new rows). */
 export interface ListItem {
   id: string;
   list_id: string;
@@ -179,6 +180,7 @@ export interface ListItem {
   type: 'song' | 'album';
 }
 
+/** Legacy name: `spotify_id` is the catalog entity id (canonical UUID for new rows). */
 export interface Favorite {
   id: string;
   user_id: string;
@@ -292,6 +294,7 @@ export type DiscoverUser = {
   id: string;
   username: string;
   avatar_url: string | null;
+  /** Spotify Web API album id (from `album_external_ids`), for `/api/spotify/album/:id`. */
   latest_album_spotify_id: string | null;
   latest_log_created_at: string | null;
   is_following: boolean;

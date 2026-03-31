@@ -159,7 +159,7 @@ async function buildAlbumCoverContextFromTrackIds(
   }
 
   const { data: songRowsRaw, error: songsErr } = await admin
-    .from("songs")
+    .from("tracks")
     .select(
       "id, name, lastfm_name, lastfm_artist_name, album_id, artist_id",
     )
@@ -429,7 +429,7 @@ async function hydrateStatsCatalogLastFmOnly(
   let albumsMissingCoverForTrackScopeAfter = 0;
   if (mergedTrackIds.length > 0) {
     const { data: songRows } = await admin
-      .from("songs")
+      .from("tracks")
       .select("album_id")
       .in("id", mergedTrackIds);
     const albumIdsFromSongs = [
@@ -766,7 +766,7 @@ export async function hydrateStatsCatalogFromSpotify(
   let albumsMissingCoverForTrackScopeAfter = 0;
   if (mergedTrackIds.length > 0) {
     const { data: songRows } = await admin
-      .from("songs")
+      .from("tracks")
       .select("album_id")
       .in("id", mergedTrackIds);
     const albumIdsFromSongs = [

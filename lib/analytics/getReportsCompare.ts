@@ -157,7 +157,7 @@ async function resolveEntityDisplayName(
     }
   }
   const { data: row } = await admin
-    .from("songs")
+    .from("tracks")
     .select("name")
     .eq("id", entityId)
     .maybeSingle();

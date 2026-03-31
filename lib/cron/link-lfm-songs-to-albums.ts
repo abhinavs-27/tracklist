@@ -30,7 +30,7 @@ export async function linkOrphanLastfmSongsToAlbums(
   if (trackIds.length === 0) return { linked: 0 };
 
   const { data: rows, error } = await admin
-    .from("songs")
+    .from("tracks")
     .select(
       "id, name, lastfm_name, lastfm_artist_name, album_id, artist_id",
     )
@@ -127,7 +127,7 @@ export async function linkOrphanLastfmSongsToAlbums(
     }
 
     const { error: upErr } = await admin
-      .from("songs")
+      .from("tracks")
       .update({
         album_id: albumId,
         artist_id: artistId,

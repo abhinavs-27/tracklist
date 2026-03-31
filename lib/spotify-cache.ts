@@ -21,8 +21,20 @@ import {
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
+  findAlbumIdByArtistAndName,
+  findArtistIdByNormalizedName,
+  findTrackIdByArtistAlbumAndName,
+  getAlbumIdByExternalId,
+  getArtistIdByExternalId,
+  getTrackIdByExternalId,
+  linkAlbumExternalId,
+  linkArtistExternalId,
+  linkTrackExternalId,
+} from "@/lib/catalog/entity-resolution";
+import {
   isValidLfmCatalogId,
   isValidSpotifyId,
+  isValidUuid,
   normalizeReviewEntityId,
 } from "@/lib/validation";
 
@@ -129,7 +141,6 @@ type ArtistRow = {
   image_url: string | null;
   genres: string[] | null;
   popularity?: number | null;
-  spotify_id?: string | null;
   lastfm_fetched_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -159,7 +170,6 @@ type SongRow = {
   created_at: string;
   updated_at: string;
   cached_at?: string | null;
-  spotify_id?: string | null;
   lastfm_name?: string | null;
   lastfm_artist_name?: string | null;
 };
@@ -188,11 +198,7 @@ function buildSyntheticLfmTrack(
   } as SpotifyApi.TrackObjectFull;
 }
 
-function trimmedSpotifyId(song: SongRow): string {
-  return typeof song.spotify_id === "string" ? song.spotify_id.trim() : "";
-}
-
-/** Keep `lfm:*` as the canonical track id when we hydrated from Spotify catalog. */
+/** Keep Last.fm external id as the client-facing track id when dual-mapped. */
 function withCanonicalSongId(
   lfmId: string,
   track: SpotifyApi.TrackObjectFull,
@@ -222,13 +228,31 @@ async function persistLfmSongSpotifyLink(
       : null;
   const now = new Date().toISOString();
 
+  const trackUuid = await getTrackIdByExternalId(
+    supabase,
+    "lastfm",
+    lfmSongId,
+  );
+  if (!trackUuid) {
+    console.warn(
+      `${LOG_PREFIX} persistLfmSongSpotifyLink: no canonical track for`,
+      lfmSongId,
+    );
+    return;
+  }
+
+  const albumUuid = await upsertAlbumFromSpotify(
+    supabase,
+    alb as SpotifyApi.AlbumObjectSimplified,
+  );
+  const artistUuid = await upsertArtistFromSpotify(supabase, first);
+
   const { error } = await supabase
-    .from("songs")
+    .from("tracks")
     .update({
-      spotify_id: track.id,
       name: track.name,
-      album_id: alb.id,
-      artist_id: first.id,
+      album_id: albumUuid,
+      artist_id: artistUuid,
       duration_ms: track.duration_ms ?? null,
       popularity: pop,
       data_source: "mixed",
@@ -236,15 +260,63 @@ async function persistLfmSongSpotifyLink(
       updated_at: now,
       cached_at: now,
     })
-    .eq("id", lfmSongId);
+    .eq("id", trackUuid);
 
   if (error) {
     console.warn(`${LOG_PREFIX} persistLfmSongSpotifyLink failed`, lfmSongId, error);
+    return;
   }
+
+  await linkTrackExternalId(supabase, trackUuid, "spotify", track.id);
+}
+
+async function resolveTrackCanonicalId(
+  supabase: SupabaseClient,
+  raw: string,
+): Promise<string | null> {
+  const id = normalizeReviewEntityId(raw);
+  if (isValidUuid(id)) return id;
+  if (isValidSpotifyId(id)) {
+    return await getTrackIdByExternalId(supabase, "spotify", id);
+  }
+  if (isValidLfmCatalogId(id)) {
+    return await getTrackIdByExternalId(supabase, "lastfm", id);
+  }
+  return null;
+}
+
+async function getSpotifyExternalForTrack(
+  supabase: SupabaseClient,
+  trackCanonicalId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("track_external_ids")
+    .select("external_id")
+    .eq("track_id", trackCanonicalId)
+    .eq("source", "spotify")
+    .limit(1)
+    .maybeSingle();
+  const ext = (data as { external_id?: string } | null)?.external_id;
+  return ext && isValidSpotifyId(ext) ? ext : null;
+}
+
+async function getLastfmExternalForTrack(
+  supabase: SupabaseClient,
+  trackCanonicalId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("track_external_ids")
+    .select("external_id")
+    .eq("track_id", trackCanonicalId)
+    .eq("source", "lastfm")
+    .limit(1)
+    .maybeSingle();
+  const ext = (data as { external_id?: string } | null)?.external_id;
+  return ext && isValidLfmCatalogId(ext) ? ext : null;
 }
 
 /**
- * When `songs.spotify_id` is empty but we have Last.fm title/artist strings, resolve via search (same as enrichment job).
+ * When Spotify mapping is missing but we have Last.fm title/artist strings, resolve via search (same as enrichment job).
  */
 async function tryResolveLfmSongViaLastfmSearch(
   song: SongRow,
@@ -268,12 +340,17 @@ async function tryResolveLfmSongViaLastfmSearch(
 
   try {
     const track = await getOrFetchTrackInner(match.trackId, opts);
-    try {
-      await persistLfmSongSpotifyLink(song.id, track);
-    } catch (e) {
-      console.warn(`${LOG_PREFIX} persistLfmSongSpotifyLink (search path)`, e);
+    const admin = createSupabaseAdminClient();
+    const lfmKey = await getLastfmExternalForTrack(admin, song.id);
+    if (lfmKey) {
+      try {
+        await persistLfmSongSpotifyLink(lfmKey, track);
+      } catch (e) {
+        console.warn(`${LOG_PREFIX} persistLfmSongSpotifyLink (search path)`, e);
+      }
+      return withCanonicalSongId(lfmKey, track);
     }
-    return withCanonicalSongId(song.id, track);
+    return track;
   } catch (e) {
     console.warn(`${LOG_PREFIX} tryResolveLfmSongViaLastfmSearch failed`, {
       songId: song.id,
@@ -314,8 +391,10 @@ async function trackFromDbSongRow(
     (song.name && song.name.trim()) ||
     (song.lastfm_name && song.lastfm_name.trim()) ||
     "Track";
+  const spotifyTrackId = await getSpotifyExternalForTrack(supabase, song.id);
+  const displayTrackId = spotifyTrackId ?? song.id;
   return {
-    id: song.id,
+    id: displayTrackId,
     name: trackTitle,
     artists: [
       {
@@ -391,8 +470,9 @@ export async function upsertArtistFromSpotify(
     /** Full Spotify payload: skip read-before-write (halves DB round-trips for batch backfills). */
     skipMerge?: boolean;
   },
-) {
+): Promise<string> {
   const now = new Date().toISOString();
+  const spotifyKey = a.id;
 
   type ArtistMergeRow = {
     genres: string[] | null;
@@ -400,13 +480,16 @@ export async function upsertArtistFromSpotify(
     image_url: string | null;
   };
 
-  let ex: ArtistMergeRow | null = null;
+  let artistUuid =
+    (await getArtistIdByExternalId(supabase, "spotify", spotifyKey)) ??
+    (await findArtistIdByNormalizedName(supabase, a.name));
 
-  if (!options?.skipMerge) {
+  let ex: ArtistMergeRow | null = null;
+  if (artistUuid && !options?.skipMerge) {
     const { data: existing } = await supabase
       .from("artists")
       .select("genres, popularity, image_url")
-      .eq("id", a.id)
+      .eq("id", artistUuid)
       .maybeSingle();
     ex = existing as ArtistMergeRow | null;
   }
@@ -427,46 +510,70 @@ export async function upsertArtistFromSpotify(
       ? firstSpotifyImageUrl(a.images) ?? ex?.image_url ?? null
       : (ex?.image_url ?? null);
 
-  const row = {
-    id: a.id,
-    name: a.name,
-    image_url: newImage,
-    genres: newGenres,
-    popularity: newPop,
-    updated_at: now,
-    cached_at: now,
-    data_source: "spotify" as const,
-    needs_spotify_enrichment: false,
-    spotify_id: a.id,
-    last_updated: now,
-  };
-
-  const { error } = await supabase.from("artists").upsert(row, {
-    onConflict: "id",
-  });
-  if (error) {
-    console.error(`${LOG_PREFIX} artists upsert failed`, error);
-    throw new Error(`artists upsert: ${error.message}`);
+  if (!artistUuid) {
+    const { data: inserted, error: insErr } = await supabase
+      .from("artists")
+      .insert({
+        name: a.name,
+        image_url: newImage,
+        genres: newGenres,
+        popularity: newPop,
+        updated_at: now,
+        cached_at: now,
+        data_source: "spotify" as const,
+        needs_spotify_enrichment: false,
+        last_updated: now,
+      })
+      .select("id")
+      .single();
+    if (insErr) {
+      console.error(`${LOG_PREFIX} artists insert failed`, insErr);
+      throw new Error(`artists insert: ${insErr.message}`);
+    }
+    artistUuid = inserted!.id as string;
+  } else {
+    const { error: upErr } = await supabase
+      .from("artists")
+      .update({
+        name: a.name,
+        image_url: newImage,
+        genres: newGenres,
+        popularity: newPop,
+        updated_at: now,
+        cached_at: now,
+        data_source: "spotify" as const,
+        needs_spotify_enrichment: false,
+        last_updated: now,
+      })
+      .eq("id", artistUuid);
+    if (upErr) {
+      console.error(`${LOG_PREFIX} artists update failed`, upErr);
+      throw new Error(`artists update: ${upErr.message}`);
+    }
   }
 
-  logUpsert("artist", a.id);
+  await linkArtistExternalId(supabase, artistUuid, "spotify", spotifyKey);
+  logUpsert("artist", artistUuid);
+  return artistUuid;
 }
 
 export async function upsertAlbumFromSpotify(
   supabase: SupabaseClient,
   album: SpotifyApi.AlbumObjectFull | SpotifyApi.AlbumObjectSimplified,
-) {
+): Promise<string> {
   const first = album.artists?.[0];
   if (!first) throw new Error("Album has no artist");
 
-  // ensure primary artist exists
-  await upsertArtistFromSpotify(supabase, first);
-
+  const artistUuid = await upsertArtistFromSpotify(supabase, first);
   const now = new Date().toISOString();
+
+  let albumUuid =
+    (await getAlbumIdByExternalId(supabase, "spotify", album.id)) ??
+    (await findAlbumIdByArtistAndName(supabase, artistUuid, album.name));
+
   const row = {
-    id: album.id,
     name: album.name,
-    artist_id: first.id,
+    artist_id: artistUuid,
     image_url: firstSpotifyImageUrl(album.images) ?? null,
     release_date: "release_date" in album ? (album.release_date ?? null) : null,
     total_tracks: "total_tracks" in album ? (album.total_tracks ?? null) : null,
@@ -474,25 +581,41 @@ export async function upsertAlbumFromSpotify(
     cached_at: now,
   };
 
-  const { error } = await supabase.from("albums").upsert(row, {
-    onConflict: "id",
-  });
-  if (error) {
-    console.error(`${LOG_PREFIX} albums upsert failed`, error);
-    throw new Error(`albums upsert: ${error.message}`);
+  if (!albumUuid) {
+    const { data: inserted, error: insErr } = await supabase
+      .from("albums")
+      .insert(row)
+      .select("id")
+      .single();
+    if (insErr) {
+      console.error(`${LOG_PREFIX} albums insert failed`, insErr);
+      throw new Error(`albums insert: ${insErr.message}`);
+    }
+    albumUuid = inserted!.id as string;
+  } else {
+    const { error: upErr } = await supabase
+      .from("albums")
+      .update(row)
+      .eq("id", albumUuid);
+    if (upErr) {
+      console.error(`${LOG_PREFIX} albums update failed`, upErr);
+      throw new Error(`albums update: ${upErr.message}`);
+    }
   }
 
-  logUpsert("album", album.id);
+  await linkAlbumExternalId(supabase, albumUuid, "spotify", album.id);
+  logUpsert("album", albumUuid);
+  return albumUuid;
 }
 
 export async function upsertTrackFromSpotify(
   supabase: SupabaseClient,
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified,
-  albumId: string,
+  albumSpotifyId: string,
   albumName: string,
   albumImageUrl: string | null,
   albumReleaseDate?: string,
-) {
+): Promise<string> {
   const first = track.artists?.[0];
   if (!first) throw new Error("Track has no artist");
   if (!track.name?.trim()) {
@@ -502,13 +625,19 @@ export async function upsertTrackFromSpotify(
     throw new Error("refuse to upsert song without artist name");
   }
 
-  await upsertArtistFromSpotify(supabase, first);
+  const artistUuid = await upsertArtistFromSpotify(supabase, first);
 
-  const { data: existingAlbum } = await supabase
-    .from("albums")
-    .select("total_tracks, image_url")
-    .eq("id", albumId)
-    .maybeSingle();
+  let albumUuid =
+    (await getAlbumIdByExternalId(supabase, "spotify", albumSpotifyId)) ??
+    (await findAlbumIdByArtistAndName(supabase, artistUuid, albumName));
+
+  const { data: existingAlbum } = albumUuid
+    ? await supabase
+        .from("albums")
+        .select("total_tracks, image_url")
+        .eq("id", albumUuid)
+        .maybeSingle()
+    : { data: null };
 
   const resolvedAlbumImage = resolveAlbumImageForTrackUpsert(
     track,
@@ -517,10 +646,9 @@ export async function upsertTrackFromSpotify(
   );
 
   const now = new Date().toISOString();
-  const albumRow = {
-    id: albumId,
+  const albumPayload = {
     name: albumName,
-    artist_id: first.id,
+    artist_id: artistUuid,
     image_url: resolvedAlbumImage,
     release_date: albumReleaseDate ?? null,
     total_tracks:
@@ -530,14 +658,29 @@ export async function upsertTrackFromSpotify(
     cached_at: now,
   };
 
-  const { error: albumErr } = await supabase.from("albums").upsert(albumRow, {
-    onConflict: "id",
-  });
-  if (albumErr) {
-    console.error(`${LOG_PREFIX} albums upsert (from track) failed`, albumErr);
-    throw new Error(`albums upsert (from track): ${albumErr.message}`);
+  if (!albumUuid) {
+    const { data: insAlb, error: albumErr } = await supabase
+      .from("albums")
+      .insert(albumPayload)
+      .select("id")
+      .single();
+    if (albumErr) {
+      console.error(`${LOG_PREFIX} albums upsert (from track) failed`, albumErr);
+      throw new Error(`albums insert (from track): ${albumErr.message}`);
+    }
+    albumUuid = insAlb!.id as string;
+  } else {
+    const { error: albumErr } = await supabase
+      .from("albums")
+      .update(albumPayload)
+      .eq("id", albumUuid);
+    if (albumErr) {
+      console.error(`${LOG_PREFIX} albums upsert (from track) failed`, albumErr);
+      throw new Error(`albums update (from track): ${albumErr.message}`);
+    }
   }
-  logUpsert("album", albumId);
+  await linkAlbumExternalId(supabase, albumUuid, "spotify", albumSpotifyId);
+  logUpsert("album", albumUuid);
 
   const trackNumber =
     "track_number" in track
@@ -552,11 +695,19 @@ export async function upsertTrackFromSpotify(
       ? trackWithPop.popularity
       : null;
 
-  const row = {
-    id: track.id,
+  let trackUuid =
+    (await getTrackIdByExternalId(supabase, "spotify", track.id)) ??
+    (await findTrackIdByArtistAlbumAndName(
+      supabase,
+      artistUuid,
+      albumUuid,
+      track.name,
+    ));
+
+  const trackPayload = {
     name: track.name,
-    album_id: albumId,
-    artist_id: first.id,
+    album_id: albumUuid,
+    artist_id: artistUuid,
     duration_ms: track.duration_ms ?? null,
     track_number: trackNumber,
     popularity: pop,
@@ -564,27 +715,42 @@ export async function upsertTrackFromSpotify(
     cached_at: now,
     data_source: "spotify" as const,
     needs_spotify_enrichment: false,
-    spotify_id: track.id,
   };
 
-  const { error } = await supabase.from("songs").upsert(row, {
-    onConflict: "id",
-  });
-  if (error) {
-    console.error(`${LOG_PREFIX} songs upsert failed`, error);
-    throw new Error(`songs upsert: ${error.message}`);
+  if (!trackUuid) {
+    const { data: insTr, error: trErr } = await supabase
+      .from("tracks")
+      .insert(trackPayload)
+      .select("id")
+      .single();
+    if (trErr) {
+      console.error(`${LOG_PREFIX} tracks insert failed`, trErr);
+      throw new Error(`tracks insert: ${trErr.message}`);
+    }
+    trackUuid = insTr!.id as string;
+  } else {
+    const { error: trErr } = await supabase
+      .from("tracks")
+      .update(trackPayload)
+      .eq("id", trackUuid);
+    if (trErr) {
+      console.error(`${LOG_PREFIX} tracks update failed`, trErr);
+      throw new Error(`tracks update: ${trErr.message}`);
+    }
   }
 
-  logUpsert("song", track.id);
+  await linkTrackExternalId(supabase, trackUuid, "spotify", track.id);
+  logUpsert("track", trackUuid);
+  return trackUuid;
 }
 
-/** Upsert only the song row; album and artist must already exist. Used when hydrating a full album to avoid N duplicate album/artist upserts. */
-async function upsertSongRowOnly(
+/** Upsert track row when album + artist canonical rows already exist (full-album hydrate). */
+async function upsertTrackRowOnly(
   supabase: SupabaseClient,
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified,
-  albumId: string,
-  artistId: string,
-) {
+  albumCanonicalId: string,
+  artistCanonicalId: string,
+): Promise<string> {
   if (!track.name?.trim()) {
     throw new Error("refuse to upsert song without track name");
   }
@@ -601,11 +767,19 @@ async function upsertSongRowOnly(
       ? trackWithPop.popularity
       : null;
 
-  const row = {
-    id: track.id,
+  let trackUuid =
+    (await getTrackIdByExternalId(supabase, "spotify", track.id)) ??
+    (await findTrackIdByArtistAlbumAndName(
+      supabase,
+      artistCanonicalId,
+      albumCanonicalId,
+      track.name,
+    ));
+
+  const trackPayload = {
     name: track.name,
-    album_id: albumId,
-    artist_id: artistId,
+    album_id: albumCanonicalId,
+    artist_id: artistCanonicalId,
     duration_ms: track.duration_ms ?? null,
     track_number: trackNumber,
     popularity: pop,
@@ -613,23 +787,38 @@ async function upsertSongRowOnly(
     cached_at: now,
     data_source: "spotify" as const,
     needs_spotify_enrichment: false,
-    spotify_id: track.id,
   };
-  const { error } = await supabase.from("songs").upsert(row, {
-    onConflict: "id",
-  });
-  if (error) {
-    console.error(`${LOG_PREFIX} songs upsert failed`, error);
-    throw new Error(`songs upsert: ${error.message}`);
+
+  if (!trackUuid) {
+    const { data: ins, error } = await supabase
+      .from("tracks")
+      .insert(trackPayload)
+      .select("id")
+      .single();
+    if (error) {
+      console.error(`${LOG_PREFIX} tracks insert failed`, error);
+      throw new Error(`tracks insert: ${error.message}`);
+    }
+    trackUuid = ins!.id as string;
+  } else {
+    const { error } = await supabase
+      .from("tracks")
+      .update(trackPayload)
+      .eq("id", trackUuid);
+    if (error) {
+      console.error(`${LOG_PREFIX} tracks update failed`, error);
+      throw new Error(`tracks update: ${error.message}`);
+    }
   }
+  await linkTrackExternalId(supabase, trackUuid, "spotify", track.id);
+  return trackUuid;
 }
 
 /**
  * Spotify Web API paths (`/artists/{id}`, `/artists/{id}/albums`) require a base62 catalog id.
- * Our canonical `artists.id` may be `lfm:*` with the real id in `spotify_id`, or callers may pass
- * either form — resolve before any Spotify GET by artist id.
+ * Callers may pass a Spotify id or a canonical UUID — resolve via `artist_external_ids` before any GET.
  *
- * When `spotify_id` is empty on an `lfm:*` row, matches {@link resolveArtistSpotifyJob} (search + link).
+ * When no Spotify mapping exists, {@link resolveArtistSpotifyJob} can search and link the row.
  */
 export async function resolveCanonicalArtistIdToSpotifyApiId(
   rawId: string,
@@ -637,82 +826,97 @@ export async function resolveCanonicalArtistIdToSpotifyApiId(
   const id = normalizeReviewEntityId(rawId);
   if (isValidSpotifyId(id)) return id;
 
-  /** Admin read: this runs inside `unstable_cache` (e.g. album list meta) where `cookies()` is forbidden. */
   const supabase = createSupabaseAdminClient();
-  const { data: row } = await supabase
-    .from("artists")
-    .select("id, name, spotify_id")
-    .eq("id", id)
-    .maybeSingle();
 
-  if (!row) return null;
-
-  const linked =
-    typeof row.spotify_id === "string" ? row.spotify_id.trim() : "";
-  if (linked) return linked;
-
-  if (!isValidLfmCatalogId(row.id)) return null;
-
-  const name = row.name?.trim();
-  if (!name) return null;
-
-  try {
-    const res = await searchSpotify(name, ["artist"], 5, {
-      allowLastfmMapping: true,
-    });
-    const items = res.artists?.items ?? [];
-    const pick = pickBestArtistMatch(name, items);
-    if (!pick) return null;
-
-    const admin = createSupabaseAdminClient();
-    await upsertArtistFromSpotify(admin, pick);
-
-    const fullPop = pick as SpotifyApi.ArtistObjectFull & {
-      popularity?: number;
-    };
-    const pop =
-      typeof fullPop.popularity === "number"
-        ? clampPopularity(fullPop.popularity)
-        : 0;
-    const genres =
-      "genres" in pick && Array.isArray(pick.genres) && pick.genres.length > 0
-        ? pick.genres
-        : null;
-    const imageUrl =
-      "images" in pick && pick.images?.[0]?.url ? pick.images[0].url : null;
-    const now = new Date().toISOString();
-
-    const { error } = await admin
-      .from("artists")
-      .update({
-        spotify_id: pick.id,
-        name: pick.name,
-        image_url: imageUrl,
-        genres,
-        popularity: pop,
-        needs_spotify_enrichment: false,
-        data_source: "mixed",
-        last_updated: now,
-        updated_at: now,
-        cached_at: now,
-      })
-      .eq("id", row.id);
-
-    if (error) {
-      console.warn(
-        `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId link failed`,
-        error,
-      );
-    }
-    return pick.id;
-  } catch (e) {
-    console.warn(
-      `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId search failed`,
-      id,
-      e,
-    );
-    return null;
+  async function spotifyIdForCanonicalArtist(
+    artistUuid: string,
+  ): Promise<string | null> {
+    const { data: m } = await supabase
+      .from("artist_external_ids")
+      .select("external_id")
+      .eq("artist_id", artistUuid)
+      .eq("source", "spotify")
+      .limit(1)
+      .maybeSingle();
+    const ext = (m as { external_id?: string } | null)?.external_id;
+    return ext && isValidSpotifyId(ext) ? ext : null;
   }
+
+  let artistUuid: string | null = null;
+  if (isValidUuid(id)) {
+    artistUuid = id;
+  } else if (isValidLfmCatalogId(id)) {
+    artistUuid = await getArtistIdByExternalId(supabase, "lastfm", id);
+  }
+
+  if (artistUuid) {
+    const sid = await spotifyIdForCanonicalArtist(artistUuid);
+    if (sid) return sid;
+
+    const { data: row } = await supabase
+      .from("artists")
+      .select("id, name")
+      .eq("id", artistUuid)
+      .maybeSingle();
+    const name = (row as { name?: string } | null)?.name?.trim();
+    if (!name) return null;
+
+    try {
+      const res = await searchSpotify(name, ["artist"], 5, {
+        allowLastfmMapping: true,
+      });
+      const items = res.artists?.items ?? [];
+      const pick = pickBestArtistMatch(name, items);
+      if (!pick) return null;
+
+      const fullPop = pick as SpotifyApi.ArtistObjectFull & {
+        popularity?: number;
+      };
+      const pop =
+        typeof fullPop.popularity === "number"
+          ? clampPopularity(fullPop.popularity)
+          : null;
+      const genres =
+        "genres" in pick && Array.isArray(pick.genres) && pick.genres.length > 0
+          ? pick.genres
+          : null;
+      const imageUrl =
+        "images" in pick && pick.images?.[0]?.url ? pick.images[0].url : null;
+      const now = new Date().toISOString();
+
+      await linkArtistExternalId(supabase, artistUuid, "spotify", pick.id);
+      const { error } = await supabase
+        .from("artists")
+        .update({
+          name: pick.name,
+          image_url: imageUrl,
+          genres,
+          popularity: pop,
+          needs_spotify_enrichment: false,
+          data_source: "mixed",
+          last_updated: now,
+          updated_at: now,
+          cached_at: now,
+        })
+        .eq("id", artistUuid);
+      if (error) {
+        console.warn(
+          `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId link failed`,
+          error,
+        );
+      }
+      return pick.id;
+    } catch (e) {
+      console.warn(
+        `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId search failed`,
+        id,
+        e,
+      );
+      return null;
+    }
+  }
+
+  return null;
 }
 
 // --- getOrFetchArtist (DB-first cache + TTL)
@@ -952,7 +1156,7 @@ export async function getArtistTopTracksFromLogs(
 
   // 2) Try to resolve as many as possible from cached songs/albums
   const { data: songRows, error: songsError } = await supabase
-    .from("songs")
+    .from("tracks")
     .select("id, name, album_id, artist_id, duration_ms")
     .in("id", sortedIds);
 
@@ -1081,13 +1285,38 @@ async function getOrFetchAlbumInner(
 }> {
   const supabase = await createSupabaseServerClient();
   const net = catalogReadsAllowSpotifyNetwork(opts);
+  const normalized = normalizeReviewEntityId(id);
+
+  let dbAlbumId = normalized;
+  if (isValidSpotifyId(normalized)) {
+    const c = await getAlbumIdByExternalId(supabase, "spotify", normalized);
+    if (c) dbAlbumId = c;
+  } else if (isValidLfmCatalogId(normalized)) {
+    const c = await getAlbumIdByExternalId(supabase, "lastfm", normalized);
+    if (c) dbAlbumId = c;
+  }
+
+  let spotifyAlbumApiId: string | null = isValidSpotifyId(normalized)
+    ? normalized
+    : null;
+  if (!spotifyAlbumApiId) {
+    const { data: extAl } = await supabase
+      .from("album_external_ids")
+      .select("external_id")
+      .eq("album_id", dbAlbumId)
+      .eq("source", "spotify")
+      .limit(1)
+      .maybeSingle();
+    const ex = (extAl as { external_id?: string } | null)?.external_id;
+    if (ex && isValidSpotifyId(ex)) spotifyAlbumApiId = ex;
+  }
 
   const { data: albumRow, error: albumErr } = await supabase
     .from("albums")
     .select(
       "id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
     )
-    .eq("id", id)
+    .eq("id", dbAlbumId)
     .maybeSingle();
 
   if (albumErr) {
@@ -1108,9 +1337,9 @@ async function getOrFetchAlbumInner(
       const artist = artistRow as unknown as ArtistRow | null;
 
       const { data: songRows, error: songsErr } = await supabase
-        .from("songs")
+        .from("tracks")
         .select("id, name, album_id, artist_id, duration_ms, track_number")
-        .eq("album_id", id)
+        .eq("album_id", dbAlbumId)
         .order("track_number", { ascending: true });
 
       if (songsErr) {
@@ -1121,23 +1350,27 @@ async function getOrFetchAlbumInner(
 
       if (
         net &&
+        spotifyAlbumApiId &&
         albumNeedsTrackBackfill(songs.length, album.total_tracks)
       ) {
         try {
-          const result = await refreshAlbumFromSpotify(supabase, id);
+          const result = await refreshAlbumFromSpotify(
+            supabase,
+            spotifyAlbumApiId,
+          );
           if (result?.album && result?.tracks)
             return { album: result.album, tracks: result.tracks };
           const { data: refetched } = await supabase
-            .from("songs")
+            .from("tracks")
             .select(
               "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
             )
-            .eq("album_id", id)
+            .eq("album_id", dbAlbumId)
             .order("track_number", { ascending: true });
           songs = (refetched ?? []) as unknown as SongRow[];
         } catch (e) {
           console.warn(
-            `${LOG_PREFIX} album tracks backfill failed for ${id}`,
+            `${LOG_PREFIX} album tracks backfill failed for ${dbAlbumId}`,
             e,
           );
         }
@@ -1224,33 +1457,37 @@ async function getOrFetchAlbumInner(
       .maybeSingle();
     const artistStale = artistRowStale as unknown as ArtistRow | null;
     const { data: songRowsStale } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, name, album_id, artist_id, duration_ms, track_number")
-      .eq("album_id", id)
+      .eq("album_id", dbAlbumId)
       .order("track_number", { ascending: true });
     let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
 
     let ranStaleSyncBackfill = false;
     if (
       net &&
+      spotifyAlbumApiId &&
       albumNeedsTrackBackfill(songsStale.length, album.total_tracks)
     ) {
       ranStaleSyncBackfill = true;
       try {
-        const result = await refreshAlbumFromSpotify(supabase, id);
+        const result = await refreshAlbumFromSpotify(
+          supabase,
+          spotifyAlbumApiId,
+        );
         if (result?.album && result?.tracks)
           return { album: result.album, tracks: result.tracks };
         const { data: refetchedStale } = await supabase
-          .from("songs")
+          .from("tracks")
           .select(
             "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
           )
-          .eq("album_id", id)
+          .eq("album_id", dbAlbumId)
           .order("track_number", { ascending: true });
         songsStale = (refetchedStale ?? []) as unknown as SongRow[];
       } catch (e) {
         console.warn(
-          `${LOG_PREFIX} album tracks backfill failed (stale album) for ${id}`,
+          `${LOG_PREFIX} album tracks backfill failed (stale album) for ${dbAlbumId}`,
           e,
         );
       }
@@ -1319,10 +1556,10 @@ async function getOrFetchAlbumInner(
         next: null,
         previous: null,
       };
-    if (!ranStaleSyncBackfill && net) {
-      refreshAlbumFromSpotify(supabase, id).catch((e) =>
+    if (!ranStaleSyncBackfill && net && spotifyAlbumApiId) {
+      refreshAlbumFromSpotify(supabase, spotifyAlbumApiId).catch((e) =>
         console.warn(
-          `${LOG_PREFIX} background album refresh failed for ${id}`,
+          `${LOG_PREFIX} background album refresh failed for ${spotifyAlbumApiId}`,
           e,
         ),
       );
@@ -1330,12 +1567,12 @@ async function getOrFetchAlbumInner(
     return { album: albumPayloadStale, tracks: tracksPayloadStale };
   }
 
-  logCacheMiss("album", id);
+  logCacheMiss("album", normalized);
 
   if (!net) {
     return {
       album: {
-        id,
+        id: spotifyAlbumApiId ?? normalized,
         name: "Album",
         artists: [{ id: "", name: "" }],
         images: [],
@@ -1349,14 +1586,22 @@ async function getOrFetchAlbumInner(
 
   const missStart = performance.now();
   try {
+    const apiAlbum =
+      spotifyAlbumApiId ??
+      (isValidSpotifyId(normalized) ? normalized : null);
+    if (!apiAlbum) {
+      throw new Error("No Spotify album id for catalog fetch");
+    }
     const { album: albumResp, tracks: tracksResp } =
-      await refreshAlbumFromSpotify(supabase, id);
+      await refreshAlbumFromSpotify(supabase, apiAlbum);
     if (!albumResp || !tracksResp) throw new Error("Refresh returned no data");
-    logPerf("cache_miss", "album", performance.now() - missStart, { id });
+    logPerf("cache_miss", "album", performance.now() - missStart, {
+      id: normalized,
+    });
     return { album: albumResp, tracks: tracksResp };
   } catch (e) {
     console.error(`${LOG_PREFIX} getAlbum/getAlbumTracks failed`, e);
-    throw new Error(`Failed to fetch album ${id} from Spotify`);
+    throw new Error(`Failed to fetch album ${normalized} from Spotify`);
   }
 }
 
@@ -1409,9 +1654,21 @@ async function refreshAlbumFromSpotify(
         ?.artists?.[0];
       if (art) await upsertArtistFromSpotify(db, art);
     }
+    const albumCanon =
+      (await getAlbumIdByExternalId(db, "spotify", albumResp.id)) ?? null;
+    if (!albumCanon) {
+      console.warn(
+        `${LOG_PREFIX} refreshAlbumFromSpotify: missing canonical album for ${albumResp.id}`,
+      );
+      return { album: albumResp, tracks: tracksResp };
+    }
     for (const t of tracksResp.items ?? []) {
-      const firstId = t.artists?.[0]?.id ?? albumArtistId;
-      if (firstId) await upsertSongRowOnly(db, t, albumResp.id, firstId);
+      const spotifyAid = t.artists?.[0]?.id ?? albumArtistId;
+      if (!spotifyAid) continue;
+      const artistCanon =
+        (await getArtistIdByExternalId(db, "spotify", spotifyAid)) ?? null;
+      if (!artistCanon) continue;
+      await upsertTrackRowOnly(db, t, albumCanon, artistCanon);
     }
     return { album: albumResp, tracks: tracksResp };
   } catch (e) {
@@ -1427,38 +1684,96 @@ async function getOrFetchTrackInner(
   opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.TrackObjectFull> {
   const supabase = await createSupabaseServerClient();
+  const admin = createSupabaseAdminClient();
   const net = catalogReadsAllowSpotifyNetwork(opts);
+  const normalized = normalizeReviewEntityId(id);
+
+  let canon = await resolveTrackCanonicalId(supabase, normalized);
+
+  if (!canon && isValidSpotifyId(normalized) && net) {
+    logCacheMiss("song", normalized);
+    const missStart = performance.now();
+    try {
+      const track = await getTrack(normalized, {
+        allowLastfmMapping: opts?.allowLastfmMapping,
+      });
+      const alb = track.album;
+      if (!alb) throw new Error("Track has no album");
+      try {
+        await upsertTrackFromSpotify(
+          admin,
+          track,
+          alb.id,
+          alb.name,
+          firstSpotifyImageUrl(alb.images),
+          "release_date" in alb ? alb.release_date : undefined,
+        );
+      } catch (e) {
+        console.error(`${LOG_PREFIX} upsertTrackFromSpotify error`, e);
+      }
+      logPerf("cache_miss", "song", performance.now() - missStart, {
+        id: normalized,
+      });
+      return track;
+    } catch (e) {
+      console.error(`${LOG_PREFIX} getTrack failed`, e);
+      throw new Error(`Failed to fetch track ${normalized} from Spotify`);
+    }
+  }
+
+  if (!canon) {
+    logCacheMiss("song", normalized);
+    if (!net) {
+      return {
+        id: normalized,
+        name: "Track",
+        artists: [{ id: "", name: "Unknown" }],
+      } as SpotifyApi.TrackObjectFull;
+    }
+    throw new Error(`Unknown track id ${normalized}`);
+  }
 
   const { data: songRow, error } = await supabase
-    .from("songs")
+    .from("tracks")
     .select(
-      "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, spotify_id, lastfm_name, lastfm_artist_name",
+      "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, lastfm_name, lastfm_artist_name",
     )
-    .eq("id", id)
+    .eq("id", canon)
     .maybeSingle();
 
   if (error) {
-    console.error(`${LOG_PREFIX} songs select failed`, error);
+    console.error(`${LOG_PREFIX} tracks select failed`, error);
   }
 
   if (songRow) {
     const song = songRow as unknown as SongRow;
-    const linked = trimmedSpotifyId(song);
-    if (song.id.startsWith("lfm:") && linked) {
-      const t = await getOrFetchTrackInner(linked, opts);
-      return withCanonicalSongId(song.id, t);
+    const lfmKey = await getLastfmExternalForTrack(supabase, song.id);
+    const spotifyExt = await getSpotifyExternalForTrack(supabase, song.id);
+
+    if (lfmKey && spotifyExt && net) {
+      try {
+        const t = await getTrack(spotifyExt, {
+          allowLastfmMapping: opts?.allowLastfmMapping,
+        });
+        return withCanonicalSongId(lfmKey, t);
+      } catch {
+        return trackFromDbSongRow(supabase, song);
+      }
     }
+
     if (
-      song.id.startsWith("lfm:") &&
-      !linked &&
+      lfmKey &&
+      !spotifyExt &&
       catalogReadsAllowSpotifyNetwork(opts)
     ) {
       const resolved = await tryResolveLfmSongViaLastfmSearch(song, opts);
       if (resolved) return resolved;
     }
-    if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+
+    if (lfmKey && (!song.album_id || !song.artist_id)) {
       return buildSyntheticLfmTrack(song);
     }
+
     const cacheTime = song.cached_at ?? song.updated_at;
     if (!isCacheStale(cacheTime)) {
       return trackFromDbSongRow(supabase, song);
@@ -1466,24 +1781,31 @@ async function getOrFetchTrackInner(
     if (!net) {
       return trackFromDbSongRow(supabase, song);
     }
-    if (song.id.startsWith("lfm:")) {
+    if (lfmKey) {
       return trackFromDbSongRow(supabase, song);
     }
   }
 
-  logCacheMiss("song", id);
+  logCacheMiss("song", normalized);
 
   if (!net) {
     return {
-      id,
+      id: normalized,
       name: "Track",
       artists: [{ id: "", name: "Unknown" }],
     } as SpotifyApi.TrackObjectFull;
   }
 
+  const spotifyForRefresh =
+    (songRow && (await getSpotifyExternalForTrack(supabase, canon))) ||
+    (isValidSpotifyId(normalized) ? normalized : null);
+  if (!spotifyForRefresh) {
+    throw new Error(`Failed to fetch track ${normalized} from Spotify`);
+  }
+
   const missStart = performance.now();
   try {
-    const track = await getTrack(id, {
+    const track = await getTrack(spotifyForRefresh, {
       allowLastfmMapping: opts?.allowLastfmMapping,
     });
     const alb = track.album;
@@ -1491,7 +1813,7 @@ async function getOrFetchTrackInner(
 
     try {
       await upsertTrackFromSpotify(
-        supabase,
+        admin,
         track,
         alb.id,
         alb.name,
@@ -1502,11 +1824,11 @@ async function getOrFetchTrackInner(
       console.error(`${LOG_PREFIX} upsertTrackFromSpotify error`, e);
     }
 
-    logPerf("cache_miss", "song", performance.now() - missStart, { id });
+    logPerf("cache_miss", "song", performance.now() - missStart, { id: normalized });
     return track;
   } catch (e) {
     console.error(`${LOG_PREFIX} getTrack failed`, e);
-    throw new Error(`Failed to fetch track ${id} from Spotify`);
+    throw new Error(`Failed to fetch track ${normalized} from Spotify`);
   }
 }
 
@@ -1604,14 +1926,14 @@ function buildTrackFromRows(
  */
 function applySpotifyIdAliasesToLookup(
   lookup: Map<string, SpotifyApi.TrackObjectFull | null>,
-  allSongs: SongRow[],
+  spotifyToCanonical: Map<string, string>,
   uniqueIds: string[],
 ): void {
   for (const uid of uniqueIds) {
     if (lookup.has(uid)) continue;
-    const song = allSongs.find((s) => trimmedSpotifyId(s) === uid);
-    if (song && lookup.has(song.id)) {
-      lookup.set(uid, lookup.get(song.id)!);
+    const canon = spotifyToCanonical.get(uid);
+    if (canon && lookup.has(canon)) {
+      lookup.set(uid, lookup.get(canon)!);
     }
   }
 }
@@ -1638,18 +1960,22 @@ async function getOrFetchTracksBatchInner(
   const lookup = new Map<string, SpotifyApi.TrackObjectFull | null>();
 
   const songSelect =
-    "id, name, album_id, artist_id, duration_ms, cached_at, updated_at, spotify_id, lastfm_name, lastfm_artist_name";
+    "id, name, album_id, artist_id, duration_ms, cached_at, updated_at, lastfm_name, lastfm_artist_name";
 
   const allSongs: SongRow[] = [];
-  const seenSongIds = new Set<string>();
+  const seenTrackIds = new Set<string>();
+  const spotifyToCanonical = new Map<string, string>();
+
   for (const idChunk of chunkArray(uniqueIds, SUPABASE_IN_CHUNK)) {
+    const uuidChunk = idChunk.filter((x) => isValidUuid(x));
+    if (uuidChunk.length === 0) continue;
     const { data: songRows } = await supabase
-      .from("songs")
+      .from("tracks")
       .select(songSelect)
-      .in("id", idChunk);
+      .in("id", uuidChunk);
     for (const s of (songRows ?? []) as unknown as SongRow[]) {
-      if (seenSongIds.has(s.id)) continue;
-      seenSongIds.add(s.id);
+      if (seenTrackIds.has(s.id)) continue;
+      seenTrackIds.add(s.id);
       allSongs.push(s);
     }
   }
@@ -1660,29 +1986,61 @@ async function getOrFetchTracksBatchInner(
   );
   if (spotifyLookupCandidates.length > 0) {
     for (const idChunk of chunkArray(spotifyLookupCandidates, SUPABASE_IN_CHUNK)) {
+      const { data: extRows } = await supabase
+        .from("track_external_ids")
+        .select("track_id, external_id")
+        .eq("source", "spotify")
+        .in("external_id", idChunk);
+      const canonIds = [
+        ...new Set(
+          (extRows ?? []).map((r) => (r as { track_id: string }).track_id),
+        ),
+      ];
+      for (const row of extRows ?? []) {
+        const r = row as { track_id: string; external_id: string };
+        spotifyToCanonical.set(r.external_id, r.track_id);
+      }
+      if (canonIds.length === 0) continue;
       const { data: songRows } = await supabase
-        .from("songs")
+        .from("tracks")
         .select(songSelect)
-        .in("spotify_id", idChunk);
+        .in("id", canonIds);
       for (const s of (songRows ?? []) as unknown as SongRow[]) {
-        if (seenSongIds.has(s.id)) continue;
-        seenSongIds.add(s.id);
+        if (seenTrackIds.has(s.id)) continue;
+        seenTrackIds.add(s.id);
         allSongs.push(s);
       }
     }
   }
 
-  if (net) {
+  const { data: extAllBatch } =
+    allSongs.length > 0
+      ? await supabase
+          .from("track_external_ids")
+          .select("track_id, external_id, source")
+          .in("track_id", allSongs.map((s) => s.id))
+      : { data: [] as { track_id: string; external_id: string; source: string }[] };
+  const spotifyByTrackId = new Map<string, string>();
+  const lfmByTrackId = new Map<string, string>();
+  for (const row of extAllBatch ?? []) {
+    const r = row as { track_id: string; external_id: string; source: string };
+    if (r.source === "spotify") spotifyByTrackId.set(r.track_id, r.external_id);
+    if (r.source === "lastfm") lfmByTrackId.set(r.track_id, r.external_id);
+  }
+
+  if (net && allSongs.length > 0) {
     for (const song of allSongs) {
-      if (!song.id.startsWith("lfm:")) continue;
-      const linked = trimmedSpotifyId(song);
-      if (!linked) continue;
+      const lfm = lfmByTrackId.get(song.id);
+      const sp = spotifyByTrackId.get(song.id);
+      if (!lfm || !sp) continue;
       try {
-        const t = await getOrFetchTrackInner(linked, opts);
-        lookup.set(song.id, withCanonicalSongId(song.id, t));
+        const t = await getTrack(sp, {
+          allowLastfmMapping: opts?.allowLastfmMapping,
+        });
+        lookup.set(song.id, withCanonicalSongId(lfm, t));
       } catch (e) {
         console.warn(
-          `${LOG_PREFIX} batch lfm+spotify_id hydrate failed`,
+          `${LOG_PREFIX} batch lfm+spotify hydrate failed`,
           song.id,
           e,
         );
@@ -1734,7 +2092,10 @@ async function getOrFetchTracksBatchInner(
   if (!net) {
     for (const song of allSongs) {
       if (lookup.has(song.id)) continue;
-      if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+      if (
+        lfmByTrackId.has(song.id) &&
+        (!song.album_id || !song.artist_id)
+      ) {
         lookup.set(song.id, buildSyntheticLfmTrack(song));
         continue;
       }
@@ -1746,7 +2107,7 @@ async function getOrFetchTracksBatchInner(
           : (song.lastfm_artist_name ?? "");
       lookup.set(song.id, buildTrackFromRows(song, album, artistName));
     }
-    applySpotifyIdAliasesToLookup(lookup, allSongs, uniqueIds);
+    applySpotifyIdAliasesToLookup(lookup, spotifyToCanonical, uniqueIds);
     uniqueIds.forEach((id) => {
       if (!lookup.has(id)) lookup.set(id, null);
     });
@@ -1756,7 +2117,10 @@ async function getOrFetchTracksBatchInner(
 
   for (const song of songs) {
     if (lookup.has(song.id)) continue;
-    if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+    if (
+      lfmByTrackId.has(song.id) &&
+      (!song.album_id || !song.artist_id)
+    ) {
       lookup.set(song.id, buildSyntheticLfmTrack(song));
       continue;
     }
@@ -1775,9 +2139,7 @@ async function getOrFetchTracksBatchInner(
       const t = lookup.get(song.id);
       if (!t) continue;
       if (firstSpotifyImageUrl(t.album?.images)) continue;
-      const spotifyId = song.id.startsWith("lfm:")
-        ? trimmedSpotifyId(song)
-        : song.id;
+      const spotifyId = spotifyByTrackId.get(song.id) ?? "";
       if (!spotifyId) continue;
       const list = canonicalsBySpotifyId.get(spotifyId) ?? [];
       list.push(song.id);
@@ -1813,8 +2175,9 @@ async function getOrFetchTracksBatchInner(
                   );
                 }
               }
-              const final = canonicalId.startsWith("lfm:")
-                ? withCanonicalSongId(canonicalId, track)
+              const lfmKey = lfmByTrackId.get(canonicalId);
+              const final = lfmKey
+                ? withCanonicalSongId(lfmKey, track)
                 : track;
               lookup.set(canonicalId, final);
             }
@@ -1829,7 +2192,10 @@ async function getOrFetchTracksBatchInner(
   // Stale rows are skipped in `songs` for Spotify refresh; still build display tracks from DB.
   for (const song of allSongs) {
     if (lookup.has(song.id)) continue;
-    if (song.id.startsWith("lfm:") && (!song.album_id || !song.artist_id)) {
+    if (
+      lfmByTrackId.has(song.id) &&
+      (!song.album_id || !song.artist_id)
+    ) {
       lookup.set(song.id, buildSyntheticLfmTrack(song));
       continue;
     }
@@ -1842,7 +2208,7 @@ async function getOrFetchTracksBatchInner(
     lookup.set(song.id, buildTrackFromRows(song, album, artistName));
   }
 
-  applySpotifyIdAliasesToLookup(lookup, allSongs, uniqueIds);
+  applySpotifyIdAliasesToLookup(lookup, spotifyToCanonical, uniqueIds);
 
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0) {
@@ -1893,8 +2259,10 @@ async function getOrFetchTracksBatchInner(
       try {
         const mergedOpts: CatalogFetchOpts = {
           ...opts,
-          allowNetwork: id.startsWith("lfm:") ? true : opts?.allowNetwork,
-          allowLastfmMapping: id.startsWith("lfm:") ? true : opts?.allowLastfmMapping,
+          allowNetwork: isValidLfmCatalogId(id) ? true : opts?.allowNetwork,
+          allowLastfmMapping: isValidLfmCatalogId(id)
+            ? true
+            : opts?.allowLastfmMapping,
         };
         const t = await getOrFetchTrackInner(id, mergedOpts);
         lookup.set(id, t);
@@ -1948,14 +2316,58 @@ async function getOrFetchAlbumsBatchInner(
   const lookup = new Map<string, SpotifyApi.AlbumObjectSimplified | null>();
 
   const allAlbums: AlbumRow[] = [];
+  const seenAlbumIds = new Set<string>();
+  const spotifyToCanonicalAlbum = new Map<string, string>();
+
   for (const idChunk of chunkArray(uniqueIds, SUPABASE_IN_CHUNK)) {
+    const uuidChunk = idChunk.filter((x) => isValidUuid(x));
+    if (uuidChunk.length === 0) continue;
     const { data: albumRows } = await supabase
       .from("albums")
       .select(
         "id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
       )
-      .in("id", idChunk);
-    allAlbums.push(...((albumRows ?? []) as unknown as AlbumRow[]));
+      .in("id", uuidChunk);
+    for (const a of (albumRows ?? []) as unknown as AlbumRow[]) {
+      if (seenAlbumIds.has(a.id)) continue;
+      seenAlbumIds.add(a.id);
+      allAlbums.push(a);
+    }
+  }
+
+  const byAlbumId = new Set(allAlbums.map((a) => a.id));
+  const spotifyAlbumCands = uniqueIds.filter(
+    (uid) => !byAlbumId.has(uid) && isValidSpotifyId(uid),
+  );
+  if (spotifyAlbumCands.length > 0) {
+    for (const idChunk of chunkArray(spotifyAlbumCands, SUPABASE_IN_CHUNK)) {
+      const { data: extRows } = await supabase
+        .from("album_external_ids")
+        .select("album_id, external_id")
+        .eq("source", "spotify")
+        .in("external_id", idChunk);
+      const canonIds = [
+        ...new Set(
+          (extRows ?? []).map((r) => (r as { album_id: string }).album_id),
+        ),
+      ];
+      for (const row of extRows ?? []) {
+        const r = row as { album_id: string; external_id: string };
+        spotifyToCanonicalAlbum.set(r.external_id, r.album_id);
+      }
+      if (canonIds.length === 0) continue;
+      const { data: albumRows } = await supabase
+        .from("albums")
+        .select(
+          "id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
+        )
+        .in("id", canonIds);
+      for (const a of (albumRows ?? []) as unknown as AlbumRow[]) {
+        if (seenAlbumIds.has(a.id)) continue;
+        seenAlbumIds.add(a.id);
+        allAlbums.push(a);
+      }
+    }
   }
   const albums = allAlbums.filter(
     (a) => !isCacheStale(a.cached_at ?? a.updated_at),
@@ -1976,23 +2388,62 @@ async function getOrFetchAlbumsBatchInner(
     artistRowsFlat.map((r: { id: string; name: string }) => [r.id, r.name]),
   );
 
+  const albumCanonIds = albums.map((a) => a.id);
+  const { data: albExtRows } =
+    albumCanonIds.length > 0
+      ? await supabase
+          .from("album_external_ids")
+          .select("album_id, external_id")
+          .eq("source", "spotify")
+          .in("album_id", albumCanonIds)
+      : { data: [] as { album_id: string; external_id: string }[] };
+  const spotifyAlbumIdByCanon = new Map<string, string>();
+  for (const r of albExtRows ?? []) {
+    const row = r as { album_id: string; external_id: string };
+    spotifyAlbumIdByCanon.set(row.album_id, row.external_id);
+  }
+
   for (const album of albums) {
     const artistName = artistMap.get(album.artist_id) ?? "";
+    const spotifyAlbumId =
+      spotifyAlbumIdByCanon.get(album.id) ?? album.id;
     lookup.set(album.id, {
-      id: album.id,
+      id: spotifyAlbumId,
       name: album.name,
       artists: [{ id: album.artist_id, name: artistName }],
       images: album.image_url ? [{ url: album.image_url }] : undefined,
     });
   }
 
+  for (const [spotifyId, canonId] of spotifyToCanonicalAlbum) {
+    const v = lookup.get(canonId);
+    if (v) lookup.set(spotifyId, v);
+  }
+
   /** DB row exists but `image_url` empty — same idea as track batch artwork supplement. */
   if (net) {
     const needAlbumArtwork: string[] = [];
+    const albumIdsNeedingArt = albums
+      .filter((a) => !a.image_url?.trim())
+      .map((a) => a.id);
+    const { data: extArt } =
+      albumIdsNeedingArt.length > 0
+        ? await supabase
+            .from("album_external_ids")
+            .select("album_id, external_id")
+            .eq("source", "spotify")
+            .in("album_id", albumIdsNeedingArt)
+        : { data: [] as { album_id: string; external_id: string }[] };
+    const spotifyForAlbum = new Map<string, string>();
+    for (const r of extArt ?? []) {
+      const row = r as { album_id: string; external_id: string };
+      spotifyForAlbum.set(row.album_id, row.external_id);
+    }
     for (const album of albums) {
       if (album.image_url?.trim()) continue;
-      if (!isValidSpotifyId(album.id)) continue;
-      needAlbumArtwork.push(album.id);
+      const sid = spotifyForAlbum.get(album.id);
+      if (!sid || !isValidSpotifyId(sid)) continue;
+      needAlbumArtwork.push(sid);
     }
     if (needAlbumArtwork.length > 0) {
       try {
@@ -2070,21 +2521,17 @@ export async function getOrFetchAlbumsBatch(
   );
 }
 
-function trimmedSpotifyArtistId(a: ArtistRow): string {
-  return typeof a.spotify_id === "string" ? a.spotify_id.trim() : "";
-}
-
-/** Same as {@link applySpotifyIdAliasesToLookup} for artists (`mv_rising` may use Spotify id). */
+/** Map Spotify catalog id → canonical artist UUID for batch alias resolution. */
 function applySpotifyIdAliasesToArtistLookup(
   lookup: Map<string, SpotifyApi.ArtistObjectFull | null>,
-  allArtists: ArtistRow[],
+  spotifyToCanonical: Map<string, string>,
   uniqueIds: string[],
 ): void {
   for (const uid of uniqueIds) {
     if (lookup.has(uid)) continue;
-    const row = allArtists.find((a) => trimmedSpotifyArtistId(a) === uid);
-    if (row && lookup.has(row.id)) {
-      lookup.set(uid, lookup.get(row.id)!);
+    const canon = spotifyToCanonical.get(uid);
+    if (canon && lookup.has(canon)) {
+      lookup.set(uid, lookup.get(canon)!);
     }
   }
 }
@@ -2111,15 +2558,19 @@ async function getOrFetchArtistsBatchInner(
   const lookup = new Map<string, SpotifyApi.ArtistObjectFull | null>();
 
   const artistSelect =
-    "id, name, image_url, genres, popularity, cached_at, updated_at, spotify_id";
+    "id, name, image_url, genres, popularity, cached_at, updated_at";
 
   const allArtists: ArtistRow[] = [];
   const seenArtistIds = new Set<string>();
+  const spotifyToCanonicalArtist = new Map<string, string>();
+
   for (const idChunk of chunkArray(uniqueIds, SUPABASE_IN_CHUNK)) {
+    const uuidChunk = idChunk.filter((x) => isValidUuid(x));
+    if (uuidChunk.length === 0) continue;
     const { data: artistRows } = await supabase
       .from("artists")
       .select(artistSelect)
-      .in("id", idChunk);
+      .in("id", uuidChunk);
     for (const a of (artistRows ?? []) as unknown as ArtistRow[]) {
       if (seenArtistIds.has(a.id)) continue;
       seenArtistIds.add(a.id);
@@ -2133,10 +2584,25 @@ async function getOrFetchArtistsBatchInner(
   );
   if (spotifyLookupCandidates.length > 0) {
     for (const idChunk of chunkArray(spotifyLookupCandidates, SUPABASE_IN_CHUNK)) {
+      const { data: extRows } = await supabase
+        .from("artist_external_ids")
+        .select("artist_id, external_id")
+        .eq("source", "spotify")
+        .in("external_id", idChunk);
+      const canonIds = [
+        ...new Set(
+          (extRows ?? []).map((r) => (r as { artist_id: string }).artist_id),
+        ),
+      ];
+      for (const row of extRows ?? []) {
+        const r = row as { artist_id: string; external_id: string };
+        spotifyToCanonicalArtist.set(r.external_id, r.artist_id);
+      }
+      if (canonIds.length === 0) continue;
       const { data: artistRows } = await supabase
         .from("artists")
         .select(artistSelect)
-        .in("spotify_id", idChunk);
+        .in("id", canonIds);
       for (const a of (artistRows ?? []) as unknown as ArtistRow[]) {
         if (seenArtistIds.has(a.id)) continue;
         seenArtistIds.add(a.id);
@@ -2160,7 +2626,11 @@ async function getOrFetchArtistsBatchInner(
         followers: { total: 0 },
       } as SpotifyApi.ArtistObjectFull);
     }
-    applySpotifyIdAliasesToArtistLookup(lookup, allArtists, uniqueIds);
+    applySpotifyIdAliasesToArtistLookup(
+      lookup,
+      spotifyToCanonicalArtist,
+      uniqueIds,
+    );
     uniqueIds.forEach((id) => {
       if (!lookup.has(id)) lookup.set(id, null);
     });
@@ -2178,7 +2648,11 @@ async function getOrFetchArtistsBatchInner(
     });
   }
 
-  applySpotifyIdAliasesToArtistLookup(lookup, allArtists, uniqueIds);
+  applySpotifyIdAliasesToArtistLookup(
+    lookup,
+    spotifyToCanonicalArtist,
+    uniqueIds,
+  );
 
   const missingIds = uniqueIds.filter((id) => !lookup.has(id));
   if (missingIds.length > 0 && net) {
@@ -2199,7 +2673,10 @@ async function getOrFetchArtistsBatchInner(
               e,
             );
           }
-          lookup.set(id, { ...artist, id } as SpotifyApi.ArtistObjectFull);
+          lookup.set(id, {
+            ...artist,
+            id: artist.id,
+          } as SpotifyApi.ArtistObjectFull);
         } catch {
           lookup.set(id, null);
         }

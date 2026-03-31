@@ -194,7 +194,7 @@ export async function computeAlbumCooccurrence(): Promise<{
     for (let i = 0; i < trackIds.length; i += batch) {
       const chunk = trackIds.slice(i, i + batch);
       const { data } = await supabase
-        .from("songs")
+        .from("tracks")
         .select("id, album_id")
         .in("id", chunk);
       for (const row of (data ?? []) as { id: string; album_id: string }[]) {

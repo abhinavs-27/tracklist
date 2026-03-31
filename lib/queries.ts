@@ -13,7 +13,8 @@ import {
   SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
 } from "@/lib/spotify/getAllArtistAlbums";
 import { upsertAlbumFromSpotify } from "@/lib/spotify-cache";
-import { sanitizeString } from "@/lib/validation";
+import { getTrackIdByExternalId } from "@/lib/catalog/entity-resolution";
+import { isValidSpotifyId, isValidUuid, sanitizeString } from "@/lib/validation";
 import type {
   ListenLogWithUser,
   ReviewWithUser,
@@ -106,7 +107,20 @@ async function getListenLogsInternal(opts: {
       .range(from, to);
 
     if (opts.userId) query = query.eq("user_id", opts.userId);
-    if (opts.spotifyTrackId) query = query.eq("track_id", opts.spotifyTrackId);
+
+    let resolvedTrackFilter: string | undefined;
+    if (opts.spotifyTrackId) {
+      let tf = opts.spotifyTrackId;
+      if (isValidSpotifyId(tf)) {
+        const uuid = await getTrackIdByExternalId(supabase, "spotify", tf);
+        if (!uuid) return [];
+        tf = uuid;
+      } else if (!isValidUuid(tf)) {
+        return [];
+      }
+      resolvedTrackFilter = tf;
+      query = query.eq("track_id", resolvedTrackFilter);
+    }
 
     const { data: rawLogs, error } = await query;
     if (error || !rawLogs?.length) return [];
@@ -114,7 +128,7 @@ async function getListenLogsInternal(opts: {
     const logs = rawLogs.map((l: any) => ({
       ...l,
       user_id: opts.userId ?? l.user_id,
-      track_id: opts.spotifyTrackId ?? l.track_id,
+      track_id: resolvedTrackFilter ?? l.track_id,
     })) as {
       id: string;
       user_id: string;
@@ -367,7 +381,7 @@ async function getEntityStatsLive(
     listen_count = count ?? 0;
   } else {
     const { data: tracks } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id")
       .eq("album_id", entityId);
     if (tracks?.length) {
@@ -601,7 +615,7 @@ async function fetchSongIdsForAlbumIdsForLeaderboard(
     const pageSize = 1000;
     for (;;) {
       const { data, error } = await supabase
-        .from("songs")
+        .from("tracks")
         .select("id")
         .in("album_id", albumChunk)
         .range(from, from + pageSize - 1);
@@ -933,7 +947,7 @@ export async function getLeaderboard(
       for (let i = 0; i < statTrackIds.length; i += TRACK_STATS_CHUNK) {
         const chunk = statTrackIds.slice(i, i + TRACK_STATS_CHUNK);
         const { data: songRows } = await supabase
-          .from("songs")
+          .from("tracks")
           .select("id, name, album_id, artist_id")
           .in("id", chunk);
         songArray.push(
@@ -1147,7 +1161,7 @@ export async function getReviewsForArtist(
 
     const [{ data: albumRows }, { data: songRows }] = await Promise.all([
       supabase.from("albums").select("id").eq("artist_id", artistId).limit(1000),
-      supabase.from("songs").select("id").eq("artist_id", artistId).limit(1000),
+      supabase.from("tracks").select("id").eq("artist_id", artistId).limit(1000),
     ]);
 
     const entityIds = [
@@ -1216,7 +1230,7 @@ export async function getTopTracksForArtist(
     const supabase = await createSupabaseServerClient();
 
     const { data: songRowsRaw } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, name, album_id, duration_ms")
       .eq("artist_id", artistId)
       .limit(1000);
@@ -1303,7 +1317,7 @@ export async function getListenLogsForArtist(
     const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id")
       .eq("artist_id", artistId)
       .limit(1000);
@@ -1351,7 +1365,7 @@ export async function getListenLogsForAlbum(
     const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id")
       .eq("album_id", albumId)
       .limit(1000);
@@ -1414,7 +1428,7 @@ async function enrichSpotifyAlbumsForArtist(
   for (let i = 0; i < albumIds.length; i += ALBUM_ID_IN_CHUNK) {
     const chunk = albumIds.slice(i, i + ALBUM_ID_IN_CHUNK);
     const { data: songRows } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, album_id")
       .eq("artist_id", artistId)
       .in("album_id", chunk);
@@ -1563,7 +1577,7 @@ export async function getFriendsAlbumActivity(
     const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id")
       .eq("album_id", albumId);
     const trackIds = (songRows ?? []).map((s) => s.id);
@@ -1655,7 +1669,7 @@ export async function getAlbumListeners(
     const supabase = await createSupabaseServerClient();
 
     const { data: songRows } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id")
       .eq("album_id", albumId);
 
@@ -3050,7 +3064,7 @@ export async function getEntityDisplayNames(
 
   if (songIds.length > 0) {
     const { data: songs } = await supabase
-      .from("songs")
+      .from("tracks")
       .select("id, name")
       .in("id", songIds);
     for (const s of songs ?? []) {
@@ -3262,7 +3276,7 @@ export async function getUserListsWithPreviews(
 
     for (const part of idChunks([...songIds], 100)) {
       const { data: songs } = await supabase
-        .from("songs")
+        .from("tracks")
         .select("id, name")
         .in("id", part);
       for (const s of songs ?? []) {

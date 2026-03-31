@@ -1,66 +1,24 @@
 import "server-only";
 
+import { mergeCanonicalArtists, mergeCanonicalTracks } from "@/lib/catalog/merge-canonical";
+import {
+  getArtistIdByExternalId,
+  getTrackIdByExternalId,
+} from "@/lib/catalog/entity-resolution";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { lfmArtistId } from "@/lib/lastfm/lfm-ids";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { getTrack, searchSpotify } from "@/lib/spotify";
 import { pickBestArtistMatch } from "@/lib/spotify/matching";
 import {
-  upsertAlbumFromSpotify,
+  firstSpotifyImageUrl,
   upsertArtistFromSpotify,
+  upsertTrackFromSpotify,
 } from "@/lib/spotify-cache";
 
-function clampPopularity(n: number): number {
-  return Math.min(100, Math.max(0, Math.round(n)));
-}
-
-async function linkLfmArtistRowToSpotify(
-  supabase: ReturnType<typeof createSupabaseAdminClient>,
-  lfmRowId: string,
-  spotify: SpotifyApi.ArtistObjectFull | SpotifyApi.ArtistObjectSimplified,
-): Promise<void> {
-  const fullPop = spotify as SpotifyApi.ArtistObjectFull & {
-    popularity?: number;
-  };
-  const genres =
-    "genres" in spotify && Array.isArray(spotify.genres) && spotify.genres.length > 0
-      ? spotify.genres
-      : null;
-  const pop =
-    typeof fullPop.popularity === "number"
-      ? clampPopularity(fullPop.popularity)
-      : 0;
-  const imageUrl =
-    "images" in spotify && spotify.images?.[0]?.url
-      ? spotify.images[0].url
-      : null;
-  const now = new Date().toISOString();
-  const { error } = await supabase
-    .from("artists")
-    .update({
-      spotify_id: spotify.id,
-      name: spotify.name,
-      image_url: imageUrl,
-      genres,
-      popularity: pop,
-      needs_spotify_enrichment: false,
-      data_source: "mixed",
-      last_updated: now,
-      updated_at: now,
-      cached_at: now,
-    })
-    .eq("id", lfmRowId);
-
-  if (error) {
-    console.warn("[resolve-spotify] lfm artist row update failed", error);
-  }
-}
-
 /**
- * Best-effort Spotify artist resolution for a synthetic `lfm:*` artist row.
- * Never throws — failures are logged and retried later via cron.
- *
- * Uses search + match only (no extra GET /artists/{id}) to minimize API calls.
+ * Best-effort Spotify artist resolution for a Last.fm–keyed artist row.
+ * Links `artist_external_ids` (spotify) and merges into one canonical artist when ids differ.
  */
 export async function resolveArtistSpotifyJob(data: {
   lfmArtistId: string;
@@ -75,8 +33,16 @@ export async function resolveArtistSpotifyJob(data: {
     const pick = pickBestArtistMatch(data.artistName, items);
     if (!pick) return;
 
-    await upsertArtistFromSpotify(supabase, pick);
-    await linkLfmArtistRowToSpotify(supabase, data.lfmArtistId, pick);
+    const lfmUuid = await getArtistIdByExternalId(
+      supabase,
+      "lastfm",
+      data.lfmArtistId,
+    );
+    const spotifyUuid = await upsertArtistFromSpotify(supabase, pick);
+
+    if (lfmUuid && lfmUuid !== spotifyUuid) {
+      await mergeCanonicalArtists(supabase, spotifyUuid, lfmUuid);
+    }
   } catch (e) {
     console.warn("[resolve-artist-spotify] skipped", {
       lfmArtistId: data.lfmArtistId,
@@ -86,7 +52,7 @@ export async function resolveArtistSpotifyJob(data: {
 }
 
 /**
- * Best-effort Spotify track resolution for a synthetic `lfm:*` song row + `listens.spotify_track_id`.
+ * Best-effort Spotify track resolution for a Last.fm scrobble key: links mappings and merges UUIDs.
  */
 export async function resolveTrackSpotifyJob(data: {
   lfmSongId: string;
@@ -96,6 +62,13 @@ export async function resolveTrackSpotifyJob(data: {
 }): Promise<void> {
   const supabase = createSupabaseAdminClient();
   try {
+    const lfmTrackUuid = await getTrackIdByExternalId(
+      supabase,
+      "lastfm",
+      data.lfmSongId,
+    );
+    if (!lfmTrackUuid) return;
+
     const match = await mapLastfmToSpotify(
       data.trackName,
       data.artistName,
@@ -110,40 +83,35 @@ export async function resolveTrackSpotifyJob(data: {
     const alb = track.album;
     if (!first || !alb) return;
 
-    await upsertArtistFromSpotify(supabase, first);
-    await upsertAlbumFromSpotify(supabase, alb);
+    const spotifyTrackUuid = await upsertTrackFromSpotify(
+      supabase,
+      track,
+      alb.id,
+      alb.name,
+      firstSpotifyImageUrl(alb.images),
+      "release_date" in alb ? alb.release_date : undefined,
+    );
+
+    if (lfmTrackUuid !== spotifyTrackUuid) {
+      await mergeCanonicalTracks(supabase, spotifyTrackUuid, lfmTrackUuid);
+    }
 
     const lfmAid = lfmArtistId(data.artistName);
-    await linkLfmArtistRowToSpotify(supabase, lfmAid, first);
+    const lfmArtistUuid = await getArtistIdByExternalId(
+      supabase,
+      "lastfm",
+      lfmAid,
+    );
+    const spotifyArtistUuid =
+      (await getArtistIdByExternalId(supabase, "spotify", first.id)) ??
+      (await upsertArtistFromSpotify(supabase, first));
 
-    const now = new Date().toISOString();
-    const trackWithPop = track as SpotifyApi.TrackObjectFull & {
-      popularity?: number;
-    };
-    const pop =
-      typeof trackWithPop.popularity === "number"
-        ? trackWithPop.popularity
-        : null;
-
-    const { error: songErr } = await supabase
-      .from("songs")
-      .update({
-        spotify_id: track.id,
-        name: track.name,
-        album_id: alb.id,
-        artist_id: first.id,
-        duration_ms: track.duration_ms ?? null,
-        popularity: pop,
-        data_source: "mixed",
-        needs_spotify_enrichment: false,
-        updated_at: now,
-        cached_at: now,
-      })
-      .eq("id", data.lfmSongId);
-
-    if (songErr) {
-      console.warn("[resolve-track-spotify] songs update failed", songErr);
-      return;
+    if (
+      lfmArtistUuid &&
+      spotifyArtistUuid &&
+      lfmArtistUuid !== spotifyArtistUuid
+    ) {
+      await mergeCanonicalArtists(supabase, spotifyArtistUuid, lfmArtistUuid);
     }
 
     const { error: listenErr } = await supabase

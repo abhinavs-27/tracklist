@@ -31,7 +31,7 @@ async function fetchSongsArtistIds(
   for (let i = 0; i < unique.length; i += CHUNK) {
     const chunk = unique.slice(i, i + CHUNK);
     const { data, error } = await admin
-      .from("songs")
+      .from("tracks")
       .select("id, artist_id")
       .in("id", chunk);
     if (error) continue;
