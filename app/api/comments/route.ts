@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
-import { parseBody, handlePostgrestError } from '@/lib/api-utils';
+import { parseBody, handlePostgrestError, validateUuidParam } from '@/lib/api-utils';
 import { CommentCreateBody } from '@/types';
-import { isValidUuid, validateCommentContent } from '@/lib/validation';
+import { validateCommentContent } from '@/lib/validation';
 import { fetchUserMap } from '@/lib/queries';
 
 function isMissingReviewIdColumn(err: unknown) {
@@ -20,7 +20,9 @@ export const POST = withHandler(
     const { review_id, content } = body!;
 
     if (!review_id) return apiBadRequest('review_id is required');
-    if (!isValidUuid(review_id)) return apiBadRequest('Invalid review_id');
+    const uuidRes = validateUuidParam(review_id);
+    if (!uuidRes.ok) return uuidRes.error;
+    const validReviewId = uuidRes.id;
 
     const contentResult = validateCommentContent(content);
     if (!contentResult.ok) return apiBadRequest(contentResult.error);
@@ -34,7 +36,7 @@ export const POST = withHandler(
       .from('comments')
       .insert({
         user_id: me!.id,
-        review_id,
+        review_id: validReviewId,
         content: contentResult.value,
       })
       .select('id, content, created_at')
@@ -48,7 +50,7 @@ export const POST = withHandler(
         .from('comments')
         .insert({
           user_id: me!.id,
-          log_id: review_id,
+          log_id: validReviewId,
           content: contentResult.value,
         })
         .select('id, content, created_at')
@@ -59,9 +61,9 @@ export const POST = withHandler(
         console.error('Comment create (fallback) error:', error);
         return apiInternalError(error as { message: string });
       }
-      data = { ...data, user_id: me!.id, review_id };
+      data = { ...data, user_id: me!.id, review_id: validReviewId };
     } else if (data) {
-      data = { ...data, user_id: me!.id, review_id };
+      data = { ...data, user_id: me!.id, review_id: validReviewId };
     }
 
     if (error) {
@@ -89,10 +91,12 @@ export const POST = withHandler(
 );
 
 export const GET = withHandler(async (request: NextRequest) => {
-  const { searchParams } = new URL(request.url);
+  const { searchParams } = request.nextUrl;
   const reviewId = searchParams.get('review_id');
   if (!reviewId) return apiBadRequest('review_id is required');
-  if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
+  const uuidRes = validateUuidParam(reviewId);
+  if (!uuidRes.ok) return uuidRes.error;
+  const validReviewId = uuidRes.id;
 
   const supabase = await createSupabaseServerClient();
   let comments: Record<string, unknown>[] | null = null;
@@ -102,9 +106,9 @@ export const GET = withHandler(async (request: NextRequest) => {
   const prefGetRes = await supabase
     .from('comments')
     .select('id, user_id, content, created_at')
-    .eq('review_id', reviewId)
+    .eq('review_id', validReviewId)
     .order('created_at', { ascending: true });
-  comments = (prefGetRes.data as Record<string, unknown>[] | null)?.map(c => ({ ...c, review_id: reviewId })) ?? null;
+  comments = (prefGetRes.data as Record<string, unknown>[] | null)?.map(c => ({ ...c, review_id: validReviewId })) ?? null;
   error = prefGetRes.error;
 
   // Fallback schema: comments(log_id).
@@ -112,7 +116,7 @@ export const GET = withHandler(async (request: NextRequest) => {
     const fallGetRes = await supabase
       .from('comments')
       .select('id, user_id, content, created_at')
-      .eq('log_id', reviewId)
+      .eq('log_id', validReviewId)
       .order('created_at', { ascending: true });
     comments = (fallGetRes.data as Record<string, unknown>[] | null);
     error = fallGetRes.error;
@@ -120,7 +124,7 @@ export const GET = withHandler(async (request: NextRequest) => {
       console.error('Comments GET (fallback) error:', error);
       return apiInternalError(error as { message: string });
     }
-    comments = (comments ?? []).map((c) => ({ ...c, review_id: reviewId }));
+    comments = (comments ?? []).map((c) => ({ ...c, review_id: validReviewId }));
   }
 
   if (error) {

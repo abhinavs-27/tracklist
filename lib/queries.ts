@@ -46,7 +46,7 @@ import type {
  * Exported for use in API routes that need to manualy enrich data.
  */
 export async function fetchUserMap<
-  T = { id: string; username: string; avatar_url: string | null },
+  T extends { id: string } = { id: string; username: string; avatar_url: string | null },
 >(
   supabase:
     | Awaited<ReturnType<typeof createSupabaseServerClient>>
@@ -55,11 +55,15 @@ export async function fetchUserMap<
   select = "id, username, avatar_url",
 ): Promise<Map<string, T>> {
   if (userIds.length === 0) return new Map();
-  const { data: users } = await (supabase.from("users") as any)
+  const { data: users } = await supabase
+    .from("users")
     .select(select)
     .in("id", userIds);
   return new Map(
-    (users ?? []).map((u: any) => [u.id as string, u as unknown as T]),
+    ((users as { id: string }[] | null) ?? []).map((u) => [
+      u.id,
+      u as unknown as T,
+    ]),
   );
 }
 

@@ -8,7 +8,7 @@ import {
   apiInternalError,
   apiOk,
 } from '@/lib/api-response';
-import { parseBody } from '@/lib/api-utils';
+import { parseBody, getPaginationParams } from '@/lib/api-utils';
 import { LogCreateBody } from '@/types';
 import {
   getAlbumIdByExternalId,
@@ -23,7 +23,6 @@ import {
 import {
   isValidSpotifyId,
   isValidUuid,
-  clampLimit,
   LIMITS,
   sanitizeString,
 } from '@/lib/validation';
@@ -156,9 +155,9 @@ export const POST = withHandler(
 
 export const GET = withHandler(
   async (request, { user: me }) => {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const spotifyId = searchParams.get('spotify_id');
-    const limit = clampLimit(searchParams.get('limit'), LIMITS.LOGS_LIMIT, 20);
+    const { limit } = getPaginationParams(searchParams, 20, LIMITS.LOGS_LIMIT);
 
     if (spotifyId && !isValidSpotifyId(spotifyId)) {
       return apiBadRequest('Invalid spotify_id');

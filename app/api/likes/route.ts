@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import {
@@ -6,9 +5,8 @@ import {
   apiInternalError,
   apiOk,
 } from '@/lib/api-response';
-import { parseBody, handlePostgrestError } from '@/lib/api-utils';
+import { parseBody, handlePostgrestError, validateUuidParam } from '@/lib/api-utils';
 import { LikeCreateBody } from '@/types';
-import { isValidUuid } from '@/lib/validation';
 
 export const POST = withHandler(
   async (request, { user: me }) => {
@@ -17,12 +15,15 @@ export const POST = withHandler(
 
     const reviewId = body!.review_id;
     if (!reviewId) return apiBadRequest('review_id is required');
-    if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
+
+    const uuidRes = validateUuidParam(reviewId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const validReviewId = uuidRes.id;
 
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('likes').insert({
       user_id: me!.id,
-      review_id: reviewId,
+      review_id: validReviewId,
     });
 
     if (error) {
@@ -33,7 +34,7 @@ export const POST = withHandler(
     }
     console.log("[likes] review-liked", {
       userId: me!.id,
-      reviewId,
+      reviewId: validReviewId,
     });
     return apiOk({ success: true });
   },
@@ -42,17 +43,20 @@ export const POST = withHandler(
 
 export const DELETE = withHandler(
   async (request, { user: me }) => {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const reviewId = searchParams.get('review_id');
     if (!reviewId) return apiBadRequest('review_id is required');
-    if (!isValidUuid(reviewId)) return apiBadRequest('Invalid review_id');
+
+    const uuidRes = validateUuidParam(reviewId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const validReviewId = uuidRes.id;
 
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('likes')
       .delete()
       .eq('user_id', me!.id)
-      .eq('review_id', reviewId);
+      .eq('review_id', validReviewId);
 
     if (error) {
       console.error('Unlike error:', error);
@@ -60,7 +64,7 @@ export const DELETE = withHandler(
     }
     console.log("[likes] review-unliked", {
       userId: me!.id,
-      reviewId,
+      reviewId: validReviewId,
     });
     return apiOk({ success: true });
   },
