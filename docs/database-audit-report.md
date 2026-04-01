@@ -54,6 +54,8 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `albums` | `(artist_id)` | `091` | Optimized for fetching all albums by an artist. |
 | `reviews` | `(entity_id, created_at DESC)` | `091` | Optimized for fetching latest reviews for an entity when type is already filtered. |
 | `follows` | `(follower_id, created_at DESC)` | `100` | Optimized for "recent follows by a specific follower" and follower listing ordered by date. |
+| `community_members` | `(community_id, created_at)` | `116` | Optimized for community member lists and join date sorting. |
+| `follows` | `(following_id, created_at DESC)` | `116` | Optimized for "recent followers of a user" and follower listing ordered by date. |
 
 ## Recommendations for Future Queries
 

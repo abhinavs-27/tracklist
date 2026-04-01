@@ -23,11 +23,16 @@ function normalizeMemberRole(raw: string | null | undefined): CommunityMemberRol
 async function getUserCommunitiesLegacy(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   uid: string,
+  limit = 50,
+  offset = 0,
 ): Promise<CommunityWithMeta[]> {
+  const from = offset;
+  const to = offset + limit - 1;
   const { data: memberships, error } = await admin
     .from("community_members")
     .select("community_id, role")
-    .eq("user_id", uid);
+    .eq("user_id", uid)
+    .range(from, to);
 
   if (error || !memberships?.length) return [];
 
@@ -71,6 +76,8 @@ async function getUserCommunitiesLegacy(
 
 export async function getUserCommunities(
   userId: string,
+  limit = 50,
+  offset = 0,
 ): Promise<CommunityWithMeta[]> {
   const admin = createSupabaseAdminClient();
   const uid = userId?.trim();
@@ -78,6 +85,8 @@ export async function getUserCommunities(
 
   const { data, error } = await admin.rpc("get_user_communities_with_meta", {
     p_user_id: uid,
+    p_limit: limit,
+    p_offset: offset,
   });
 
   if (!error && Array.isArray(data)) {
@@ -108,7 +117,7 @@ export async function getUserCommunities(
     );
   }
 
-  return getUserCommunitiesLegacy(admin, uid);
+  return getUserCommunitiesLegacy(admin, uid, limit, offset);
 }
 
 export async function getCommunityById(
