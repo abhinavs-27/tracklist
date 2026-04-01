@@ -951,7 +951,7 @@ async function getOrFetchArtistInner(
 
   const { data: row, error } = await supabase
     .from("artists")
-    .select("id, name, image_url, genres, popularity, cached_at, updated_at")
+    .select("name, image_url, genres, popularity, cached_at, updated_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -960,11 +960,11 @@ async function getOrFetchArtistInner(
   }
 
   if (row) {
-    const a = row as unknown as ArtistRow;
+    const a = { ...row, id } as unknown as ArtistRow;
 
     if (a.image_url) {
       return {
-        id: a.id,
+        id,
         name: a.name,
         images: [{ url: a.image_url }],
         genres: a.genres ?? undefined,
@@ -975,7 +975,7 @@ async function getOrFetchArtistInner(
 
     if (!net) {
       return {
-        id: a.id,
+        id,
         name: a.name,
         images: undefined,
         genres: a.genres ?? undefined,
@@ -985,10 +985,10 @@ async function getOrFetchArtistInner(
     }
 
     try {
-      const apiId = await resolveCanonicalArtistIdToSpotifyApiId(a.id);
+      const apiId = await resolveCanonicalArtistIdToSpotifyApiId(id);
       if (!apiId) {
         return {
-          id: a.id,
+          id,
           name: a.name,
           images: undefined,
           genres: a.genres ?? undefined,
@@ -1005,14 +1005,14 @@ async function getOrFetchArtistInner(
           e,
         );
       }
-      return { ...artist, id: a.id } as SpotifyApi.ArtistObjectFull;
+      return { ...artist, id } as SpotifyApi.ArtistObjectFull;
     } catch (e) {
       console.warn(
         `${LOG_PREFIX} getArtist (no image in DB) failed, using cached row`,
         e,
       );
       return {
-        id: a.id,
+        id,
         name: a.name,
         images: undefined,
         genres: a.genres ?? undefined,
@@ -1335,7 +1335,7 @@ async function getOrFetchAlbumInner(
   const { data: albumRow, error: albumErr } = await supabase
     .from("albums")
     .select(
-      "id, name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
+      "name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
     )
     .eq("id", dbAlbumId)
     .maybeSingle();
@@ -1345,17 +1345,19 @@ async function getOrFetchAlbumInner(
   }
 
   if (albumRow) {
-    const album = albumRow as unknown as AlbumRow;
+    const album = { ...albumRow, id: dbAlbumId } as unknown as AlbumRow;
     const cacheTime = album.cached_at ?? album.updated_at;
     const stale = isCacheStale(cacheTime);
 
     if (!stale) {
       const { data: artistRow } = await supabase
         .from("artists")
-        .select("id, name, image_url, genres")
+        .select("name, image_url, genres")
         .eq("id", album.artist_id)
         .maybeSingle();
-      const artist = artistRow as unknown as ArtistRow | null;
+      const artist = artistRow
+        ? ({ ...artistRow, id: album.artist_id } as unknown as ArtistRow)
+        : null;
 
       const { data: songRows, error: songsErr } = await supabase
         .from("tracks")
@@ -1811,7 +1813,7 @@ async function getOrFetchTrackInner(
   const { data: songRow, error } = await supabase
     .from("tracks")
     .select(
-      "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, lastfm_name, lastfm_artist_name",
+      "name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, lastfm_name, lastfm_artist_name",
     )
     .eq("id", canon)
     .maybeSingle();
@@ -1821,7 +1823,7 @@ async function getOrFetchTrackInner(
   }
 
   if (songRow) {
-    const song = songRow as unknown as SongRow;
+    const song = { ...songRow, id: canon } as unknown as SongRow;
     const lfmKey = await getLastfmExternalForTrack(supabase, song.id);
     const spotifyExt = await getSpotifyExternalForTrack(supabase, song.id);
 

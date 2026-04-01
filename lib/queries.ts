@@ -2664,7 +2664,8 @@ export async function getReviewFeed(
     const { data: followings, error: followError } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", userId);
+      .eq("follower_id", userId)
+      .limit(500);
 
     if (followError) throw followError;
 
@@ -2968,7 +2969,8 @@ async function getActivityFeedFallback(
     const { data: followings, error: followError } = await supabase
       .from("follows")
       .select("following_id")
-      .eq("follower_id", userId);
+      .eq("follower_id", userId)
+      .limit(500);
     if (followError) throw followError;
 
     const followingIds = (followings ?? [])
