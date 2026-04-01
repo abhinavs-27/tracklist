@@ -10,7 +10,9 @@ type Props = {
 
 export function LogToast({ message, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
+  // eslint-disable-next-line react-hooks/refs
   const opacity = useRef(new Animated.Value(0)).current;
+  // eslint-disable-next-line react-hooks/refs
   const translateY = useRef(new Animated.Value(12)).current;
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export function LogToast({ message, onDismiss }: Props) {
         friction: 8,
       }),
     ]).start();
+    // eslint-disable-next-line react-hooks/refs
   }, [message, opacity, translateY]);
 
   if (!message) return null;
@@ -48,6 +51,7 @@ export function LogToast({ message, onDismiss }: Props) {
   return (
     <Animated.View
       pointerEvents="box-none"
+      // eslint-disable-next-line react-hooks/refs
       style={[
         styles.wrap,
         {
