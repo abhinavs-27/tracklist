@@ -174,29 +174,21 @@ export function ListeningReportsClient(props: { userId: string }) {
     setSharingSavedId(row.id);
     setError(null);
     try {
-      const q = new URLSearchParams({
-        userId: props.userId,
-        type: row.entity_type,
-        range: "custom",
-        startDate: row.start_date,
-        endDate: row.end_date,
-        limit: "50",
-        offset: "0",
-      });
-      const res = await fetch(`/api/reports?${q.toString()}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/reports/saved/${encodeURIComponent(row.id)}`,
+        { cache: "no-store" },
+      );
       const json = (await res.json().catch(() => null)) as
-        | ReportPayload
-        | { error?: string };
+        | { payload?: ReportPayload; error?: string }
+        | null;
       if (!res.ok) {
         setError(
-          (json as { error?: string })?.error ?? "Could not load report",
+          json?.error ?? "Could not load report",
         );
         return;
       }
-      const payload = json as ReportPayload;
-      if (!payload.items.length) {
+      const payload = json?.payload;
+      if (!payload?.items?.length) {
         setError("No data for this saved report.");
         return;
       }

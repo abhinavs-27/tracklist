@@ -2,15 +2,12 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 
+import { buildListeningReport } from "@/lib/analytics/build-listening-report";
 import type { ReportEntityType } from "@/lib/analytics/getListeningReports";
 import {
-  currentMonthStart,
-  currentWeekStart,
-  currentYear,
-  previousCalendarYear,
-  previousMonthStart,
-  previousWeekStart,
-} from "@/lib/analytics/period-now";
+  listeningReportInclusiveBoundsForPreset,
+  previousListeningReportInclusiveRange,
+} from "@/lib/analytics/listening-report-windows";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export type ReportCompareRange = "week" | "month" | "year";
@@ -31,84 +28,6 @@ function buildRankMap(rows: AggRow[]): Map<string, number> {
   const m = new Map<string, number>();
   rows.forEach((r, i) => m.set(r.entity_id, i + 1));
   return m;
-}
-
-async function countLogsInRange(args: {
-  userId: string;
-  startIso: string;
-  endExclusiveIso: string;
-}): Promise<number> {
-  const admin = createSupabaseAdminClient();
-  const { count, error } = await admin
-    .from("logs")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", args.userId)
-    .gte("listened_at", args.startIso)
-    .lt("listened_at", args.endExclusiveIso);
-  if (error) {
-    console.warn("[getReportsCompare] countLogs", error.message);
-    return 0;
-  }
-  return count ?? 0;
-}
-
-function bucketToLogRange(args: {
-  weekStart: string | null;
-  monthStart: string | null;
-  year: number | null;
-}): { startIso: string; endExclusiveIso: string } | null {
-  if (args.weekStart) {
-    const start = new Date(`${args.weekStart}T00:00:00.000Z`);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 7);
-    return { startIso: start.toISOString(), endExclusiveIso: end.toISOString() };
-  }
-  if (args.monthStart) {
-    const [y, mo] = args.monthStart.split("-").map(Number);
-    const start = new Date(Date.UTC(y, mo - 1, 1));
-    const end = new Date(Date.UTC(y, mo, 1));
-    return { startIso: start.toISOString(), endExclusiveIso: end.toISOString() };
-  }
-  if (args.year != null) {
-    const start = new Date(Date.UTC(args.year, 0, 1));
-    const end = new Date(Date.UTC(args.year + 1, 0, 1));
-    return { startIso: start.toISOString(), endExclusiveIso: end.toISOString() };
-  }
-  return null;
-}
-
-async function fetchAllEntityRows(args: {
-  userId: string;
-  entityType: ReportEntityType;
-  weekStart: string | null;
-  monthStart: string | null;
-  year: number | null;
-}): Promise<AggRow[]> {
-  const admin = createSupabaseAdminClient();
-  let q = admin
-    .from("user_listening_aggregates")
-    .select("entity_id, count")
-    .eq("user_id", args.userId)
-    .eq("entity_type", args.entityType)
-    .order("count", { ascending: false })
-    .limit(MAX_ROWS);
-
-  if (args.weekStart) {
-    q = q.eq("week_start", args.weekStart).is("month", null).is("year", null);
-  } else if (args.monthStart) {
-    q = q.eq("month", args.monthStart).is("week_start", null).is("year", null);
-  } else if (args.year != null) {
-    q = q.eq("year", args.year).is("week_start", null).is("month", null);
-  } else {
-    return [];
-  }
-
-  const { data, error } = await q;
-  if (error) {
-    console.warn("[getReportsCompare] aggregates", error.message);
-    return [];
-  }
-  return (data ?? []) as AggRow[];
 }
 
 /** DB only — no Spotify on the compare path (canonical UUIDs are not Spotify API ids). */
@@ -188,67 +107,34 @@ async function fetchListeningReportsCompareUncached(args: {
   range: ReportCompareRange;
   entityType: ReportEntityType;
 }): Promise<ListeningReportsCompareResult> {
-  let weekStart: string | null = null;
-  let monthStart: string | null = null;
-  let year: number | null = null;
-
-  if (args.range === "week") {
-    weekStart = currentWeekStart();
-  } else if (args.range === "month") {
-    monthStart = currentMonthStart();
-  } else {
-    year = currentYear();
-  }
-
-  let pWeek: string | null = null;
-  let pMonth: string | null = null;
-  let pYear: number | null = null;
-  if (weekStart) pWeek = previousWeekStart(weekStart);
-  else if (monthStart) pMonth = previousMonthStart(monthStart);
-  else if (year != null) pYear = previousCalendarYear(year);
-
-  const curRange = bucketToLogRange({ weekStart, monthStart, year });
-  const prevRange = bucketToLogRange({
-    weekStart: pWeek,
-    monthStart: pMonth,
-    year: pYear,
+  const currentBounds = listeningReportInclusiveBoundsForPreset(args.range);
+  const prevBounds = previousListeningReportInclusiveRange({
+    range: args.range,
+    current: currentBounds,
   });
 
-  const [
-    totalPlaysCurrent,
-    totalPlaysPrevious,
-    curEntities,
-    prevEntities,
-  ] = await Promise.all([
-    curRange
-      ? countLogsInRange({
-          userId: args.userId,
-          startIso: curRange.startIso,
-          endExclusiveIso: curRange.endExclusiveIso,
-        })
-      : 0,
-    prevRange
-      ? countLogsInRange({
-          userId: args.userId,
-          startIso: prevRange.startIso,
-          endExclusiveIso: prevRange.endExclusiveIso,
-        })
-      : 0,
-    fetchAllEntityRows({
+  const [builtCurrent, builtPrev] = await Promise.all([
+    buildListeningReport({
       userId: args.userId,
-      entityType: args.entityType,
-      weekStart,
-      monthStart,
-      year,
+      startDate: currentBounds.start,
+      endDate: currentBounds.end,
     }),
-    fetchAllEntityRows({
+    buildListeningReport({
       userId: args.userId,
-      entityType: args.entityType,
-      weekStart: pWeek,
-      monthStart: pMonth,
-      year: pYear,
+      startDate: prevBounds.start,
+      endDate: prevBounds.end,
     }),
   ]);
+
+  const curEntities = builtCurrent.byEntity[args.entityType]
+    .slice(0, MAX_ROWS)
+    .map((r) => ({ entity_id: r.entity_id, count: r.count }));
+  const prevEntities = builtPrev.byEntity[args.entityType]
+    .slice(0, MAX_ROWS)
+    .map((r) => ({ entity_id: r.entity_id, count: r.count }));
+
+  const totalPlaysCurrent = builtCurrent.totalPlays;
+  const totalPlaysPrevious = builtPrev.totalPlays;
 
   const percentChange =
     totalPlaysPrevious > 0
@@ -268,6 +154,16 @@ async function fetchListeningReportsCompareUncached(args: {
     const name = await resolveEntityDisplayName(args.entityType, dropperId);
     topDropper = { entityId: dropperId, name };
   }
+
+  console.info("[listening-report] compare", {
+    userId: args.userId,
+    range: args.range,
+    entityType: args.entityType,
+    currentBounds,
+    prevBounds,
+    totalPlaysCurrent,
+    totalPlaysPrevious,
+  });
 
   return {
     totalPlaysCurrent,

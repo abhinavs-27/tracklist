@@ -2,10 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getListeningReports } from "@/lib/analytics/getListeningReports";
-import type { ReportEntityType } from "@/lib/analytics/getListeningReports";
+import {
+  getListeningReports,
+  listeningReportsResultFromSnapshot,
+} from "@/lib/analytics/getListeningReports";
+import type { ReportEntityType, ReportRange } from "@/lib/analytics/listening-report-types";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getSavedReportById } from "@/lib/reports/saved-report";
+import { getSavedReportById, parseListeningReportSnapshot } from "@/lib/reports/saved-report";
 import { SharedReportPublicLink } from "./shared-report-public-link";
 import { SharedReportShareButton } from "./shared-report-share-button";
 import { SharedListeningReportView } from "./shared-listening-report-view";
@@ -29,15 +32,24 @@ export default async function SharedListeningReportPage({
 
   if (!row.start_date || !row.end_date) notFound();
 
-  const data = await getListeningReports({
-    userId: row.user_id,
-    entityType: row.entity_type as ReportEntityType,
-    range: "custom",
-    startDate: row.start_date,
-    endDate: row.end_date,
-    limit: 100,
-    offset: 0,
-  });
+  const snap = parseListeningReportSnapshot(row.snapshot_json);
+  const data = snap
+    ? listeningReportsResultFromSnapshot({
+        snapshot: snap,
+        entityType: row.entity_type as ReportEntityType,
+        range: row.range_type as ReportRange,
+        limit: 100,
+        offset: 0,
+      })
+    : await getListeningReports({
+        userId: row.user_id,
+        entityType: row.entity_type as ReportEntityType,
+        range: "custom",
+        startDate: row.start_date,
+        endDate: row.end_date,
+        limit: 100,
+        offset: 0,
+      });
 
   if (!data) notFound();
 

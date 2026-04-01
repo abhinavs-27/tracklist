@@ -1,15 +1,22 @@
 import "server-only";
 
-import { customRangeAggregate } from "@/lib/analytics/custom-range-aggregate";
 import {
-  currentMonthStart,
-  currentWeekStart,
-  currentYear,
-  previousCalendarYear,
-  previousMonthStart,
-  previousWeekStart,
-} from "@/lib/analytics/period-now";
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+  buildListeningReport,
+  type AggregateReportRow,
+} from "@/lib/analytics/build-listening-report";
+import type {
+  ListeningReportItem,
+  ListeningReportSnapshotV1,
+  ListeningReportsResult,
+  ReportEntityType,
+  ReportRange,
+} from "@/lib/analytics/listening-report-types";
+import {
+  inclusiveRangeToListenWindow,
+  listeningReportInclusiveBoundsForPreset,
+  previousListeningReportInclusiveRange,
+  type InclusiveDateRange,
+} from "@/lib/analytics/listening-report-windows";
 import {
   getOrFetchAlbumsBatch,
   getOrFetchArtistsBatch,
@@ -17,41 +24,23 @@ import {
 } from "@/lib/spotify-cache";
 import { LIMITS } from "@/lib/validation";
 
-export type ReportEntityType = "artist" | "album" | "track" | "genre";
-export type ReportRange = "week" | "month" | "year" | "custom";
+export type {
+  ListeningReportItem,
+  ListeningReportSnapshotV1,
+  ListeningReportsResult,
+  ReportEntityType,
+  ReportRange,
+} from "@/lib/analytics/listening-report-types";
 
-export type ListeningReportItem = {
-  entityId: string;
-  name: string;
-  image: string | null;
-  count: number;
-  /** 1-based rank within the full sorted list for this period. */
-  rank: number;
-  /** 1-based rank in the previous period, if the entity appeared there. */
-  previousRank: number | null;
-  /** Positive = moved up in rank. `previousRank - rank`. Null if new or no prior period. */
-  movement: number | null;
-  /** True if the entity had no plays in the comparison period. */
-  isNew: boolean;
-};
-
-export type ListeningReportsResult = {
-  items: ListeningReportItem[];
-  range: ReportRange;
-  /** ISO bounds (inclusive start, exclusive end for custom) */
-  periodLabel: string;
-  nextOffset: number | null;
-};
+/** @see `lib/analytics/build-listening-report.ts` — single source for report aggregates from `logs`. */
+export { buildListeningReport } from "@/lib/analytics/build-listening-report";
+export type {
+  ListeningReportBuildResult,
+} from "@/lib/analytics/build-listening-report";
 
 function clampLimit(n: number): number {
   return Math.min(100, Math.max(1, Math.floor(n)));
 }
-
-type AggregateReportRow = {
-  entity_id: string;
-  count: number;
-  cover_image_url?: string | null;
-};
 
 const MAX_RANK_ROWS = 5000;
 
@@ -61,86 +50,8 @@ function buildRankMap(rows: { entity_id: string }[]): Map<string, number> {
   return m;
 }
 
-async function fetchAggregateRows(args: {
-  userId: string;
-  entityType: ReportEntityType;
-  weekStart: string | null;
-  monthStart: string | null;
-  year: number | null;
-  limit: number;
-  offset: number;
-}): Promise<AggregateReportRow[]> {
-  const admin = createSupabaseAdminClient();
-  let q = admin
-    .from("user_listening_aggregates")
-    .select("entity_id, count, cover_image_url")
-    .eq("user_id", args.userId)
-    .eq("entity_type", args.entityType)
-    .order("count", { ascending: false });
-
-  if (args.weekStart) {
-    q = q.eq("week_start", args.weekStart).is("month", null).is("year", null);
-  } else if (args.monthStart) {
-    q = q.eq("month", args.monthStart).is("week_start", null).is("year", null);
-  } else if (args.year != null) {
-    q = q.eq("year", args.year).is("week_start", null).is("month", null);
-  } else {
-    return [];
-  }
-
-  const { data, error } = await q.range(
-    args.offset,
-    args.offset + args.limit - 1,
-  );
-  if (error) {
-    console.warn("[analytics] fetchAggregateRows", error.message);
-    return [];
-  }
-  return (data ?? []) as AggregateReportRow[];
-}
-
-async function fetchAllAggregateRowsForBucket(args: {
-  userId: string;
-  entityType: ReportEntityType;
-  weekStart: string | null;
-  monthStart: string | null;
-  year: number | null;
-}): Promise<AggregateReportRow[]> {
-  const admin = createSupabaseAdminClient();
-  let q = admin
-    .from("user_listening_aggregates")
-    .select("entity_id, count, cover_image_url")
-    .eq("user_id", args.userId)
-    .eq("entity_type", args.entityType)
-    .order("count", { ascending: false })
-    .limit(MAX_RANK_ROWS);
-
-  if (args.weekStart) {
-    q = q.eq("week_start", args.weekStart).is("month", null).is("year", null);
-  } else if (args.monthStart) {
-    q = q.eq("month", args.monthStart).is("week_start", null).is("year", null);
-  } else if (args.year != null) {
-    q = q.eq("year", args.year).is("week_start", null).is("month", null);
-  } else {
-    return [];
-  }
-
-  const { data, error } = await q;
-  if (error) {
-    console.warn("[analytics] fetchAllAggregateRowsForBucket", error.message);
-    return [];
-  }
-  return (data ?? []) as AggregateReportRow[];
-}
-
-function previousCustomWindow(
-  startInclusive: Date,
-  endExclusive: Date,
-): { startInclusive: Date; endExclusive: Date } {
-  const spanMs = endExclusive.getTime() - startInclusive.getTime();
-  const prevEndExclusive = new Date(startInclusive.getTime());
-  const prevStartInclusive = new Date(prevEndExclusive.getTime() - spanMs);
-  return { startInclusive: prevStartInclusive, endExclusive: prevEndExclusive };
+function isSyntheticReportEntityId(id: string): boolean {
+  return id.startsWith("__tl_");
 }
 
 async function enrichReportItems(
@@ -174,13 +85,30 @@ async function enrichReportItems(
   const catalogOpts = { allowNetwork: false as const };
 
   if (entityType === "artist") {
-    const list = await getOrFetchArtistsBatch(ids, catalogOpts);
+    const fetchIds = ids.filter((id) => !isSyntheticReportEntityId(id));
+    const list = fetchIds.length
+      ? await getOrFetchArtistsBatch(fetchIds, catalogOpts)
+      : [];
     const byEntityId = new Map(
-      ids.map((id, i) => [id, list[i] ?? null] as const),
+      fetchIds.map((id, i) => [id, list[i] ?? null] as const),
     );
     return rows.map((r, i) => {
       const rank = rankOffset + i + 1;
-      const a = byEntityId.get(r.entity_id) ?? list[i];
+      if (isSyntheticReportEntityId(r.entity_id)) {
+        const pr = prevRankMap.get(r.entity_id) ?? null;
+        const isNew = !prevRankMap.has(r.entity_id);
+        return {
+          entityId: r.entity_id,
+          name: "Unknown artist",
+          image: null,
+          count: r.count,
+          rank,
+          previousRank: pr,
+          movement: pr != null ? pr - rank : null,
+          isNew,
+        };
+      }
+      const a = byEntityId.get(r.entity_id) ?? null;
       const pr = prevRankMap.get(r.entity_id) ?? null;
       const isNew = !prevRankMap.has(r.entity_id);
       return {
@@ -197,13 +125,30 @@ async function enrichReportItems(
     });
   }
   if (entityType === "album") {
-    const list = await getOrFetchAlbumsBatch(ids, catalogOpts);
+    const fetchIds = ids.filter((id) => !isSyntheticReportEntityId(id));
+    const list = fetchIds.length
+      ? await getOrFetchAlbumsBatch(fetchIds, catalogOpts)
+      : [];
     const byEntityId = new Map(
-      ids.map((id, i) => [id, list[i] ?? null] as const),
+      fetchIds.map((id, i) => [id, list[i] ?? null] as const),
     );
     return rows.map((r, i) => {
       const rank = rankOffset + i + 1;
-      const a = byEntityId.get(r.entity_id) ?? list[i];
+      if (isSyntheticReportEntityId(r.entity_id)) {
+        const pr = prevRankMap.get(r.entity_id) ?? null;
+        const isNew = !prevRankMap.has(r.entity_id);
+        return {
+          entityId: r.entity_id,
+          name: "Unknown album",
+          image: null,
+          count: r.count,
+          rank,
+          previousRank: pr,
+          movement: pr != null ? pr - rank : null,
+          isNew,
+        };
+      }
+      const a = byEntityId.get(r.entity_id) ?? null;
       const pr = prevRankMap.get(r.entity_id) ?? null;
       const isNew = !prevRankMap.has(r.entity_id);
       return {
@@ -219,19 +164,36 @@ async function enrichReportItems(
       };
     });
   }
-  const list = await getOrFetchTracksBatch(ids, catalogOpts);
+  const fetchIds = ids.filter((id) => !isSyntheticReportEntityId(id));
+  const list = fetchIds.length
+    ? await getOrFetchTracksBatch(fetchIds, catalogOpts)
+    : [];
   const byEntityId = new Map(
-    ids.map((id, i) => [id, list[i] ?? null] as const),
+    fetchIds.map((id, i) => [id, list[i] ?? null] as const),
   );
   return rows.map((r, i) => {
     const rank = rankOffset + i + 1;
-    const t = byEntityId.get(r.entity_id) ?? list[i];
-    const pr = prevRankMap.get(r.entity_id) ?? null;
+    if (isSyntheticReportEntityId(r.entity_id)) {
+      const pr = prevRankMap.get(r.entity_id) ?? null;
       const isNew = !prevRankMap.has(r.entity_id);
       return {
         entityId: r.entity_id,
-        name: t?.name ?? r.entity_id,
-        image:
+        name: "Unknown track",
+        image: null,
+        count: r.count,
+        rank,
+        previousRank: pr,
+        movement: pr != null ? pr - rank : null,
+        isNew,
+      };
+    }
+    const t = byEntityId.get(r.entity_id) ?? null;
+    const pr = prevRankMap.get(r.entity_id) ?? null;
+    const isNew = !prevRankMap.has(r.entity_id);
+    return {
+      entityId: r.entity_id,
+      name: t?.name ?? r.entity_id,
+      image:
         t?.album?.images?.[0]?.url ?? r.cover_image_url?.trim() ?? null,
       count: r.count,
       rank,
@@ -242,14 +204,91 @@ async function enrichReportItems(
   });
 }
 
-function toAggregateRowsFromCustom(
-  raw: { entity_id: string; count: number }[],
-): AggregateReportRow[] {
-  return raw.map((r) => ({
-    entity_id: r.entity_id,
-    count: r.count,
-    cover_image_url: null,
-  }));
+function presetPeriodLabel(
+  range: Exclude<ReportRange, "custom">,
+  bounds: InclusiveDateRange,
+): string {
+  if (range === "week") {
+    return `Week of ${bounds.start}`;
+  }
+  if (range === "month") {
+    return bounds.start.slice(0, 7);
+  }
+  return bounds.start.slice(0, 4);
+}
+
+/**
+ * Full enriched snapshot for all entity kinds (for `saved_reports.snapshot_json`).
+ * Uses the same builder + enrichment as live reports.
+ */
+export async function buildListeningReportSnapshotForSave(args: {
+  userId: string;
+  range: ReportRange;
+  startDate: string;
+  endDate: string;
+}): Promise<ListeningReportSnapshotV1> {
+  const currentBounds: InclusiveDateRange = {
+    start: args.startDate,
+    end: args.endDate,
+  };
+  const prevBounds = previousListeningReportInclusiveRange({
+    range: args.range,
+    current: currentBounds,
+    customStart: args.range === "custom" ? args.startDate : undefined,
+    customEnd: args.range === "custom" ? args.endDate : undefined,
+  });
+
+  const [builtCurrent, builtPrev] = await Promise.all([
+    buildListeningReport({
+      userId: args.userId,
+      startDate: currentBounds.start,
+      endDate: currentBounds.end,
+    }),
+    buildListeningReport({
+      userId: args.userId,
+      startDate: prevBounds.start,
+      endDate: prevBounds.end,
+    }),
+  ]);
+
+  const periodLabel =
+    args.range === "custom"
+      ? `${args.startDate} → ${args.endDate}`
+      : presetPeriodLabel(args.range, currentBounds);
+
+  const kinds: ReportEntityType[] = ["artist", "album", "track", "genre"];
+  const itemsByType = {} as Record<ReportEntityType, ListeningReportItem[]>;
+  for (const k of kinds) {
+    const prevRankMap = buildRankMap(builtPrev.byEntity[k]);
+    const rows = builtCurrent.byEntity[k].slice(0, MAX_RANK_ROWS);
+    itemsByType[k] = await enrichReportItems(k, rows, 0, prevRankMap);
+  }
+
+  return {
+    v: 1,
+    periodLabel,
+    totals: { totalPlays: builtCurrent.totalPlays },
+    itemsByType,
+  };
+}
+
+export function listeningReportsResultFromSnapshot(args: {
+  snapshot: ListeningReportSnapshotV1;
+  entityType: ReportEntityType;
+  range: ReportRange;
+  limit: number;
+  offset: number;
+}): ListeningReportsResult {
+  const { snapshot, entityType, range, limit, offset } = args;
+  const all = snapshot.itemsByType[entityType] ?? [];
+  const page = all.slice(offset, offset + limit);
+  const hasMore = all.length > offset + limit;
+  return {
+    items: page,
+    range,
+    periodLabel: snapshot.periodLabel,
+    nextOffset: hasMore ? offset + limit : null,
+  };
 }
 
 export async function getListeningReports(args: {
@@ -264,6 +303,9 @@ export async function getListeningReports(args: {
   const limit = clampLimit(args.limit ?? 50);
   const offset = Math.max(0, args.offset ?? 0);
 
+  let currentBounds: InclusiveDateRange;
+  let periodLabel: string;
+
   if (args.range === "custom") {
     if (!args.startDate || !args.endDate) return null;
     const start = new Date(`${args.startDate}T00:00:00.000Z`);
@@ -273,104 +315,71 @@ export async function getListeningReports(args: {
       return null;
     }
     if (endExclusive <= start) return null;
+    try {
+      inclusiveRangeToListenWindow({
+        startDate: args.startDate,
+        endDate: args.endDate,
+      });
+    } catch {
+      return null;
+    }
     const days =
       (endExclusive.getTime() - start.getTime()) / (86400 * 1000);
     if (days > LIMITS.REPORTS_CUSTOM_MAX_DAYS) return null;
 
-    const rawCurrent = await customRangeAggregate({
-      userId: args.userId,
-      entityType: args.entityType,
-      startInclusive: start,
-      endExclusive,
-    });
-    const prevWin = previousCustomWindow(start, endExclusive);
-    const rawPrev = await customRangeAggregate({
-      userId: args.userId,
-      entityType: args.entityType,
-      startInclusive: prevWin.startInclusive,
-      endExclusive: prevWin.endExclusive,
-    });
-
-    const prevRankMap = buildRankMap(toAggregateRowsFromCustom(rawPrev));
-    const currentRows = toAggregateRowsFromCustom(rawCurrent);
-    const pageRows = currentRows.slice(offset, offset + limit);
-    const hasMore = currentRows.length > offset + limit;
-    const items = await enrichReportItems(
-      args.entityType,
-      pageRows,
-      offset,
-      prevRankMap,
-    );
-    return {
-      items,
-      range: "custom",
-      periodLabel: `${args.startDate} → ${args.endDate}`,
-      nextOffset: hasMore ? offset + limit : null,
-    };
-  }
-
-  let weekStart: string | null = null;
-  let monthStart: string | null = null;
-  let year: number | null = null;
-  let periodLabel = "";
-
-  if (args.range === "week") {
-    weekStart = currentWeekStart();
-    periodLabel = `Week of ${weekStart}`;
-  } else if (args.range === "month") {
-    monthStart = currentMonthStart();
-    periodLabel = monthStart.slice(0, 7);
+    currentBounds = { start: args.startDate, end: args.endDate };
+    periodLabel = `${args.startDate} → ${args.endDate}`;
   } else {
-    year = currentYear();
-    periodLabel = String(year);
+    currentBounds = listeningReportInclusiveBoundsForPreset(args.range);
+    periodLabel = presetPeriodLabel(args.range, currentBounds);
   }
 
-  let prevWeek: string | null = null;
-  let prevMonth: string | null = null;
-  let prevYear: number | null = null;
-  if (weekStart) {
-    prevWeek = previousWeekStart(weekStart);
-  } else if (monthStart) {
-    prevMonth = previousMonthStart(monthStart);
-  } else if (year != null) {
-    prevYear = previousCalendarYear(year);
-  }
+  const prevBounds = previousListeningReportInclusiveRange({
+    range: args.range,
+    current: currentBounds,
+    customStart: args.range === "custom" ? args.startDate ?? undefined : undefined,
+    customEnd: args.range === "custom" ? args.endDate ?? undefined : undefined,
+  });
 
-  const [currentRows, prevRows] = await Promise.all([
-    fetchAllAggregateRowsForBucket({
+  const [builtCurrent, builtPrev] = await Promise.all([
+    buildListeningReport({
       userId: args.userId,
-      entityType: args.entityType,
-      weekStart,
-      monthStart,
-      year,
+      startDate: currentBounds.start,
+      endDate: currentBounds.end,
     }),
-    fetchAllAggregateRowsForBucket({
+    buildListeningReport({
       userId: args.userId,
-      entityType: args.entityType,
-      weekStart: prevWeek,
-      monthStart: prevMonth,
-      year: prevYear,
+      startDate: prevBounds.start,
+      endDate: prevBounds.end,
     }),
   ]);
 
-  const prevRankMap = buildRankMap(prevRows);
-  const hasMore = currentRows.length > offset + limit;
-  const pageSlice = hasMore
-    ? currentRows.slice(offset, offset + limit)
-    : currentRows.slice(offset);
+  console.info("[listening-report] getListeningReports", {
+    userId: args.userId,
+    entityType: args.entityType,
+    range: args.range,
+    currentBounds,
+    prevBounds,
+    playsCurrent: builtCurrent.totalPlays,
+    playsPrevious: builtPrev.totalPlays,
+  });
 
+  const rawCurrent = builtCurrent.byEntity[args.entityType];
+  const rawPrev = builtPrev.byEntity[args.entityType];
+  const prevRankMap = buildRankMap(rawPrev);
+  const hasMore = rawCurrent.length > offset + limit;
+  const pageSlice = rawCurrent.slice(offset, offset + limit);
   const items = await enrichReportItems(
     args.entityType,
     pageSlice,
     offset,
     prevRankMap,
   );
-  const nextOffset = hasMore ? offset + limit : null;
 
   return {
     items,
     range: args.range,
     periodLabel,
-    nextOffset,
+    nextOffset: hasMore ? offset + limit : null,
   };
 }

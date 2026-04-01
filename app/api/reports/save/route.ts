@@ -1,8 +1,13 @@
 import { withHandler } from "@/lib/api-handler";
 import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { periodBoundsForSave } from "@/lib/analytics/period-bounds";
-import type { ReportEntityType, ReportRange } from "@/lib/analytics/getListeningReports";
+import {
+  buildListeningReportSnapshotForSave,
+  type ReportEntityType,
+  type ReportRange,
+} from "@/lib/analytics/getListeningReports";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { LIMITS } from "@/lib/validation";
 
 const TYPES: ReportEntityType[] = ["artist", "album", "track", "genre"];
 const RANGES: ReportRange[] = ["week", "month", "year", "custom"];
@@ -42,10 +47,41 @@ export const POST = withHandler(
       if (!startDate || !endDate) {
         return apiBadRequest("custom range requires startDate and endDate");
       }
+      const start = new Date(`${startDate}T00:00:00.000Z`);
+      const endExclusive = new Date(`${endDate}T00:00:00.000Z`);
+      endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+      if (!Number.isFinite(start.getTime()) || !Number.isFinite(endExclusive.getTime())) {
+        return apiBadRequest("invalid custom dates");
+      }
+      if (endExclusive <= start) {
+        return apiBadRequest("end date must be on or after start");
+      }
+      const days =
+        (endExclusive.getTime() - start.getTime()) / (86400 * 1000);
+      if (days > LIMITS.REPORTS_CUSTOM_MAX_DAYS) {
+        return apiBadRequest(
+          `custom range is too wide (max ${LIMITS.REPORTS_CUSTOM_MAX_DAYS} days)`,
+        );
+      }
     } else {
       const b = periodBoundsForSave(rangeType);
       startDate = b.start;
       endDate = b.end;
+    }
+
+    let snapshotJson: Awaited<
+      ReturnType<typeof buildListeningReportSnapshotForSave>
+    >;
+    try {
+      snapshotJson = await buildListeningReportSnapshotForSave({
+        userId: me!.id,
+        range: rangeType,
+        startDate: startDate!,
+        endDate: endDate!,
+      });
+    } catch (e) {
+      console.error("[api/reports/save] snapshot", e);
+      return apiBadRequest("Could not build report snapshot");
     }
 
     const supabase = await createSupabaseServerClient();
@@ -59,6 +95,7 @@ export const POST = withHandler(
         start_date: startDate,
         end_date: endDate,
         is_public: Boolean(body?.isPublic),
+        snapshot_json: snapshotJson,
       })
       .select("id")
       .single();
