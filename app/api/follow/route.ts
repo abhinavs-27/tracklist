@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import {
@@ -6,9 +5,8 @@ import {
   apiInternalError,
   apiOk,
 } from '@/lib/api-response';
-import { parseBody, handlePostgrestError } from '@/lib/api-utils';
+import { parseBody, handlePostgrestError, validateUuidParam } from '@/lib/api-utils';
 import { FollowCreateBody } from '@/types';
-import { isValidUuid } from '@/lib/validation';
 
 export const POST = withHandler(
   async (request, { user: me }) => {
@@ -17,13 +15,17 @@ export const POST = withHandler(
 
     const followingId = body!.following_id;
     if (!followingId) return apiBadRequest('following_id is required');
-    if (!isValidUuid(followingId)) return apiBadRequest('Invalid following_id');
-    if (followingId === me!.id) return apiBadRequest('Cannot follow yourself');
+
+    const uuidRes = validateUuidParam(followingId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const validFollowingId = uuidRes.id;
+
+    if (validFollowingId === me!.id) return apiBadRequest('Cannot follow yourself');
 
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.from('follows').insert({
       follower_id: me!.id,
-      following_id: followingId,
+      following_id: validFollowingId,
     });
 
     if (error) {
@@ -33,7 +35,7 @@ export const POST = withHandler(
       });
     }
     await supabase.from('notifications').insert({
-      user_id: followingId,
+      user_id: validFollowingId,
       actor_user_id: me!.id,
       type: 'follow',
     });
@@ -43,14 +45,14 @@ export const POST = withHandler(
       );
       await fanOutFollowInSharedCommunities({
         followerId: me!.id,
-        followingId,
+        followingId: validFollowingId,
       });
     } catch (e) {
       console.warn('[follow] community_feed fan-out', e);
     }
     console.log("[follow] user-followed", {
       followerId: me!.id,
-      followingId,
+      followingId: validFollowingId,
     });
     return apiOk({ success: true });
   },
@@ -59,17 +61,20 @@ export const POST = withHandler(
 
 export const DELETE = withHandler(
   async (request, { user: me }) => {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const followingId = searchParams.get('following_id');
     if (!followingId) return apiBadRequest('following_id is required');
-    if (!isValidUuid(followingId)) return apiBadRequest('Invalid following_id');
+
+    const uuidRes = validateUuidParam(followingId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const validFollowingId = uuidRes.id;
 
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from('follows')
       .delete()
       .eq('follower_id', me!.id)
-      .eq('following_id', followingId);
+      .eq('following_id', validFollowingId);
 
     if (error) {
       console.error('Unfollow error:', error);
@@ -77,7 +82,7 @@ export const DELETE = withHandler(
     }
     console.log("[follow] user-unfollowed", {
       followerId: me!.id,
-      followingId,
+      followingId: validFollowingId,
     });
     return apiOk({ success: true });
   },
