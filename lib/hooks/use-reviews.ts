@@ -15,6 +15,8 @@ export type ReviewItem = {
   created_at: string;
   updated_at: string;
   user?: { id: string; username: string; avatar_url: string | null } | null;
+  like_count?: number;
+  viewer_has_liked?: boolean;
 };
 
 export type ReviewsResponse = {

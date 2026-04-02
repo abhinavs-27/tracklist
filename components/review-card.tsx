@@ -70,7 +70,12 @@ function ReviewCardInner({
           </p>
         ) : null}
         <div className="relative mt-4 flex items-center gap-3">
-          <LikeButton reviewId={review.id} initialLiked={liked} initialCount={likeCount} />
+          <LikeButton
+            key={review.id}
+            reviewId={review.id}
+            initialLiked={liked}
+            initialCount={likeCount}
+          />
           {showComments ? (
             <CommentThread reviewId={review.id} initialCount={commentCount} />
           ) : null}
@@ -124,7 +129,12 @@ function ReviewCardInner({
         )}
       </div>
       <div className="relative mt-3 flex items-center gap-4">
-        <LikeButton reviewId={review.id} initialLiked={liked} initialCount={likeCount} />
+        <LikeButton
+          key={review.id}
+          reviewId={review.id}
+          initialLiked={liked}
+          initialCount={likeCount}
+        />
         {showComments && (
           <CommentThread reviewId={review.id} initialCount={commentCount} />
         )}

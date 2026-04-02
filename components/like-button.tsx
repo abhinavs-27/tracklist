@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/query-keys';
@@ -15,6 +15,11 @@ export function LikeButton({ reviewId, initialLiked, initialCount }: LikeButtonP
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setLiked(initialLiked);
+    setCount(initialCount);
+  }, [initialLiked, initialCount]);
   const { toast } = useToast();
 
   const likeMutation = useMutation({

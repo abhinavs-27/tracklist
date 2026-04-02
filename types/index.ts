@@ -45,6 +45,9 @@ export interface ReviewWithUser extends Review {
   user?: User | null;
   /** @deprecated use user.username */
   username?: string | null;
+  /** From GET /api/reviews (likes aggregate). */
+  like_count?: number;
+  viewer_has_liked?: boolean;
 }
 
 /** Listen session: one track in a 30-min window (or aggregated). */

@@ -16,6 +16,8 @@ export type ReviewItem = {
   created_at: string;
   updated_at: string;
   user?: { id: string; username: string; avatar_url: string | null } | null;
+  like_count?: number;
+  viewer_has_liked?: boolean;
 };
 
 const ROW_ESTIMATE = 180;
@@ -88,7 +90,12 @@ export function VirtualReviewList({
               }}
               className="pb-3"
             >
-              <ReviewCard review={reviewWithUser} spotifyName={spotifyName} />
+              <ReviewCard
+                review={reviewWithUser}
+                spotifyName={spotifyName}
+                likeCount={review.like_count ?? 0}
+                liked={review.viewer_has_liked ?? false}
+              />
             </div>
           );
         })}

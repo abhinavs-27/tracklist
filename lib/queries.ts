@@ -174,6 +174,40 @@ async function getListenLogsInternal(opts: {
 // Active reviews (ratings + optional text)
 // ---------------------------------------------------------------------------
 
+type ReviewLikeStat = { like_count: number; viewer_has_liked: boolean };
+
+async function fetchReviewLikeStatsMap(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  reviewIds: string[],
+  viewerId: string | null,
+): Promise<Map<string, ReviewLikeStat>> {
+  const map = new Map<string, ReviewLikeStat>();
+  if (reviewIds.length === 0) return map;
+
+  const { data, error } = await supabase.rpc("get_review_like_stats", {
+    p_review_ids: reviewIds,
+    p_viewer_id: viewerId,
+  });
+
+  if (error) {
+    console.error("[queries] get_review_like_stats failed:", error);
+    return map;
+  }
+
+  for (const row of data ?? []) {
+    const r = row as {
+      review_id: string;
+      like_count: number | string;
+      viewer_liked: boolean;
+    };
+    map.set(r.review_id, {
+      like_count: Number(r.like_count),
+      viewer_has_liked: Boolean(r.viewer_liked),
+    });
+  }
+  return map;
+}
+
 /** Reviews for an entity. Capped at 20 for performance. */
 export async function getReviewsForEntity(
   entityType: "album" | "song",
@@ -216,8 +250,40 @@ export async function getReviewsForEntity(
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
     const userMap = await fetchUserMap(supabase, userIds);
 
+    let myRow: {
+      id: string;
+      rating: number;
+      review_text: string | null;
+      created_at: string;
+      updated_at: string;
+    } | null = null;
+    if (userId) {
+      const { data: row } = await supabase
+        .from("reviews")
+        .select("id, rating, review_text, created_at, updated_at")
+        .eq("entity_type", entityType)
+        .eq("entity_id", canonicalEntityId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      myRow = row ?? null;
+    }
+
+    const reviewIdsForLikes = [
+      ...new Set(
+        [...reviewRows.map((r) => r.id), ...(myRow ? [myRow.id] : [])].filter(
+          Boolean,
+        ),
+      ),
+    ];
+    const likeStatMap = await fetchReviewLikeStatsMap(
+      supabase,
+      reviewIdsForLikes,
+      userId,
+    );
+
     const reviews: ReviewWithUser[] = reviewRows.map((r) => {
       const u = userMap.get(r.user_id);
+      const ls = likeStatMap.get(r.id);
       return {
         id: r.id,
         user_id: r.user_id,
@@ -228,6 +294,8 @@ export async function getReviewsForEntity(
         review_text: r.review_text ?? null,
         created_at: r.created_at,
         updated_at: r.updated_at,
+        like_count: ls?.like_count ?? 0,
+        viewer_has_liked: ls?.viewer_has_liked ?? false,
         user: u
           ? { id: u.id, username: u.username, avatar_url: u.avatar_url ?? null }
           : null,
@@ -246,32 +314,24 @@ export async function getReviewsForEntity(
       .eq("entity_id", canonicalEntityId);
 
     let my_review: ReviewWithUser | null = null;
-    if (userId) {
-      const { data: myRow } = await supabase
-        .from("reviews")
-        .select(
-          "id, rating, review_text, created_at, updated_at",
-        )
-        .eq("entity_type", entityType)
-        .eq("entity_id", canonicalEntityId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (myRow) {
-        const sessionUsername =
-          (session?.user as { username?: string } | undefined)?.username ??
-          null;
-        my_review = {
-          id: myRow.id,
-          user_id: userId,
-          username: sessionUsername,
-          entity_type: entityType,
-          entity_id: entityId,
-          rating: myRow.rating,
-          review_text: myRow.review_text ?? null,
-          created_at: myRow.created_at,
-          updated_at: myRow.updated_at,
-        };
-      }
+    if (userId && myRow) {
+      const sessionUsername =
+        (session?.user as { username?: string } | undefined)?.username ??
+        null;
+      const ls = likeStatMap.get(myRow.id);
+      my_review = {
+        id: myRow.id,
+        user_id: userId,
+        username: sessionUsername,
+        entity_type: entityType,
+        entity_id: entityId,
+        rating: myRow.rating,
+        review_text: myRow.review_text ?? null,
+        created_at: myRow.created_at,
+        updated_at: myRow.updated_at,
+        like_count: ls?.like_count ?? 0,
+        viewer_has_liked: ls?.viewer_has_liked ?? false,
+      };
     }
 
     return {
