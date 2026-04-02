@@ -1,7 +1,17 @@
 import type { ChartMomentTopRow } from "@/lib/charts/weekly-chart-types";
 
-const BG =
-  "linear-gradient(165deg, #09090b 0%, #18181b 38%, #0c0c0e 72%, #000000 100%)";
+/**
+ * Layered backdrop for the 1080×1350 share PNG: ambient glows + vignette + deep base.
+ * (Satori stacks comma-separated backgrounds top-to-bottom paint order: first list = top layer.)
+ */
+const CHART_SHARE_BACKGROUND = [
+  "radial-gradient(ellipse 125% 88% at 94% -8%, rgba(16, 185, 129, 0.3) 0%, transparent 52%)",
+  "radial-gradient(ellipse 105% 78% at -10% 78%, rgba(99, 102, 241, 0.24) 0%, transparent 54%)",
+  "radial-gradient(ellipse 90% 58% at 52% 102%, rgba(245, 158, 11, 0.16) 0%, transparent 48%)",
+  "radial-gradient(ellipse 70% 55% at 50% 28%, rgba(59, 130, 246, 0.08) 0%, transparent 58%)",
+  "linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, transparent 38%, rgba(0, 0, 0, 0.5) 100%)",
+  "linear-gradient(162deg, #0a0a0f 0%, #18181b 28%, #0d0d14 55%, #020203 100%)",
+].join(", ");
 
 function truncate(s: string, max: number): string {
   const t = s.trim();
@@ -158,6 +168,8 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
     weekLabel,
     chartKindLabel,
     top5Rows,
+    numberOne,
+    numberOneImageUrl,
     usernameDisplay,
     variant = "personal",
     communityName,
@@ -183,11 +195,14 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: BG,
+        backgroundColor: "#09090b",
+        backgroundImage: CHART_SHARE_BACKGROUND,
         color: "#fafafa",
         fontFamily: "Inter, system-ui, sans-serif",
         padding: 48,
         boxSizing: "border-box",
+        boxShadow:
+          "inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -80px 120px -40px rgba(0, 0, 0, 0.45)",
       }}
     >
       <div
@@ -403,6 +418,108 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
           );
         })}
       </div>
+
+      {numberOne ? (
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 24,
+            padding: 24,
+            borderRadius: 24,
+            background:
+              "radial-gradient(ellipse 80% 120% at 30% 40%, rgba(245, 158, 11, 0.15), transparent 55%), rgba(24, 24, 27, 0.9)",
+            border: "1px solid rgba(63, 63, 70, 0.5)",
+          }}
+        >
+          {numberOneImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- OG runtime
+            <img
+              src={numberOneImageUrl}
+              alt=""
+              width={180}
+              height={180}
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 18,
+                objectFit: "cover",
+                flexShrink: 0,
+                boxShadow: "0 20px 50px rgba(0,0,0,0.45)",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 18,
+                backgroundColor: "#27272a",
+                flexShrink: 0,
+              }}
+            />
+          )}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#fbbf24",
+                letterSpacing: 2,
+                textTransform: "uppercase",
+              }}
+            >
+              {isCommunity ? "#1" : "#1 this week"}
+            </span>
+            <span
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                lineHeight: 1.15,
+                maxWidth: 680,
+              }}
+            >
+              {truncate(numberOne.name, 48)}
+            </span>
+            {numberOne.artist_name ? (
+              <span style={{ fontSize: 18, color: "#a1a1aa" }}>
+                {truncate(numberOne.artist_name, 44)}
+              </span>
+            ) : null}
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                flexDirection: "row",
+                gap: 10,
+                width: "100%",
+              }}
+            >
+              <StatBlock label="Plays" value={formatNumber(numberOne.play_count)} compact />
+              <StatBlock
+                label="Weeks at #1 (all-time)"
+                value={String(numberOne.weeks_at_1)}
+                compact
+              />
+              <StatBlock
+                label="Top 10 · at #1"
+                value={`${numberOne.weeks_in_top_10} (${numberOne.weeks_at_1})`}
+                compact
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div
         style={{

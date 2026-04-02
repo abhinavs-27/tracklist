@@ -59,12 +59,25 @@ export async function GET(request: NextRequest) {
       return apiNotFound("No chart for this week.");
     }
 
+    const leader = data.share.numberOne;
+    const numberOneImageUrl = leader?.image?.trim() || null;
     const top5Rows = data.share.topFive.map(toShareTopRow);
+    const numberOne = leader
+      ? {
+          name: leader.name,
+          artist_name: leader.artist_name,
+          play_count: leader.play_count,
+          weeks_in_top_10: leader.weeks_in_top_10,
+          weeks_at_1: leader.weeks_at_1,
+        }
+      : null;
 
     return await generateChartShareImageResponse({
       weekLabel: data.share.weekLabel,
       chartKindLabel: KIND_LABEL[chartType],
       top5Rows,
+      numberOne,
+      numberOneImageUrl,
       usernameDisplay: user.username ?? null,
     });
   } catch (e) {
