@@ -139,6 +139,7 @@ export default async function CommunityDetailPage({
           <Suspense fallback={<CommunityMobileShellSkeleton />}>
             <CommunityMobileWebShellAsync
               communityId={id}
+              communityName={community.name?.trim() || "Community"}
               viewerId={session.user.id}
               canInvite={canInvite}
               showPromote={showAdminSection}
@@ -190,18 +191,20 @@ export default async function CommunityDetailPage({
       ) : null}
 
       {isMember && session?.user?.id ? (
-        <CommunityPageSection
-          eyebrow="Billboard"
-          title={`${community.name?.trim() || "Community"} Weekly Chart`}
-          description="Top 10 by combined member plays for each Sunday–Saturday UTC week. One drop per week — charts stay fixed after publish."
-        >
-          <Suspense fallback={<CommunityBillboardSkeleton />}>
-            <CommunityBillboardStreamSlot
-              communityId={id}
-              communityName={community.name?.trim() || "Community"}
-            />
-          </Suspense>
-        </CommunityPageSection>
+        <div className="hidden lg:block">
+          <CommunityPageSection
+            eyebrow="Billboard"
+            title={`${community.name?.trim() || "Community"} Weekly Chart`}
+            description="Top 10 by combined member plays for each Sunday–Saturday UTC week. One drop per week — charts stay fixed after publish."
+          >
+            <Suspense fallback={<CommunityBillboardSkeleton />}>
+              <CommunityBillboardStreamSlot
+                communityId={id}
+                communityName={community.name?.trim() || "Community"}
+              />
+            </Suspense>
+          </CommunityPageSection>
+        </div>
       ) : null}
 
       {isMember && session?.user?.id ? (

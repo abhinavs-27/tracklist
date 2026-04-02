@@ -109,12 +109,14 @@ export async function CommunityBillboardStreamSlot({
 
 export async function CommunityMobileWebShellAsync({
   communityId,
+  communityName,
   viewerId,
   canInvite,
   showPromote,
   communityCreatedBy,
 }: {
   communityId: string;
+  communityName: string;
   viewerId: string;
   canInvite: boolean;
   showPromote: boolean;
@@ -131,6 +133,7 @@ export async function CommunityMobileWebShellAsync({
   return (
     <CommunityMobileWebShell
       communityId={communityId}
+      communityName={communityName}
       viewerId={viewerId}
       canInvite={canInvite}
       showPromote={showPromote}
@@ -142,6 +145,7 @@ export async function CommunityMobileWebShellAsync({
       initialMembersPage={data.rosterPage}
       initialMemberStats={data.memberStats}
       initialLeaderboard={data.leaderboard}
+      initialBillboard={data.billboard}
       initialInviteUrl={canInvite ? data.inviteUrl : undefined}
     />
   );

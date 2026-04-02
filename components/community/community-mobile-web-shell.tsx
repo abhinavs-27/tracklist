@@ -7,22 +7,24 @@ import { CommunityConsensusSection } from "@/components/community/community-cons
 import { CommunityFeedClient } from "@/components/community/community-feed-client";
 import { CommunityLeaderboardClient } from "@/components/community/community-leaderboard-client";
 import { CommunityMembersSectionClient } from "@/components/community/community-members-section-client";
+import { CommunityPageSection } from "@/components/community/community-page-section";
+import { CommunityWeeklyBillboardClient } from "@/components/community/community-weekly-billboard-client";
 import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import type { CommunityInsights as CommunityInsightsData } from "@/lib/community/getCommunityInsights";
-import type { CommunityWeeklySummaryBundle } from "@/lib/community/community-page-cache";
+import type {
+  CommunityBillboardInitial,
+  CommunityWeeklySummaryBundle,
+} from "@/lib/community/community-page-cache";
 import type { CommunityFeedItemV2 } from "@/lib/community/community-feed-types";
 import type { CommunityLeaderboardRow } from "@/lib/community/getWeeklyLeaderboard";
 import type { CommunityMemberStatRow } from "@/lib/community/get-community-member-stats";
 import type { CommunityMembersRosterPage } from "@/lib/community/get-community-members-roster";
 import { communityBody, communityMeta } from "@/lib/ui/surface";
-import {
-  CommunityMobilePeopleTabSkeleton,
-  CommunityMobileVibeTabSkeleton,
-} from "@/components/community/community-mobile-web-tab-skeleton";
 
 type Props = {
   communityId: string;
+  communityName: string;
   viewerId: string;
   canInvite: boolean;
   showPromote: boolean;
@@ -34,6 +36,7 @@ type Props = {
   initialMembersPage: CommunityMembersRosterPage;
   initialMemberStats: CommunityMemberStatRow[];
   initialLeaderboard: CommunityLeaderboardRow[];
+  initialBillboard: CommunityBillboardInitial;
   /** When `canInvite` is false, omit (undefined). When true, pass server value (string or null). */
   initialInviteUrl?: string | null;
 };
@@ -60,6 +63,7 @@ function timeBarPct(
 
 export function CommunityMobileWebShell({
   communityId,
+  communityName,
   viewerId,
   canInvite,
   showPromote,
@@ -71,6 +75,7 @@ export function CommunityMobileWebShell({
   initialMembersPage,
   initialMemberStats,
   initialLeaderboard,
+  initialBillboard,
   initialInviteUrl,
 }: Props) {
   const [tab, setTab] = useState<"vibe" | "people" | "activity">("vibe");
@@ -160,7 +165,36 @@ export function CommunityMobileWebShell({
         className={`${tab === "vibe" ? "block" : "hidden"} ${tabPanelClass}`}
         aria-hidden={tab !== "vibe"}
       >
-        <div className="space-y-4">
+        <div className="space-y-8">
+          <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/40 to-zinc-950/30 p-1 ring-1 ring-white/[0.04]">
+            <CommunityPageSection
+              className="px-1 sm:px-0"
+              eyebrow="Billboard"
+              title={`${communityName} Weekly Chart`}
+              description="Top 10 by combined member plays each UTC week. Charts lock after publish."
+            >
+              <CommunityWeeklyBillboardClient
+                communityId={communityId}
+                communityName={communityName}
+                initialType="tracks"
+                initialWeeks={initialBillboard.weeks}
+                initialChartData={initialBillboard.chartData}
+              />
+            </CommunityPageSection>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/40 to-zinc-950/30 p-1 ring-1 ring-white/[0.04]">
+            <CommunityPageSection
+              className="px-1 sm:px-0"
+              eyebrow="Together"
+              title="Community consensus"
+              description="Songs, albums, and artists ranked by how members listen together."
+            >
+              <CommunityConsensusSection communityId={communityId} embedded />
+            </CommunityPageSection>
+          </div>
+
+          <div className="space-y-4">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-emerald-500">
               Community vibe
@@ -327,14 +361,7 @@ export function CommunityMobileWebShell({
               initialPayload={initialWeeklySummary}
             />
           </CommunityCollapsibleWeb>
-
-          <CommunityCollapsibleWeb
-            title="Community consensus"
-            subtitle="Shared songs, albums, and artists ranked by how members listen together."
-            defaultOpen={false}
-          >
-            <CommunityConsensusSection communityId={communityId} embedded />
-          </CommunityCollapsibleWeb>
+          </div>
         </div>
       </div>
 
