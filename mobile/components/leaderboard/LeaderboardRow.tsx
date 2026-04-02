@@ -63,7 +63,7 @@ export function LeaderboardRow({ entry, rank, metric }: Props) {
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
             {entry.rating != null && metric !== "favorited" && (
               <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: "600" }}>
-                Rating {entry.rating}
+                Rating {Number(entry.rating).toFixed(1)}
               </Text>
             )}
             {metric === "favorited" ? (

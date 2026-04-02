@@ -18,6 +18,187 @@ export type LeaderboardFilters = {
   endYear?: number;
 };
 
+type AlbumStatRow = {
+  album_id: string;
+  listen_count: number;
+  avg_rating: number | null;
+};
+
+const TRACK_STATS_CHUNK = 120;
+const LEADERBOARD_ALBUM_IN_CHUNK = 120;
+
+/** Mirrors lib/queries.ts */
+async function fetchAlbumStatsMapForLeaderboard(
+  supabase: ReturnType<typeof getSupabase>,
+  albumIds: string[],
+): Promise<Map<string, { listen_count: number; avg_rating: number | null }>> {
+  const map = new Map<
+    string,
+    { listen_count: number; avg_rating: number | null }
+  >();
+  if (albumIds.length === 0) return map;
+  for (let i = 0; i < albumIds.length; i += LEADERBOARD_ALBUM_IN_CHUNK) {
+    const chunk = albumIds.slice(i, i + LEADERBOARD_ALBUM_IN_CHUNK);
+    const { data: rows, error } = await supabase
+      .from("album_stats")
+      .select("album_id, listen_count, avg_rating")
+      .in("album_id", chunk);
+    if (error) {
+      console.warn("[leaderboardService] fetchAlbumStatsMapForLeaderboard", error.message);
+      continue;
+    }
+    for (const r of rows ?? []) {
+      const row = r as AlbumStatRow;
+      map.set(row.album_id, {
+        listen_count: Number(row.listen_count ?? 0),
+        avg_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
+      });
+    }
+  }
+  return map;
+}
+
+async function sumTrackListenCountsByAlbumIds(
+  supabase: ReturnType<typeof getSupabase>,
+  albumIds: string[],
+): Promise<Map<string, number>> {
+  const sums = new Map<string, number>();
+  if (albumIds.length === 0) return sums;
+  for (let i = 0; i < albumIds.length; i += LEADERBOARD_ALBUM_IN_CHUNK) {
+    const chunk = albumIds.slice(i, i + LEADERBOARD_ALBUM_IN_CHUNK);
+    const { data: tracks } = await supabase
+      .from("tracks")
+      .select("id, album_id")
+      .in("album_id", chunk);
+    if (!tracks?.length) continue;
+    const trackToAlbum = new Map(
+      (tracks as { id: string; album_id: string }[]).map((t) => [
+        t.id,
+        t.album_id,
+      ]),
+    );
+    const trackIds = [...trackToAlbum.keys()];
+    for (let j = 0; j < trackIds.length; j += TRACK_STATS_CHUNK) {
+      const sl = trackIds.slice(j, j + TRACK_STATS_CHUNK);
+      const { data: statRows } = await supabase
+        .from("track_stats")
+        .select("track_id, listen_count")
+        .in("track_id", sl);
+      for (const r of statRows ?? []) {
+        const tr = r as { track_id: string; listen_count: number | null };
+        const aid = trackToAlbum.get(tr.track_id);
+        if (!aid) continue;
+        sums.set(
+          aid,
+          (sums.get(aid) ?? 0) + Number(tr.listen_count ?? 0),
+        );
+      }
+    }
+  }
+  return sums;
+}
+
+/** See lib/queries.ts — fallback when `album_stats` is empty. */
+async function getAlbumLeaderboardFromEntityStatsFallback(
+  supabase: ReturnType<typeof getSupabase>,
+  type: "popular" | "topRated",
+  albumIdsFilter: string[] | null,
+  limit: number,
+): Promise<LeaderboardEntry[]> {
+  let statsQuery = supabase
+    .from("entity_stats")
+    .select("entity_id, play_count, avg_rating, favorite_count")
+    .eq("entity_type", "album")
+    .limit(Math.max(limit * 4, 200));
+
+  if (albumIdsFilter && albumIdsFilter.length > 0) {
+    statsQuery = statsQuery.in("entity_id", albumIdsFilter);
+  }
+
+  if (type === "popular") {
+    statsQuery = statsQuery
+      .order("play_count", { ascending: false })
+      .order("favorite_count", { ascending: false });
+  } else {
+    statsQuery = statsQuery
+      .order("avg_rating", { ascending: false, nullsFirst: false })
+      .order("play_count", { ascending: false });
+  }
+
+  const { data: statsRows, error: statsError } = await statsQuery;
+  if (statsError || !statsRows?.length) return [];
+
+  const albumIdsFromStats = statsRows.map((r) => r.entity_id as string);
+  const [albumStatsMap, trackListenByAlbum] = await Promise.all([
+    fetchAlbumStatsMapForLeaderboard(supabase, albumIdsFromStats),
+    sumTrackListenCountsByAlbumIds(supabase, albumIdsFromStats),
+  ]);
+
+  const { data: albumRows } = await supabase
+    .from("albums")
+    .select("id, name, artist_id, image_url")
+    .in("id", albumIdsFromStats);
+
+  const albumsArray = (albumRows ?? []) as {
+    id: string;
+    name: string;
+    artist_id: string;
+    image_url: string | null;
+  }[];
+  const albumMap = new Map(albumsArray.map((a) => [a.id, a]));
+  const artistIds = [...new Set(albumsArray.map((a) => a.artist_id))];
+  const { data: artistRows } = await supabase
+    .from("artists")
+    .select("id, name")
+    .in("id", artistIds);
+  const artistMap = new Map(
+    (artistRows ?? []).map((a) => [a.id, a.name] as const),
+  );
+
+  const albumEntries: LeaderboardEntry[] = statsRows
+    .map((row): LeaderboardEntry | null => {
+      const aid = row.entity_id as string;
+      const album = albumMap.get(aid);
+      if (!album) return null;
+      const fromAlbum = albumStatsMap.get(aid);
+      const entityPlays = Number(row.play_count ?? 0);
+      const trackSum = trackListenByAlbum.get(aid) ?? 0;
+      const total_plays = Math.max(
+        fromAlbum?.listen_count ?? 0,
+        entityPlays,
+        trackSum,
+      );
+      const average_rating =
+        fromAlbum?.avg_rating ??
+        (row.avg_rating != null ? Number(row.avg_rating) : null);
+      const weighted_score =
+        type === "topRated" && average_rating != null
+          ? average_rating * Math.log10(1 + total_plays)
+          : undefined;
+      return {
+        entity_type: "album",
+        id: album.id,
+        name: album.name,
+        artist: artistMap.get(album.artist_id) ?? "Unknown",
+        artwork_url: album.image_url ?? null,
+        total_plays,
+        average_rating,
+        ...(weighted_score !== undefined && { weighted_score }),
+      };
+    })
+    .filter((x): x is LeaderboardEntry => x != null);
+
+  if (type === "popular") {
+    albumEntries.sort((a, b) => b.total_plays - a.total_plays);
+  } else {
+    albumEntries.sort(
+      (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
+    );
+  }
+
+  return albumEntries.slice(0, limit);
+}
+
 export async function getLeaderboard(
   type: "popular" | "topRated" | "mostFavorited",
   filters: LeaderboardFilters,
@@ -113,6 +294,11 @@ export async function getLeaderboard(
       if (statsError || !statsRows?.length) return [];
 
       const albumIdsFromStats = statsRows.map((r) => r.entity_id as string);
+      const [albumStatsMap, trackListenByAlbum] = await Promise.all([
+        fetchAlbumStatsMapForLeaderboard(supabase, albumIdsFromStats),
+        sumTrackListenCountsByAlbumIds(supabase, albumIdsFromStats),
+      ]);
+
       const { data: albumRows } = await supabase
         .from("albums")
         .select("id, name, artist_id, image_url")
@@ -136,15 +322,24 @@ export async function getLeaderboard(
 
       const entries: LeaderboardEntry[] = statsRows
         .map((row): LeaderboardEntry | null => {
-          const album = albumMap.get(row.entity_id as string);
+          const aid = row.entity_id as string;
+          const album = albumMap.get(aid);
           if (!album) return null;
-          const total_plays = row.play_count ?? 0;
+          const fromAlbum = albumStatsMap.get(aid);
+          const entityPlays = Number(row.play_count ?? 0);
+          const trackSum = trackListenByAlbum.get(aid) ?? 0;
+          const total_plays = Math.max(
+            fromAlbum?.listen_count ?? 0,
+            entityPlays,
+            trackSum,
+          );
           const average_rating =
-            row.avg_rating != null ? Number(row.avg_rating) : null;
+            fromAlbum?.avg_rating ??
+            (row.avg_rating != null ? Number(row.avg_rating) : null);
           const artistName = artistMap.get(album.artist_id) ?? "Unknown";
           return {
             entity_type: "album",
-            id: row.entity_id as string,
+            id: aid,
             name: album.name,
             artist: artistName,
             artwork_url: album.image_url ?? null,
@@ -283,29 +478,37 @@ export async function getLeaderboard(
       return entries.slice(0, limit);
     }
 
-    // entity === "album"
-    // Use album_stats for popularity / rating.
+    // entity === "album" — prefer album_stats; fall back to entity_stats (see lib/queries).
     const albumStatsLimit = 500;
-    let albumStatsRows:
-      | {
-          album_id: string;
-          listen_count: number;
-          avg_rating: number | null;
-        }[]
-      | null = null;
+    let albumStatsRows: AlbumStatRow[] | null = null;
 
     if (albumIds && albumIds.length > 0) {
-      const albumStatsRowsMerged: any[] = [];
+      const albumStatsRowsMerged: AlbumStatRow[] = [];
       const CHUNK = 100;
       for (let i = 0; i < albumIds.length; i += CHUNK) {
         const slice = albumIds.slice(i, i + CHUNK);
-        const { data: rows } = await supabase
+        const { data: rows, error: statsError } = await supabase
           .from("album_stats")
           .select("album_id, listen_count, avg_rating")
           .in("album_id", slice);
-        if (rows) albumStatsRowsMerged.push(...rows);
+        if (statsError) {
+          return getAlbumLeaderboardFromEntityStatsFallback(
+            supabase,
+            type,
+            albumIds,
+            limit,
+          );
+        }
+        if (rows) albumStatsRowsMerged.push(...(rows as AlbumStatRow[]));
       }
-      if (albumStatsRowsMerged.length === 0) return [];
+      if (albumStatsRowsMerged.length === 0) {
+        return getAlbumLeaderboardFromEntityStatsFallback(
+          supabase,
+          type,
+          albumIds,
+          limit,
+        );
+      }
       albumStatsRows = albumStatsRowsMerged;
     } else {
       const { data: rows, error: statsError } = await supabase
@@ -313,12 +516,15 @@ export async function getLeaderboard(
         .select("album_id, listen_count, avg_rating")
         .order("listen_count", { ascending: false })
         .limit(albumStatsLimit);
-      if (statsError || !rows?.length) return [];
-      albumStatsRows = rows as {
-        album_id: string;
-        listen_count: number;
-        avg_rating: number | null;
-      }[];
+      if (statsError || !rows?.length) {
+        return getAlbumLeaderboardFromEntityStatsFallback(
+          supabase,
+          type,
+          null,
+          limit,
+        );
+      }
+      albumStatsRows = rows as AlbumStatRow[];
     }
 
     const albumIdsFromStats = albumStatsRows.map((r) => r.album_id);
@@ -347,7 +553,7 @@ export async function getLeaderboard(
       ),
     );
 
-    const albumEntries: LeaderboardEntry[] = albumStatsRows
+    let albumEntries: LeaderboardEntry[] = albumStatsRows
       .map((row) => {
         const album = albumMapFull.get(row.album_id);
         if (!album) return null;
@@ -371,6 +577,15 @@ export async function getLeaderboard(
         };
       })
       .filter((x): x is LeaderboardEntry => x != null);
+
+    if (albumEntries.length === 0) {
+      return getAlbumLeaderboardFromEntityStatsFallback(
+        supabase,
+        type,
+        albumIds,
+        limit,
+      );
+    }
 
     if (type === "popular") {
       albumEntries.sort((a, b) => b.total_plays - a.total_plays);
