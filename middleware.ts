@@ -229,6 +229,18 @@ export async function middleware(request: NextRequest) {
    */
   if (pathname.startsWith("/api/reactions")) return NextResponse.next();
 
+  /**
+   * Communities + weekly chart PNGs are implemented only in Next (`app/api/communities/*`,
+   * `app/api/charts/*`, e.g. `@vercel/og` share-image). If proxied to Express, those paths
+   * 404 or mis-handle binary responses — works locally when `API_BACKEND_URL` is unset.
+   */
+  if (
+    pathname.startsWith("/api/communities/") ||
+    pathname.startsWith("/api/charts/")
+  ) {
+    return NextResponse.next();
+  }
+
   const base = backend.replace(/\/$/, "");
   const target = `${base}${pathname}${request.nextUrl.search}`;
 
