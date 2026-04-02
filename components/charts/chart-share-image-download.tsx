@@ -8,6 +8,8 @@ import type { ChartType } from "@/lib/charts/weekly-chart-types";
 export function ChartShareImageDownload(props: {
   chartType: ChartType;
   weekStart: string | null;
+  /** Community billboard export (members only). */
+  communityId?: string | null;
   disabled?: boolean;
   className?: string;
 }) {
@@ -21,6 +23,7 @@ export function ChartShareImageDownload(props: {
       const url = getChartShareImageApiUrl({
         chartType: props.chartType,
         weekStart: props.weekStart,
+        communityId: props.communityId,
       });
       const res = await fetch(url, { credentials: "include", cache: "no-store" });
       if (!res.ok) {
@@ -28,7 +31,10 @@ export function ChartShareImageDownload(props: {
         throw new Error(err?.error ?? "Could not generate image");
       }
       const blob = await res.blob();
-      const filename = `weekly-chart-${props.chartType}-${(props.weekStart ?? "latest").slice(0, 10)}.png`;
+      const scope = props.communityId?.trim()
+        ? `community-${props.communityId.trim().slice(0, 8)}`
+        : "me";
+      const filename = `weekly-chart-${scope}-${props.chartType}-${(props.weekStart ?? "latest").slice(0, 10)}.png`;
 
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");

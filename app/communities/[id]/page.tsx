@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
-import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
+import { CommunityWeeklyBillboardClient } from "@/components/community/community-weekly-billboard-client";
 import {
   CommunityFeedSkeleton,
   CommunitySectionSkeleton,
@@ -21,8 +21,9 @@ import {
   isCommunityMember,
 } from "@/lib/community/queries";
 import {
-  getCommunityHeroListeningData,
   getCommunityMemberGrowthThisWeek,
+  getCommunityHeroListeningData,
+  type CommunityHeroTopArtist,
 } from "@/lib/community/get-community-hero-data";
 import { isValidUuid } from "@/lib/validation";
 import { communityBody } from "@/lib/ui/surface";
@@ -32,12 +33,11 @@ import { CommunityMemberHeroShell } from "@/components/community/community-membe
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import { CommunityActions } from "@/components/community/community-actions";
 import { CommunityMobileWebShell } from "@/components/community/community-mobile-web-shell";
-import { CommunityDiscoveryCarousels } from "@/components/community/community-discovery-carousels";
 import {
   CommunityFeedSlot,
-  CommunityInsightsSlot,
   CommunityLeaderboardSlot,
   CommunityMembersSlot,
+  CommunityPulseSlot,
   CommunityTasteMatchSlot,
   getCommunityFeedPreload,
 } from "./community-async";
@@ -101,7 +101,7 @@ export default async function CommunityDetailPage({
     isPrivate: community.is_private,
     memberCount,
     membersJoinedThisWeek: memberGrowthWeek,
-    topThisWeek: heroListening.topArtists,
+    topThisWeek: [] as CommunityHeroTopArtist[],
     backgroundImageUrls: heroListening.backgroundImageUrls,
   };
 
@@ -182,42 +182,58 @@ export default async function CommunityDetailPage({
       ) : null}
 
       {isMember && session?.user?.id ? (
+        <CommunityPageSection
+          eyebrow="Billboard"
+          title={`${community.name?.trim() || "Community"} Weekly Chart`}
+          description="Top 10 by combined member plays for each Sunday–Saturday UTC week. One drop per week — charts stay fixed after publish."
+        >
+          <CommunityWeeklyBillboardClient
+            communityId={id}
+            communityName={community.name?.trim() || "Community"}
+            initialType="tracks"
+          />
+        </CommunityPageSection>
+      ) : null}
+
+      {isMember && session?.user?.id ? (
         <div className="hidden lg:contents">
           <CommunityPageSection
             eyebrow="Community pulse"
             title="Listening & trends"
-            description="Exploration, weekly identity, and shared favorites."
+            description="Group listening patterns and genre trends — no separate album or artist rails here; see consensus for ranked catalogs."
           >
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 [&>*]:min-w-0">
-              <Suspense fallback={<CommunitySectionSkeleton />}>
-                <CommunityInsightsSlot communityId={id} hideTopArtists />
-              </Suspense>
-              <CommunityWeeklySummary communityId={id} />
-            </div>
             <Suspense
               fallback={
-                <div className="mt-8 h-28 animate-pulse rounded-xl bg-zinc-900/50 ring-1 ring-white/[0.04]" />
+                <div className="h-40 animate-pulse rounded-xl bg-zinc-900/50" />
               }
             >
-              <CommunityDiscoveryCarousels communityId={id} />
+              <CommunityPulseSlot communityId={id} />
             </Suspense>
           </CommunityPageSection>
 
           <CommunityPageSection
             eyebrow="Together"
             title="Community consensus"
-            description="Ranked by shared listening: unique members plus capped plays per person (max 3 each) toward the score — not raw volume alone."
+            description="Shared songs, albums, and artists ranked by capped plays and unique listeners."
           >
             <CommunityConsensusSection communityId={id} />
           </CommunityPageSection>
+        </div>
+      ) : null}
 
+      {isMember && session?.user?.id ? (
+        <div className="hidden lg:contents">
           <CommunityPageSection
-            eyebrow="This week"
-            title="Rankings & people"
-            description="Weekly listen leaders, then members in a card grid (compatibility, top artist) with pagination — same idea as the People tab on small screens."
+            eyebrow="Rankings & people"
+            title="Listen leaders & members"
+            description="Weekly listen leaders, then the roster with compatibility and a standout artist — same idea as the People tab on small screens."
           >
-            <div className="flex flex-col gap-6 [&>*]:min-w-0">
-              <Suspense fallback={<CommunitySectionSkeleton />}>
+            <div className="flex flex-col gap-10 [&>*]:min-w-0">
+              <Suspense
+                fallback={
+                  <div className="h-32 animate-pulse rounded-xl bg-zinc-900/50" />
+                }
+              >
                 <CommunityLeaderboardSlot communityId={id} />
               </Suspense>
               <Suspense fallback={<CommunitySectionSkeleton />}>

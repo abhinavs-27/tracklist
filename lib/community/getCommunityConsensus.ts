@@ -1,5 +1,11 @@
 import "server-only";
 
+/**
+ * Rankings come from `get_community_consensus_rankings`: per-entity unique listeners and
+ * capped plays (min(user plays, 3) per user) are normalized by weekly "active" members
+ * (≥3 total listens in the window), then score = 0.7 * breadth + 0.3 * capped depth.
+ */
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -10,7 +16,8 @@ import {
 import { normalizeReviewEntityId } from "@/lib/validation";
 
 export type ConsensusEntityType = "track" | "album" | "artist";
-export type ConsensusRange = "week" | "month" | "all";
+/** Calendar windows in UTC: month = 1st of this month, year = Jan 1 this year. */
+export type ConsensusRange = "month" | "year";
 
 export type CommunityConsensusRow = {
   entityId: string;
@@ -33,13 +40,14 @@ type RpcRow = {
   score: number | string;
 };
 
-function consensusSinceIso(range: ConsensusRange): string | null {
-  if (range === "all") return null;
-  const ms =
-    range === "week"
-      ? 7 * 24 * 60 * 60 * 1000
-      : 30 * 24 * 60 * 60 * 1000;
-  return new Date(Date.now() - ms).toISOString();
+function consensusSinceIso(range: ConsensusRange): string {
+  const now = new Date();
+  if (range === "month") {
+    return new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+    ).toISOString();
+  }
+  return new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0)).toISOString();
 }
 
 function num(v: number | string): number {

@@ -21,7 +21,13 @@ const SEGMENT_CLASS: Record<string, string> = {
   evening: "bg-violet-500/85",
 };
 
-export function CommunityWeeklySummary(props: { communityId: string }) {
+export function CommunityWeeklySummary(props: {
+  communityId: string;
+  /** Avoid “this week” in headings (e.g. Community pulse). */
+  neutralCopy?: boolean;
+  /** Omit outer card — use inside a collapsible or grid cell that already has a frame. */
+  bare?: boolean;
+}) {
   const [timeZone, setTimeZone] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,36 +55,44 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
     enabled: !!timeZone,
   });
 
+  const bare = props.bare === true;
+  const wrapClass = bare ? "space-y-6" : communityCard;
+  const Wrap: "div" | "section" = bare ? "div" : "section";
+
   if (!timeZone || isPending) {
     return (
-      <section className={communityCard}>
+      <Wrap className={wrapClass}>
         <div className="h-24 animate-pulse rounded-xl bg-zinc-800/50 ring-1 ring-white/[0.04]" />
-      </section>
+      </Wrap>
     );
   }
 
   if (error) {
     return (
-      <section className={communityCard}>
+      <Wrap className={wrapClass}>
         <p className={`${communityBody} text-zinc-500`}>
           Couldn&apos;t load this week&apos;s vibe.
         </p>
-      </section>
+      </Wrap>
     );
   }
 
   const current = data?.current;
   const trend = data?.trend ?? null;
 
+  const neutral = props.neutralCopy === true;
+
   if (!current) {
     return (
-      <section className={communityCard}>
-        <h3 className={communityHeadline}>This week&apos;s vibe</h3>
+      <Wrap className={wrapClass}>
+        <h3 className={communityHeadline}>
+          {neutral ? "Listening trends" : "This week's vibe"}
+        </h3>
         <p className={`mt-2 ${communityBody} text-zinc-500`}>
           Run the weekly community job to see genres, listening styles, and activity
           patterns.
         </p>
-      </section>
+      </Wrap>
     );
   }
 
@@ -93,8 +107,10 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
   );
 
   return (
-    <section className={communityCard}>
-      <h3 className={communityHeadline}>This week&apos;s vibe</h3>
+    <Wrap className={wrapClass}>
+      <h3 className={communityHeadline}>
+        {neutral ? "Listening trends" : "This week's vibe"}
+      </h3>
       <p className={`mt-1.5 ${communityMeta}`}>
         Week of {current.week_start} · Monday–Sunday
       </p>
@@ -134,7 +150,7 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
         <div className="mt-5">
           <p className={communityMetaLabel}>Listening styles</p>
           <p className={`mt-1 ${communityMeta} text-zinc-600`}>
-            Share of group taste this week
+            {neutral ? "Share of group taste" : "Share of group taste this week"}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {current.top_styles.slice(0, 12).map((s) => (
@@ -223,7 +239,9 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
 
       {trend && (trend.genres.gained.length > 0 || trend.genres.lost.length > 0) ? (
         <div className="mt-8 rounded-xl border border-emerald-500/20 bg-emerald-950/15 px-4 py-4 ring-1 ring-emerald-500/10">
-          <p className={communityMetaLabel}>This week&apos;s genre leaders</p>
+          <p className={communityMetaLabel}>
+            {neutral ? "Genre momentum" : "This week's genre leaders"}
+          </p>
           <p className={`mt-1 ${communityMeta} text-zinc-500`}>
             Momentum vs last week — genres surging or cooling in the group
           </p>
@@ -263,6 +281,6 @@ export function CommunityWeeklySummary(props: { communityId: string }) {
           ) : null}
         </div>
       ) : null}
-    </section>
+    </Wrap>
   );
 }

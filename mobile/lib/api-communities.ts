@@ -221,13 +221,13 @@ export async function fetchCommunityConsensus(
   communityId: string,
   options: {
     type: "track" | "album" | "artist";
-    range?: "week" | "month" | "all";
+    range?: "month" | "year";
     limit?: number;
   },
 ): Promise<CommunityConsensusResponse> {
   const q = new URLSearchParams();
   q.set("type", options.type);
-  q.set("range", options.range ?? "week");
+  q.set("range", options.range ?? "month");
   q.set("limit", String(options.limit ?? 16));
   return fetcher<CommunityConsensusResponse>(
     `/api/communities/${encodeURIComponent(communityId)}/consensus?${q.toString()}`,

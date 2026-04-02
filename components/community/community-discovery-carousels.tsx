@@ -10,8 +10,8 @@ type Props = { communityId: string };
  */
 export async function CommunityDiscoveryCarousels({ communityId }: Props) {
   const [albums, artists] = await Promise.all([
-    getCommunityConsensusRankings(communityId, "album", "week", 16, 0),
-    getCommunityConsensusRankings(communityId, "artist", "week", 16, 0),
+    getCommunityConsensusRankings(communityId, "album", "month", 16, 0),
+    getCommunityConsensusRankings(communityId, "artist", "month", 16, 0),
   ]);
 
   return (

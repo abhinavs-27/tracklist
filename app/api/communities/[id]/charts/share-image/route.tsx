@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
-import { apiBadRequest, apiNotFound } from "@/lib/api-response";
+import { apiBadRequest, apiForbidden, apiNotFound } from "@/lib/api-response";
 import { generateChartShareImageResponse } from "@/lib/charts/generate-chart-share-image";
 import type { ChartShareImageTopRow } from "@/lib/charts/chart-share-image-template";
-import { getWeeklyChartForUser } from "@/lib/charts/get-user-weekly-chart";
+import { getCommunityWeeklyChart } from "@/lib/charts/get-community-weekly-chart";
 import type { ChartType, WeeklyChartRankingApiRow } from "@/lib/charts/weekly-chart-types";
+import { getCommunityById, isCommunityMember } from "@/lib/community/queries";
+import { isValidUuid } from "@/lib/validation";
 
 function toShareTopRow(r: WeeklyChartRankingApiRow): ChartShareImageTopRow {
   return {
@@ -36,13 +38,39 @@ const KIND_LABEL: Record<ChartType, string> = {
   albums: "Albums",
 };
 
+/** Community share card: line under the main title. */
+const COMMUNITY_SHARE_SUBTITLE: Record<ChartType, string> = {
+  tracks: "Top tracks this week",
+  artists: "Top artists this week",
+  albums: "Top albums this week",
+};
+
 /**
- * GET /api/charts/share-image?type=…&weekStart=… (optional)
- * Returns PNG 1080×1350. Auth required. Cached per-user via Cache-Control.
+ * GET /api/communities/[id]/charts/share-image?type=…&weekStart=…
+ * Members only. Title uses community name (same PNG layout as personal billboard).
  */
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   try {
     const user = await requireApiAuth(request);
+    const { id: rawId } = await context.params;
+    const communityId = rawId?.trim() ?? "";
+    if (!communityId || !isValidUuid(communityId)) {
+      return apiBadRequest("Invalid community id");
+    }
+
+    const member = await isCommunityMember(communityId, user.id);
+    if (!member) {
+      return apiForbidden("Join this community to export this chart");
+    }
+
+    const community = await getCommunityById(communityId);
+    if (!community) {
+      return apiNotFound("Community not found");
+    }
+
     const { searchParams } = new URL(request.url);
     const chartType = parseChartType(searchParams.get("type"));
     if (!chartType) {
@@ -50,10 +78,11 @@ export async function GET(request: NextRequest) {
     }
     const weekStart = searchParams.get("weekStart")?.trim() ?? null;
 
-    const data = await getWeeklyChartForUser({
-      userId: user.id,
+    const data = await getCommunityWeeklyChart({
+      communityId,
       chartType,
       weekStart,
+      viewerId: user.id,
     });
     if (!data) {
       return apiNotFound("No chart for this week.");
@@ -62,10 +91,14 @@ export async function GET(request: NextRequest) {
     const top5Rows = data.share.topFive.map(toShareTopRow);
 
     return await generateChartShareImageResponse({
+      variant: "community",
       weekLabel: data.share.weekLabel,
       chartKindLabel: KIND_LABEL[chartType],
+      communityName: community.name?.trim() || "Community",
+      shareSubtitle: COMMUNITY_SHARE_SUBTITLE[chartType],
+      viewerHelpedShape: data.viewer_contributed === true,
       top5Rows,
-      usernameDisplay: user.username ?? null,
+      usernameDisplay: null,
     });
   } catch (e) {
     const u = handleUnauthorized(e);

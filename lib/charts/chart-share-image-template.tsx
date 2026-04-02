@@ -49,6 +49,7 @@ export type ChartShareImageTopRow = ChartMomentTopRow & {
   imageUrl: string | null;
 };
 
+/** Large spotlight block below the Top 5 list (same #1 as row 1 — intentional for stories). */
 export type ChartShareImageNumberOne = {
   name: string;
   artist_name: string | null;
@@ -61,9 +62,18 @@ export type ChartShareImageTemplateProps = {
   weekLabel: string;
   chartKindLabel: string;
   top5Rows: ChartShareImageTopRow[];
+  /** Featured #1 card at the bottom (plays + weeks stats). */
   numberOne: ChartShareImageNumberOne | null;
   numberOneImageUrl: string | null;
   usernameDisplay: string | null;
+  /** Community billboard: different title, subtitle, optional contributor line. */
+  variant?: "personal" | "community";
+  /** With `variant: "community"`, used for "{name} Weekly Chart". */
+  communityName?: string | null;
+  /** Community: line under title, e.g. "Top tracks this week". */
+  shareSubtitle?: string | null;
+  /** Community: show when the exporting member listened during the chart week. */
+  viewerHelpedShape?: boolean;
 };
 
 function RowThumbnail(props: {
@@ -148,15 +158,23 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
     weekLabel,
     chartKindLabel,
     top5Rows,
-    numberOne,
-    numberOneImageUrl,
     usernameDisplay,
+    variant = "personal",
+    communityName,
+    shareSubtitle,
+    viewerHelpedShape,
   } = props;
+  const isCommunity = variant === "community";
+  const comm = communityName?.trim();
   const name = usernameDisplay?.trim();
-  const title = name
-    ? `${truncate(name, 26)}'s Billboard`
-    : "Your Billboard";
+  const title =
+    isCommunity && comm
+      ? `${truncate(comm, 28)} Weekly Chart`
+      : name
+        ? `${truncate(name, 26)}'s Billboard`
+        : "Your Billboard";
   const weekOfLine = `Week of ${weekLabel}`;
+  const sub = shareSubtitle?.trim();
 
   return (
     <div
@@ -189,9 +207,21 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
         >
           {title}
         </div>
+        {isCommunity && sub ? (
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 26,
+              color: "#a1a1aa",
+              fontWeight: 500,
+            }}
+          >
+            {sub}
+          </div>
+        ) : null}
         <div
           style={{
-            marginTop: 12,
+            marginTop: isCommunity && sub ? 10 : 12,
             fontSize: 26,
             color: "#a1a1aa",
             fontWeight: 500,
@@ -199,17 +229,31 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
         >
           {weekOfLine}
         </div>
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 20,
-            color: "#71717a",
-            fontWeight: 500,
-            textTransform: "capitalize",
-          }}
-        >
-          {chartKindLabel}
-        </div>
+        {!isCommunity ? (
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 20,
+              color: "#71717a",
+              fontWeight: 500,
+              textTransform: "capitalize",
+            }}
+          >
+            {chartKindLabel}
+          </div>
+        ) : null}
+        {isCommunity && viewerHelpedShape ? (
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 22,
+              color: "#34d399",
+              fontWeight: 600,
+            }}
+          >
+            You helped shape this chart
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -233,13 +277,14 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
         >
           Top 5
         </div>
-        {top5Rows.map((row) => {
-          const isFirst = row.rank === 1;
+        {top5Rows.map((row, i) => {
+          const listPosition = i + 1;
+          const isFirst = i === 0;
           const thumbSize = isFirst ? 64 : 56;
           const textMax = isFirst ? 420 : 400;
           return (
             <div
-              key={row.rank}
+              key={`${row.rank}-${i}`}
               style={{
                 display: "flex",
                 flexDirection: "row",
@@ -276,7 +321,7 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
                     lineHeight: 1,
                   }}
                 >
-                  #{row.rank}
+                  #{listPosition}
                 </span>
                 <RowThumbnail imageUrl={row.imageUrl} size={thumbSize} />
                 <div
@@ -358,108 +403,6 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
           );
         })}
       </div>
-
-      {numberOne ? (
-        <div
-          style={{
-            marginTop: 20,
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 24,
-            padding: 24,
-            borderRadius: 24,
-            background:
-              "radial-gradient(ellipse 80% 120% at 30% 40%, rgba(245, 158, 11, 0.15), transparent 55%), rgba(24, 24, 27, 0.9)",
-            border: "1px solid rgba(63, 63, 70, 0.5)",
-          }}
-        >
-          {numberOneImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- OG runtime
-            <img
-              src={numberOneImageUrl}
-              alt=""
-              width={180}
-              height={180}
-              style={{
-                width: 180,
-                height: 180,
-                borderRadius: 18,
-                objectFit: "cover",
-                flexShrink: 0,
-                boxShadow: "0 20px 50px rgba(0,0,0,0.45)",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: 180,
-                height: 180,
-                borderRadius: 18,
-                backgroundColor: "#27272a",
-                flexShrink: 0,
-              }}
-            />
-          )}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              minWidth: 0,
-              flex: 1,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: "#fbbf24",
-                letterSpacing: 2,
-                textTransform: "uppercase",
-              }}
-            >
-              #1 this week
-            </span>
-            <span
-              style={{
-                fontSize: 28,
-                fontWeight: 700,
-                lineHeight: 1.15,
-                maxWidth: 680,
-              }}
-            >
-              {truncate(numberOne.name, 48)}
-            </span>
-            {numberOne.artist_name ? (
-              <span style={{ fontSize: 18, color: "#a1a1aa" }}>
-                {truncate(numberOne.artist_name, 44)}
-              </span>
-            ) : null}
-            <div
-              style={{
-                marginTop: 10,
-                display: "flex",
-                flexDirection: "row",
-                gap: 10,
-                width: "100%",
-              }}
-            >
-              <StatBlock label="Plays" value={formatNumber(numberOne.play_count)} compact />
-              <StatBlock
-                label="Weeks at #1 (all-time)"
-                value={String(numberOne.weeks_at_1)}
-                compact
-              />
-              <StatBlock
-                label="Top 10 · at #1"
-                value={`${numberOne.weeks_in_top_10} (${numberOne.weeks_at_1})`}
-                compact
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <div
         style={{

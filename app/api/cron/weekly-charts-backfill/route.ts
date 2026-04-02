@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const verbose = searchParams.get("verbose") === "1";
+    console.log("[cron] weekly-charts-backfill request", { userId: userId ?? null, verbose });
     const result = await backfillWeeklyChartsForAllUsers(
       userId ? { userId } : undefined,
     );

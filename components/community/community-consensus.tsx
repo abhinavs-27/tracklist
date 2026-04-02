@@ -10,7 +10,7 @@ import {
 } from "@/lib/ui/surface";
 
 type EntityTab = "track" | "album" | "artist";
-type RangeTab = "week" | "month" | "all";
+type RangeTab = "month" | "year";
 
 export type ConsensusApiItem = {
   entityId: string;
@@ -30,9 +30,8 @@ const ENTITY_TABS: { value: EntityTab; label: string }[] = [
 ];
 
 const RANGE_TABS: { value: RangeTab; label: string }[] = [
-  { value: "week", label: "This week" },
   { value: "month", label: "This month" },
-  { value: "all", label: "All time" },
+  { value: "year", label: "This year" },
 ];
 
 function itemHref(type: EntityTab, row: ConsensusApiItem): string | null {
@@ -55,7 +54,7 @@ export function CommunityConsensusSection({
   embedded?: boolean;
 }) {
   const [entity, setEntity] = useState<EntityTab>("track");
-  const [range, setRange] = useState<RangeTab>("week");
+  const [range, setRange] = useState<RangeTab>("month");
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<ConsensusApiItem[]>([]);
   const [hasNextPage, setHasNextPage] = useState(false);

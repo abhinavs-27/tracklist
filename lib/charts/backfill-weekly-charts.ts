@@ -6,6 +6,7 @@ import {
   getLastCompletedWeekWindow,
   utcSundayMidnightFromDate,
 } from "@/lib/charts/utc-week";
+import { backfillMissingLogCatalogFromTracks } from "@/lib/logs/backfill-log-catalog-from-tracks";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const CHART_TYPES: ChartType[] = ["tracks", "artists", "albums"];
@@ -86,6 +87,11 @@ export async function backfillWeeklyChartsForUser(
   if (!bounds) {
     return { userId, weekSlots: 0, chartsWritten: 0, chartSkips: 0 };
   }
+
+  const catalogBf = await backfillMissingLogCatalogFromTracks({
+    userIds: [userId],
+  });
+  console.log("[weekly-chart-backfill] log catalog backfill", { userId, ...catalogBf });
 
   const firstSunday = utcSundayMidnightFromDate(bounds.min);
   const { weekStart: lastCompletedWeekStart } = getLastCompletedWeekWindow(now);

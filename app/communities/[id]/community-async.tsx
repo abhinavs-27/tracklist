@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { CommunityFeedClient } from "@/components/community/community-feed-client";
 import { CommunityInsights } from "@/components/community/CommunityInsights";
+import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
 import { CommunityLeaderboardSection } from "@/components/community/community-leaderboard-section";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { COMMUNITY_FEED_PAGE_SIZE } from "@/lib/community/community-feed-page-size";
@@ -62,6 +63,36 @@ export async function CommunityInsightsSlot({
       insights={insights}
       hideTopArtists={hideTopArtists}
     />
+  );
+}
+
+/** Desktop “Community pulse”: group listening insights + weekly trends (no album/artist rails). */
+export async function CommunityPulseSlot({
+  communityId,
+}: {
+  communityId: string;
+}) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return null;
+  const insights = await getCommunityInsights(communityId);
+  return (
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
+      {insights ? (
+        <CommunityInsights
+          insights={insights}
+          hideTopArtists
+          headline="Group listening"
+          description="Last 7 days · by time of day, all members."
+        />
+      ) : (
+        <div className="rounded-xl border border-white/[0.06] bg-zinc-950/40 px-4 py-6 ring-1 ring-white/[0.04]">
+          <p className={`${communityBody} text-zinc-500`}>
+            No group listening snapshot yet.
+          </p>
+        </div>
+      )}
+      <CommunityWeeklySummary communityId={communityId} neutralCopy />
+    </div>
   );
 }
 

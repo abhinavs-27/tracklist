@@ -13,7 +13,7 @@ import {
 } from "@/lib/charts/weekly-chart-unknown";
 import {
   generateChartMoment,
-  generateWeeklyNarrative,
+  generateCommunityWeeklyNarrative,
 } from "@/lib/charts/weekly-chart-narrative";
 import type {
   ChartMomentPayload,
@@ -24,37 +24,11 @@ import type {
 } from "@/lib/charts/weekly-chart-types";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
-
-export type WeeklyChartMoversApi = {
-  biggest_jump: WeeklyChartRankingApiRow | null;
-  biggest_drop: WeeklyChartRankingApiRow | HydratedWeeklyChartDropout | null;
-  best_new_entry: WeeklyChartRankingApiRow | null;
-};
-
-export type WeeklyChartApiResult = {
-  week_start: string;
-  week_end: string;
-  chart_type: ChartType;
-  rankings: WeeklyChartRankingApiRow[];
-  movers: WeeklyChartMoversApi;
-  /** Same structure as `movers` (alias for API consumers). */
-  biggest_movers: WeeklyChartMoversApi;
-  narrative: string[];
-  chart_moment: ChartMomentPayload;
-  share: {
-    weekLabel: string;
-    topFive: WeeklyChartRankingApiRow[];
-    numberOne: WeeklyChartRankingApiRow | null;
-  };
-  /** Community weekly chart API: next Sunday 00:00 UTC ritual drop. */
-  next_chart_drop_iso?: string | null;
-  /** Community: members with ≥1 logged play in the chart window (denominator for %). */
-  community_active_users?: number | null;
-  /** Community: requesting user had ≥1 play in the window (for share copy). */
-  viewer_contributed?: boolean;
-};
-
-export type LatestWeeklyChartApiResult = WeeklyChartApiResult;
+import { nextUtcSundayMidnightAfter } from "@/lib/charts/next-chart-drop";
+import type {
+  WeeklyChartApiResult,
+  WeeklyChartMoversApi,
+} from "@/lib/charts/get-user-weekly-chart";
 
 function pickEnriched(
   row: WeeklyChartRankingRow | null,
@@ -73,6 +47,28 @@ function mergeMoverMovement(
     ...picked,
     movement: source.movement,
     prev_rank: source.prev_rank,
+    rank_movement: source.rank_movement,
+    rank_delta: source.rank_delta,
+  };
+}
+
+function attachCommunityBreakdown(
+  r: WeeklyChartRankingApiRow,
+): WeeklyChartRankingApiRow {
+  const hasCommunity =
+    r.rank_movement != null ||
+    r.community_listen_percent != null ||
+    r.repeat_strength != null ||
+    (r.top_contributors != null && r.top_contributors.length > 0);
+  if (!hasCommunity) return r;
+  return {
+    ...r,
+    community_breakdown: {
+      percent_of_community: r.community_listen_percent ?? null,
+      total_plays: r.play_count,
+      repeat_strength: r.repeat_strength ?? null,
+      top_contributors: r.top_contributors ?? [],
+    },
   };
 }
 
@@ -91,21 +87,42 @@ function isMoverDropout(
   return x != null && "kind" in x && x.kind === "dropout";
 }
 
-/**
- * Latest or a specific week (match `week_start` exactly as stored, ISO string).
- */
-export async function getWeeklyChartForUser(args: {
+async function countViewerPlaysInWeekWindow(args: {
   userId: string;
+  startIso: string;
+  endExclusiveIso: string;
+}): Promise<number> {
+  const admin = createSupabaseAdminClient();
+  const { count, error } = await admin
+    .from("logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", args.userId)
+    .gte("listened_at", args.startIso)
+    .lt("listened_at", args.endExclusiveIso);
+  if (error) {
+    console.warn("[community-weekly-chart] viewer plays", error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Latest or a specific week for a community (match `week_start` exactly as stored).
+ */
+export async function getCommunityWeeklyChart(args: {
+  communityId: string;
   chartType: ChartType;
   weekStart?: string | null;
+  /** When set, response includes `viewer_contributed` (any listen in the chart window). */
+  viewerId?: string | null;
 }): Promise<WeeklyChartApiResult | null> {
   const admin = createSupabaseAdminClient();
   const weekKey = args.weekStart?.trim();
 
   let query = admin
-    .from("user_weekly_charts")
+    .from("community_weekly_charts")
     .select("week_start, week_end, chart_type, rankings")
-    .eq("user_id", args.userId)
+    .eq("community_id", args.communityId)
     .eq("chart_type", args.chartType);
 
   if (weekKey) {
@@ -117,7 +134,7 @@ export async function getWeeklyChartForUser(args: {
   const { data, error } = await query.maybeSingle();
 
   if (error) {
-    console.warn("[weekly-chart] get chart", error.message);
+    console.warn("[community-weekly-chart] get chart", error.message);
     return null;
   }
   if (!data) return null;
@@ -135,7 +152,9 @@ export async function getWeeklyChartForUser(args: {
     rankingsRaw,
   );
   const hydratedVisible = hydrated.filter((r) => !isUnknownWeeklyChartRow(r));
-  const enriched = enrichWeeklyChartApiRows(hydratedVisible);
+  const enriched = enrichWeeklyChartApiRows(hydratedVisible).map(
+    attachCommunityBreakdown,
+  );
 
   const currentKnown = filterKnownRankings(rankingsRaw);
 
@@ -144,9 +163,9 @@ export async function getWeeklyChartForUser(args: {
   prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
 
   const { data: prevRow } = await admin
-    .from("user_weekly_charts")
+    .from("community_weekly_charts")
     .select("rankings")
-    .eq("user_id", args.userId)
+    .eq("community_id", args.communityId)
     .eq("chart_type", args.chartType)
     .eq("week_start", prevWeekStart.toISOString())
     .maybeSingle();
@@ -184,18 +203,33 @@ export async function getWeeklyChartForUser(args: {
     ),
   };
 
-  const narrative = generateWeeklyNarrative({
+  const narrative = generateCommunityWeeklyNarrative({
     chart_type: args.chartType,
     rankings: enriched,
   });
 
-  const chart_moment = generateChartMoment({
+  const chart_moment: ChartMomentPayload = generateChartMoment({
     week_label: weekLabel,
     rankings: enriched,
   });
 
   const sortedByRank = [...enriched].sort((a, b) => a.rank - b.rank);
   const leader = sortedByRank[0] ?? null;
+
+  const community_active_users =
+    sortedByRank.find((r) => r.community_active_users != null)
+      ?.community_active_users ?? null;
+
+  let viewer_contributed: boolean | undefined;
+  const vid = args.viewerId?.trim();
+  if (vid) {
+    const n = await countViewerPlaysInWeekWindow({
+      userId: vid,
+      startIso: row.week_start,
+      endExclusiveIso: row.week_end,
+    });
+    viewer_contributed = n > 0;
+  }
 
   return {
     week_start: row.week_start,
@@ -211,43 +245,34 @@ export async function getWeeklyChartForUser(args: {
       topFive: sortedByRank.slice(0, 5),
       numberOne: leader,
     },
+    next_chart_drop_iso: nextUtcSundayMidnightAfter(new Date()).toISOString(),
+    community_active_users,
+    viewer_contributed,
   };
 }
 
-export async function getLatestWeeklyChartForUser(args: {
-  userId: string;
-  chartType: ChartType;
-}): Promise<WeeklyChartApiResult | null> {
-  return getWeeklyChartForUser({
-    userId: args.userId,
-    chartType: args.chartType,
-    weekStart: null,
-  });
-}
-
-export type WeeklyChartWeekOption = {
+export type CommunityWeeklyChartWeekOption = {
   week_start: string;
   week_end: string;
 };
 
-/** Descending by week (newest first). */
-export async function listWeeklyChartWeeksForUser(args: {
-  userId: string;
+export async function listCommunityWeeklyChartWeeks(args: {
+  communityId: string;
   chartType: ChartType;
   limit?: number;
-}): Promise<WeeklyChartWeekOption[]> {
+}): Promise<CommunityWeeklyChartWeekOption[]> {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
-    .from("user_weekly_charts")
+    .from("community_weekly_charts")
     .select("week_start, week_end")
-    .eq("user_id", args.userId)
+    .eq("community_id", args.communityId)
     .eq("chart_type", args.chartType)
     .order("week_start", { ascending: false })
     .limit(args.limit ?? 104);
 
   if (error) {
-    console.warn("[weekly-chart] list weeks", error.message);
+    console.warn("[community-weekly-chart] list weeks", error.message);
     return [];
   }
-  return (data ?? []) as WeeklyChartWeekOption[];
+  return (data ?? []) as CommunityWeeklyChartWeekOption[];
 }

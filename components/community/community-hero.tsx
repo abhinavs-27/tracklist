@@ -140,8 +140,8 @@ export function CommunityHero({
           </div>
         </div>
 
-        <div className="relative z-10 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4 lg:px-8">
-          {topThisWeek.length > 0 ? (
+        {topThisWeek.length > 0 ? (
+          <div className="relative z-10 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4 lg:px-8">
             <div>
               <p className={communityMetaLabel}>Top this week</p>
               <ul className="mt-2.5 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] sm:gap-3">
@@ -178,14 +178,8 @@ export function CommunityHero({
                 ))}
               </ul>
             </div>
-          ) : (
-            <div
-              className={`rounded-xl bg-zinc-950/30 px-3 py-2.5 ring-1 ring-dashed ring-white/[0.08] ${communityBody} text-zinc-500`}
-            >
-              Listening picks will appear once members log music this week.
-            </div>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

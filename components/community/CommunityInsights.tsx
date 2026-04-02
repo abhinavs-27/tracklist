@@ -15,6 +15,10 @@ type Props = {
   hideTopArtists?: boolean;
   /** When true, omits outer card and "Group insights" heading (use inside a collapsible). */
   embedded?: boolean;
+  /** Override default "Group insights" title (non-embedded only). */
+  headline?: string;
+  /** Override default description under the title (non-embedded only). */
+  description?: string;
 };
 
 function pct(n: number): string {
@@ -25,6 +29,8 @@ export function CommunityInsights({
   insights,
   hideTopArtists = false,
   embedded = false,
+  headline = "Group insights",
+  description = "Based on everyone's listens from the last seven days, by time of day.",
 }: Props) {
   const {
     summary,
@@ -53,10 +59,8 @@ export function CommunityInsights({
     <Shell className={shellClass}>
       {!embedded ? (
         <div>
-          <h3 className={communityHeadline}>Group insights</h3>
-          <p className={`mt-2 ${communityMeta}`}>
-            Based on everyone&apos;s listens from the last seven days, by time of day.
-          </p>
+          <h3 className={communityHeadline}>{headline}</h3>
+          <p className={`mt-2 ${communityMeta}`}>{description}</p>
         </div>
       ) : null}
 

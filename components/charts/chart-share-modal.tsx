@@ -16,6 +16,9 @@ export function ChartShareModal(props: {
   weekStartIso: string | null;
   chart_moment: ChartMomentPayload;
   disableFormattedShare?: boolean;
+  /** Community billboard: PNG + filename use community chart API. */
+  communityId?: string | null;
+  shareTitle?: string;
 }) {
   const onKey = useCallback(
     (e: KeyboardEvent) => {
@@ -37,8 +40,6 @@ export function ChartShareModal(props: {
 
   if (!props.open) return null;
 
-  const leaderRank = props.chart_moment.top_5[0]?.rank;
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
@@ -58,7 +59,7 @@ export function ChartShareModal(props: {
             id="chart-share-title"
             className="text-lg font-semibold tracking-tight text-white"
           >
-            Share your chart
+            {props.shareTitle ?? "Share your chart"}
           </h2>
           <button
             type="button"
@@ -79,6 +80,7 @@ export function ChartShareModal(props: {
             <ChartShareImageDownload
               chartType={props.chartType}
               weekStart={props.weekStartIso}
+              communityId={props.communityId}
               disabled={props.disableFormattedShare}
             />
             <p className="text-xs text-zinc-600">
@@ -98,13 +100,13 @@ export function ChartShareModal(props: {
             <p className="mt-2 text-sm text-zinc-300">
               {props.chart_moment.week_label}
             </p>
-            <ol className="mt-3 space-y-2">
-              {props.chart_moment.top_5.map((row) => {
-                const isLeader =
-                  leaderRank != null && row.rank === leaderRank;
+            <ul className="mt-3 list-none space-y-2 pl-0">
+              {props.chart_moment.top_5.map((row, i) => {
+                const listPosition = i + 1;
+                const isLeader = i === 0;
                 return (
                   <li
-                    key={row.rank}
+                    key={`${row.rank}-${row.name}-${i}`}
                     className={
                       isLeader
                         ? "flex flex-wrap items-baseline gap-x-2 rounded-lg bg-amber-500/10 px-2 py-1.5 text-amber-100"
@@ -112,7 +114,7 @@ export function ChartShareModal(props: {
                     }
                   >
                     <span className="w-5 shrink-0 text-zinc-500">
-                      {row.rank}.
+                      {listPosition}.
                     </span>
                     <span className="min-w-0 truncate font-medium">
                       {row.name}
@@ -125,7 +127,7 @@ export function ChartShareModal(props: {
                   </li>
                 );
               })}
-            </ol>
+            </ul>
             {props.chart_moment.number_one ? (
               <p className="mt-3 text-xs text-zinc-500">
                 Weeks at #1 (all-time):{" "}

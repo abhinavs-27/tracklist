@@ -13,7 +13,11 @@ export function enrichWeeklyChartApiRows(
     /** True for the best-ranked row in this response (Billboard #1 slot, or next if #1 was dropped). */
     is_number_one: r.rank === minRank,
     is_top_3: r.rank <= 3,
-    has_positive_movement: r.movement != null && r.movement > 0,
-    has_negative_movement: r.movement != null && r.movement < 0,
+    has_positive_movement:
+      r.rank_movement === "UP" ||
+      (r.rank_movement == null && r.movement != null && r.movement > 0),
+    has_negative_movement:
+      r.rank_movement === "DOWN" ||
+      (r.rank_movement == null && r.movement != null && r.movement < 0),
   }));
 }

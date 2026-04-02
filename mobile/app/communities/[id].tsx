@@ -85,13 +85,13 @@ export default function CommunityDetailScreen() {
   });
 
   const { data: albumConsensus, isPending: albumConsensusPending } = useQuery({
-    queryKey: queryKeys.communityConsensus(id, "album", "week"),
+    queryKey: queryKeys.communityConsensus(id, "album", "month"),
     queryFn: () => fetchCommunityConsensus(id, { type: "album", limit: 20 }),
     enabled: !!id && isMember,
   });
 
   const { data: artistConsensus, isPending: artistConsensusPending } = useQuery({
-    queryKey: queryKeys.communityConsensus(id, "artist", "week"),
+    queryKey: queryKeys.communityConsensus(id, "artist", "month"),
     queryFn: () => fetchCommunityConsensus(id, { type: "artist", limit: 20 }),
     enabled: !!id && isMember,
   });
@@ -148,10 +148,10 @@ export default function CommunityDetailScreen() {
         queryKey: queryKeys.communityInvites(),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.communityConsensus(id, "album", "week"),
+        queryKey: queryKeys.communityConsensus(id, "album", "month"),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.communityConsensus(id, "artist", "week"),
+        queryKey: queryKeys.communityConsensus(id, "artist", "month"),
       });
       await queryClient.invalidateQueries({
         predicate: (q) =>
@@ -221,10 +221,10 @@ export default function CommunityDetailScreen() {
         queryKey: queryKeys.communitiesMine(),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.communityConsensus(id, "album", "week"),
+        queryKey: queryKeys.communityConsensus(id, "album", "month"),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.communityConsensus(id, "artist", "week"),
+        queryKey: queryKeys.communityConsensus(id, "artist", "month"),
       });
       await queryClient.invalidateQueries({
         predicate: (q) =>

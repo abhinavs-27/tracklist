@@ -15,12 +15,13 @@ export function formatWeeklyChartShareText(args: {
     moment.week_label,
     "",
   ];
-  for (const r of moment.top_5) {
+  moment.top_5.forEach((r, i) => {
+    const n = i + 1;
     const line = r.artist_name?.trim()
-      ? `${r.rank}. ${r.name} — ${r.artist_name}`
-      : `${r.rank}. ${r.name}`;
+      ? `${n}. ${r.name} — ${r.artist_name}`
+      : `${n}. ${r.name}`;
     lines.push(line);
-  }
+  });
   if (moment.number_one) {
     lines.push("");
     lines.push(`Weeks at #1 (all-time): ${moment.number_one.weeks_at_1}`);

@@ -9,7 +9,7 @@ import { apiForbidden, apiNotFound, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 
 const TYPES: ConsensusEntityType[] = ["track", "album", "artist"];
-const RANGES: ConsensusRange[] = ["week", "month", "all"];
+const RANGES: ConsensusRange[] = ["month", "year"];
 
 function parseType(raw: string | null): ConsensusEntityType {
   if (raw && TYPES.includes(raw as ConsensusEntityType)) {
@@ -22,7 +22,7 @@ function parseRange(raw: string | null): ConsensusRange {
   if (raw && RANGES.includes(raw as ConsensusRange)) {
     return raw as ConsensusRange;
   }
-  return "week";
+  return "month";
 }
 
 /** GET /api/communities/[id]/consensus — shared favorites ranking; members only. Cached ~5m. */

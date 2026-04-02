@@ -7,18 +7,21 @@ import {
   UNKNOWN_TRACK_ENTITY,
 } from "@/lib/analytics/build-listening-report";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { isUnknownWeeklyChartEntityId } from "@/lib/charts/weekly-chart-unknown";
 
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 
 const LOG_PAGE = 5000;
 const CATALOG_CHUNK = 400;
 
-type LogRow = {
+export type WeeklyChartLogRow = {
   track_id: string | null;
   album_id: string | null;
   artist_id: string | null;
   listened_at: string;
 };
+
+type LogRow = WeeklyChartLogRow;
 
 export type AggregatedPlay = {
   entity_id: string;
@@ -56,7 +59,7 @@ async function fetchLogsWindow(args: {
   return out;
 }
 
-function normId(id: string | null | undefined): string | null {
+export function normId(id: string | null | undefined): string | null {
   const t = id?.trim();
   return t || null;
 }
@@ -71,7 +74,7 @@ type TrackRow = {
  * Loads tracks by id; on `.in()` failure (size limits, transient errors), splits the chunk recursively
  * so we don’t silently drop rows — that was bucketing real plays into “Unknown artist”.
  */
-async function fetchTracksMap(
+export async function fetchTracksMap(
   ids: string[],
 ): Promise<Map<string, { artist_id: string | null; album_id: string | null }>> {
   const admin = createSupabaseAdminClient();
@@ -117,7 +120,7 @@ async function fetchTracksMap(
   return out;
 }
 
-async function fetchAlbumsArtistMap(
+export async function fetchAlbumsArtistMap(
   ids: string[],
 ): Promise<Map<string, { artist_id: string | null }>> {
   const admin = createSupabaseAdminClient();
@@ -158,7 +161,7 @@ async function fetchAlbumsArtistMap(
 }
 
 /** Second pass: any album id referenced on logs/tracks but still missing from the map (e.g. first batch failed). */
-async function mergeMissingAlbums(
+export async function mergeMissingAlbums(
   albumById: Map<string, { artist_id: string | null }>,
   candidateIds: Iterable<string | null | undefined>,
 ): Promise<void> {
@@ -177,7 +180,7 @@ async function mergeMissingAlbums(
   }
 }
 
-function firstNonEmpty(
+export function firstNonEmpty(
   ...vals: (string | null | undefined)[]
 ): string | null {
   for (const v of vals) {
@@ -188,7 +191,7 @@ function firstNonEmpty(
 }
 
 /** When resolver missed (e.g. album row absent on first fetch), still attribute via track + album FKs. */
-function weeklyArtistEntityId(
+export function weeklyArtistEntityId(
   resolvedArtist: string | null,
   log: LogRow,
   song:
@@ -213,22 +216,13 @@ function weeklyArtistEntityId(
 }
 
 /**
- * Raw play counts from `logs` for the window; tie-break by latest listen (stable).
- * Catalog lookups are chunked so large weeks don’t miss rows. Album/artist keys use
- * resolved IDs with defensive fallbacks to `logs.album_id` / `logs.artist_id`.
+ * Same ranking rules as a single-user weekly chart, but `logs` may include listens
+ * from many members (community billboard): total plays per entity across all rows.
  */
-export async function aggregateWeeklyTop10(args: {
-  userId: string;
-  startIso: string;
-  endExclusiveIso: string;
-  chartType: ChartType;
-}): Promise<AggregatedPlay[]> {
-  const logs = await fetchLogsWindow({
-    userId: args.userId,
-    startIso: args.startIso,
-    endExclusiveIso: args.endExclusiveIso,
-  });
-
+export async function aggregateLogsIntoWeeklyTop10(
+  logs: WeeklyChartLogRow[],
+  chartType: ChartType,
+): Promise<AggregatedPlay[]> {
   if (!logs.length) return [];
 
   const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean) as string[])];
@@ -280,12 +274,12 @@ export async function aggregateWeeklyTop10(args: {
         },
       });
 
-    if (args.chartType === "tracks") {
+    if (chartType === "tracks") {
       const key = tid ?? UNKNOWN_TRACK_ENTITY;
       bump(key, log.listened_at);
       continue;
     }
-    if (args.chartType === "albums") {
+    if (chartType === "albums") {
       const key =
         firstNonEmpty(resolvedAlbum, log.album_id, s?.album_id) ??
         UNKNOWN_ALBUM_ENTITY;
@@ -301,11 +295,19 @@ export async function aggregateWeeklyTop10(args: {
     bump(key, log.listened_at);
   }
 
-  const rows: AggregatedPlay[] = [...agg.entries()].map(([entity_id, v]) => ({
-    entity_id,
-    play_count: v.play_count,
-    last_played_at: v.last_played_at,
-  }));
+  const rows: AggregatedPlay[] = [...agg.entries()]
+    .map(([entity_id, v]) => ({
+      entity_id,
+      play_count: v.play_count,
+      last_played_at: v.last_played_at,
+    }))
+    /**
+     * Plays with no resolvable track/album/artist id collapse into sentinel buckets
+     * (`__tl_unknown_*`). Those buckets merge *all* such listens into one row, so they
+     * can outrank real catalog rows even when most logs have valid ids. Charts should
+     * only rank real entities.
+     */
+    .filter((r) => !isUnknownWeeklyChartEntityId(r.entity_id));
 
   rows.sort((a, b) => {
     if (b.play_count !== a.play_count) return b.play_count - a.play_count;
@@ -313,4 +315,24 @@ export async function aggregateWeeklyTop10(args: {
   });
 
   return rows.slice(0, 10);
+}
+
+/**
+ * Raw play counts from `logs` for the window; tie-break by latest listen (stable).
+ * Catalog lookups are chunked so large weeks don’t miss rows. Album/artist keys use
+ * resolved IDs with defensive fallbacks to `logs.album_id` / `logs.artist_id`.
+ */
+export async function aggregateWeeklyTop10(args: {
+  userId: string;
+  startIso: string;
+  endExclusiveIso: string;
+  chartType: ChartType;
+}): Promise<AggregatedPlay[]> {
+  const logs = await fetchLogsWindow({
+    userId: args.userId,
+    startIso: args.startIso,
+    endExclusiveIso: args.endExclusiveIso,
+  });
+
+  return aggregateLogsIntoWeeklyTop10(logs, args.chartType);
 }

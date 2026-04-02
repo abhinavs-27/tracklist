@@ -3,6 +3,7 @@
 import { memo, useMemo, useState } from "react";
 import { ChartShareActions } from "@/components/charts/chart-share-actions";
 import { ChartShareModal } from "@/components/charts/chart-share-modal";
+import { CommunityChartDropCountdown } from "@/components/community/community-chart-drop-countdown";
 import type { WeeklyChartMoversApi } from "@/lib/charts/get-user-weekly-chart";
 import type { HydratedWeeklyChartDropout } from "@/lib/charts/hydrate-weekly-chart";
 import type {
@@ -10,6 +11,138 @@ import type {
   ChartType,
   WeeklyChartRankingApiRow,
 } from "@/lib/charts/weekly-chart-types";
+
+function repeatStrengthLabel(rs: number | null): string | null {
+  if (rs == null) return null;
+  if (rs >= 1.75) return "Strong repeat listening";
+  if (rs >= 1.2) return "Solid repeat listening";
+  return "Wide reach across listeners";
+}
+
+function communityMovementRowClass(row: WeeklyChartRankingApiRow): string {
+  if (row.rank_movement === "UP") return "animate-chart-row-up";
+  if (row.rank_movement === "DOWN") return "animate-chart-row-down";
+  if (row.rank_movement === "NEW") return "animate-chart-row-new";
+  return "";
+}
+
+function CommunityRankMovementIndicator({
+  row,
+}: {
+  row: WeeklyChartRankingApiRow;
+}) {
+  const rm = row.rank_movement;
+  if (rm != null) {
+    if (rm === "NEW") {
+      return (
+        <span className="inline-flex items-center rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-sky-500/30">
+          NEW
+        </span>
+      );
+    }
+    if (rm === "UP" && row.rank_delta != null && row.rank_delta > 0) {
+      return (
+        <span className="inline-flex items-center gap-0.5 text-sm font-semibold text-emerald-400/95 tabular-nums">
+          <span aria-hidden>▲</span>
+          <span>+{row.rank_delta}</span>
+        </span>
+      );
+    }
+    if (rm === "DOWN" && row.rank_delta != null && row.rank_delta > 0) {
+      return (
+        <span className="inline-flex items-center gap-0.5 text-sm font-semibold text-rose-400/95 tabular-nums">
+          <span aria-hidden>▼</span>
+          <span>−{row.rank_delta}</span>
+        </span>
+      );
+    }
+    if (rm === "SAME") {
+      return (
+        <span className="inline-flex items-center gap-1 text-sm text-zinc-500 tabular-nums">
+          <span className="text-zinc-600" aria-hidden>
+            —
+          </span>
+          <span className="sr-only">No change</span>
+        </span>
+      );
+    }
+  }
+  return <MovementIndicator row={row} />;
+}
+
+function CommunityBreakdownPanel({ row }: { row: WeeklyChartRankingApiRow }) {
+  const b = row.community_breakdown;
+  const prominent = row.is_number_one;
+  const [open, setOpen] = useState(prominent);
+
+  if (!b) return null;
+  const pct =
+    b.percent_of_community != null
+      ? Math.round(b.percent_of_community * 100)
+      : null;
+  const ledBy = b.top_contributors
+    .map((c) => c.username?.trim() || "Member")
+    .filter(Boolean)
+    .join(", ");
+  const repeat = repeatStrengthLabel(b.repeat_strength);
+
+  return (
+    <div
+      className={`border-t border-zinc-800/80 ${prominent ? "bg-emerald-950/10" : "bg-zinc-950/35"}`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
+      >
+        <span>
+          {prominent ? (
+            <span className="font-semibold text-emerald-400/95">
+              Why is this ranked?
+            </span>
+          ) : (
+            "Why is this ranked?"
+          )}
+        </span>
+        <span
+          className={`inline-block text-zinc-600 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+          aria-hidden
+        >
+          ▼
+        </span>
+      </button>
+      {open ? (
+        <div className="space-y-2.5 px-3 pb-3.5 text-sm leading-relaxed text-zinc-300">
+          {pct != null ? (
+            <p>
+              <span className="text-zinc-500">{pct}%</span> of the community
+              listened
+            </p>
+          ) : null}
+          <p>
+            <span className="tabular-nums text-zinc-200">
+              {b.total_plays.toLocaleString()}
+            </span>{" "}
+            <span className="text-zinc-500">total plays</span>
+          </p>
+          {repeat ? (
+            <p className="text-zinc-400">
+              <span className="text-zinc-200">{repeat}</span>
+            </p>
+          ) : null}
+          {ledBy ? (
+            <p className="text-zinc-400">
+              Led by <span className="text-zinc-200">{ledBy}</span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
   if (row.is_new) {
@@ -54,65 +187,105 @@ function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
 
 const ChartRow = memo(function ChartRow({
   row,
+  communityMode = false,
 }: {
   row: WeeklyChartRankingApiRow;
+  communityMode?: boolean;
 }) {
   const rankMuted = row.rank > 3;
+  const rowAnim = communityMode ? communityMovementRowClass(row) : "";
+  const leaderShell =
+    communityMode && row.is_number_one
+      ? "ring-1 ring-emerald-500/25 shadow-md shadow-emerald-950/20"
+      : "";
+
   return (
     <li>
       <div
-        className={`group flex flex-col gap-3 rounded-xl border border-zinc-800/90 bg-zinc-900/30 p-3 transition-all duration-150 sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
+        className={`overflow-hidden rounded-xl border border-zinc-800/90 bg-zinc-900/30 transition-all duration-150 hover:border-zinc-700/90 hover:bg-zinc-900/55 ${
           row.has_positive_movement
-            ? "border-l-2 border-l-emerald-500/40"
+            ? "border-l-2 border-l-emerald-500/35"
             : ""
         } ${
-          row.has_negative_movement ? "border-l-2 border-l-rose-500/35" : ""
-        } hover:border-zinc-700/90 hover:bg-zinc-900/55`}
+          row.has_negative_movement ? "border-l-2 border-l-rose-500/30" : ""
+        } ${rowAnim} ${leaderShell}`}
       >
-        <div
-          className={`shrink-0 tabular-nums text-3xl font-bold leading-none tracking-tight sm:w-14 sm:text-center ${
-            rankMuted ? "text-zinc-600" : "text-white"
-          }`}
-        >
-          {row.rank}
-        </div>
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          {row.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={row.image}
-              alt=""
-              loading="lazy"
-              className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
-            />
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14">
-              —
+        <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+          <div
+            className={`shrink-0 tabular-nums text-3xl font-bold leading-none tracking-tight sm:w-14 sm:text-center ${
+              rankMuted ? "text-zinc-600" : "text-white"
+            }`}
+          >
+            {row.rank}
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {row.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={row.image}
+                alt=""
+                loading="lazy"
+                className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
+              />
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14">
+                —
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-base font-medium text-white">
+                {row.name}
+              </p>
+              {row.artist_name ? (
+                <p className="truncate text-sm text-zinc-500">{row.artist_name}</p>
+              ) : null}
             </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-medium text-white">
-              {row.name}
-            </p>
-            {row.artist_name ? (
-              <p className="truncate text-sm text-zinc-500">{row.artist_name}</p>
-            ) : null}
           </div>
-        </div>
-        <div className="flex shrink-0 flex-row items-center justify-between gap-4 border-t border-zinc-800/80 pt-3 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0">
-          <div className="flex flex-col items-end gap-1 sm:text-right">
-            <MovementIndicator row={row} />
-            <span className="text-xs tabular-nums text-zinc-500">
-              {row.play_count.toLocaleString()} plays
-            </span>
-            <span className="text-xs tabular-nums text-zinc-500">
-              <span className="text-zinc-600">streak </span>
-              <span className="text-zinc-400">
-                {row.weeks_in_top_10} ({row.weeks_at_1})
+          <div className="flex min-h-[4.5rem] shrink-0 flex-row items-center justify-between gap-4 border-t border-zinc-800/80 pt-3 sm:w-[5.5rem] sm:flex-col sm:items-end sm:justify-center sm:border-t-0 sm:pt-0">
+            <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end sm:text-right">
+              <div className="flex min-h-[1.25rem] items-center justify-end">
+                {communityMode ? (
+                  <CommunityRankMovementIndicator row={row} />
+                ) : (
+                  <MovementIndicator row={row} />
+                )}
+              </div>
+              <span className="text-xs tabular-nums text-zinc-500">
+                {row.play_count.toLocaleString()} plays
               </span>
-            </span>
+              <span className="text-xs tabular-nums text-zinc-500">
+                <span className="text-zinc-600">
+                  {communityMode ? "weeks in top 10 " : "streak "}
+                </span>
+                <span className="text-zinc-400">
+                  {row.weeks_in_top_10} ({row.weeks_at_1})
+                </span>
+              </span>
+              {communityMode && !row.community_breakdown ? (
+                <>
+                  {row.community_listen_percent != null &&
+                  row.unique_listeners != null ? (
+                    <span className="text-xs text-zinc-500">
+                      {Math.round(row.community_listen_percent * 100)}% of
+                      community listened
+                    </span>
+                  ) : null}
+                  {row.top_contributors?.length ? (
+                    <span className="max-w-[14rem] text-right text-xs leading-snug text-zinc-500">
+                      Led by{" "}
+                      {row.top_contributors
+                        .map((c) => c.username?.trim() || "Member")
+                        .join(", ")}
+                    </span>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
+        {communityMode && row.community_breakdown ? (
+          <CommunityBreakdownPanel row={row} />
+        ) : null}
       </div>
     </li>
   );
@@ -134,7 +307,33 @@ function moverMovementNode(row: MoverStripRow) {
     );
   }
   const r = row as WeeklyChartRankingApiRow;
-  if (r.is_new) {
+  if (r.rank_movement === "NEW") {
+    return (
+      <span className="mt-2 inline-flex rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-sky-500/30">
+        NEW
+      </span>
+    );
+  }
+  if (r.rank_movement === "UP" && r.rank_delta != null && r.rank_delta > 0) {
+    return (
+      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-400 tabular-nums">
+        <span aria-hidden>▲</span>
+        +{r.rank_delta}
+      </span>
+    );
+  }
+  if (r.rank_movement === "DOWN" && r.rank_delta != null && r.rank_delta > 0) {
+    return (
+      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rose-400 tabular-nums">
+        <span aria-hidden>▼</span>
+        −{r.rank_delta}
+      </span>
+    );
+  }
+  if (r.rank_movement === "SAME") {
+    return <span className="mt-2 text-sm text-zinc-500">—</span>;
+  }
+  if (r.rank_movement == null && r.is_new) {
     return (
       <span className="mt-2 inline-flex rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-300">
         New
@@ -207,12 +406,14 @@ type HeroProps = {
   leader: WeeklyChartRankingApiRow;
   weekLabel: string;
   chartKind: string;
+  communityMode?: boolean;
 };
 
 const BillboardHero = memo(function BillboardHero({
   leader,
   weekLabel,
   chartKind,
+  communityMode = false,
 }: HeroProps) {
   const entityLabel =
     chartKind === "Artists"
@@ -244,7 +445,7 @@ const BillboardHero = memo(function BillboardHero({
         </div>
         <div className="min-w-0 flex-1">
           <p className="inline-flex rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-200/90 ring-1 ring-amber-500/25">
-            #1 this week
+            {communityMode ? "#1" : "#1 this week"}
           </p>
           <h2 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
             {leader.name}
@@ -254,7 +455,9 @@ const BillboardHero = memo(function BillboardHero({
               {leader.artist_name}
             </p>
           ) : chartKind === "Artists" ? (
-            <p className="mt-2 text-sm text-zinc-500">Top artist this week</p>
+            <p className="mt-2 text-sm text-zinc-500">
+              {communityMode ? "Top artist" : "Top artist this week"}
+            </p>
           ) : (
             <p className="mt-1 text-xs text-zinc-600">{entityLabel}</p>
           )}
@@ -290,15 +493,18 @@ const BillboardHero = memo(function BillboardHero({
   );
 });
 
-type NarrativeProps = { lines: string[] };
+type NarrativeProps = { lines: string[]; eyebrow?: string };
 
-const NarrativeCard = memo(function NarrativeCard({ lines }: NarrativeProps) {
+const NarrativeCard = memo(function NarrativeCard({
+  lines,
+  eyebrow = "This week",
+}: NarrativeProps) {
   if (lines.length === 0) return null;
   const icons = ["✦", "◆", "◇", "✧"];
   return (
     <section className="rounded-2xl border border-zinc-800/80 bg-zinc-900/25 p-5 shadow-inner shadow-black/20 sm:p-6">
       <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-        This week
+        {eyebrow}
       </h3>
       <ul className="mt-4 space-y-4">
         {lines.map((line, i) => (
@@ -327,14 +533,31 @@ export function WeeklyBillboardView(props: {
   movers: WeeklyChartMoversApi;
   narrative: string[];
   chart_moment: ChartMomentPayload;
+  /** When set, share PNG uses `/api/communities/[id]/charts/share-image`. */
+  communityId?: string | null;
+  /** Community API: ISO time of next Sunday UTC drop. */
+  nextChartDropIso?: string | null;
+  /** Community: display name for page header. */
+  communityName?: string | null;
+  /** Community: members with ≥1 listen in the chart window. */
+  communityActiveListeners?: number | null;
+  /** Community: viewer had ≥1 play during the chart week. */
+  viewerContributed?: boolean;
 }) {
   const [shareOpen, setShareOpen] = useState(false);
   const canShare =
     props.chart_moment.top_5.length > 0 || props.chart_moment.number_one != null;
+  const isCommunity = Boolean(props.communityId?.trim());
 
   const leader = useMemo(() => {
     const byRank = [...props.rankings].sort((a, b) => a.rank - b.rank);
     return byRank[0] ?? null;
+  }, [props.rankings]);
+
+  const chartRowsRest = useMemo(() => {
+    return [...props.rankings]
+      .filter((r) => r.rank > 1)
+      .sort((a, b) => a.rank - b.rank);
   }, [props.rankings]);
 
   if (props.rankings.length === 0) {
@@ -349,23 +572,54 @@ export function WeeklyBillboardView(props: {
 
   return (
     <div className="w-full space-y-10 sm:space-y-12">
+      {isCommunity && props.communityName?.trim() ? (
+        <header className="space-y-2">
+          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            {props.communityName.trim()} Weekly Chart
+          </h2>
+          {props.communityActiveListeners != null ? (
+            <p className="text-sm text-zinc-400">
+              Based on {props.communityActiveListeners.toLocaleString()}{" "}
+              listeners this week
+            </p>
+          ) : null}
+          {props.viewerContributed ? (
+            <p className="text-sm font-medium text-emerald-400/95">
+              You helped shape this chart
+            </p>
+          ) : null}
+        </header>
+      ) : null}
+
+      {isCommunity && props.nextChartDropIso ? (
+        <CommunityChartDropCountdown dropIso={props.nextChartDropIso} />
+      ) : null}
+
       {leader ? (
         <BillboardHero
           leader={leader}
           weekLabel={props.weekLabel}
           chartKind={props.chartKind}
+          communityMode={isCommunity}
         />
       ) : null}
 
-      <NarrativeCard lines={props.narrative} />
+      <NarrativeCard
+        lines={props.narrative}
+        eyebrow={isCommunity ? "Community" : "This week"}
+      />
 
       <section>
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-          Top 10
+          Spots 2–10
         </h3>
         <ol className="mt-4 space-y-3">
-          {props.rankings.map((row) => (
-            <ChartRow key={row.entity_id} row={row} />
+          {chartRowsRest.map((row) => (
+            <ChartRow
+              key={`${props.weekStartIso}-${row.entity_id}`}
+              row={row}
+              communityMode={isCommunity}
+            />
           ))}
         </ol>
       </section>
@@ -378,10 +632,13 @@ export function WeeklyBillboardView(props: {
       </section>
 
       <section className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 sm:p-8">
-        <h3 className="text-lg font-semibold text-white">Share this week</h3>
+        <h3 className="text-lg font-semibold text-white">
+          {isCommunity ? "Share chart" : "Share this week"}
+        </h3>
         <p className="mt-2 max-w-xl text-sm text-zinc-500">
-          Export a summary or link. Anyone with the link needs to be signed in
-          to open your chart.
+          {isCommunity
+            ? "Export a summary or image. Members need to be signed in to open community chart links."
+            : "Export a summary or link. Anyone with the link needs to be signed in to open your chart."}
         </p>
         <div className="mt-6 flex flex-col gap-6">
           <button
@@ -389,7 +646,7 @@ export function WeeklyBillboardView(props: {
             onClick={() => setShareOpen(true)}
             className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 sm:w-auto sm:self-start sm:px-10 sm:py-4"
           >
-            Share your chart
+            {isCommunity ? "Share community chart" : "Share your chart"}
           </button>
           <div className="border-t border-zinc-800/80 pt-6">
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -415,6 +672,8 @@ export function WeeklyBillboardView(props: {
         weekStartIso={props.weekStartIso}
         chart_moment={props.chart_moment}
         disableFormattedShare={!canShare}
+        communityId={props.communityId}
+        shareTitle={isCommunity ? "Share community chart" : undefined}
       />
     </div>
   );
