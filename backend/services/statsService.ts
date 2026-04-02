@@ -321,12 +321,33 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
   listen_count: number;
   review_count: number;
   avg_rating: number | null;
+  favorite_count: number;
 }> {
   const stats = await getEntityStats("album", albumId);
+  let favorite_count = 0;
+  try {
+    const supabase = getSupabase();
+    const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
+      supabase,
+      albumId,
+    );
+    if (canonicalId) {
+      const { data: row } = await supabase
+        .from("entity_stats")
+        .select("favorite_count")
+        .eq("entity_type", "album")
+        .eq("entity_id", canonicalId)
+        .maybeSingle();
+      favorite_count = Number(row?.favorite_count ?? 0);
+    }
+  } catch (e) {
+    console.warn("[statsService] getAlbumEngagementStats favorite_count:", e);
+  }
   return {
     listen_count: stats.listen_count,
     review_count: stats.review_count,
     avg_rating: stats.average_rating,
+    favorite_count,
   };
 }
 

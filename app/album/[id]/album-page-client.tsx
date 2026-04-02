@@ -9,6 +9,7 @@ import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
 import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
+import { AlbumFavoritedByModal } from "@/components/album-favorited-by-modal";
 import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
 
 function AlbumLazySectionSkeleton() {
@@ -88,8 +89,14 @@ export type AlbumPageClientProps = {
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
   session: boolean;
+  viewerUserId: string | null;
   stats: { listen_count: number; average_rating: number | null; review_count: number; rating_distribution?: Record<number, number> };
-  engagementStats: { listen_count: number; review_count: number; avg_rating: number | null };
+  engagementStats: {
+    listen_count: number;
+    review_count: number;
+    avg_rating: number | null;
+    favorite_count: number;
+  };
   friendActivity: FriendActivityItem[];
 };
 
@@ -98,12 +105,14 @@ export function AlbumPageClient({
   album,
   tracks,
   session,
+  viewerUserId,
   stats,
   engagementStats,
   friendActivity,
 }: AlbumPageClientProps) {
   const image = album.images?.[0]?.url;
   const firstTrack = tracks.items?.[0];
+  const [favoritedByOpen, setFavoritedByOpen] = useState(false);
 
   const [trackStats, setTrackStats] = useState<Record<string, TrackStatRow>>({});
   const [trackStatsLoading, setTrackStatsLoading] = useState(true);
@@ -206,23 +215,34 @@ export function AlbumPageClient({
               </p>
             )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm text-zinc-400">
               {engagementStats.avg_rating != null && (
                 <span className="text-amber-400">
                   ★ {engagementStats.avg_rating.toFixed(1)} average rating
                 </span>
               )}
               {engagementStats.listen_count > 0 && (
-                <span className="text-zinc-400">
+                <span>
                   {engagementStats.listen_count.toLocaleString()} listen{engagementStats.listen_count !== 1 ? "s" : ""}
                 </span>
               )}
               {engagementStats.review_count > 0 && (
-                <span className="text-zinc-400">
+                <span>
                   {engagementStats.review_count} review{engagementStats.review_count !== 1 ? "s" : ""}
                 </span>
               )}
-              {engagementStats.listen_count === 0 && engagementStats.review_count === 0 && (
+              {engagementStats.favorite_count > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFavoritedByOpen(true)}
+                  className="m-0 inline cursor-pointer border-0 bg-transparent p-0 font-normal text-inherit underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                >
+                  {engagementStats.favorite_count.toLocaleString()} favorited
+                </button>
+              )}
+              {engagementStats.listen_count === 0 &&
+                engagementStats.review_count === 0 &&
+                engagementStats.favorite_count === 0 && (
                 <span className="text-zinc-500">No listens or reviews yet</span>
               )}
             </div>
@@ -269,6 +289,14 @@ export function AlbumPageClient({
             )}
           </div>
         </div>
+
+        <AlbumFavoritedByModal
+          albumId={id}
+          albumTitle={album.name}
+          isOpen={favoritedByOpen}
+          onClose={() => setFavoritedByOpen(false)}
+          viewerUserId={viewerUserId}
+        />
 
         {friendActivity.length > 0 && <FriendsWhoListened activity={friendActivity} />}
 

@@ -6,7 +6,6 @@ import {
   getReviewsForEntity,
   getTrackStatsForTrackIds,
 } from "@/lib/queries";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isValidSpotifyId } from "@/lib/validation";
 
 type RouteParams = Promise<{ id: string }>;
@@ -40,16 +39,7 @@ export async function GET(
     const trackIds = (tracks.items ?? []).map((t) => t.id);
     const trackStats = await getTrackStatsForTrackIds(trackIds);
 
-    // Favorite count comes from the precomputed entity_stats table.
-    const supabase = await createSupabaseServerClient();
-    const { data: entityStatRow } = await supabase
-      .from("entity_stats")
-      .select("favorite_count")
-      .eq("entity_type", "album")
-      .eq("entity_id", id)
-      .maybeSingle();
-
-    const favorite_count = entityStatRow?.favorite_count ?? 0;
+    const favorite_count = engagement.favorite_count;
 
     const reviewsResult = await getReviewsForEntity("album", id, 5);
     const reviews =

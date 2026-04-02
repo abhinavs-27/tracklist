@@ -60,7 +60,12 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     review_count: 0,
     rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as const,
   };
-  const defaultEngagement = { listen_count: 0, review_count: 0, avg_rating: null as number | null };
+  const defaultEngagement = {
+    listen_count: 0,
+    review_count: 0,
+    avg_rating: null as number | null,
+    favorite_count: 0,
+  };
 
   const stats = settled[1].status === "fulfilled" ? settled[1].value : defaultStats;
   if (settled[1].status === "rejected") console.error("[album] getEntityStats failed:", settled[1].reason);
@@ -81,6 +86,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           album={album}
           tracks={tracks}
           session={!!session}
+          viewerUserId={viewerId}
           stats={stats}
           engagementStats={engagementStats}
           friendActivity={friendActivity}

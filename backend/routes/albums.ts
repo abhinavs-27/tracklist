@@ -2,7 +2,7 @@ import { Router } from "express";
 import { badRequest, internalError, notFound, ok } from "../lib/http";
 import { getAlbum, getAlbumTracks } from "../lib/spotify";
 import { getAlbumEngagementStats, getTrackStatsForTrackIds } from "../services/statsService";
-import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
+import { isSupabaseConfigured } from "../lib/supabase";
 import { getReviewsForEntity } from "../services/reviewsService";
 import { isValidSpotifyId } from "../lib/validation";
 
@@ -34,8 +34,8 @@ albumsRouter.get("/:id", async (req, res) => {
       listen_count: 0,
       review_count: 0,
       avg_rating: null as number | null,
+      favorite_count: 0,
     };
-    let favorite_count = 0;
     let reviewsResult = null;
     let trackStats: Record<
       string,
@@ -48,18 +48,10 @@ albumsRouter.get("/:id", async (req, res) => {
       engagement = await getAlbumEngagementStats(id);
       trackStats = await getTrackStatsForTrackIds(trackIds);
 
-      const supabase = getSupabase();
-      const { data: entityStatRow } = await supabase
-        .from("entity_stats")
-        .select("favorite_count")
-        .eq("entity_type", "album")
-        .eq("entity_id", id)
-        .maybeSingle();
-
-      favorite_count = entityStatRow?.favorite_count ?? 0;
-
       reviewsResult = await getReviewsForEntity("album", id, 5, null, null);
     }
+
+    const favorite_count = engagement.favorite_count;
 
     const reviews =
       reviewsResult?.reviews?.map((r) => ({

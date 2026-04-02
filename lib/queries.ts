@@ -2019,18 +2019,108 @@ export async function getPopularAlbumsForArtist(
   }
 }
 
-/** Album engagement: listen count, review count, average rating. */
+/** Album engagement: listen count, review count, average rating, profile favorite count. */
 export async function getAlbumEngagementStats(albumId: string): Promise<{
   listen_count: number;
   review_count: number;
   avg_rating: number | null;
+  favorite_count: number;
 }> {
   const stats = await getEntityStats("album", albumId);
+  let favorite_count = 0;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
+      supabase,
+      albumId,
+    );
+    if (canonicalId) {
+      const { data: row } = await supabase
+        .from("entity_stats")
+        .select("favorite_count")
+        .eq("entity_type", "album")
+        .eq("entity_id", canonicalId)
+        .maybeSingle();
+      favorite_count = Number(row?.favorite_count ?? 0);
+    }
+  } catch (e) {
+    console.warn("[queries] getAlbumEngagementStats favorite_count:", e);
+  }
   return {
     listen_count: stats.listen_count,
     review_count: stats.review_count,
     avg_rating: stats.average_rating,
+    favorite_count,
   };
+}
+
+export type AlbumFavoritedByUserRow = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  is_following: boolean;
+};
+
+/**
+ * Users who have this album as a profile favorite, ordered by username.
+ * Requires migration `125_album_favorited_by_users_rpc.sql`.
+ */
+export async function getAlbumFavoritedByUsers(
+  albumEntityId: string,
+  viewerId: string | null,
+  options: { limit?: number; offset?: number } = {},
+): Promise<{ users: AlbumFavoritedByUserRow[]; total: number }> {
+  const { limit = 20, offset = 0 } = options;
+  const supabase = await createSupabaseServerClient();
+  const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
+    supabase,
+    albumEntityId,
+  );
+  if (!canonicalId) {
+    return { users: [], total: 0 };
+  }
+
+  const cap = Math.min(Math.max(1, limit), 50);
+  const off = Math.max(0, offset);
+
+  const { data, error } = await supabase.rpc("get_album_favorited_by_users", {
+    p_album_id: canonicalId,
+    p_limit: cap,
+    p_offset: off,
+  });
+
+  if (error) {
+    console.error("[queries] getAlbumFavoritedByUsers RPC:", error.message);
+    return { users: [], total: 0 };
+  }
+
+  const rows = (data ?? []) as {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    total_count: number | string;
+  }[];
+
+  if (rows.length === 0) {
+    return { users: [], total: 0 };
+  }
+
+  const total = Number(rows[0].total_count ?? 0);
+  const base = rows.map((r) => ({
+    id: r.id,
+    username: r.username,
+    avatar_url: r.avatar_url ?? null,
+  }));
+
+  const enriched = await enrichUsersWithFollowStatus(base, viewerId);
+  const users: AlbumFavoritedByUserRow[] = enriched.map((u) => ({
+    id: u.id,
+    username: u.username,
+    avatar_url: u.avatar_url,
+    is_following: u.is_following,
+  }));
+
+  return { users, total };
 }
 
 export type FriendAlbumActivityRow = {
