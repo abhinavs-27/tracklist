@@ -1,0 +1,421 @@
+"use client";
+
+import { memo, useMemo, useState } from "react";
+import { ChartShareActions } from "@/components/charts/chart-share-actions";
+import { ChartShareModal } from "@/components/charts/chart-share-modal";
+import type { WeeklyChartMoversApi } from "@/lib/charts/get-user-weekly-chart";
+import type { HydratedWeeklyChartDropout } from "@/lib/charts/hydrate-weekly-chart";
+import type {
+  ChartMomentPayload,
+  ChartType,
+  WeeklyChartRankingApiRow,
+} from "@/lib/charts/weekly-chart-types";
+
+function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
+  if (row.is_new) {
+    return (
+      <span className="inline-flex items-center rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-sky-500/30">
+        New
+      </span>
+    );
+  }
+  if (row.is_reentry) {
+    return (
+      <span className="inline-flex items-center rounded-md bg-violet-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
+        Re
+      </span>
+    );
+  }
+  if (row.movement == null || row.movement === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-sm text-zinc-500">
+        <span className="text-zinc-600" aria-hidden>
+          —
+        </span>
+        <span className="sr-only">No change</span>
+      </span>
+    );
+  }
+  if (row.movement > 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-400">
+        <span aria-hidden>▲</span>
+        {row.movement}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-rose-400">
+      <span aria-hidden>▼</span>
+      {Math.abs(row.movement)}
+    </span>
+  );
+}
+
+const ChartRow = memo(function ChartRow({
+  row,
+}: {
+  row: WeeklyChartRankingApiRow;
+}) {
+  const rankMuted = row.rank > 3;
+  return (
+    <li>
+      <div
+        className={`group flex flex-col gap-3 rounded-xl border border-zinc-800/90 bg-zinc-900/30 p-3 transition-all duration-150 sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
+          row.has_positive_movement
+            ? "border-l-2 border-l-emerald-500/40"
+            : ""
+        } ${
+          row.has_negative_movement ? "border-l-2 border-l-rose-500/35" : ""
+        } hover:border-zinc-700/90 hover:bg-zinc-900/55`}
+      >
+        <div
+          className={`shrink-0 tabular-nums text-3xl font-bold leading-none tracking-tight sm:w-14 sm:text-center ${
+            rankMuted ? "text-zinc-600" : "text-white"
+          }`}
+        >
+          {row.rank}
+        </div>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {row.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={row.image}
+              alt=""
+              loading="lazy"
+              className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
+            />
+          ) : (
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14">
+              —
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-medium text-white">
+              {row.name}
+            </p>
+            {row.artist_name ? (
+              <p className="truncate text-sm text-zinc-500">{row.artist_name}</p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-row items-center justify-between gap-4 border-t border-zinc-800/80 pt-3 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0">
+          <div className="flex flex-col items-end gap-1 sm:text-right">
+            <MovementIndicator row={row} />
+            <span className="text-xs tabular-nums text-zinc-500">
+              {row.play_count.toLocaleString()} plays
+            </span>
+            <span className="text-xs tabular-nums text-zinc-500">
+              <span className="text-zinc-600">streak </span>
+              <span className="text-zinc-400">
+                {row.weeks_in_top_10} ({row.weeks_at_1})
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+});
+
+type MoverStripRow =
+  | WeeklyChartRankingApiRow
+  | HydratedWeeklyChartDropout
+  | null;
+
+function moverMovementNode(row: MoverStripRow) {
+  if (!row) return null;
+  if ("kind" in row && row.kind === "dropout") {
+    return (
+      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rose-400">
+        <span aria-hidden>▼</span>
+        {Math.abs(row.movement)}
+      </span>
+    );
+  }
+  const r = row as WeeklyChartRankingApiRow;
+  if (r.is_new) {
+    return (
+      <span className="mt-2 inline-flex rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-300">
+        New
+      </span>
+    );
+  }
+  if (r.movement == null || r.movement === 0) {
+    return <span className="mt-2 text-sm text-zinc-500">—</span>;
+  }
+  if (r.movement > 0) {
+    return (
+      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-400">
+        <span aria-hidden>▲</span>
+        {r.movement}
+      </span>
+    );
+  }
+  return (
+    <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rose-400">
+      <span aria-hidden>▼</span>
+      {Math.abs(r.movement)}
+    </span>
+  );
+}
+
+const MoversGrid = memo(function MoversGrid({
+  movers,
+}: {
+  movers: WeeklyChartMoversApi;
+}) {
+  const items: { label: string; row: MoverStripRow }[] = [
+    { label: "Biggest jump", row: movers.biggest_jump },
+    { label: "Biggest drop", row: movers.biggest_drop },
+    { label: "Best new entry", row: movers.best_new_entry },
+  ];
+  const any = items.some((i) => i.row);
+  if (!any) return null;
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      {items.map(({ label, row }) => (
+        <div
+          key={label}
+          className="rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-4 shadow-lg shadow-black/20 transition duration-150 hover:border-zinc-700/80 hover:bg-zinc-900/70"
+        >
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+            {label}
+          </p>
+          {row ? (
+            <>
+              <p className="mt-2 line-clamp-2 text-base font-semibold text-white">
+                {row.name}
+              </p>
+              {"kind" in row && row.kind === "dropout" ? (
+                <p className="mt-1 text-xs text-zinc-500">
+                  Was #{row.prev_rank} · left the chart
+                </p>
+              ) : null}
+              {moverMovementNode(row)}
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-zinc-600">—</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+});
+
+type HeroProps = {
+  leader: WeeklyChartRankingApiRow;
+  weekLabel: string;
+  chartKind: string;
+};
+
+const BillboardHero = memo(function BillboardHero({
+  leader,
+  weekLabel,
+  chartKind,
+}: HeroProps) {
+  const entityLabel =
+    chartKind === "Artists"
+      ? "Artist"
+      : chartKind === "Albums"
+        ? "Album"
+        : "Track";
+  return (
+    <section className="relative overflow-hidden rounded-2xl border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-6 shadow-2xl shadow-black/50 ring-1 ring-white/5 sm:p-8">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-amber-500/5 blur-3xl" />
+      <p className="relative text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+        {weekLabel}
+      </p>
+      <div className="relative mt-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-10">
+        <div className="flex items-center justify-center sm:scale-105">
+          {leader.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={leader.image}
+              alt=""
+              className="h-40 w-40 rounded-xl object-cover shadow-xl ring-1 ring-white/10 sm:h-44 sm:w-44"
+            />
+          ) : (
+            <div className="flex h-40 w-40 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5 sm:h-44 sm:w-44">
+              —
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="inline-flex rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-200/90 ring-1 ring-amber-500/25">
+            #1 this week
+          </p>
+          <h2 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
+            {leader.name}
+          </h2>
+          {leader.artist_name ? (
+            <p className="mt-2 text-sm text-zinc-400 sm:text-base">
+              {leader.artist_name}
+            </p>
+          ) : chartKind === "Artists" ? (
+            <p className="mt-2 text-sm text-zinc-500">Top artist this week</p>
+          ) : (
+            <p className="mt-1 text-xs text-zinc-600">{entityLabel}</p>
+          )}
+          <dl className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-lg bg-black/20 px-3 py-2 ring-1 ring-white/5">
+              <dt className="text-[11px] uppercase tracking-wide text-zinc-500">
+                Plays
+              </dt>
+              <dd className="mt-0.5 text-lg font-semibold tabular-nums text-white">
+                {leader.play_count.toLocaleString()}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-black/20 px-3 py-2 ring-1 ring-white/5">
+              <dt className="text-[11px] uppercase tracking-wide text-zinc-500">
+                Weeks at #1 (all-time)
+              </dt>
+              <dd className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-100">
+                {leader.weeks_at_1}
+              </dd>
+            </div>
+            <div className="rounded-lg bg-black/20 px-3 py-2 ring-1 ring-white/5">
+              <dt className="text-[11px] uppercase tracking-wide text-zinc-500">
+                Top 10 · at #1 (all-time)
+              </dt>
+              <dd className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-100">
+                {leader.weeks_in_top_10} ({leader.weeks_at_1})
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+  );
+});
+
+type NarrativeProps = { lines: string[] };
+
+const NarrativeCard = memo(function NarrativeCard({ lines }: NarrativeProps) {
+  if (lines.length === 0) return null;
+  const icons = ["✦", "◆", "◇", "✧"];
+  return (
+    <section className="rounded-2xl border border-zinc-800/80 bg-zinc-900/25 p-5 shadow-inner shadow-black/20 sm:p-6">
+      <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+        This week
+      </h3>
+      <ul className="mt-4 space-y-4">
+        {lines.map((line, i) => (
+          <li
+            key={`${line}-${i}`}
+            className="flex gap-3 text-base leading-relaxed text-zinc-200 sm:text-lg"
+          >
+            <span className="text-lg opacity-80" aria-hidden>
+              {icons[i % icons.length]}
+            </span>
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+});
+
+export function WeeklyBillboardView(props: {
+  chartKind: string;
+  chartType: ChartType;
+  weekLabel: string;
+  /** ISO `week_start` from API for share-image URL. */
+  weekStartIso: string;
+  rankings: WeeklyChartRankingApiRow[];
+  movers: WeeklyChartMoversApi;
+  narrative: string[];
+  chart_moment: ChartMomentPayload;
+}) {
+  const [shareOpen, setShareOpen] = useState(false);
+  const canShare =
+    props.chart_moment.top_5.length > 0 || props.chart_moment.number_one != null;
+
+  const leader = useMemo(() => {
+    const byRank = [...props.rankings].sort((a, b) => a.rank - b.rank);
+    return byRank[0] ?? null;
+  }, [props.rankings]);
+
+  if (props.rankings.length === 0) {
+    return (
+      <div className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/30 px-6 py-12 text-center">
+        <p className="text-base text-zinc-400">
+          No chart rows for this week yet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-10 sm:space-y-12">
+      {leader ? (
+        <BillboardHero
+          leader={leader}
+          weekLabel={props.weekLabel}
+          chartKind={props.chartKind}
+        />
+      ) : null}
+
+      <NarrativeCard lines={props.narrative} />
+
+      <section>
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+          Top 10
+        </h3>
+        <ol className="mt-4 space-y-3">
+          {props.rankings.map((row) => (
+            <ChartRow key={row.entity_id} row={row} />
+          ))}
+        </ol>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+          Biggest movers
+        </h3>
+        <MoversGrid movers={props.movers} />
+      </section>
+
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 sm:p-8">
+        <h3 className="text-lg font-semibold text-white">Share this week</h3>
+        <p className="mt-2 max-w-xl text-sm text-zinc-500">
+          Export a summary or link. Anyone with the link needs to be signed in
+          to open your chart.
+        </p>
+        <div className="mt-6 flex flex-col gap-6">
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 sm:w-auto sm:self-start sm:px-10 sm:py-4"
+          >
+            Share your chart
+          </button>
+          <div className="border-t border-zinc-800/80 pt-6">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Quick actions
+            </p>
+            <div className="mt-3">
+              <ChartShareActions
+                chartKind={props.chartKind}
+                chart_moment={props.chart_moment}
+                disableFormattedShare={!canShare}
+                layout="inline"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <ChartShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        chartKind={props.chartKind}
+        chartType={props.chartType}
+        weekStartIso={props.weekStartIso}
+        chart_moment={props.chart_moment}
+        disableFormattedShare={!canShare}
+      />
+    </div>
+  );
+}

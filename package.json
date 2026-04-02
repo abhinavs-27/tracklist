@@ -24,6 +24,7 @@
     "@tanstack/react-virtual": "^3.13.23",
     "@tracklist/spotify-client": "workspace:*",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/og": "^0.11.1",
     "@vercel/speed-insights": "^2.0.0",
     "bottleneck": "^2.19.5",
     "bullmq": "^5.71.1",

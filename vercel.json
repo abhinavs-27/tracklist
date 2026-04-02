@@ -21,6 +21,10 @@
       "schedule": "15 3 * * 1"
     },
     {
+      "path": "/api/cron/weekly-charts",
+      "schedule": "0 0 * * 0"
+    },
+    {
       "path": "/api/cron/listening-aggregates",
       "schedule": "20 1 * * *"
     },

@@ -90,6 +90,25 @@ export default async function YouHubPage() {
       />
 
       <SectionBlock
+        title="Weekly Billboard"
+        description="Top 10 tracks, artists, and albums — raw weekly play counts."
+        action={{ label: "Open charts →", href: "/charts" }}
+      >
+        <Link
+          href="/charts"
+          className={`block ${cardElevated} p-5 transition hover:bg-zinc-900/70 sm:p-6`}
+        >
+          <p className="text-sm leading-relaxed text-zinc-400">
+            See who dominated your week: movement, new entries, and re-entries —
+            updated every Sunday (UTC).
+          </p>
+          <span className="mt-4 inline-flex text-sm font-medium text-emerald-400">
+            View Weekly Billboard →
+          </span>
+        </Link>
+      </SectionBlock>
+
+      <SectionBlock
         title="Your lists"
         description="Curated albums and tracks."
         action={
