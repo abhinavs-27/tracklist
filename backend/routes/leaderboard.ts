@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { badRequest, internalError, ok } from "../lib/http";
-import { getLeaderboard, type LeaderboardFilters } from "../services/leaderboardService";
+import {
+  getLeaderboardWithTotal,
+  type LeaderboardFilters,
+} from "../services/leaderboardService";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { exampleLeaderboardItems } from "../lib/exampleData";
 
@@ -53,34 +56,59 @@ leaderboardRouter.get("/", async (req, res) => {
       ? Math.min(Math.max(rawLimit, 10), 100)
       : 50;
 
-    const MAX_ENTRIES = 1000;
-    let allEntries;
+    const startRank = cursor && cursor > 0 ? cursor + 1 : 1;
+    const startIndex = startRank - 1;
+
+    let pageItems: Awaited<
+      ReturnType<typeof getLeaderboardWithTotal>
+    >["entries"];
+    let totalCount: number | null = null;
+
     try {
       if (!isSupabaseConfigured()) {
-        allEntries = exampleLeaderboardItems(type, entity, Math.min(MAX_ENTRIES, 50));
+        const allEntries = exampleLeaderboardItems(
+          type,
+          entity,
+          Math.min(startIndex + limit, 50),
+        );
+        pageItems = allEntries.slice(startIndex, startIndex + limit);
       } else {
-        allEntries = await getLeaderboard(type, filters, entity, MAX_ENTRIES);
+        const r = await getLeaderboardWithTotal(
+          type,
+          filters,
+          entity,
+          limit,
+          startIndex,
+        );
+        pageItems = r.entries;
+        totalCount = r.totalCount;
       }
     } catch (e) {
       console.warn("[leaderboard] falling back to example data:", e);
-      allEntries = exampleLeaderboardItems(type, entity, Math.min(MAX_ENTRIES, 50));
+      const allEntries = exampleLeaderboardItems(
+        type,
+        entity,
+        Math.min(startIndex + limit, 50),
+      );
+      pageItems = allEntries.slice(startIndex, startIndex + limit);
     }
 
-    const total = allEntries.length;
-    if (total === 0) {
-      return ok(res, { items: [], nextCursor: null });
+    if (pageItems.length === 0) {
+      return ok(res, { items: [], nextCursor: null, total: totalCount ?? 0 });
     }
-
-    const startRank = cursor && cursor > 0 ? cursor + 1 : 1;
-    const startIndex = startRank - 1;
-    const endIndex = startIndex + limit;
-    const pageItems = allEntries.slice(startIndex, endIndex);
 
     const lastRank = startIndex + pageItems.length;
-    const hasMore = lastRank < total;
+    const hasMore =
+      totalCount != null
+        ? lastRank < totalCount
+        : pageItems.length === limit;
     const nextCursor = hasMore ? lastRank : null;
 
-    return ok(res, { items: pageItems, nextCursor });
+    return ok(res, {
+      items: pageItems,
+      nextCursor,
+      total: totalCount ?? undefined,
+    });
   } catch (e) {
     return internalError(res, e);
   }

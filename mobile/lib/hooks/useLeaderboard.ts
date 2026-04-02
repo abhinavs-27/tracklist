@@ -32,6 +32,8 @@ type LeaderboardEntryFromApi = {
 type LeaderboardResponse = {
   items: LeaderboardEntryFromApi[];
   nextCursor: number | null;
+  /** Total rows when server uses DB RPC (global popular / top rated). */
+  total?: number;
 };
 
 export type UseLeaderboardParams = {

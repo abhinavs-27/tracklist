@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiOk, apiBadRequest, apiInternalError } from "@/lib/api-response";
-import { getLeaderboard } from "@/lib/queries";
+import { getLeaderboardWithTotal } from "@/lib/queries";
 
 /** 
  * GET /api/leaderboard
@@ -54,27 +54,36 @@ export async function GET(request: NextRequest) {
       ? Math.min(Math.max(rawLimit, 10), 100)
       : 50;
 
-    // Fetch a reasonably large sorted list once, then window it by rank.
-    const MAX_ENTRIES = 1000;
-    const allEntries = await getLeaderboard(type, filters, entity, MAX_ENTRIES);
-
-    const total = allEntries.length;
-    if (total === 0) {
-      return apiOk({ items: [], nextCursor: null });
-    }
-
     const startRank = cursor && cursor > 0 ? cursor + 1 : 1;
     const startIndex = startRank - 1;
-    const endIndex = startIndex + limit;
-    const pageItems = allEntries.slice(startIndex, endIndex);
+
+    const { entries: pageItems, totalCount } = await getLeaderboardWithTotal(
+      type,
+      filters,
+      entity,
+      limit,
+      startIndex,
+    );
+
+    if (pageItems.length === 0) {
+      return apiOk({
+        items: [],
+        nextCursor: null,
+        total: totalCount ?? 0,
+      });
+    }
 
     const lastRank = startIndex + pageItems.length;
-    const hasMore = lastRank < total;
+    const hasMore =
+      totalCount != null
+        ? lastRank < totalCount
+        : pageItems.length === limit;
     const nextCursor = hasMore ? lastRank : null;
 
     return apiOk({
       items: pageItems,
       nextCursor,
+      total: totalCount ?? undefined,
     });
   } catch (e) {
     return apiInternalError(e);

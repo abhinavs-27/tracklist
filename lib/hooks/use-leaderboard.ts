@@ -9,6 +9,7 @@ export type { LeaderboardEntry, LeaderboardFilters } from "@/lib/queries";
 type LeaderboardPage = {
   items: LeaderboardEntry[];
   nextCursor: number | null;
+  total?: number;
 };
 
 async function fetchLeaderboardPage(

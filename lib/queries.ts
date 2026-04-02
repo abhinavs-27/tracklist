@@ -767,6 +767,10 @@ export type LeaderboardFilters = {
   decade?: number;
   startYear?: number;
   endYear?: number;
+  /** 0-based index for global popular / top-rated leaderboards (RPC path). */
+  offset?: number;
+  /** @internal After RPC failure, run legacy query without retrying RPC. */
+  skipLeaderboardRpc?: boolean;
 };
 
 type AlbumStatRow = {
@@ -859,11 +863,16 @@ async function getAlbumLeaderboardFromEntityStatsFallback(
   albumIdsFilter: string[] | null,
   limit: number,
 ): Promise<LeaderboardEntry[]> {
+  /** Popular needs many candidates: merged plays often correct zeros from entity_stats alone. */
+  const entityStatsCap = Math.max(
+    type === "popular" ? Math.min(5000, limit * 80) : limit * 4,
+    200,
+  );
   let statsQuery = supabase
     .from("entity_stats")
     .select("entity_id, play_count, avg_rating, favorite_count")
     .eq("entity_type", "album")
-    .limit(Math.max(limit * 4, 200));
+    .limit(entityStatsCap);
 
   if (albumIdsFilter && albumIdsFilter.length > 0) {
     statsQuery = statsQuery.in("entity_id", albumIdsFilter);
@@ -942,13 +951,129 @@ async function getAlbumLeaderboardFromEntityStatsFallback(
 
   if (type === "popular") {
     albumEntries.sort((a, b) => b.total_plays - a.total_plays);
-  } else {
-    albumEntries.sort(
-      (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
-    );
+    // Merged plays can still be 0 (e.g. favorites-only rows); exclude from "popular".
+    const withPlays = albumEntries.filter((a) => a.total_plays > 0);
+    return withPlays.slice(0, limit);
   }
 
+  albumEntries.sort(
+    (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
+  );
+
   return albumEntries.slice(0, limit);
+}
+
+/** Global popular / top-rated: one indexed SQL (see migration 124). Returns null if RPC missing. */
+async function getLeaderboardFromRpc(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  type: "popular" | "topRated",
+  entity: "song" | "album",
+  limit: number,
+  offset: number,
+): Promise<{ entries: LeaderboardEntry[]; totalCount: number } | null> {
+  const p_metric = type === "popular" ? "popular" : "top_rated";
+  const rpcName =
+    entity === "album" ? "get_leaderboard_albums" : "get_leaderboard_tracks";
+  const { data, error } = await supabase.rpc(rpcName, {
+    p_metric,
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) {
+    console.warn("[queries] getLeaderboardFromRpc", rpcName, error.message);
+    return null;
+  }
+  const rows = (data ?? []) as Record<string, unknown>[];
+  if (rows.length === 0) {
+    return { entries: [], totalCount: 0 };
+  }
+  const totalCount = Number(rows[0].total_count ?? 0);
+  if (entity === "album") {
+    const entries: LeaderboardEntry[] = rows.map((row) => {
+      const listen = Number(row.listen_count ?? 0);
+      const average_rating =
+        row.avg_rating != null ? Number(row.avg_rating) : null;
+      const weighted_score =
+        type === "topRated" && average_rating != null
+          ? average_rating * Math.log10(1 + listen)
+          : undefined;
+      return {
+        entity_type: "album",
+        id: String(row.album_id),
+        name: String(row.album_name ?? ""),
+        artist: String(row.artist_name ?? "Unknown"),
+        artwork_url: (row.image_url as string | null) ?? null,
+        total_plays: listen,
+        average_rating,
+        ...(weighted_score !== undefined && { weighted_score }),
+      };
+    });
+    return { entries, totalCount };
+  }
+  const entries: LeaderboardEntry[] = rows.map((row) => {
+    const listen = Number(row.listen_count ?? 0);
+    const average_rating =
+      row.avg_rating != null ? Number(row.avg_rating) : null;
+    const weighted_score =
+      type === "topRated" && average_rating != null
+        ? average_rating * Math.log10(1 + listen)
+        : undefined;
+    return {
+      entity_type: "song",
+      id: String(row.track_id),
+      name: String(row.track_name ?? ""),
+      artist: String(row.artist_name ?? "Unknown"),
+      artwork_url: (row.image_url as string | null) ?? null,
+      total_plays: listen,
+      average_rating,
+      ...(weighted_score !== undefined && { weighted_score }),
+    };
+  });
+  return { entries, totalCount };
+}
+
+/**
+ * Paginated global leaderboard with true total when using DB RPC (migration 124).
+ * Year / decade filters fall back to legacy (totalCount null).
+ */
+export async function getLeaderboardWithTotal(
+  type: "popular" | "topRated" | "mostFavorited",
+  filters: LeaderboardFilters,
+  entity: "song" | "album",
+  limit: number,
+  offset: number,
+): Promise<{ entries: LeaderboardEntry[]; totalCount: number | null }> {
+  const supabase = await createSupabaseServerClient();
+  const off = Math.max(0, offset);
+  if (
+    (type === "popular" || type === "topRated") &&
+    filters.startYear == null &&
+    filters.endYear == null &&
+    filters.year == null &&
+    filters.decade == null
+  ) {
+    const rpc = await getLeaderboardFromRpc(
+      supabase,
+      type,
+      entity,
+      limit,
+      off,
+    );
+    if (rpc !== null) {
+      return { entries: rpc.entries, totalCount: rpc.totalCount };
+    }
+  }
+  const need = Math.min(off + limit, 1000);
+  const all = await getLeaderboard(
+    type,
+    { ...filters, skipLeaderboardRpc: true },
+    entity,
+    need,
+  );
+  return {
+    entries: all.slice(off, off + limit),
+    totalCount: null,
+  };
 }
 
 export async function getLeaderboard(
@@ -959,7 +1084,7 @@ export async function getLeaderboard(
 ): Promise<LeaderboardEntry[]> {
   try {
     const supabase = await createSupabaseServerClient();
-    const { year, decade, startYear, endYear } = filters;
+    const { year, decade, startYear, endYear, skipLeaderboardRpc } = filters;
 
     let albumIds: string[] | null = null;
 
@@ -1121,6 +1246,22 @@ export async function getLeaderboard(
     }
 
     // ---------------- Popular / Top Rated ----------------
+    if (
+      !skipLeaderboardRpc &&
+      (type === "popular" || type === "topRated") &&
+      albumIds === null
+    ) {
+      const off = Math.max(0, filters.offset ?? 0);
+      const rpc = await getLeaderboardFromRpc(
+        supabase,
+        type,
+        entity,
+        limit,
+        off,
+      );
+      if (rpc !== null) return rpc.entries;
+    }
+
     if (entity === "song") {
       let statsRows: {
         track_id: string;
@@ -1162,15 +1303,26 @@ export async function getLeaderboard(
             );
         }
         if (merged.length === 0) return [];
-        statsRows = merged;
+        statsRows =
+          type === "popular"
+            ? merged.filter((r) => Number(r.listen_count ?? 0) > 0)
+            : merged;
+        if (statsRows.length === 0) return [];
       } else {
-        /** Unfiltered charts: only need `limit` rows after join; cap fetch to avoid loading 500 songs. */
-        const statsCap = Math.min(500, Math.max(limit * 20, 40));
-        const { data: rows, error: statsError } = await supabase
+        /** Unfiltered charts: cap fetch; require plays > 0 for popular (ties on 0 are unordered in DB). */
+        const statsCap = Math.min(
+          2000,
+          Math.max(limit * 20, type === "popular" ? 200 : 40),
+        );
+        let statsQuery = supabase
           .from("track_stats")
           .select("track_id, listen_count, avg_rating")
           .order("listen_count", { ascending: false })
           .limit(statsCap);
+        if (type === "popular") {
+          statsQuery = statsQuery.gt("listen_count", 0);
+        }
+        const { data: rows, error: statsError } = await statsQuery;
         if (statsError || !rows?.length) return [];
         statsRows = rows as {
           track_id: string;
@@ -1260,16 +1412,20 @@ export async function getLeaderboard(
 
       if (type === "popular") {
         entries.sort((a, b) => b.total_plays - a.total_plays);
-      } else {
-        entries.sort((a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0));
+        return entries.filter((a) => a.total_plays > 0).slice(0, limit);
       }
+
+      entries.sort(
+        (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
+      );
 
       return entries.slice(0, limit);
     }
 
     // entity === "album"
     // Prefer album_stats (cron aggregates from logs); fall back to entity_stats if empty.
-    const albumStatsLimit = 500;
+    /** Popular: exclude listen_count = 0 (ties sort arbitrarily; review-only rows pollute top N). */
+    const albumStatsLimit = type === "popular" ? 2000 : 500;
     let albumStatsRows: AlbumStatRow[] | null = null;
 
     if (albumIds && albumIds.length > 0) {
@@ -1295,7 +1451,13 @@ export async function getLeaderboard(
         if (rows?.length)
           mergedAlbumStats.push(...(rows as AlbumStatRow[]));
       }
-      if (mergedAlbumStats.length === 0) {
+      const filtered =
+        type === "popular"
+          ? mergedAlbumStats.filter(
+              (r) => Number(r.listen_count ?? 0) > 0,
+            )
+          : mergedAlbumStats;
+      if (filtered.length === 0) {
         return getAlbumLeaderboardFromEntityStatsFallback(
           supabase,
           type,
@@ -1303,13 +1465,17 @@ export async function getLeaderboard(
           limit,
         );
       }
-      albumStatsRows = mergedAlbumStats;
+      albumStatsRows = filtered;
     } else {
-      const { data: rows, error: statsError } = await supabase
+      let albumStatsQuery = supabase
         .from("album_stats")
         .select("album_id, listen_count, avg_rating")
         .order("listen_count", { ascending: false })
         .limit(albumStatsLimit);
+      if (type === "popular") {
+        albumStatsQuery = albumStatsQuery.gt("listen_count", 0);
+      }
+      const { data: rows, error: statsError } = await albumStatsQuery;
       if (statsError || !rows?.length) {
         return getAlbumLeaderboardFromEntityStatsFallback(
           supabase,
@@ -1383,11 +1549,14 @@ export async function getLeaderboard(
 
     if (type === "popular") {
       albumEntries.sort((a, b) => b.total_plays - a.total_plays);
-    } else {
-      albumEntries.sort(
-        (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
-      );
+      return albumEntries
+        .filter((a) => a.total_plays > 0)
+        .slice(0, limit);
     }
+
+    albumEntries.sort(
+      (a, b) => (b.weighted_score ?? 0) - (a.weighted_score ?? 0),
+    );
 
     return albumEntries.slice(0, limit);
   } catch (e) {
