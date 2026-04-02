@@ -295,16 +295,22 @@ export type { CommunityMemberListRow } from "@/lib/community/member-list";
 
 export async function listCommunityMembersForSettings(
   communityId: string,
+  limit = 100,
+  offset = 0,
 ): Promise<CommunityMemberListRow[]> {
   const admin = createSupabaseAdminClient();
   const cid = communityId.trim();
   if (!cid) return [];
 
+  const from = offset;
+  const to = offset + limit - 1;
+
   const { data: rows, error } = await admin
     .from("community_members")
     .select("user_id, role, created_at")
     .eq("community_id", cid)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .range(from, to);
 
   if (error || !rows?.length) return [];
 
