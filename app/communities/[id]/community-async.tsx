@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { CommunityFeedClient } from "@/components/community/community-feed-client";
@@ -5,45 +6,145 @@ import { CommunityInsights } from "@/components/community/CommunityInsights";
 import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
 import { CommunityLeaderboardSection } from "@/components/community/community-leaderboard-section";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
-import { COMMUNITY_FEED_PAGE_SIZE } from "@/lib/community/community-feed-page-size";
 import { CommunityMembersSectionClient } from "@/components/community/community-members-section-client";
-import type { CommunityFeedItemV2 } from "@/lib/community/community-feed-types";
-import { getCommunityFeedV2 } from "@/lib/community/get-community-feed-v2";
-import { getCommunityInsights } from "@/lib/community/getCommunityInsights";
-import { getCommunityMembersRoster } from "@/lib/community/get-community-members-roster";
-import { getCommunityMemberStatsWithRoles } from "@/lib/community/get-community-member-stats";
-import { getWeeklyLeaderboard } from "@/lib/community/getWeeklyLeaderboard";
-import { getCommunityMatch } from "@/lib/taste/getCommunityMatch";
+import { CommunityMobileWebShell } from "@/components/community/community-mobile-web-shell";
+import { CommunityWeeklyBillboardClient } from "@/components/community/community-weekly-billboard-client";
+import { InviteMembersPanel } from "@/components/invite-members-panel";
+import {
+  getCachedCommunityBillboardTracksInitial,
+  getCachedCommunityFeedPreload,
+  getCachedCommunityInsights,
+  getCachedCommunityInviteUrl,
+  getCachedCommunityMatch,
+  getCachedCommunityMemberStatsForLeaderboard,
+  getCachedCommunityMembersRosterPage1,
+  getCachedCommunityWeeklySummaryWithTrend,
+  getCachedWeeklyLeaderboard,
+  loadCommunityMemberPageData,
+  type CommunityFeedPreload,
+  type CommunityWeeklySummaryBundle,
+} from "@/lib/community/community-page-cache";
+import type { CommunityInsights as CommunityInsightsData } from "@/lib/community/getCommunityInsights";
 import { communityBody } from "@/lib/ui/surface";
 
-export type CommunityFeedPreload = {
-  items: CommunityFeedItemV2[];
-  nextOffset: number | null;
-};
+export type { CommunityFeedPreload };
 
 export async function getCommunityFeedPreload(
   communityId: string,
 ): Promise<CommunityFeedPreload> {
-  const items = await getCommunityFeedV2(
-    communityId,
-    COMMUNITY_FEED_PAGE_SIZE,
-    "all",
-    0,
-  );
-  const nextOffset =
-    items.length >= COMMUNITY_FEED_PAGE_SIZE ? COMMUNITY_FEED_PAGE_SIZE : null;
-  return { items, nextOffset };
+  return getCachedCommunityFeedPreload(communityId);
 }
 
-export async function CommunityTasteMatchSlot({
+export function CommunityTasteMatchSlot({ score }: { score: number }) {
+  return <CommunityTasteMatchCard score={score} />;
+}
+
+export async function CommunityTasteMatchAsyncSlot({
   userId,
   communityId,
 }: {
   userId: string;
   communityId: string;
 }) {
-  const { score } = await getCommunityMatch(userId, communityId);
-  return <CommunityTasteMatchCard score={score} />;
+  const { score } = await getCachedCommunityMatch(userId, communityId);
+  return <CommunityTasteMatchSlot score={score} />;
+}
+
+export async function CommunityPulseAsyncSlot({
+  communityId,
+}: {
+  communityId: string;
+}) {
+  const tz = (await headers()).get("x-vercel-ip-timezone") ?? undefined;
+  const [insights, weekly] = await Promise.all([
+    getCachedCommunityInsights(communityId),
+    getCachedCommunityWeeklySummaryWithTrend(communityId, tz),
+  ]);
+  return (
+    <CommunityPulseSlot
+      communityId={communityId}
+      insights={insights}
+      weeklySummaryPayload={weekly}
+    />
+  );
+}
+
+export async function CommunityInviteMembersAsyncSlot({
+  communityId,
+  userId,
+}: {
+  communityId: string;
+  userId: string;
+}) {
+  const inviteUrl = await getCachedCommunityInviteUrl(communityId, userId);
+  return (
+    <InviteMembersPanel communityId={communityId} initialInviteUrl={inviteUrl} />
+  );
+}
+
+export async function CommunityBillboardStreamSlot({
+  communityId,
+  communityName,
+}: {
+  communityId: string;
+  communityName: string;
+}) {
+  const session = await getServerSession(authOptions);
+  const viewerId = session?.user?.id;
+  if (!viewerId) return null;
+  const billboard = await getCachedCommunityBillboardTracksInitial(
+    communityId,
+    viewerId,
+  );
+  return (
+    <CommunityWeeklyBillboardClient
+      communityId={communityId}
+      communityName={communityName}
+      initialType="tracks"
+      initialWeeks={billboard.weeks}
+      initialChartData={billboard.chartData}
+    />
+  );
+}
+
+export async function CommunityMobileWebShellAsync({
+  communityId,
+  viewerId,
+  canInvite,
+  showPromote,
+  communityCreatedBy,
+}: {
+  communityId: string;
+  viewerId: string;
+  canInvite: boolean;
+  showPromote: boolean;
+  communityCreatedBy: string;
+}) {
+  const tz = (await headers()).get("x-vercel-ip-timezone") ?? undefined;
+  const data = await loadCommunityMemberPageData({
+    communityId,
+    userId: viewerId,
+    communityCreatedBy,
+    timeZone: tz,
+    canInvite,
+  });
+  return (
+    <CommunityMobileWebShell
+      communityId={communityId}
+      viewerId={viewerId}
+      canInvite={canInvite}
+      showPromote={showPromote}
+      initialFeedItems={data.feedPreload.items}
+      initialFeedNextOffset={data.feedPreload.nextOffset}
+      initialInsights={data.insights}
+      initialWeeklySummary={data.weekly}
+      initialTasteMatchScore={data.tasteMatchScore}
+      initialMembersPage={data.rosterPage}
+      initialMemberStats={data.memberStats}
+      initialLeaderboard={data.leaderboard}
+      initialInviteUrl={canInvite ? data.inviteUrl : undefined}
+    />
+  );
 }
 
 export async function CommunityInsightsSlot({
@@ -56,7 +157,7 @@ export async function CommunityInsightsSlot({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
-  const insights = await getCommunityInsights(communityId);
+  const insights = await getCachedCommunityInsights(communityId);
   if (!insights) return null;
   return (
     <CommunityInsights
@@ -67,14 +168,15 @@ export async function CommunityInsightsSlot({
 }
 
 /** Desktop “Community pulse”: group listening insights + weekly trends (no album/artist rails). */
-export async function CommunityPulseSlot({
+export function CommunityPulseSlot({
   communityId,
+  insights,
+  weeklySummaryPayload,
 }: {
   communityId: string;
+  insights: CommunityInsightsData | null;
+  weeklySummaryPayload: CommunityWeeklySummaryBundle;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
-  const insights = await getCommunityInsights(communityId);
   return (
     <div className="grid gap-8 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
       {insights ? (
@@ -91,7 +193,11 @@ export async function CommunityPulseSlot({
           </p>
         </div>
       )}
-      <CommunityWeeklySummary communityId={communityId} neutralCopy />
+      <CommunityWeeklySummary
+        communityId={communityId}
+        neutralCopy
+        initialPayload={weeklySummaryPayload}
+      />
     </div>
   );
 }
@@ -107,11 +213,10 @@ export async function CommunityMembersSlot({
   communityCreatedBy: string;
   showPromote: boolean;
 }) {
-  const result = await getCommunityMembersRoster(
+  const result = await getCachedCommunityMembersRosterPage1(
     communityId,
     viewerId,
     communityCreatedBy,
-    { page: 1 },
   );
   if (result.total === 0) {
     return <p className={`${communityBody} text-zinc-500`}>No members to show yet.</p>;
@@ -137,8 +242,8 @@ export async function CommunityLeaderboardSlot({
   communityId: string;
 }) {
   const [leaderboard, memberStats] = await Promise.all([
-    getWeeklyLeaderboard(communityId),
-    getCommunityMemberStatsWithRoles(communityId),
+    getCachedWeeklyLeaderboard(communityId),
+    getCachedCommunityMemberStatsForLeaderboard(communityId),
   ]);
   return (
     <CommunityLeaderboardSection
@@ -156,7 +261,7 @@ export async function CommunityFeedSlot({
   /** When set (e.g. shared with mobile web shell), avoids a second feed query. */
   preload?: CommunityFeedPreload;
 }) {
-  const bundle = preload ?? (await getCommunityFeedPreload(communityId));
+  const bundle = preload ?? (await getCachedCommunityFeedPreload(communityId));
   const initialCommunityFeed = bundle.items;
   const initialFeedNextOffset = bundle.nextOffset;
   if (initialCommunityFeed.length === 0) {

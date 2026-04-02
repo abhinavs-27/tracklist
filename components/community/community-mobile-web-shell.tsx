@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { CommunityCollapsibleWeb } from "@/components/community/community-collapsible-web";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
@@ -10,7 +10,10 @@ import { CommunityMembersSectionClient } from "@/components/community/community-
 import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
 import { InviteMembersPanel } from "@/components/invite-members-panel";
 import type { CommunityInsights as CommunityInsightsData } from "@/lib/community/getCommunityInsights";
+import type { CommunityWeeklySummaryBundle } from "@/lib/community/community-page-cache";
 import type { CommunityFeedItemV2 } from "@/lib/community/community-feed-types";
+import type { CommunityLeaderboardRow } from "@/lib/community/getWeeklyLeaderboard";
+import type { CommunityMemberStatRow } from "@/lib/community/get-community-member-stats";
 import type { CommunityMembersRosterPage } from "@/lib/community/get-community-members-roster";
 import { communityBody, communityMeta } from "@/lib/ui/surface";
 import {
@@ -25,13 +28,14 @@ type Props = {
   showPromote: boolean;
   initialFeedItems: CommunityFeedItemV2[];
   initialFeedNextOffset: number | null;
-};
-
-type WeeklyBundle = {
-  current: {
-    top_genres: { name: string; weight: number }[];
-    top_styles: { style: string; share: number }[];
-  } | null;
+  initialInsights: CommunityInsightsData | null;
+  initialWeeklySummary: CommunityWeeklySummaryBundle;
+  initialTasteMatchScore: number;
+  initialMembersPage: CommunityMembersRosterPage;
+  initialMemberStats: CommunityMemberStatRow[];
+  initialLeaderboard: CommunityLeaderboardRow[];
+  /** When `canInvite` is false, omit (undefined). When true, pass server value (string or null). */
+  initialInviteUrl?: string | null;
 };
 
 const tabPanelClass =
@@ -61,58 +65,33 @@ export function CommunityMobileWebShell({
   showPromote,
   initialFeedItems,
   initialFeedNextOffset,
+  initialInsights,
+  initialWeeklySummary,
+  initialTasteMatchScore,
+  initialMembersPage,
+  initialMemberStats,
+  initialLeaderboard,
+  initialInviteUrl,
 }: Props) {
   const [tab, setTab] = useState<"vibe" | "people" | "activity">("vibe");
-  const [loading, setLoading] = useState(true);
-  const [insights, setInsights] = useState<CommunityInsightsData | null>(null);
-  const [weekly, setWeekly] = useState<WeeklyBundle | null>(null);
-  const [tasteMatchScore, setTasteMatchScore] = useState<number | null>(null);
-  const [membersPage, setMembersPage] =
-    useState<CommunityMembersRosterPage | null>(null);
+  const [insights] = useState<CommunityInsightsData | null>(initialInsights);
+  const [weekly] = useState(() => ({
+    current: initialWeeklySummary.current
+      ? {
+          top_genres: initialWeeklySummary.current.top_genres,
+          top_styles: initialWeeklySummary.current.top_styles,
+        }
+      : null,
+  }));
+  const [tasteMatchScore] = useState<number | null>(initialTasteMatchScore);
+  const [membersPage] = useState<CommunityMembersRosterPage | null>(
+    initialMembersPage,
+  );
 
   const vibeScrollRef = useRef<HTMLDivElement>(null);
   const peopleScrollRef = useRef<HTMLDivElement>(null);
   const activityScrollRef = useRef<HTMLDivElement>(null);
   const scrollMemory = useRef({ vibe: 0, people: 0, activity: 0 });
-
-  const load = useCallback(async () => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const base = `/api/communities/${encodeURIComponent(communityId)}`;
-    try {
-      const [insR, wkR, mtR, memR] = await Promise.all([
-        fetch(`${base}/insights`, { cache: "no-store" }),
-        fetch(`${base}/weekly-summary?timeZone=${encodeURIComponent(tz)}`, {
-          cache: "no-store",
-        }),
-        fetch(`${base}/match`, { cache: "no-store" }),
-        fetch(`${base}/members?page=1`, { cache: "no-store" }),
-      ]);
-
-      if (insR.ok) {
-        const j = (await insR.json()) as { insights?: CommunityInsightsData };
-        setInsights(j.insights ?? null);
-      }
-      if (wkR.ok) {
-        const j = (await wkR.json()) as WeeklyBundle;
-        setWeekly(j);
-      }
-      if (mtR.ok) {
-        const j = (await mtR.json()) as { score?: number };
-        if (typeof j.score === "number") {
-          setTasteMatchScore(j.score);
-        }
-      }
-      if (memR.ok) {
-        setMembersPage((await memR.json()) as CommunityMembersRosterPage);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [communityId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const switchTab = useCallback(
     (next: "vibe" | "people" | "activity") => {
@@ -182,10 +161,6 @@ export function CommunityMobileWebShell({
         aria-hidden={tab !== "vibe"}
       >
         <div className="space-y-4">
-          {loading ? (
-            <CommunityMobileVibeTabSkeleton />
-          ) : (
-            <>
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-emerald-500">
               Community vibe
@@ -201,7 +176,12 @@ export function CommunityMobileWebShell({
             <CommunityTasteMatchCard score={tasteMatchScore} />
           ) : null}
 
-          {canInvite ? <InviteMembersPanel communityId={communityId} /> : null}
+          {canInvite ? (
+            <InviteMembersPanel
+              communityId={communityId}
+              initialInviteUrl={initialInviteUrl}
+            />
+          ) : null}
 
           {insights ? (
             <>
@@ -287,7 +267,7 @@ export function CommunityMobileWebShell({
                 Weighted by group listening
               </p>
             </div>
-            {loading ? null : genres.length === 0 ? (
+            {genres.length === 0 ? (
               <p className={`${communityMeta} text-zinc-500`}>
                 No genre snapshot yet.
               </p>
@@ -344,6 +324,7 @@ export function CommunityMobileWebShell({
               communityId={communityId}
               neutralCopy
               bare
+              initialPayload={initialWeeklySummary}
             />
           </CommunityCollapsibleWeb>
 
@@ -354,8 +335,6 @@ export function CommunityMobileWebShell({
           >
             <CommunityConsensusSection communityId={communityId} embedded />
           </CommunityCollapsibleWeb>
-            </>
-          )}
         </div>
       </div>
 
@@ -371,7 +350,11 @@ export function CommunityMobileWebShell({
             Weekly listen leaders, then everyone here — compatibility vs your
             taste and a standout artist from each profile.
           </p>
-          <CommunityLeaderboardClient communityId={communityId} />
+          <CommunityLeaderboardClient
+            communityId={communityId}
+            initialMemberStats={initialMemberStats}
+            initialLeaderboard={initialLeaderboard}
+          />
           {membersPage && membersPage.total > 0 ? (
             <CommunityMembersSectionClient
               communityId={communityId}
@@ -385,8 +368,6 @@ export function CommunityMobileWebShell({
               embedded
               variant="social"
             />
-          ) : loading ? (
-            <CommunityMobilePeopleTabSkeleton />
           ) : (
             <p className={`${communityBody} text-zinc-500`}>
               No members to show yet.

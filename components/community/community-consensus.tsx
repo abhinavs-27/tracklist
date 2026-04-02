@@ -183,6 +183,10 @@ export function CommunityConsensusSection({
 
         {!loading && items.length > 0 ? (
           <>
+            <p className={`${communityMeta} mb-3 text-zinc-500`}>
+              Order is by consensus score (breadth + capped repeat listening), not
+              by total listens. The number on each row is raw listens in this range.
+            </p>
             <ol className="space-y-2">
               {items.map((row, i) => {
                 const href = itemHref(entity, row);
@@ -211,7 +215,7 @@ export function CommunityConsensusSection({
                         {row.totalPlays > 0 ? (
                           <span className="text-zinc-600">
                             {" "}
-                            · {row.totalPlays.toLocaleString()} plays
+                            · {row.totalPlays.toLocaleString()} total listens
                           </span>
                         ) : null}
                       </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WeeklyBillboardView } from "@/components/charts/weekly-billboard";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
 import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
@@ -20,14 +20,33 @@ export function CommunityWeeklyBillboardClient(props: {
   /** Display name for chart header and share card. */
   communityName: string;
   initialType: ChartType;
+  /** When set with `initialChartData`, avoids duplicate GET charts/weeks + charts on load. */
+  initialWeeks?: WeekOption[];
+  /** Latest chart for `initialType` (or null if none); omit both to fetch client-side only. */
+  initialChartData?: LatestWeeklyChartApiResult | null;
 }) {
+  const serverPrimedWeeks = props.initialWeeks !== undefined;
+  const serverPrimedChart = props.initialChartData !== undefined;
+
   const [chartType, setChartType] = useState<ChartType>(props.initialType);
   const [weekStart, setWeekStart] = useState<string | null>(null);
-  const [weeks, setWeeks] = useState<WeekOption[]>([]);
-  const [data, setData] = useState<LatestWeeklyChartApiResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingWeeks, setLoadingWeeks] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [weeks, setWeeks] = useState<WeekOption[]>(
+    () => props.initialWeeks ?? [],
+  );
+  const [data, setData] = useState<LatestWeeklyChartApiResult | null>(() =>
+    props.initialChartData !== undefined ? props.initialChartData : null,
+  );
+  const [loading, setLoading] = useState(() => !serverPrimedChart);
+  const [loadingWeeks, setLoadingWeeks] = useState(() => !serverPrimedWeeks);
+  const [error, setError] = useState<string | null>(() =>
+    props.initialChartData === undefined
+      ? null
+      : props.initialChartData === null
+        ? "No chart yet — community charts are built each Sunday for the prior week."
+        : null,
+  );
+  const skipWeeksFetchOnce = useRef(props.initialWeeks !== undefined);
+  const skipChartFetchOnce = useRef(props.initialChartData !== undefined);
 
   const base = `/api/communities/${encodeURIComponent(props.communityId)}`;
 
@@ -86,12 +105,28 @@ export function CommunityWeeklyBillboardClient(props: {
   );
 
   useEffect(() => {
+    if (skipWeeksFetchOnce.current) {
+      skipWeeksFetchOnce.current = false;
+      if (props.initialWeeks !== undefined && chartType === props.initialType) {
+        return;
+      }
+    }
     void loadWeeks(chartType);
-  }, [chartType, loadWeeks]);
+  }, [chartType, loadWeeks, props.initialType, props.initialWeeks]);
 
   useEffect(() => {
+    if (skipChartFetchOnce.current) {
+      skipChartFetchOnce.current = false;
+      if (
+        props.initialChartData !== undefined &&
+        chartType === props.initialType &&
+        weekStart === null
+      ) {
+        return;
+      }
+    }
     void loadChart(chartType, weekStart);
-  }, [chartType, weekStart, loadChart]);
+  }, [chartType, weekStart, loadChart, props.initialChartData, props.initialType]);
 
   useEffect(() => {
     if (loadingWeeks || !weekStart || weeks.length === 0) return;

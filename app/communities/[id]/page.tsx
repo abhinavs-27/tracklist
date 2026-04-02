@@ -4,9 +4,12 @@ import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
-import { CommunityWeeklyBillboardClient } from "@/components/community/community-weekly-billboard-client";
 import {
+  CommunityBillboardSkeleton,
   CommunityFeedSkeleton,
+  CommunityMatchSkeleton,
+  CommunityMobileShellSkeleton,
+  CommunityPulseSkeleton,
   CommunitySectionSkeleton,
 } from "@/components/community/community-section-skeleton";
 import { getCommunityById } from "@/lib/community/queries";
@@ -30,16 +33,16 @@ import { communityBody } from "@/lib/ui/surface";
 import { CommunityHero } from "@/components/community/community-hero";
 import { CommunityPageSection } from "@/components/community/community-page-section";
 import { CommunityMemberHeroShell } from "@/components/community/community-member-hero-shell";
-import { InviteMembersPanel } from "@/components/invite-members-panel";
 import { CommunityActions } from "@/components/community/community-actions";
-import { CommunityMobileWebShell } from "@/components/community/community-mobile-web-shell";
 import {
+  CommunityBillboardStreamSlot,
   CommunityFeedSlot,
+  CommunityInviteMembersAsyncSlot,
   CommunityLeaderboardSlot,
   CommunityMembersSlot,
-  CommunityPulseSlot,
-  CommunityTasteMatchSlot,
-  getCommunityFeedPreload,
+  CommunityMobileWebShellAsync,
+  CommunityPulseAsyncSlot,
+  CommunityTasteMatchAsyncSlot,
 } from "./community-async";
 
 export default async function CommunityDetailPage({
@@ -80,9 +83,6 @@ export default async function CommunityDetailPage({
     getCommunityMemberGrowthThisWeek(id),
     getCommunityHeroListeningData(id),
   ]);
-
-  const memberFeedPreload =
-    isMember && session?.user?.id ? await getCommunityFeedPreload(id) : null;
 
   const communityActions = (
     <CommunityActions
@@ -134,16 +134,17 @@ export default async function CommunityDetailPage({
         />
       )}
 
-      {isMember && session?.user?.id && memberFeedPreload ? (
+      {isMember && session?.user?.id ? (
         <div className="lg:hidden">
-          <CommunityMobileWebShell
-            communityId={id}
-            viewerId={session.user.id}
-            canInvite={canInvite}
-            showPromote={showAdminSection}
-            initialFeedItems={memberFeedPreload.items}
-            initialFeedNextOffset={memberFeedPreload.nextOffset}
-          />
+          <Suspense fallback={<CommunityMobileShellSkeleton />}>
+            <CommunityMobileWebShellAsync
+              communityId={id}
+              viewerId={session.user.id}
+              canInvite={canInvite}
+              showPromote={showAdminSection}
+              communityCreatedBy={community.created_by}
+            />
+          </Suspense>
         </div>
       ) : null}
 
@@ -167,17 +168,24 @@ export default async function CommunityDetailPage({
               : "hidden lg:block lg:max-w-xl [&>*]:min-w-0"
           }
         >
-          <Suspense
-            fallback={
-              <div className="h-24 animate-pulse rounded-xl bg-zinc-900/50" />
-            }
-          >
-            <CommunityTasteMatchSlot
+          <Suspense fallback={<CommunityMatchSkeleton />}>
+            <CommunityTasteMatchAsyncSlot
               userId={session.user.id}
               communityId={id}
             />
           </Suspense>
-          {canInvite ? <InviteMembersPanel communityId={id} /> : null}
+          {canInvite ? (
+            <Suspense
+              fallback={
+                <div className="h-28 animate-pulse rounded-xl bg-zinc-900/50 ring-1 ring-white/[0.04]" />
+              }
+            >
+              <CommunityInviteMembersAsyncSlot
+                communityId={id}
+                userId={session.user.id}
+              />
+            </Suspense>
+          ) : null}
         </div>
       ) : null}
 
@@ -187,11 +195,12 @@ export default async function CommunityDetailPage({
           title={`${community.name?.trim() || "Community"} Weekly Chart`}
           description="Top 10 by combined member plays for each Sunday–Saturday UTC week. One drop per week — charts stay fixed after publish."
         >
-          <CommunityWeeklyBillboardClient
-            communityId={id}
-            communityName={community.name?.trim() || "Community"}
-            initialType="tracks"
-          />
+          <Suspense fallback={<CommunityBillboardSkeleton />}>
+            <CommunityBillboardStreamSlot
+              communityId={id}
+              communityName={community.name?.trim() || "Community"}
+            />
+          </Suspense>
         </CommunityPageSection>
       ) : null}
 
@@ -202,12 +211,8 @@ export default async function CommunityDetailPage({
             title="Listening & trends"
             description="Group listening patterns and genre trends — no separate album or artist rails here; see consensus for ranked catalogs."
           >
-            <Suspense
-              fallback={
-                <div className="h-40 animate-pulse rounded-xl bg-zinc-900/50" />
-              }
-            >
-              <CommunityPulseSlot communityId={id} />
+            <Suspense fallback={<CommunityPulseSkeleton />}>
+              <CommunityPulseAsyncSlot communityId={id} />
             </Suspense>
           </CommunityPageSection>
 
@@ -229,11 +234,7 @@ export default async function CommunityDetailPage({
             description="Weekly listen leaders, then the roster with compatibility and a standout artist — same idea as the People tab on small screens."
           >
             <div className="flex flex-col gap-10 [&>*]:min-w-0">
-              <Suspense
-                fallback={
-                  <div className="h-32 animate-pulse rounded-xl bg-zinc-900/50" />
-                }
-              >
+              <Suspense fallback={<CommunitySectionSkeleton />}>
                 <CommunityLeaderboardSlot communityId={id} />
               </Suspense>
               <Suspense fallback={<CommunitySectionSkeleton />}>
@@ -253,10 +254,7 @@ export default async function CommunityDetailPage({
             description="Real-time listens, reviews, and milestones from members — updated as people listen and share."
           >
             <Suspense fallback={<CommunityFeedSkeleton />}>
-              <CommunityFeedSlot
-                communityId={id}
-                preload={memberFeedPreload ?? undefined}
-              />
+              <CommunityFeedSlot communityId={id} />
             </Suspense>
           </CommunityPageSection>
         </div>

@@ -55,7 +55,14 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-export function InviteMembersPanel({ communityId }: { communityId: string }) {
+export function InviteMembersPanel({
+  communityId,
+  initialInviteUrl,
+}: {
+  communityId: string;
+  /** When set (including `null`), skip GET /api/community/invite on mount. */
+  initialInviteUrl?: string | null;
+}) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchUser[]>([]);
   const [searching, setSearching] = useState(false);
@@ -78,6 +85,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
 
   /** Reuse latest invite link from the server so copy is instant (no POST per tap). */
   useEffect(() => {
+    if (initialInviteUrl !== undefined) return;
     let cancelled = false;
     (async () => {
       try {
@@ -98,7 +106,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [communityId]);
+  }, [communityId, initialInviteUrl]);
 
   const runSearch = useCallback(async (query: string) => {
     const t = query.trim();

@@ -6,10 +6,26 @@ import type { CommunityLeaderboardRow } from "@/lib/community/getWeeklyLeaderboa
 import type { CommunityMemberStatRow } from "@/lib/community/get-community-member-stats";
 import { communityBody, communityCard } from "@/lib/ui/surface";
 
-export function CommunityLeaderboardClient({ communityId }: { communityId: string }) {
-  const [memberStats, setMemberStats] = useState<CommunityMemberStatRow[]>([]);
-  const [leaderboard, setLeaderboard] = useState<CommunityLeaderboardRow[]>([]);
-  const [loading, setLoading] = useState(true);
+export function CommunityLeaderboardClient({
+  communityId,
+  initialMemberStats,
+  initialLeaderboard,
+}: {
+  communityId: string;
+  /** When both are set (e.g. from RSC), skip client fetch. */
+  initialMemberStats?: CommunityMemberStatRow[];
+  initialLeaderboard?: CommunityLeaderboardRow[];
+}) {
+  const serverPrimed =
+    initialMemberStats !== undefined && initialLeaderboard !== undefined;
+
+  const [memberStats, setMemberStats] = useState<CommunityMemberStatRow[]>(
+    () => initialMemberStats ?? [],
+  );
+  const [leaderboard, setLeaderboard] = useState<CommunityLeaderboardRow[]>(
+    () => initialLeaderboard ?? [],
+  );
+  const [loading, setLoading] = useState(() => !serverPrimed);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -48,8 +64,12 @@ export function CommunityLeaderboardClient({ communityId }: { communityId: strin
   }, [communityId]);
 
   useEffect(() => {
+    if (serverPrimed) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [load, serverPrimed]);
 
   if (loading) {
     return (

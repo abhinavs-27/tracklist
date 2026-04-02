@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import type { CommunityWeeklySummaryBundle } from "@/lib/community/community-page-cache";
 import type { WeeklySummaryPayload } from "@/lib/community/get-community-weekly-summary";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -27,12 +28,15 @@ export function CommunityWeeklySummary(props: {
   neutralCopy?: boolean;
   /** Omit outer card — use inside a collapsible or grid cell that already has a frame. */
   bare?: boolean;
+  /** When set (e.g. from RSC), skip client fetch for this payload. */
+  initialPayload?: CommunityWeeklySummaryBundle;
 }) {
   const [timeZone, setTimeZone] = useState<string | null>(null);
 
   useEffect(() => {
+    if (props.initialPayload !== undefined) return;
     setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, []);
+  }, [props.initialPayload]);
 
   const { data, isPending, error } = useQuery({
     queryKey: queryKeys.communityWeeklySummary(
@@ -52,14 +56,15 @@ export function CommunityWeeklySummary(props: {
         trend: Trend;
       }>;
     },
-    enabled: !!timeZone,
+    enabled: props.initialPayload === undefined && !!timeZone,
+    initialData: props.initialPayload,
   });
 
   const bare = props.bare === true;
   const wrapClass = bare ? "space-y-6" : communityCard;
   const Wrap: "div" | "section" = bare ? "div" : "section";
 
-  if (!timeZone || isPending) {
+  if (props.initialPayload === undefined && (!timeZone || isPending)) {
     return (
       <Wrap className={wrapClass}>
         <div className="h-24 animate-pulse rounded-xl bg-zinc-800/50 ring-1 ring-white/[0.04]" />
@@ -96,7 +101,7 @@ export function CommunityWeeklySummary(props: {
     );
   }
 
-  const tzLabel = current.activity_local?.timeZone ?? timeZone;
+  const tzLabel = current.activity_local?.timeZone ?? timeZone ?? "UTC";
   const localBuckets = current.activity_local?.buckets;
   const maxShare = localBuckets?.length
     ? Math.max(...localBuckets.map((b) => b.share))
