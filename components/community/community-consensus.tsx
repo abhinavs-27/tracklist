@@ -80,13 +80,11 @@ export function CommunityConsensusSection({
         `/api/communities/${encodeURIComponent(communityId)}/consensus?${q}`,
         { cache: "no-store" },
       );
-      const json = (await res.json().catch(() => null)) as
-        | {
-            items?: ConsensusApiItem[];
-            hasMore?: boolean;
-            error?: string;
-          }
-        | null;
+      const json = (await res.json().catch(() => null)) as {
+        items?: ConsensusApiItem[];
+        hasMore?: boolean;
+        error?: string;
+      } | null;
       if (!res.ok) {
         setError(json?.error ?? "Could not load consensus");
         setItems([]);
@@ -178,21 +176,25 @@ export function CommunityConsensusSection({
         ) : null}
 
         {!loading && items.length === 0 ? (
-          <p className={`${communityBody} text-zinc-500`}>No listens in this range yet.</p>
+          <p className={`${communityBody} text-zinc-500`}>
+            No listens in this range yet.
+          </p>
         ) : null}
 
         {!loading && items.length > 0 ? (
           <>
             <p className={`${communityMeta} mb-3 text-zinc-500`}>
-              Order is by consensus score (breadth + capped repeat listening), not
-              by total listens. The number on each row is raw listens in this range.
+              Order is by consensus score (breadth + capped repeat listening),
+              not by total listens.
             </p>
             <ol className="space-y-2">
               {items.map((row, i) => {
                 const href = itemHref(entity, row);
                 const inner = (
                   <>
-                    <span className={`w-6 shrink-0 tabular-nums ${communityMeta}`}>
+                    <span
+                      className={`w-6 shrink-0 tabular-nums ${communityMeta}`}
+                    >
                       {rankBase + i + 1}
                     </span>
                     {row.image ? (
@@ -208,7 +210,9 @@ export function CommunityConsensusSection({
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className={`font-medium text-white ${communityBody}`}>{row.name}</p>
+                      <p className={`font-medium text-white ${communityBody}`}>
+                        {row.name}
+                      </p>
                       <p className={communityMeta}>
                         {row.uniqueListeners} member
                         {row.uniqueListeners !== 1 ? "s" : ""} listened
@@ -248,7 +252,9 @@ export function CommunityConsensusSection({
               >
                 Previous
               </button>
-              <span className={`min-w-[5rem] text-center tabular-nums ${communityBody} text-zinc-400`}>
+              <span
+                className={`min-w-[5rem] text-center tabular-nums ${communityBody} text-zinc-400`}
+              >
                 Page {page}
               </span>
               <button

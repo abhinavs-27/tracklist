@@ -537,8 +537,6 @@ export function WeeklyBillboardView(props: {
   communityId?: string | null;
   /** Community API: ISO time of next Sunday UTC drop. */
   nextChartDropIso?: string | null;
-  /** Community: display name for page header. */
-  communityName?: string | null;
   /** Community: members with ≥1 listen in the chart window. */
   communityActiveListeners?: number | null;
   /** Community: viewer had ≥1 play during the chart week. */
@@ -572,11 +570,9 @@ export function WeeklyBillboardView(props: {
 
   return (
     <div className="w-full space-y-10 sm:space-y-12">
-      {isCommunity && props.communityName?.trim() ? (
+      {isCommunity &&
+      (props.communityActiveListeners != null || props.viewerContributed) ? (
         <header className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {props.communityName.trim()} Weekly Chart
-          </h2>
           {props.communityActiveListeners != null ? (
             <p className="text-sm text-zinc-400">
               Based on {props.communityActiveListeners.toLocaleString()}{" "}

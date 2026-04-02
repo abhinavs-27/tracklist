@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { CommunityCollapsibleWeb } from "@/components/community/community-collapsible-web";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
@@ -40,9 +40,6 @@ type Props = {
   /** When `canInvite` is false, omit (undefined). When true, pass server value (string or null). */
   initialInviteUrl?: string | null;
 };
-
-const tabPanelClass =
-  "max-h-[min(76dvh,calc(100dvh-17rem))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]";
 
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
@@ -93,44 +90,6 @@ export function CommunityMobileWebShell({
     initialMembersPage,
   );
 
-  const vibeScrollRef = useRef<HTMLDivElement>(null);
-  const peopleScrollRef = useRef<HTMLDivElement>(null);
-  const activityScrollRef = useRef<HTMLDivElement>(null);
-  const scrollMemory = useRef({ vibe: 0, people: 0, activity: 0 });
-
-  const switchTab = useCallback(
-    (next: "vibe" | "people" | "activity") => {
-      if (tab === "vibe" && vibeScrollRef.current) {
-        scrollMemory.current.vibe = vibeScrollRef.current.scrollTop;
-      }
-      if (tab === "people" && peopleScrollRef.current) {
-        scrollMemory.current.people = peopleScrollRef.current.scrollTop;
-      }
-      if (tab === "activity" && activityScrollRef.current) {
-        scrollMemory.current.activity = activityScrollRef.current.scrollTop;
-      }
-      setTab(next);
-    },
-    [tab],
-  );
-
-  useLayoutEffect(() => {
-    const el =
-      tab === "vibe"
-        ? vibeScrollRef.current
-        : tab === "people"
-          ? peopleScrollRef.current
-          : activityScrollRef.current;
-    if (!el) return;
-    const y =
-      tab === "vibe"
-        ? scrollMemory.current.vibe
-        : tab === "people"
-          ? scrollMemory.current.people
-          : scrollMemory.current.activity;
-    el.scrollTop = y;
-  }, [tab]);
-
   const genres = weekly?.current?.top_genres ?? [];
   const styleRows = weekly?.current?.top_styles ?? [];
   const maxG = Math.max(1, ...genres.map((g) => g.weight));
@@ -148,7 +107,7 @@ export function CommunityMobileWebShell({
           <button
             key={id}
             type="button"
-            onClick={() => switchTab(id)}
+            onClick={() => setTab(id)}
             className={`flex-1 rounded-lg py-2.5 text-xs font-semibold transition-all duration-200 ease-out will-change-transform active:scale-[0.98] sm:text-sm ${
               tab === id
                 ? "bg-zinc-800 text-white shadow-sm ring-1 ring-white/10"
@@ -161,27 +120,22 @@ export function CommunityMobileWebShell({
       </div>
 
       <div
-        ref={vibeScrollRef}
-        className={`${tab === "vibe" ? "block" : "hidden"} ${tabPanelClass}`}
+        className={tab === "vibe" ? "block" : "hidden"}
         aria-hidden={tab !== "vibe"}
       >
         <div className="space-y-8">
-          <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/40 to-zinc-950/30 p-1 ring-1 ring-white/[0.04]">
-            <CommunityPageSection
-              className="px-1 sm:px-0"
-              eyebrow="Billboard"
-              title={`${communityName} Weekly Chart`}
-              description="Top 10 by combined member plays each UTC week. Charts lock after publish."
-            >
-              <CommunityWeeklyBillboardClient
-                communityId={communityId}
-                communityName={communityName}
-                initialType="tracks"
-                initialWeeks={initialBillboard.weeks}
-                initialChartData={initialBillboard.chartData}
-              />
-            </CommunityPageSection>
-          </div>
+          <CommunityPageSection
+            eyebrow="Billboard"
+            title={`${communityName} Weekly Chart`}
+            description="Top 10 by combined member plays each UTC week. Charts lock after publish."
+          >
+            <CommunityWeeklyBillboardClient
+              communityId={communityId}
+              initialType="tracks"
+              initialWeeks={initialBillboard.weeks}
+              initialChartData={initialBillboard.chartData}
+            />
+          </CommunityPageSection>
 
           <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/40 to-zinc-950/30 p-1 ring-1 ring-white/[0.04]">
             <CommunityPageSection
@@ -366,8 +320,7 @@ export function CommunityMobileWebShell({
       </div>
 
       <div
-        ref={peopleScrollRef}
-        className={`${tab === "people" ? "block" : "hidden"} ${tabPanelClass}`}
+        className={tab === "people" ? "block" : "hidden"}
         aria-hidden={tab !== "people"}
       >
         <div className="space-y-3">
@@ -404,8 +357,7 @@ export function CommunityMobileWebShell({
       </div>
 
       <div
-        ref={activityScrollRef}
-        className={`${tab === "activity" ? "block" : "hidden"} ${tabPanelClass}`}
+        className={tab === "activity" ? "block" : "hidden"}
         aria-hidden={tab !== "activity"}
       >
         <div className="space-y-3">

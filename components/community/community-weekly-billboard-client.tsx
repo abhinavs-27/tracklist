@@ -17,8 +17,6 @@ type WeekOption = { week_start: string; week_end: string };
 
 export function CommunityWeeklyBillboardClient(props: {
   communityId: string;
-  /** Display name for chart header and share card. */
-  communityName: string;
   initialType: ChartType;
   /** When set with `initialChartData`, avoids duplicate GET charts/weeks + charts on load. */
   initialWeeks?: WeekOption[];
@@ -259,7 +257,6 @@ export function CommunityWeeklyBillboardClient(props: {
           chart_moment={data.chart_moment}
           communityId={props.communityId}
           nextChartDropIso={data.next_chart_drop_iso ?? null}
-          communityName={props.communityName}
           communityActiveListeners={data.community_active_users ?? null}
           viewerContributed={data.viewer_contributed === true}
         />

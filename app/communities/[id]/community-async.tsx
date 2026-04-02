@@ -84,10 +84,8 @@ export async function CommunityInviteMembersAsyncSlot({
 
 export async function CommunityBillboardStreamSlot({
   communityId,
-  communityName,
 }: {
   communityId: string;
-  communityName: string;
 }) {
   const session = await getServerSession(authOptions);
   const viewerId = session?.user?.id;
@@ -99,7 +97,6 @@ export async function CommunityBillboardStreamSlot({
   return (
     <CommunityWeeklyBillboardClient
       communityId={communityId}
-      communityName={communityName}
       initialType="tracks"
       initialWeeks={billboard.weeks}
       initialChartData={billboard.chartData}

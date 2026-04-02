@@ -77,7 +77,7 @@ export function CommunityMobileShellSkeleton() {
           />
         ))}
       </div>
-      <div className="min-h-[min(76dvh,calc(100dvh-17rem))] animate-pulse rounded-xl bg-zinc-900/40 ring-1 ring-white/[0.04]" />
+      <div className="h-48 animate-pulse rounded-xl bg-zinc-900/40 ring-1 ring-white/[0.04]" />
     </div>
   );
 }
