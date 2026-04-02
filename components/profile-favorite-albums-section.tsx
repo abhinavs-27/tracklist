@@ -58,6 +58,7 @@ export function ProfileFavoriteAlbumsSection({
         </p>
       ) : (
         <MediaGrid
+          layout="favoriteAlbums"
           items={favoriteAlbums.map(
             (fav): MediaItem => ({
               id: fav.album_id,

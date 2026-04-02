@@ -21,6 +21,11 @@ type MediaGridProps = {
   items: MediaItem[];
   /** Optional override for grid columns (default: responsive 2/4/6). */
   columns?: number;
+  /**
+   * Profile favorite albums (max 4): avoid lg/xl 5–6 column grids that leave empty “slots”.
+   * Uses 2 cols on small screens, up to 4 from md+.
+   */
+  layout?: "default" | "favoriteAlbums";
   /** Optional click handler; if provided, can be used instead of Link navigation. */
   onItemClick?: (item: MediaItem) => void;
 };
@@ -28,19 +33,23 @@ type MediaGridProps = {
 export function MediaGrid({
   items,
   columns,
+  layout = "default",
   onItemClick,
 }: MediaGridProps) {
   const useLinks = !onItemClick;
 
-  const gridClass = columns
-    ? "grid gap-3 sm:gap-4"
-    : "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+  const gridClass =
+    layout === "favoriteAlbums"
+      ? "grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4"
+      : columns
+        ? "grid gap-3 sm:gap-4"
+        : "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
 
   return (
     <ul
       className={gridClass}
       style={
-        columns != null
+        columns != null && layout !== "favoriteAlbums"
           ? {
               gridTemplateColumns: `repeat(${Math.min(columns, 6)}, minmax(0, 1fr))`,
             }
