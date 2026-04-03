@@ -13,8 +13,10 @@ export async function HomeFeedSection({ userId }: { userId: string }) {
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
   const feedResult = await getFeedForUser(userId, 50, null);
   const { items: feedItems, next_cursor: feedNextCursor } = feedResult;
-  const withNames = await enrichFeedActivitiesWithEntityNames(feedItems);
-  const withAlbums = await enrichListenSessionsWithAlbums(feedItems);
+  const [withNames, withAlbums] = await Promise.all([
+    enrichFeedActivitiesWithEntityNames(feedItems),
+    enrichListenSessionsWithAlbums(feedItems),
+  ]);
   const enrichedItems = withAlbums.map((activity, i) =>
     activity.type === "review" && withNames[i]
       ? {

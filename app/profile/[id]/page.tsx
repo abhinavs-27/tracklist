@@ -102,6 +102,7 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
+  const tHeaderStart = Date.now();
   const [profileSettled, tasteForHero] = await Promise.all([
     Promise.allSettled([
       getFollowCounts(user.id),
@@ -115,6 +116,10 @@ export default async function ProfilePage({
     ]),
     getCachedTasteIdentity(user.id),
   ]);
+  const headerMs = Date.now() - tHeaderStart;
+  if (headerMs > 100) {
+    console.log(`[perf] profile header data resolution ms=${headerMs} userId=${user.id}`);
+  }
 
   const counts =
     profileSettled[0].status === "fulfilled"
