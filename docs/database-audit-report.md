@@ -56,6 +56,9 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `follows` | `(follower_id, created_at DESC)` | `100` | Optimized for "recent follows by a specific follower" and follower listing ordered by date. |
 | `community_members` | `(community_id, created_at)` | `116` | Optimized for community member lists and join date sorting. |
 | `follows` | `(following_id, created_at DESC)` | `116` | Optimized for "recent followers of a user" and follower listing ordered by date. |
+| `lists` | `(user_id, created_at DESC)` | `128` | Optimized for fetching a user's lists ordered by creation date. |
+| `community_members` | `(user_id, role)` | `128` | Optimized for membership lookups by user and role. |
+| `logs` | `(track_id, user_id, listened_at DESC)` | `128` | Reinforces track-scoped user history lookup performance. |
 
 ## Recommendations for Future Queries
 

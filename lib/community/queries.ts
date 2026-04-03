@@ -30,6 +30,7 @@ async function getUserCommunitiesLegacy(
   const to = offset + limit - 1;
   const { data: memberships, error } = await admin
     .from("community_members")
+    // Optimization: exclude user_id as it is in the .eq filter
     .select("community_id, role")
     .eq("user_id", uid)
     .range(from, to);
@@ -60,6 +61,7 @@ async function getUserCommunitiesLegacy(
     ids.map(async (id) => {
       const { count } = await admin
         .from("community_members")
+        // Optimization: use head: true for pure count
         .select("id", { count: "exact", head: true })
         .eq("community_id", id);
       return [id, count ?? 0] as const;
@@ -139,6 +141,7 @@ export async function getCommunityMemberCount(
   const admin = createSupabaseAdminClient();
   const { count, error } = await admin
     .from("community_members")
+    // Optimization: use head: true for pure count
     .select("id", { count: "exact", head: true })
     .eq("community_id", communityId.trim());
   if (error) return 0;
@@ -152,6 +155,7 @@ export async function isCommunityMember(
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("community_members")
+    // Optimization: exclude community_id, user_id as they are in the .eq filters
     .select("id")
     .eq("community_id", communityId.trim())
     .eq("user_id", userId.trim())
@@ -167,6 +171,7 @@ export async function getCommunityMemberRole(
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("community_members")
+    // Optimization: exclude community_id, user_id as they are in the .eq filters
     .select("role")
     .eq("community_id", communityId.trim())
     .eq("user_id", userId.trim())
@@ -255,7 +260,8 @@ export async function joinPublicCommunity(
 
   const { data: c, error: cErr } = await admin
     .from("communities")
-    .select("id, is_private")
+    // Optimization: exclude id as it is in the .eq filter
+    .select("is_private")
     .eq("id", cid)
     .maybeSingle();
   if (cErr || !c) return { ok: false, reason: "not_found" };
@@ -265,6 +271,7 @@ export async function joinPublicCommunity(
 
   const { data: existing } = await admin
     .from("community_members")
+    // Optimization: exclude community_id, user_id as they are in the .eq filters
     .select("id")
     .eq("community_id", cid)
     .eq("user_id", uid)
@@ -302,6 +309,7 @@ export async function listCommunityMembersForSettings(
 
   const { data: rows, error } = await admin
     .from("community_members")
+    // Optimization: exclude community_id as it is in the .eq filter
     .select("user_id, role, created_at")
     .eq("community_id", cid)
     .order("created_at", { ascending: true });

@@ -101,6 +101,7 @@ async function getActivityFeedFallback(
   try {
     const { data: followings, error: followError } = await supabase
       .from("follows")
+      // Optimization: exclude follower_id as it is in the .eq filter
       .select("following_id")
       .eq("follower_id", userId)
       .limit(500);

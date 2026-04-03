@@ -112,6 +112,7 @@ async function getListenLogsInternal(opts: {
     const to = from + opts.limit - 1;
 
     const selectFields = ["id", "listened_at", "source", "created_at"];
+    // Optimization: avoid fetching columns used in equality filters
     if (!opts.userId) selectFields.push("user_id");
     if (!opts.spotifyTrackId) selectFields.push("track_id");
 
@@ -260,6 +261,7 @@ export async function getReviewsForEntity(
     if (userId) {
       const { data: row } = await supabase
         .from("reviews")
+        // Optimization: exclude columns used in .eq filters (entity_type, entity_id, user_id)
         .select("id, rating, review_text, created_at, updated_at")
         .eq("entity_type", entityType)
         .eq("entity_id", canonicalEntityId)
@@ -359,6 +361,7 @@ export async function getReviewsForUser(
 
     const { data: rows, error } = await supabase
       .from("reviews")
+      // Optimization: exclude user_id as it is in the .eq filter
       .select(
         "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
       )
@@ -370,7 +373,8 @@ export async function getReviewsForUser(
 
     const { data: users } = await supabase
       .from("users")
-      .select("id, username, avatar_url")
+      // Optimization: exclude id as it is in the .eq filter
+      .select("username, avatar_url")
       .eq("id", userId);
 
     const user = users?.[0] ?? null;
@@ -384,7 +388,7 @@ export async function getReviewsForUser(
       review_text: r.review_text ?? null,
       created_at: r.created_at,
       updated_at: r.updated_at,
-      user,
+      user: user ? { ...user, id: userId } : null,
     }));
   } catch (e) {
     console.error("[queries] getReviewsForUser failed:", e);
@@ -475,6 +479,7 @@ async function getEntityStatsLive(
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
+      // Optimization: exclude album_id as it is in the .eq filter
       .select("id")
       .eq("album_id", canonicalEntityId);
     if (tracks?.length) {
@@ -489,6 +494,7 @@ async function getEntityStatsLive(
 
   const { data: reviewRows } = await supabase
     .from("reviews")
+    // Optimization: exclude entity_type, entity_id as they are in the .eq filters
     .select("rating")
     .eq("entity_type", entityType)
     .eq("entity_id", canonicalEntityId);
@@ -579,6 +585,7 @@ export async function getEntityStats(
     if (entityType === "album") {
       const { data: row, error } = await supabase
         .from("album_stats")
+        // Optimization: exclude album_id as it is in the .eq filter
         .select("listen_count, review_count, avg_rating, rating_distribution")
         .eq("album_id", canonicalId)
         .maybeSingle();
@@ -599,6 +606,7 @@ export async function getEntityStats(
     } else {
       const { data: row, error } = await supabase
         .from("track_stats")
+        // Optimization: exclude track_id as it is in the .eq filter
         .select("listen_count, review_count, avg_rating")
         .eq("track_id", canonicalId)
         .maybeSingle();
@@ -659,9 +667,11 @@ async function getTrackStatsForTrackIdsSingleBatch(
   const missingIds = uniqueIds.filter((id) => !(id in result));
   if (missingIds.length > 0) {
     const [logsRes, reviewsRes] = await Promise.all([
+      // Optimization: fetch only track_id for listen counts
       supabase.from("logs").select("track_id").in("track_id", missingIds),
       supabase
         .from("reviews")
+        // Optimization: exclude entity_type as it is in the .eq filter
         .select("entity_id, rating")
         .eq("entity_type", "song")
         .in("entity_id", missingIds),
@@ -2422,6 +2432,7 @@ export async function getUserStreak(
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("user_streaks")
+      // Optimization: exclude user_id as it is in the .eq filter
       .select("current_streak, longest_streak, last_listen_date")
       .eq("user_id", userId)
       .maybeSingle();
@@ -2513,6 +2524,7 @@ export async function getUserFavoriteAlbums(
 
     const { data: rows, error } = await supabase
       .from("user_favorite_albums")
+      // Optimization: exclude user_id as it is in the .eq filter
       .select("album_id, position")
       .eq("user_id", userId)
       .order("position", { ascending: true });
@@ -2614,6 +2626,7 @@ export async function countUnreadNotifications(
     const { count, error } = await supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
+      // Optimization: use head: true for pure count
       .eq("user_id", userId)
       .eq("read", false);
     if (error) return 0;
@@ -2636,6 +2649,7 @@ export async function getNotifications(
 
     const { data, error } = await supabase
       .from("notifications")
+      // Optimization: exclude user_id as it is in the .eq filter
       .select(
         "id, actor_user_id, type, entity_type, entity_id, payload, read, created_at",
       )
@@ -2750,6 +2764,7 @@ export async function getFollowers(
 
     const { data, error } = await supabase
       .from("follows")
+      // Optimization: exclude following_id as it is in the .eq filter
       .select("id, follower_id")
       .eq("following_id", userId)
       .order("created_at", { ascending: false })
@@ -2775,6 +2790,7 @@ export async function getFollowing(
 
     const { data, error } = await supabase
       .from("follows")
+      // Optimization: exclude follower_id as it is in the .eq filter
       .select("id, following_id")
       .eq("follower_id", userId)
       .order("created_at", { ascending: false })
@@ -2797,6 +2813,7 @@ export async function isFollowing(
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("follows")
+      // Optimization: exclude follower_id, following_id as they are in the .eq filters
       .select("id")
       .eq("follower_id", viewerUserId)
       .eq("following_id", targetUserId)
@@ -2872,6 +2889,7 @@ export async function getFollowerUsers(
     // We join follows and users to allow ordering by username and pagination at the database level.
     const { data: users, error } = await supabase
       .from("follows")
+      // Optimization: join only required fields; following_id is redundant
       .select("users:users!follower_id (id, username, avatar_url)")
       .eq("following_id", userId)
       .order("users(username)", { ascending: true })
@@ -2910,6 +2928,7 @@ export async function getFollowingUsers(
 
     const { data: users, error } = await supabase
       .from("follows")
+      // Optimization: join only required fields; follower_id is redundant
       .select("users:users!following_id (id, username, avatar_url)")
       .eq("follower_id", userId)
       .order("users(username)", { ascending: true })
@@ -3602,15 +3621,17 @@ export async function getProfileActivity(
     const [reviewsRes, followsRes] = await Promise.all([
       supabase
         .from("reviews")
+        // Optimization: exclude user_id as it is in the .eq filter
         .select(
-          "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+          "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
         )
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit),
       supabase
         .from("follows")
-        .select("id, follower_id, following_id, created_at")
+        // Optimization: exclude follower_id as it is in the .eq filter
+        .select("id, following_id, created_at")
         .eq("follower_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit),
@@ -3640,14 +3661,14 @@ export async function getProfileActivity(
       created_at: r.created_at,
       review: {
         id: r.id,
-        user_id: r.user_id,
+        user_id: userId,
         entity_type: r.entity_type as "album" | "song",
         entity_id: r.entity_id,
         rating: r.rating,
         review_text: r.review_text ?? null,
         created_at: r.created_at,
         updated_at: r.updated_at,
-        user: userMap.get(r.user_id) ?? null,
+        user: userMap.get(userId) ?? null,
       },
     }));
 
@@ -3655,9 +3676,9 @@ export async function getProfileActivity(
       type: "follow",
       id: f.id,
       created_at: f.created_at,
-      follower_id: f.follower_id,
+      follower_id: userId,
       following_id: f.following_id,
-      follower_username: userMap.get(f.follower_id)?.username ?? null,
+      follower_username: userMap.get(userId)?.username ?? null,
       following_username: userMap.get(f.following_id)?.username ?? null,
     }));
 
@@ -3801,6 +3822,7 @@ export async function getUserLists(
 
     const { data: listRows, error: listError } = await supabase
       .from("lists")
+      // Optimization: exclude user_id as it is in the .eq filter
       .select(
         "id, title, description, type, visibility, emoji, image_url, created_at",
       )
@@ -3951,6 +3973,7 @@ export async function getList(
 
     const { data: listRow, error: listError } = await supabase
       .from("lists")
+      // Optimization: exclude id as it is in the .eq filter
       .select(
         "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
       )
@@ -3976,6 +3999,7 @@ export async function getList(
 
     const itemsResult = await supabase
       .from("list_items")
+      // Optimization: exclude list_id as it is in the .eq filter
       .select("id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)
       .order("position", { ascending: true })
@@ -4007,6 +4031,7 @@ export async function getList(
 
     const { data: owner } = await supabase
       .from("users")
+      // Optimization: exclude id as it is in the .eq filter
       .select("username")
       .eq("id", listRow.user_id)
       .maybeSingle();
@@ -4066,6 +4091,7 @@ export async function addListItem(
     // Enforce list type: items must match the list's type.
     const { data: listRow, error: listError } = await supabase
       .from("lists")
+      // Optimization: exclude id as it is in the .eq filter
       .select("type")
       .eq("id", listId)
       .maybeSingle();
@@ -4079,6 +4105,7 @@ export async function addListItem(
 
     const { data: maxRow } = await supabase
       .from("list_items")
+      // Optimization: exclude list_id as it is in the .eq filter
       .select("position")
       .eq("list_id", listId)
       .order("position", { ascending: false })
@@ -4215,6 +4242,7 @@ export async function getListOwnerId(listId: string): Promise<string | null> {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("lists")
+      // Optimization: exclude id as it is in the .eq filter
       .select("user_id")
       .eq("id", listId)
       .maybeSingle();

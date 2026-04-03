@@ -40,6 +40,7 @@ async function loadFollowingIds(
 ): Promise<string[]> {
   const { data } = await admin
     .from("follows")
+    // Optimization: exclude follower_id as it is in the .eq filter
     .select("following_id")
     .eq("follower_id", followerId)
     .limit(500);

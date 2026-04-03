@@ -76,12 +76,14 @@ export async function enrichListenSessionsWithAlbums(
     albumIdList.length > 0
       ? supabase
           .from("albums")
+          // Optimization: select only required fields for display
           .select("id, name, artist_id, image_url")
           .in("id", albumIdList)
       : Promise.resolve({ data: [] as DbAlbum[] }),
     trackIdList.length > 0
       ? supabase
           .from("tracks")
+          // Optimization: select only required fields for display
           .select("id, name, artist_id")
           .in("id", trackIdList)
       : Promise.resolve({ data: [] as DbTrack[] }),

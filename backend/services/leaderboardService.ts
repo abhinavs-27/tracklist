@@ -390,6 +390,7 @@ export async function getLeaderboard(
     if (type === "mostFavorited") {
       let statsQuery = supabase
         .from("entity_stats")
+        // Optimization: exclude entity_type as it is in the .eq filter
         .select("entity_id, favorite_count, play_count, avg_rating")
         .eq("entity_type", "album")
         .order("favorite_count", { ascending: false })

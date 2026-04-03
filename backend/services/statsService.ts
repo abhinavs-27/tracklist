@@ -86,6 +86,7 @@ async function getEntityStatsLive(
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
+      // Optimization: exclude album_id as it is in the .eq filter
       .select("id")
       .eq("album_id", canonicalEntityId);
     if (tracks?.length) {
@@ -100,6 +101,7 @@ async function getEntityStatsLive(
 
   const { data: reviewRows } = await supabase
     .from("reviews")
+    // Optimization: exclude entity_type, entity_id as they are in the .eq filters
     .select("rating")
     .eq("entity_type", entityType)
     .eq("entity_id", canonicalEntityId);
@@ -190,6 +192,7 @@ export async function getEntityStats(
     if (entityType === "album") {
       const { data: row, error } = await supabase
         .from("album_stats")
+        // Optimization: exclude album_id as it is in the .eq filter
         .select("listen_count, review_count, avg_rating, rating_distribution")
         .eq("album_id", canonicalId)
         .maybeSingle();
@@ -210,6 +213,7 @@ export async function getEntityStats(
     } else {
       const { data: row, error } = await supabase
         .from("track_stats")
+        // Optimization: exclude track_id as it is in the .eq filter
         .select("listen_count, review_count, avg_rating")
         .eq("track_id", canonicalId)
         .maybeSingle();
@@ -272,9 +276,11 @@ export async function getTrackStatsForTrackIds(
     const missingIds = uniqueIds.filter((id) => !(id in result));
     if (missingIds.length > 0) {
       const [logsRes, reviewsRes] = await Promise.all([
+        // Optimization: fetch only track_id for listen counts
         supabase.from("logs").select("track_id").in("track_id", missingIds),
         supabase
           .from("reviews")
+          // Optimization: exclude entity_type as it is in the .eq filter
           .select("entity_id, rating")
           .eq("entity_type", "song")
           .in("entity_id", missingIds),
@@ -334,6 +340,7 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
     if (canonicalId) {
       const { data: row } = await supabase
         .from("entity_stats")
+        // Optimization: exclude entity_type, entity_id as they are in the .eq filters
         .select("favorite_count")
         .eq("entity_type", "album")
         .eq("entity_id", canonicalId)
