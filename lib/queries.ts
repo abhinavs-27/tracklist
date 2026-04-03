@@ -2858,6 +2858,56 @@ export async function getFollowCounts(userId: string): Promise<{
   }
 }
 
+/** Detailed profile for a user by username, enriched with viewer context. */
+export async function getFullUserProfile(
+  username: string,
+  viewerId: string | null = null,
+) {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: user, error } = await supabase
+      .from("users")
+      .select(
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+      )
+      .eq("username", username)
+      .single();
+
+    if (error || !user) return null;
+
+    const { followers_count: followers, following_count: following } =
+      await getFollowCounts(user.id);
+
+    let followingStatus = false;
+    if (viewerId && viewerId !== user.id) {
+      const { data: follow, error: followError } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", viewerId)
+        .eq("following_id", user.id)
+        .maybeSingle();
+      if (!followError && follow) {
+        followingStatus = true;
+      }
+    }
+
+    const isOwn = viewerId === user.id;
+
+    return {
+      ...user,
+      lastfm_username: isOwn ? user.lastfm_username ?? null : null,
+      lastfm_last_synced_at: isOwn ? user.lastfm_last_synced_at ?? null : null,
+      followers_count: followers ?? 0,
+      following_count: following ?? 0,
+      is_following: followingStatus,
+      is_own_profile: isOwn,
+    };
+  } catch (e) {
+    console.error("[queries] getFullUserProfile failed:", e);
+    return null;
+  }
+}
+
 /** Users who follow the given user (followers), ordered by username. */
 export async function getFollowerUsers(
   userId: string,

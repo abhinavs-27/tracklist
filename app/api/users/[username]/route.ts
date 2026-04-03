@@ -16,7 +16,7 @@ import {
   validateBio,
   validateAvatarUrl,
 } from "@/lib/validation";
-import { getFollowCounts } from "@/lib/queries";
+import { getFullUserProfile } from "@/lib/queries";
 
 export const GET = withHandler(async (request, { params }) => {
   const { username } = params;
@@ -24,47 +24,12 @@ export const GET = withHandler(async (request, { params }) => {
   if (!isValidUsername(username))
     return apiBadRequest("Invalid username format");
 
-  const supabase = await createSupabaseServerClient();
-  const { data: user, error } = await supabase
-    .from("users")
-    .select(
-      "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
-    )
-    .eq("username", username)
-    .single();
-
-  if (error || !user) return apiNotFound("User not found");
-
-  const { followers_count: followers, following_count: following } =
-    await getFollowCounts(user.id);
-
   const viewer = await getUserFromRequest(request);
-  let isFollowing = false;
-  if (viewer?.id && viewer.id !== user.id) {
-    const { data: follow, error: followError } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", viewer.id)
-      .eq("following_id", user.id)
-      .single();
-    if (followError && followError.code !== "PGRST116") {
-      console.error("User isFollowing lookup error:", followError);
-      return apiInternalError(followError);
-    }
-    isFollowing = !!follow;
-  }
+  const user = await getFullUserProfile(username, viewer?.id);
 
-  const isOwn = viewer?.id === user.id;
+  if (!user) return apiNotFound("User not found");
 
-  return apiOk({
-    ...user,
-    lastfm_username: isOwn ? user.lastfm_username ?? null : null,
-    lastfm_last_synced_at: isOwn ? user.lastfm_last_synced_at ?? null : null,
-    followers_count: followers ?? 0,
-    following_count: following ?? 0,
-    is_following: isFollowing,
-    is_own_profile: isOwn,
-  });
+  return apiOk(user);
 });
 
 export const PATCH = withHandler(

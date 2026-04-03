@@ -61,8 +61,9 @@ export const POST = withHandler(
         console.error('Comment create (fallback) error:', error);
         return apiInternalError(error as { message: string });
       }
-      data = { ...data, user_id: me!.id, review_id: validReviewId };
-    } else if (data) {
+    }
+
+    if (data) {
       data = { ...data, user_id: me!.id, review_id: validReviewId };
     }
 

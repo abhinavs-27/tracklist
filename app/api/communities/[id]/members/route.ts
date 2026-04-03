@@ -18,7 +18,7 @@ export const GET = withHandler(
     const community = await getCommunityById(id);
     if (!community) return apiNotFound("Community not found");
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
 
     const data = await getCommunityMembersRoster(id, me!.id, community.created_by, {
