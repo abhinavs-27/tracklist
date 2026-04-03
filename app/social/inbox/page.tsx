@@ -15,6 +15,7 @@ import {
   resolveThreadListUsernames,
 } from "@/lib/social/threads";
 import { formatRelativeTime } from "@/lib/time";
+import { contentMax2xl } from "@/lib/ui/layout";
 import { pageSubtitle, pageTitle, sectionGap } from "@/lib/ui/surface";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +65,7 @@ export default async function SocialInboxPage({
         className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(16,185,129,0.12),transparent)]"
         aria-hidden
       />
-      <div className={`relative mx-auto max-w-2xl px-4 py-8 sm:px-6 ${sectionGap}`}>
+      <div className={`relative ${contentMax2xl} py-8 ${sectionGap}`}>
       <header className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           <h1 className={pageTitle}>Inbox</h1>

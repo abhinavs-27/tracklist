@@ -22,7 +22,7 @@ export default async function CommunityJoinPage({
   const link = await getInviteLinkByToken(token);
   if (!link || isInviteLinkExpired(link)) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950">
         <div className="max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center">
           <h1 className="text-xl font-semibold text-white">Invite unavailable</h1>
           <p className="mt-3 text-sm text-zinc-400">
@@ -106,7 +106,7 @@ export default async function CommunityJoinPage({
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 px-4 py-12">
+    <div className="min-h-screen bg-zinc-950 py-12">
       <CommunityJoinClient
         token={token}
         initialPreview={initialPreview}

@@ -7,6 +7,7 @@ import { useCallback, useLayoutEffect, useState } from "react";
 import { LastfmConnectModal } from "@/components/onboarding/lastfm-connect-modal";
 import { LastfmSkipWarningDialog } from "@/components/onboarding/lastfm-skip-warning-dialog";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import { contentMax2xl, contentMaxLg } from "@/lib/ui/layout";
 
 type PreviewPayload = {
   community: {
@@ -84,7 +85,7 @@ export function CommunityJoinClient({ token, initialPreview, viewer }: Props) {
 
   if (viewer.joinError) {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl border border-red-900/50 bg-red-950/30 p-8 text-center">
+      <div className={`${contentMaxLg} rounded-2xl border border-red-900/50 bg-red-950/30 p-8 text-center`}>
         <p className="text-red-300">{viewer.joinError}</p>
         <Link
           href="/communities"
@@ -99,7 +100,7 @@ export function CommunityJoinClient({ token, initialPreview, viewer }: Props) {
   const c = initialPreview.community;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className={`${contentMax2xl} space-y-8`}>
       <header className="text-center">
         <p className="text-xs font-medium uppercase tracking-wide text-emerald-500/90">
           Community invite

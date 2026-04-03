@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ChartsClient } from "./charts-client";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
+import { contentMax4xl } from "@/lib/ui/layout";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
 const TYPES: ChartType[] = ["tracks", "artists", "albums"];
@@ -27,7 +28,7 @@ export default async function WeeklyBillboardPage(props: PageProps) {
   const initialWeekStart = sp.weekStart?.trim() || null;
 
   return (
-    <div className={`mx-auto max-w-4xl px-4 py-8 ${sectionGap}`}>
+    <div className={`${contentMax4xl} py-8 ${sectionGap}`}>
       <header>
         <h1 className={pageTitle}>Weekly Billboard</h1>
         <p className="mt-3 max-w-xl text-base text-zinc-400 sm:text-lg">

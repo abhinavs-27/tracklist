@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { pagePadding, pageWidthShell } from "@/lib/ui/layout";
 import { BottomNav } from "./bottom-nav";
 import { TopNav } from "./top-nav";
 
@@ -28,7 +29,7 @@ export function AppLayout({ children, unreadCount, hideQuickLogFab }: Props) {
     <>
       <TopNav unreadCount={unreadCount} />
       <main
-        className={`mx-auto w-full max-w-6xl min-w-0 px-4 pt-6 sm:px-6 sm:pt-8 lg:px-8 ${mainPaddingBottom}`}
+        className={`${pageWidthShell} ${pagePadding} pt-6 sm:pt-8 ${mainPaddingBottom}`}
       >
         {children}
       </main>

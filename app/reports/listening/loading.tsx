@@ -1,8 +1,9 @@
+import { contentMax2xl } from "@/lib/ui/layout";
 import { SkeletonBlock } from "@/components/ui/skeleton";
 
 export default function ListeningReportsLoading() {
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-8">
+    <div className={`${contentMax2xl} space-y-8 py-8`}>
       <SkeletonBlock className="h-4 w-16 rounded" />
 
       <div className="flex flex-wrap items-baseline justify-between gap-4">

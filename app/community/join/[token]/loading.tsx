@@ -1,10 +1,11 @@
+import { contentMax2xl } from "@/lib/ui/layout";
 import { SkeletonBlock } from "@/components/ui/skeleton";
 
 /** Matches invite join layout so navigation doesn’t flash the global feed skeleton. */
 export default function CommunityInviteLoading() {
   return (
-    <div className="min-h-[70vh] bg-zinc-950 px-4 py-12">
-      <div className="mx-auto max-w-2xl space-y-8">
+    <div className="min-h-[70vh] bg-zinc-950 py-12">
+      <div className={`${contentMax2xl} space-y-8`}>
         <header className="text-center">
           <SkeletonBlock className="mx-auto h-3 w-32 rounded-full" />
           <SkeletonBlock className="mx-auto mt-4 h-9 w-3/4 max-w-md rounded-lg" />

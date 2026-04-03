@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { contentMax4xl } from "@/lib/ui/layout";
 import { ListsSearchContent } from "./lists-search-content";
 
 /**
@@ -11,7 +12,7 @@ export default async function ListsPage() {
   const userId = session?.user ? (session.user as { id?: string }).id : null;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className={`${contentMax4xl} space-y-6`}>
       <h1 className="text-2xl font-bold text-white">Browse lists</h1>
       <p className="text-zinc-400">
         Search lists by title. Create and manage your own lists on your profile.

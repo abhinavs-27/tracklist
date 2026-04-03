@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import { NotificationBellLink } from "@/components/notifications/notification-bell-link";
 import { SearchBar } from "@/components/search-bar";
 import { getActiveTab, type PrimaryTab } from "@/lib/navigation";
+import { pageShell } from "@/lib/ui/layout";
 
 const linkBase =
   "rounded-xl px-4 py-2 text-sm font-medium transition touch-manipulation";
@@ -27,7 +28,7 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
   if (onboardingOnly) {
     return (
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-zinc-950/90 backdrop-blur-xl backdrop-saturate-150">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className={`flex ${pageShell} items-center justify-between py-3`}>
           <Link
             href="/"
             className="text-lg font-bold tracking-tight text-white touch-manipulation"
@@ -61,7 +62,7 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
   if (authPage) {
     return (
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-zinc-950/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <div className={`flex ${pageShell} items-center justify-between py-3`}>
           <Link
             href="/"
             className="text-lg font-bold tracking-tight text-white touch-manipulation"
@@ -82,7 +83,9 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-zinc-950/90 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.04)] backdrop-blur-xl backdrop-saturate-150">
       {/* Mobile: logo + search + notifications — primary nav is the bottom tab bar only */}
-      <div className="mx-auto flex min-h-11 max-w-6xl items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6 md:hidden lg:px-8">
+      <div
+        className={`flex min-h-11 ${pageShell} items-center gap-2 py-2.5 sm:gap-3 md:hidden`}
+      >
         <Link
           href="/"
           className="shrink-0 text-base font-bold tracking-tight text-white touch-manipulation sm:text-lg"
@@ -108,7 +111,7 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
       </div>
 
       {/* Desktop */}
-      <div className="mx-auto hidden max-w-6xl px-4 py-3 sm:px-6 md:block lg:px-8">
+      <div className={`hidden ${pageShell} py-3 md:block`}>
         <div className="flex min-h-11 items-center gap-4">
           <Link
             href="/"

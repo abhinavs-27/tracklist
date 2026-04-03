@@ -1,4 +1,9 @@
 import { SkeletonAvatar, SkeletonBlock, SkeletonCard } from "@/components/ui/skeleton";
+import {
+  layoutMainColumn,
+  layoutMainSidebarGrid,
+  layoutSidebarColumn,
+} from "@/lib/ui/layout";
 import { cardElevated } from "@/lib/ui/surface";
 
 export default function ProfileLoading() {
@@ -22,12 +27,12 @@ export default function ProfileLoading() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className={`p-5 ${cardElevated}`}>
+      <div className={layoutMainSidebarGrid}>
+        <div className={`${layoutMainColumn} p-5 ${cardElevated}`}>
           <SkeletonBlock className="mb-3 h-6 w-32" />
           <SkeletonBlock className="h-24 w-full rounded-xl" />
         </div>
-        <div className={`p-5 ${cardElevated}`}>
+        <div className={`${layoutSidebarColumn} p-5 ${cardElevated}`}>
           <SkeletonBlock className="mb-3 h-6 w-36" />
           <div className="flex gap-3 overflow-hidden">
             {Array.from({ length: 4 }).map((_, i) => (

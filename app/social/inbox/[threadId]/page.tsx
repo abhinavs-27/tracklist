@@ -21,6 +21,7 @@ import {
 } from "@/lib/social/threads";
 import { ThreadSendBackCta } from "@/components/social/thread-send-back-cta";
 import { formatRelativeTime } from "@/lib/time";
+import { contentMax2xl } from "@/lib/ui/layout";
 import {
   communityBody,
   communityCard,
@@ -122,7 +123,7 @@ export default async function SocialThreadPage({
         className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(ellipse_70%_50%_at_50%_-5%,rgba(16,185,129,0.1),transparent)]"
         aria-hidden
       />
-      <div className={`relative mx-auto max-w-2xl px-4 py-8 sm:px-6 ${sectionGap}`}>
+      <div className={`relative ${contentMax2xl} py-8 ${sectionGap}`}>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/social/inbox"

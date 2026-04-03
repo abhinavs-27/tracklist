@@ -1,8 +1,9 @@
+import { contentMax2xl } from "@/lib/ui/layout";
 import { SkeletonBlock } from "@/components/ui/skeleton";
 
 export default function CommunityInvitesLoading() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <div className={`${contentMax2xl} space-y-6 py-8`}>
       <SkeletonBlock className="h-4 w-28" />
       <div className="space-y-2">
         <SkeletonBlock className="h-9 w-64" />

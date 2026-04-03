@@ -25,6 +25,11 @@ import {
   type CommunityWeeklySummaryBundle,
 } from "@/lib/community/community-page-cache";
 import type { CommunityInsights as CommunityInsightsData } from "@/lib/community/getCommunityInsights";
+import {
+  layoutMainColumn,
+  layoutMainSidebarGrid,
+  layoutSidebarColumn,
+} from "@/lib/ui/layout";
 import { communityBody } from "@/lib/ui/surface";
 
 export type { CommunityFeedPreload };
@@ -179,26 +184,30 @@ export function CommunityPulseSlot({
   weeklySummaryPayload: CommunityWeeklySummaryBundle;
 }) {
   return (
-    <div className="grid gap-8 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
-      {insights ? (
-        <CommunityInsights
-          insights={insights}
-          hideTopArtists
-          headline="Group listening"
-          description="Last 7 days · by time of day, all members."
+    <div className={layoutMainSidebarGrid}>
+      <div className={layoutMainColumn}>
+        {insights ? (
+          <CommunityInsights
+            insights={insights}
+            hideTopArtists
+            headline="Group listening"
+            description="Last 7 days · by time of day, all members."
+          />
+        ) : (
+          <div className="rounded-xl border border-white/[0.06] bg-zinc-950/40 px-4 py-6 ring-1 ring-white/[0.04]">
+            <p className={`${communityBody} text-zinc-500`}>
+              No group listening snapshot yet.
+            </p>
+          </div>
+        )}
+      </div>
+      <div className={layoutSidebarColumn}>
+        <CommunityWeeklySummary
+          communityId={communityId}
+          neutralCopy
+          initialPayload={weeklySummaryPayload}
         />
-      ) : (
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-950/40 px-4 py-6 ring-1 ring-white/[0.04]">
-          <p className={`${communityBody} text-zinc-500`}>
-            No group listening snapshot yet.
-          </p>
-        </div>
-      )}
-      <CommunityWeeklySummary
-        communityId={communityId}
-        neutralCopy
-        initialPayload={weeklySummaryPayload}
-      />
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   YourCommunitiesSkeleton,
 } from "@/app/communities/your-communities-section";
 import { PageHeading } from "@/components/ui/page-heading";
+import { contentMax2xl } from "@/lib/ui/layout";
 import { sectionGap } from "@/lib/ui/surface";
 
 export default async function CommunitiesPage() {
@@ -23,7 +24,7 @@ export default async function CommunitiesPage() {
   const userId = session.user.id;
 
   return (
-    <div className={`mx-auto max-w-2xl px-2 py-6 sm:px-0 sm:py-8 ${sectionGap}`}>
+    <div className={`${contentMax2xl} py-6 sm:py-8 ${sectionGap}`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeading
           className="mb-0 flex-1 min-w-0 sm:mb-0"

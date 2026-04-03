@@ -1,3 +1,8 @@
+import {
+  layoutMainColumn,
+  layoutMainSidebarGrid,
+  layoutSidebarColumn,
+} from "@/lib/ui/layout";
 import { communityCard } from "@/lib/ui/surface";
 
 /** Loading placeholder for Suspense-bound community sections. */
@@ -24,8 +29,8 @@ export function CommunityMatchSkeleton() {
 /** Insights + weekly summary two-column pulse block. */
 export function CommunityPulseSkeleton() {
   return (
-    <div className="grid gap-8 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
-      <div className={`${communityCard} min-h-[14rem] animate-pulse bg-zinc-900/30`}>
+    <div className={layoutMainSidebarGrid}>
+      <div className={`${communityCard} ${layoutMainColumn} min-h-[14rem] animate-pulse bg-zinc-900/30`}>
         <div className="mb-4 h-5 w-56 rounded bg-zinc-800/70" />
         <div className="space-y-3">
           <div className="h-24 rounded-lg bg-zinc-800/45" />
@@ -35,7 +40,7 @@ export function CommunityPulseSkeleton() {
           </div>
         </div>
       </div>
-      <div className={`${communityCard} min-h-[14rem] animate-pulse bg-zinc-900/30`}>
+      <div className={`${communityCard} ${layoutSidebarColumn} min-h-[14rem] animate-pulse bg-zinc-900/30`}>
         <div className="mb-4 h-5 w-40 rounded bg-zinc-800/70" />
         <div className="space-y-2">
           {[1, 2, 3, 4].map((i) => (

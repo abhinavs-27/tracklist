@@ -1,8 +1,9 @@
-import { SkeletonBlock, SkeletonCard } from "@/components/ui/skeleton";
+import { contentMax4xl } from "@/lib/ui/layout";
+import { SkeletonBlock } from "@/components/ui/skeleton";
 
 export default function ListsLoading() {
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className={`${contentMax4xl} space-y-6`}>
       <SkeletonBlock className="h-9 w-48" />
       <SkeletonBlock className="h-4 w-full max-w-md" />
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">

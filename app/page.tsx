@@ -22,10 +22,10 @@ export default async function HomePage({
   if (!session?.user?.id) {
     return (
       <div className={`flex flex-col items-center justify-center py-24 text-center sm:py-28`}>
-        <h1 className={`px-2 ${pageTitle} max-w-2xl`}>
+        <h1 className={`${pageTitle} max-w-2xl`}>
           Log your music. Share with friends.
         </h1>
-        <p className="mt-6 max-w-md px-2 text-lg text-zinc-400 sm:text-xl">
+        <p className="mt-6 max-w-md text-lg text-zinc-400 sm:text-xl">
           Tracklist is like Letterboxd for music. Search for albums and tracks,
           rate and review your listens, and follow friends to see their activity.
         </p>

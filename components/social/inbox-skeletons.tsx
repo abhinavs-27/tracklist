@@ -1,4 +1,5 @@
 import { SkeletonBlock } from "@/components/ui/skeleton";
+import { contentMax2xl } from "@/lib/ui/layout";
 import { cardElevatedInteractive, sectionGap } from "@/lib/ui/surface";
 
 function InboxRowSkeleton() {
@@ -28,7 +29,7 @@ function InboxRowSkeleton() {
 /** Matches `/social/inbox` layout while the page streams. */
 export function SocialInboxListSkeleton() {
   return (
-    <div className={`mx-auto max-w-2xl px-4 py-8 sm:px-6 ${sectionGap}`}>
+    <div className={`${contentMax2xl} py-8 ${sectionGap}`}>
       <header className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
           <SkeletonBlock className="h-10 w-52 rounded-lg sm:h-11" />
@@ -61,7 +62,7 @@ export function SocialInboxListSkeleton() {
 /** Matches `/social/inbox/[threadId]` while the page streams. */
 export function SocialThreadDetailSkeleton() {
   return (
-    <div className={`mx-auto max-w-2xl px-4 py-8 sm:px-6 ${sectionGap}`}>
+    <div className={`${contentMax2xl} py-8 ${sectionGap}`}>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <SkeletonBlock className="h-9 w-36 rounded-xl" />
         <div className="flex flex-wrap gap-2">

@@ -29,6 +29,11 @@ import {
   type CommunityHeroTopArtist,
 } from "@/lib/community/get-community-hero-data";
 import { isValidUuid } from "@/lib/validation";
+import {
+  layoutMainColumn,
+  layoutMainSidebarGrid,
+  layoutSidebarColumn,
+} from "@/lib/ui/layout";
 import { communityBody } from "@/lib/ui/surface";
 import { CommunityHero } from "@/components/community/community-hero";
 import { CommunityPageSection } from "@/components/community/community-page-section";
@@ -162,32 +167,39 @@ export default async function CommunityDetailPage({
       ) : null}
 
       {session?.user?.id && isMember ? (
-        <div
-          className={
-            canInvite
-              ? "hidden lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 [&>*]:min-w-0"
-              : "hidden lg:block lg:max-w-xl [&>*]:min-w-0"
-          }
-        >
-          <Suspense fallback={<CommunityMatchSkeleton />}>
-            <CommunityTasteMatchAsyncSlot
-              userId={session.user.id}
-              communityId={id}
-            />
-          </Suspense>
-          {canInvite ? (
-            <Suspense
-              fallback={
-                <div className="h-28 animate-pulse rounded-xl bg-zinc-900/50 ring-1 ring-white/[0.04]" />
-              }
-            >
-              <CommunityInviteMembersAsyncSlot
-                communityId={id}
+        canInvite ? (
+          <div className={`max-lg:hidden ${layoutMainSidebarGrid}`}>
+            <div className={layoutMainColumn}>
+              <Suspense fallback={<CommunityMatchSkeleton />}>
+                <CommunityTasteMatchAsyncSlot
+                  userId={session.user.id}
+                  communityId={id}
+                />
+              </Suspense>
+            </div>
+            <div className={layoutSidebarColumn}>
+              <Suspense
+                fallback={
+                  <div className="h-28 animate-pulse rounded-xl bg-zinc-900/50 ring-1 ring-white/[0.04]" />
+                }
+              >
+                <CommunityInviteMembersAsyncSlot
+                  communityId={id}
+                  userId={session.user.id}
+                />
+              </Suspense>
+            </div>
+          </div>
+        ) : (
+          <div className="max-lg:hidden lg:max-w-xl">
+            <Suspense fallback={<CommunityMatchSkeleton />}>
+              <CommunityTasteMatchAsyncSlot
                 userId={session.user.id}
+                communityId={id}
               />
             </Suspense>
-          ) : null}
-        </div>
+          </div>
+        )
       ) : null}
 
       {isMember && session?.user?.id ? (

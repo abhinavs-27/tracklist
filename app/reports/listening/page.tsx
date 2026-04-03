@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { contentMax2xl } from "@/lib/ui/layout";
 import { LIMITS } from "@/lib/validation";
 import { ListeningReportsClient } from "./listening-reports-client";
 
@@ -12,7 +13,7 @@ export default async function ListeningReportsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-8">
+    <div className={`${contentMax2xl} space-y-8 py-8`}>
       <Link href="/you" className="text-sm text-emerald-400 hover:underline">
         ← You
       </Link>

@@ -1,9 +1,10 @@
+import { contentMax2xl } from "@/lib/ui/layout";
 import { SkeletonBlock } from "@/components/ui/skeleton";
 
 /** Shown while a saved report loads (`/reports/shared/[id]`). */
 export default function SharedListeningReportLoading() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <div className={`${contentMax2xl} space-y-6 py-8`}>
       <SkeletonBlock className="h-4 w-40 rounded" />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

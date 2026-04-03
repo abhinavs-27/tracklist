@@ -19,6 +19,11 @@ import { buildWeeklyNarrative } from "@/lib/profile/weekly-narrative";
 import { ProfileListeningReportPreview } from "@/components/profile/profile-listening-report-preview";
 import { ProfilePulseSection } from "@/components/profile/profile-pulse-section";
 import { ProfileWeeklyTopAlbumsSection } from "@/components/profile/profile-weekly-top-albums";
+import {
+  layoutMainColumn,
+  layoutMainSidebarGrid,
+  layoutSidebarColumn,
+} from "@/lib/ui/layout";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import {
   getCachedListeningInsights,
@@ -177,8 +182,8 @@ export async function ProfileDeferredBody({
 
       <div className="space-y-8 sm:space-y-10">
         {isOwnProfile ? (
-          <section className="grid min-w-0 max-w-full gap-4 sm:gap-6 lg:grid-cols-2 lg:items-start">
-            <div className="min-w-0 max-w-full">
+          <section className={`${layoutMainSidebarGrid} min-w-0 max-w-full`}>
+            <div className={layoutMainColumn}>
               <LastfmSection
                 key={`lastfm-${profile.id}`}
                 userId={profile.id}
@@ -187,7 +192,7 @@ export async function ProfileDeferredBody({
                 initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
               />
             </div>
-            <div className="min-w-0 max-w-full">
+            <div className={layoutSidebarColumn}>
               <SimilarUsersSection
                 userId={profile.id}
                 variant="strip"

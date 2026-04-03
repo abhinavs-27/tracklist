@@ -8,6 +8,7 @@ import {
 } from "@/lib/analytics/getListeningReports";
 import type { ReportEntityType, ReportRange } from "@/lib/analytics/listening-report-types";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { contentMax2xl } from "@/lib/ui/layout";
 import { getSavedReportById, parseListeningReportSnapshot } from "@/lib/reports/saved-report";
 import { SharedReportPublicLink } from "./shared-report-public-link";
 import { SharedReportShareButton } from "./shared-report-share-button";
@@ -69,7 +70,7 @@ export default async function SharedListeningReportPage({
   const callbackPath = `/reports/shared/${id}`;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <div className={`${contentMax2xl} space-y-6 py-8`}>
       <Link href="/reports/listening" className="text-sm text-emerald-400 hover:underline">
         ← Listening reports
       </Link>

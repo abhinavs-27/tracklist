@@ -1,8 +1,9 @@
+import { contentMaxMd } from "@/lib/ui/layout";
 import { SkeletonBlock } from "@/components/ui/skeleton";
 
 export default function NewCommunityLoading() {
   return (
-    <div className="mx-auto max-w-md space-y-6 px-4 py-8">
+    <div className={`${contentMaxMd} space-y-6 py-8`}>
       <SkeletonBlock className="h-4 w-28" />
       <SkeletonBlock className="h-9 w-56" />
       <div className="space-y-4">

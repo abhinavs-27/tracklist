@@ -20,7 +20,7 @@ function safeCallbackUrl(raw: string | null): string {
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950">
       <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
         <h1 className="mb-2 text-2xl font-bold tracking-tight text-white">Welcome back</h1>
         <p className="mb-6 text-zinc-400">Sign in with Google to log your music.</p>
