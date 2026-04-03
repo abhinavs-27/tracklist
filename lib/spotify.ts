@@ -116,19 +116,23 @@ export async function getAlbumsWithFetchStats(spotifyIds: string[]): Promise<{
   if (unique.length === 0) {
     return { albums: [], requested: 0, fetchFailures: 0, failedIds: [] };
   }
-  const out: SpotifyApi.AlbumObjectFull[] = [];
+
+  const results = await Promise.allSettled(unique.map((id) => getAlbum(id!)));
+
+  const albums: SpotifyApi.AlbumObjectFull[] = [];
   const failedIds: string[] = [];
   let fetchFailures = 0;
-  for (let i = 0; i < unique.length; i++) {
-    const id = unique[i]!;
-    try {
-      out.push(await getAlbum(id));
-    } catch {
+
+  results.forEach((result, i) => {
+    if (result.status === "fulfilled") {
+      albums.push(result.value);
+    } else {
       fetchFailures += 1;
-      failedIds.push(id);
+      failedIds.push(unique[i]!);
     }
-  }
-  return { albums: out, requested: unique.length, fetchFailures, failedIds };
+  });
+
+  return { albums, requested: unique.length, fetchFailures, failedIds };
 }
 
 export async function getAlbums(
@@ -224,19 +228,25 @@ export async function getTracksWithFetchStats(
   if (unique.length === 0) {
     return { tracks: [], requested: 0, fetchFailures: 0, failedIds: [] };
   }
-  const out: SpotifyApi.TrackObjectFull[] = [];
+
+  const results = await Promise.allSettled(
+    unique.map((id) => getTrack(id!, opts)),
+  );
+
+  const tracks: SpotifyApi.TrackObjectFull[] = [];
   const failedIds: string[] = [];
   let fetchFailures = 0;
-  for (let i = 0; i < unique.length; i++) {
-    const id = unique[i]!;
-    try {
-      out.push(await getTrack(id, opts));
-    } catch {
+
+  results.forEach((result, i) => {
+    if (result.status === "fulfilled") {
+      tracks.push(result.value);
+    } else {
       fetchFailures += 1;
-      failedIds.push(id);
+      failedIds.push(unique[i]!);
     }
-  }
-  return { tracks: out, requested: unique.length, fetchFailures, failedIds };
+  });
+
+  return { tracks, requested: unique.length, fetchFailures, failedIds };
 }
 
 /**
@@ -262,13 +272,15 @@ export async function getArtists(
   assertBatchSize(spotifyIds, "getArtists");
   const unique = [...new Set(spotifyIds)].filter(Boolean);
   if (unique.length === 0) return [];
-  const out: SpotifyApi.ArtistObjectFull[] = [];
-  for (let i = 0; i < unique.length; i++) {
-    try {
-      out.push(await getArtist(unique[i]!, opts));
-    } catch {
-      /* invalid id or API error */
-    }
-  }
-  return out;
+
+  const results = await Promise.allSettled(
+    unique.map((id) => getArtist(id!, opts)),
+  );
+
+  return results
+    .filter(
+      (r): r is PromiseFulfilledResult<SpotifyApi.ArtistObjectFull> =>
+        r.status === "fulfilled",
+    )
+    .map((r) => r.value);
 }

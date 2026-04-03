@@ -129,38 +129,15 @@ export default async function DiscoverPage() {
   const catalogNet =
     process.env.SPOTIFY_REFRESH_DISABLED !== "true";
 
-  const tTracks = Date.now();
-  const trackArr = await getOrFetchTracksBatch(
-    discoverTrackIds,
-    DISCOVER_TRACKS_DB_ONLY,
-  );
-  discoverLog("db getOrFetchTracksBatch (no network)", Date.now() - tTracks);
-
-  const tAlbums = Date.now();
-  const albumArr = await getOrFetchAlbumsBatch(
-    discoverAlbumIds,
-    DISCOVER_CATALOG_OPTS,
-  );
-  discoverLog(
-    catalogNet
-      ? "external getOrFetchAlbumsBatch (Spotify/catalog allowed)"
-      : "db getOrFetchAlbumsBatch (no network)",
-    Date.now() - tAlbums,
-  );
-
-  const tArtists = Date.now();
-  const artistArr =
+  const tCatalog = Date.now();
+  const [trackArr, albumArr, artistArr] = await Promise.all([
+    getOrFetchTracksBatch(discoverTrackIds, DISCOVER_TRACKS_DB_ONLY),
+    getOrFetchAlbumsBatch(discoverAlbumIds, DISCOVER_CATALOG_OPTS),
     risingArtistIds.length > 0
-      ? await getOrFetchArtistsBatch(risingArtistIds, DISCOVER_CATALOG_OPTS)
-      : [];
-  if (risingArtistIds.length > 0) {
-    discoverLog(
-      catalogNet
-        ? "external getOrFetchArtistsBatch (Spotify/catalog allowed)"
-        : "db getOrFetchArtistsBatch (no network)",
-      Date.now() - tArtists,
-    );
-  }
+      ? getOrFetchArtistsBatch(risingArtistIds, DISCOVER_CATALOG_OPTS)
+      : Promise.resolve([]),
+  ]);
+  discoverLog("catalog parallel batch resolution", Date.now() - tCatalog);
 
   const tProcess = Date.now();
   const tracksMap = batchTracksToNormalizedMap(discoverTrackIds, trackArr);

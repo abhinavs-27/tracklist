@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
 
     const { items, next_cursor } = await getMergedActivityFeed(me.id, limit, cursor);
 
-    const withNames = await enrichFeedActivitiesWithEntityNames(items);
-    const withAlbums = await enrichListenSessionsWithAlbums(items);
+    const [withNames, withAlbums] = await Promise.all([
+      enrichFeedActivitiesWithEntityNames(items),
+      enrichListenSessionsWithAlbums(items),
+    ]);
 
     const enrichedList = withAlbums.map((activity, i) =>
       activity.type === "review" && withNames[i]
