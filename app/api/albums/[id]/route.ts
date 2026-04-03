@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { apiBadRequest, apiInternalError, apiNotFound, apiOk } from "@/lib/api-response";
+import { withHandler } from "@/lib/api-handler";
+import { apiBadRequest, apiNotFound, apiOk } from "@/lib/api-response";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import {
   getAlbumEngagementStats,
@@ -8,16 +8,8 @@ import {
 } from "@/lib/queries";
 import { isValidSpotifyId } from "@/lib/validation";
 
-type RouteParams = Promise<{ id: string }>;
-
-export async function GET(
-  request: NextRequest,
-  ctx: {
-    params: RouteParams;
-  },
-) {
-  try {
-    const { id } = await ctx.params;
+export const GET = withHandler(async (_request, { params }) => {
+    const { id } = params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
 
     let albumResp: Awaited<ReturnType<typeof getOrFetchAlbum>>;
@@ -86,8 +78,5 @@ export async function GET(
         items: reviews,
       },
     });
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+});
 
