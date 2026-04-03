@@ -207,7 +207,7 @@ export default async function CommunityDetailPage({
           <CommunityPageSection
             eyebrow="Billboard"
             title={`${community.name?.trim() || "Community"} Weekly Chart`}
-            description="Top 10 by combined member plays for each Sunday–Saturday UTC week. One drop per week — charts stay fixed after publish."
+            description="Top 10 by combined member plays each week."
           >
             <Suspense fallback={<CommunityBillboardSkeleton />}>
               <CommunityBillboardStreamSlot communityId={id} />

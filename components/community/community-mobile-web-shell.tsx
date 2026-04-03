@@ -127,7 +127,7 @@ export function CommunityMobileWebShell({
           <CommunityPageSection
             eyebrow="Billboard"
             title={`${communityName} Weekly Chart`}
-            description="Top 10 by combined member plays each UTC week. Charts lock after publish."
+            description="Top 10 by combined member plays each week."
           >
             <CommunityWeeklyBillboardClient
               communityId={communityId}
@@ -149,172 +149,176 @@ export function CommunityMobileWebShell({
           </div>
 
           <div className="space-y-4">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-emerald-500">
-              Community vibe
-            </p>
-            <p
-              className={`mt-2 text-sm leading-relaxed text-zinc-400 ${communityMeta}`}
-            >
-              What this group sounds like — genres and shared favorites.
-            </p>
-          </div>
-
-          {tasteMatchScore != null ? (
-            <CommunityTasteMatchCard score={tasteMatchScore} />
-          ) : null}
-
-          {canInvite ? (
-            <InviteMembersPanel
-              communityId={communityId}
-              initialInviteUrl={initialInviteUrl}
-            />
-          ) : null}
-
-          {insights ? (
-            <>
-              <div className="rounded-xl border border-emerald-500/15 bg-emerald-950/20 px-3 py-3 ring-1 ring-emerald-500/10">
-                <p
-                  className={`font-medium leading-relaxed text-zinc-100 ${communityBody}`}
-                >
-                  {insights.summary}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-white/[0.08] bg-zinc-950/50 p-3 ring-1 ring-white/[0.05]">
-                  <p className="text-2xl font-extrabold tabular-nums text-emerald-400">
-                    {pct(insights.explorationScore)}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-100">
-                    Exploration
-                  </p>
-                  <p
-                    className={`mt-1 text-xs leading-snug text-zinc-500 ${communityMeta}`}
-                  >
-                    {insights.explorationLabel}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-white/[0.08] bg-zinc-950/50 p-3 ring-1 ring-white/[0.05]">
-                  <p className="text-2xl font-extrabold tabular-nums text-amber-400/90">
-                    {pct(insights.diversityScore)}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-100">
-                    Taste overlap
-                  </p>
-                  <p
-                    className={`mt-1 text-xs leading-snug text-zinc-500 ${communityMeta}`}
-                  >
-                    {insights.diversityLabel}
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/[0.08] bg-zinc-950/40 p-4 ring-1 ring-white/[0.05]">
-                <p className="text-sm font-semibold text-zinc-100">
-                  Listening clock
-                </p>
-                <p className={`mt-1 text-xs text-zinc-500 ${communityMeta}`}>
-                  Strongest: {insights.dominantTime} · by time of day
-                </p>
-                <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-zinc-800">
-                  <div
-                    className="bg-sky-500/90"
-                    style={{
-                      flex: Math.max(1, timeBarPct(insights, "morning")),
-                    }}
-                  />
-                  <div
-                    className="bg-amber-500/90"
-                    style={{
-                      flex: Math.max(1, timeBarPct(insights, "afternoon")),
-                    }}
-                  />
-                  <div
-                    className="bg-violet-500/90"
-                    style={{ flex: Math.max(1, timeBarPct(insights, "night")) }}
-                  />
-                  <div
-                    className="bg-indigo-600/90"
-                    style={{
-                      flex: Math.max(1, timeBarPct(insights, "lateNight")),
-                    }}
-                  />
-                </div>
-                <p
-                  className={`mt-2 text-[11px] text-zinc-500 ${communityMeta}`}
-                >
-                  Morning → afternoon → evening → late night
-                </p>
-              </div>
-            </>
-          ) : null}
-
-          <div className="space-y-2">
             <div>
-              <p className="text-sm font-semibold text-zinc-100">Top genres</p>
-              <p className={`text-xs text-zinc-500 ${communityMeta}`}>
-                Weighted by group listening
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-emerald-500">
+                Community vibe
+              </p>
+              <p
+                className={`mt-2 text-sm leading-relaxed text-zinc-400 ${communityMeta}`}
+              >
+                What this group sounds like — genres and shared favorites.
               </p>
             </div>
-            {genres.length === 0 ? (
-              <p className={`${communityMeta} text-zinc-500`}>
-                No genre snapshot yet.
-              </p>
-            ) : (
-              <ul className="space-y-2.5">
-                {genres.slice(0, 8).map((g) => (
-                  <li key={g.name}>
-                    <p
-                      className={`truncate text-sm font-medium text-zinc-200 ${communityBody}`}
-                    >
-                      {g.name}
-                    </p>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800">
-                      <div
-                        className="h-full rounded-full bg-emerald-500"
-                        style={{
-                          width: `${Math.max(8, (g.weight / maxG) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
 
-          {styleRows.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-zinc-100">
-                Listening styles
-              </p>
-              <p className={`text-xs text-zinc-500 ${communityMeta}`}>
-                Share of group taste
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {styleRows.slice(0, 10).map((s) => (
-                  <span
-                    key={s.style}
-                    className="rounded-full border border-white/[0.08] bg-zinc-900/80 px-3 py-1.5 text-sm font-semibold text-zinc-200"
+            {tasteMatchScore != null ? (
+              <CommunityTasteMatchCard score={tasteMatchScore} />
+            ) : null}
+
+            {canInvite ? (
+              <InviteMembersPanel
+                communityId={communityId}
+                initialInviteUrl={initialInviteUrl}
+              />
+            ) : null}
+
+            {insights ? (
+              <>
+                <div className="rounded-xl border border-emerald-500/15 bg-emerald-950/20 px-3 py-3 ring-1 ring-emerald-500/10">
+                  <p
+                    className={`font-medium leading-relaxed text-zinc-100 ${communityBody}`}
                   >
-                    {s.style} · {Math.round(s.share * 100)}%
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
+                    {insights.summary}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/[0.08] bg-zinc-950/50 p-3 ring-1 ring-white/[0.05]">
+                    <p className="text-2xl font-extrabold tabular-nums text-emerald-400">
+                      {pct(insights.explorationScore)}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-zinc-100">
+                      Exploration
+                    </p>
+                    <p
+                      className={`mt-1 text-xs leading-snug text-zinc-500 ${communityMeta}`}
+                    >
+                      {insights.explorationLabel}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/[0.08] bg-zinc-950/50 p-3 ring-1 ring-white/[0.05]">
+                    <p className="text-2xl font-extrabold tabular-nums text-amber-400/90">
+                      {pct(insights.diversityScore)}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-zinc-100">
+                      Taste overlap
+                    </p>
+                    <p
+                      className={`mt-1 text-xs leading-snug text-zinc-500 ${communityMeta}`}
+                    >
+                      {insights.diversityLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-zinc-950/40 p-4 ring-1 ring-white/[0.05]">
+                  <p className="text-sm font-semibold text-zinc-100">
+                    Listening clock
+                  </p>
+                  <p className={`mt-1 text-xs text-zinc-500 ${communityMeta}`}>
+                    Strongest: {insights.dominantTime} · by time of day
+                  </p>
+                  <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className="bg-sky-500/90"
+                      style={{
+                        flex: Math.max(1, timeBarPct(insights, "morning")),
+                      }}
+                    />
+                    <div
+                      className="bg-amber-500/90"
+                      style={{
+                        flex: Math.max(1, timeBarPct(insights, "afternoon")),
+                      }}
+                    />
+                    <div
+                      className="bg-violet-500/90"
+                      style={{
+                        flex: Math.max(1, timeBarPct(insights, "night")),
+                      }}
+                    />
+                    <div
+                      className="bg-indigo-600/90"
+                      style={{
+                        flex: Math.max(1, timeBarPct(insights, "lateNight")),
+                      }}
+                    />
+                  </div>
+                  <p
+                    className={`mt-2 text-[11px] text-zinc-500 ${communityMeta}`}
+                  >
+                    Morning → afternoon → evening → late night
+                  </p>
+                </div>
+              </>
+            ) : null}
 
-          <CommunityCollapsibleWeb
-            title="Listening & trends"
-            subtitle="Deeper genre snapshot and local-time activity — complements the blocks above."
-            defaultOpen={false}
-          >
-            <CommunityWeeklySummary
-              communityId={communityId}
-              neutralCopy
-              bare
-              initialPayload={initialWeeklySummary}
-            />
-          </CommunityCollapsibleWeb>
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">
+                  Top genres
+                </p>
+                <p className={`text-xs text-zinc-500 ${communityMeta}`}>
+                  Weighted by group listening
+                </p>
+              </div>
+              {genres.length === 0 ? (
+                <p className={`${communityMeta} text-zinc-500`}>
+                  No genre snapshot yet.
+                </p>
+              ) : (
+                <ul className="space-y-2.5">
+                  {genres.slice(0, 8).map((g) => (
+                    <li key={g.name}>
+                      <p
+                        className={`truncate text-sm font-medium text-zinc-200 ${communityBody}`}
+                      >
+                        {g.name}
+                      </p>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                        <div
+                          className="h-full rounded-full bg-emerald-500"
+                          style={{
+                            width: `${Math.max(8, (g.weight / maxG) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {styleRows.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-zinc-100">
+                  Listening styles
+                </p>
+                <p className={`text-xs text-zinc-500 ${communityMeta}`}>
+                  Share of group taste
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {styleRows.slice(0, 10).map((s) => (
+                    <span
+                      key={s.style}
+                      className="rounded-full border border-white/[0.08] bg-zinc-900/80 px-3 py-1.5 text-sm font-semibold text-zinc-200"
+                    >
+                      {s.style} · {Math.round(s.share * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <CommunityCollapsibleWeb
+              title="Listening & trends"
+              subtitle="Deeper genre snapshot and local-time activity — complements the blocks above."
+              defaultOpen={false}
+            >
+              <CommunityWeeklySummary
+                communityId={communityId}
+                neutralCopy
+                bare
+                initialPayload={initialWeeklySummary}
+              />
+            </CommunityCollapsibleWeb>
           </div>
         </div>
       </div>
@@ -373,6 +377,6 @@ export function CommunityMobileWebShell({
           />
         </div>
       </div>
-   </div>
+    </div>
   );
 }
