@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { FavoriteAlbumsEditModal } from "./favorite-albums-edit-modal";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+import { communityCard } from "@/lib/ui/surface";
 import { queryKeys } from "@/lib/query-keys";
 import type { FavoriteAlbum } from "@/lib/queries";
 
@@ -33,7 +34,7 @@ export function ProfileFavoriteAlbumsSection({
   }));
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+    <section className={communityCard}>
       <div className="mb-3 flex items-center justify-between gap-3">
         {showHeading ? (
           <h2 className="text-base font-semibold text-white sm:text-lg">Favorite albums</h2>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { mediaGridTileCard } from "@/lib/ui/surface";
 
 export type MediaItem = {
   id: string;
@@ -101,8 +102,7 @@ export function MediaGrid({
           </>
         );
 
-        const cardClass =
-          "block rounded-lg border border-zinc-800 bg-zinc-900/60 p-2 transition hover:border-emerald-500 hover:bg-zinc-900";
+        const cardClass = `block w-full text-left ${mediaGridTileCard}`;
 
         if (onItemClick) {
           return (
@@ -110,7 +110,7 @@ export function MediaGrid({
               <button
                 type="button"
                 onClick={() => onItemClick(item)}
-                className={`w-full text-left ${cardClass}`}
+                className={cardClass}
               >
                 {content}
               </button>

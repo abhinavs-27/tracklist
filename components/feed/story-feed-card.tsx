@@ -33,7 +33,7 @@ export function StoryFeedCard({ children, className = "" }: StoryFeedCardProps) 
             }
       }
       whileTap={reduceMotion ? undefined : { scale: 0.99 }}
-      className={`origin-center rounded-2xl bg-zinc-900/50 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.07] transition-shadow duration-300 will-change-transform hover:shadow-[0_18px_44px_-12px_rgba(0,0,0,0.5)] hover:ring-white/[0.1] ${className}`}
+      className={`origin-center rounded-2xl bg-zinc-900/62 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.08] transition-shadow duration-300 will-change-transform hover:bg-zinc-900/70 hover:shadow-[0_18px_44px_-12px_rgba(0,0,0,0.5)] hover:ring-white/[0.11] ${className}`}
     >
       {children}
     </motion.div>

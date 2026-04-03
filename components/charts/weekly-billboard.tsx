@@ -11,6 +11,12 @@ import type {
   ChartType,
   WeeklyChartRankingApiRow,
 } from "@/lib/charts/weekly-chart-types";
+import {
+  cardPaddingCompact,
+  cardRadius,
+  chartMoverCard,
+  chartRankingRowShell,
+} from "@/lib/ui/surface";
 
 function repeatStrengthLabel(rs: number | null): string | null {
   if (rs == null) return null;
@@ -306,7 +312,7 @@ const ChartRow = memo(function ChartRow({
   return (
     <li>
       <div
-        className={`overflow-hidden rounded-xl border border-zinc-800/90 bg-zinc-900/30 transition-all duration-150 hover:border-zinc-700/90 hover:bg-zinc-900/55 ${
+        className={`${chartRankingRowShell} ${
           row.has_positive_movement
             ? "border-l-2 border-l-emerald-500/35"
             : ""
@@ -315,7 +321,7 @@ const ChartRow = memo(function ChartRow({
         } ${rowAnim} ${leaderShell}`}
       >
         <div
-          className={`flex p-3 sm:p-4 ${
+          className={`flex ${cardPaddingCompact} ${
             communityMode
               ? "max-md:min-h-16 max-md:flex-row max-md:items-center max-md:gap-3 max-md:py-2.5 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
               : "flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
@@ -478,10 +484,7 @@ const MoversGrid = memo(function MoversGrid({
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       {items.map(({ label, row }) => (
-        <div
-          key={label}
-          className="rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-4 shadow-lg shadow-black/20 transition duration-150 hover:border-zinc-700/80 hover:bg-zinc-900/70"
-        >
+        <div key={label} className={`${chartMoverCard} shadow-lg shadow-black/25`}>
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
             {label}
           </p>
@@ -557,7 +560,7 @@ const BillboardHero = memo(function BillboardHero({
         ? "Album"
         : "Track";
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-6 shadow-2xl shadow-black/50 ring-1 ring-white/5 sm:p-8">
+    <section className={`relative overflow-hidden ${cardRadius} border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-6 shadow-2xl shadow-black/50 ring-1 ring-white/5 sm:p-8`}>
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-amber-500/5 blur-3xl" />
       <p className="relative text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
@@ -601,7 +604,7 @@ const BillboardHero = memo(function BillboardHero({
               <dl className="mt-6 hidden grid-cols-1 gap-3 text-sm sm:grid-cols-3 md:grid">
                 <BillboardHeroStatBlocks leader={leader} />
               </dl>
-              <details className="mt-4 rounded-xl border border-zinc-800/80 bg-black/15 ring-1 ring-white/[0.04] md:hidden">
+              <details className={`mt-4 ${cardRadius} border border-zinc-800/80 bg-black/15 ring-1 ring-white/[0.04] md:hidden`}>
                 <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-medium text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-300">
                   #1 · plays &amp; streaks
                 </summary>
@@ -630,7 +633,7 @@ const NarrativeCard = memo(function NarrativeCard({
   if (lines.length === 0) return null;
   const icons = ["✦", "◆", "◇", "✧"];
   return (
-    <section className="rounded-2xl border border-zinc-800/80 bg-zinc-900/25 p-5 shadow-inner shadow-black/20 sm:p-6">
+    <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-900/30 p-5 shadow-inner shadow-black/25 ring-1 ring-inset ring-white/[0.05] sm:p-6`}>
       <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
         {eyebrow}
       </h3>
@@ -697,7 +700,7 @@ export function WeeklyBillboardView(props: {
 
   if (props.rankings.length === 0) {
     return (
-      <div className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/30 px-6 py-12 text-center">
+      <div className={`w-full ${cardRadius} border border-zinc-800/80 bg-zinc-900/40 px-6 py-12 text-center ring-1 ring-inset ring-white/[0.06]`}>
         <p className="text-base text-zinc-400">
           No chart rows for this week yet.
         </p>
@@ -765,7 +768,7 @@ export function WeeklyBillboardView(props: {
               ))}
             </ol>
             {chartRowsMobileRest.length > 0 ? (
-              <details className="mt-3 rounded-xl border border-zinc-800/80 bg-zinc-950/25 ring-1 ring-white/[0.04] md:hidden">
+              <details className={`mt-3 ${cardRadius} border border-zinc-800/80 bg-zinc-950/30 ring-1 ring-white/[0.05] md:hidden`}>
                 <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-zinc-400 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-200">
                   Show spots 6–10
                 </summary>
@@ -810,7 +813,7 @@ export function WeeklyBillboardView(props: {
         <MoversGrid movers={props.movers} />
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 sm:p-8">
+      <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-950/65 p-6 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-white/[0.06] sm:p-8`}>
         <h3 className="text-lg font-semibold text-white">
           {isCommunity ? "Share chart" : "Share this week"}
         </h3>

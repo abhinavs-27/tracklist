@@ -6,6 +6,7 @@ import type { ReviewWithUser } from '@/types';
 import { formatRelativeTime } from '@/lib/time';
 import { LikeButton } from './like-button';
 import { CommentThread } from './comment-thread';
+import { cardOutlined } from "@/lib/ui/surface";
 
 interface ReviewCardProps {
   review: ReviewWithUser;
@@ -85,7 +86,7 @@ function ReviewCardInner({
   }
 
   return (
-    <article className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 transition-colors hover:bg-zinc-900/70">
+    <article className={cardOutlined}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Link

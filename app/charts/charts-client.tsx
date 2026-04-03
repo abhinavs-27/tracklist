@@ -6,6 +6,7 @@ import { WeeklyBillboardView } from "@/components/charts/weekly-billboard";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
 import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
+import { cardMuted } from "@/lib/ui/surface";
 
 const TABS: { value: ChartType; label: string }[] = [
   { value: "tracks", label: "Tracks" },
@@ -216,7 +217,7 @@ export function ChartsClient(props: {
       {loading ? (
         <p className="text-sm text-zinc-500">Loading chart…</p>
       ) : error ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-6 text-sm text-zinc-400">
+        <div className={`${cardMuted} text-sm text-zinc-400`}>
           {error}
           <p className="mt-3 text-xs text-zinc-600">
             Charts are generated weekly (Sunday UTC) for the prior week. Use

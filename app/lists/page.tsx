@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { contentMax4xl } from "@/lib/ui/layout";
+import { cardMutedCompact, cardOutlined } from "@/lib/ui/surface";
 import { ListsSearchContent } from "./lists-search-content";
 
 /**
@@ -19,7 +20,7 @@ export default async function ListsPage() {
       </p>
 
       {userId && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3">
+        <div className={cardMutedCompact}>
           <Link href="/you" className="text-emerald-400 hover:underline">
             You hub →
           </Link>
@@ -35,7 +36,7 @@ export default async function ListsPage() {
       </section>
 
       {!session && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-6">
+        <div className={cardOutlined}>
           <p className="text-zinc-500">
             <Link href="/auth/signin" className="text-emerald-400 hover:underline">
               Sign in
