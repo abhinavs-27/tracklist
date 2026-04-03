@@ -338,6 +338,8 @@ export function CommunityFeedClient(props: {
   initialNextOffset?: number | null;
   /** Vertical gap between feed cards (Tailwind spacing scale), e.g. `space-y-5` for mobile. */
   listSpacingClassName?: string;
+  /** At 3xl+, use a 2-column grid; section headers span full width. */
+  ultrawideTwoColumn?: boolean;
 }) {
   const pageSize = COMMUNITY_FEED_PAGE_SIZE;
   const reduceMotion = useReducedMotion();
@@ -355,6 +357,10 @@ export function CommunityFeedClient(props: {
   filterRef.current = filter;
 
   const rows = useMemo(() => buildLiveFeedRows(items, filter), [items, filter]);
+
+  const listClassName = props.ultrawideTwoColumn
+    ? "m-0 list-none p-0 space-y-7 3xl:grid 3xl:grid-cols-2 3xl:gap-x-10 3xl:gap-y-8 3xl:space-y-0"
+    : `m-0 list-none p-0 ${props.listSpacingClassName ?? "space-y-7"}`;
 
   const fetchPage = useCallback(
     async (targetPage: number, f: Filter) => {
@@ -502,7 +508,7 @@ export function CommunityFeedClient(props: {
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.ul
             key={`feed-${filter}-${page}`}
-            className={`m-0 list-none p-0 ${props.listSpacingClassName ?? "space-y-7"}`}
+            className={listClassName}
             initial={false}
           >
             {rows.map((row, index) => {
@@ -519,7 +525,14 @@ export function CommunityFeedClient(props: {
 
               if (row.kind === "section") {
                 return (
-                  <motion.li key={row.id} layout {...motionProps}>
+                  <motion.li
+                    key={row.id}
+                    layout
+                    {...motionProps}
+                    className={
+                      props.ultrawideTwoColumn ? "3xl:col-span-full" : undefined
+                    }
+                  >
                     <h3 className={`${communityMetaLabel} pb-1 text-emerald-500/90`}>
                       {row.title}
                     </h3>
@@ -529,7 +542,14 @@ export function CommunityFeedClient(props: {
 
               if (row.kind === "album_listen_cluster") {
                 return (
-                  <motion.li key={row.id} layout {...motionProps}>
+                  <motion.li
+                    key={row.id}
+                    layout
+                    {...motionProps}
+                    className={
+                      props.ultrawideTwoColumn ? "3xl:col-span-full" : undefined
+                    }
+                  >
                     <AlbumListenClusterCard
                       albumId={row.albumId}
                       uniqueUserCount={row.uniqueUserCount}

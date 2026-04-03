@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { memo, useMemo, useState } from "react";
 import { ChartShareActions } from "@/components/charts/chart-share-actions";
 import { ChartShareModal } from "@/components/charts/chart-share-modal";
 import { CommunityChartDropCountdown } from "@/components/community/community-chart-drop-countdown";
 import type { WeeklyChartMoversApi } from "@/lib/charts/get-user-weekly-chart";
 import type { HydratedWeeklyChartDropout } from "@/lib/charts/hydrate-weekly-chart";
+import { isUnknownWeeklyChartEntityId } from "@/lib/charts/weekly-chart-entity-guards";
 import type {
   ChartMomentPayload,
   ChartType,
@@ -17,6 +19,15 @@ import {
   chartMoverCard,
   chartRankingRowShell,
 } from "@/lib/ui/surface";
+
+function catalogHrefForChartEntity(
+  chartType: ChartType,
+  entityId: string,
+): string {
+  if (chartType === "tracks") return `/song/${encodeURIComponent(entityId)}`;
+  if (chartType === "artists") return `/artist/${encodeURIComponent(entityId)}`;
+  return `/album/${encodeURIComponent(entityId)}`;
+}
 
 function repeatStrengthLabel(rs: number | null): string | null {
   if (rs == null) return null;
@@ -257,9 +268,12 @@ function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
 const ChartRow = memo(function ChartRow({
   row,
   communityMode = false,
+  chartType,
 }: {
   row: WeeklyChartRankingApiRow;
   communityMode?: boolean;
+  /** When set with community mode, links image + title to catalog (track / artist / album). */
+  chartType?: ChartType;
 }) {
   const rankMuted = row.rank > 3;
   const rowAnim = communityMode ? communityMovementRowClass(row) : "";
@@ -267,6 +281,13 @@ const ChartRow = memo(function ChartRow({
     communityMode && row.is_number_one
       ? "ring-1 ring-emerald-500/25 shadow-md shadow-emerald-950/20"
       : "";
+
+  const catalogHref =
+    communityMode &&
+    chartType &&
+    !isUnknownWeeklyChartEntityId(row.entity_id)
+      ? catalogHrefForChartEntity(chartType, row.entity_id)
+      : null;
 
   const movementNode = communityMode ? (
     <CommunityRankMovementIndicator row={row} />
@@ -336,33 +357,65 @@ const ChartRow = memo(function ChartRow({
           >
             {row.rank}
           </div>
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            {row.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={row.image}
-                alt=""
-                loading="lazy"
-                className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
-              />
-            ) : (
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14"
-              >
-                —
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-medium text-white">
-                {row.name}
-              </p>
-              {row.artist_name ? (
-                <p className="truncate text-sm text-zinc-500">
-                  {row.artist_name}
+          {catalogHref ? (
+            <Link
+              href={catalogHref}
+              prefetch={false}
+              className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none ring-offset-2 ring-offset-zinc-950 transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-emerald-500/45"
+            >
+              {row.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={row.image}
+                  alt=""
+                  loading="lazy"
+                  className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
+                />
+              ) : (
+                <div
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14"
+                >
+                  —
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-medium text-white group-hover:text-emerald-200/95 group-hover:underline">
+                  {row.name}
                 </p>
-              ) : null}
+                {row.artist_name ? (
+                  <p className="truncate text-sm text-zinc-500">{row.artist_name}</p>
+                ) : null}
+              </div>
+            </Link>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              {row.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={row.image}
+                  alt=""
+                  loading="lazy"
+                  className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
+                />
+              ) : (
+                <div
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14"
+                >
+                  —
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-medium text-white">
+                  {row.name}
+                </p>
+                {row.artist_name ? (
+                  <p className="truncate text-sm text-zinc-500">
+                    {row.artist_name}
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
+          )}
           <div
             className={
               communityMode
@@ -471,8 +524,13 @@ function moverMovementNode(row: MoverStripRow) {
 
 const MoversGrid = memo(function MoversGrid({
   movers,
+  chartType,
+  linkEntities = false,
 }: {
   movers: WeeklyChartMoversApi;
+  chartType: ChartType;
+  /** Community billboard: link mover titles to catalog. */
+  linkEntities?: boolean;
 }) {
   const items: { label: string; row: MoverStripRow }[] = [
     { label: "Biggest jump", row: movers.biggest_jump },
@@ -481,30 +539,55 @@ const MoversGrid = memo(function MoversGrid({
   ];
   const any = items.some((i) => i.row);
   if (!any) return null;
+  function moverHref(r: MoverStripRow): string | null {
+    if (!linkEntities) return null;
+    const id =
+      r && "kind" in r && r.kind === "dropout"
+        ? r.entity_id
+        : r
+          ? (r as WeeklyChartRankingApiRow).entity_id
+          : null;
+    if (!id || isUnknownWeeklyChartEntityId(id)) return null;
+    return catalogHrefForChartEntity(chartType, id);
+  }
+
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      {items.map(({ label, row }) => (
-        <div key={label} className={`${chartMoverCard} shadow-lg shadow-black/25`}>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-            {label}
-          </p>
-          {row ? (
-            <>
-              <p className="mt-2 line-clamp-2 text-base font-semibold text-white">
-                {row.name}
-              </p>
-              {"kind" in row && row.kind === "dropout" ? (
-                <p className="mt-1 text-xs text-zinc-500">
-                  Was #{row.prev_rank} · left the chart
-                </p>
-              ) : null}
-              {moverMovementNode(row)}
-            </>
-          ) : (
-            <p className="mt-2 text-sm text-zinc-600">—</p>
-          )}
-        </div>
-      ))}
+      {items.map(({ label, row }) => {
+        const href = row ? moverHref(row) : null;
+        return (
+          <div key={label} className={`${chartMoverCard} shadow-lg shadow-black/25`}>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+              {label}
+            </p>
+            {row ? (
+              <>
+                {href ? (
+                  <Link
+                    href={href}
+                    prefetch={false}
+                    className="mt-2 block line-clamp-2 text-base font-semibold text-white transition hover:text-emerald-200/95 hover:underline"
+                  >
+                    {row.name}
+                  </Link>
+                ) : (
+                  <p className="mt-2 line-clamp-2 text-base font-semibold text-white">
+                    {row.name}
+                  </p>
+                )}
+                {"kind" in row && row.kind === "dropout" ? (
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Was #{row.prev_rank} · left the chart
+                  </p>
+                ) : null}
+                {moverMovementNode(row)}
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-600">—</p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 });
@@ -545,6 +628,7 @@ type HeroProps = {
   weekLabel: string;
   chartKind: string;
   communityMode?: boolean;
+  chartType?: ChartType;
 };
 
 const BillboardHero = memo(function BillboardHero({
@@ -552,6 +636,7 @@ const BillboardHero = memo(function BillboardHero({
   weekLabel,
   chartKind,
   communityMode = false,
+  chartType,
 }: HeroProps) {
   const entityLabel =
     chartKind === "Artists"
@@ -559,67 +644,111 @@ const BillboardHero = memo(function BillboardHero({
       : chartKind === "Albums"
         ? "Album"
         : "Track";
+  const heroCatalogHref =
+    communityMode &&
+    chartType &&
+    !isUnknownWeeklyChartEntityId(leader.entity_id)
+      ? catalogHrefForChartEntity(chartType, leader.entity_id)
+      : null;
+
+  const heroHeadline = (
+    <>
+      <p className="inline-flex rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-200/90 ring-1 ring-amber-500/25">
+        {communityMode ? "#1" : "#1 this week"}
+      </p>
+      <h2
+        className={`mt-4 text-2xl font-bold leading-tight tracking-tight sm:text-3xl ${heroCatalogHref ? "text-white transition group-hover:text-emerald-200/95 group-hover:underline" : "text-white"}`}
+      >
+        {leader.name}
+      </h2>
+      {leader.artist_name ? (
+        <p className="mt-2 text-sm text-zinc-400 sm:text-base">{leader.artist_name}</p>
+      ) : chartKind === "Artists" ? (
+        <p className="mt-2 text-sm text-zinc-500">
+          {communityMode ? "Top artist" : "Top artist this week"}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-zinc-600">{entityLabel}</p>
+      )}
+    </>
+  );
+
+  const heroImage = leader.image ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={leader.image}
+      alt=""
+      className="h-40 w-40 rounded-xl object-cover shadow-xl ring-1 ring-white/10 sm:h-44 sm:w-44"
+    />
+  ) : (
+    <div className="flex h-40 w-40 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5 sm:h-44 sm:w-44">
+      —
+    </div>
+  );
+
+  const heroStats =
+    communityMode ? (
+      <>
+        <dl className="mt-6 hidden grid-cols-1 gap-3 text-sm sm:grid-cols-3 md:grid">
+          <BillboardHeroStatBlocks leader={leader} />
+        </dl>
+        <details className={`mt-4 ${cardRadius} border border-zinc-800/80 bg-black/15 ring-1 ring-white/[0.04] md:hidden`}>
+          <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-medium text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-300">
+            #1 · plays &amp; streaks
+          </summary>
+          <dl className="grid grid-cols-1 gap-2 border-t border-zinc-800/60 px-3 py-3 text-sm sm:grid-cols-3">
+            <BillboardHeroStatBlocks leader={leader} />
+          </dl>
+        </details>
+      </>
+    ) : (
+      <dl className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+        <BillboardHeroStatBlocks leader={leader} />
+      </dl>
+    );
+
+  const heroBody = (
+    <div className="relative mt-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-10">
+      <div className="flex items-center justify-center sm:scale-105">
+        {heroCatalogHref ? (
+          <Link
+            href={heroCatalogHref}
+            prefetch={false}
+            className="group block rounded-xl outline-none ring-offset-2 ring-offset-zinc-950 transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-emerald-500/45"
+          >
+            {heroImage}
+          </Link>
+        ) : (
+          heroImage
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        {heroCatalogHref ? (
+          <Link
+            href={heroCatalogHref}
+            prefetch={false}
+            className="group block rounded-lg outline-none ring-offset-2 ring-offset-zinc-950 transition hover:bg-white/[0.02] focus-visible:ring-2 focus-visible:ring-emerald-500/45"
+          >
+            {heroHeadline}
+          </Link>
+        ) : (
+          heroHeadline
+        )}
+        {heroStats}
+      </div>
+    </div>
+  );
+
   return (
-    <section className={`relative overflow-hidden ${cardRadius} border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-6 shadow-2xl shadow-black/50 ring-1 ring-white/5 sm:p-8`}>
+    <section
+      className={`relative overflow-hidden ${cardRadius} border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-6 shadow-2xl shadow-black/50 ring-1 ring-white/5 sm:p-8`}
+    >
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-amber-500/5 blur-3xl" />
       <p className="relative text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
         {weekLabel}
       </p>
-      <div className="relative mt-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-10">
-        <div className="flex items-center justify-center sm:scale-105">
-          {leader.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={leader.image}
-              alt=""
-              className="h-40 w-40 rounded-xl object-cover shadow-xl ring-1 ring-white/10 sm:h-44 sm:w-44"
-            />
-          ) : (
-            <div className="flex h-40 w-40 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5 sm:h-44 sm:w-44">
-              —
-            </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="inline-flex rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-200/90 ring-1 ring-amber-500/25">
-            {communityMode ? "#1" : "#1 this week"}
-          </p>
-          <h2 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
-            {leader.name}
-          </h2>
-          {leader.artist_name ? (
-            <p className="mt-2 text-sm text-zinc-400 sm:text-base">
-              {leader.artist_name}
-            </p>
-          ) : chartKind === "Artists" ? (
-            <p className="mt-2 text-sm text-zinc-500">
-              {communityMode ? "Top artist" : "Top artist this week"}
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-zinc-600">{entityLabel}</p>
-          )}
-          {communityMode ? (
-            <>
-              <dl className="mt-6 hidden grid-cols-1 gap-3 text-sm sm:grid-cols-3 md:grid">
-                <BillboardHeroStatBlocks leader={leader} />
-              </dl>
-              <details className={`mt-4 ${cardRadius} border border-zinc-800/80 bg-black/15 ring-1 ring-white/[0.04] md:hidden`}>
-                <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-medium text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-300">
-                  #1 · plays &amp; streaks
-                </summary>
-                <dl className="grid grid-cols-1 gap-2 border-t border-zinc-800/60 px-3 py-3 text-sm sm:grid-cols-3">
-                  <BillboardHeroStatBlocks leader={leader} />
-                </dl>
-              </details>
-            </>
-          ) : (
-            <dl className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-              <BillboardHeroStatBlocks leader={leader} />
-            </dl>
-          )}
-        </div>
-      </div>
+      {heroBody}
     </section>
   );
 });
@@ -737,6 +866,7 @@ export function WeeklyBillboardView(props: {
           weekLabel={props.weekLabel}
           chartKind={props.chartKind}
           communityMode={isCommunity}
+          chartType={props.chartType}
         />
       ) : null}
 
@@ -764,6 +894,7 @@ export function WeeklyBillboardView(props: {
                   key={`${props.weekStartIso}-${row.entity_id}`}
                   row={row}
                   communityMode
+                  chartType={props.chartType}
                 />
               ))}
             </ol>
@@ -778,6 +909,7 @@ export function WeeklyBillboardView(props: {
                       key={`${props.weekStartIso}-${row.entity_id}-more`}
                       row={row}
                       communityMode
+                      chartType={props.chartType}
                     />
                   ))}
                 </ol>
@@ -789,6 +921,7 @@ export function WeeklyBillboardView(props: {
                   key={`${props.weekStartIso}-${row.entity_id}`}
                   row={row}
                   communityMode
+                  chartType={props.chartType}
                 />
               ))}
             </ol>
@@ -810,7 +943,11 @@ export function WeeklyBillboardView(props: {
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
           Biggest movers
         </h3>
-        <MoversGrid movers={props.movers} />
+        <MoversGrid
+          movers={props.movers}
+          chartType={props.chartType}
+          linkEntities={isCommunity}
+        />
       </section>
 
       <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-950/65 p-6 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-white/[0.06] sm:p-8`}>

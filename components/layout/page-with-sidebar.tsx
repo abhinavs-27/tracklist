@@ -11,7 +11,7 @@ type PageWithSidebarProps = {
 };
 
 /**
- * Desktop (lg+): 12-column grid — main 8, sidebar 4 inside max-w-6xl page shell.
+ * Desktop (lg+): 12-column grid — main 8, sidebar 4 inside the global page shell (`pageWidthShell`).
  * Below lg: stacked sections with relaxed vertical gap (`layoutStackGap`).
  */
 export function PageWithSidebar({ main, sidebar }: PageWithSidebarProps) {

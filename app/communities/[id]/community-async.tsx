@@ -3,8 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { CommunityFeedClient } from "@/components/community/community-feed-client";
 import { CommunityInsights } from "@/components/community/CommunityInsights";
+import { CommunityInsightsCompact } from "@/components/community/community-insights-compact";
 import { CommunityWeeklySummary } from "@/components/community/community-weekly-summary";
+import { CommunityWeeklySidebarTeaser } from "@/components/community/community-weekly-sidebar-teaser";
+import { CommunityLeaderboardList } from "@/components/community/community-leaderboard-list";
 import { CommunityLeaderboardSection } from "@/components/community/community-leaderboard-section";
+import { CommunityStatsCard } from "@/components/community/community-stats-card";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { CommunityMembersSectionClient } from "@/components/community/community-members-section-client";
 import { CommunityMobileWebShell } from "@/components/community/community-mobile-web-shell";
@@ -30,7 +34,12 @@ import {
   layoutMainSidebarGrid,
   layoutSidebarColumn,
 } from "@/lib/ui/layout";
-import { communityBody } from "@/lib/ui/surface";
+import {
+  communityBody,
+  communityCard,
+  communityHeadline,
+  communityMeta,
+} from "@/lib/ui/surface";
 
 export type { CommunityFeedPreload };
 
@@ -84,6 +93,85 @@ export async function CommunityInviteMembersAsyncSlot({
   const inviteUrl = await getCachedCommunityInviteUrl(communityId, userId);
   return (
     <InviteMembersPanel communityId={communityId} initialInviteUrl={inviteUrl} />
+  );
+}
+
+/** Desktop right rail: stats, invite, contributors, compact insights (chart rail holds taste + weekly). */
+export async function CommunityDesktopSidebarSlot({
+  communityId,
+  viewerId,
+  canInvite,
+  memberCount,
+  membersJoinedThisWeek,
+}: {
+  communityId: string;
+  viewerId: string;
+  canInvite: boolean;
+  memberCount: number;
+  membersJoinedThisWeek: number;
+}) {
+  const [insights, [leaderboard, memberStats], inviteUrl] = await Promise.all([
+    getCachedCommunityInsights(communityId),
+    Promise.all([
+      getCachedWeeklyLeaderboard(communityId),
+      getCachedCommunityMemberStatsForLeaderboard(communityId),
+    ]),
+    canInvite
+      ? getCachedCommunityInviteUrl(communityId, viewerId)
+      : Promise.resolve<string | null>(null),
+  ]);
+
+  return (
+    <div
+      className="flex min-w-0 max-w-full flex-col gap-4 overflow-x-clip"
+      role="complementary"
+      aria-label="Community sidebar"
+    >
+      <CommunityStatsCard
+        memberCount={memberCount}
+        membersJoinedThisWeek={membersJoinedThisWeek}
+      />
+      {canInvite ? (
+        <InviteMembersPanel
+          communityId={communityId}
+          initialInviteUrl={inviteUrl}
+        />
+      ) : null}
+      <section className={communityCard}>
+        <h3 className={communityHeadline}>Top contributors</h3>
+        <p className={`mt-1 mb-4 ${communityMeta}`}>
+          Last 7 days · by listens
+        </p>
+        <CommunityLeaderboardList
+          memberStats={memberStats}
+          leaderboard={leaderboard}
+          maxRows={5}
+          variant="sidebar"
+        />
+      </section>
+      {insights ? <CommunityInsightsCompact insights={insights} /> : null}
+    </div>
+  );
+}
+
+/** Main column between billboard and feed: taste match + weekly snapshot (uses chart rail width). */
+export async function CommunityDesktopChartRailSlot({
+  communityId,
+  viewerId,
+}: {
+  communityId: string;
+  viewerId: string;
+}) {
+  const tz = (await headers()).get("x-vercel-ip-timezone") ?? undefined;
+  const [tasteMatch, weekly] = await Promise.all([
+    getCachedCommunityMatch(viewerId, communityId),
+    getCachedCommunityWeeklySummaryWithTrend(communityId, tz),
+  ]);
+  return (
+    <div className="flex min-w-0 flex-col gap-6">
+      <CommunityTasteMatchSlot score={tasteMatch.score} />
+      <CommunityWeeklySidebarTeaser payload={weekly} />
+    </div>
   );
 }
 
@@ -266,10 +354,13 @@ export async function CommunityLeaderboardSlot({
 export async function CommunityFeedSlot({
   communityId,
   preload,
+  ultrawideTwoColumn,
 }: {
   communityId: string;
   /** When set (e.g. shared with mobile web shell), avoids a second feed query. */
   preload?: CommunityFeedPreload;
+  /** At 3xl+, render feed cards in two columns (desktop community page). */
+  ultrawideTwoColumn?: boolean;
 }) {
   const bundle = preload ?? (await getCachedCommunityFeedPreload(communityId));
   const initialCommunityFeed = bundle.items;
@@ -282,6 +373,7 @@ export async function CommunityFeedSlot({
       communityId={communityId}
       initialItems={initialCommunityFeed}
       initialNextOffset={initialFeedNextOffset}
+      ultrawideTwoColumn={ultrawideTwoColumn}
     />
   );
 }

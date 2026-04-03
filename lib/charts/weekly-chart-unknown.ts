@@ -1,18 +1,6 @@
-import {
-  UNKNOWN_ALBUM_ENTITY,
-  UNKNOWN_ARTIST_ENTITY,
-  UNKNOWN_TRACK_ENTITY,
-} from "@/lib/analytics/build-listening-report";
+import { isUnknownWeeklyChartEntityId } from "./weekly-chart-entity-guards";
 
-/** Synthetic / unresolved bucket ids (no `name` required). */
-export function isUnknownWeeklyChartEntityId(entityId: string): boolean {
-  return (
-    entityId === UNKNOWN_TRACK_ENTITY ||
-    entityId === UNKNOWN_ALBUM_ENTITY ||
-    entityId === UNKNOWN_ARTIST_ENTITY ||
-    entityId.startsWith("__tl_")
-  );
-}
+export { isUnknownWeeklyChartEntityId };
 
 /** Rows we never surface in the API/UI (synthetic or unresolved catalog). */
 export function isUnknownWeeklyChartRow(r: {

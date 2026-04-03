@@ -2,7 +2,7 @@
 
 /*
  * Responsive breakpoints (Tailwind v4 defaults — align with design spec):
- *   sm: 640px  ·  md: 768px  ·  lg: 1024px  ·  xl: 1280px
+ *   sm: 640px  ·  md: 768px  ·  lg: 1024px  ·  xl: 1280px  ·  3xl: 1800px
  * Customize via @theme if you need different values (keep units consistent).
  */
 
@@ -20,6 +20,8 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --shadow-elevated: var(--surface-elevated);
+  /* 1800px — ultra-wide community / dashboard layouts */
+  --breakpoint-3xl: 112.5rem;
 }
 
 @media (prefers-color-scheme: dark) {

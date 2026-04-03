@@ -26,7 +26,10 @@ export function CommunityPageSection({
   className = "",
 }: Props) {
   return (
-    <section id={id} className={`scroll-mt-6 ${className}`}>
+    <section
+      id={id}
+      className={`${id ? "scroll-mt-28 3xl:scroll-mt-36" : "scroll-mt-6"} ${className}`}
+    >
       <header className="mb-5 border-b border-white/[0.06] pb-4 sm:mb-6 sm:pb-5">
         {eyebrow ? <p className={communityMetaLabel}>{eyebrow}</p> : null}
         <h2 className={sectionTitle}>{title}</h2>

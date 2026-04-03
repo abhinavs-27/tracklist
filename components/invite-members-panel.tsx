@@ -73,8 +73,13 @@ export function InviteMembersPanel({
   } | null>(null);
 
   const [linkBusy, setLinkBusy] = useState(false);
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [invitePrefetchDone, setInvitePrefetchDone] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(() =>
+    typeof initialInviteUrl === "string" ? initialInviteUrl : null,
+  );
+  /** When the server passed `initialInviteUrl` (including `null`), skip client GET — button must not stay on “Loading…”. */
+  const [invitePrefetchDone, setInvitePrefetchDone] = useState(
+    () => initialInviteUrl !== undefined,
+  );
   const [justCopied, setJustCopied] = useState(false);
 
   useEffect(() => {
@@ -83,7 +88,14 @@ export function InviteMembersPanel({
     return () => window.clearTimeout(t);
   }, [justCopied]);
 
-  /** Reuse latest invite link from the server so copy is instant (no POST per tap). */
+  /** Sync if parent re-passes URL; reuse server value when defined so copy is instant (no extra GET). */
+  useEffect(() => {
+    if (initialInviteUrl === undefined) return;
+    setInviteUrl(typeof initialInviteUrl === "string" ? initialInviteUrl : null);
+    setInvitePrefetchDone(true);
+  }, [initialInviteUrl]);
+
+  /** Client-only: prefetch when parent did not supply `initialInviteUrl`. */
   useEffect(() => {
     if (initialInviteUrl !== undefined) return;
     let cancelled = false;
@@ -91,6 +103,7 @@ export function InviteMembersPanel({
       try {
         const res = await fetch(
           `/api/community/invite?communityId=${encodeURIComponent(communityId)}`,
+          { credentials: "include" },
         );
         const data = (await res.json().catch(() => ({}))) as {
           invite_url?: string | null;
