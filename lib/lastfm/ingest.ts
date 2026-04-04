@@ -8,6 +8,7 @@ import { fetchLastfmRecentTracksSafe } from "@/lib/lastfm/fetch-recent";
 import type { LastfmNormalizedScrobble } from "@/lib/lastfm/types";
 import { syncBatchLogSideEffects } from "@/lib/sync-manual-log-side-effects";
 import { DEFAULT_SCROBBLE_DEDUP_MS } from "@/lib/lastfm/dedupe";
+import { isValidUuid } from "@/lib/validation";
 
 import {
   findAlbumIdByArtistAndName,
@@ -31,10 +32,23 @@ export type IngestLastfmResult = {
   skipped: number;
 };
 
+/** One scrobble row for dedupe (logs + listens). */
+type LfmDedupeEntry = {
+  songId: string;
+  listenedAt: string;
+};
+
+/**
+ * Drop scrobbles that already have a matching `logs` or `listens` row (same user, same song, same time window).
+ *
+ * - `logs.track_id` is UUID-only: never pass synthetic `lfm:*` into `.in("track_id", …)`.
+ * - When no UUID mapping exists yet, still check `listens` (artist/track + time) and a wide `logs` scan
+ *   joined via `track_external_ids` so we do not double-import after a partial run.
+ */
 async function filterAgainstExistingLfmLogs(
   supabase: SupabaseClient,
   userId: string,
-  entries: { songId: string; listenedAt: string }[],
+  entries: LfmDedupeEntry[],
   windowMs: number = DEFAULT_SCROBBLE_DEDUP_MS,
 ): Promise<typeof entries> {
   if (entries.length === 0) return [];
@@ -51,11 +65,12 @@ async function filterAgainstExistingLfmLogs(
       (r as { track_id: string }).track_id,
     ]),
   );
-  const trackIds = [
-    ...new Set(
-      lfmSongKeys.map((k) => lfmToCanon.get(k) ?? k),
-    ),
-  ];
+  /** Canonical track UUID → Last.fm external id (for log rows). */
+  const trackToLfm = new Map<string, string>();
+  for (const [ext, tid] of lfmToCanon) {
+    if (isValidUuid(tid)) trackToLfm.set(tid, ext);
+  }
+
   const times = entries
     .map((e) => new Date(e.listenedAt).getTime())
     .filter((t) => !Number.isNaN(t));
@@ -63,32 +78,117 @@ async function filterAgainstExistingLfmLogs(
 
   const minT = Math.min(...times) - windowMs;
   const maxT = Math.max(...times) + windowMs;
+  const minIso = new Date(minT).toISOString();
+  const maxIso = new Date(maxT).toISOString();
 
-  const { data, error } = await supabase
-    .from("logs")
-    .select("track_id, listened_at")
-    .eq("user_id", userId)
-    .in("track_id", trackIds)
-    .gte("listened_at", new Date(minT).toISOString())
-    .lte("listened_at", new Date(maxT).toISOString());
+  const uuidSet = [...new Set([...lfmToCanon.values()].filter(isValidUuid))];
 
-  if (error) {
-    console.warn("[lastfm ingest] filter existing logs failed", error);
-    return entries;
+  const logHits: { track_id: string; listened_at: string }[] = [];
+
+  let logsByUuidFailed = false;
+  if (uuidSet.length > 0) {
+    const { data, error } = await supabase
+      .from("logs")
+      .select("track_id, listened_at")
+      .eq("user_id", userId)
+      .in("track_id", uuidSet)
+      .gte("listened_at", minIso)
+      .lte("listened_at", maxIso);
+
+    if (error) {
+      logsByUuidFailed = true;
+      console.warn("[lastfm ingest] filter existing logs (by uuid) failed", error);
+    } else {
+      logHits.push(...((data ?? []) as { track_id: string; listened_at: string }[]));
+    }
   }
 
-  const existing = (data ?? []) as { track_id: string; listened_at: string }[];
+  /**
+   * When no Last.fm→UUID mapping exists yet, or the narrow query failed: scan logs in the time
+   * window and keep rows whose `track_id` links to one of our `lfm:*` keys (via `track_external_ids`).
+   */
+  if (lfmSongKeys.length > 0 && (uuidSet.length === 0 || logsByUuidFailed)) {
+    const { data: windowLogs, error: winErr } = await supabase
+      .from("logs")
+      .select("track_id, listened_at")
+      .eq("user_id", userId)
+      .gte("listened_at", minIso)
+      .lte("listened_at", maxIso);
+
+    if (winErr) {
+      console.warn("[lastfm ingest] filter existing logs (window scan) failed", winErr);
+    } else if ((windowLogs ?? []).length > 0) {
+      const tids = [
+        ...new Set(
+          (windowLogs ?? []).map((w) => (w as { track_id: string }).track_id),
+        ),
+      ];
+      const { data: te } = await supabase
+        .from("track_external_ids")
+        .select("track_id, external_id")
+        .eq("source", "lastfm")
+        .in("track_id", tids)
+        .in("external_id", lfmSongKeys);
+
+      const allowed = new Set(
+        (te ?? []).map((r) => (r as { track_id: string }).track_id),
+      );
+      for (const r of te ?? []) {
+        const row = r as { track_id: string; external_id: string };
+        trackToLfm.set(row.track_id, row.external_id);
+      }
+      for (const w of windowLogs ?? []) {
+        const row = w as { track_id: string; listened_at: string };
+        if (allowed.has(row.track_id)) logHits.push(row);
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const existingLogs: { track_id: string; listened_at: string }[] = [];
+  for (const h of logHits) {
+    const k = `${h.track_id}\0${h.listened_at}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    existingLogs.push(h);
+  }
+
+  const { data: listenRows, error: listenErr } = await supabase
+    .from("listens")
+    .select("artist_name, track_name, listened_at")
+    .eq("user_id", userId)
+    .eq("source", "lastfm")
+    .gte("listened_at", minIso)
+    .lte("listened_at", maxIso);
+
+  if (listenErr) {
+    console.warn("[lastfm ingest] filter existing listens failed", listenErr);
+  }
+
+  const listens = (listenRows ?? []) as {
+    artist_name: string;
+    track_name: string;
+    listened_at: string;
+  }[];
 
   return entries.filter((e) => {
     const t = new Date(e.listenedAt).getTime();
     if (Number.isNaN(t)) return false;
-    const canon = lfmToCanon.get(e.songId) ?? e.songId;
-    const conflict = existing.some((row) => {
-      if (row.track_id !== canon) return false;
+
+    const logConflict = existingLogs.some((row) => {
       const rt = new Date(row.listened_at).getTime();
+      if (Math.abs(rt - t) >= windowMs) return false;
+      const ext = trackToLfm.get(row.track_id);
+      return ext === e.songId;
+    });
+    if (logConflict) return false;
+
+    const listenConflict = listens.some((lr) => {
+      if (lfmSongId(lr.artist_name, lr.track_name) !== e.songId) return false;
+      const rt = new Date(lr.listened_at).getTime();
       return Math.abs(rt - t) < windowMs;
     });
-    return !conflict;
+    return !listenConflict;
   });
 }
 
@@ -208,8 +308,9 @@ export async function ingestLastfmScrobbles(
             .eq("id", albumUuid)
             .maybeSingle()
         : { data: null };
-      const keepImg = (existingAlb as { image_url?: string | null } | null)
-        ?.image_url?.trim();
+      const keepImg = (
+        existingAlb as { image_url?: string | null } | null
+      )?.image_url?.trim();
       if (!albumUuid) {
         const { data: insAlb, error: insAlbErr } = await supabase
           .from("albums")
@@ -335,11 +436,17 @@ export async function ingestLastfmScrobbles(
   const insertedLogs = inserted?.length ?? 0;
 
   if (insertedLogs > 0) {
-    const { error: achErr } = await supabase.rpc("grant_achievements_on_listen", {
-      p_user_id: userId,
-    });
+    const { error: achErr } = await supabase.rpc(
+      "grant_achievements_on_listen",
+      {
+        p_user_id: userId,
+      },
+    );
     if (achErr) {
-      console.warn("[lastfm ingest] grant_achievements_on_listen failed", achErr);
+      console.warn(
+        "[lastfm ingest] grant_achievements_on_listen failed",
+        achErr,
+      );
     }
     await syncBatchLogSideEffects(
       userId,
@@ -365,7 +472,10 @@ export async function ingestRecentTracks(
   lastfmUsername: string,
   limit = 100,
 ): Promise<IngestLastfmResult & { fetchError?: string }> {
-  const result = await fetchLastfmRecentTracksSafe(lastfmUsername.trim(), limit);
+  const result = await fetchLastfmRecentTracksSafe(
+    lastfmUsername.trim(),
+    limit,
+  );
   if (!result.ok) {
     return {
       insertedLogs: 0,

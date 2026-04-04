@@ -71,6 +71,8 @@ A **music social** web and mobile app: log listens, rate albums and tracks with 
 | `app/` | Next.js routes, layouts, `app/api/*` route handlers |
 | `components/` | React UI (web) |
 | `lib/` | Server utilities: queries, Spotify cache, feed, auth, Last.fm ingest/ mapping, communities, discovery, analytics |
+| `lib/ui/layout.ts` | Shared layout tokens (e.g. `pageWidthShell`, **`communityDesktop*`** community detail grid columns) |
+| `lib/charts/weekly-chart-entity-guards.ts` | Client-safe checks for synthetic weekly chart `entity_id` values (avoids importing `server-only` modules from client chart UI) |
 | `lib/app-url.ts` | Canonical app base URL + `getRequestOrigin()` (used for invite links and prod-safe URLs) |
 | `middleware.ts` | Optional proxy of `/api/*` to Express when `API_BACKEND_URL` is set; maintenance mode (`MAINTENANCE_MODE`) |
 | `packages/spotify-client/` | Workspace package: shared Spotify HTTP client + rate limiting (used by web) |
@@ -288,7 +290,7 @@ The **`backend/`** package is an **Express + TypeScript** server that mirrors or
 | **Spotify** | Connect OAuth, sync recently played into `logs`, search (when enabled) |
 | **Last.fm** | Profile username, preview/import, daily cron sync; synthetic `lfm:*` song/artist ids + enrichment toward Spotify |
 | **Taste match** | Compare two users’ taste (`/api/taste-match`) and **community-scoped** taste peers |
-| **Communities** | See [Communities & social layer](#communities--social-layer) |
+| **Communities** | See [Communities & social layer](#communities--social-layer) — shared billboard, desktop rails, invites, feed, consensus |
 
 ---
 
@@ -297,15 +299,24 @@ The **`backend/`** package is an **Express + TypeScript** server that mirrors or
 | Area | Notes |
 |------|-------|
 | **Membership** | Public communities can be joined from the UI; **private** communities use **direct invites** (`community_invites`) and/or **shareable invite links** (`community_invite_links` with UUID token) |
-| **Invite links** | Created by admins (`POST /api/community/invite`). **Invite URLs** use `getRequestOrigin()` + `getAppBaseUrl()` (`lib/app-url.ts`) so production links use the real host (not `127.0.0.1`). |
+| **Invite links** | Created by admins (`POST /api/community/invite`). **Invite URLs** use `getRequestOrigin()` + `getAppBaseUrl()` (`lib/app-url.ts`) so production links use the real host (not `127.0.0.1`). **`GET /api/community/invite?communityId=`** returns the latest reusable link for copy; the web **`InviteMembersPanel`** accepts **`initialInviteUrl`** from the server (including `null`) so the invite button is never stuck on “Loading…” while credentials-backed fetches run when no server value is passed. |
 | **Join flow** | `GET/POST /api/community/join/[token]` and page **`/community/join/[token]`** — server-side join when logged in; Google sign-in returns to the same path via `callbackUrl` |
 | **Activity feed** | Merged sources: member listens (RPC), `feed_events` stories, reviews, follows, milestones, fan-out `community_feed` rows — filters (all / listens / reviews / streaks / members). **Pagination**: fixed **10** items per page (`COMMUNITY_FEED_PAGE_SIZE`); API ignores `limit` query and uses that constant. Realtime refresh via Supabase channel on `community_feed` inserts |
 | **Comments** | Threads on reviews, logs, or generic feed items (`activity-comments` APIs) |
 | **Consensus** | Community-ranked tracks/albums/artists by time range (`/api/communities/[id]/consensus`) |
 | **Hidden gems** | Community-scoped discovery (`/api/communities/[id]/hidden-gems`) |
-| **Leaderboards** | Weekly leaderboard + member stats |
+| **Leaderboards** | Weekly leaderboard + member stats (full rows on the main **Listen leaders** block; sidebar preview omits streak/role tags for space) |
 | **Insights & weekly summary** | Aggregated community vibes / weekly job output |
 | **Taste** | Community taste match card + similar/opposite peers |
+
+### Community detail page (web, `/communities/[id]`)
+
+- **Layout shell**: The page uses **`communityWideContainer`** (width-safe `min-w-0` / overflow clipping) inside the global **`pageShell`** (`pageWidthShell` + `pagePadding` in `AppLayout`). On large viewports the **max width scales** (`xl` / `2xl` / `3xl` breakpoints in `lib/ui/layout.ts`) so ultra-wide monitors are not stuck at `max-w-6xl` only.
+- **Desktop chart row (member view)**: Implemented as **CSS Grid** with explicit **`column-gap`** (`communityDesktopTopRow`) so the center **weekly billboard** and rails are visually separated. Below **3xl** the grid is **two columns** [main chart column | right sidebar]. At **3xl+** a third column appears: **“On this page”** left rail (narrow, sticky) | main | right sidebar. Related tokens: `communityDesktopLeftRailColumn`, `communityDesktopMainColumn`, `communityDesktopRightSidebar`, `communityDesktopSidebarCompact` (tighter cards/type in the right rail).
+- **Left rail**: In-page anchors — **Weekly chart** → **Consensus** → **Activity** → **People** (matching the section stack: chart + taste rail, then consensus, feed, listen leaders & members).
+- **Weekly community billboard** (`components/community/community-weekly-billboard-client.tsx`): **Tracks / Artists / Albums** tabs and a **week** selector with **Older / Newer** navigation (`/api/communities/[id]/charts`, `/charts/weeks`). **Loading UI**: skeleton placeholders (`CommunityBillboardBodySkeleton` / `CommunityBillboardSkeleton` in `components/community/community-section-skeleton.tsx`) for hero + rows while chart JSON loads. **Client caching & prefetch**: responses are cached in a **`Map`** keyed by chart type + week (`"__latest__"` when viewing the latest week). After the visible chart loads, the **other two** tab payloads for the **same** week are **prefetched** in the background; on mount, **all three** week lists are fetched **in parallel** so switching tabs is usually instant. Server-provided **`initialChartData`** / **`initialWeeks`** (from `getCachedCommunityBillboardTracksInitial` / cache) seed the client and avoid duplicate first fetches where applicable.
+- **Billboard → catalog**: In **community** mode, **`WeeklyBillboardView`** links **#1** art/title and **ranks 2–10** (and **biggest movers** titles) to **`/song/[id]`**, **`/artist/[id]`**, or **`/album/[id]`** depending on the active tab and row `entity_id`. Synthetic / placeholder ids stay unlinked; checks use **`lib/charts/weekly-chart-entity-guards.ts`** (client-safe, no `server-only` transitive imports).
+- **Right sidebar**: **Stats**, **Invite people** (when the viewer can invite), **Top contributors** (compact: rank + avatar + truncated username), optional **compact insights**; the main column can include **taste match** + **weekly teaser** beside the chart on wider layouts (`CommunityDesktopChartRailSlot`).
 
 ---
 
@@ -338,7 +349,7 @@ Representative routes (non-exhaustive):
 - **Discover / taste**: `/api/discover/*`, `/api/taste-match`
 - **Leaderboard**: `GET /api/leaderboard`
 - **Last.fm**: `/api/lastfm/preview`, `/sync`, `/import`, cron `GET /api/cron/lastfm-sync`
-- **Communities**: `/api/communities`, `/api/communities/[id]`, `/api/communities/[id]/feed`, `/api/communities/[id]/members/*`, `/api/communities/[id]/consensus`, `/api/communities/[id]/leaderboard`, `/api/communities/[id]/insights`, `/api/communities/[id]/weekly-summary`, `/api/communities/[id]/taste-matches`, `/api/communities/[id]/activity-comments`, `/api/communities/invites`, …
+- **Communities**: `/api/communities`, `/api/communities/[id]`, `/api/communities/[id]/feed`, `/api/communities/[id]/members/*`, `/api/communities/[id]/consensus`, `/api/communities/[id]/leaderboard`, `/api/communities/[id]/insights`, `/api/communities/[id]/weekly-summary`, `/api/communities/[id]/taste-matches`, `/api/communities/[id]/activity-comments`, `/api/communities/[id]/charts`, `/api/communities/[id]/charts/weeks`, `/api/communities/[id]/charts/share-image`, `/api/communities/invites`, …
 - **Community join**: `/api/community/join/[token]`, `/api/community/invite`
 - **Crons**: `/api/cron/*` — see [Background jobs](#background-jobs-queues--vercel-crons)
 
@@ -410,10 +421,3 @@ npm run test:e2e    # Playwright (requires dev server / env per project)
 - [Spotify Dashboard](https://developer.spotify.com/dashboard)
 - [Supabase Docs](https://supabase.com/docs)
 - [NextAuth.js](https://next-auth.js.org/)
-
----
-
-curl -X POST "https://accounts.spotify.com/api/token" \
-  -H "Authorization: Basic $(echo -n $SPOTIFY_CLIENT_ID:$SPOTIFY_CLIENT_SECRET | base64)" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials"
