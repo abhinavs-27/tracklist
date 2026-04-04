@@ -1,11 +1,9 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { theme } from "../../lib/theme";
 import { useAlbum } from "../../lib/hooks/useAlbum";
-import { useLogging } from "../../lib/logging-context";
-import { useRecentViews } from "../../lib/recent-views-context";
 import { AlbumHeader } from "../../components/media/AlbumHeader";
 import { StatRow } from "../../components/media/StatRow";
 import { ActionRow } from "../../components/media/ActionRow";
@@ -22,23 +20,6 @@ export default function AlbumDetailScreen() {
   }, [id]);
 
   const { album, tracks, stats, reviews, isLoading, error } = useAlbum(albumId);
-  const { recordView } = useRecentViews();
-  const { logListen, showToast } = useLogging();
-
-  const firstTrackId = tracks[0]?.id;
-  useEffect(() => {
-    if (!album || !firstTrackId) return;
-    void recordView({
-      kind: "album",
-      id: album.id,
-      title: album.name,
-      subtitle: album.artist,
-      artworkUrl: album.artwork_url,
-      trackId: firstTrackId,
-      albumId: album.id,
-      artistId: album.artist_id,
-    });
-  }, [album?.id, firstTrackId, recordView]);
 
   if (isLoading) {
     return (
@@ -111,25 +92,9 @@ export default function AlbumDetailScreen() {
           reviewCount={stats.review_count}
         />
 
-        {/* 3. Action row — review only; listens come from Spotify */}
+        {/* 3. Action row — rate & review; listens come from Spotify / Last.fm sync */}
         <ActionRow
-          logLabel="Log this listen"
-          onLogPress={() => {
-            const t = tracks[0];
-            if (!t) {
-              showToast("No tracks on this album.");
-              return;
-            }
-            void logListen({
-              trackId: t.id,
-              albumId: album.id,
-              artistId: album.artist_id,
-              source: "manual",
-              displayName: album.name,
-            }).catch(() => showToast("Couldn’t log. Try again."));
-          }}
           onReviewPress={() => router.push(`/reviews/album/${album.id}` as const)}
-          onFavoritePress={() => {}}
         />
 
         {/* 4. Tracklist */}

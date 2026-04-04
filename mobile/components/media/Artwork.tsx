@@ -33,6 +33,7 @@ export function Artwork({ src, size = "md", style }: Props) {
 
   return (
     <Image
+      recyclingKey={uri}
       source={{ uri }}
       style={[
         styles.image,
@@ -46,6 +47,7 @@ export function Artwork({ src, size = "md", style }: Props) {
       ]}
       contentFit="cover"
       transition={100}
+      cachePolicy="memory-disk"
     />
   );
 }

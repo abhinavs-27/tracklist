@@ -1,7 +1,12 @@
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 import { BlurView } from "expo-blur";
+import { Ionicons } from "@expo/vector-icons";
 
+/**
+ * Primary tabs match web: Home, Explore, Community, You.
+ * Leaderboard and search stay in the router for deep links / navigation but are hidden from the tab bar.
+ */
 export default function TabsLayout() {
   return (
     <Tabs
@@ -26,37 +31,67 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Feed",
+          title: "Home",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="discover"
         options={{
-          title: "Discover",
+          title: "Explore",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "compass" : "compass-outline"}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="communities"
         options={{
-          title: "Groups",
+          title: "Community",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "people" : "people-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "You",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="leaderboard"
         options={{
           title: "Leaderboard",
+          href: null,
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
           title: "Search",
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
+          href: null,
         }}
       />
     </Tabs>

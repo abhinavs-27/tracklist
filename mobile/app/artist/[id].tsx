@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -10,13 +10,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../../lib/theme";
 import { useArtist } from "../../lib/hooks/useArtist";
-import { ActionRow } from "../../components/media/ActionRow";
 import { MediaHeader } from "../../components/media/MediaHeader";
 import { StatRow } from "../../components/media/StatRow";
 import { TopTracks } from "../../components/media/TopTracks";
 import { MediaGrid, type MediaItem } from "../../components/media/MediaGrid";
-import { useLogging } from "../../lib/logging-context";
-import { useRecentViews } from "../../lib/recent-views-context";
 
 function formatFollowers(n: number | null): string | null {
   if (n == null || !Number.isFinite(n)) return null;
@@ -51,22 +48,6 @@ export default function ArtistDetailScreen() {
 
   const { artist, albums, topTracks, stats, isLoading, error } =
     useArtist(artistId);
-  const { recordView } = useRecentViews();
-  const { logListen, showToast } = useLogging();
-
-  const topTrackId = topTracks[0]?.id;
-  useEffect(() => {
-    if (!artist || !topTrackId) return;
-    void recordView({
-      kind: "artist",
-      id: artist.id,
-      title: artist.name,
-      subtitle: artist.genres?.length ? artist.genres.join(", ") : "Artist",
-      artworkUrl: artist.image_url,
-      trackId: topTrackId,
-      artistId: artist.id,
-    });
-  }, [artist?.id, topTrackId, recordView]);
 
   if (isLoading) {
     return (
@@ -162,23 +143,6 @@ export default function ArtistDetailScreen() {
           totalPlays={stats.play_count}
           favoriteCount={stats.favorite_count}
           reviewCount={stats.review_count}
-        />
-
-        <ActionRow
-          logLabel="Log this listen"
-          onLogPress={() => {
-            const t = topTracks[0];
-            if (!t) {
-              showToast("No popular tracks to log yet.");
-              return;
-            }
-            void logListen({
-              trackId: t.id,
-              artistId: artist.id,
-              source: "manual",
-              displayName: artist.name,
-            }).catch(() => showToast("Couldn’t log. Try again."));
-          }}
         />
 
         <TopTracks

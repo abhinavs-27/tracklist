@@ -265,9 +265,9 @@ export default function DiscoverScreen() {
         }
       >
         <View style={styles.stickyHeader}>
-          <Text style={styles.heroTitle}>Discover</Text>
+          <Text style={styles.heroTitle}>Explore</Text>
           <Text style={styles.heroSub}>
-            Trending music from the Tracklist community
+            Discovery, charts, and people — start here, then go deeper.
           </Text>
         </View>
 

@@ -1,12 +1,14 @@
 import { memo, useCallback, useState } from "react";
 import {
   Image,
+  ImageBackground,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { feedAlbumCoverUrl } from "../../lib/feed-artwork";
 import { theme } from "../../lib/theme";
 import { formatRelativeTime } from "../../lib/time";
 import type {
@@ -99,6 +101,8 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   const showPlus = songCount > DISPLAY_CAP;
   const timeAgo = formatRelativeTime(activity.created_at);
   const sessions = activity.sessions ?? [];
+  const first = sessions[0];
+  const heroUrl = feedAlbumCoverUrl(first?.album ?? undefined);
 
   const openUser = useCallback(() => {
     if (activity.user?.username) {
@@ -107,39 +111,63 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   }, [activity.user?.username, router]);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.rowTop}>
+    <View style={styles.summaryCard}>
+      <Pressable
+        onPress={() => setExpanded((prev: boolean) => !prev)}
+        style={({ pressed }: { pressed: boolean }) => [
+          styles.summaryHeroWrap,
+          pressed && styles.pressed,
+        ]}
+      >
+        {heroUrl ? (
+          <ImageBackground
+            source={{ uri: heroUrl }}
+            style={styles.summaryHeroBg}
+            imageStyle={styles.summaryHeroImage}
+          >
+            <View style={styles.summaryHeroGradient} />
+            <View style={styles.summaryHeroTextBlock}>
+              <Text style={styles.summaryHeroKicker}>Listening</Text>
+              <Text style={styles.summaryHeroTitle} numberOfLines={2}>
+                <Text style={styles.summaryHeroName}>{username}</Text>
+                <Text style={styles.summaryHeroRest}> listened to </Text>
+                <Text style={styles.summaryHeroEmph}>
+                  {displayCount}
+                  {showPlus ? "+" : ""} song
+                  {displayCount !== 1 || showPlus ? "s" : ""}
+                </Text>
+              </Text>
+            </View>
+          </ImageBackground>
+        ) : (
+          <View style={styles.summaryHeroFallback}>
+            <Text style={styles.summaryHeroKickerFallback}>Listening</Text>
+            <Text style={styles.summaryHeroTitleFallback} numberOfLines={2}>
+              <Text style={styles.summaryHeroNameFallback}>{username}</Text>
+              <Text style={styles.summaryHeroRestFallback}> listened to </Text>
+              <Text style={styles.summaryHeroEmphFallback}>
+                {displayCount}
+                {showPlus ? "+" : ""} song
+                {displayCount !== 1 || showPlus ? "s" : ""}
+              </Text>
+            </Text>
+          </View>
+        )}
+      </Pressable>
+      <View style={styles.summaryMetaRow}>
         <Pressable onPress={openUser} disabled={!activity.user?.username}>
           <UserAvatar uri={activity.user?.avatar_url} label={username} />
         </Pressable>
-        <View style={styles.flex1}>
-          <Text style={styles.bodyText}>
-            {activity.user?.username ? (
-              <Text onPress={openUser} style={styles.userLink}>
-                {username}
-              </Text>
-            ) : (
-              <Text style={styles.userLink}>{username}</Text>
-            )}
-            {" listened to "}
-            <Text style={styles.mutedInline}>
-              {displayCount}
-              {showPlus ? "+" : ""} song
-              {displayCount !== 1 || showPlus ? "s" : ""}
-            </Text>
-          </Text>
-          <Pressable
-            onPress={() => setExpanded((prev: boolean) => !prev)}
-            style={({ pressed }: { pressed: boolean }) => [
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.timeSmall}>
-              {timeAgo}
-              <Text style={styles.chevron}> {expanded ? "▼" : "▶"}</Text>
-            </Text>
-          </Pressable>
-        </View>
+        <Text style={styles.timeSmall}>{timeAgo}</Text>
+        <Pressable
+          onPress={() => setExpanded((prev: boolean) => !prev)}
+          hitSlop={12}
+          style={({ pressed }: { pressed: boolean }) => [
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.chevron}>{expanded ? "▼" : "▶"}</Text>
+        </Pressable>
       </View>
       {expanded && sessions.length > 0 ? (
         <View style={styles.summaryList}>
@@ -222,7 +250,7 @@ function ListenSessionBlock({ activity }: { activity: Extract<FeedActivity, { ty
   const router = useRouter();
   const username = activity.user?.username ?? "Someone";
   const album = activity.album;
-  const image = album?.images?.[0]?.url;
+  const image = feedAlbumCoverUrl(album ?? undefined);
   const trackName = activity.track_name ?? album?.name ?? "Track";
   const artistName =
     activity.artist_name ??
@@ -518,5 +546,98 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.88,
+  },
+  summaryCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panelSoft,
+    overflow: "hidden",
+  },
+  summaryHeroWrap: {
+    width: "100%",
+  },
+  summaryHeroBg: {
+    width: "100%",
+    height: 104,
+    justifyContent: "flex-end",
+  },
+  summaryHeroImage: {
+    resizeMode: "cover",
+  },
+  summaryHeroGradient: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  summaryHeroTextBlock: {
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    paddingTop: 8,
+  },
+  summaryHeroFallback: {
+    minHeight: 88,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: theme.colors.panel,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  summaryHeroKicker: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.65)",
+    marginBottom: 4,
+  },
+  summaryHeroTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  summaryHeroName: {
+    color: "#fff",
+    fontWeight: "800",
+  },
+  summaryHeroRest: {
+    color: "rgba(255,255,255,0.85)",
+    fontWeight: "600",
+  },
+  summaryHeroEmph: {
+    color: "#fff",
+    fontWeight: "800",
+  },
+  summaryHeroKickerFallback: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: theme.colors.muted,
+    marginBottom: 4,
+  },
+  summaryHeroTitleFallback: {
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  summaryHeroNameFallback: {
+    color: theme.colors.text,
+    fontWeight: "800",
+  },
+  summaryHeroRestFallback: {
+    color: theme.colors.muted,
+    fontWeight: "600",
+  },
+  summaryHeroEmphFallback: {
+    color: theme.colors.text,
+    fontWeight: "800",
+  },
+  summaryMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: theme.colors.panelSoft,
   },
 });

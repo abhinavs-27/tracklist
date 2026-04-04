@@ -14,7 +14,7 @@ import type { FeedActivity } from "../../lib/types/feed";
 import { FeedItem } from "./FeedItem";
 
 type FeedListProps = {
-  /** Renders above the feed (e.g. quick-log strip). */
+  /** Optional content above the feed list. */
   listHeader?: ReactNode;
 };
 

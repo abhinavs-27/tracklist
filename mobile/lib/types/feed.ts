@@ -23,7 +23,10 @@ export type FeedReviewInner = {
 export type FeedAlbumLite = {
   id?: string;
   name?: string;
+  /** Spotify-style */
   images?: { url: string }[];
+  /** DB `albums.image_url` when API sends a flat shape */
+  image_url?: string | null;
   artists?: { name: string }[];
 };
 
