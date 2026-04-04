@@ -56,7 +56,10 @@ export const GET = withHandler(async (_request, { params }) => {
       tracks: (tracks.items ?? []).map((t, idx) => {
         // Spotify types for TrackObjectSimplified don't always expose track_number,
         // but the field is present in the payload. Fallback to index+1 for safety.
-        const maybeTrackNumber = (t as unknown as { track_number?: number }).track_number;
+        const maybeTrackNumber =
+          "track_number" in t
+            ? (t as { track_number: number }).track_number
+            : null;
         const serverStats = trackStats?.[t.id];
         return {
           id: t.id,

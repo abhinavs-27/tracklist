@@ -56,3 +56,21 @@ export function validateUuidParam(id: string | null): { ok: true; id: string } |
   }
   return { ok: true, id };
 }
+
+/**
+ * Extracts a unique list of UUIDs from an unknown input (typically from a request body array).
+ */
+export function getUniqUuids(ids: unknown, cap: number): string[] {
+  if (!Array.isArray(ids)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const x of ids) {
+    if (typeof x !== 'string') continue;
+    const s = x.trim();
+    if (!isValidUuid(s) || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
