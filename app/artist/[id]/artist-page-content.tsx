@@ -1,20 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
-import { getOrFetchArtist, getOrFetchTracksBatch } from "@/lib/spotify-cache";
-import { ListenCard } from "@/components/listen-card";
+import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import {
   getTopTracksForArtist,
   getReviewsForArtist,
-  getListenLogsForArtist,
   getPopularAlbumsForArtist,
 } from "@/lib/queries";
 import { normalizeReviewEntityId } from "@/lib/validation";
 import { ArtistPopularTracks } from "@/app/artist/[id]/artist-popular-tracks";
+import { RecentListensSection } from "./recent-listens-section";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -32,12 +32,11 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
     notFound();
   }
 
-  const [topTracks, popularAlbumsResult, recentReviews, recentListensRaw] =
+  const [topTracks, popularAlbumsResult, recentReviews] =
     await Promise.all([
       getTopTracksForArtist(id, 10),
       getPopularAlbumsForArtist(id),
       getReviewsForArtist(id, 8),
-      getListenLogsForArtist(id, 10),
     ]);
 
   const popularAlbums = popularAlbumsResult.rows;
@@ -46,13 +45,6 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
   const heroPopular = topTracks[0] ?? null;
   const heroTrack = heroPopular?.track ?? null;
-
-  const recentTrackIds = recentListensRaw.map((log) => log.track_id);
-  const recentTracks = await getOrFetchTracksBatch(recentTrackIds);
-  const recentListens = recentListensRaw.map((log, i) => ({
-    log,
-    trackName: recentTracks[i]?.name ?? undefined,
-  }));
 
   const image = artist.images?.[0]?.url;
 
@@ -176,20 +168,9 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
         </section>
       )}
 
-      {recentListens.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
-            Recent listens
-          </h2>
-          <ul className="space-y-2">
-            {recentListens.map(({ log, trackName }) => (
-              <li key={log.id}>
-                <ListenCard log={log} trackName={trackName} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <RecentListensSection artistId={id} />
+      </Suspense>
     </div>
   );
 }

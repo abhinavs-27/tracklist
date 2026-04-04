@@ -6,16 +6,14 @@ import { AlbumPageClient } from "@/app/album/[id]/album-page-client";
 import { AlbumRecommendationsLoader } from "@/app/album/[id]/album-recommendations-loader";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
-import {
-  getEntityStats,
-  getAlbumEngagementStats,
-  getFriendsAlbumActivity,
-} from "@/lib/queries";
+import { getEntityStats } from "@/lib/queries";
 import { timeAsync } from "@/lib/profiling";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { sectionGap } from "@/lib/ui/surface";
 import { normalizeReviewEntityId } from "@/lib/validation";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
+import { AlbumEngagementLoader } from "./album-engagement-loader";
+import { AlbumFriendActivityLoader } from "./album-friend-activity-loader";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -26,40 +24,38 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
 
   const viewerId = session?.user?.id ?? null;
 
-  const { album, tracks, settled } = await timeAsync(
+  const { album, tracks, stats } = await timeAsync(
     "page",
     "albumPage",
     async () => {
-      const settledInner = await Promise.allSettled([
+      const [albumRes, statsRes] = await Promise.allSettled([
         getOrFetchAlbum(id, { allowNetwork: true }),
         getEntityStats("album", id),
-        getAlbumEngagementStats(id),
-        viewerId
-          ? getFriendsAlbumActivity(viewerId, id, 10)
-          : Promise.resolve([]),
       ]);
 
-      if (settledInner[0].status !== "fulfilled") {
+      if (albumRes.status !== "fulfilled") {
         notFound();
       }
 
-      const { album: albumInner, tracks: tracksInner } = settledInner[0].value;
+      const { album: albumInner, tracks: tracksInner } = albumRes.value;
+      const statsInner = statsRes.status === "fulfilled" ? statsRes.value : {
+        listen_count: 0,
+        average_rating: null,
+        review_count: 0,
+        rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      };
 
       return {
         album: albumInner,
         tracks: tracksInner,
-        settled: settledInner,
+        stats: statsInner,
       };
     },
     { id },
   );
 
-  const defaultStats = {
-    listen_count: 0,
-    average_rating: null as number | null,
-    review_count: 0,
-    rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as const,
-  };
+  const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();
+
   const defaultEngagement = {
     listen_count: 0,
     review_count: 0,
@@ -67,30 +63,43 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     favorite_count: 0,
   };
 
-  const stats = settled[1].status === "fulfilled" ? settled[1].value : defaultStats;
-  if (settled[1].status === "rejected") console.error("[album] getEntityStats failed:", settled[1].reason);
-
-  const engagementStats = settled[2].status === "fulfilled" ? settled[2].value : defaultEngagement;
-  if (settled[2].status === "rejected") console.error("[album] getAlbumEngagementStats failed:", settled[2].reason);
-
-  const friendActivity = settled[3].status === "fulfilled" ? settled[3].value : [];
-  if (settled[3].status === "rejected") console.error("[album] getFriendsAlbumActivity failed:", settled[3].reason);
-
-  const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();
-
   return (
     <AlbumReviewsProvider albumId={id}>
       <div className={sectionGap}>
-        <AlbumPageClient
-          id={id}
-          album={album}
-          tracks={tracks}
-          session={!!session}
-          viewerUserId={viewerId}
-          stats={stats}
-          engagementStats={engagementStats}
-          friendActivity={friendActivity}
-        />
+        <Suspense
+          fallback={
+            <AlbumPageClient
+              id={id}
+              album={album}
+              tracks={tracks}
+              session={!!session}
+              viewerUserId={viewerId}
+              stats={stats}
+              engagementStats={defaultEngagement}
+              friendActivity={[]}
+            />
+          }
+        >
+          <AlbumEngagementLoader albumId={id}>
+            {(engagementStats) => (
+              <AlbumFriendActivityLoader viewerId={viewerId} albumId={id}>
+                {(friendActivity) => (
+                  <AlbumPageClient
+                    id={id}
+                    album={album}
+                    tracks={tracks}
+                    session={!!session}
+                    viewerUserId={viewerId}
+                    stats={stats}
+                    engagementStats={engagementStats}
+                    friendActivity={friendActivity}
+                  />
+                )}
+              </AlbumFriendActivityLoader>
+            )}
+          </AlbumEngagementLoader>
+        </Suspense>
+
         {showAlbumRecUi ? (
           <Suspense
             fallback={

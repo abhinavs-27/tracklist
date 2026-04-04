@@ -47,18 +47,35 @@ export async function GET(request: NextRequest) {
       return apiOk(body);
     }
 
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, username, avatar_url, bio, created_at')
-      .in('id', userIds);
+    // Parallelize independent fetches: users, viewer, and album external IDs.
+    const [usersRes, viewer, albumExternalIdsRes] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, username, avatar_url, bio, created_at')
+        .in('id', userIds),
+      getUserFromRequest(request),
+      (async () => {
+        const albumUuids = [
+          ...new Set(
+            [...latestAlbumByUser.values()].map((v) => v.album_id).filter(Boolean),
+          ),
+        ];
+        if (albumUuids.length === 0) return { data: [] };
+        return supabase
+          .from("album_external_ids")
+          .select("album_id, external_id")
+          .eq("source", "spotify")
+          .in("album_id", albumUuids);
+      })(),
+    ]);
 
-    if (usersError) return apiInternalError(usersError);
+    if (usersRes.error) return apiInternalError(usersRes.error);
 
-    const viewer = await getUserFromRequest(request);
+    const users = usersRes.data ?? [];
     const viewerId = viewer?.id ?? null;
 
     const enrichedUsers = await enrichUsersWithFollowStatus(
-      (users ?? []).map((u) => ({
+      users.map((u) => ({
         id: u.id,
         username: u.username,
         avatar_url: u.avatar_url,
@@ -70,22 +87,10 @@ export async function GET(request: NextRequest) {
 
     const userMap = new Map(enrichedUsers.map((u) => [u.id, u]));
 
-    const albumUuids = [
-      ...new Set(
-        [...latestAlbumByUser.values()].map((v) => v.album_id).filter(Boolean),
-      ),
-    ];
     const spotifyAlbumIdByUuid = new Map<string, string>();
-    if (albumUuids.length > 0) {
-      const { data: extRows } = await supabase
-        .from("album_external_ids")
-        .select("album_id, external_id")
-        .eq("source", "spotify")
-        .in("album_id", albumUuids);
-      for (const row of extRows ?? []) {
-        const rid = row as { album_id: string; external_id: string };
-        spotifyAlbumIdByUuid.set(rid.album_id, rid.external_id);
-      }
+    for (const row of albumExternalIdsRes.data ?? []) {
+      const rid = row as { album_id: string; external_id: string };
+      spotifyAlbumIdByUuid.set(rid.album_id, rid.external_id);
     }
 
     const result = userIds
