@@ -468,11 +468,18 @@ async function getEntityStatsLive(
 
   let listen_count = 0;
   if (entityType === "song") {
-    const { count } = await supabase
-      .from("logs")
-      .select("id", { count: "exact", head: true })
-      .eq("track_id", canonicalEntityId);
-    listen_count = count ?? 0;
+    const { data, error } = await supabase.rpc("count_logs_by_track_ids", {
+      p_track_ids: [canonicalEntityId],
+    });
+    if (!error && data?.length) {
+      listen_count = Number(data[0].play_count) || 0;
+    } else {
+      const { count } = await supabase
+        .from("logs")
+        .select("id", { count: "exact", head: true })
+        .eq("track_id", canonicalEntityId);
+      listen_count = count ?? 0;
+    }
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
@@ -480,11 +487,8 @@ async function getEntityStatsLive(
       .eq("album_id", canonicalEntityId);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
-      const { count } = await supabase
-        .from("logs")
-        .select("id", { count: "exact", head: true })
-        .in("track_id", ids);
-      listen_count = count ?? 0;
+      const playMap = await countLogsByTrackIds(supabase, ids);
+      listen_count = Array.from(playMap.values()).reduce((a, b) => a + b, 0);
     }
   }
 

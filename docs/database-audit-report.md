@@ -58,6 +58,11 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `follows` | `(following_id, created_at DESC)` | `116` | Optimized for "recent followers of a user" and follower listing ordered by date. |
 | `community_taste_match` | `(user_id, community_id, similarity_score DESC)` | `125` | Optimized for viewer-member taste match lookups and roster sorting. |
 | `feed_events` | `(user_id, type, created_at DESC)` | `125` | Optimized for fetching specific story types for a user's feed. |
+| `lists` | `(user_id, created_at DESC)` | `129` | Optimized for fetching lists by user ordered by creation date. |
+| `list_items` | `(list_id, position)` | `129` | Optimized for fetching ordered items within a list. |
+| `reviews` | `(user_id, created_at DESC)` | `129` | Optimized for fetching recent reviews for a user. |
+| `follows` | `(follower_id, following_id)` | `129` | Optimized for "is following" check. |
+| `community_member_stats` | `(community_id, listen_count_7d DESC)` | `129` | Optimized for active-member count and roster sorting. |
 
 ## Recommendations for Future Queries
 

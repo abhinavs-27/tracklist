@@ -95,7 +95,7 @@ async function countViewerPlaysInWeekWindow(args: {
   const admin = createSupabaseAdminClient();
   const { count, error } = await admin
     .from("logs")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("user_id", args.userId)
     .gte("listened_at", args.startIso)
     .lt("listened_at", args.endExclusiveIso);

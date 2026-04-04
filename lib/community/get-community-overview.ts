@@ -76,7 +76,7 @@ async function getCommunityActiveUserCount(
   const admin = createSupabaseAdminClient();
   const { count, error } = await admin
     .from("community_member_stats")
-    .select("*", { count: "exact", head: true })
+    .select("user_id", { count: "exact", head: true })
     .eq("community_id", communityId)
     .gt("listen_count_7d", 0);
   if (error) {

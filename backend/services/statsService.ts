@@ -3,6 +3,41 @@ import {
   resolveCanonicalTrackUuidFromEntityId,
 } from "../lib/catalogEntityResolution";
 import { getSupabase } from "../lib/supabase";
+
+const LOG_COUNT_CHUNK = 400;
+
+/** One GROUP BY query per chunk; falls back to getTrackStatsForTrackIds if RPC missing. */
+async function countLogsByTrackIds(
+  supabase: ReturnType<typeof getSupabase>,
+  trackIds: string[],
+): Promise<Map<string, number>> {
+  const unique = [...new Set(trackIds)];
+  const map = new Map<string, number>();
+  if (unique.length === 0) return map;
+
+  for (let i = 0; i < unique.length; i += LOG_COUNT_CHUNK) {
+    const slice = unique.slice(i, i + LOG_COUNT_CHUNK);
+    const { data, error } = await supabase.rpc("count_logs_by_track_ids", {
+      p_track_ids: slice,
+    });
+    if (error || data == null) {
+      const stats = await getTrackStatsForTrackIds(slice);
+      for (const id of slice) {
+        map.set(id, stats[id]?.listen_count ?? 0);
+      }
+      continue;
+    }
+    for (const row of data as { track_id: string; play_count: number | string }[]) {
+      map.set(row.track_id, Number(row.play_count));
+    }
+  }
+
+  for (const id of unique) {
+    if (!map.has(id)) map.set(id, 0);
+  }
+  return map;
+}
+
 // ---------------------------------------------------------------------------
 // Entity stats (listen count + rating aggregation)
 // ---------------------------------------------------------------------------
@@ -78,11 +113,18 @@ async function getEntityStatsLive(
 
   let listen_count = 0;
   if (entityType === "song") {
-    const { count } = await supabase
-      .from("logs")
-      .select("id", { count: "exact", head: true })
-      .eq("track_id", canonicalEntityId);
-    listen_count = count ?? 0;
+    const { data, error } = await supabase.rpc("count_logs_by_track_ids", {
+      p_track_ids: [canonicalEntityId],
+    });
+    if (!error && data?.length) {
+      listen_count = Number(data[0].play_count) || 0;
+    } else {
+      const { count } = await supabase
+        .from("logs")
+        .select("id", { count: "exact", head: true })
+        .eq("track_id", canonicalEntityId);
+      listen_count = count ?? 0;
+    }
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
@@ -90,11 +132,8 @@ async function getEntityStatsLive(
       .eq("album_id", canonicalEntityId);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
-      const { count } = await supabase
-        .from("logs")
-        .select("id", { count: "exact", head: true })
-        .in("track_id", ids);
-      listen_count = count ?? 0;
+      const playMap = await countLogsByTrackIds(supabase, ids);
+      listen_count = Array.from(playMap.values()).reduce((a, b) => a + b, 0);
     }
   }
 
