@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -20,169 +20,162 @@ import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist
 import { fanOutListenForUserCommunities } from "@/lib/community/community-feed-insert";
 import type { SyncResponse } from "@/types";
 
-export async function POST(request: NextRequest) {
+export const POST = withHandler(async (request: NextRequest, { user: me }) => {
   if (!checkSpotifyRateLimit(request)) {
     return apiTooManyRequests();
   }
-  try {
-    const me = await requireApiAuth(request);
 
-    if (!isSpotifyIntegrationEnabled()) {
-      return apiError("Spotify account linking is not enabled.", 403, {
-        code: "SPOTIFY_LINKING_DISABLED",
-      });
-    }
-
-    const mode = "song" as const;
-
-    let accessToken: string;
-    try {
-      accessToken = await getValidSpotifyAccessToken(me.id);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Spotify not connected")
-        return apiBadRequest("Spotify not connected");
-      return apiInternalError(e);
-    }
-
-    const supabase = await createSupabaseServerClient();
-    const recent = await getRecentlyPlayed(accessToken, 50);
-    const items = recent.items ?? [];
-
-    const candidates: Array<{ track_id: string; listened_at: string }> = [];
-
-    for (const it of items) {
-      const playedAt = it.played_at;
-      const track = it.track;
-      if (!track?.id || !playedAt) continue;
-
-      candidates.push({ track_id: track.id, listened_at: playedAt });
-    }
-
-    if (candidates.length === 0) {
-      return apiOk({
-        inserted: 0,
-        skipped: 0,
-        mode,
-      } satisfies SyncResponse);
-    }
-
-    const keyToItem = new Map<string, (typeof candidates)[number]>();
-    for (const c of candidates) {
-      const key = c.track_id;
-      const prev = keyToItem.get(key);
-      if (!prev || Date.parse(c.listened_at) > Date.parse(prev.listened_at))
-        keyToItem.set(key, c);
-    }
-    const unique = [...keyToItem.values()];
-
-    const trackIds = [...new Set(unique.map((u) => u.track_id))];
-    const { data: existing, error: existingError } = await supabase
-      .from("logs")
-      .select("track_id")
-      .eq("user_id", me.id)
-      .in("track_id", trackIds);
-    if (existingError) return apiInternalError(existingError);
-
-    const existingSet = new Set(
-      (existing ?? []).map((l: { track_id: string }) => l.track_id),
-    );
-
-    const toInsert = unique.filter((u) => !existingSet.has(u.track_id));
-    if (toInsert.length === 0) {
-      return apiOk({
-        inserted: 0,
-        skipped: unique.length,
-        mode,
-      } satisfies SyncResponse);
-    }
-
-    const nowIso = new Date().toISOString();
-    const { data: insertedLogs, error: insertError } = await supabase
-      .from("logs")
-      .insert(
-        toInsert.map((u) => ({
-          user_id: me.id,
-          track_id: u.track_id,
-          listened_at: new Date(u.listened_at).toISOString(),
-          source: "spotify",
-          created_at: nowIso,
-        })),
-      )
-      .select("id, track_id, listened_at, source");
-    if (insertError) {
-      for (const u of toInsert) {
-        console.log("[spotify-ingest] ingest", {
-          userId: me.id,
-          trackId: u.track_id,
-          success: false,
-        });
-      }
-      return apiInternalError(insertError);
-    }
-
-    for (const u of toInsert) {
-      console.log("[spotify-ingest] ingest", {
-        userId: me.id,
-        trackId: u.track_id,
-        success: true,
-      });
-    }
-
-    if (insertedLogs?.length) {
-      try {
-        for (const row of insertedLogs as {
-          id: string;
-          track_id: string;
-          listened_at: string;
-          source: string;
-        }[]) {
-          await fanOutListenForUserCommunities({
-            userId: me.id,
-            logId: row.id,
-            listenedAt: row.listened_at,
-            source: row.source ?? "spotify",
-            trackId: row.track_id,
-          });
-        }
-      } catch (e) {
-        console.warn("[spotify-sync] community_feed fan-out", e);
-      }
-    }
-
-    const { grantAchievementsOnListen } = await import("@/lib/queries");
-    await grantAchievementsOnListen(me.id);
-
-    // Warm songs/albums cache so feed listen-sessions RPC can join logs → songs and show sessions
-    const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
-    try {
-      await getOrFetchTracksBatch(idsToWarm, { allowNetwork: true });
-    } catch (e) {
-      console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
-    }
-
-    try {
-      const admin = createSupabaseAdminClient();
-      scheduleEnrichArtistGenresForTrackIds(admin, idsToWarm);
-    } catch (e) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[spotify-sync] Last.fm genre enrich schedule failed", e);
-      }
-    }
-
-    console.log("[spotify-ingest] manual-sync-complete", {
-      userId: me.id,
-      inserted: toInsert.length,
-      skipped: unique.length - toInsert.length,
+  if (!isSpotifyIntegrationEnabled()) {
+    return apiError("Spotify account linking is not enabled.", 403, {
+      code: "SPOTIFY_LINKING_DISABLED",
     });
+  }
 
-    return apiOk({
-      inserted: toInsert.length,
-      skipped: unique.length - toInsert.length,
-      mode,
-    } satisfies SyncResponse);
+  const mode = "song" as const;
+
+  let accessToken: string;
+  try {
+    accessToken = await getValidSpotifyAccessToken(me!.id);
   } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
+    if (e instanceof Error && e.message === "Spotify not connected")
+      return apiBadRequest("Spotify not connected");
     return apiInternalError(e);
   }
-}
+
+  const supabase = await createSupabaseServerClient();
+  const recent = await getRecentlyPlayed(accessToken, 50);
+  const items = recent.items ?? [];
+
+  const candidates: Array<{ track_id: string; listened_at: string }> = [];
+
+  for (const it of items) {
+    const playedAt = it.played_at;
+    const track = it.track;
+    if (!track?.id || !playedAt) continue;
+
+    candidates.push({ track_id: track.id, listened_at: playedAt });
+  }
+
+  if (candidates.length === 0) {
+    return apiOk({
+      inserted: 0,
+      skipped: 0,
+      mode,
+    } satisfies SyncResponse);
+  }
+
+  const keyToItem = new Map<string, (typeof candidates)[number]>();
+  for (const c of candidates) {
+    const key = c.track_id;
+    const prev = keyToItem.get(key);
+    if (!prev || Date.parse(c.listened_at) > Date.parse(prev.listened_at))
+      keyToItem.set(key, c);
+  }
+  const unique = [...keyToItem.values()];
+
+  const trackIds = [...new Set(unique.map((u) => u.track_id))];
+  const { data: existing, error: existingError } = await supabase
+    .from("logs")
+    .select("track_id")
+    .eq("user_id", me!.id)
+    .in("track_id", trackIds);
+  if (existingError) return apiInternalError(existingError);
+
+  const existingSet = new Set(
+    (existing ?? []).map((l: { track_id: string }) => l.track_id),
+  );
+
+  const toInsert = unique.filter((u) => !existingSet.has(u.track_id));
+  if (toInsert.length === 0) {
+    return apiOk({
+      inserted: 0,
+      skipped: unique.length,
+      mode,
+    } satisfies SyncResponse);
+  }
+
+  const nowIso = new Date().toISOString();
+  const { data: insertedLogs, error: insertError } = await supabase
+    .from("logs")
+    .insert(
+      toInsert.map((u) => ({
+        user_id: me!.id,
+        track_id: u.track_id,
+        listened_at: new Date(u.listened_at).toISOString(),
+        source: "spotify",
+        created_at: nowIso,
+      })),
+    )
+    .select("id, track_id, listened_at, source");
+  if (insertError) {
+    for (const u of toInsert) {
+      console.log("[spotify-ingest] ingest", {
+        userId: me!.id,
+        trackId: u.track_id,
+        success: false,
+      });
+    }
+    return apiInternalError(insertError);
+  }
+
+  for (const u of toInsert) {
+    console.log("[spotify-ingest] ingest", {
+      userId: me!.id,
+      trackId: u.track_id,
+      success: true,
+    });
+  }
+
+  if (insertedLogs?.length) {
+    try {
+      for (const row of insertedLogs as {
+        id: string;
+        track_id: string;
+        listened_at: string;
+        source: string;
+      }[]) {
+        await fanOutListenForUserCommunities({
+          userId: me!.id,
+          logId: row.id,
+          listenedAt: row.listened_at,
+          source: row.source ?? "spotify",
+          trackId: row.track_id,
+        });
+      }
+    } catch (e) {
+      console.warn("[spotify-sync] community_feed fan-out", e);
+    }
+  }
+
+  const { grantAchievementsOnListen } = await import("@/lib/queries");
+  await grantAchievementsOnListen(me!.id);
+
+  // Warm songs/albums cache so feed listen-sessions RPC can join logs → songs and show sessions
+  const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
+  try {
+    await getOrFetchTracksBatch(idsToWarm, { allowNetwork: true });
+  } catch (e) {
+    console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
+  }
+
+  try {
+    const admin = createSupabaseAdminClient();
+    scheduleEnrichArtistGenresForTrackIds(admin, idsToWarm);
+  } catch (e) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[spotify-sync] Last.fm genre enrich schedule failed", e);
+    }
+  }
+
+  console.log("[spotify-ingest] manual-sync-complete", {
+    userId: me!.id,
+    inserted: toInsert.length,
+    skipped: unique.length - toInsert.length,
+  });
+
+  return apiOk({
+    inserted: toInsert.length,
+    skipped: unique.length - toInsert.length,
+    mode,
+  } satisfies SyncResponse);
+}, { requireAuth: true });

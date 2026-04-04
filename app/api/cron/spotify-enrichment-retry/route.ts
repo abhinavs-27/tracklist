@@ -1,3 +1,4 @@
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   enqueueSpotifyEnrich,
@@ -19,7 +20,7 @@ const BATCH_ARTISTS = 20;
  *
  * First syncs `listens.spotify_track_id` from enriched `songs` rows (no Spotify API).
  */
-export async function GET() {
+export const GET = withHandler(async () => {
   const supabase = createSupabaseAdminClient();
 
   const listenSync = await syncListensSpotifyTrackIdsFromSongs(supabase, {
@@ -112,4 +113,4 @@ export async function GET() {
     artistSample: (artists ?? []).length,
     listenSync,
   });
-}
+});

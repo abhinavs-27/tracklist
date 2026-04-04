@@ -415,3 +415,17 @@ export interface ProfileUpdateBody {
   /** Profile onboarding wizard finished (username + favorite albums). */
   onboarding_completed?: boolean;
 }
+
+export interface PushTokenUpdateBody {
+  expo_push_token: string | null;
+}
+
+export interface FavoriteUpdateBody {
+  albums: string[];
+}
+
+export interface CommunityCreateBody {
+  name: string;
+  description?: string | null;
+  is_private?: boolean;
+}

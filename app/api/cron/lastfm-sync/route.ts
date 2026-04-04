@@ -1,17 +1,23 @@
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { syncLastfmScrobblesForUser } from "@/lib/lastfm/sync-user-scrobbles";
-import { apiError, apiOk } from "@/lib/api-response";
+import { apiError, apiOk, apiUnauthorized } from "@/lib/api-response";
+import { isProd } from "@/lib/env";
+import { NextRequest } from "next/server";
 
 const MAX_USERS_PER_RUN = 50;
 
 /**
  * Daily Last.fm scrobble sync for users with a saved username.
+ * Authorization: Bearer <CRON_SECRET> (prod only)
  */
-export async function GET() {
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return apiUnauthorized();
-  // }
+export const GET = withHandler(async (request: NextRequest) => {
+  if (isProd()) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return apiUnauthorized();
+    }
+  }
 
   const supabase = createSupabaseAdminClient();
 
@@ -36,7 +42,7 @@ export async function GET() {
   let failures = 0;
 
   for (const u of users) {
-    const username = u.lastfm_username.trim();
+    const username = u.lastfm_username!.trim();
     processed += 1;
     try {
       const result = await syncLastfmScrobblesForUser(supabase, u.id, username);
@@ -70,4 +76,4 @@ export async function GET() {
     inserted: totalInserted,
     failures,
   });
-}
+});

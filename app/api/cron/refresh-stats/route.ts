@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
+import { apiError, apiOk, apiUnauthorized } from "@/lib/api-response";
 import { isProd } from "@/lib/env";
 
 /**
@@ -8,15 +9,13 @@ import { isProd } from "@/lib/env";
  * Call with: Authorization: Bearer <CRON_SECRET>
  * Schedule periodically (e.g. every 10–15 min) to keep stats and discover cache fresh.
  */
-export async function GET(request: NextRequest) {
-  // if (!isProd()) {
-  //   return apiOk({ ok: false, message: "cron disabled outside prod" });
-  // }
-
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return apiUnauthorized();
-  // }
+export const GET = withHandler(async (request: NextRequest) => {
+  if (isProd()) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return apiUnauthorized();
+    }
+  }
 
   const supabase = createSupabaseAdminClient();
 
@@ -50,4 +49,4 @@ export async function GET(request: NextRequest) {
 
   console.log("[cron] refresh-stats-complete", { success: true });
   return apiOk({ ok: true });
-}
+});

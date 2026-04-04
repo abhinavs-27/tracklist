@@ -1,3 +1,4 @@
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { apiOk } from "@/lib/api-response";
 import { syncFeedEventsForUser } from "@/lib/feed/generate-events";
@@ -8,7 +9,7 @@ const MAX_USERS = 80;
  * Materialize feed_events for users with recent listens (batch).
  * GET /api/cron/feed-events-sync
  */
-export async function GET() {
+export const GET = withHandler(async () => {
   const admin = createSupabaseAdminClient();
   const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
   const { data: rows, error } = await admin
@@ -44,4 +45,4 @@ export async function GET() {
   }
 
   return apiOk({ ok: true, attempted: userIds.length, processed: ok });
-}
+});

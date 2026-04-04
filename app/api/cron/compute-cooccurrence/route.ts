@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { apiUnauthorized, apiError, apiOk } from "@/lib/api-response";
+import { withHandler } from "@/lib/api-handler";
+import { apiError, apiOk, apiUnauthorized } from "@/lib/api-response";
 import {
   computeSongCooccurrence,
   computeAlbumCooccurrence,
@@ -11,15 +12,13 @@ import { isProd } from "@/lib/env";
  * Call with: Authorization: Bearer <CRON_SECRET>
  * Schedule periodically (e.g. daily or a few times per day).
  */
-export async function GET(request: NextRequest) {
-  // if (!isProd()) {
-  //   return apiOk({ ok: false, message: "cron disabled outside prod" });
-  // }
-
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return apiUnauthorized();
-  // }
+export const GET = withHandler(async (request: NextRequest) => {
+  if (isProd()) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return apiUnauthorized();
+    }
+  }
 
   try {
     const [songResult, albumResult] = await Promise.all([
@@ -52,4 +51,4 @@ export async function GET(request: NextRequest) {
     console.log("[cron] compute-cooccurrence-complete", { success: false });
     return apiError(message, 500);
   }
-}
+});

@@ -1,6 +1,9 @@
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { apiOk } from "@/lib/api-response";
+import { apiOk, apiUnauthorized } from "@/lib/api-response";
 import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
+import { isProd } from "@/lib/env";
+import { NextRequest } from "next/server";
 
 /**
  * Prefer users who have logs but no cache row yet, then oldest cache rows (rotation).
@@ -62,13 +65,15 @@ async function resolveCronUserIds(): Promise<string[]> {
  * Profile pages only read the cache (fast).
  *
  * GET /api/cron/taste-identity-refresh
- * Optional: Authorization: Bearer CRON_SECRET (when enabled in route)
+ * Authorization: Bearer CRON_SECRET (prod only)
  */
-export async function GET() {
-  // const authHeader = request.headers.get("authorization");
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return apiUnauthorized();
-  // }
+export const GET = withHandler(async (request: NextRequest) => {
+  if (isProd()) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return apiUnauthorized();
+    }
+  }
 
   const userIds = await resolveCronUserIds();
   let processed = 0;
@@ -97,5 +102,4 @@ export async function GET() {
     processed,
     failures,
   });
-}
-
+});

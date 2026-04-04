@@ -1,4 +1,5 @@
-import { apiError, apiOk } from "@/lib/api-response";
+import { withHandler } from "@/lib/api-handler";
+import { apiOk } from "@/lib/api-response";
 import { repairLastfmListeningAggregates } from "@/lib/analytics/repairLastfmAggregates";
 
 /**
@@ -7,19 +8,14 @@ import { repairLastfmListeningAggregates } from "@/lib/analytics/repairLastfmAgg
  *
  * Safe to run frequently; each log is repaired at most once.
  */
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const batch = Math.min(
-      2000,
-      Math.max(50, parseInt(searchParams.get("batch") ?? "500", 10) || 500),
-    );
+export const GET = withHandler(async (request: Request) => {
+  const { searchParams } = new URL(request.url);
+  const batch = Math.min(
+    2000,
+    Math.max(50, parseInt(searchParams.get("batch") ?? "500", 10) || 500),
+  );
 
-    const result = await repairLastfmListeningAggregates({ batchSize: batch });
+  const result = await repairLastfmListeningAggregates({ batchSize: batch });
 
-    return apiOk({ ok: true, ...result });
-  } catch (e) {
-    console.error("[cron repair-lastfm-aggregates]", e);
-    return apiError(e instanceof Error ? e.message : "repair failed", 500);
-  }
-}
+  return apiOk({ ok: true, ...result });
+});
