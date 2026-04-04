@@ -192,15 +192,26 @@ async function filterAgainstExistingLfmLogs(
   });
 }
 
+export type IngestLastfmScrobblesOptions = {
+  /**
+   * When false, skip enqueueing `resolve_track_spotify` and `enrich_track` batch jobs
+   * (Last.fm-only backfill; run enrichment-retry / repair later). Default true.
+   */
+  enqueueSpotifyResolve?: boolean;
+};
+
 /**
  * Primary Last.fm ingestion: `listens` + minimal `artists` / `songs` rows + `logs`,
- * then enqueue async Spotify enrichment (never blocks on Spotify).
+ * then enqueue async Spotify enrichment (never blocks on Spotify), unless disabled.
  */
 export async function ingestLastfmScrobbles(
   supabase: SupabaseClient,
   userId: string,
   scrobbles: LastfmNormalizedScrobble[],
+  options?: IngestLastfmScrobblesOptions,
 ): Promise<IngestLastfmResult> {
+  const { enqueueSpotifyResolve = true } = options ?? {};
+
   if (scrobbles.length === 0) {
     return { insertedLogs: 0, insertedListens: 0, skipped: 0 };
   }
@@ -392,7 +403,10 @@ export async function ingestLastfmScrobbles(
     ingestedForLogs.push({ listenedAt, trackUuid });
 
     /** Track job maps Last.fm → Spotify and links catalog to real Spotify ids (see resolveTrackSpotifyJob). */
-    if (!resolveQueuedForSong.has(songId)) {
+    if (
+      enqueueSpotifyResolve &&
+      !resolveQueuedForSong.has(songId)
+    ) {
       resolveQueuedForSong.add(songId);
       void enqueueSpotifyEnrich(
         {
@@ -454,6 +468,7 @@ export async function ingestLastfmScrobbles(
         trackId: r.trackUuid,
         listenedAtIso: r.listenedAt,
       })),
+      { skipSpotifyEnrich: !enqueueSpotifyResolve },
     );
   }
 

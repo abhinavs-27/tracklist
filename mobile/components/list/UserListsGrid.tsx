@@ -8,8 +8,8 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { theme } from "../../lib/theme";
-import type { UserListSummary } from "../../lib/types/user-list";
+import { theme } from "@/lib/theme";
+import type { UserListSummary } from "@/lib/types/user-list";
 import { UserListCard } from "./UserListCard";
 
 type Props = {

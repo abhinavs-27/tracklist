@@ -7,7 +7,7 @@ import {
   View,
   type TextStyle,
 } from "react-native";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 export type YearRange = {
   startYear?: number;

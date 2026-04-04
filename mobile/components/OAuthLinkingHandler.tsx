@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   getSessionFromUrl,
   isOAuthCallbackUrl,
-} from "../lib/get-session-from-url";
+} from "@/lib/get-session-from-url";
 
 const AUTH_SESSION_KEY = ["auth", "session"] as const;
 

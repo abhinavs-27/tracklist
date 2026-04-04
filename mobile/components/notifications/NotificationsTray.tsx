@@ -13,14 +13,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
-import { useAuth } from "../../lib/hooks/useAuth";
-import { getRouteForNotification } from "../../lib/notification-navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { getRouteForNotification } from "@/lib/notification-navigation";
 import {
   useMarkNotificationsRead,
   useNotifications,
-} from "../../lib/hooks/useNotifications";
-import { theme } from "../../lib/theme";
-import type { EnrichedNotification } from "../../lib/types/notifications";
+} from "@/lib/hooks/useNotifications";
+import { theme } from "@/lib/theme";
+import type { EnrichedNotification } from "@/lib/types/notifications";
 import { NotificationItem } from "./NotificationItem";
 
 const DROPDOWN_MAX = 12;

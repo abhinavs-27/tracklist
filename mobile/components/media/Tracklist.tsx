@@ -1,6 +1,6 @@
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 export type TrackRowItem = {
   id: string;

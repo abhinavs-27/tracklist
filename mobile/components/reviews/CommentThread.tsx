@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View, StyleSheet } from "react-native";
-import { fetcher } from "../../lib/api";
-import { theme } from "../../lib/theme";
+import { fetcher } from "@/lib/api";
+import { theme } from "@/lib/theme";
 
 type CommentWithUser = {
   id: string;

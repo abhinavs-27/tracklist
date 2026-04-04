@@ -42,7 +42,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="discover"
+        name="explore"
         options={{
           title: "Explore",
           tabBarIcon: ({ color, focused }) => (
@@ -94,6 +94,16 @@ export default function TabsLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen name="discover" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      {/* Hoisted dynamic routes: names must match expo-router segments or they become extra visible tabs */}
+      <Tabs.Screen name="artist/[id]" options={{ href: null }} />
+      <Tabs.Screen name="song/[id]" options={{ href: null }} />
+      <Tabs.Screen name="album/[id]" options={{ href: null }} />
+      <Tabs.Screen name="list/[id]" options={{ href: null }} />
+      <Tabs.Screen name="reviews/[entityType]/[entityId]" options={{ href: null }} />
+      <Tabs.Screen name="user/[username]/index" options={{ href: null }} />
+      <Tabs.Screen name="user/[username]/lists" options={{ href: null }} />
     </Tabs>
   );
 }

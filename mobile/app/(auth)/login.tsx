@@ -8,8 +8,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "../../lib/hooks/useAuth";
-import { theme } from "../../lib/theme";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { theme } from "@/lib/theme";
 
 export default function LoginScreen() {
   const { signInWithGoogle } = useAuth();

@@ -9,6 +9,14 @@ import { resolveCanonicalArtistIdToSpotifyApiId } from "@/lib/spotify-cache";
  */
 export const SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT = 10;
 
+/** Pause between paginated GET /artists/{id}/albums pages (after each full page). Tunable via env. */
+function artistAlbumsPageGapMs(): number {
+  const raw = process.env.SPOTIFY_ARTIST_ALBUMS_PAGE_GAP_MS?.trim();
+  if (!raw) return 220;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 220;
+}
+
 function dedupeAlbumsByGroupAndName(
   albums: SpotifyApi.AlbumObjectSimplified[],
 ): SpotifyApi.AlbumObjectSimplified[] {
@@ -114,6 +122,8 @@ export async function getAllArtistAlbums(
   const merged: SpotifyApi.AlbumObjectSimplified[] = [];
   let offset = 0;
 
+  const pageGapMs = artistAlbumsPageGapMs();
+
   for (;;) {
     const page = await getArtistAlbums(
       apiId,
@@ -124,6 +134,9 @@ export async function getAllArtistAlbums(
     merged.push(...items);
     if (items.length < SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT) break;
     offset += SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT;
+    if (pageGapMs > 0) {
+      await new Promise((r) => setTimeout(r, pageGapMs));
+    }
   }
 
   return sortAlbumsByReleaseDateDesc(

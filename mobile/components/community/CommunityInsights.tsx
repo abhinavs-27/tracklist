@@ -6,8 +6,8 @@ import {
   Text,
   View,
 } from "react-native";
-import type { CommunityInsightsPayload } from "../../lib/api-communities";
-import { theme } from "../../lib/theme";
+import type { CommunityInsightsPayload } from "@/lib/api-communities";
+import { theme } from "@/lib/theme";
 
 type Props = {
   insights: CommunityInsightsPayload;

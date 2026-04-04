@@ -7,10 +7,10 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFeed } from "../../lib/hooks/useFeed";
-import { feedItemKey } from "../../lib/feed-keys";
-import { theme } from "../../lib/theme";
-import type { FeedActivity } from "../../lib/types/feed";
+import { useFeed } from "@/lib/hooks/useFeed";
+import { feedItemKey } from "@/lib/feed-keys";
+import { theme } from "@/lib/theme";
+import type { FeedActivity } from "@/lib/types/feed";
 import { FeedItem } from "./FeedItem";
 
 type FeedListProps = {

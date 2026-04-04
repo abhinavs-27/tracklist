@@ -26,6 +26,7 @@ import {
   isValidUuid,
   sanitizeString,
 } from "@/lib/validation";
+import { listUsersByCreatedAtWithClient } from "@/lib/user-search-directory";
 import type {
   ListenLogWithUser,
   ReviewWithUser,
@@ -3125,54 +3126,13 @@ export async function listUsersByCreatedAt(
     followers_count: number;
   }[]
 > {
-  try {
-    const supabase = await createSupabaseServerClient();
-    const cappedLimit = Math.min(Math.max(1, limit), 50);
-    const safeOffset = Math.max(0, offset);
-    const { data, error } = await supabase.rpc("list_users_by_created", {
-      p_limit: cappedLimit,
-      p_offset: safeOffset,
-      p_exclude_user_id: excludeUserId || null,
-    });
-    if (!error && Array.isArray(data)) {
-      return (
-        data as {
-          id: string;
-          username: string;
-          avatar_url: string | null;
-          followers_count: number;
-        }[]
-      ).map((r) => ({
-        id: r.id,
-        username: r.username,
-        avatar_url: r.avatar_url ?? null,
-        followers_count: Number(r.followers_count) || 0,
-      }));
-    }
-    if (error) {
-      console.warn(
-        "[queries] list_users_by_created RPC failed (migration 080), using fallback:",
-        error.message,
-      );
-    }
-    let q = supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .order("created_at", { ascending: true })
-      .range(safeOffset, safeOffset + cappedLimit - 1);
-    if (excludeUserId) q = q.neq("id", excludeUserId);
-    const { data: rows, error: qerr } = await q;
-    if (qerr) throw qerr;
-    return (rows ?? []).map((u) => ({
-      id: u.id,
-      username: u.username,
-      avatar_url: u.avatar_url ?? null,
-      followers_count: 0,
-    }));
-  } catch (e) {
-    console.error("[queries] listUsersByCreatedAt failed:", e);
-    return [];
-  }
+  const supabase = await createSupabaseServerClient();
+  return listUsersByCreatedAtWithClient(
+    supabase,
+    limit,
+    offset,
+    excludeUserId,
+  );
 }
 
 /** Suggested users: by follower count (most followers first), exclude self and already followed. Limit 10. Uses DB RPC (migration 018). */

@@ -8,9 +8,9 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { fetcher } from "../../lib/api";
-import { theme } from "../../lib/theme";
-import { Artwork } from "../media/Artwork";
+import { fetcher } from "@/lib/api";
+import { theme } from "@/lib/theme";
+import { Artwork } from "@/components/media/Artwork";
 import { ProfileFollowButton } from "./ProfileFollowButton";
 
 export type FollowListUser = {

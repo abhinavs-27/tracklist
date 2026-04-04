@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Artwork } from "./Artwork";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 export type MediaHeaderProps = {
   artworkUrl: string | null;

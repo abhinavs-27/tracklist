@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Redirect } from "expo-router";
-import { supabase } from "../../lib/supabase";
-import { theme } from "../../lib/theme";
+import { supabase } from "@/lib/supabase";
+import { theme } from "@/lib/theme";
 
 /**
  * Web OAuth return URL (hash / query parsed by Supabase when detectSessionInUrl is true).

@@ -10,7 +10,11 @@ import {
 import { getSessionUserId } from "../lib/auth";
 import { searchUsers } from "../services/userSearchService";
 import { enrichUsersWithFollowStatus } from "../services/followService";
-import { isSupabaseConfigured } from "../lib/supabase";
+import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
+import {
+  getTasteOverlapSuggestionsForViewerWithClient,
+  listUsersByCreatedAtWithClient,
+} from "../../lib/user-search-directory";
 
 type SearchType = "artist" | "album" | "track";
 
@@ -18,6 +22,84 @@ export const searchRouter = Router();
 
 const MIN_USER_QUERY = 2;
 const MAX_USER_QUERY = 50;
+
+const BROWSE_DEFAULT_LIMIT = 10;
+const BROWSE_MAX_LIMIT = 50;
+const TASTE_OVERLAP_DEFAULT_LIMIT = 10;
+const TASTE_OVERLAP_MAX_LIMIT = 20;
+
+/** `GET /api/search/users/browse` — native (no Next.js proxy); required for mobile on :3001. */
+searchRouter.get("/users/browse", async (req, res) => {
+  try {
+    const userId = await getSessionUserId(req);
+    if (!userId) return unauthorized(res);
+
+    if (!isSupabaseConfigured()) {
+      return ok(res, { users: [], hasMore: false });
+    }
+
+    const rawOffset = parseInt(String(req.query.offset ?? "0"), 10);
+    const rawLimit = parseInt(
+      String(req.query.limit ?? String(BROWSE_DEFAULT_LIMIT)),
+      10,
+    );
+    const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+    const limit = Number.isFinite(rawLimit) && rawLimit >= 1
+      ? Math.min(rawLimit, BROWSE_MAX_LIMIT)
+      : BROWSE_DEFAULT_LIMIT;
+
+    const overfetch = Math.min(limit + 1, BROWSE_MAX_LIMIT + 1);
+    // Shared `lib/` types `SupabaseClient` from the repo root; Express has its own
+    // `node_modules/@supabase/supabase-js` — runtime is identical.
+    const rows = await listUsersByCreatedAtWithClient(
+      getSupabase() as never,
+      overfetch,
+      offset,
+      userId,
+    );
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit);
+    const users = await enrichUsersWithFollowStatus(page, userId);
+
+    return ok(res, { users, hasMore });
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
+/** `GET /api/search/users/taste-overlap` — native (no Next.js proxy). */
+searchRouter.get("/users/taste-overlap", async (req, res) => {
+  try {
+    const userId = await getSessionUserId(req);
+    if (!userId) return unauthorized(res);
+
+    if (!isSupabaseConfigured()) {
+      return ok(res, { users: [] });
+    }
+
+    const raw = parseInt(
+      String(req.query.limit ?? String(TASTE_OVERLAP_DEFAULT_LIMIT)),
+      10,
+    );
+    const lim = Number.isFinite(raw) && raw >= 1
+      ? Math.min(raw, TASTE_OVERLAP_MAX_LIMIT)
+      : TASTE_OVERLAP_DEFAULT_LIMIT;
+
+    const rows = await getTasteOverlapSuggestionsForViewerWithClient(
+      getSupabase() as never,
+      userId,
+      {
+        limit: lim,
+      },
+    );
+    const withoutScore = rows.map(({ score: _s, ...u }) => u);
+    const users = await enrichUsersWithFollowStatus(withoutScore, userId);
+
+    return ok(res, { users });
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
 
 searchRouter.get("/users", async (req, res) => {
   try {

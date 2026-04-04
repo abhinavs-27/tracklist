@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "../../lib/theme";
-import type { UserListSummary } from "../../lib/types/user-list";
-import { Artwork } from "../media/Artwork";
+import { theme } from "@/lib/theme";
+import type { UserListSummary } from "@/lib/types/user-list";
+import { Artwork } from "@/components/media/Artwork";
 
 type Props = {
   list: UserListSummary;

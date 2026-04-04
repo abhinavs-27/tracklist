@@ -1,39 +1,25 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { theme } from "../../lib/theme";
-import { useSong } from "../../lib/hooks/useSong";
-import { MediaHeader } from "../../components/media/MediaHeader";
-import { StatRow } from "../../components/media/StatRow";
-import { ActionRow } from "../../components/media/ActionRow";
-import { SongContext } from "../../components/media/SongContext";
-import { ReviewList } from "../../components/reviews/ReviewList";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { useMemo } from "react";
+import { theme } from "@/lib/theme";
+import { useAlbum } from "@/lib/hooks/useAlbum";
+import { AlbumHeader } from "@/components/media/AlbumHeader";
+import { StatRow } from "@/components/media/StatRow";
+import { ActionRow } from "@/components/media/ActionRow";
+import { Tracklist } from "@/components/media/Tracklist";
+import { ReviewList } from "@/components/reviews/ReviewList";
 
-function detailLineForSong(
-  albumName: string | null,
-  releaseDate: string | null,
-): string | null {
-  const parts: string[] = [];
-  if (albumName) parts.push(albumName);
-  if (releaseDate) {
-    const d = new Date(releaseDate);
-    const y = Number.isNaN(d.getTime()) ? null : d.getFullYear();
-    if (y != null) parts.push(String(y));
-  }
-  return parts.length ? parts.join(" · ") : null;
-}
-
-export default function SongDetailScreen() {
+export default function AlbumDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
-  const songId = useMemo(() => {
+  const albumId = useMemo(() => {
     if (!id) return "";
     return Array.isArray(id) ? id[0] : id;
   }, [id]);
 
-  const { song, album, stats, reviews, isLoading, error } = useSong(songId);
+  const { album, tracks, stats, reviews, isLoading, error } = useAlbum(albumId);
 
   if (isLoading) {
     return (
@@ -43,13 +29,13 @@ export default function SongDetailScreen() {
     );
   }
 
-  if (error || !song) {
+  if (error || !album) {
     return (
       <SafeAreaView
         style={{ flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center", alignItems: "center" }}
       >
         <Text style={{ color: theme.colors.danger, fontWeight: "700" }}>
-          Failed to load song
+          Failed to load album
         </Text>
         {error instanceof Error && (
           <Text style={{ marginTop: 8, color: theme.colors.muted, textAlign: "center" }}>
@@ -59,8 +45,6 @@ export default function SongDetailScreen() {
       </SafeAreaView>
     );
   }
-
-  const detailLine = detailLineForSong(song.album_name, song.release_date);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
@@ -85,23 +69,22 @@ export default function SongDetailScreen() {
           style={{ color: theme.colors.text, fontWeight: "900", fontSize: 16 }}
           numberOfLines={1}
         >
-          Song
+          Album
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 24, paddingBottom: 100 }}>
-        <MediaHeader
-          artworkUrl={song.image_url}
-          title={song.name}
-          subtitle={song.artist}
-          detailLine={detailLine}
-          onPressSubtitle={
-            song.artist_id
-              ? () => router.push(`/artist/${song.artist_id}` as const)
-              : undefined
-          }
+        {/* 1. Album header */}
+        <AlbumHeader
+          artworkUrl={album.artwork_url}
+          title={album.name}
+          artist={album.artist}
+          releaseDate={album.release_date}
+          artistId={album.artist_id}
+          onPressArtist={(aid) => router.push(`/artist/${aid}` as const)}
         />
 
+        {/* 2. Stats row */}
         <StatRow
           averageRating={stats.average_rating}
           totalPlays={stats.play_count}
@@ -109,27 +92,30 @@ export default function SongDetailScreen() {
           reviewCount={stats.review_count}
         />
 
+        {/* 3. Action row — rate & review; listens come from Spotify / Last.fm sync */}
         <ActionRow
-          onReviewPress={() => router.push(`/reviews/song/${song.id}` as const)}
+          onReviewPress={() => router.push(`/reviews/album/${album.id}` as const)}
         />
 
+        {/* 4. Tracklist */}
         <View style={{ gap: 12 }}>
           <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.text }}>
-            Album
+            Tracklist
           </Text>
-          <SongContext
-            album={album}
-            onPressAlbum={(albumId) => router.push(`/album/${albumId}` as const)}
+          <Tracklist
+            tracks={tracks}
+            onPressTrack={(trackId) => router.push(`/song/${trackId}` as const)}
           />
         </View>
 
+        {/* 5. Reviews */}
         <View style={{ gap: 12 }}>
           <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.text }}>
             Reviews
           </Text>
           <ReviewList
             reviews={reviews}
-            onViewAllPress={() => router.push(`/reviews/song/${song.id}` as const)}
+            onViewAllPress={() => router.push(`/reviews/album/${album.id}` as const)}
           />
         </View>
       </ScrollView>

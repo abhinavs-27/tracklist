@@ -6,26 +6,11 @@ import { LeaderboardPreview } from "@/components/explore/leaderboard-preview";
 import { TrendingStrip } from "@/components/explore/trending-strip";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
 import { RecommendedCommunitiesSuspense } from "@/components/discover/recommended-communities-suspense";
-import { getTrendingEntitiesCached } from "@/lib/discover-cache";
+import { getExploreHubPayload } from "@/lib/explore-hub-data";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
-import { getLeaderboard } from "@/lib/queries";
-import {
-  getOrFetchTracksBatch,
-  batchTracksToNormalizedMap,
-  getTrackFromNormalizedBatchMap,
-} from "@/lib/spotify-cache";
-import {
-  collectTrackIdsNeedingEnrichment,
-  scheduleExploreTrackEnrichment,
-} from "@/lib/explore-enrich";
 import { SectionBlock } from "@/components/layout/section-block";
 import { exploreLog, exploreLogLine } from "@/lib/explore-perf";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
-
-const MAX_TRENDING = 20;
-
-/** DB / cache only — Spotify enrichment runs in background via `scheduleExploreTrackEnrichment`. */
-const EXPLORE_CATALOG_DB_ONLY = { allowNetwork: false as const };
 
 function TastePreviewSkeleton() {
   return (
@@ -47,40 +32,9 @@ export default async function ExploreHubPage() {
   const userId = session?.user?.id ?? null;
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
-  const tParallel = Date.now();
-  const trendingP = (async () => {
-    const t = Date.now();
-    const r = await getTrendingEntitiesCached(MAX_TRENDING);
-    exploreLog("db getTrendingEntitiesCached", Date.now() - t);
-    return r;
-  })();
-  const leaderboardP = (async () => {
-    const t = Date.now();
-    const r = await getLeaderboard("popular", {}, "song", 8);
-    exploreLog("db getLeaderboard", Date.now() - t);
-    return r;
-  })();
-  const [trendingRaw, leaderboardTop] = await Promise.all([trendingP, leaderboardP]);
-  exploreLog("db parallel (wall)", Date.now() - tParallel);
-
-  const trendingTrackIds = trendingRaw.map((e) => e.entity_id);
-  const tTracks = Date.now();
-  const trackArr = await getOrFetchTracksBatch(
-    trendingTrackIds,
-    EXPLORE_CATALOG_DB_ONLY,
-  );
-  exploreLog("db getOrFetchTracksBatch (no network)", Date.now() - tTracks);
-
-  const tProcess = Date.now();
-  const tracksMap = batchTracksToNormalizedMap(trendingTrackIds, trackArr);
-  const trendingEnriched = trendingRaw.map((entity) => ({
-    entity,
-    track: getTrackFromNormalizedBatchMap(tracksMap, entity.entity_id),
-  }));
-  exploreLog("process enrich trending", Date.now() - tProcess);
-
-  const toEnrich = collectTrackIdsNeedingEnrichment(trendingTrackIds, tracksMap);
-  scheduleExploreTrackEnrichment(toEnrich);
+  const tHub = Date.now();
+  const hub = await getExploreHubPayload();
+  exploreLog("getExploreHubPayload (wall)", Date.now() - tHub);
 
   exploreLogLine(`explore: page shell (before Suspense children stream): ${Date.now() - start} ms`);
 
@@ -108,7 +62,7 @@ export default async function ExploreHubPage() {
         description="What listeners are playing in the last 24 hours."
         action={{ label: "Full charts →", href: "/discover" }}
       >
-        <TrendingStrip items={trendingEnriched} />
+        <TrendingStrip items={hub.trending} />
       </SectionBlock>
 
       <SectionBlock
@@ -116,7 +70,7 @@ export default async function ExploreHubPage() {
         description="Most-played tracks on Tracklist."
         action={{ label: "View all →", href: "/leaderboard" }}
       >
-        <LeaderboardPreview entries={leaderboardTop} />
+        <LeaderboardPreview entries={hub.leaderboard} />
       </SectionBlock>
 
       <SectionBlock

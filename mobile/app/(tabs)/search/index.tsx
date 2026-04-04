@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { fetcher } from "../../lib/api";
-import { Artwork } from "../../components/media/Artwork";
-import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
-import { theme } from "../../lib/theme";
+import { fetcher } from "@/lib/api";
+import { Artwork } from "@/components/media/Artwork";
+import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { theme } from "@/lib/theme";
 
 type SearchKind = "artist" | "album" | "track";
 

@@ -1,7 +1,7 @@
 import { Pressable, Text, StyleSheet } from "react-native";
 import { useState } from "react";
-import { theme } from "../../lib/theme";
-import { fetcher } from "../../lib/api";
+import { theme } from "@/lib/theme";
+import { fetcher } from "@/lib/api";
 
 type Props = {
   reviewId: string;

@@ -1,1 +1,1 @@
-export * from "../../lib/query-keys";
+export * from "@repo/lib/query-keys";

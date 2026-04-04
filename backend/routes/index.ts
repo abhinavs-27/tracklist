@@ -15,6 +15,7 @@ import { usersRouter } from "./users";
 import { recentAlbumsRouter } from "./recentAlbums";
 import { followRouter } from "./follow";
 import { listsRouter } from "./lists";
+import { exploreRouter } from "./explore";
 import { feedRouter } from "./feed";
 import { notificationsRouter } from "./notifications";
 
@@ -27,6 +28,7 @@ export function createApiRouter(): Router {
 
   api.use(healthRouter);
   /** Native handlers (no Next.js proxy) — required for mobile when only Express runs on 3001. */
+  api.use(exploreRouter);
   api.use(feedRouter);
   api.use(notificationsRouter);
   api.use("/lists", listsRouter);
@@ -37,6 +39,7 @@ export function createApiRouter(): Router {
   api.use("/reviews", reviewsRouter);
   api.use("/comments", commentsRouter);
   api.use("/likes", likesRouter);
+  /** Spotify catalog + user search (`/users`, `/users/browse`, `/users/taste-overlap`). */
   api.use("/search", searchRouter);
   api.use("/albums", albumsRouter);
   api.use("/artists", artistsRouter);

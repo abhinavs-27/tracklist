@@ -3,14 +3,14 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { NotificationsList } from "../components/notifications/NotificationsList";
-import { getRouteForNotification } from "../lib/notification-navigation";
+import { NotificationsList } from "@/components/notifications/NotificationsList";
+import { getRouteForNotification } from "@/lib/notification-navigation";
 import {
   useMarkNotificationsRead,
   useNotifications,
-} from "../lib/hooks/useNotifications";
-import { theme } from "../lib/theme";
-import type { EnrichedNotification } from "../lib/types/notifications";
+} from "@/lib/hooks/useNotifications";
+import { theme } from "@/lib/theme";
+import type { EnrichedNotification } from "@/lib/types/notifications";
 
 export default function NotificationsScreen() {
   const router = useRouter();

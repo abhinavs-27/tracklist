@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 type Review = {
   id: string;

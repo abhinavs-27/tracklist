@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { fetchTasteMatches } from "../../lib/api-taste";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+import { fetchTasteMatches } from "@/lib/api-taste";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 export function SimilarUsersSection() {
   const router = useRouter();

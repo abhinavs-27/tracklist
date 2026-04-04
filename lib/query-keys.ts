@@ -21,6 +21,8 @@ export const queryKeys = {
   /** Lists created by a user (`GET /api/users/:userId/lists`). */
   userLists: (userId: string) => ["userLists", userId] as const,
   discover: () => ["discover"] as const,
+  /** `GET /api/explore` — trending 24h + global song leaderboard (Explore hub). */
+  exploreHub: () => ["explore", "hub"] as const,
   feed: () => ["feed"] as const,
   /** GET `/api/notifications` + actor enrichment. */
   notifications: () => ["notifications"] as const,

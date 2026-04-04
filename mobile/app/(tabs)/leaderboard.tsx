@@ -1,21 +1,46 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { useState } from "react";
-import { ViewToggle } from "../../components/ui/ViewToggle";
-import { LeaderboardRow } from "../../components/leaderboard/LeaderboardRow";
+import { useLocalSearchParams } from "expo-router";
+import { ViewToggle } from "@/components/ui/ViewToggle";
+import { LeaderboardRow } from "@/components/leaderboard/LeaderboardRow";
 import type {
   LeaderboardItem,
   LeaderboardMetricInput,
   LeaderboardTypeInput,
-} from "../../lib/hooks/useLeaderboard";
-import { useLeaderboard } from "../../lib/hooks/useLeaderboard";
-import { YearRangeFilter, type YearRange } from "../../components/filters/YearRangeFilter";
-import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
-import { theme } from "../../lib/theme";
+} from "@/lib/hooks/useLeaderboard";
+import { useLeaderboard } from "@/lib/hooks/useLeaderboard";
+import { YearRangeFilter, type YearRange } from "@/components/filters/YearRangeFilter";
+import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { theme } from "@/lib/theme";
+
+function firstParam(
+  v: string | string[] | undefined,
+): string | undefined {
+  if (v == null) return undefined;
+  return Array.isArray(v) ? v[0] : v;
+}
 
 export default function LeaderboardScreen() {
-  const [type, setType] = useState<LeaderboardTypeInput>("albums");
-  const [metric, setMetric] = useState<LeaderboardMetricInput>("popular");
+  const params = useLocalSearchParams();
+  const typeParam = firstParam(params.type as string | string[] | undefined);
+  const metricParam = firstParam(params.metric as string | string[] | undefined);
+
+  const [type, setType] = useState<LeaderboardTypeInput>(() => {
+    if (typeParam === "songs") return "songs";
+    if (typeParam === "albums") return "albums";
+    return "albums";
+  });
+  const [metric, setMetric] = useState<LeaderboardMetricInput>(() => {
+    if (
+      metricParam === "popular" ||
+      metricParam === "top_rated" ||
+      metricParam === "favorited"
+    ) {
+      return metricParam;
+    }
+    return "popular";
+  });
   const [yearRange, setYearRange] = useState<YearRange>({});
 
   const metricOptions = type === "albums"

@@ -8,14 +8,14 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { fetcher } from "../../lib/api";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+import { fetcher } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 import {
   getListeningStyleDisplay,
   normalizeListeningStyle,
-} from "../../../lib/taste/listening-style";
-import type { TasteIdentity } from "../../../lib/taste/types";
+} from "@repo/lib/taste/listening-style";
+import type { TasteIdentity } from "@repo/lib/taste/types";
 
 type Props = {
   userId: string;

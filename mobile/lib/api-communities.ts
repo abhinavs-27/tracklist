@@ -2,7 +2,7 @@ import type {
   CommunityInvitePending,
   CommunityRow,
   CommunityWithMeta,
-} from "../../types";
+} from "@repo/types";
 import { fetcher } from "./api";
 
 /** Mirrors `CommunityLeaderboardRow` from server `getWeeklyLeaderboard`. */

@@ -1,7 +1,7 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { type Href, useRouter } from "expo-router";
-import type { CommunityConsensusItem } from "../../lib/api-communities";
-import { theme } from "../../lib/theme";
+import type { CommunityConsensusItem } from "@/lib/api-communities";
+import { theme } from "@/lib/theme";
 
 type Props = {
   items: CommunityConsensusItem[];

@@ -20,6 +20,12 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@repo/*": [
+        "../*"
+      ],
       "*": [
         "node_modules/*"
       ]

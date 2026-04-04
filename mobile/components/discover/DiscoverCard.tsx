@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Artwork } from "../media/Artwork";
-import { theme } from "../../lib/theme";
+import { Artwork } from "@/components/media/Artwork";
+import { theme } from "@/lib/theme";
 
 export type DiscoverCardVariant = "album" | "song" | "artist" | "review";
 

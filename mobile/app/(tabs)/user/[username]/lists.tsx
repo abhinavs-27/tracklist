@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CreateListModal } from "../../../components/list/CreateListModal";
-import { UserListsGrid } from "../../../components/list/UserListsGrid";
-import { useProfile } from "../../../lib/hooks/useProfile";
-import { theme } from "../../../lib/theme";
+import { CreateListModal } from "@/components/list/CreateListModal";
+import { UserListsGrid } from "@/components/list/UserListsGrid";
+import { useProfile } from "@/lib/hooks/useProfile";
+import { theme } from "@/lib/theme";
 
 export default function UserListsScreen() {
   const router = useRouter();

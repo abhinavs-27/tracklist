@@ -12,9 +12,9 @@ import {
   View,
 } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteList, patchList } from "../../lib/api-lists";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+import { deleteList, patchList } from "@/lib/api-lists";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 type Props = {
   visible: boolean;

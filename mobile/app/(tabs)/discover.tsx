@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
-  Platform,
+  ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,252 +10,137 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { DiscoverCard } from "../../components/discover/DiscoverCard";
-import { DiscoverSection } from "../../components/discover/DiscoverSection";
-import { HorizontalCarousel } from "../../components/discover/HorizontalCarousel";
-import { useRisingArtists } from "../../lib/hooks/useDiscover";
-import { useFeed } from "../../lib/hooks/useFeed";
-import { useLeaderboard } from "../../lib/hooks/useLeaderboard";
-import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
-import { theme } from "../../lib/theme";
-import type { FeedActivity } from "../../lib/types/feed";
+import { Ionicons } from "@expo/vector-icons";
+import { DiscoverCard } from "@/components/discover/DiscoverCard";
+import { DiscoverSection } from "@/components/discover/DiscoverSection";
+import { HorizontalCarousel } from "@/components/discover/HorizontalCarousel";
+import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+import { useExploreHub } from "@/lib/hooks/useExploreHub";
+import { useHiddenGemsGrid, useRisingArtists } from "@/lib/hooks/useDiscover";
+import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { theme } from "@/lib/theme";
+import type { HiddenGemGridItem, RisingArtist } from "@repo/types";
+import type { ExploreHubTrendingItem } from "@/lib/types/explore-hub";
 
-const ALBUM_LIMIT = 16;
-const SONG_LIMIT = 16;
-const ARTIST_LIMIT = 16;
-const REVIEW_LIMIT = 12;
+const TRENDING_CAP = 20;
+const RISING_CAP = 20;
+const GEMS_CAP = 20;
 
-/** Match feed `displayEntityName` for review titles */
-function displayEntityName(
-  raw: string | undefined,
-  entityType: "album" | "song",
-): string {
-  const fallback = entityType === "album" ? "Unknown album" : "Unknown track";
-  if (!raw || typeof raw !== "string") return fallback;
-  const t = raw.trim();
-  if (!t || /^[a-zA-Z0-9]{22}$/.test(t)) return fallback;
-  return t;
+type TrendingWithTrack = ExploreHubTrendingItem & {
+  track: NonNullable<ExploreHubTrendingItem["track"]>;
+};
+
+function trackAlbumArtworkUrl(track: TrendingWithTrack["track"]): string | null {
+  const imgs = track.album?.images;
+  if (!imgs?.length) return null;
+  for (const im of imgs) {
+    const u = im?.url?.trim();
+    if (u) return u;
+  }
+  return null;
 }
-
-function DiscoverPageSkeleton() {
-  return (
-    <View style={skelStyles.wrap}>
-      <View style={skelStyles.heroLineLg} />
-      <View style={skelStyles.heroLineSm} />
-      {[0, 1].map((section) => (
-        <View key={section} style={skelStyles.section}>
-          <View style={skelStyles.sectionTitle} />
-          <View style={skelStyles.row}>
-            {[0, 1, 2, 3].map((i) => (
-              <View key={i} style={skelStyles.card}>
-                <View style={skelStyles.cardArt} />
-                <View style={skelStyles.cardText} />
-                <View style={skelStyles.cardTextShort} />
-              </View>
-            ))}
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-const skelStyles = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    gap: 24,
-  },
-  heroLineLg: {
-    height: 28,
-    width: "55%",
-    borderRadius: 8,
-    backgroundColor: theme.colors.border,
-  },
-  heroLineSm: {
-    height: 14,
-    width: "75%",
-    borderRadius: 6,
-    backgroundColor: theme.colors.panel,
-  },
-  section: {
-    gap: 14,
-  },
-  sectionTitle: {
-    height: 22,
-    width: "45%",
-    borderRadius: 6,
-    backgroundColor: theme.colors.border,
-  },
-  row: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  card: {
-    width: 120,
-    gap: 8,
-  },
-  cardArt: {
-    width: 120,
-    height: 120,
-    borderRadius: 12,
-    backgroundColor: theme.colors.panel,
-  },
-  cardText: {
-    height: 12,
-    borderRadius: 4,
-    backgroundColor: theme.colors.border,
-  },
-  cardTextShort: {
-    height: 10,
-    width: "70%",
-    borderRadius: 4,
-    backgroundColor: theme.colors.panel,
-  },
-});
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
+  const { data: hub, isPending: hubPending, refetch: refetchHub } =
+    useExploreHub();
+  const { data: rising = [], refetch: refetchRising } =
+    useRisingArtists(RISING_CAP);
   const {
-    data: popularAlbums = [],
-    isLoading: isAlbumsLoading,
-    refetch: refetchAlbums,
-  } = useLeaderboard({ type: "albums", metric: "popular" });
+    data: gemGrid = [],
+    refetch: refetchGems,
+    isPending: gemsGridPending,
+  } = useHiddenGemsGrid(GEMS_CAP);
 
-  const {
-    data: popularSongs = [],
-    isLoading: isSongsLoading,
-    refetch: refetchSongs,
-  } = useLeaderboard({ type: "songs", metric: "popular" });
+  const gemMediaItems = useMemo((): MediaItem[] => {
+    return gemGrid.map((g) => ({
+      id: g.entity_id,
+      title: g.title,
+      artist: `${g.artist} · ${g.avg_rating.toFixed(1)}★ · ${g.listen_count.toLocaleString()} plays`,
+      artworkUrl: g.artwork_url,
+    }));
+  }, [gemGrid]);
 
-  const {
-    data: risingArtists = [],
-    isLoading: isArtistsLoading,
-    refetch: refetchArtists,
-  } = useRisingArtists(ARTIST_LIMIT);
+  const trendingItems = useMemo((): TrendingWithTrack[] => {
+    const raw = hub?.trending ?? [];
+    const valid = raw.filter((x): x is TrendingWithTrack => x.track != null);
+    return valid.slice(0, TRENDING_CAP);
+  }, [hub?.trending]);
 
-  const {
-    data: feedData,
-    isPending: isFeedPending,
-    refetch: refetchFeed,
-  } = useFeed();
-
-  const albums = useMemo(
-    () => popularAlbums.slice(0, ALBUM_LIMIT),
-    [popularAlbums],
-  );
-  const songs = useMemo(
-    () => popularSongs.slice(0, SONG_LIMIT),
-    [popularSongs],
-  );
-
-  const recentReviews = useMemo(() => {
-    const flat = feedData?.pages.flatMap((p) => p.items) ?? [];
-    const reviews = flat.filter(
-      (a): a is Extract<FeedActivity, { type: "review" }> =>
-        a.type === "review",
-    );
-    return reviews.slice(0, REVIEW_LIMIT);
-  }, [feedData?.pages]);
-
-  const mainLoading = isAlbumsLoading || isSongsLoading || isArtistsLoading;
+  const onBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)/explore");
+    }
+  }, [router]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        refetchAlbums(),
-        refetchSongs(),
-        refetchArtists(),
-        refetchFeed(),
-      ]);
+      await Promise.all([refetchHub(), refetchRising(), refetchGems()]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchAlbums, refetchSongs, refetchArtists, refetchFeed]);
+  }, [refetchHub, refetchRising, refetchGems]);
 
-  const hasAnyContent =
-    albums.length > 0 ||
-    songs.length > 0 ||
-    risingArtists.length > 0 ||
-    recentReviews.length > 0;
-
-  const showEmpty = !mainLoading && !isFeedPending && !hasAnyContent;
-
-  const albumW = 164;
-  const songW = 132;
-  const artistW = 104;
-  const reviewW = 232;
-
-  const renderAlbumCard = useCallback(
-    (item: (typeof albums)[number]) => (
-      <DiscoverCard
-        variant="album"
-        title={item.title}
-        subtitle={item.artist}
-        imageUrl={item.artworkUrl}
-        onPress={() => router.push(`/album/${item.id}`)}
-      />
-    ),
-    [router],
-  );
-
-  const renderSongCard = useCallback(
-    (item: (typeof songs)[number]) => (
-      <DiscoverCard
-        variant="song"
-        title={item.title}
-        subtitle={item.artist}
-        imageUrl={item.artworkUrl}
-        onPress={() => router.push(`/song/${item.id}`)}
-      />
-    ),
-    [router],
-  );
-
-  const renderArtistCard = useCallback(
-    (item: (typeof risingArtists)[number]) => (
-      <DiscoverCard
-        variant="artist"
-        title={item.name}
-        imageUrl={item.avatar_url}
-        onPress={() => router.push(`/artist/${item.artist_id}`)}
-      />
-    ),
-    [router],
-  );
-
-  const renderReviewCard = useCallback(
-    (item: (typeof recentReviews)[number]) => {
-      const review = item.review;
-      const title = displayEntityName(item.spotifyName, review.entity_type);
-      const user = review.user?.username;
-      const subtitle = user ? `@${user}` : "Review";
+  const renderTrendingCard = useCallback(
+    (item: TrendingWithTrack) => {
+      const { entity, track } = item;
+      const art = trackAlbumArtworkUrl(track);
+      const plays = entity.listen_count?.toLocaleString() ?? "0";
       return (
         <DiscoverCard
-          variant="review"
-          title={title}
-          subtitle={subtitle}
-          onPress={() =>
-            review.entity_type === "album"
-              ? router.push(`/album/${review.entity_id}`)
-              : router.push(`/song/${review.entity_id}`)
-          }
+          variant="song"
+          title={track.name}
+          subtitle={`${plays} plays`}
+          imageUrl={art}
+          onPress={() => router.push(`/song/${track.id}` as const)}
         />
       );
     },
     [router],
   );
 
+  const onGemMediaPress = useCallback(
+    (item: MediaItem) => {
+      const g = gemGrid.find((x) => x.entity_id === item.id);
+      if (!g) return;
+      if (g.entity_type === "album") {
+        router.push(`/album/${g.entity_id}` as const);
+      } else {
+        router.push(`/song/${g.entity_id}` as const);
+      }
+    },
+    [gemGrid, router],
+  );
+
+  const showHubLoading = hubPending && !hub;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={onBack}
+          hitSlop={12}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+        </Pressable>
+        <View style={styles.topBarTitle}>
+          <Text style={styles.backHint}>Explore</Text>
+          <Text style={styles.pageTitle}>Discover</Text>
+        </View>
+        <View style={styles.topBarSpacer} />
+      </View>
+
       <ScrollView
-        stickyHeaderIndices={Platform.OS === "ios" ? [0] : undefined}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        nestedScrollEnabled
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -264,75 +150,93 @@ export default function DiscoverScreen() {
           />
         }
       >
-        <View style={styles.stickyHeader}>
-          <Text style={styles.heroTitle}>Explore</Text>
-          <Text style={styles.heroSub}>
-            Discovery, charts, and people — start here, then go deeper.
-          </Text>
+        <Text style={styles.heroSub}>
+          Trending tracks, rising artists, and hidden gems.
+        </Text>
+        <View style={styles.linksRow}>
+          <Pressable
+            onPress={() => router.push("/search/users" as const)}
+            hitSlop={8}
+          >
+            <Text style={styles.inlineLink}>Find users →</Text>
+          </Pressable>
         </View>
 
-        {mainLoading ? (
-          <DiscoverPageSkeleton />
+        {showHubLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={theme.colors.emerald} />
+          </View>
         ) : (
           <>
-            {albums.length > 0 ? (
-              <DiscoverSection title="Trending Albums" seeAllLabel="See all">
-                <HorizontalCarousel
-                  data={albums}
-                  keyExtractor={(item) => item.id}
-                  itemWidth={albumW}
-                  renderCard={renderAlbumCard}
+            <DiscoverSection title="Trending" description="Last 24 hours on Tracklist.">
+              {trendingItems.length > 0 ? (
+                <HorizontalCarousel<TrendingWithTrack>
+                  data={trendingItems}
+                  keyExtractor={(item) => item.entity.entity_id}
+                  itemWidth={132}
+                  renderCard={renderTrendingCard}
                 />
-              </DiscoverSection>
-            ) : null}
+              ) : (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>
+                    No trending tracks in the last 24 hours.
+                  </Text>
+                </View>
+              )}
+            </DiscoverSection>
 
-            {songs.length > 0 ? (
-              <DiscoverSection title="Trending Songs" seeAllLabel="See all">
-                <HorizontalCarousel
-                  data={songs}
-                  keyExtractor={(item) => item.id}
-                  itemWidth={songW}
-                  renderCard={renderSongCard}
+            <DiscoverSection
+              title="Rising artists"
+              description="Strong growth in listens over the last week."
+            >
+              {rising.length === 0 ? (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>No rising artists yet.</Text>
+                </View>
+              ) : (
+                <HorizontalCarousel<RisingArtist>
+                  data={rising}
+                  keyExtractor={(a) => a.artist_id}
+                  itemWidth={120}
+                  renderCard={(a) => (
+                    <DiscoverCard
+                      variant="artist"
+                      title={a.name}
+                      imageUrl={a.avatar_url}
+                      onPress={() =>
+                        router.push(`/artist/${a.artist_id}` as const)
+                      }
+                    />
+                  )}
                 />
-              </DiscoverSection>
-            ) : null}
+              )}
+            </DiscoverSection>
 
-            {risingArtists.length > 0 ? (
-              <DiscoverSection title="Popular Artists" seeAllLabel="See all">
-                <HorizontalCarousel
-                  data={risingArtists}
-                  keyExtractor={(item) => item.artist_id}
-                  itemWidth={artistW}
-                  renderCard={renderArtistCard}
-                />
-              </DiscoverSection>
-            ) : null}
-
-            {isFeedPending && !mainLoading ? (
-              <View style={styles.feedSkel}>
-                <View style={skelStyles.sectionTitle} />
-                <View style={styles.feedSkelBar} />
-                <View style={styles.feedSkelBarShort} />
-              </View>
-            ) : recentReviews.length > 0 ? (
-              <DiscoverSection title="Recently reviewed" seeAllLabel="See all">
-                <HorizontalCarousel
-                  data={recentReviews}
-                  keyExtractor={(item) => item.review.id}
-                  itemWidth={reviewW}
-                  renderCard={renderReviewCard}
-                />
-              </DiscoverSection>
-            ) : null}
-
-            {showEmpty ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>Nothing to discover right now</Text>
-                <Text style={styles.emptyBody}>
-                  Pull down to refresh, or check back soon for new picks.
-                </Text>
-              </View>
-            ) : null}
+            <DiscoverSection
+              title="Hidden gems"
+              description="Highly rated with fewer listens."
+            >
+              {gemsGridPending && gemMediaItems.length === 0 ? (
+                <View style={styles.inlineEmpty}>
+                  <ActivityIndicator color={theme.colors.emerald} />
+                </View>
+              ) : gemMediaItems.length === 0 ? (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>
+                    No hidden gems yet. Rate music to surface under-the-radar picks.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.gemsGridWrap}>
+                  <MediaGrid
+                    data={gemMediaItems}
+                    numColumns={2}
+                    scrollEnabled={false}
+                    onPressItem={onGemMediaPress}
+                  />
+                </View>
+              )}
+            </DiscoverSection>
           </>
         )}
       </ScrollView>
@@ -345,65 +249,83 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.bg,
   },
-  scrollContent: {
-    paddingBottom: 100,
-  },
-  stickyHeader: {
-    backgroundColor: theme.colors.bg,
-    paddingLeft: 18,
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 8,
     paddingRight: 18 + NOTIFICATION_BELL_GUTTER,
-    paddingBottom: 16,
+    paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
   },
-  heroTitle: {
-    fontSize: 32,
+  backBtn: {
+    padding: 6,
+  },
+  pressed: {
+    opacity: 0.88,
+  },
+  topBarTitle: {
+    flex: 1,
+    marginLeft: 4,
+  },
+  backHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.muted,
+  },
+  pageTitle: {
+    fontSize: 22,
     fontWeight: "800",
     color: theme.colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+  },
+  topBarSpacer: {
+    width: 32,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+    paddingTop: 8,
   },
   heroSub: {
-    marginTop: 6,
+    paddingHorizontal: 18,
     fontSize: 15,
     fontWeight: "500",
     color: theme.colors.muted,
     lineHeight: 20,
   },
-  feedSkel: {
+  linksRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
     paddingHorizontal: 18,
-    marginBottom: 28,
-    gap: 10,
+    marginTop: 10,
+    marginBottom: 8,
   },
-  feedSkelBar: {
-    height: 56,
-    borderRadius: 12,
+  inlineLink: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: theme.colors.emerald,
+  },
+  centered: {
+    paddingVertical: 48,
+    alignItems: "center",
+  },
+  inlineEmpty: {
+    marginHorizontal: 18,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     backgroundColor: theme.colors.panel,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
   },
-  feedSkelBarShort: {
-    height: 56,
-    width: "72%",
-    borderRadius: 12,
-    backgroundColor: theme.colors.border,
-  },
-  empty: {
-    paddingHorizontal: 24,
-    paddingVertical: 48,
-    alignItems: "center",
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: theme.colors.text,
-    textAlign: "center",
-  },
-  emptyBody: {
-    marginTop: 8,
+  inlineEmptyText: {
     fontSize: 14,
     fontWeight: "500",
     color: theme.colors.muted,
     textAlign: "center",
-    lineHeight: 20,
+  },
+  gemsGridWrap: {
+    paddingHorizontal: 18,
   },
 });

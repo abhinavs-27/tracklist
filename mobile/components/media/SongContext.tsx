@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Artwork } from "./Artwork";
-import { theme } from "../../lib/theme";
-import type { SongAlbumContext } from "../../lib/hooks/useSong";
+import { theme } from "@/lib/theme";
+import type { SongAlbumContext } from "@/lib/hooks/useSong";
 
 type Props = {
   album: SongAlbumContext | null;

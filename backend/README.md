@@ -138,4 +138,4 @@ NEXT_API_FALLBACK=http://127.0.0.1:3000
 ## Scripts (from requirements)
 
 - **`npm run dev`** — `nodemon --watch './**/*.ts' --exec 'ts-node' server.ts`
-- **`npm start`** — `node dist/server.js`
+- **`npm start`** — `node dist/backend/server.js` (build emits `dist/backend/*` because shared `lib/user-search-directory.ts` is compiled alongside the server)

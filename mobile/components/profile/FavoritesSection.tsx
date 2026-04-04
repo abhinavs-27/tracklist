@@ -1,6 +1,6 @@
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import { theme } from "../../lib/theme";
-import type { ProfileFavoriteItem } from "../../lib/hooks/useProfile";
+import { theme } from "@/lib/theme";
+import type { ProfileFavoriteItem } from "@/lib/hooks/useProfile";
 
 const PLACEHOLDER =
   "https://placehold.co/300x300/111827/9CA3AF?text=Tracklist";

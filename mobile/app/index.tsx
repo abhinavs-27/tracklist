@@ -1,5 +1,5 @@
 import { Redirect } from "expo-router";
-import { useAuth } from "../lib/hooks/useAuth";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 /**
  * Entry: unauthenticated users only see login (never tabs first). Authenticated → main app.

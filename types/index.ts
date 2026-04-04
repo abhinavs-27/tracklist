@@ -412,6 +412,17 @@ export type HiddenGem = {
   listen_count: number;
 };
 
+/** `GET /api/discover/hidden-gems/grid` — catalog-enriched rows for mobile/web grids. */
+export type HiddenGemGridItem = {
+  entity_id: string;
+  entity_type: "song" | "album";
+  title: string;
+  artist: string;
+  artwork_url: string | null;
+  avg_rating: number;
+  listen_count: number;
+};
+
 export type SyncResponse = {
   inserted: number;
   skipped: number;

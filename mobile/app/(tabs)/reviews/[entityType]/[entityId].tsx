@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useReviews } from "../../../lib/hooks/useReviews";
-import { theme } from "../../../lib/theme";
-import { LikeButton } from "../../../components/reviews/LikeButton";
-import { CommentThread } from "../../../components/reviews/CommentThread";
+import { useReviews } from "@/lib/hooks/useReviews";
+import { theme } from "@/lib/theme";
+import { LikeButton } from "@/components/reviews/LikeButton";
+import { CommentThread } from "@/components/reviews/CommentThread";
 import { useQuery } from "@tanstack/react-query";
-import { fetcher } from "../../../lib/api";
+import { fetcher } from "@/lib/api";
 
 function clampStars(r: number) {
   const n = Math.floor(r);

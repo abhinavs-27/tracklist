@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { fetcher } from "../../lib/api";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
-import type { LastfmPreviewRow } from "../../../lib/lastfm/types";
+import { fetcher } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
+import type { LastfmPreviewRow } from "@repo/lib/lastfm/types";
 
 type Props = {
   userId: string;

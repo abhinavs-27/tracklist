@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "../../lib/theme";
-import type { ProfileActivityItem } from "../../lib/hooks/useProfile";
-import { Artwork } from "../media/Artwork";
+import { theme } from "@/lib/theme";
+import type { ProfileActivityItem } from "@/lib/hooks/useProfile";
+import { Artwork } from "@/components/media/Artwork";
 
 /** Single activity row — use inside parent `FlatList` `renderItem` on the profile screen. */
 export const ProfileActivityRow = memo(function ProfileActivityRow({

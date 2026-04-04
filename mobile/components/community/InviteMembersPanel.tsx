@@ -12,8 +12,8 @@ import {
   searchUsersForInvite,
   sendCommunityInvite,
   type SearchUserRow,
-} from "../../lib/api-communities";
-import { theme } from "../../lib/theme";
+} from "@/lib/api-communities";
+import { theme } from "@/lib/theme";
 
 export function InviteMembersPanel({ communityId }: { communityId: string }) {
   const [q, setQ] = useState("");

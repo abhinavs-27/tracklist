@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 type Props = {
   title: string;

@@ -1,4 +1,4 @@
-import { ProfileContent } from "../../components/profile/ProfileContent";
+import { ProfileContent } from "@/components/profile/ProfileContent";
 
 export default function ProfileScreen() {
   return <ProfileContent />;

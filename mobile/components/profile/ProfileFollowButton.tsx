@@ -8,9 +8,9 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabase";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+import { supabase } from "@/lib/supabase";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 

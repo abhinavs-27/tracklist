@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { ImageStyle, StyleSheet } from "react-native";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 type ArtworkSize = "sm" | "md" | "lg";
 

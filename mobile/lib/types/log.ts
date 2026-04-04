@@ -1,1 +1,1 @@
-export * from "../../../lib/logging/types";
+export * from "@repo/lib/logging/types";

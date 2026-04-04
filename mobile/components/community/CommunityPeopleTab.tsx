@@ -13,9 +13,9 @@ import {
 import {
   fetchCommunityMembers,
   type CommunityMemberRosterEntry,
-} from "../../lib/api-communities";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+} from "@/lib/api-communities";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 type Props = {
   communityId: string;

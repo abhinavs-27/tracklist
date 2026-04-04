@@ -7,8 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { theme } from "../../lib/theme";
-import type { EnrichedNotification } from "../../lib/types/notifications";
+import { theme } from "@/lib/theme";
+import type { EnrichedNotification } from "@/lib/types/notifications";
 import { NotificationItem } from "./NotificationItem";
 
 type Props = {

@@ -2,13 +2,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import { useAuth } from "../lib/hooks/useAuth";
-import { queryKeys } from "../lib/query-keys";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { queryKeys } from "@/lib/query-keys";
 import {
   Notifications,
   registerPushWithBackend,
   routeFromPushData,
-} from "../lib/notifications";
+} from "@/lib/notifications";
 
 /**
  * Registers Expo push (when signed in), syncs list on foreground notifications,

@@ -29,17 +29,21 @@ type BatchEntry = { trackId: string; listenedAtIso: string };
 
 /**
  * After many log rows are inserted (e.g. Last.fm import), hydrate catalog and refresh stats once.
+ * When `skipSpotifyEnrich` is true (Last.fm-only backfill), skips `enrich_track` Spotify jobs only.
  */
 export async function syncBatchLogSideEffects(
   _userId: string,
   entries: BatchEntry[],
+  options?: { skipSpotifyEnrich?: boolean },
 ): Promise<void> {
   if (entries.length === 0) return;
 
   const uniqueIds = [...new Set(entries.map((e) => e.trackId))];
 
-  for (const id of uniqueIds) {
-    await enqueueSpotifyEnrich({ name: "enrich_track", trackId: id });
+  if (!options?.skipSpotifyEnrich) {
+    for (const id of uniqueIds) {
+      await enqueueSpotifyEnrich({ name: "enrich_track", trackId: id });
+    }
   }
 
   const supabase = createSupabaseAdminClient();

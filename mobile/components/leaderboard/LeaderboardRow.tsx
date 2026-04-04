@@ -1,8 +1,8 @@
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { Artwork } from "../media/Artwork";
-import type { LeaderboardItem } from "../../lib/hooks/useLeaderboard";
-import { theme } from "../../lib/theme";
+import { Artwork } from "@/components/media/Artwork";
+import type { LeaderboardItem } from "@/lib/hooks/useLeaderboard";
+import { theme } from "@/lib/theme";
 
 function formatCompact(n: number) {
   if (!Number.isFinite(n)) return "0";

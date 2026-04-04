@@ -8,15 +8,15 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { feedAlbumCoverUrl } from "../../lib/feed-artwork";
-import { theme } from "../../lib/theme";
-import { formatRelativeTime } from "../../lib/time";
+import { feedAlbumCoverUrl } from "@/lib/feed-artwork";
+import { theme } from "@/lib/theme";
+import { formatRelativeTime } from "@/lib/time";
 import type {
   FeedActivity,
   FeedListenSession,
-} from "../../lib/types/feed";
-import { Artwork } from "../media/Artwork";
-import { LikeButton } from "../reviews/LikeButton";
+} from "@/lib/types/feed";
+import { Artwork } from "@/components/media/Artwork";
+import { LikeButton } from "@/components/reviews/LikeButton";
 
 const DISPLAY_CAP = 10;
 

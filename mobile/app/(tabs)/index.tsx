@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FeedList } from "../../components/feed/FeedList";
-import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
-import { theme } from "../../lib/theme";
+import { FeedList } from "@/components/feed/FeedList";
+import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { theme } from "@/lib/theme";
 
 export default function FeedScreen() {
   return (

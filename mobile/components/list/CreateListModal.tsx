@@ -14,11 +14,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetcher } from "../../lib/api";
-import { createList } from "../../lib/api-lists";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
-import { Artwork } from "../media/Artwork";
+import { fetcher } from "@/lib/api";
+import { createList } from "@/lib/api-lists";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
+import { Artwork } from "@/components/media/Artwork";
 
 type SpotifySearchPayload = {
   albums?: {

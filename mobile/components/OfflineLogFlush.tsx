@@ -1,8 +1,8 @@
 import { useCallback, useEffect } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { flushPendingLogs } from "../lib/hooks/useCreateLog";
-import { queryKeys } from "../lib/query-keys";
+import { flushPendingLogs } from "@/lib/hooks/useCreateLog";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Drains any legacy offline log queue (AsyncStorage) on launch / resume.

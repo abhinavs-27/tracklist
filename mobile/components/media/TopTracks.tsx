@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 import { Tracklist, type TrackRowItem } from "./Tracklist";
 
 type Props = {

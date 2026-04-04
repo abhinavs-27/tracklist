@@ -10,16 +10,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import type { CommunityInvitePending, CommunityWithMeta } from "../../../types";
+import type { CommunityInvitePending, CommunityWithMeta } from "@repo/types";
 import {
   acceptCommunityInviteApi,
   declineCommunityInviteApi,
   fetchMyCommunityInvites,
-} from "../../lib/api-communities";
-import { useMyCommunities } from "../../lib/hooks/useMyCommunities";
-import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+} from "@/lib/api-communities";
+import { useMyCommunities } from "@/lib/hooks/useMyCommunities";
+import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 export default function CommunitiesTabScreen() {
   const router = useRouter();

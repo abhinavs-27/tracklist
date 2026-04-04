@@ -10,9 +10,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { CommunityActivityFeed } from "../../components/community/CommunityActivityFeed";
-import { CommunityPeopleTab } from "../../components/community/CommunityPeopleTab";
-import { CommunityVibeTab } from "../../components/community/CommunityVibeTab";
+import { CommunityActivityFeed } from "@/components/community/CommunityActivityFeed";
+import { CommunityPeopleTab } from "@/components/community/CommunityPeopleTab";
+import { CommunityVibeTab } from "@/components/community/CommunityVibeTab";
 import {
   acceptCommunityInviteApi,
   declineCommunityInviteApi,
@@ -24,11 +24,11 @@ import {
   fetchCommunityWeeklySummary,
   joinCommunity,
   type CommunityFeedItemV2,
-} from "../../lib/api-communities";
-import { useAuth } from "../../lib/hooks/useAuth";
-import { fetchCommunityTasteMatch } from "../../lib/api-taste";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+} from "@/lib/api-communities";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { fetchCommunityTasteMatch } from "@/lib/api-taste";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 export default function CommunityDetailScreen() {
   const { user: authUser } = useAuth();

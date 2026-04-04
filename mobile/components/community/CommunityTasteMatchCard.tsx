@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 type Props = {
   score: number;

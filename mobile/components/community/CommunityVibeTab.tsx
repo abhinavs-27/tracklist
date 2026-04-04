@@ -14,8 +14,8 @@ import type {
   CommunityInsightsPayload,
   CommunityLeaderboardRow,
   CommunityWeeklySummaryApiResponse,
-} from "../../lib/api-communities";
-import { theme } from "../../lib/theme";
+} from "@/lib/api-communities";
+import { theme } from "@/lib/theme";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { CommunityTasteMatchCard } from "./CommunityTasteMatchCard";
 import { HorizontalEntityCarousel } from "./HorizontalEntityCarousel";

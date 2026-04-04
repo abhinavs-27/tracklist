@@ -8,12 +8,12 @@ import {
 } from "react-native";
 import { type Href, useRouter } from "expo-router";
 import { useMemo } from "react";
-import type { CommunityFeedItemV2 } from "../../lib/api-communities";
+import type { CommunityFeedItemV2 } from "@/lib/api-communities";
 import {
   type CommunityFeedGrouped,
   groupCommunityFeedItems,
-} from "../../lib/group-community-feed";
-import { theme } from "../../lib/theme";
+} from "@/lib/group-community-feed";
+import { theme } from "@/lib/theme";
 
 function formatRelative(iso: string): string {
   const t = new Date(iso).getTime();

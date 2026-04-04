@@ -1,7 +1,7 @@
 import { Pressable, Text, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { theme } from "../../lib/theme";
-import type { ProfileListSummary } from "../../lib/hooks/useProfile";
+import { theme } from "@/lib/theme";
+import type { ProfileListSummary } from "@/lib/hooks/useProfile";
 
 type Props = {
   lists: ProfileListSummary[];

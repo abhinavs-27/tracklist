@@ -2,10 +2,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   enqueueSpotifyEnrich,
   getSpotifyEnrichQueue,
+  getSpotifyResolveStaggerMs,
   processSpotifyEnrichJob,
   type SpotifyEnrichJobData,
 } from "@/lib/jobs/spotifyQueue";
 import { apiError, apiOk } from "@/lib/api-response";
+import { lfmArtistId, lfmSongId } from "@/lib/lastfm/lfm-ids";
 import { syncListensSpotifyTrackIdsFromSongs } from "@/lib/lastfm/sync-listens-spotify-from-songs";
 
 const BATCH_SONGS = 30;
@@ -53,7 +55,7 @@ export async function GET() {
     if (!s.lastfm_name || !s.lastfm_artist_name) continue;
     jobList.push({
       name: "resolve_track_spotify",
-      lfmSongId: s.id,
+      lfmSongId: lfmSongId(s.lastfm_artist_name, s.lastfm_name),
       artistName: s.lastfm_artist_name,
       trackName: s.lastfm_name,
       albumName: null,
@@ -63,7 +65,7 @@ export async function GET() {
     if (!a.lastfm_name) continue;
     jobList.push({
       name: "resolve_artist_spotify",
-      lfmArtistId: a.id,
+      lfmArtistId: lfmArtistId(a.lastfm_name),
       artistName: a.lastfm_name,
     });
   }
@@ -74,7 +76,9 @@ export async function GET() {
   let inlineFailed = 0;
 
   if (!queue) {
-    for (const job of jobList) {
+    const staggerMs = getSpotifyResolveStaggerMs();
+    for (let i = 0; i < jobList.length; i++) {
+      const job = jobList[i]!;
       try {
         await processSpotifyEnrichJob(job);
         inlineCompleted += 1;
@@ -84,6 +88,10 @@ export async function GET() {
           job: job.name,
           error: e instanceof Error ? e.message : String(e),
         });
+      }
+      /** Same pacing as BullMQ delayed jobs / in-memory queue — avoids Spotify bursts when Redis is off. */
+      if (staggerMs > 0 && i < jobList.length - 1) {
+        await new Promise((r) => setTimeout(r, staggerMs));
       }
     }
   } else {

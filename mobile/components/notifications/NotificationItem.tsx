@@ -1,12 +1,12 @@
 import { memo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 import {
   notificationPrimaryLine,
   notificationSecondaryLine,
-} from "../../lib/notification-copy";
-import { formatRelativeTime } from "../../lib/time";
-import type { EnrichedNotification } from "../../lib/types/notifications";
+} from "@/lib/notification-copy";
+import { formatRelativeTime } from "@/lib/time";
+import type { EnrichedNotification } from "@/lib/types/notifications";
 
 type Props = {
   item: EnrichedNotification;

@@ -11,9 +11,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { createCommunity } from "../../lib/api-communities";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+import { createCommunity } from "@/lib/api-communities";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 export default function NewCommunityScreen() {
   const router = useRouter();

@@ -14,15 +14,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Artwork } from "../../components/media/Artwork";
-import { ListEditModal } from "../../components/list/ListEditModal";
-import { addListItem, removeListItem } from "../../lib/api-lists";
-import { fetcher } from "../../lib/api";
-import { useListDetail } from "../../lib/hooks/useListDetail";
-import { useProfile } from "../../lib/hooks/useProfile";
-import type { ListItemEnriched } from "../../lib/types/list-detail";
-import { queryKeys } from "../../lib/query-keys";
-import { theme } from "../../lib/theme";
+import { Artwork } from "@/components/media/Artwork";
+import { ListEditModal } from "@/components/list/ListEditModal";
+import { addListItem, removeListItem } from "@/lib/api-lists";
+import { fetcher } from "@/lib/api";
+import { useListDetail } from "@/lib/hooks/useListDetail";
+import { useProfile } from "@/lib/hooks/useProfile";
+import type { ListItemEnriched } from "@/lib/types/list-detail";
+import { queryKeys } from "@/lib/query-keys";
+import { theme } from "@/lib/theme";
 
 type SpotifySearchPayload = {
   albums?: {

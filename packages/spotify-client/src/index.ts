@@ -100,13 +100,14 @@ const SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN = parsePositiveIntEnv(
  * can issue many sequential requests; pace them separately from search/albums/artists
  * so they do not exhaust the main catalog reservoir and trigger Spotify 429s.
  */
+/** Full discography pagination issues many sequential calls — keep under Spotify’s rolling limits. */
 const SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS = parsePositiveIntEnv(
   "SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS",
-  250,
+  400,
 );
 const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN = parsePositiveIntEnv(
   "SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN",
-  18,
+  12,
 );
 
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */

@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity } from "react-native";
-import { theme } from "../../lib/theme";
+import { theme } from "@/lib/theme";
 
 type Option = {
   value: string;

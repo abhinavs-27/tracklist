@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { buildLogRequestBody } from "../../lib/logging/build-log-request-body";
+import { buildLogRequestBody } from "@repo/lib/logging/build-log-request-body";
 import type { LogInput } from "./types/log";
 
 const STORAGE_KEY = "tracklist:pending_logs_v1";
@@ -37,7 +37,7 @@ async function saveQueue(items: QueuedLog[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
-export { buildLogRequestBody } from "../../lib/logging/build-log-request-body";
+export { buildLogRequestBody } from "@repo/lib/logging/build-log-request-body";
 
 export async function enqueuePendingLog(payload: LogInput): Promise<void> {
   const queue = await loadQueue();

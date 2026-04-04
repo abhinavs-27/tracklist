@@ -8,10 +8,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { NOTIFICATION_BELL_GUTTER } from "../../lib/layout";
-import { theme } from "../../lib/theme";
-import { useProfile } from "../../lib/hooks/useProfile";
-import { useAuth } from "../../lib/hooks/useAuth";
+import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { theme } from "@/lib/theme";
+import { useProfile } from "@/lib/hooks/useProfile";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { ProfileHeader } from "./ProfileHeader";
 import { FavoritesSection } from "./FavoritesSection";
 import { ProfileFollowButton } from "./ProfileFollowButton";
@@ -22,7 +22,7 @@ import {
   ActivitySeparator,
 } from "./ActivityList";
 import { FollowNetworkModal } from "./FollowNetworkModal";
-import { CreateListModal } from "../list/CreateListModal";
+import { CreateListModal } from "@/components/list/CreateListModal";
 import { LastfmSection } from "./LastfmSection";
 import { TasteIdentity } from "./TasteIdentity";
 import { SimilarUsersSection } from "./SimilarUsersSection";

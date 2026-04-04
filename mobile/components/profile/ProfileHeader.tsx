@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Image, Pressable } from "react-native";
-import { theme } from "../../lib/theme";
-import type { ProfileUser, ProfileStats } from "../../lib/hooks/useProfile";
+import { theme } from "@/lib/theme";
+import type { ProfileUser, ProfileStats } from "@/lib/hooks/useProfile";
 
 type Props = {
   user: ProfileUser;

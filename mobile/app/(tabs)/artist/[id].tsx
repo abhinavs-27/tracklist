@@ -8,12 +8,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { theme } from "../../lib/theme";
-import { useArtist } from "../../lib/hooks/useArtist";
-import { MediaHeader } from "../../components/media/MediaHeader";
-import { StatRow } from "../../components/media/StatRow";
-import { TopTracks } from "../../components/media/TopTracks";
-import { MediaGrid, type MediaItem } from "../../components/media/MediaGrid";
+import { theme } from "@/lib/theme";
+import { useArtist } from "@/lib/hooks/useArtist";
+import { MediaHeader } from "@/components/media/MediaHeader";
+import { StatRow } from "@/components/media/StatRow";
+import { TopTracks } from "@/components/media/TopTracks";
+import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 
 function formatFollowers(n: number | null): string | null {
   if (n == null || !Number.isFinite(n)) return null;
