@@ -1,12 +1,10 @@
 import { NextRequest } from "next/server";
 import { computeCommunityWeeklyChartsForAll } from "@/lib/charts/compute-community-weekly-charts-all";
-import { computeWeeklyChartsForAllUsers } from "@/lib/charts/compute-weekly-charts-all";
 import { apiUnauthorized, apiOk, apiError } from "@/lib/api-response";
 
 /**
- * Runs **user** then **community** weekly charts in one request (manual / backfill).
- * Production schedule uses separate crons: `weekly-charts-users` → `weekly-charts-communities`
- * → `billboard-weekly-email` (see `vercel.json`). Authorization: Bearer CRON_SECRET (optional in dev).
+ * Weekly (schedule: Sun 06:00 UTC): compute **community** weekly billboards only.
+ * Runs after user charts (`/api/cron/weekly-charts-users`). Authorization: Bearer CRON_SECRET.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -18,15 +16,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const users = await computeWeeklyChartsForAllUsers();
     const communities = await computeCommunityWeeklyChartsForAll();
     return apiOk({
       ok: true,
-      users,
       communities,
     });
   } catch (e) {
-    console.error("[cron] weekly-charts", e);
-    return apiError("Weekly charts failed", 500);
+    console.error("[cron] weekly-charts-communities", e);
+    return apiError("Community weekly charts failed", 500);
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WeeklyBillboardView } from "@/components/charts/weekly-billboard";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
 import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
@@ -29,6 +29,7 @@ export function ChartsClient(props: {
   const [loading, setLoading] = useState(true);
   const [loadingWeeks, setLoadingWeeks] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const billboardAckSent = useRef(false);
 
   const syncUrl = useCallback((type: ChartType, week: string | null) => {
     if (typeof window === "undefined") return;
@@ -99,6 +100,24 @@ export function ChartsClient(props: {
   useEffect(() => {
     void loadChart(chartType, weekStart);
   }, [chartType, weekStart, loadChart]);
+
+  /** Acknowledge Weekly Billboard drop when viewing the latest sealed week (hides home modal/banner). */
+  useEffect(() => {
+    if (billboardAckSent.current || !data || loading || weeks.length === 0) return;
+    const first = weeks[0]?.week_start;
+    if (!first || data.week_start !== first) return;
+    const viewingLatest = weekStart == null || weekStart === first;
+    if (!viewingLatest) return;
+    billboardAckSent.current = true;
+    void fetch("/api/me/billboard-drop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "ack_chart_view",
+        week_start: data.week_start,
+      }),
+    });
+  }, [data, loading, weekStart, weeks]);
 
   /** After weeks load, drop invalid week selection. */
   useEffect(() => {

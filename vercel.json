@@ -21,8 +21,16 @@
       "schedule": "15 3 * * 1"
     },
     {
-      "path": "/api/cron/weekly-charts",
-      "schedule": "0 0 * * 0"
+      "path": "/api/cron/weekly-charts-users",
+      "schedule": "0 5 * * 0"
+    },
+    {
+      "path": "/api/cron/weekly-charts-communities",
+      "schedule": "0 6 * * 0"
+    },
+    {
+      "path": "/api/cron/billboard-weekly-email",
+      "schedule": "0 7 * * 0"
     },
     {
       "path": "/api/cron/listening-aggregates",

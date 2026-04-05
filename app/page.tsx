@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getBillboardDropStatus } from "@/lib/billboard-drop/billboard-drop-state";
+import { BillboardDropRoot } from "@/components/billboard-drop/billboard-drop-root";
 import { HomeWelcomeOverlay } from "@/components/home-welcome-overlay";
 import { HomeFeedSection } from "@/components/home/home-feed-section";
 import { HomeFeedSkeleton } from "@/components/skeletons/home-feed-skeleton";
@@ -61,11 +63,14 @@ export default async function HomePage({
     redirect("/onboarding");
   }
 
+  const billboardDrop = await getBillboardDropStatus(session.user.id);
+
   return (
     <div className={sectionGap}>
       <Suspense fallback={null}>
         <HomeWelcomeOverlay initialActive={welcomeOnboarding} />
       </Suspense>
+      <BillboardDropRoot initial={billboardDrop} />
       <Suspense fallback={<HomeFeedSkeleton />}>
         <HomeFeedSection userId={session.user.id} />
       </Suspense>
