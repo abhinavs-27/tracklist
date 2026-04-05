@@ -232,42 +232,52 @@ export async function getReviewsForEntity(
       };
     }
 
-    const { data: rows, error } = await supabase
+    const reviewsPromise = supabase
       .from("reviews")
-      .select(
-        "id, user_id, rating, review_text, created_at, updated_at",
-      )
+      .select("id, user_id, rating, review_text, created_at, updated_at")
       .eq("entity_type", entityType)
       .eq("entity_id", canonicalEntityId)
       .order("created_at", { ascending: false })
       .limit(cappedLimit);
 
-    if (error) return null;
+    const sessionPromise = getServerSession(authOptions);
 
-    const session = await getServerSession(authOptions);
+    const countPromise = supabase
+      .from("reviews")
+      .select("id", { count: "exact", head: true })
+      .eq("entity_type", entityType)
+      .eq("entity_id", canonicalEntityId);
+
+    const [reviewsRes, session, countRes] = await Promise.all([
+      reviewsPromise,
+      sessionPromise,
+      countPromise,
+    ]);
+
+    if (reviewsRes.error) return null;
+
     const userId = session?.user?.id ?? null;
+    const reviewRows = reviewsRes.data ?? [];
 
-    const reviewRows = rows ?? [];
+    const myRowPromise = userId
+      ? supabase
+          .from("reviews")
+          .select("id, rating, review_text, created_at, updated_at")
+          .eq("entity_type", entityType)
+          .eq("entity_id", canonicalEntityId)
+          .eq("user_id", userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null });
+
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const userMap = await fetchUserMap(supabase, userIds);
+    const userMapPromise = fetchUserMap(supabase, userIds);
 
-    let myRow: {
-      id: string;
-      rating: number;
-      review_text: string | null;
-      created_at: string;
-      updated_at: string;
-    } | null = null;
-    if (userId) {
-      const { data: row } = await supabase
-        .from("reviews")
-        .select("id, rating, review_text, created_at, updated_at")
-        .eq("entity_type", entityType)
-        .eq("entity_id", canonicalEntityId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      myRow = row ?? null;
-    }
+    const [myRowRes, userMap] = await Promise.all([
+      myRowPromise,
+      userMapPromise,
+    ]);
+
+    const myRow = myRowRes.data;
 
     const reviewIdsForLikes = [
       ...new Set(
@@ -308,11 +318,7 @@ export async function getReviewsForEntity(
     const average_rating =
       count > 0 ? Math.round((sum / count) * 10) / 10 : null;
 
-    const { count: total_count } = await supabase
-      .from("reviews")
-      .select("id", { count: "exact", head: true })
-      .eq("entity_type", entityType)
-      .eq("entity_id", canonicalEntityId);
+    const total_count = countRes.count;
 
     let my_review: ReviewWithUser | null = null;
     if (userId && myRow) {
@@ -2305,20 +2311,28 @@ export async function getAlbumListeners(
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
 
-    const { data: logs, error } = await supabase
+    const logsPromise = supabase
       .from("logs")
       .select("user_id, listened_at")
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
       .limit(200);
 
-    if (error || !logs?.length) return [];
-
-    const { data: followRows } = await supabase
+    const followsPromise = supabase
       .from("follows")
       .select("following_id")
       .eq("follower_id", viewerId)
       .limit(500);
+
+    const [logsRes, followsRes] = await Promise.all([
+      logsPromise,
+      followsPromise,
+    ]);
+
+    const { data: logs, error } = logsRes;
+    if (error || !logs?.length) return [];
+
+    const { data: followRows } = followsRes;
     const followingSet = new Set((followRows ?? []).map((f) => f.following_id));
 
     const seen = new Set<string>();
@@ -2880,21 +2894,27 @@ export async function getFullUserProfile(
 
     if (error || !user) return null;
 
-    const { followers_count: followers, following_count: following } =
-      await getFollowCounts(user.id);
+    const followCountsPromise = getFollowCounts(user.id);
 
-    let followingStatus = false;
-    if (viewerId && viewerId !== user.id) {
-      const { data: follow, error: followError } = await supabase
-        .from("follows")
-        .select("id")
-        .eq("follower_id", viewerId)
-        .eq("following_id", user.id)
-        .maybeSingle();
-      if (!followError && follow) {
-        followingStatus = true;
+    const followingStatusPromise = (async () => {
+      if (viewerId && viewerId !== user.id) {
+        const { data: follow, error: followError } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", viewerId)
+          .eq("following_id", user.id)
+          .maybeSingle();
+        return !followError && !!follow;
       }
-    }
+      return false;
+    })();
+
+    const [followCounts, followingStatus] = await Promise.all([
+      followCountsPromise,
+      followingStatusPromise,
+    ]);
+
+    const { followers_count: followers, following_count: following } = followCounts;
 
     const isOwn = viewerId === user.id;
 
