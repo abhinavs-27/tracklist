@@ -76,6 +76,12 @@ export async function syncLastfmScrobblesForUser(
       (t) => new Date(t.listenedAtIso).getTime() > watermarkMs,
     );
 
+    /**
+     * We still bump `lastfm_last_synced_at` when nothing is “fresh” vs our latest
+     * `logs` row with `source = lastfm` — so the timestamp can move forward with
+     * `imported: 0` (e.g. recent Last.fm plays already deduped, or watermark edge cases).
+     * Full history gaps need `/api/cron/lastfm-backfill-since` with `from`, not only this incremental sync.
+     */
     if (fresh.length === 0) {
       await supabase
         .from("users")
