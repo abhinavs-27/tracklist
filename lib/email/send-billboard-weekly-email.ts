@@ -11,6 +11,14 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Email clients prefer https; skip broken or non-URL values. */
+function safeTrackImageUrl(raw: string | null | undefined): string | null {
+  if (!raw || typeof raw !== "string") return null;
+  const t = raw.trim();
+  if (!t.startsWith("https://")) return null;
+  return t;
+}
+
 export type SendBillboardWeeklyEmailResult =
   | { ok: true }
   | { ok: false; reason: string };
@@ -107,7 +115,27 @@ export async function sendBillboardWeeklyDigestEmail(args: {
         : `${jn} slid ${spots} spot${spots === 1 ? "" : "s"}.`;
   }
 
-  const preheader = `${chart.share.weekLabel} — #1 in this email, full chart in the app.`;
+  const preheader = `${chart.share.weekLabel} — #1 below; full chart on Tracklist.`;
+
+  const numberOneImageUrl = safeTrackImageUrl(one?.image ?? null);
+  const imageAlt = one
+    ? `${one.name}${one.artist_name ? ` — ${one.artist_name}` : ""}`
+    : "Number one track";
+
+  const tracklistLine = `The rest of your chart (ranks 2–10, moves, and last week) is on Tracklist — tap below when you’re ready.`;
+
+  const chartUrlEscaped = escapeHtml(chartUrl);
+
+  const imageBlock = numberOneImageUrl
+    ? `
+                  <tr>
+                    <td style="padding:24px 28px 0;text-align:center;">
+                      <a href="${chartUrlEscaped}" style="text-decoration:none;display:inline-block;">
+                        <img src="${escapeHtml(numberOneImageUrl)}" alt="${escapeHtml(imageAlt)}" width="280" height="280" style="display:block;width:280px;max-width:100%;height:auto;margin:0 auto;border-radius:16px;border:0;object-fit:cover;background:#292524;" />
+                      </a>
+                    </td>
+                  </tr>`
+    : "";
 
   const html = `
 <!DOCTYPE html>
@@ -130,6 +158,7 @@ export async function sendBillboardWeeklyDigestEmail(args: {
             <tr>
               <td style="background:#1c1917;border-radius:20px;border:1px solid rgba(251,191,36,0.15);box-shadow:0 24px 60px -20px rgba(0,0,0,0.65);overflow:hidden;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  ${imageBlock}
                   <tr>
                     <td style="padding:28px 28px 8px;background:radial-gradient(ellipse 80% 120% at 50% -20%,rgba(251,191,36,0.12),transparent);">
                       <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.2;color:#fafaf9;">${escapeHtml(titleLine)}</h1>
@@ -150,8 +179,13 @@ export async function sendBillboardWeeklyDigestEmail(args: {
                     </td>
                   </tr>
                   <tr>
+                    <td style="padding:16px 28px 8px;text-align:center;">
+                      <p style="margin:0;font-size:15px;color:#d6d3d1;line-height:1.6;">${escapeHtml(tracklistLine)}</p>
+                    </td>
+                  </tr>
+                  <tr>
                     <td style="padding:0 28px 32px;text-align:center;">
-                      <a href="${chartUrl}" style="display:inline-block;background:linear-gradient(180deg,#fbbf24 0%,#f59e0b 100%);color:#1c1917;font-weight:700;text-decoration:none;padding:16px 32px;border-radius:14px;font-size:16px;letter-spacing:0.02em;box-shadow:0 12px 28px -8px rgba(251,191,36,0.45);">Open your chart</a>
+                      <a href="${chartUrlEscaped}" style="display:inline-block;background:linear-gradient(180deg,#fbbf24 0%,#f59e0b 100%);color:#1c1917;font-weight:700;text-decoration:none;padding:16px 32px;border-radius:14px;font-size:16px;letter-spacing:0.02em;box-shadow:0 12px 28px -8px rgba(251,191,36,0.45);">Open in Tracklist</a>
                     </td>
                   </tr>
                 </table>
