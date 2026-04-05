@@ -371,10 +371,10 @@ export async function getReviewsForUser(
 
     const { data: users } = await supabase
       .from("users")
-      .select("id, username, avatar_url")
+      .select("username, avatar_url")
       .eq("id", userId);
 
-    const user = users?.[0] ?? null;
+    const user = users?.[0] ? { id: userId, ...users[0] } : null;
 
     return rows.map((r) => ({
       id: r.id,
@@ -2208,7 +2208,8 @@ export async function getFriendsAlbumActivity(
     const { data: songRows } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", albumId);
+      .eq("album_id", albumId)
+      .limit(1000);
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
 
@@ -2300,7 +2301,8 @@ export async function getAlbumListeners(
     const { data: songRows } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", albumId);
+      .eq("album_id", albumId)
+      .limit(1000);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
@@ -2870,15 +2872,16 @@ export async function getFullUserProfile(
 ) {
   try {
     const supabase = await createSupabaseServerClient();
-    const { data: user, error } = await supabase
+    const { data: userRow, error } = await supabase
       .from("users")
       .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
+        "id, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
       )
       .eq("username", username)
       .single();
 
-    if (error || !user) return null;
+    if (error || !userRow) return null;
+    const user = { ...userRow, username };
 
     const { followers_count: followers, following_count: following } =
       await getFollowCounts(user.id);
