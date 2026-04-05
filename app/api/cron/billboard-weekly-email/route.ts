@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
         ok: true,
         skipped: true,
         reason: "no_chart_week",
+        sent: 0,
+        note: "No rows in user_weekly_charts (tracks) — weekly chart cron must run first.",
       });
     }
 
@@ -58,6 +60,8 @@ export async function GET(request: NextRequest) {
     let sent = 0;
     let skippedAlready = 0;
     let skippedNoEmail = 0;
+    let sendFailed = 0;
+    let firstSendError: string | undefined;
 
     for (const userId of userIds) {
       const { data: userRow, error: userErr } = await admin
@@ -92,6 +96,33 @@ export async function GET(request: NextRequest) {
         } else {
           sent += 1;
         }
+      } else {
+        sendFailed += 1;
+        if (!firstSendError) firstSendError = sendResult.reason;
+        console.warn("[cron] billboard-weekly-email send failed", {
+          userId,
+          reason: sendResult.reason,
+        });
+      }
+    }
+
+    let note: string | null = null;
+    if (userIds.length === 0) {
+      note =
+        "No users have a tracks chart row for this week_start (candidates is 0).";
+    } else if (sent === 0) {
+      const withEmail = userIds.length - skippedNoEmail;
+      if (withEmail > 0 && skippedAlready === withEmail) {
+        note =
+          "Dedupe only: every user with an email already has users.billboard_weekly_email_last_week equal to this week — no new sends. Unlike billboard-email-test, this cron skips those users. NULL that column for a user (or wait for a new chart week) to send again.";
+      } else if (sendFailed > 0) {
+        note =
+          "At least one send failed (Resend/chart/env). See firstSendError and logs.";
+      } else if (skippedNoEmail === userIds.length) {
+        note = "No candidate user had an email address.";
+      } else {
+        note =
+          "sent=0 — see skippedAlready, skippedNoEmail, sendFailed in this JSON.";
       }
     }
 
@@ -102,6 +133,9 @@ export async function GET(request: NextRequest) {
       sent,
       skippedAlready,
       skippedNoEmail,
+      sendFailed,
+      firstSendError: firstSendError ?? null,
+      note,
     });
   } catch (e) {
     console.error("[cron] billboard-weekly-email", e);
