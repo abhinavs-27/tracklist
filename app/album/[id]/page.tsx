@@ -20,17 +20,17 @@ type PageParams = Promise<{ id: string }>;
 export default async function AlbumPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
-  const session = await getServerSession(authOptions);
 
-  const viewerId = session?.user?.id ?? null;
+  const sessionPromise = getServerSession(authOptions);
 
-  const { album, tracks, stats } = await timeAsync(
+  const { album, tracks, stats, session } = await timeAsync(
     "page",
     "albumPage",
     async () => {
-      const [albumRes, statsRes] = await Promise.allSettled([
+      const [albumRes, statsRes, sessionRes] = await Promise.allSettled([
         getOrFetchAlbum(id, { allowNetwork: true }),
         getEntityStats("album", id),
+        sessionPromise,
       ]);
 
       if (albumRes.status !== "fulfilled") {
@@ -49,11 +49,13 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         album: albumInner,
         tracks: tracksInner,
         stats: statsInner,
+        session: sessionRes.status === "fulfilled" ? sessionRes.value : null,
       };
     },
     { id },
   );
 
+  const viewerId = session?.user?.id ?? null;
   const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();
 
   const defaultEngagement = {

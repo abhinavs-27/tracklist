@@ -25,16 +25,15 @@ export default async function ExploreHubPage() {
   const start = Date.now();
   exploreLogLine("explore: page start");
 
-  const tSession = Date.now();
-  const session = await getSession();
-  exploreLog("auth getSession", Date.now() - tSession);
+  const tParallel = Date.now();
+  const sessionPromise = getSession();
+  const hubPromise = getExploreHubPayload();
+
+  const [session, hub] = await Promise.all([sessionPromise, hubPromise]);
+  exploreLog("explore: parallel session+hub (wall)", Date.now() - tParallel);
 
   const userId = session?.user?.id ?? null;
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
-
-  const tHub = Date.now();
-  const hub = await getExploreHubPayload();
-  exploreLog("getExploreHubPayload (wall)", Date.now() - tHub);
 
   exploreLogLine(`explore: page shell (before Suspense children stream): ${Date.now() - start} ms`);
 

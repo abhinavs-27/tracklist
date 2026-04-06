@@ -13,14 +13,22 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createSupabaseServerClient();
 
-    const { data: reviews, error: reviewsError } = await supabase
+    const reviewsPromise = supabase
       .from('reviews')
       .select('user_id, entity_id, entity_type, created_at')
       .eq('entity_type', 'album')
       .order('created_at', { ascending: false })
       .limit(Math.min(Math.max(limit * 10, 50), 80));
 
-    if (reviewsError) return apiInternalError(reviewsError);
+    const viewerPromise = getUserFromRequest(request);
+
+    const [reviewsRes, viewer] = await Promise.all([
+      reviewsPromise,
+      viewerPromise,
+    ]);
+
+    if (reviewsRes.error) return apiInternalError(reviewsRes.error);
+    const reviews = reviewsRes.data;
 
     const recentReviews = reviews ?? [];
     const seen = new Set<string>();
@@ -47,25 +55,25 @@ export async function GET(request: NextRequest) {
       return apiOk(body);
     }
 
-    // Parallelize independent fetches: users, viewer, and album external IDs.
-    const [usersRes, viewer, albumExternalIdsRes] = await Promise.all([
+    // Parallelize independent fetches: users and album external IDs.
+    const [usersRes, albumExternalIdsRes] = await Promise.all([
       supabase
         .from('users')
         .select('id, username, avatar_url, bio, created_at')
         .in('id', userIds),
-      getUserFromRequest(request),
       (async () => {
         const albumUuids = [
           ...new Set(
             [...latestAlbumByUser.values()].map((v) => v.album_id).filter(Boolean),
           ),
         ];
-        if (albumUuids.length === 0) return { data: [] };
-        return supabase
+        if (albumUuids.length === 0) return { data: [] as { album_id: string; external_id: string }[] };
+        const res = await supabase
           .from("album_external_ids")
           .select("album_id, external_id")
           .eq("source", "spotify")
           .in("album_id", albumUuids);
+        return res;
       })(),
     ]);
 
