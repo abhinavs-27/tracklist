@@ -19,7 +19,10 @@ export default function CommunitiesLoading() {
 
       <ul className="space-y-2" aria-hidden>
         {Array.from({ length: 5 }).map((_, i) => (
-          <CommunityListRowSkeleton key={i} />
+          <CommunityListRowSkeleton
+            key={i}
+            className={i >= 4 ? "max-md:hidden" : ""}
+          />
         ))}
       </ul>
     </div>

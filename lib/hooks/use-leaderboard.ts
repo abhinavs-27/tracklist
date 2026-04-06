@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { LeaderboardEntry, LeaderboardFilters } from "@/lib/queries";
 
@@ -52,6 +52,7 @@ export function useLeaderboard(
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     initialPageParam: 0,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   const flatItems =
@@ -60,6 +61,8 @@ export function useLeaderboard(
   return {
     data: flatItems,
     isLoading: infiniteQuery.isLoading,
+    /** True only when no data to show yet (cached / placeholder counts). */
+    isPending: infiniteQuery.isPending,
     error: infiniteQuery.error,
     fetchNextPage: infiniteQuery.fetchNextPage,
     hasNextPage: infiniteQuery.hasNextPage,

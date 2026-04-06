@@ -41,7 +41,7 @@ export default function ExploreLoading() {
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="h-[7.25rem] w-[7.25rem] shrink-0 rounded-xl bg-zinc-900/55 ring-1 ring-white/[0.04] sm:h-32 sm:w-32"
+              className={`h-[7.25rem] w-[7.25rem] shrink-0 rounded-xl bg-zinc-900/55 ring-1 ring-white/[0.04] sm:h-32 sm:w-32 ${i >= 4 ? "max-sm:hidden" : ""}`}
             />
           ))}
         </div>
@@ -52,7 +52,7 @@ export default function ExploreLoading() {
           {Array.from({ length: 5 }).map((_, i) => (
             <li
               key={i}
-              className="flex items-center gap-3 rounded-xl bg-zinc-900/45 px-3 py-2.5 ring-1 ring-white/[0.04]"
+              className={`flex items-center gap-3 rounded-xl bg-zinc-900/45 px-3 py-2.5 ring-1 ring-white/[0.04] ${i >= 3 ? "max-sm:hidden" : ""}`}
             >
               <div className="h-4 w-6 shrink-0 rounded bg-zinc-800/60" />
               <div className="h-10 w-10 shrink-0 rounded-md bg-zinc-800/55" />

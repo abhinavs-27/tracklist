@@ -7,7 +7,7 @@ export default function FindUsersLoading() {
     <div className={`${contentMax2xl} animate-fade-in-up`}>
       <SkeletonBlock className="mb-3 h-10 w-64 max-w-full rounded-lg" />
       <SkeletonBlock className="mb-10 h-5 w-full max-w-md rounded-md" />
-      <UserSearchListSkeleton count={8} />
+      <UserSearchListSkeleton count={6} />
     </div>
   );
 }

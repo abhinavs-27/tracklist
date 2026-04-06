@@ -129,10 +129,10 @@ function ListIcon({ className }: { className?: string }) {
 function LeaderboardSkeleton() {
   return (
     <div className="space-y-3" aria-hidden>
-      {Array.from({ length: 12 }).map((_, i) => (
+      {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className={`flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-3 ${cardElevated}`}
+          className={`flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-3 ${cardElevated} ${i >= 5 ? "max-sm:hidden" : ""}`}
         >
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <div className="h-6 w-6 shrink-0 animate-pulse rounded bg-zinc-700" />
@@ -168,7 +168,11 @@ export default function LeaderboardPage() {
     [yearRange.startYear, yearRange.endYear],
   );
 
-  const { data, isLoading, error } = useLeaderboard(type, filters, entity);
+  const { data, isLoading, isPending, error } = useLeaderboard(
+    type,
+    filters,
+    entity,
+  );
 
   return (
     <div className={sectionGap}>
@@ -287,7 +291,7 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {!error && isLoading && <LeaderboardSkeleton />}
+        {!error && isPending && data.length === 0 && <LeaderboardSkeleton />}
 
         {!error && !isLoading && data.length === 0 && (
           <div className={`p-10 text-center sm:p-12 ${cardElevated}`}>

@@ -42,7 +42,7 @@ function pulseClause(pulse: ProfilePulseInsights): string | null {
   }
   if (pulse.discoveries?.names.length) {
     const n = pulse.discoveries.names.slice(0, 2).join(" · ");
-    return `Fresh rotation faces: ${n}${
+    return `First-time listens now in your chart: ${n}${
       pulse.discoveries.names.length > 2 ? "…" : ""
     }.`;
   }

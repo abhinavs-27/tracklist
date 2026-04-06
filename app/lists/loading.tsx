@@ -13,7 +13,10 @@ export default function ListsLoading() {
         <SkeletonBlock className="mb-3 h-6 w-32" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div
+              key={i}
+              className={`rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 ${i >= 4 ? "max-md:hidden" : ""}`}
+            >
               <SkeletonBlock className="h-5 w-3/4" />
               <SkeletonBlock className="mt-2 h-3 w-full" />
               <SkeletonBlock className="mt-2 h-3 w-1/2" />

@@ -17,7 +17,10 @@ export function UserSearchListSkeleton({ count = 6 }: { count?: number }) {
   return (
     <ul className="m-0 list-none space-y-3 p-0" role="list">
       {Array.from({ length: count }).map((_, i) => (
-        <li key={i}>
+        <li
+          key={i}
+          className={i >= 4 ? "max-sm:hidden" : undefined}
+        >
           <UserRowSkeleton />
         </li>
       ))}

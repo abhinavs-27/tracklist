@@ -30,7 +30,10 @@ export default function CommunityDetailLoading() {
         <SkeletonBlock className="h-4 w-4/5 max-w-xl" />
         <div className="flex gap-3 overflow-hidden pt-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonBlock key={i} className="h-16 w-[140px] shrink-0 rounded-lg" />
+            <SkeletonBlock
+              key={i}
+              className={`h-16 w-[140px] shrink-0 rounded-lg ${i >= 3 ? "max-sm:hidden" : ""}`}
+            />
           ))}
         </div>
       </section>
@@ -40,7 +43,10 @@ export default function CommunityDetailLoading() {
         <SkeletonBlock className="mb-3 h-3 w-48" />
         <ul className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <CommunityListRowSkeleton key={i} />
+            <CommunityListRowSkeleton
+              key={i}
+              className={i >= 3 ? "max-md:hidden" : ""}
+            />
           ))}
         </ul>
       </section>

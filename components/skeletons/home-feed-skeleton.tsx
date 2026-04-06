@@ -11,7 +11,7 @@ export function HomeFeedSkeleton() {
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className={`min-w-[220px] shrink-0 p-4 ${cardElevated}`}
+              className={`min-w-[220px] shrink-0 p-4 ${cardElevated} ${i >= 2 ? "max-sm:hidden" : ""}`}
             >
               <SkeletonBlock className="h-5 w-full rounded-md" />
               <SkeletonBlock className="mt-3 h-4 w-2/3 rounded-md" />
@@ -21,7 +21,10 @@ export function HomeFeedSkeleton() {
       </div>
       <ul className="m-0 list-none space-y-4 p-0">
         {Array.from({ length: 6 }).map((_, i) => (
-          <li key={i}>
+          <li
+            key={i}
+            className={i >= 4 ? "hidden md:block" : undefined}
+          >
             <FeedItemSkeleton />
           </li>
         ))}

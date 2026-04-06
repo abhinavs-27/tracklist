@@ -10,8 +10,11 @@ export default function FeedLoading() {
         <Skeleton className="mt-2 h-5 w-64 max-w-full rounded-md" />
       </div>
       <ul className="m-0 list-none space-y-4 p-0">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <li key={i}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <li
+            key={i}
+            className={i >= 4 ? "hidden md:block" : undefined}
+          >
             <FeedItemSkeleton />
           </li>
         ))}

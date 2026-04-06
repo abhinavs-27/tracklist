@@ -1,9 +1,11 @@
+import { InlineLoading } from "@/components/ui/loading-states";
+
 export default function ChartsLoading() {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-8 w-48 rounded bg-zinc-800" />
-      <div className="h-4 w-full max-w-md rounded bg-zinc-800" />
-      <div className="h-40 rounded-xl bg-zinc-800/80" />
-    </div>
+    <InlineLoading
+      message="Loading your billboard…"
+      className="min-h-[40vh]"
+      size="xl"
+    />
   );
 }

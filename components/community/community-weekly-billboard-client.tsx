@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { WeeklyBillboardView } from "@/components/charts/weekly-billboard";
-import { CommunityBillboardBodySkeleton } from "@/components/community/community-section-skeleton";
+import { InlineLoading } from "@/components/ui/loading-states";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
 import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
@@ -314,7 +314,10 @@ export function CommunityWeeklyBillboardClient(props: {
       </div>
 
       {loading ? (
-        <CommunityBillboardBodySkeleton />
+        <InlineLoading
+          message="Loading chart…"
+          className="min-h-[12rem] rounded-xl border border-zinc-800/50 bg-zinc-950/30"
+        />
       ) : error ? (
         <div className={`${cardMuted} text-sm text-zinc-400`}>
           {error}

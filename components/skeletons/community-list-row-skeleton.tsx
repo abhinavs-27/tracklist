@@ -1,9 +1,13 @@
 import { SkeletonBlock } from "@/components/ui/skeleton";
 import { cardElevated } from "@/lib/ui/surface";
 
-export function CommunityListRowSkeleton() {
+export function CommunityListRowSkeleton({
+  className = "",
+}: {
+  className?: string;
+} = {}) {
   return (
-    <li className={`px-4 py-4 ${cardElevated}`}>
+    <li className={`px-4 py-4 ${cardElevated} ${className}`}>
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 flex-1 space-y-2">
           <SkeletonBlock className="h-5 w-48 max-w-[70%]" />

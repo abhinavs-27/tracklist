@@ -9,17 +9,9 @@ import { RecommendedCommunitiesSuspense } from "@/components/discover/recommende
 import { getExploreHubPayload } from "@/lib/explore-hub-data";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { SectionBlock } from "@/components/layout/section-block";
+import { InlineLoading } from "@/components/ui/loading-states";
 import { exploreLog, exploreLogLine } from "@/lib/explore-perf";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
-
-function TastePreviewSkeleton() {
-  return (
-    <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 p-4">
-      <div className="mb-3 h-4 w-28 animate-pulse rounded bg-zinc-800/60" />
-      <div className="h-24 animate-pulse rounded-lg bg-zinc-800/40" />
-    </section>
-  );
-}
 
 export default async function ExploreHubPage() {
   const start = Date.now();
@@ -51,7 +43,14 @@ export default async function ExploreHubPage() {
       ) : null}
 
       {socialMusicUi && userId ? (
-        <Suspense fallback={<TastePreviewSkeleton />}>
+        <Suspense
+          fallback={
+            <InlineLoading
+              message="Loading taste preview…"
+              className="min-h-[7rem] rounded-xl border border-zinc-800/60 bg-zinc-950/25 py-6"
+            />
+          }
+        >
           <DiscoverTastePreview userId={userId} />
         </Suspense>
       ) : null}

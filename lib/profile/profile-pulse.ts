@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  getFirstListenAtForArtists,
   getListeningReportsRollingCompare,
   getTopArtistIdsForLogWindow,
 } from "@/lib/analytics/getRollingReportsCompare";
@@ -274,40 +275,34 @@ export async function getProfilePulseInsights(
   const { current, previous, rangeCaption } = getRolling7dVsPrior7dBounds();
   const admin = createSupabaseAdminClient();
 
-  const [
-    artistCmp,
-    genreCmp,
-    curIds,
-    prevIds,
-    curWindow,
-    prevWindow,
-  ] = await Promise.all([
-    getListeningReportsRollingCompare({
-      userId: uid,
-      entityType: "artist",
-    }),
-    getListeningReportsRollingCompare({
-      userId: uid,
-      entityType: "genre",
-    }),
-    getTopArtistIdsForLogWindow(
-      uid,
-      current.startIso,
-      current.endExclusiveIso,
-      24,
-    ),
-    getTopArtistIdsForLogWindow(
-      uid,
-      previous.startIso,
-      previous.endExclusiveIso,
-      40,
-    ),
-    listeningWindowStats(uid, current.startIso, current.endExclusiveIso),
-    listeningWindowStats(uid, previous.startIso, previous.endExclusiveIso),
-  ]);
+  const [artistCmp, genreCmp, curIds, curWindow, prevWindow] =
+    await Promise.all([
+      getListeningReportsRollingCompare({
+        userId: uid,
+        entityType: "artist",
+      }),
+      getListeningReportsRollingCompare({
+        userId: uid,
+        entityType: "genre",
+      }),
+      getTopArtistIdsForLogWindow(
+        uid,
+        current.startIso,
+        current.endExclusiveIso,
+        24,
+      ),
+      listeningWindowStats(uid, current.startIso, current.endExclusiveIso),
+      listeningWindowStats(uid, previous.startIso, previous.endExclusiveIso),
+    ]);
 
-  const prevSet = new Set(prevIds);
-  const freshIds = curIds.filter((id) => !prevSet.has(id)).slice(0, 6);
+  const firstListenMap = await getFirstListenAtForArtists(uid, curIds);
+  const windowStart = current.startIso;
+  const freshIds = curIds
+    .filter((id) => {
+      const t = firstListenMap.get(id);
+      return t != null && t >= windowStart;
+    })
+    .slice(0, 6);
   const nameMap =
     freshIds.length > 0 ? await resolveArtistNames(admin, freshIds) : new Map();
   const newNames = freshIds

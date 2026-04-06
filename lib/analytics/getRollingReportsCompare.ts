@@ -332,7 +332,7 @@ export async function getListeningReportsRollingCompare(args: {
   return cachedRollingCompare(args.userId, args.entityType);
 }
 
-/** Top artist IDs by play count in a log window (for “new in rotation” discovery). */
+/** Top artist IDs by play count in a log window (for Pulse “new discoveries”). */
 export async function getTopArtistIdsForLogWindow(
   userId: string,
   startIso: string,
@@ -341,4 +341,34 @@ export async function getTopArtistIdsForLogWindow(
 ): Promise<string[]> {
   const rows = await fetchArtistAggFromLogs(userId, startIso, endExclusiveIso);
   return rows.slice(0, limit).map((r) => r.entity_id);
+}
+
+/**
+ * Earliest listen time per artist (all-time), for a bounded candidate set.
+ * Resolution matches `fetchArtistAggFromLogs` (log artist_id, else track’s artist).
+ */
+export async function getFirstListenAtForArtists(
+  userId: string,
+  artistIds: string[],
+): Promise<Map<string, string>> {
+  const m = new Map<string, string>();
+  const ids = [...new Set(artistIds.map((x) => x?.trim()).filter(Boolean))];
+  if (ids.length === 0) return m;
+
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin.rpc("first_listen_at_for_artists", {
+    p_user_id: userId,
+    p_artist_ids: ids,
+  });
+  if (error) {
+    console.warn("[rolling-compare] first_listen_at_for_artists", error.message);
+    return m;
+  }
+  for (const row of data ?? []) {
+    const r = row as { artist_id?: string; first_listened_at?: string };
+    const aid = r.artist_id?.trim();
+    const ts = r.first_listened_at;
+    if (aid && ts) m.set(aid, ts);
+  }
+  return m;
 }

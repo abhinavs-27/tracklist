@@ -1,5 +1,5 @@
-import { SocialThreadDetailSkeleton } from "@/components/social/inbox-skeletons";
+import { PageLoadingSpinner } from "@/components/ui/loading-states";
 
 export default function SocialThreadLoading() {
-  return <SocialThreadDetailSkeleton />;
+  return <PageLoadingSpinner title="Loading conversation…" />;
 }

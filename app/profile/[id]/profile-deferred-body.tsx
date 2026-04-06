@@ -261,8 +261,8 @@ export async function ProfileDeferredBody({
               title="Weekly narrative"
               description={
                 isOwnProfile
-                  ? "Your listening identity, recent top artists, and pulse — each block compares the last seven days to the seven days before that."
-                  : "Their listening style, recent chart, and pulse — based on the last seven days."
+                  ? "Your listening identity, recent top artists, and pulse — trends compare the last seven days to the week before; new discoveries are artists you’re hearing for the first time."
+                  : "Their listening style, recent chart, and pulse — trends use the last seven days vs the week before; new discoveries are first-time listens in their chart."
               }
               action={
                 profilePulse

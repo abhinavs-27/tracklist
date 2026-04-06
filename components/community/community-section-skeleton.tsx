@@ -1,3 +1,4 @@
+import { InlineLoading } from "@/components/ui/loading-states";
 import {
   layoutMainColumn,
   layoutMainSidebarGrid,
@@ -5,7 +6,7 @@ import {
 } from "@/lib/ui/layout";
 import { communityCard } from "@/lib/ui/surface";
 
-/** Loading placeholder for Suspense-bound community sections. */
+/** Loading placeholder for list-style sections (leaderboard, members). */
 export function CommunitySectionSkeleton() {
   return (
     <div className={`${communityCard} animate-pulse bg-zinc-900/30`}>
@@ -13,7 +14,7 @@ export function CommunitySectionSkeleton() {
       <div className="space-y-2.5">
         <div className="h-12 w-full rounded-xl bg-zinc-800/50 ring-1 ring-white/[0.04]" />
         <div className="h-12 w-full rounded-xl bg-zinc-800/50 ring-1 ring-white/[0.04]" />
-        <div className="h-12 w-2/3 rounded-xl bg-zinc-800/50 ring-1 ring-white/[0.04]" />
+        <div className="h-12 w-2/3 rounded-xl bg-zinc-800/50 ring-1 ring-white/[0.04] max-md:hidden" />
       </div>
     </div>
   );
@@ -75,7 +76,7 @@ export function CommunityBillboardBodySkeleton() {
         {[1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
-            className="flex gap-4 rounded-xl bg-zinc-950/40 p-3 ring-1 ring-white/[0.05]"
+            className={`flex gap-4 rounded-xl bg-zinc-950/40 p-3 ring-1 ring-white/[0.05] ${i >= 3 ? "max-md:hidden" : ""}`}
           >
             <div className="h-10 w-8 shrink-0 rounded bg-zinc-800/50" />
             <div className="h-14 w-14 shrink-0 rounded-md bg-zinc-800/50" />
@@ -114,40 +115,23 @@ export function CommunityBillboardSkeleton() {
   );
 }
 
-/** Mobile tab shell (tabs + first panel). */
+/** Mobile tab shell: spinner instead of heavy skeleton (fast tab switch). */
 export function CommunityMobileShellSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="flex gap-1.5 rounded-xl bg-zinc-900/50 p-1 ring-1 ring-white/[0.06]">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-10 flex-1 animate-pulse rounded-lg bg-zinc-800/60"
-          />
-        ))}
-      </div>
-      <div className="h-48 animate-pulse rounded-xl bg-zinc-900/40 ring-1 ring-white/[0.04]" />
-    </div>
+    <InlineLoading
+      message="Loading community…"
+      className="min-h-[12rem] rounded-xl border border-zinc-800/50 bg-zinc-950/25 p-5"
+    />
   );
 }
 
-/** Desktop community sidebar (stacked cards). */
+/** Desktop sidebar: spinner (non-list widgets). */
 export function CommunityDesktopSidebarSkeleton() {
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className={`${communityCard} min-h-[7rem] animate-pulse bg-zinc-900/30`}
-        >
-          <div className="mb-3 h-5 w-36 rounded bg-zinc-800/70" />
-          <div className="space-y-2">
-            <div className="h-4 w-full rounded bg-zinc-800/45" />
-            <div className="h-4 w-4/5 rounded bg-zinc-800/40" />
-          </div>
-        </div>
-      ))}
-    </div>
+    <InlineLoading
+      message="Loading sidebar…"
+      className="min-h-[14rem] rounded-xl border border-zinc-800/40 bg-zinc-950/20 py-10"
+    />
   );
 }
 
@@ -158,7 +142,7 @@ export function CommunityFeedSkeleton() {
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className={`${communityCard} animate-pulse bg-zinc-900/35`}
+          className={`${communityCard} animate-pulse bg-zinc-900/35 ${i >= 2 ? "max-md:hidden" : ""}`}
         >
           <div className="flex gap-3">
             <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-zinc-800/70" />

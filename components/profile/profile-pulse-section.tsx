@@ -124,8 +124,8 @@ function DiscoveriesBlock({ names }: { names: string[] }) {
       <div className="min-w-0">
         <p className="font-medium text-white">New discoveries</p>
         <p className="mt-0.5 text-sm text-zinc-400">
-          Artists in your last-7-day top chart who weren&apos;t in the prior 7 days&apos;
-          top chart.
+          Artists in your last-7-day top chart you hadn&apos;t played before this period
+          (first listen on Tracklist).
         </p>
         <p className="mt-2 text-sm leading-snug text-zinc-300">
           {shown.join(" · ")}

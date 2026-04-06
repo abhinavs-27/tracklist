@@ -39,7 +39,7 @@ export function SocialInboxListSkeleton() {
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonBlock
                 key={i}
-                className="h-9 w-[6.5rem] rounded-xl"
+                className={`h-9 w-[6.5rem] rounded-xl ${i >= 3 ? "max-sm:hidden" : ""}`}
               />
             ))}
           </div>
@@ -51,72 +51,10 @@ export function SocialInboxListSkeleton() {
       </header>
 
       <ul className="m-0 list-none space-y-3 p-0" aria-hidden>
-        {Array.from({ length: 5 }).map((_, i) => (
+        {Array.from({ length: 3 }).map((_, i) => (
           <InboxRowSkeleton key={i} />
         ))}
       </ul>
-    </div>
-  );
-}
-
-/** Matches `/social/inbox/[threadId]` while the page streams. */
-export function SocialThreadDetailSkeleton() {
-  return (
-    <div className={`${contentMax2xl} py-8 ${sectionGap}`}>
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <SkeletonBlock className="h-9 w-36 rounded-xl" />
-        <div className="flex flex-wrap gap-2">
-          <SkeletonBlock className="h-10 w-28 rounded-lg" />
-          <SkeletonBlock className="h-10 w-16 rounded-lg" />
-        </div>
-      </header>
-
-      <div
-        className="overflow-hidden rounded-2xl bg-zinc-900/50 p-0 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06]"
-        aria-hidden
-      >
-        <div className="space-y-3 border-b border-white/[0.06] px-5 py-5 sm:px-6">
-          <SkeletonBlock className="h-6 w-36 rounded-lg" />
-          <SkeletonBlock className="h-4 w-full max-w-lg rounded-md" />
-        </div>
-        <div className="flex flex-col gap-6 border-b border-white/[0.06] px-5 py-8 sm:flex-row sm:items-center sm:px-6">
-          <SkeletonBlock className="mx-auto h-36 w-36 shrink-0 rounded-2xl sm:mx-0" />
-          <div className="min-w-0 flex-1 space-y-3">
-            <SkeletonBlock className="h-8 w-full max-w-xs rounded-lg" />
-            <SkeletonBlock className="h-4 w-48 rounded-md" />
-            <SkeletonBlock className="h-10 w-40 rounded-xl" />
-          </div>
-        </div>
-        <div className="border-b border-white/[0.06] px-4 py-4">
-          <div className="flex flex-wrap gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <SkeletonBlock key={i} className="h-10 w-11 rounded-lg" />
-            ))}
-          </div>
-        </div>
-        <div className="bg-zinc-950/35 px-5 py-6 sm:px-6">
-          <SkeletonBlock className="h-3 w-16 rounded-md" />
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="rounded-xl bg-zinc-950/40 p-4 ring-1 ring-white/[0.05]">
-                <div className="flex gap-2">
-                  <SkeletonBlock className="h-4 w-20 rounded-md" />
-                  <SkeletonBlock className="h-3 w-14 rounded-md" />
-                </div>
-                <SkeletonBlock className="mt-2 h-4 w-full rounded-md" />
-                <SkeletonBlock className="mt-1 h-4 w-[85%] rounded-md" />
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 border-t border-white/[0.06] pt-5">
-            <SkeletonBlock className="h-20 w-full rounded-xl" />
-            <div className="mt-3 flex justify-between">
-              <SkeletonBlock className="h-4 w-16 rounded-md" />
-              <SkeletonBlock className="h-10 w-28 rounded-xl" />
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
