@@ -4,6 +4,7 @@ import { parseBody } from "@/lib/api-utils";
 import { getBillboardDropStatus } from "@/lib/billboard-drop/billboard-drop-state";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getLatestWeeklyChartForUser } from "@/lib/charts/get-user-weekly-chart";
+import { BillboardDropBody } from "@/types";
 
 export const GET = withHandler(
   async (_request, { user }) => {
@@ -13,14 +14,9 @@ export const GET = withHandler(
   { requireAuth: true },
 );
 
-type Body = {
-  action?: "dismiss_modal" | "complete_flow" | "ack_chart_view";
-  week_start?: string | null;
-};
-
 export const POST = withHandler(
   async (request, { user }) => {
-    const { data: body, error: parseErr } = await parseBody<Body>(request);
+    const { data: body, error: parseErr } = await parseBody<BillboardDropBody>(request);
     if (parseErr) return parseErr;
 
     const action = body?.action;

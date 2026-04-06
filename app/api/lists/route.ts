@@ -3,6 +3,7 @@ import { withHandler } from "@/lib/api-handler";
 import { createList, searchLists, grantAchievementOnList } from "@/lib/queries";
 import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { ListCreateBody } from "@/types";
 import {
   validateListTitle,
   validateListDescription,
@@ -10,11 +11,13 @@ import {
   clampLimit,
 } from "@/lib/validation";
 
+import { getPaginationParams } from "@/lib/api-utils";
+
 /** GET – search lists by title. ?q=...&limit= (public). Returns [] when q is missing or < 2 chars. */
 export const GET = withHandler(async (request: NextRequest) => {
-  const { searchParams } = new URL(request.url);
+  const { searchParams } = request.nextUrl;
   const q = searchParams.get("q")?.trim() ?? "";
-  const limit = clampLimit(searchParams.get("limit"), 50, 20);
+  const { limit } = getPaginationParams(searchParams, 20, 50);
   if (q.length < 2) return apiOk([]);
   const lists = await searchLists(q, limit);
   return apiOk(lists);
@@ -23,14 +26,7 @@ export const GET = withHandler(async (request: NextRequest) => {
 /** POST – create a new list. Body: { title, description? }. Auth required. */
 export const POST = withHandler(
   async (request, { user: me }) => {
-    const { data: body, error: parseErr } = await parseBody<{
-      title?: unknown;
-      description?: unknown;
-      type?: unknown;
-      visibility?: unknown;
-      first_item?: { entity_type?: unknown; entity_id?: unknown };
-      initial_items?: { entity_type?: unknown; entity_id?: unknown }[];
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<ListCreateBody & { first_item?: { entity_type?: unknown; entity_id?: unknown } }>(request);
     if (parseErr) return parseErr;
 
     const titleResult = validateListTitle(body!.title);

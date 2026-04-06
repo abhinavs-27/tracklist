@@ -463,7 +463,48 @@ export interface LikeCreateBody {
 export interface ProfileUpdateBody {
   username?: string;
   bio?: string | null;
+  avatar_url?: string | null;
   lastfm_username?: string | null;
   /** Profile onboarding wizard finished (username + favorite albums). */
   onboarding_completed?: boolean;
+}
+
+export interface CommunityCreateBody {
+  name: string;
+  description?: string | null;
+  is_private?: boolean;
+}
+
+export interface CommunityUpdateBody {
+  name?: string;
+  description?: string | null;
+  is_private?: boolean;
+}
+
+export interface CommunityJoinBody {
+  communityId: string;
+}
+
+export interface ListCreateBody {
+  title: string;
+  description?: string | null;
+  type: 'album' | 'song';
+  visibility?: 'public' | 'friends' | 'private';
+  initial_items?: { entity_type: 'album' | 'song'; entity_id: string }[];
+}
+
+export interface ListUpdateBody {
+  title?: string;
+  description?: string | null;
+  visibility?: 'public' | 'friends' | 'private';
+  image_url?: string | null;
+}
+
+export interface OnboardingBootstrapBody {
+  albumIds?: string[];
+}
+
+export interface BillboardDropBody {
+  action: "dismiss_modal" | "complete_flow" | "ack_chart_view";
+  week_start?: string | null;
 }

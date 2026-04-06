@@ -3,12 +3,11 @@ import { withHandler } from "@/lib/api-handler";
 import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { runOnboardingBootstrap } from "@/lib/onboarding/bootstrap";
-
-type Body = { albumIds?: unknown };
+import { OnboardingBootstrapBody } from "@/types";
 
 export const POST = withHandler(
   async (request: NextRequest, { user: me }) => {
-    const { data: body, error: parseErr } = await parseBody<Body>(request);
+    const { data: body, error: parseErr } = await parseBody<OnboardingBootstrapBody>(request);
     if (parseErr) return parseErr;
 
     const raw = body!.albumIds;

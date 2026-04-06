@@ -15,7 +15,7 @@ import {
   validateEntityType,
   validateRating,
 } from "@/lib/validation";
-import { getReviewsForEntity } from "@/lib/queries";
+import { getReviewsForEntity, fetchUserSummary } from "@/lib/queries";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_or_lfm_id>&limit= optional */
 export const GET = withHandler(async (request: NextRequest) => {
@@ -114,11 +114,7 @@ export const POST = withHandler(
       console.warn("[reviews] community_feed fan-out", e);
     }
 
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .eq("id", me!.id)
-      .single();
+    const userRow = await fetchUserSummary(me!.id);
 
     const reviewWithUser = {
       id: data.id,
@@ -130,9 +126,7 @@ export const POST = withHandler(
       review_text: data.review_text ?? null,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      user: userRow
-        ? { id: userRow.id, username: userRow.username, avatar_url: userRow.avatar_url ?? null }
-        : null,
+      user: userRow,
     };
 
     console.log("[reviews] review-created-upserted", {

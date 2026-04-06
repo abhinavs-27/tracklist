@@ -1,27 +1,27 @@
 import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
-import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
+import { withHandler } from "@/lib/api-handler";
+import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { getListeningInsights } from "@/lib/taste/listening-insights";
-import { isValidUuid } from "@/lib/validation";
+import { validateUuidParam } from "@/lib/api-utils";
 
 /**
  * GET /api/listening-insights?userId=<uuid optional>
  * Requires auth. Without userId, returns insights for the signed-in user.
  */
-export async function GET(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-    const { searchParams } = new URL(request.url);
+export const GET = withHandler(
+  async (request, { user: me }) => {
+    const { searchParams } = request.nextUrl;
     const raw = searchParams.get("userId")?.trim();
-    if (raw && !isValidUuid(raw)) {
-      return apiBadRequest("userId must be a valid UUID");
+
+    let targetId = me!.id;
+    if (raw) {
+      const uuidRes = validateUuidParam(raw);
+      if (!uuidRes.ok) return uuidRes.error;
+      targetId = uuidRes.id;
     }
-    const targetId = raw ?? me.id;
+
     const data = await getListeningInsights(targetId);
     return apiOk(data);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);

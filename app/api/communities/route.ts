@@ -3,6 +3,8 @@ import { withHandler } from "@/lib/api-handler";
 import { createCommunity, getUserCommunities } from "@/lib/community/queries";
 import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { validateCommunityName, validateCommunityDescription, validateIsPrivate } from "@/lib/validation";
+import { CommunityCreateBody } from "@/types";
 
 /** GET /api/communities — communities the current user belongs to. */
 export const GET = withHandler(
@@ -16,23 +18,16 @@ export const GET = withHandler(
 /** POST /api/communities — body: { name, description?, is_private? } */
 export const POST = withHandler(
   async (request: NextRequest, { user: me }) => {
-    const { data: body, error: parseErr } = await parseBody<{
-      name?: unknown;
-      description?: unknown;
-      is_private?: unknown;
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<CommunityCreateBody>(request);
     if (parseErr) return parseErr;
 
-    const name = typeof body!.name === "string" ? body!.name.trim() : "";
-    if (name.length < 2 || name.length > 120) {
-      return apiBadRequest("name must be 2–120 characters");
-    }
-    const description =
-      typeof body!.description === "string" ? body!.description : null;
-    const is_private = Boolean(body!.is_private);
+    const nameResult = validateCommunityName(body!.name);
+    if (!nameResult.ok) return apiBadRequest(nameResult.error);
+    const description = validateCommunityDescription(body!.description);
+    const is_private = validateIsPrivate(body!.is_private);
 
     const community = await createCommunity(me!.id, {
-      name,
+      name: nameResult.value,
       description,
       is_private,
     });

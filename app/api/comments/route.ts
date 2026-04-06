@@ -5,7 +5,7 @@ import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { parseBody, handlePostgrestError, validateUuidParam } from '@/lib/api-utils';
 import { CommentCreateBody } from '@/types';
 import { validateCommentContent } from '@/lib/validation';
-import { fetchUserMap } from '@/lib/queries';
+import { fetchUserSummary, fetchUserSummaryMap } from '@/lib/queries';
 
 function isMissingReviewIdColumn(err: unknown) {
   const e = err as { code?: string; message?: string } | null;
@@ -81,12 +81,8 @@ export const POST = withHandler(
       reviewId: data.review_id,
     });
 
-    const { data: author } = await supabase
-      .from('users')
-      .select('id, username, avatar_url')
-      .eq('id', me!.id)
-      .single();
-    return apiOk({ ...data, user: author ?? null });
+    const author = await fetchUserSummary(me!.id);
+    return apiOk({ ...data, user: author });
   },
   { requireAuth: true }
 );
@@ -136,7 +132,7 @@ export const GET = withHandler(async (request: NextRequest) => {
   if (!comments?.length) return apiOk([]);
 
   const userIds = [...new Set(comments.map((c) => c.user_id as string))];
-  const userMap = await fetchUserMap(supabase, userIds);
+  const userMap = await fetchUserSummaryMap(userIds);
 
   const result = comments.map((c) => ({ ...c, user: userMap.get(c.user_id as string) ?? null }));
   return apiOk(result);
