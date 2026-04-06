@@ -63,6 +63,9 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `reviews` | `(user_id, created_at DESC)` | `129` | Optimized for fetching recent reviews for a user. |
 | `follows` | `(follower_id, following_id)` | `129` | Optimized for "is following" check. |
 | `community_member_stats` | `(community_id, listen_count_7d DESC)` | `129` | Optimized for active-member count and roster sorting. |
+| `feed_events` | `(user_id, created_at DESC)` | `131` | Optimized for personal and following feed lookups. |
+| `community_weekly_charts` | `(community_id, chart_type, week_start DESC)` | `131` | Optimized for fetching latest community charts. |
+| `community_members` | `(community_id, role, created_at)` | `131` | Optimized for community roster retrieval and sorting. |
 
 ## Recommendations for Future Queries
 

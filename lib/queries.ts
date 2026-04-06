@@ -113,6 +113,7 @@ async function getListenLogsInternal(opts: {
     const to = from + opts.limit - 1;
 
     const selectFields = ["id", "listened_at", "source", "created_at"];
+    // user_id and track_id are omitted if already filtered by equality to reduce payload size.
     if (!opts.userId) selectFields.push("user_id");
     if (!opts.spotifyTrackId) selectFields.push("track_id");
 
@@ -477,14 +478,16 @@ async function getEntityStatsLive(
       const { count } = await supabase
         .from("logs")
         .select("id", { count: "exact", head: true })
-        .eq("track_id", canonicalEntityId);
+        .eq("track_id", canonicalEntityId)
+        .limit(1);
       listen_count = count ?? 0;
     }
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", canonicalEntityId);
+      .eq("album_id", canonicalEntityId)
+      .limit(2000);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const playMap = await countLogsByTrackIds(supabase, ids);
@@ -496,7 +499,8 @@ async function getEntityStatsLive(
     .from("reviews")
     .select("rating")
     .eq("entity_type", entityType)
-    .eq("entity_id", canonicalEntityId);
+    .eq("entity_id", canonicalEntityId)
+    .limit(5000);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
   const review_count = ratings.length;
