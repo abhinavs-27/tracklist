@@ -29,6 +29,10 @@ export const STALE_FIRST_TTL_SEC = {
   /** Static Discover CTA copy — rarely changes. */
   exploreDiscover: 3600,
   exploreReviews: 120,
+  /** Dynamic discovery sections (blowing up, most talked, etc.). */
+  exploreDiscoveryBundle: 180,
+  /** Split Explore discovery section endpoints (same payload as bundle slices). */
+  exploreDiscoverySection: 180,
   /** Personal weekly billboard / charts. */
   billboard: 3600,
   profileSummary: 60,
@@ -44,6 +48,8 @@ export const STALE_FIRST_STALE_AFTER_SEC = {
   exploreLeaderboard: 60,
   exploreDiscover: 600,
   exploreReviews: 45,
+  exploreDiscoveryBundle: 60,
+  exploreDiscoverySection: 60,
   billboard: 600,
   profileSummary: 20,
   communityInvite: 45,

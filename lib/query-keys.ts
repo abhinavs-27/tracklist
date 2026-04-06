@@ -27,6 +27,8 @@ export const queryKeys = {
   exploreLeaderboard: () => ["explore", "leaderboard"] as const,
   exploreDiscover: () => ["explore", "discover"] as const,
   exploreReviews: () => ["explore", "reviews"] as const,
+  exploreDiscoveryBundle: (range: "24h" | "week") =>
+    ["explore", "discovery-bundle", range] as const,
   feed: () => ["feed"] as const,
   /** GET `/api/notifications` + actor enrichment. */
   notifications: () => ["notifications"] as const,

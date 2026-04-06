@@ -66,3 +66,59 @@ export type ExploreHubResponse = {
   /** Present when served from stale-first API cache. */
   fetched_at?: string;
 };
+
+/** Matches `lib/explore-discovery-data` API JSON. */
+export type ExploreMovement = {
+  rank_delta: number | null;
+  badge: "new" | "hot" | null;
+};
+
+export type ExploreDiscoveryTrackItem = {
+  kind: "track";
+  id: string;
+  name: string;
+  artist: string;
+  image_url: string | null;
+  href: string;
+  movement: ExploreMovement;
+  stat_label: string;
+};
+
+export type ExploreDiscoveryAlbumItem = {
+  kind: "album";
+  id: string;
+  name: string;
+  artist: string;
+  image_url: string | null;
+  href: string;
+  movement: ExploreMovement;
+  stat_label: string;
+  review_snippet: string | null;
+};
+
+export type ExploreDiscoveryTalkedTrackItem = ExploreDiscoveryTrackItem & {
+  review_snippet: string | null;
+};
+
+export type ExploreDiscoveryReviewEntityItem =
+  | ExploreDiscoveryAlbumItem
+  | ExploreDiscoveryTalkedTrackItem;
+
+export type ExploreCommunityContrastRow = {
+  community_id: string;
+  community_name: string;
+  top_track_id: string;
+  top_track_name: string;
+  top_track_image: string | null;
+  href: string;
+};
+
+export type ExploreDiscoveryBundle = {
+  range: "24h" | "week";
+  blowing_up: ExploreDiscoveryTrackItem[];
+  most_talked_about: ExploreDiscoveryReviewEntityItem[];
+  most_loved: ExploreDiscoveryTrackItem[];
+  hidden_gems: Array<ExploreDiscoveryTrackItem | ExploreDiscoveryAlbumItem>;
+  across_communities: ExploreCommunityContrastRow[];
+  fetched_at?: string;
+};

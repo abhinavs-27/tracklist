@@ -2,20 +2,13 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
-import { ExploreTrendingSection } from "@/components/explore/explore-trending-section";
-import { ExploreLeaderboardSection } from "@/components/explore/explore-leaderboard-section";
-import { ExploreDiscoverSection } from "@/components/explore/explore-discover-section";
-import { ExploreReviewsSection } from "@/components/explore/explore-reviews-section";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
 import { RecommendedCommunitiesSuspense } from "@/components/discover/recommended-communities-suspense";
+import { ExploreDiscoveryLoader } from "@/components/explore/explore-discovery-loader";
+import { ExploreDiscoverySkeleton } from "@/components/explore/explore-discovery-skeleton";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { SectionBlock } from "@/components/layout/section-block";
-import {
-  ExploreLeaderboardSectionSkeleton,
-  ExploreReviewsSectionSkeleton,
-  ExploreTastePreviewSkeleton,
-  ExploreTrendingSectionSkeleton,
-} from "@/components/explore/explore-section-skeletons";
+import { ExploreTastePreviewSkeleton } from "@/components/explore/explore-section-skeletons";
 import { exploreLogLine } from "@/lib/explore-perf";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
@@ -34,7 +27,8 @@ export default async function ExploreHubPage() {
       <header>
         <h1 className={pageTitle}>Explore</h1>
         <p className="mt-3 max-w-2xl text-base text-zinc-400 sm:text-lg">
-          Discovery, charts, and people — start here, then go deeper.
+          A live discovery feed — rising tracks, reviews, saves, and community
+          charts. Classic leaderboards are one tap away.
         </p>
       </header>
 
@@ -48,43 +42,9 @@ export default async function ExploreHubPage() {
         </Suspense>
       ) : null}
 
-      <SectionBlock
-        title="Trending"
-        description="What listeners are playing in the last 24 hours."
-        action={{ label: "Full charts →", href: "/discover" }}
-      >
-        <Suspense fallback={<ExploreTrendingSectionSkeleton />}>
-          <ExploreTrendingSection />
-        </Suspense>
-      </SectionBlock>
-
-      <SectionBlock
-        title="Leaderboard"
-        description="Most-played tracks on Tracklist."
-        action={{ label: "View all →", href: "/leaderboard" }}
-      >
-        <Suspense fallback={<ExploreLeaderboardSectionSkeleton />}>
-          <ExploreLeaderboardSection />
-        </Suspense>
-      </SectionBlock>
-
-      <SectionBlock
-        title="Discover"
-        description="Rising artists, hidden gems, and personalized picks."
-        action={{ label: "Open Discover →", href: "/discover" }}
-      >
-        <ExploreDiscoverSection userId={userId} />
-      </SectionBlock>
-
-      <SectionBlock
-        title="Recent reviews"
-        description="Latest album ratings from the community."
-        action={{ label: "Browse Discover →", href: "/discover" }}
-      >
-        <Suspense fallback={<ExploreReviewsSectionSkeleton />}>
-          <ExploreReviewsSection />
-        </Suspense>
-      </SectionBlock>
+      <Suspense fallback={<ExploreDiscoverySkeleton />}>
+        <ExploreDiscoveryLoader />
+      </Suspense>
 
       <SectionBlock
         title="Find people"

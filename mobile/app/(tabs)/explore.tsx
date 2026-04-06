@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -14,117 +14,72 @@ import { Artwork } from "@/components/media/Artwork";
 import { DiscoverCard } from "@/components/discover/DiscoverCard";
 import { DiscoverSection } from "@/components/discover/DiscoverSection";
 import { HorizontalCarousel } from "@/components/discover/HorizontalCarousel";
-import { exploreTrackArtworkUrl } from "@/lib/explore-track-artwork";
-import { useExploreHub } from "@/lib/hooks/useExploreHub";
+import {
+  useExploreDiscoveryBundle,
+  type ExploreRangeParam,
+} from "@/lib/hooks/useExploreDiscoveryBundle";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
 import type {
-  ExploreHubLeaderboardEntry,
-  ExploreHubTrendingItem,
-  ExploreReviewPreviewRow,
+  ExploreCommunityContrastRow,
+  ExploreDiscoveryReviewEntityItem,
+  ExploreDiscoveryTrackItem,
 } from "@/lib/types/explore-hub";
 
-const TRENDING_CAROUSEL_CAP = 16;
-const LEADERBOARD_PREVIEW = 5;
-
-type TrendingWithTrack = ExploreHubTrendingItem & {
-  track: NonNullable<ExploreHubTrendingItem["track"]>;
-};
-
-function trackAlbumArtworkUrl(track: TrendingWithTrack["track"]): string | null {
-  const imgs = track.album?.images;
-  if (!imgs?.length) return null;
-  for (const im of imgs) {
-    const u = im?.url?.trim();
-    if (u) return u;
+function MovementRow({
+  rankDelta,
+  badge,
+}: {
+  rankDelta: number | null;
+  badge: "new" | "hot" | null;
+}) {
+  const parts: string[] = [];
+  if (badge === "new") parts.push("NEW");
+  if (badge === "hot") parts.push("HOT");
+  if (rankDelta != null && rankDelta !== 0) {
+    parts.push(rankDelta > 0 ? `↑${rankDelta}` : `↓${Math.abs(rankDelta)}`);
   }
-  return null;
+  if (parts.length === 0) return null;
+  return (
+    <Text style={moveStyles.pill} numberOfLines={1}>
+      {parts.join(" · ")}
+    </Text>
+  );
 }
+
+const moveStyles = StyleSheet.create({
+  pill: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: theme.colors.emerald,
+    marginTop: 4,
+  },
+});
 
 function DiscoverPageSkeleton() {
   return (
     <View style={skelStyles.wrap}>
       <View style={skelStyles.heroLineLg} />
       <View style={skelStyles.heroLineSm} />
-
-      {/* Trending */}
-      <View style={skelStyles.section}>
-        <View style={skelStyles.sectionHeaderRow}>
-          <View style={skelStyles.sectionTitleBlock}>
-            <View style={skelStyles.sectionTitle} />
-            <View style={skelStyles.sectionDesc} />
-          </View>
-          <View style={skelStyles.actionPill} />
-        </View>
-        <View style={skelStyles.row}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <View key={i} style={skelStyles.card}>
-              <View style={skelStyles.cardArt} />
-              <View style={skelStyles.cardText} />
-              <View style={skelStyles.cardTextShort} />
+      <View style={skelStyles.rangeRow} />
+      {[0, 1, 2].map((s) => (
+        <View key={s} style={skelStyles.section}>
+          <View style={skelStyles.sectionHeaderRow}>
+            <View style={skelStyles.sectionTitleBlock}>
+              <View style={skelStyles.sectionTitle} />
+              <View style={skelStyles.sectionDesc} />
             </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Leaderboard */}
-      <View style={skelStyles.section}>
-        <View style={skelStyles.sectionHeaderRow}>
-          <View style={skelStyles.sectionTitleBlock}>
-            <View style={[skelStyles.sectionTitle, { width: "42%" }]} />
-            <View style={skelStyles.sectionDesc} />
           </View>
-          <View style={skelStyles.actionPill} />
-        </View>
-        <View style={skelStyles.lbList}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <View key={i} style={skelStyles.lbRow}>
-              <View style={skelStyles.lbRank} />
-              <View style={skelStyles.lbThumb} />
-              <View style={skelStyles.lbTextCol}>
+          <View style={skelStyles.row}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={skelStyles.card}>
+                <View style={skelStyles.cardArt} />
                 <View style={skelStyles.cardText} />
-                <View style={[skelStyles.cardTextShort, { width: "55%" }]} />
               </View>
-              <View style={skelStyles.lbPlays} />
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Discover */}
-      <View style={skelStyles.section}>
-        <View style={skelStyles.sectionHeaderRow}>
-          <View style={skelStyles.sectionTitleBlock}>
-            <View style={[skelStyles.sectionTitle, { width: "38%" }]} />
-            <View style={skelStyles.sectionDesc} />
-          </View>
-          <View style={skelStyles.actionPill} />
-        </View>
-        <View style={skelStyles.ctaCard}>
-          <View style={skelStyles.ctaLine} />
-          <View style={[skelStyles.ctaLine, { width: "92%" }]} />
-          <View style={skelStyles.ctaBtnRow}>
-            <View style={skelStyles.ctaBtnPrimary} />
-            <View style={skelStyles.ctaBtnGhost} />
+            ))}
           </View>
         </View>
-      </View>
-
-      {/* Find people */}
-      <View style={skelStyles.section}>
-        <View style={skelStyles.sectionHeaderRow}>
-          <View style={skelStyles.sectionTitleBlock}>
-            <View style={[skelStyles.sectionTitle, { width: "44%" }]} />
-            <View style={skelStyles.sectionDesc} />
-          </View>
-          <View style={skelStyles.actionPill} />
-        </View>
-        <View style={skelStyles.findCard}>
-          <View style={skelStyles.ctaLine} />
-          <View style={[skelStyles.ctaLine, { width: "78%" }]} />
-          <View style={skelStyles.findLinkSkel} />
-        </View>
-      </View>
+      ))}
     </View>
   );
 }
@@ -145,6 +100,12 @@ const skelStyles = StyleSheet.create({
     height: 14,
     width: "75%",
     borderRadius: 6,
+    backgroundColor: theme.colors.panel,
+  },
+  rangeRow: {
+    height: 40,
+    width: "70%",
+    borderRadius: 12,
     backgroundColor: theme.colors.panel,
   },
   section: {
@@ -172,13 +133,6 @@ const skelStyles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: theme.colors.panel,
   },
-  actionPill: {
-    width: 100,
-    height: 16,
-    marginTop: 2,
-    borderRadius: 4,
-    backgroundColor: theme.colors.panel,
-  },
   row: {
     flexDirection: "row",
     gap: 12,
@@ -198,309 +152,330 @@ const skelStyles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: theme.colors.border,
   },
-  cardTextShort: {
-    height: 10,
-    width: "70%",
-    borderRadius: 4,
-    backgroundColor: theme.colors.panel,
-  },
-  lbList: {
-    gap: 8,
-  },
-  lbRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: theme.colors.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-  },
-  lbRank: {
-    width: 18,
-    height: 14,
-    borderRadius: 3,
-    backgroundColor: theme.colors.border,
-  },
-  lbThumb: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: theme.colors.border,
-  },
-  lbTextCol: {
-    flex: 1,
-    gap: 6,
-  },
-  lbPlays: {
-    width: 36,
-    height: 12,
-    borderRadius: 3,
-    backgroundColor: theme.colors.panel,
-  },
-  ctaCard: {
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: theme.colors.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    gap: 12,
-  },
-  ctaLine: {
-    height: 14,
-    width: "100%",
-    borderRadius: 4,
-    backgroundColor: theme.colors.border,
-  },
-  ctaBtnRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 4,
-  },
-  ctaBtnPrimary: {
-    width: 130,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: theme.colors.emerald,
-    opacity: 0.35,
-  },
-  ctaBtnGhost: {
-    width: 72,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: theme.colors.border,
-  },
-  findCard: {
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: theme.colors.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    gap: 10,
-  },
-  findLinkSkel: {
-    height: 16,
-    width: 140,
-    borderRadius: 4,
-    backgroundColor: theme.colors.border,
-  },
 });
 
-function LeaderboardPreviewRows({
-  entries,
-  onPressEntry,
+function RangeToggle({
+  value,
+  onChange,
 }: {
-  entries: ExploreHubLeaderboardEntry[];
-  onPressEntry: (entry: ExploreHubLeaderboardEntry) => void;
+  value: ExploreRangeParam;
+  onChange: (r: ExploreRangeParam) => void;
 }) {
-  if (entries.length === 0) {
-    return (
-      <View style={lbStyles.emptyBox}>
-        <Text style={lbStyles.emptyText}>No leaderboard data yet.</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={lbStyles.list}>
-      {entries.slice(0, LEADERBOARD_PREVIEW).map((entry, i) => (
-        <Pressable
-          key={`${entry.id}-${i}`}
-          onPress={() => onPressEntry(entry)}
-          style={({ pressed }) => [lbStyles.row, pressed && lbStyles.pressed]}
-        >
-          <Text style={lbStyles.rank}>{i + 1}</Text>
-          <Artwork src={entry.artwork_url} size="sm" style={lbStyles.thumb} />
-          <View style={lbStyles.rowText}>
-            <Text style={lbStyles.rowTitle} numberOfLines={1}>
-              {entry.name}
-            </Text>
-            <Text style={lbStyles.rowSub} numberOfLines={1}>
-              {entry.artist}
-            </Text>
-          </View>
-          <Text style={lbStyles.plays}>
-            {entry.total_plays.toLocaleString()}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-const lbStyles = StyleSheet.create({
-  list: {
-    paddingHorizontal: 18,
-    gap: 8,
-  },
-  emptyBox: {
-    marginHorizontal: 18,
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: theme.colors.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: theme.colors.muted,
-    textAlign: "center",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: theme.colors.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-  },
-  pressed: {
-    opacity: 0.88,
-  },
-  rank: {
-    width: 22,
-    textAlign: "right",
-    fontSize: 14,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
-    color: theme.colors.muted,
-  },
-  thumb: {
-    borderRadius: 8,
-  },
-  rowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rowTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: theme.colors.text,
-  },
-  rowSub: {
-    marginTop: 2,
-    fontSize: 12,
-    fontWeight: "500",
-    color: theme.colors.muted,
-  },
-  plays: {
-    fontSize: 12,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
-    color: theme.colors.muted,
-  },
-});
-
-function RecentReviewsPreview({
-  reviews,
-  loading,
-  onPressAlbum,
-}: {
-  reviews: ExploreReviewPreviewRow[];
-  loading: boolean;
-  onPressAlbum: (r: ExploreReviewPreviewRow) => void;
-}) {
-  if (loading) {
-    return (
-      <View style={lbStyles.emptyBox}>
-        <Text style={lbStyles.emptyText}>Loading…</Text>
-      </View>
-    );
-  }
-  if (reviews.length === 0) {
-    return (
-      <View style={lbStyles.emptyBox}>
-        <Text style={lbStyles.emptyText}>No recent album reviews yet.</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={revPreviewStyles.list}>
-      {reviews.slice(0, 6).map((r) => (
-        <Pressable
-          key={r.id}
-          onPress={() => onPressAlbum(r)}
-          style={({ pressed }) => [
-            revPreviewStyles.row,
-            pressed && { opacity: 0.88 },
+    <View style={rangeStyles.wrap}>
+      <Pressable
+        onPress={() => onChange("24h")}
+        style={[
+          rangeStyles.seg,
+          value === "24h" && rangeStyles.segActive,
+        ]}
+      >
+        <Text
+          style={[
+            rangeStyles.segText,
+            value === "24h" && rangeStyles.segTextActive,
           ]}
         >
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={revPreviewStyles.title} numberOfLines={1}>
-              {r.album_name}
-              <Text style={revPreviewStyles.meta}> · {r.artist_name}</Text>
-            </Text>
-            <Text style={revPreviewStyles.sub} numberOfLines={1}>
-              {r.username} · {new Date(r.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-          <Text style={revPreviewStyles.rating}>★ {r.rating.toFixed(1)}</Text>
-        </Pressable>
-      ))}
+          24h
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={() => onChange("week")}
+        style={[
+          rangeStyles.seg,
+          value === "week" && rangeStyles.segActive,
+        ]}
+      >
+        <Text
+          style={[
+            rangeStyles.segText,
+            value === "week" && rangeStyles.segTextActive,
+          ]}
+        >
+          7 days
+        </Text>
+      </Pressable>
     </View>
   );
 }
 
-const revPreviewStyles = StyleSheet.create({
-  list: {
-    paddingHorizontal: 18,
-    gap: 8,
+const rangeStyles = StyleSheet.create({
+  wrap: {
+    flexDirection: "row",
+    width: "100%",
+    backgroundColor: theme.colors.panel,
+    borderRadius: 12,
+    padding: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    gap: 4,
   },
+  seg: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  segActive: {
+    backgroundColor: theme.colors.emerald,
+  },
+  segText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.muted,
+  },
+  segTextActive: {
+    color: "#fff",
+  },
+});
+
+function TalkedAboutRow({
+  item,
+  onPress,
+}: {
+  item: ExploreDiscoveryReviewEntityItem;
+  onPress: () => void;
+}) {
+  const snippet =
+    "review_snippet" in item ? item.review_snippet : null;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [talkStyles.row, pressed && { opacity: 0.9 }]}
+    >
+      <Artwork
+        src={item.image_url}
+        size="md"
+        style={talkStyles.art}
+      />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={talkStyles.title} numberOfLines={2}>
+          {item.name}
+        </Text>
+        <Text style={talkStyles.sub} numberOfLines={1}>
+          {item.artist}
+        </Text>
+        <Text style={talkStyles.meta} numberOfLines={1}>
+          {item.stat_label}
+        </Text>
+        <MovementRow
+          rankDelta={item.movement.rank_delta}
+          badge={item.movement.badge}
+        />
+        {snippet ? (
+          <Text style={talkStyles.quote} numberOfLines={3}>
+            “{snippet}”
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+const talkStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
+    gap: 12,
+    marginHorizontal: 18,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: theme.colors.panel,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
   },
-  title: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: theme.colors.text,
+  art: {
+    borderRadius: 10,
   },
-  meta: {
-    fontWeight: "500",
-    color: theme.colors.muted,
+  title: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.colors.text,
   },
   sub: {
     marginTop: 2,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "500",
     color: theme.colors.muted,
   },
-  rating: {
+  meta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: theme.colors.muted,
+  },
+  quote: {
+    marginTop: 8,
+    fontSize: 12,
+    fontStyle: "italic",
+    lineHeight: 18,
+    color: theme.colors.text,
+    opacity: 0.9,
+  },
+});
+
+function HiddenGemRow({
+  item,
+  onPress,
+}: {
+  item: ExploreDiscoveryTrackItem | {
+    kind: "album";
+    id: string;
+    name: string;
+    artist: string;
+    image_url: string | null;
+    href: string;
+    movement: ExploreDiscoveryTrackItem["movement"];
+    stat_label: string;
+    review_snippet: string | null;
+  };
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [gemStyles.row, pressed && { opacity: 0.9 }]}
+    >
+      <Artwork src={item.image_url} size="lg" style={gemStyles.art} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={gemStyles.title} numberOfLines={2}>
+          {item.name}
+        </Text>
+        <Text style={gemStyles.sub} numberOfLines={1}>
+          {item.artist}
+        </Text>
+        <Text style={gemStyles.meta} numberOfLines={1}>
+          {item.stat_label}
+        </Text>
+        <MovementRow
+          rankDelta={item.movement.rank_delta}
+          badge={item.movement.badge}
+        />
+      </View>
+    </Pressable>
+  );
+}
+
+const gemStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: 18,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: theme.colors.panel,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+  },
+  art: {
+    borderRadius: 12,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.colors.text,
+  },
+  sub: {
+    marginTop: 2,
+    fontSize: 13,
+    color: theme.colors.muted,
+  },
+  meta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: theme.colors.muted,
+  },
+});
+
+function CommunityCard({
+  row,
+  onOpenCommunity,
+  onOpenTrack,
+}: {
+  row: ExploreCommunityContrastRow;
+  onOpenCommunity: () => void;
+  onOpenTrack: () => void;
+}) {
+  return (
+    <View style={comStyles.card}>
+      <Text style={comStyles.name}>{row.community_name}</Text>
+      <Text style={comStyles.hint}>#1 track (month)</Text>
+      <Pressable
+        onPress={onOpenTrack}
+        style={({ pressed }) => [
+          comStyles.trackRow,
+          pressed && { opacity: 0.9 },
+        ]}
+      >
+        <Artwork
+          src={row.top_track_image}
+          size="md"
+          style={comStyles.art}
+        />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={comStyles.trackTitle} numberOfLines={2}>
+            {row.top_track_name}
+          </Text>
+          <Pressable onPress={onOpenCommunity}>
+            <Text style={comStyles.link}>Community →</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
+const comStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: 18,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: theme.colors.panel,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    gap: 6,
+  },
+  name: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+  },
+  hint: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.text,
+  },
+  trackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 4,
+  },
+  art: { borderRadius: 8 },
+  trackTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: theme.colors.text,
+  },
+  link: {
+    marginTop: 4,
     fontSize: 13,
     fontWeight: "700",
-    fontVariant: ["tabular-nums"],
-    color: "#fbbf24",
+    color: theme.colors.emerald,
   },
 });
 
 export default function ExploreScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
-
-  const { data, isPending, isError, refetch, reviewsQuery } = useExploreHub();
-
-  const trendingItems = useMemo((): TrendingWithTrack[] => {
-    const raw = data?.trending ?? [];
-    const valid = raw.filter((x): x is TrendingWithTrack => x.track != null);
-    return valid.slice(0, TRENDING_CAROUSEL_CAP);
-  }, [data?.trending]);
-
-  const leaderboardEntries = data?.leaderboard ?? [];
+  const [range, setRange] = useState<ExploreRangeParam>("week");
+  const { data, isPending, isError, refetch, isFetching } =
+    useExploreDiscoveryBundle(range);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -511,12 +486,10 @@ export default function ExploreScreen() {
     }
   }, [refetch]);
 
-  /** Full charts / Discover page (web `/discover`). */
   const goDiscover = useCallback(() => {
     router.push("/discover" as const);
   }, [router]);
 
-  /** Leaderboard tab with global popular songs (web `/leaderboard`). */
   const goLeaderboard = useCallback(() => {
     router.push({
       pathname: "/leaderboard",
@@ -528,36 +501,46 @@ export default function ExploreScreen() {
     router.push("/search/users" as const);
   }, [router]);
 
-  const renderTrendingCard = useCallback(
-    (item: TrendingWithTrack) => {
-      const { entity, track } = item;
-      const art = exploreTrackArtworkUrl(track);
-      const plays = entity.listen_count?.toLocaleString() ?? "0";
-      return (
-        <DiscoverCard
-          variant="song"
-          title={track.name}
-          subtitle={`${plays} plays`}
-          imageUrl={art}
-          onPress={() => router.push(`/song/${track.id}` as const)}
-        />
-      );
+  const navigateHref = useCallback(
+    (href: string) => {
+      router.push(href as `/song/${string}` | `/album/${string}` | `/communities/${string}`);
     },
     [router],
   );
 
-  const onLeaderboardEntry = useCallback(
-    (entry: ExploreHubLeaderboardEntry) => {
-      if (entry.entity_type === "album") {
-        router.push(`/album/${entry.id}` as const);
-      } else {
-        router.push(`/song/${entry.id}` as const);
-      }
-    },
-    [router],
+  const renderBlowingCard = useCallback(
+    (item: ExploreDiscoveryTrackItem) => (
+      <DiscoverCard
+        variant="song"
+        title={item.name}
+        subtitle={item.stat_label}
+        imageUrl={item.image_url}
+        onPress={() => navigateHref(item.href)}
+      />
+    ),
+    [navigateHref],
+  );
+
+  const renderLovedCard = useCallback(
+    (item: ExploreDiscoveryTrackItem) => (
+      <DiscoverCard
+        variant="song"
+        title={item.name}
+        subtitle={`${item.stat_label}${item.movement.badge ? ` · ${item.movement.badge}` : ""}`}
+        imageUrl={item.image_url}
+        onPress={() => navigateHref(item.href)}
+      />
+    ),
+    [navigateHref],
   );
 
   const showSkeleton = isPending && !data;
+
+  const blowing = data?.blowing_up ?? [];
+  const talked = data?.most_talked_about ?? [];
+  const loved = data?.most_loved ?? [];
+  const gems = data?.hidden_gems ?? [];
+  const communities = data?.across_communities ?? [];
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -578,8 +561,17 @@ export default function ExploreScreen() {
         <View style={styles.stickyHeader}>
           <Text style={styles.heroTitle}>Explore</Text>
           <Text style={styles.heroSub}>
-            Discovery, charts, and people — start here, then go deeper.
+            Live discovery — rising tracks, reviews, saves, and community picks.
+            Leaderboard is one tap away.
           </Text>
+        </View>
+
+        <View style={styles.rangePad}>
+          <Text style={styles.rangeLabel}>Window</Text>
+          <RangeToggle value={range} onChange={setRange} />
+          {isFetching && data ? (
+            <Text style={styles.refreshHint}>Updating…</Text>
+          ) : null}
         </View>
 
         {isError ? (
@@ -594,86 +586,171 @@ export default function ExploreScreen() {
         ) : (
           <>
             <DiscoverSection
-              title="Trending"
-              description="What listeners are playing in the last 24 hours."
-              actionLabel="Full charts →"
+              title="Blowing up"
+              description="Fastest-rising tracks vs the last window."
+              actionLabel="Charts →"
               onActionPress={goDiscover}
             >
-              {trendingItems.length > 0 ? (
-                <HorizontalCarousel<TrendingWithTrack>
-                  data={trendingItems}
-                  keyExtractor={(item) => item.entity.entity_id}
+              {blowing.length > 0 ? (
+                <HorizontalCarousel
+                  data={blowing}
+                  keyExtractor={(item) => item.id}
                   itemWidth={132}
-                  renderCard={renderTrendingCard}
+                  renderCard={renderBlowingCard}
                 />
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    No trending tracks in the last 24 hours.
+                    Not enough movement in this window yet.
                   </Text>
                 </View>
               )}
             </DiscoverSection>
 
             <DiscoverSection
-              title="Leaderboard"
-              description="Most-played tracks on Tracklist."
-              actionLabel="View all →"
+              title="Most talked about"
+              description="Most reviews + top quote."
+              actionLabel="Discover →"
+              onActionPress={goDiscover}
+            >
+              {talked.length > 0 ? (
+                <View style={{ gap: 10 }}>
+                  {talked.map((item) => (
+                    <TalkedAboutRow
+                      key={`${item.kind}-${item.id}`}
+                      item={item}
+                      onPress={() => navigateHref(item.href)}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>No review activity yet.</Text>
+                </View>
+              )}
+            </DiscoverSection>
+
+            <DiscoverSection
+              title="Most loved"
+              description="Saves, repeats, and plays in this window."
+            >
+              {loved.length > 0 ? (
+                <HorizontalCarousel
+                  data={loved}
+                  keyExtractor={(item) => item.id}
+                  itemWidth={132}
+                  renderCard={renderLovedCard}
+                />
+              ) : (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>
+                    No love scores in this window yet.
+                  </Text>
+                </View>
+              )}
+            </DiscoverSection>
+
+            <DiscoverSection
+              title="Hidden gems"
+              description="Strong engagement without huge play counts."
+            >
+              {gems.length > 0 ? (
+                gems.map((item) => (
+                  <HiddenGemRow
+                    key={`${item.kind}-${item.id}`}
+                    item={item}
+                    onPress={() => navigateHref(item.href)}
+                  />
+                ))
+              ) : (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>
+                    No hidden gems surfaced yet.
+                  </Text>
+                </View>
+              )}
+            </DiscoverSection>
+
+            <DiscoverSection
+              title="Across communities"
+              description="Each group's #1 track this month."
+              actionLabel="Communities →"
+              onActionPress={() => router.push("/communities" as const)}
+            >
+              {communities.length > 0 ? (
+                communities.map((row) => (
+                  <CommunityCard
+                    key={row.community_id}
+                    row={row}
+                    onOpenCommunity={() =>
+                      router.push(row.href as `/communities/${string}`)
+                    }
+                    onOpenTrack={() =>
+                      router.push(`/song/${row.top_track_id}` as const)
+                    }
+                  />
+                ))
+              ) : (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>
+                    No public community charts yet.
+                  </Text>
+                </View>
+              )}
+            </DiscoverSection>
+
+            <DiscoverSection
+              title="Classic leaderboard"
+              description="All-time popular songs & albums."
+              actionLabel="Open →"
               onActionPress={goLeaderboard}
             >
-              <LeaderboardPreviewRows
-                entries={leaderboardEntries}
-                onPressEntry={onLeaderboardEntry}
-              />
-            </DiscoverSection>
-
-            <DiscoverSection
-              title="Discover"
-              description="Rising artists, hidden gems, and personalized picks."
-              actionLabel="Open Discover →"
-              onActionPress={goDiscover}
-            >
-              <View style={styles.ctaCard}>
+              <Pressable
+                onPress={goLeaderboard}
+                style={({ pressed }) => [
+                  styles.ctaCard,
+                  pressed && styles.ctaPressed,
+                ]}
+              >
                 <Text style={styles.ctaBody}>
-                  Browse curated charts, recommendations, and community picks in
-                  one place.
+                  Prefer ranked lists? Open the global leaderboard anytime.
                 </Text>
-                <Pressable
-                  onPress={goDiscover}
-                  style={({ pressed }) => [
-                    styles.ctaPrimary,
-                    pressed && styles.ctaPressed,
-                  ]}
-                >
-                  <Text style={styles.ctaPrimaryText}>Go to Discover</Text>
-                </Pressable>
-              </View>
+                <Text style={styles.findLink}>Go to leaderboard →</Text>
+              </Pressable>
             </DiscoverSection>
 
             <DiscoverSection
-              title="Recent reviews"
-              description="Latest album ratings from the community."
-              actionLabel="Browse Discover →"
+              title="More charts"
+              description="Trending strips, rising artists, hidden gems."
+              actionLabel="Discover →"
               onActionPress={goDiscover}
             >
-              <RecentReviewsPreview
-                reviews={data?.reviews ?? []}
-                loading={reviewsQuery.isLoading}
-                onPressAlbum={(r: ExploreReviewPreviewRow) =>
-                  router.push(`/album/${r.entity_id}` as const)
-                }
-              />
+              <Pressable
+                onPress={goDiscover}
+                style={({ pressed }) => [
+                  styles.ctaCard,
+                  pressed && styles.ctaPressed,
+                ]}
+              >
+                <Text style={styles.ctaBody}>
+                  Full Discover page with trending, rising artists, and more.
+                </Text>
+                <Text style={styles.findLink}>Open Discover →</Text>
+              </Pressable>
             </DiscoverSection>
 
             <DiscoverSection
               title="Find people"
-              description="Search by username or browse members with similar taste."
+              description="Search by username or browse similar taste."
               actionLabel="Find people →"
               onActionPress={goFindUsers}
             >
               <Pressable
                 onPress={goFindUsers}
-                style={({ pressed }) => [styles.findCard, pressed && styles.ctaPressed]}
+                style={({ pressed }) => [
+                  styles.findCard,
+                  pressed && styles.ctaPressed,
+                ]}
               >
                 <Text style={styles.ctaBody}>
                   Follow friends, invite collaborators, and grow your network.
@@ -681,7 +758,6 @@ export default function ExploreScreen() {
                 <Text style={styles.findLink}>Open search →</Text>
               </Pressable>
             </DiscoverSection>
-
           </>
         )}
       </ScrollView>
@@ -704,6 +780,25 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
+  },
+  rangePad: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 6,
+    width: "100%",
+  },
+  rangeLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: theme.colors.muted,
+  },
+  refreshHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.muted,
   },
   heroTitle: {
     fontSize: 32,
@@ -740,25 +835,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.panel,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
-    gap: 16,
+    gap: 12,
   },
   ctaBody: {
     fontSize: 14,
     fontWeight: "500",
     color: theme.colors.muted,
     lineHeight: 21,
-  },
-  ctaPrimary: {
-    alignSelf: "flex-start",
-    backgroundColor: theme.colors.emerald,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  ctaPrimaryText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#fff",
   },
   ctaPressed: {
     opacity: 0.9,

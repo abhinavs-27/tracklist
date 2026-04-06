@@ -10,9 +10,11 @@ export type YearRange = {
 type Props = {
   value: YearRange;
   onChange: (range: YearRange) => void;
+  /** e.g. `block w-full sm:inline-block` for full-width trigger on mobile */
+  className?: string;
 };
 
-export function YearRangeFilter({ value, onChange }: Props) {
+export function YearRangeFilter({ value, onChange, className }: Props) {
   const [open, setOpen] = useState(false);
   const [startInput, setStartInput] = useState<string>(
     value.startYear ? String(value.startYear) : "",
@@ -66,18 +68,24 @@ export function YearRangeFilter({ value, onChange }: Props) {
   }
 
   return (
-    <div className="relative inline-block text-left">
+    <div
+      className={
+        className?.trim()
+          ? `relative text-left ${className}`
+          : "relative inline-block w-auto text-left"
+      }
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 shadow-sm transition hover:border-zinc-500 hover:text-white touch-manipulation"
+        className="inline-flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 shadow-sm transition hover:border-zinc-500 hover:text-white touch-manipulation sm:inline-flex sm:w-auto sm:justify-start"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         <span>{label}</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-64 origin-top-right rounded-xl border border-zinc-800 bg-zinc-950/95 p-4 text-sm text-zinc-200 shadow-xl backdrop-blur">
+        <div className="absolute left-0 right-0 z-20 mt-2 w-auto min-w-[16rem] origin-top rounded-xl border border-zinc-800 bg-zinc-950/95 p-4 text-sm text-zinc-200 shadow-xl backdrop-blur sm:left-auto sm:right-0 sm:w-64 sm:origin-top-right">
           <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
             Release year
           </div>

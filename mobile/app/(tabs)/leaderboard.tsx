@@ -43,17 +43,6 @@ export default function LeaderboardScreen() {
   });
   const [yearRange, setYearRange] = useState<YearRange>({});
 
-  const metricOptions = type === "albums"
-    ? ([
-        { value: "popular", label: "Popular" },
-        { value: "top_rated", label: "Top Rated" },
-        { value: "favorited", label: "Favorited" },
-      ] as const)
-    : ([
-        { value: "popular", label: "Popular" },
-        { value: "top_rated", label: "Top Rated" },
-      ] as const);
-
   const { data, isLoading, error } = useLeaderboard({
     type,
     metric,
@@ -78,35 +67,61 @@ export default function LeaderboardScreen() {
           Leaderboard
         </Text>
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <ViewToggle
-              value={type}
-              onChange={(val) => setType(val as LeaderboardTypeInput)}
-              options={[
-                { value: "albums", label: "Albums" },
-                { value: "songs", label: "Songs" },
-              ]}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <ViewToggle
-              value={metric}
-              onChange={(val) => {
-                const next = val as LeaderboardMetricInput;
-                // Prevent "favorited" when showing songs (backend supports mostFavorited for albums only).
-                if (type === "songs" && next === "favorited") {
-                  setMetric("popular");
-                  return;
-                }
-                setMetric(next);
-              }}
-              options={metricOptions as any}
-            />
-          </View>
-        </View>
-
-        <View style={{ marginTop: -4 }}>
+        <View
+          style={{
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.panelSoft,
+            padding: 12,
+            gap: 12,
+          }}
+        >
+          <ViewToggle
+            value={type}
+            onChange={(val) => setType(val as LeaderboardTypeInput)}
+            options={[
+              { value: "albums", label: "Albums" },
+              { value: "songs", label: "Songs" },
+            ]}
+          />
+          <View
+            style={{
+              height: 1,
+              backgroundColor: theme.colors.border,
+              opacity: 0.5,
+            }}
+          />
+          <ViewToggle
+            value={metric}
+            onChange={(val) => {
+              const next = val as LeaderboardMetricInput;
+              if (type === "songs" && next === "favorited") {
+                setMetric("popular");
+                return;
+              }
+              setMetric(next);
+            }}
+            options={
+              type === "albums"
+                ? [
+                    { value: "popular", label: "Popular" },
+                    { value: "top_rated", label: "Top Rated" },
+                    { value: "favorited", label: "Favorited" },
+                  ]
+                : [
+                    { value: "popular", label: "Popular" },
+                    { value: "top_rated", label: "Top Rated" },
+                  ]
+            }
+          />
+          <View
+            style={{
+              height: 1,
+              backgroundColor: theme.colors.border,
+              opacity: 0.5,
+            }}
+          />
           <YearRangeFilter value={yearRange} onChange={setYearRange} />
         </View>
       </View>

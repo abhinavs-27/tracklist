@@ -190,51 +190,22 @@ export default function LeaderboardPage() {
         </p>
       </header>
 
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className={`flex w-full min-w-0 flex-wrap sm:w-auto ${segmentedShell}`}>
-          <button
-            type="button"
-            onClick={() => setType("popular")}
-            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
-              type === "popular" ? segmentedButtonActive : segmentedButtonIdle
-            }`}
+      <div
+        className={`${cardElevated} p-3 shadow-[inset_0_1px_0_0_rgb(255_255_255/0.04)] sm:p-4`}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-5 lg:gap-y-3">
+          <div
+            className={`grid w-full max-w-md grid-cols-2 gap-1 p-1 lg:w-auto lg:max-w-none lg:flex-none ${segmentedShell}`}
+            role="group"
+            aria-label="Songs or albums"
           >
-            {getChartConfig("popular")?.label ?? "Most Popular"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setType("topRated")}
-            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
-              type === "topRated" ? segmentedButtonActive : segmentedButtonIdle
-            }`}
-          >
-            {getChartConfig("top_rated")?.label ?? "Top Rated"}
-          </button>
-          {/* Only allow "Most Favorited" when viewing albums, since only albums can be favorited. */}
-          {entity === "album" && (
-            <button
-              type="button"
-              onClick={() => setType("mostFavorited")}
-              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:px-4 ${
-                type === "mostFavorited"
-                  ? segmentedButtonActive
-                  : segmentedButtonIdle
-              }`}
-            >
-              {getChartConfig("favorited")?.label ?? "Most Favorited"}
-            </button>
-          )}
-        </div>
-        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className={`flex ${segmentedShell}`}>
             <button
               type="button"
               onClick={() => {
                 setEntity("song");
-                // If we were on "Most Favorited" (albums-only), switch back to a valid type.
                 if (type === "mostFavorited") setType("popular");
               }}
-              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
+              className={`inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:px-4 sm:py-1.5 ${
                 entity === "song" ? segmentedButtonActive : segmentedButtonIdle
               }`}
             >
@@ -243,41 +214,99 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setEntity("album")}
-              className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none sm:py-1.5 ${
+              className={`inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition sm:px-4 sm:py-1.5 ${
                 entity === "album" ? segmentedButtonActive : segmentedButtonIdle
               }`}
             >
               Albums
             </button>
           </div>
-          <YearRangeFilter value={yearRange} onChange={setYearRange} />
+
           <div
-            className={`flex shrink-0 ${segmentedShell}`}
+            className={`grid w-full gap-1 p-1 sm:max-w-2xl lg:min-w-0 lg:flex-1 ${segmentedShell} ${
+              entity === "album" ? "grid-cols-3" : "grid-cols-2"
+            }`}
             role="group"
-            aria-label="View"
+            aria-label="Ranking"
           >
             <button
               type="button"
-              onClick={() => setView("grid")}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2 transition ${
-                view === "grid" ? segmentedButtonActive : segmentedButtonIdle
+              onClick={() => setType("popular")}
+              className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition sm:px-4 sm:text-sm ${
+                type === "popular" ? segmentedButtonActive : segmentedButtonIdle
               }`}
-              title="Grid view"
-              aria-pressed={view === "grid"}
             >
-              <GridIcon />
+              <span className="min-[380px]:hidden">Popular</span>
+              <span className="hidden min-[380px]:inline">
+                {getChartConfig("popular")?.label ?? "Most Popular"}
+              </span>
             </button>
             <button
               type="button"
-              onClick={() => setView("list")}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2 transition ${
-                view === "list" ? segmentedButtonActive : segmentedButtonIdle
+              onClick={() => setType("topRated")}
+              className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition sm:px-4 sm:text-sm ${
+                type === "topRated" ? segmentedButtonActive : segmentedButtonIdle
               }`}
-              title="List view"
-              aria-pressed={view === "list"}
             >
-              <ListIcon />
+              <span className="min-[380px]:hidden">Top rated</span>
+              <span className="hidden min-[380px]:inline">
+                {getChartConfig("top_rated")?.label ?? "Top Rated"}
+              </span>
             </button>
+            {entity === "album" && (
+              <button
+                type="button"
+                onClick={() => setType("mostFavorited")}
+                className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl px-2 py-2 text-xs font-medium transition sm:px-4 sm:text-sm ${
+                  type === "mostFavorited"
+                    ? segmentedButtonActive
+                    : segmentedButtonIdle
+                }`}
+              >
+                <span className="min-[380px]:hidden">Favorited</span>
+                <span className="hidden min-[380px]:inline">
+                  {getChartConfig("favorited")?.label ?? "Most Favorited"}
+                </span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex w-full min-w-0 flex-row items-stretch gap-2 lg:ml-auto lg:w-auto lg:max-w-md lg:shrink-0">
+            <div className="min-w-0 flex-1 lg:flex-initial">
+              <YearRangeFilter
+                value={yearRange}
+                onChange={setYearRange}
+                className="block w-full sm:inline-block sm:w-auto"
+              />
+            </div>
+            <div
+              className={`flex shrink-0 self-stretch ${segmentedShell}`}
+              role="group"
+              aria-label="View"
+            >
+              <button
+                type="button"
+                onClick={() => setView("grid")}
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2 transition ${
+                  view === "grid" ? segmentedButtonActive : segmentedButtonIdle
+                }`}
+                title="Grid view"
+                aria-pressed={view === "grid"}
+              >
+                <GridIcon />
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2 transition ${
+                  view === "list" ? segmentedButtonActive : segmentedButtonIdle
+                }`}
+                title="List view"
+                aria-pressed={view === "list"}
+              >
+                <ListIcon />
+              </button>
+            </div>
           </div>
         </div>
       </div>

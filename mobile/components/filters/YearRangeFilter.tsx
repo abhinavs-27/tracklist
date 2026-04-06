@@ -83,13 +83,16 @@ export function YearRangeFilter({ value, onChange }: Props) {
         style={{
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "space-between",
           gap: 8,
+          alignSelf: "stretch",
+          minHeight: 44,
           borderRadius: 10,
           borderWidth: 1,
           borderColor: theme.colors.border,
           backgroundColor: theme.colors.panelSoft,
           paddingHorizontal: 12,
-          paddingVertical: 8,
+          paddingVertical: 10,
         }}
       >
         <View
