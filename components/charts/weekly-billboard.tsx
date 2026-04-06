@@ -977,6 +977,9 @@ export function WeeklyBillboardView(props: {
                 chart_moment={props.chart_moment}
                 disableFormattedShare={!canShare}
                 layout="inline"
+                chartType={props.chartType}
+                weekStartIso={props.weekStartIso}
+                communityId={props.communityId}
               />
             </div>
           </div>

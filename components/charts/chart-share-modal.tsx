@@ -92,6 +92,9 @@ export function ChartShareModal(props: {
             chart_moment={props.chart_moment}
             disableFormattedShare={props.disableFormattedShare}
             layout="stacked"
+            chartType={props.chartType}
+            weekStartIso={props.weekStartIso}
+            communityId={props.communityId}
           />
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">

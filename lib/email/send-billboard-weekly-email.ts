@@ -102,9 +102,7 @@ export async function sendBillboardWeeklyDigestEmail(args: {
       ? "No new tracks in the top 10 — same crew as last week, different order."
       : `${newEntries} new ${newEntries === 1 ? "track" : "tracks"} in the top 10.`;
   const weeksAtLine =
-    weeksAt1 <= 1
-      ? "One week at #1 so far."
-      : `${weeksAt1} weeks at #1.`;
+    weeksAt1 <= 1 ? "One week at #1 so far." : `${weeksAt1} weeks at #1.`;
   let moverTeaser = "No big swings up or down this week.";
   if (jump?.name && jump.movement != null && jump.movement !== 0) {
     const spots = Math.abs(jump.movement);

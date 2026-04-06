@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
-import { apiBadRequest, apiNotFound } from "@/lib/api-response";
+import { apiBadRequest, apiInternalError, apiNotFound } from "@/lib/api-response";
 import { generateChartShareImageResponse } from "@/lib/charts/generate-chart-share-image";
 import type { ChartShareImageTopRow } from "@/lib/charts/chart-share-image-template";
 import { getWeeklyChartForUser } from "@/lib/charts/get-user-weekly-chart";
@@ -35,6 +35,9 @@ const KIND_LABEL: Record<ChartType, string> = {
   artists: "Artists",
   albums: "Albums",
 };
+
+/** OG + font fetch can exceed default serverless timeout on cold starts. */
+export const maxDuration = 60;
 
 /**
  * GET /api/charts/share-image?type=…&weekStart=… (optional)
@@ -83,6 +86,6 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     const u = handleUnauthorized(e);
     if (u) return u;
-    throw e;
+    return apiInternalError(e);
   }
 }

@@ -39,14 +39,18 @@ export function isLocalhostUrl(url: string): boolean {
 
 /**
  * Returns the app base URL (no trailing slash).
- * - Production: uses NEXTAUTH_URL only if it's not localhost; else VERCEL_URL.
- *   Never uses 127.0.0.1 in production.
+ * - Production: `PUBLIC_APP_URL` (canonical public domain, e.g. emails / OG) if set;
+ *   else `NEXTAUTH_URL` if not localhost; else `VERCEL_URL` (often `*.vercel.app` — avoid for user-facing links).
  * - Development: uses NEXTAUTH_URL or http://127.0.0.1:3000.
  */
 export function getAppBaseUrl(): string {
   const isProduction = process.env.NODE_ENV === "production";
 
   if (isProduction) {
+    const publicAppUrl = process.env.PUBLIC_APP_URL?.trim();
+    if (publicAppUrl && !isLocalhostUrl(publicAppUrl)) {
+      return publicAppUrl.replace(/\/$/, "");
+    }
     const nextAuthUrl = process.env.NEXTAUTH_URL?.trim();
     if (nextAuthUrl && !isLocalhostUrl(nextAuthUrl)) {
       return nextAuthUrl.replace(/\/$/, "");
@@ -56,11 +60,11 @@ export function getAppBaseUrl(): string {
     }
     if (nextAuthUrl && isLocalhostUrl(nextAuthUrl)) {
       console.warn(
-        "NEXTAUTH_URL is set to localhost in production; ignoring. Set NEXTAUTH_URL to your production URL (e.g. https://tracklistsocial.com)."
+        "NEXTAUTH_URL is set to localhost in production; ignoring. Set PUBLIC_APP_URL or NEXTAUTH_URL to your production URL (e.g. https://tracklistsocial.com)."
       );
     }
     throw new Error(
-      "In production set NEXTAUTH_URL to your site URL (e.g. https://tracklistsocial.com), or deploy on Vercel so VERCEL_URL is set."
+      "In production set PUBLIC_APP_URL or NEXTAUTH_URL to your public site URL (e.g. https://tracklistsocial.com), or deploy on Vercel so VERCEL_URL is set."
     );
   }
 

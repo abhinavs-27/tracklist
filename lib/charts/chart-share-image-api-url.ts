@@ -17,3 +17,15 @@ export function getChartShareImageApiUrl(args: {
   }
   return `/api/charts/share-image?${q.toString()}`;
 }
+
+/** Filename for downloaded / shared PNG (matches download button naming). */
+export function getChartShareImageFilename(args: {
+  chartType: ChartType;
+  weekStart: string | null;
+  communityId?: string | null;
+}): string {
+  const scope = args.communityId?.trim()
+    ? `community-${args.communityId.trim().slice(0, 8)}`
+    : "me";
+  return `weekly-chart-${scope}-${args.chartType}-${(args.weekStart ?? "latest").slice(0, 10)}.png`;
+}

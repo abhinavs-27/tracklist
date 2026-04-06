@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
 
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
-import { apiBadRequest, apiForbidden, apiNotFound } from "@/lib/api-response";
+import {
+  apiBadRequest,
+  apiForbidden,
+  apiInternalError,
+  apiNotFound,
+} from "@/lib/api-response";
 import { generateChartShareImageResponse } from "@/lib/charts/generate-chart-share-image";
 import type { ChartShareImageTopRow } from "@/lib/charts/chart-share-image-template";
 import { getCommunityWeeklyChart } from "@/lib/charts/get-community-weekly-chart";
@@ -44,6 +49,8 @@ const COMMUNITY_SHARE_SUBTITLE: Record<ChartType, string> = {
   artists: "Top artists this week",
   albums: "Top albums this week",
 };
+
+export const maxDuration = 60;
 
 /**
  * GET /api/communities/[id]/charts/share-image?type=…&weekStart=…
@@ -116,6 +123,6 @@ export async function GET(
   } catch (e) {
     const u = handleUnauthorized(e);
     if (u) return u;
-    throw e;
+    return apiInternalError(e);
   }
 }

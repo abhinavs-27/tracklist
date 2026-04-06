@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { useToast } from "@/components/toast";
 import { formatWeeklyChartShareText } from "@/lib/charts/format-chart-share-text";
-import type { ChartMomentPayload } from "@/lib/charts/weekly-chart-types";
+import {
+  getChartShareImageApiUrl,
+  getChartShareImageFilename,
+} from "@/lib/charts/chart-share-image-api-url";
+import type {
+  ChartMomentPayload,
+  ChartType,
+} from "@/lib/charts/weekly-chart-types";
 
 function btnClass(layout: "inline" | "stacked") {
   const base =
@@ -20,6 +27,10 @@ export function ChartShareActions(props: {
   disableFormattedShare?: boolean;
   /** `stacked`: full-width column (modal). `inline`: horizontal wrap (toolbar). */
   layout?: "inline" | "stacked";
+  /** With week/community context, Share fetches the PNG and attaches it when the browser supports file sharing. */
+  chartType?: ChartType;
+  weekStartIso?: string | null;
+  communityId?: string | null;
 }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -60,15 +71,71 @@ export function ChartShareActions(props: {
 
   async function share() {
     if (props.disableFormattedShare) return;
-    const text = summaryForShare();
+    const title = `Weekly Billboard · ${props.chartKind}`;
+    const textBody = summaryWithLink();
     const url = pageUrl;
 
-    if (typeof navigator !== "undefined" && navigator.share) {
+    let sharedImage = false;
+    if (
+      props.chartType != null &&
+      typeof navigator !== "undefined" &&
+      navigator.share
+    ) {
+      setBusy(true);
       try {
-        setBusy(true);
+        const imgUrl = getChartShareImageApiUrl({
+          chartType: props.chartType,
+          weekStart: props.weekStartIso ?? null,
+          communityId: props.communityId,
+        });
+        const res = await fetch(imgUrl, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const file = new File(
+            [blob],
+            getChartShareImageFilename({
+              chartType: props.chartType,
+              weekStart: props.weekStartIso ?? null,
+              communityId: props.communityId,
+            }),
+            { type: "image/png" },
+          );
+          const shareData: ShareData = {
+            title,
+            text: `${summaryForShare()}\n\n${url}`,
+            files: [file],
+          };
+          if (navigator.canShare?.(shareData)) {
+            await navigator.share(shareData);
+            sharedImage = true;
+          }
+        } else {
+          const err = (await res.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          toast(err?.error ?? "Could not generate image");
+        }
+      } catch (e) {
+        const err = e as { name?: string };
+        if (err.name !== "AbortError") {
+          toast("Could not share image");
+        }
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    if (sharedImage) return;
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      setBusy(true);
+      try {
         await navigator.share({
-          title: `Weekly Billboard · ${props.chartKind}`,
-          text: `${text}\n\n${url}`,
+          title,
+          text: textBody,
           url,
         });
       } catch (e) {

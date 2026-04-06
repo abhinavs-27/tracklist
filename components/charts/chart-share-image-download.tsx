@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/toast";
-import { getChartShareImageApiUrl } from "@/lib/charts/chart-share-image-api-url";
+import {
+  getChartShareImageApiUrl,
+  getChartShareImageFilename,
+} from "@/lib/charts/chart-share-image-api-url";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 
 export function ChartShareImageDownload(props: {
@@ -31,10 +34,11 @@ export function ChartShareImageDownload(props: {
         throw new Error(err?.error ?? "Could not generate image");
       }
       const blob = await res.blob();
-      const scope = props.communityId?.trim()
-        ? `community-${props.communityId.trim().slice(0, 8)}`
-        : "me";
-      const filename = `weekly-chart-${scope}-${props.chartType}-${(props.weekStart ?? "latest").slice(0, 10)}.png`;
+      const filename = getChartShareImageFilename({
+        chartType: props.chartType,
+        weekStart: props.weekStart,
+        communityId: props.communityId,
+      });
 
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
