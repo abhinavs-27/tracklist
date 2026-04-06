@@ -14,6 +14,7 @@ import { Artwork } from "@/components/media/Artwork";
 import { DiscoverCard } from "@/components/discover/DiscoverCard";
 import { DiscoverSection } from "@/components/discover/DiscoverSection";
 import { HorizontalCarousel } from "@/components/discover/HorizontalCarousel";
+import { exploreTrackArtworkUrl } from "@/lib/explore-track-artwork";
 import { useExploreHub } from "@/lib/hooks/useExploreHub";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
@@ -530,7 +531,7 @@ export default function ExploreScreen() {
   const renderTrendingCard = useCallback(
     (item: TrendingWithTrack) => {
       const { entity, track } = item;
-      const art = trackAlbumArtworkUrl(track);
+      const art = exploreTrackArtworkUrl(track);
       const plays = entity.listen_count?.toLocaleString() ?? "0";
       return (
         <DiscoverCard

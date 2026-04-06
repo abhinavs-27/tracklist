@@ -10,9 +10,17 @@ export type ExploreHubTrackJson = {
   artists?: Array<{ name?: string | null } | null>;
 };
 
+/** Trimmed track from `?lite=true` Explore endpoints (no nested album/artists). */
+export type ExploreHubTrackLite = {
+  id: string;
+  name: string;
+  artist: string;
+  image_url: string | null;
+};
+
 export type ExploreHubTrendingItem = {
   entity: TrendingEntity;
-  track: ExploreHubTrackJson | null;
+  track: ExploreHubTrackJson | ExploreHubTrackLite | null;
 };
 
 /** Mirrors `LeaderboardEntry` from `lib/queries` (API JSON). */
@@ -40,9 +48,9 @@ export type ExploreDiscoverPayload = {
 
 export type ExploreReviewPreviewRow = {
   id: string;
-  user_id: string;
+  user_id?: string;
   username: string;
-  avatar_url: string | null;
+  avatar_url?: string | null;
   entity_id: string;
   album_name: string;
   artist_name: string;

@@ -179,7 +179,9 @@ export function CommunityMobileWebShell({
 
             {insights ? (
               <>
-                <div className={`${cardRadius} border border-emerald-500/15 bg-emerald-950/25 px-3 py-3 ring-1 ring-emerald-500/12 transition-colors duration-300 hover:bg-emerald-950/30`}>
+                <div
+                  className={`${cardRadius} border border-emerald-500/15 bg-emerald-950/25 px-3 py-3 ring-1 ring-emerald-500/12 transition-colors duration-300 hover:bg-emerald-950/30`}
+                >
                   <p
                     className={`font-medium leading-relaxed text-zinc-100 ${communityBody}`}
                   >
@@ -187,7 +189,9 @@ export function CommunityMobileWebShell({
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={`${cardRadius} border border-white/[0.08] bg-zinc-950/52 ${cardPaddingCompact} ring-1 ring-white/[0.06] transition-all duration-300 motion-safe:hover:scale-[1.01] hover:bg-zinc-900/40`}>
+                  <div
+                    className={`${cardRadius} border border-white/[0.08] bg-zinc-950/52 ${cardPaddingCompact} ring-1 ring-white/[0.06] transition-all duration-300 motion-safe:hover:scale-[1.01] hover:bg-zinc-900/40`}
+                  >
                     <p className="text-2xl font-extrabold tabular-nums text-emerald-400">
                       {pct(insights.explorationScore)}
                     </p>
@@ -200,7 +204,9 @@ export function CommunityMobileWebShell({
                       {insights.explorationLabel}
                     </p>
                   </div>
-                  <div className={`${cardRadius} border border-white/[0.08] bg-zinc-950/52 ${cardPaddingCompact} ring-1 ring-white/[0.06] transition-all duration-300 motion-safe:hover:scale-[1.01] hover:bg-zinc-900/40`}>
+                  <div
+                    className={`${cardRadius} border border-white/[0.08] bg-zinc-950/52 ${cardPaddingCompact} ring-1 ring-white/[0.06] transition-all duration-300 motion-safe:hover:scale-[1.01] hover:bg-zinc-900/40`}
+                  >
                     <p className="text-2xl font-extrabold tabular-nums text-amber-400/90">
                       {pct(insights.diversityScore)}
                     </p>
@@ -214,7 +220,9 @@ export function CommunityMobileWebShell({
                     </p>
                   </div>
                 </div>
-                <div className={`${cardRadius} border border-white/[0.08] bg-zinc-950/48 ${cardPaddingCompact} ring-1 ring-white/[0.06] transition-all duration-300 motion-safe:hover:scale-[1.01] hover:bg-zinc-900/35`}>
+                <div
+                  className={`${cardRadius} border border-white/[0.08] bg-zinc-950/48 ${cardPaddingCompact} ring-1 ring-white/[0.06] transition-all duration-300 motion-safe:hover:scale-[1.01] hover:bg-zinc-900/35`}
+                >
                   <p className="text-sm font-semibold text-zinc-100">
                     Listening clock
                   </p>
@@ -372,8 +380,7 @@ export function CommunityMobileWebShell({
       >
         <div className="space-y-3">
           <p className={`${communityBody} text-zinc-500`}>
-            Filters, listens, reviews, and milestones — tuned for easier
-            scanning on small screens.
+            Filters, listens, reviews, and milestones
           </p>
           <CommunityFeedClient
             communityId={communityId}

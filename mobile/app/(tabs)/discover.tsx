@@ -15,6 +15,7 @@ import { DiscoverCard } from "@/components/discover/DiscoverCard";
 import { DiscoverSection } from "@/components/discover/DiscoverSection";
 import { HorizontalCarousel } from "@/components/discover/HorizontalCarousel";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+import { exploreTrackArtworkUrl } from "@/lib/explore-track-artwork";
 import { useExploreHub } from "@/lib/hooks/useExploreHub";
 import { useHiddenGemsGrid, useRisingArtists } from "@/lib/hooks/useDiscover";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
@@ -29,16 +30,6 @@ const GEMS_CAP = 20;
 type TrendingWithTrack = ExploreHubTrendingItem & {
   track: NonNullable<ExploreHubTrendingItem["track"]>;
 };
-
-function trackAlbumArtworkUrl(track: TrendingWithTrack["track"]): string | null {
-  const imgs = track.album?.images;
-  if (!imgs?.length) return null;
-  for (const im of imgs) {
-    const u = im?.url?.trim();
-    if (u) return u;
-  }
-  return null;
-}
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -88,7 +79,7 @@ export default function DiscoverScreen() {
   const renderTrendingCard = useCallback(
     (item: TrendingWithTrack) => {
       const { entity, track } = item;
-      const art = trackAlbumArtworkUrl(track);
+          const art = exploreTrackArtworkUrl(track);
       const plays = entity.listen_count?.toLocaleString() ?? "0";
       return (
         <DiscoverCard

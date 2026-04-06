@@ -2,10 +2,11 @@ import { NextRequest } from "next/server";
 import { withHandler } from "@/lib/api-handler";
 import { apiOk, apiBadRequest } from "@/lib/api-response";
 import { getLeaderboardWithTotal } from "@/lib/queries";
-import { getPaginationParams } from "@/lib/api-utils";
+import { getPaginationParams, isLiteQueryParam } from "@/lib/api-utils";
+import { mapLeaderboardEntriesToLite } from "@/lib/explore-api-serialize";
 import { getLeaderboardPageFromPrecomputed } from "@/lib/precomputed-cache-read";
 
-/** 
+/**
  * GET /api/leaderboard
  * Query params:
  * - type: popular | topRated | mostFavorited  (metric)
@@ -13,6 +14,7 @@ import { getLeaderboardPageFromPrecomputed } from "@/lib/precomputed-cache-read"
  * - startYear, endYear
  * - cursor: optional last rank (number)
  * - limit: optional page size
+ * - lite=true: omit weighted_score / favorite_count from each item
  */
 export const GET = withHandler(async (request: NextRequest) => {
   const { searchParams } = request.nextUrl;
@@ -51,6 +53,7 @@ export const GET = withHandler(async (request: NextRequest) => {
 
   const cursor = cursorParam ? parseInt(cursorParam, 10) : 0;
   const { limit } = getPaginationParams(searchParams, 50, 100);
+  const lite = isLiteQueryParam(searchParams);
 
   const startRank = cursor && cursor > 0 ? cursor + 1 : 1;
   const startIndex = startRank - 1;
@@ -67,7 +70,9 @@ export const GET = withHandler(async (request: NextRequest) => {
     );
     if (fromCache) {
       return apiOk({
-        items: fromCache.items,
+        items: lite
+          ? mapLeaderboardEntriesToLite(fromCache.items)
+          : fromCache.items,
         nextCursor: fromCache.nextCursor,
         total: fromCache.total,
       });
@@ -96,7 +101,7 @@ export const GET = withHandler(async (request: NextRequest) => {
   const nextCursor = hasMore ? lastRank : null;
 
   return apiOk({
-    items: pageItems,
+    items: lite ? mapLeaderboardEntriesToLite(pageItems) : pageItems,
     nextCursor,
     total: totalCount ?? undefined,
   });

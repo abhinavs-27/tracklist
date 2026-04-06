@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiBadRequest, apiConflict, apiInternalError, apiNotFound } from './api-response';
 import { clampLimit, isValidUuid } from './validation';
 
+/** True when client requests a trimmed JSON payload (`?lite=true` or `?lite=1`). */
+export function isLiteQueryParam(searchParams: URLSearchParams): boolean {
+  const v = searchParams.get('lite');
+  return v === 'true' || v === '1';
+}
+
 /**
  * Standardizes JSON body parsing with error handling.
  */

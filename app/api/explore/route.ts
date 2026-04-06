@@ -1,4 +1,10 @@
 import { withHandler } from "@/lib/api-handler";
+import { isLiteQueryParam } from "@/lib/api-utils";
+import {
+  mapExploreReviewsToLite,
+  mapExploreTrendingToLite,
+  mapLeaderboardEntriesToLite,
+} from "@/lib/explore-api-serialize";
 import {
   getExploreTrendingPayload,
   getExploreLeaderboardPayload,
@@ -22,10 +28,11 @@ export const GET = withHandler(async (request) => {
   const start = Date.now();
   exploreLogLine("explore: start (combined)");
   const bypassCache = request.nextUrl.searchParams.get("refresh") === "1";
+  const lite = isLiteQueryParam(request.nextUrl.searchParams);
 
   try {
     const res = await staleFirstApiOk(
-      "explore:hub:v2",
+      lite ? "explore:hub:lite:v2" : "explore:hub:v2",
       STALE_FIRST_TTL_SEC.explore,
       STALE_FIRST_STALE_AFTER_SEC.explore,
       async () => {
@@ -46,6 +53,14 @@ export const GET = withHandler(async (request) => {
             ),
           ]);
         exploreLogLine(`explore: total: ${Date.now() - start} ms`);
+        if (lite) {
+          return {
+            trending: mapExploreTrendingToLite(trendingRes.trending),
+            leaderboard: mapLeaderboardEntriesToLite(leaderboardRes.leaderboard),
+            discover,
+            reviews: mapExploreReviewsToLite(reviewsRes.reviews),
+          };
+        }
         return {
           trending: trendingRes.trending,
           leaderboard: leaderboardRes.leaderboard,

@@ -7,6 +7,8 @@ loadEnvConfig(process.cwd());
 const nextConfig: NextConfig = {
   /** Allow dev HMR / fonts when the site is opened via 127.0.0.1 instead of localhost. */
   allowedDevOrigins: ["127.0.0.1"],
+  /** gzip for `next start`; Vercel also applies Brotli/gzip at the edge. */
+  compress: true,
 };
 
 export default nextConfig;

@@ -14,7 +14,8 @@ import type {
   ExploreReviewPreviewRow,
 } from "../types/explore-hub";
 
-const EXPLORE_HUB_CACHE_KEY = "explore:hub";
+/** Bumped when hub payload shape changes (e.g. lite tracks). */
+const EXPLORE_HUB_CACHE_KEY = "explore:hub:lite:v1";
 
 const STALE_MS = 60 * 1000;
 
@@ -24,7 +25,9 @@ export function useExploreHub() {
   const trendingQ = useQuery({
     queryKey: queryKeys.exploreTrending(),
     queryFn: () =>
-      fetcher<{ trending: ExploreHubTrendingItem[] }>("/api/explore/trending"),
+      fetcher<{ trending: ExploreHubTrendingItem[] }>(
+        "/api/explore/trending?lite=true",
+      ),
     staleTime: STALE_MS,
     initialData: initial
       ? { trending: initial.trending }
@@ -53,7 +56,9 @@ export function useExploreHub() {
   const reviewsQ = useQuery({
     queryKey: queryKeys.exploreReviews(),
     queryFn: () =>
-      fetcher<{ reviews: ExploreReviewPreviewRow[] }>("/api/explore/reviews"),
+      fetcher<{ reviews: ExploreReviewPreviewRow[] }>(
+        "/api/explore/reviews?lite=true",
+      ),
     staleTime: STALE_MS,
     initialData:
       initial?.reviews != null ? { reviews: initial.reviews } : undefined,
