@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { PageHeading } from "@/components/ui/page-heading";
@@ -9,9 +8,7 @@ import { sectionGap } from "@/lib/ui/surface";
 
 export default async function SearchUsersPage() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect('/auth/signin');
-  }
+  const viewerUserId = session?.user?.id ?? null;
 
   return (
     <div className={`${contentMax2xl} ${sectionGap}`}>
@@ -24,9 +21,13 @@ export default async function SearchUsersPage() {
       <PageHeading
         className="mt-3"
         title="Find people"
-        description="Browse everyone who joined, or search by username."
+        description={
+          viewerUserId
+            ? "Browse everyone who joined, or search by username."
+            : "Browse public profiles and search by username — sign in to follow."
+        }
       />
-      <UserSearchContent />
+      <UserSearchContent viewerUserId={viewerUserId} />
     </div>
   );
 }

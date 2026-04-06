@@ -32,7 +32,6 @@ const TASTE_OVERLAP_MAX_LIMIT = 20;
 searchRouter.get("/users/browse", async (req, res) => {
   try {
     const userId = await getSessionUserId(req);
-    if (!userId) return unauthorized(res);
 
     if (!isSupabaseConfigured()) {
       return ok(res, { users: [], hasMore: false });
@@ -55,11 +54,11 @@ searchRouter.get("/users/browse", async (req, res) => {
       getSupabase() as never,
       overfetch,
       offset,
-      userId,
+      userId ?? null,
     );
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
-    const users = await enrichUsersWithFollowStatus(page, userId);
+    const users = await enrichUsersWithFollowStatus(page, userId ?? null);
 
     return ok(res, { users, hasMore });
   } catch (e) {
@@ -104,7 +103,6 @@ searchRouter.get("/users/taste-overlap", async (req, res) => {
 searchRouter.get("/users", async (req, res) => {
   try {
     const userId = await getSessionUserId(req);
-    if (!userId) return unauthorized(res);
 
     const raw = String(req.query.q ?? "");
     const q = sanitizeString(raw, MAX_USER_QUERY) ?? "";
@@ -120,10 +118,10 @@ searchRouter.get("/users", async (req, res) => {
     }
 
     const limit = clampLimit(req.query.limit, 50, 20);
-    const rows = await searchUsers(q, limit, userId);
+    const rows = await searchUsers(q, limit, userId ?? null);
     if (rows.length === 0) return ok(res, []);
 
-    const users = await enrichUsersWithFollowStatus(rows, userId);
+    const users = await enrichUsersWithFollowStatus(rows, userId ?? null);
     return ok(res, users);
   } catch (e) {
     return internalError(res, e);

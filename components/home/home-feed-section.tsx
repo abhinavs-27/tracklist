@@ -7,6 +7,7 @@ import {
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { FeedListVirtual } from "@/components/feed-list-virtual";
 import { RecommendedCommunitiesSuspense } from "@/components/discover/recommended-communities-suspense";
+import { SampleWeeklyChartPreview } from "@/components/home/sample-weekly-chart-preview";
 import { cardElevated, sectionGap, sectionTitle } from "@/lib/ui/surface";
 
 export async function HomeFeedSection({ userId }: { userId: string }) {
@@ -40,19 +41,21 @@ export async function HomeFeedSection({ userId }: { userId: string }) {
       ) : null}
 
       {feedItems.length === 0 ? (
-        <div
-          className={`p-10 text-center sm:p-12 ${cardElevated}`}
-        >
-          <p className="text-base text-zinc-400">
-            Your feed is empty. Follow people to see what they&apos;re listening
-            to.
-          </p>
-          <Link
-            href="/search/users"
-            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600/90 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-950/40 transition hover:bg-emerald-500"
-          >
-            Find people to follow
-          </Link>
+        <div className={`space-y-8 p-8 sm:p-10 ${cardElevated}`}>
+          <div className="text-center">
+            <p className="text-base text-zinc-400">
+              Your feed will fill in as you follow people. Here&apos;s what a week
+              of listening can look like on your chart — add friends to see their
+              activity here.
+            </p>
+            <Link
+              href="/search/users"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600/90 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-950/40 transition hover:bg-emerald-500"
+            >
+              Find people to follow
+            </Link>
+          </div>
+          <SampleWeeklyChartPreview variant="onboarding" />
         </div>
       ) : (
         <FeedListVirtual

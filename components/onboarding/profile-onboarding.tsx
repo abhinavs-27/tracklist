@@ -10,6 +10,7 @@ import {
   MAX_FAVORITE_ALBUMS,
   type FavoriteAlbumPick,
 } from "@/components/favorite-albums-picker";
+import { SampleWeeklyChartPreview } from "@/components/home/sample-weekly-chart-preview";
 import { LastfmConnectModal } from "@/components/onboarding/lastfm-connect-modal";
 import { LastfmSkipWarningDialog } from "@/components/onboarding/lastfm-skip-warning-dialog";
 import { FollowButton } from "@/components/follow-button";
@@ -280,8 +281,8 @@ export function ProfileOnboarding({
         onClose={() => setLastfmModalOpen(false)}
         onSkip={advanceFromLastfm}
         onConnected={onLastfmConnected}
-        title="Connect Last.fm (about a minute)"
-        subtitle={`We’ll attach Last.fm to @${usernameInput.trim() || initialUsername} so your profile and feeds stay in sync with what you listen to.`}
+        title="Get your weekly chart"
+        subtitle={`We’ll link listening to @${usernameInput.trim() || initialUsername} via Last.fm so your charts and feed match what you play.`}
       />
 
       <div className="mx-auto w-full max-w-2xl py-4 sm:py-10">
@@ -296,8 +297,8 @@ export function ProfileOnboarding({
               done.
             </p>
             <p className="mt-2 text-sm text-emerald-200/75">
-              Username, favorite albums, Last.fm, then meet members — same steps
-              as everyone else.
+              Username, favorite albums, your listening chart, then meet members
+              — same steps as everyone else.
             </p>
           </div>
         ) : null}
@@ -316,7 +317,7 @@ export function ProfileOnboarding({
             </span>
             <span className="text-zinc-600">→</span>
             <span className={step === 3 ? "text-emerald-400" : "text-zinc-500"}>
-              3 · Last.fm
+              3 · Your chart
             </span>
             <span className="text-zinc-600">→</span>
             <span
@@ -426,7 +427,7 @@ export function ProfileOnboarding({
             <div className="mt-6 space-y-5 sm:mt-8">
               {hasLastfmAlready ? (
                 <>
-                  <h2 className={h2}>Last.fm is already linked</h2>
+                  <h2 className={h2}>Your listening is already linked</h2>
                   <p className={bodyMuted}>
                     {inviteFlow
                       ? "Continue to see people in this community you might follow before we open it."
@@ -453,17 +454,17 @@ export function ProfileOnboarding({
                 <>
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <h2 className={h2}>Connect Last.fm — about a minute</h2>
+                      <h2 className={h2}>Get your weekly chart</h2>
                       <p className={bodyMuted}>
                         <span className="font-medium text-zinc-100">
-                          Strongly recommended:
+                          Track your music taste:
                         </span>{" "}
-                        your listening history powers feeds, communities, and
-                        stats here. Create a Last.fm account (or sign in),{" "}
+                        your plays power your billboard, profile, and communities.
+                        Use a free Last.fm account (or sign in),{" "}
                         <span className="font-medium text-zinc-100">
-                          connect Spotify inside Last.fm
+                          connect Spotify in Last.fm
                         </span>{" "}
-                        so plays scrobble, then link your username in the modal.
+                        so listens sync, then add your username in the modal.
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col gap-2 sm:items-end">
@@ -472,30 +473,19 @@ export function ProfileOnboarding({
                         onClick={() => setLastfmModalOpen(true)}
                         className={lastfmActionBtn}
                       >
-                        Set up Last.fm
+                        Get my chart
                       </button>
                       <button
                         type="button"
                         onClick={() => setLastfmSkipWarningOpen(true)}
                         className={lastfmGhostBtn}
                       >
-                        Finish without Last.fm
+                        Skip for now
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 text-center sm:max-w-sm">
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-3">
-                      <p className="text-2xl font-semibold text-zinc-200">—</p>
-                      <p className="text-xs text-zinc-500">Top artists</p>
-                    </div>
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-3">
-                      <p className="text-2xl font-semibold text-zinc-200">—</p>
-                      <p className="text-xs text-zinc-500">Top albums</p>
-                    </div>
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-3">
-                      <p className="text-2xl font-semibold text-zinc-200">—</p>
-                      <p className="text-xs text-zinc-500">Scrobbles</p>
-                    </div>
+                  <div className="mt-2">
+                    <SampleWeeklyChartPreview variant="onboarding" />
                   </div>
                   <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
                     <button

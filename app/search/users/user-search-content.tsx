@@ -10,12 +10,17 @@ const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 const BROWSE_PAGE_SIZE = 10;
 
-export function UserSearchContent() {
+export function UserSearchContent({
+  viewerUserId,
+}: {
+  /** When null, directory is read-only (no follow, no taste overlap). */
+  viewerUserId: string | null;
+}) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [overlap, setOverlap] = useState<UserSearchResult[]>([]);
-  const [overlapLoading, setOverlapLoading] = useState(true);
+  const [overlapLoading, setOverlapLoading] = useState(Boolean(viewerUserId));
   const [browse, setBrowse] = useState<UserSearchResult[]>([]);
   const [browseHasMore, setBrowseHasMore] = useState(false);
   const [browseLoading, setBrowseLoading] = useState(true);
@@ -77,8 +82,13 @@ export function UserSearchContent() {
   }, []);
 
   useEffect(() => {
+    if (!viewerUserId) {
+      setOverlapLoading(false);
+      setOverlap([]);
+      return;
+    }
     void loadOverlap();
-  }, [loadOverlap]);
+  }, [loadOverlap, viewerUserId]);
 
   const search = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -138,7 +148,7 @@ export function UserSearchContent() {
         autoFocus
       />
 
-      {showBrowse ? (
+      {showBrowse && viewerUserId ? (
         <section
           aria-labelledby="overlap-heading"
           className="pb-10 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.06)]"
@@ -244,7 +254,7 @@ export function UserSearchContent() {
                 <li key={u.id}>
                   <UserSearchResultComponent
                     user={u}
-                    showFollowButton
+                    showFollowButton={Boolean(viewerUserId)}
                     onFollowChange={() => handleFollowChange(u.id)}
                   />
                 </li>

@@ -50,8 +50,9 @@ export function LastfmConnectModal({
   onClose,
   onSkip,
   onConnected,
-  title = "Connect Last.fm (about a minute)",
-  subtitle = "Communities and your profile work best when we can see what you actually listen to. Last.fm is how we import that history.",
+  title = "Get your weekly chart",
+  subtitle =
+    "Track your music taste with a Last.fm username — we import plays so your profile, charts, and communities stay in sync with what you listen to.",
 }: Props) {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);

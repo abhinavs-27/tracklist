@@ -128,9 +128,12 @@ test.describe('Discover', () => {
     }
   });
 
-  test('GET /api/search/users/browse returns 401 when unauthenticated', async ({ request }) => {
+  test('GET /api/search/users/browse works when unauthenticated', async ({ request }) => {
     const res = await request.get('/api/search/users/browse');
-    expect(res.status()).toBe(401);
+    expect(res.status()).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty('users');
+    expect(Array.isArray(data.users)).toBe(true);
   });
 });
 
