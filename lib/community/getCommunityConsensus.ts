@@ -9,6 +9,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { scheduleTrackEnrichmentBatch } from "@/lib/catalog/non-blocking-enrichment";
 import {
   batchResultsToMap,
@@ -255,8 +256,53 @@ async function computeCommunityConsensus(
   return { items, hasMore };
 }
 
+async function tryReadConsensusCache(
+  communityId: string,
+  entityType: ConsensusEntityType,
+  range: ConsensusRange,
+  limit: number,
+  offset: number,
+): Promise<CommunityConsensusPage | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("community_rankings_cache")
+      .select("payload")
+      .eq("community_id", communityId)
+      .eq("entity_type", entityType)
+      .eq("range", range)
+      .maybeSingle();
+
+    if (error || !data?.payload) return null;
+
+    const payload = data.payload as {
+      items?: CommunityConsensusRow[];
+      has_more?: boolean;
+    };
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    if (items.length === 0 && !payload.has_more) {
+      return { items: [], hasMore: false };
+    }
+
+    if (offset >= items.length) {
+      if (payload.has_more === true) return null;
+      return { items: [], hasMore: false };
+    }
+
+    const end = offset + limit;
+    const slice = items.slice(offset, end);
+    let hasMore = end < items.length;
+    if (!hasMore && payload.has_more === true && slice.length === limit) {
+      hasMore = true;
+    }
+    return { items: slice, hasMore };
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Consensus rankings (not cached here — avoids sticky empty results after RPC errors).
+ * Consensus rankings: daily `community_rankings_cache` snapshot first, then live RPC.
  */
 export async function getCommunityConsensusRankings(
   communityId: string,
@@ -264,7 +310,18 @@ export async function getCommunityConsensusRankings(
   range: ConsensusRange,
   limit: number,
   offset: number,
+  opts?: { skipCache?: boolean },
 ): Promise<CommunityConsensusPage> {
+  if (!opts?.skipCache) {
+    const cached = await tryReadConsensusCache(
+      communityId,
+      entityType,
+      range,
+      limit,
+      offset,
+    );
+    if (cached) return cached;
+  }
   return computeCommunityConsensus(
     communityId,
     entityType,

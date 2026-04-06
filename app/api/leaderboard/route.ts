@@ -3,6 +3,7 @@ import { withHandler } from "@/lib/api-handler";
 import { apiOk, apiBadRequest } from "@/lib/api-response";
 import { getLeaderboardWithTotal } from "@/lib/queries";
 import { getPaginationParams } from "@/lib/api-utils";
+import { getLeaderboardPageFromPrecomputed } from "@/lib/precomputed-cache-read";
 
 /** 
  * GET /api/leaderboard
@@ -53,6 +54,25 @@ export const GET = withHandler(async (request: NextRequest) => {
 
   const startRank = cursor && cursor > 0 ? cursor + 1 : 1;
   const startIndex = startRank - 1;
+
+  const hasYearFilter =
+    filters.startYear != null || filters.endYear != null;
+
+  if (!hasYearFilter) {
+    const fromCache = await getLeaderboardPageFromPrecomputed(
+      type,
+      entity,
+      limit,
+      startIndex,
+    );
+    if (fromCache) {
+      return apiOk({
+        items: fromCache.items,
+        nextCursor: fromCache.nextCursor,
+        total: fromCache.total,
+      });
+    }
+  }
 
   const { entries: pageItems, totalCount } = await getLeaderboardWithTotal(
     type,

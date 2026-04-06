@@ -7,6 +7,7 @@ import {
   getRisingArtists,
   getHiddenGems,
 } from "@/lib/queries";
+import { getTrendingEntitiesFromPrecomputed } from "@/lib/precomputed-cache-read";
 import type { TrendingEntity, RisingArtist, HiddenGem } from "@/types";
 
 const TTL_MS = 15 * 60 * 1000; // 15 min (server-side cache; MVs refreshed every 5–15 min)
@@ -125,10 +126,27 @@ export async function getTrendingEntitiesCached(
   const hit = trendingCache.get(key);
   if (hit && hit.expiresAt > now) return hit.data;
   prune(trendingCache);
+
+  const fromDaily = await getTrendingEntitiesFromPrecomputed(limit);
+  if (fromDaily && fromDaily.length > 0) {
+    trendingCache.set(key, {
+      data: fromDaily,
+      expiresAt: now + TTL_MS,
+    });
+    return fromDaily;
+  }
+
   const data = await getTrendingFromMvOrLive(limit);
   const ttl = data.length === 0 ? EMPTY_TTL_MS : TTL_MS;
   trendingCache.set(key, { data, expiresAt: now + ttl });
   return data;
+}
+
+/** Used only by cron to populate `trending_cache` (bypasses memory + DB snapshot). */
+export async function getTrendingEntitiesForPrecompute(
+  limit = 50,
+): Promise<TrendingEntity[]> {
+  return getTrendingFromMvOrLive(limit);
 }
 
 export async function getRisingArtistsCached(

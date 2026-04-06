@@ -4,13 +4,14 @@ import {
   hydrateStatsCatalogFromSpotify,
   type HydrateStatsCatalogResult,
 } from "@/lib/cron/hydrate-stats-catalog";
+import { populatePrecomputedCaches } from "@/lib/cron/populate-precomputed-caches";
 
 const LOG = "[cron][refresh-stats]";
 
 /**
- * Cron: refresh precomputed entity stats (album_stats, track_stats) and discovery MVs.
- * Call with: Authorization: Bearer <CRON_SECRET>
- * Schedule periodically (e.g. every 10–15 min) to keep stats and discover cache fresh.
+ * Cron: refresh entity_stats, favorite counts, discovery MVs, then snapshot API cache tables
+ * (`leaderboard_cache`, `trending_cache`, `community_rankings_cache`).
+ * Vercel schedule: daily (`vercel.json`). Same secret as other crons.
  */
 export async function GET() {
   // if (!isProd()) {
@@ -72,6 +73,25 @@ export async function GET() {
     );
   }
 
+  let precomputedCaches: Awaited<
+    ReturnType<typeof populatePrecomputedCaches>
+  > | null = null;
+  try {
+    precomputedCaches = await populatePrecomputedCaches();
+    console.log(LOG, "populate_precomputed_caches", {
+      leaderboardRows: precomputedCaches.leaderboardRows,
+      trending: precomputedCaches.trending,
+      communityRows: precomputedCaches.communityRows,
+      errorCount: precomputedCaches.errors.length,
+    });
+  } catch (e) {
+    console.warn(
+      LOG,
+      "populate_precomputed_caches failed (non-fatal)",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
   let catalogHydration: HydrateStatsCatalogResult | null = null;
   let catalogHydrationError: string | null = null;
   try {
@@ -127,6 +147,7 @@ export async function GET() {
   return apiOk({
     ok: true,
     totalMs,
+    precomputedCaches,
     catalogHydration,
     catalogHydrationError,
   });
