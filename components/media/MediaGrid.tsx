@@ -84,8 +84,10 @@ export function MediaGrid({
               {item.title}
             </p>
             <p className="truncate text-[11px] text-zinc-500 sm:text-xs">{item.artist}</p>
-            {(item.avgRating != null || item.totalPlays != null || item.favoriteCount != null) && (
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-zinc-400">
+            {(item.avgRating != null ||
+              item.totalPlays != null ||
+              item.favoriteCount != null) && (
+              <p className="mt-0.5 flex min-h-[1.125rem] flex-wrap items-center gap-x-2 gap-y-0 text-xs text-zinc-400">
                 {item.avgRating != null && (
                   <span className="text-amber-400">★ {item.avgRating.toFixed(1)}</span>
                 )}

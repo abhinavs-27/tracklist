@@ -316,10 +316,9 @@ export default function LeaderboardPage() {
                 avgRating: entry.average_rating ?? undefined,
                 totalPlays: entry.total_plays,
                 rank: i + 1,
-                ...(type === "mostFavorited" &&
-                  entry.favorite_count != null && {
-                    favoriteCount: entry.favorite_count,
-                  }),
+                ...(type === "mostFavorited" && {
+                  favoriteCount: entry.favorite_count ?? 0,
+                }),
               }),
             )}
           />

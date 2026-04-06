@@ -13,6 +13,9 @@ type FavoriterUser = {
 
 const PAGE_SIZE = 20;
 
+/** Matches empty / loaded list min-height so the sheet does not resize when data arrives. */
+const LIST_BODY_MIN_H = "min-h-[min(320px,calc(92dvh-11rem))]";
+
 function ListSkeleton() {
   return (
     <ul className="space-y-2 px-2 pt-2 pb-10" aria-hidden>
@@ -151,9 +154,11 @@ export function AlbumFavoritedByModal({
 
   const showSkeleton = loading && users.length === 0 && !error;
   const title =
-    total != null && total > 0
-      ? `Favorited by · ${total}`
-      : "Favorited by";
+    total != null
+      ? `Favorited by · ${total.toLocaleString()}`
+      : showSkeleton
+        ? "Favorited by · …"
+        : "Favorited by";
 
   return (
     <div
@@ -164,14 +169,14 @@ export function AlbumFavoritedByModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-zinc-800 border-b-0 bg-zinc-900 shadow-xl sm:my-auto sm:rounded-2xl sm:border-b"
+        className="flex min-h-[min(420px,88dvh)] max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-zinc-800 border-b-0 bg-zinc-900 shadow-xl sm:my-auto sm:rounded-2xl sm:border-b"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800/80 px-4 pb-3 pt-4 sm:px-4 sm:pt-4">
           <div className="min-w-0">
             <h2
               id="album-favorited-modal-title"
-              className="truncate text-lg font-semibold text-white"
+              className="truncate text-lg font-semibold tabular-nums text-white"
             >
               {title}
             </h2>
@@ -188,17 +193,19 @@ export function AlbumFavoritedByModal({
 
         <div className="flex min-h-0 flex-1 flex-col px-4">
           <div
-            className="min-h-0 max-h-[calc(92dvh-8rem)] flex-1 scroll-pb-4 overflow-y-auto overscroll-contain rounded-lg border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.04)] sm:max-h-[calc(85dvh-7rem)]"
+            className={`min-h-0 max-h-[calc(92dvh-8rem)] flex-1 scroll-pb-4 overflow-y-auto overscroll-contain rounded-lg border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.04)] sm:max-h-[calc(85dvh-7rem)] ${LIST_BODY_MIN_H}`}
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             {error ? (
-              <p className="px-3 py-8 pb-10 text-center text-sm text-red-300">
+              <p className="flex min-h-[min(320px,calc(92dvh-11rem))] items-center justify-center px-3 py-8 pb-10 text-center text-sm text-red-300">
                 {error}
               </p>
             ) : showSkeleton ? (
               <ListSkeleton />
             ) : users.length === 0 ? (
-              <div className="flex min-h-[200px] items-center justify-center px-3 py-10 pb-12 text-center text-sm text-zinc-500">
+              <div
+                className={`flex items-center justify-center px-3 py-10 pb-12 text-center text-sm text-zinc-500 ${LIST_BODY_MIN_H}`}
+              >
                 No one has added this album as a favorite yet.
               </div>
             ) : (
