@@ -1,17 +1,16 @@
 import { NextRequest } from 'next/server';
-import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
+import { withHandler } from '@/lib/api-handler';
 import { searchUsers, enrichUsersWithFollowStatus } from '@/lib/queries';
-import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
-import { sanitizeString, clampLimit } from '@/lib/validation';
+import { apiBadRequest, apiOk } from '@/lib/api-response';
+import { sanitizeString } from '@/lib/validation';
+import { getPaginationParams } from '@/lib/api-utils';
 
 const MIN_QUERY_LENGTH = 2;
 const MAX_QUERY_LENGTH = 50;
 
-export async function GET(request: NextRequest) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { searchParams } = new URL(request.url);
+export const GET = withHandler(
+  async (request: NextRequest, { user: me }) => {
+    const { searchParams } = request.nextUrl;
     const raw = searchParams.get('q') ?? '';
     const q = sanitizeString(raw, MAX_QUERY_LENGTH) ?? '';
 
@@ -19,17 +18,14 @@ export async function GET(request: NextRequest) {
       return apiBadRequest(`Query must be at least ${MIN_QUERY_LENGTH} characters`);
     }
 
-    const limit = clampLimit(searchParams.get('limit'), 50, 20);
+    const { limit } = getPaginationParams(searchParams, 20, 50);
 
-    const rows = await searchUsers(q, limit, me.id);
+    const rows = await searchUsers(q, limit, me!.id);
     if (rows.length === 0) return apiOk([]);
 
-    const users = await enrichUsersWithFollowStatus(rows, me.id);
+    const users = await enrichUsersWithFollowStatus(rows, me!.id);
 
     return apiOk(users);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);

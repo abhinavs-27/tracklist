@@ -6,10 +6,13 @@ import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
 import { clampLimit } from '@/lib/validation';
 import type { DiscoverUsersResponse } from '@/types';
 
-export async function GET(request: NextRequest) {
+import { withHandler } from '@/lib/api-handler';
+import { getPaginationParams } from '@/lib/api-utils';
+
+export const GET = withHandler(async (request: NextRequest) => {
   try {
-    const { searchParams } = new URL(request.url);
-    const limit = clampLimit(searchParams.get('limit'), 20, 16);
+    const { searchParams } = request.nextUrl;
+    const { limit } = getPaginationParams(searchParams, 16, 20);
 
     const supabase = await createSupabaseServerClient();
 
@@ -127,4 +130,4 @@ export async function GET(request: NextRequest) {
     if (e instanceof TypeError) return apiBadRequest('Invalid request');
     return apiInternalError(e);
   }
-}
+});

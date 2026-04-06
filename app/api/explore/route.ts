@@ -1,8 +1,9 @@
+import { withHandler } from "@/lib/api-handler";
 import { getExploreHubPayload } from "@/lib/explore-hub-data";
 import { apiInternalError, apiOk } from "@/lib/api-response";
 import { exploreLogLine } from "@/lib/explore-perf";
 
-export async function GET() {
+export const GET = withHandler(async () => {
   const start = Date.now();
   exploreLogLine("explore: start");
 
@@ -14,4 +15,4 @@ export async function GET() {
   } catch (e) {
     return apiInternalError(e);
   }
-}
+});

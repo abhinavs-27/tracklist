@@ -68,6 +68,36 @@ export async function fetchUserMap<
   );
 }
 
+/**
+ * Fetch a single user summary (id, username, avatar_url).
+ */
+export async function fetchUserSummary(
+  userId: string,
+): Promise<{ id: string; username: string; avatar_url: string | null } | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, username, avatar_url")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    username: data.username,
+    avatar_url: data.avatar_url ?? null,
+  };
+}
+
+/**
+ * Batch-fetch user summaries and return as a Map.
+ */
+export async function fetchUserSummaryMap(
+  userIds: string[],
+): Promise<Map<string, { id: string; username: string; avatar_url: string | null }>> {
+  const supabase = await createSupabaseServerClient();
+  return fetchUserMap(supabase, userIds, "id, username, avatar_url");
+}
+
 // ---------------------------------------------------------------------------
 // Passive listen logs (Spotify history)
 // ---------------------------------------------------------------------------

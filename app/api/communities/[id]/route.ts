@@ -16,16 +16,18 @@ import {
   apiNotFound,
   apiOk,
 } from "@/lib/api-response";
-import { parseBody } from "@/lib/api-utils";
-import { isValidUuid } from "@/lib/validation";
+import { parseBody, validateUuidParam } from "@/lib/api-utils";
+import { validateCommunityName, validateCommunityDescription } from "@/lib/validation";
+import { CommunityUpdateBody } from "@/types";
 
 /**
  * GET /api/communities/[id] — metadata + member count.
  * If signed in, includes is_member.
  */
 export const GET = withHandler(async (request, { params }) => {
-  const id = params.id?.trim() ?? "";
-  if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
+  const uuidRes = validateUuidParam(params.id);
+  if (!uuidRes.ok) return uuidRes.error;
+  const id = uuidRes.id;
 
   let userId: string | null = null;
   try {
@@ -64,14 +66,11 @@ export const GET = withHandler(async (request, { params }) => {
 /** PATCH /api/communities/[id] — name, description, is_private (permission rules in `updateCommunitySettings`). */
 export const PATCH = withHandler(
   async (request, { user: me, params }) => {
-    const id = params.id?.trim() ?? "";
-    if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
+    const uuidRes = validateUuidParam(params.id);
+    if (!uuidRes.ok) return uuidRes.error;
+    const id = uuidRes.id;
 
-    const { data: body, error: parseErr } = await parseBody<{
-      name?: unknown;
-      description?: unknown;
-      is_private?: unknown;
-    }>(request);
+    const { data: body, error: parseErr } = await parseBody<CommunityUpdateBody>(request);
     if (parseErr) return parseErr;
 
     const patch: {
@@ -81,19 +80,12 @@ export const PATCH = withHandler(
     } = {};
 
     if (body?.name !== undefined) {
-      if (typeof body.name !== "string") {
-        return apiBadRequest("name must be a string");
-      }
-      patch.name = body.name;
+      const nameRes = validateCommunityName(body.name);
+      if (!nameRes.ok) return apiBadRequest(nameRes.error);
+      patch.name = nameRes.value;
     }
     if (body?.description !== undefined) {
-      if (body.description === null) {
-        patch.description = null;
-      } else if (typeof body.description === "string") {
-        patch.description = body.description;
-      } else {
-        return apiBadRequest("description must be a string or null");
-      }
+      patch.description = validateCommunityDescription(body.description);
     }
     if (body?.is_private !== undefined) {
       if (typeof body.is_private !== "boolean") {

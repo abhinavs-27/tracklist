@@ -6,13 +6,12 @@ import {
   apiNotFound,
   apiOk,
 } from "@/lib/api-response";
-import { parseBody } from "@/lib/api-utils";
+import { parseBody, validateUuidParam } from "@/lib/api-utils";
 import { getAppBaseUrl, getRequestOrigin, isLocalhostUrl } from "@/lib/app-url";
 import {
   createCommunityInviteLink,
   getLatestActiveInviteLinkTokenForCommunity,
 } from "@/lib/community/invite-links";
-import { isValidUuid } from "@/lib/validation";
 
 const MAX_EXPIRES_DAYS = 365;
 
@@ -27,14 +26,14 @@ function inviteUrlFromRequest(request: NextRequest, token: string): string {
 /** GET /api/community/invite?communityId= — latest non-expired invite URL for reuse (instant copy). */
 export const GET = withHandler(
   async (request, { user: me }) => {
-    const url = new URL(request.url);
-    const rawId = url.searchParams.get("communityId")?.trim() ?? "";
-    if (!rawId || !isValidUuid(rawId)) {
-      return apiBadRequest("communityId must be a valid UUID");
-    }
+    const { searchParams } = request.nextUrl;
+    const rawId = searchParams.get("communityId")?.trim() ?? "";
+    const uuidRes = validateUuidParam(rawId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const communityId = uuidRes.id;
 
     const result = await getLatestActiveInviteLinkTokenForCommunity({
-      communityId: rawId,
+      communityId,
       actorUserId: me!.id,
     });
 
@@ -70,10 +69,10 @@ export const POST = withHandler(
     if (parseErr) return parseErr;
 
     const rawId =
-      typeof body!.communityId === "string" ? body!.communityId.trim() : "";
-    if (!rawId || !isValidUuid(rawId)) {
-      return apiBadRequest("communityId must be a valid UUID");
-    }
+      typeof body!.communityId === "string" ? body!.communityId : null;
+    const uuidRes = validateUuidParam(rawId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const communityId = uuidRes.id;
 
     let expiresAt: Date | null = null;
     if (body!.expiresInDays !== undefined && body!.expiresInDays !== null) {
@@ -87,7 +86,7 @@ export const POST = withHandler(
     }
 
     const result = await createCommunityInviteLink({
-      communityId: rawId,
+      communityId,
       actorUserId: me!.id,
       expiresAt,
     });

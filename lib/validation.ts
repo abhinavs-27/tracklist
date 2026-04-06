@@ -168,6 +168,28 @@ export function validateUsernameUpdate(
   return { ok: true, value: s };
 }
 
+export function validateCommunityName(
+  name: unknown,
+): { ok: true; value: string } | { ok: false; error: string } {
+  const s = typeof name === "string" ? name.trim() : "";
+  if (s.length < 2 || s.length > 120) {
+    return { ok: false, error: "name must be 2–120 characters" };
+  }
+  return { ok: true, value: s };
+}
+
+export function validateCommunityDescription(
+  description: unknown,
+): string | null {
+  if (description == null || typeof description !== "string") return null;
+  const s = description.trim();
+  return s.length > 0 ? s : null;
+}
+
+export function validateIsPrivate(isPrivate: unknown): boolean {
+  return Boolean(isPrivate);
+}
+
 export function validateListTitle(title: unknown): { ok: true; value: string } | { ok: false; error: string } {
   const s = sanitizeString(title, LIMITS.LIST_TITLE);
   if (s === null || s.length === 0) return { ok: false, error: 'title is required' };
