@@ -14,19 +14,19 @@
     "ioredis": "^5.10.1",
     "@supabase/supabase-js": "^2.101.1",
     "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
-    "express": "^4.21.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^4.22.1",
     "http-proxy-middleware": "^3.0.3",
     "next-auth": "^4.24.13"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/node": "^22.10.7",
-    "nodemon": "^3.1.9",
+    "@types/express": "^4.17.25",
+    "@types/node": "^22.19.17",
+    "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.3"
+    "typescript": "^6.0.2"
   }
 }
