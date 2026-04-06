@@ -44,8 +44,7 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: hub, isPending: hubPending, refetch: refetchHub } =
-    useExploreHub();
+  const { data: hub, trendingQuery, refetch: refetchHub } = useExploreHub();
   const { data: rising = [], refetch: refetchRising } =
     useRisingArtists(RISING_CAP);
   const {
@@ -117,7 +116,7 @@ export default function DiscoverScreen() {
     [gemGrid, router],
   );
 
-  const showHubLoading = hubPending && !hub;
+  const showHubLoading = trendingQuery.isLoading;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>

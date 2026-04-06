@@ -21,8 +21,12 @@ export const queryKeys = {
   /** Lists created by a user (`GET /api/users/:userId/lists`). */
   userLists: (userId: string) => ["userLists", userId] as const,
   discover: () => ["discover"] as const,
-  /** `GET /api/explore` — trending 24h + global song leaderboard (Explore hub). */
+  /** `GET /api/explore` — combined hub (legacy); prefer split keys below. */
   exploreHub: () => ["explore", "hub"] as const,
+  exploreTrending: () => ["explore", "trending"] as const,
+  exploreLeaderboard: () => ["explore", "leaderboard"] as const,
+  exploreDiscover: () => ["explore", "discover"] as const,
+  exploreReviews: () => ["explore", "reviews"] as const,
   feed: () => ["feed"] as const,
   /** GET `/api/notifications` + actor enrichment. */
   notifications: () => ["notifications"] as const,

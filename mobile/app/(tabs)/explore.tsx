@@ -20,6 +20,7 @@ import { theme } from "@/lib/theme";
 import type {
   ExploreHubLeaderboardEntry,
   ExploreHubTrendingItem,
+  ExploreReviewPreviewRow,
 } from "@/lib/types/explore-hub";
 
 const TRENDING_CAROUSEL_CAP = 16;
@@ -397,11 +398,100 @@ const lbStyles = StyleSheet.create({
   },
 });
 
+function RecentReviewsPreview({
+  reviews,
+  loading,
+  onPressAlbum,
+}: {
+  reviews: ExploreReviewPreviewRow[];
+  loading: boolean;
+  onPressAlbum: (r: ExploreReviewPreviewRow) => void;
+}) {
+  if (loading) {
+    return (
+      <View style={lbStyles.emptyBox}>
+        <Text style={lbStyles.emptyText}>Loading…</Text>
+      </View>
+    );
+  }
+  if (reviews.length === 0) {
+    return (
+      <View style={lbStyles.emptyBox}>
+        <Text style={lbStyles.emptyText}>No recent album reviews yet.</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={revPreviewStyles.list}>
+      {reviews.slice(0, 6).map((r) => (
+        <Pressable
+          key={r.id}
+          onPress={() => onPressAlbum(r)}
+          style={({ pressed }) => [
+            revPreviewStyles.row,
+            pressed && { opacity: 0.88 },
+          ]}
+        >
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={revPreviewStyles.title} numberOfLines={1}>
+              {r.album_name}
+              <Text style={revPreviewStyles.meta}> · {r.artist_name}</Text>
+            </Text>
+            <Text style={revPreviewStyles.sub} numberOfLines={1}>
+              {r.username} · {new Date(r.created_at).toLocaleDateString()}
+            </Text>
+          </View>
+          <Text style={revPreviewStyles.rating}>★ {r.rating.toFixed(1)}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+const revPreviewStyles = StyleSheet.create({
+  list: {
+    paddingHorizontal: 18,
+    gap: 8,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: theme.colors.panel,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.colors.text,
+  },
+  meta: {
+    fontWeight: "500",
+    color: theme.colors.muted,
+  },
+  sub: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "500",
+    color: theme.colors.muted,
+  },
+  rating: {
+    fontSize: 13,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+    color: "#fbbf24",
+  },
+});
+
 export default function ExploreScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data, isPending, isError, refetch } = useExploreHub();
+  const { data, isPending, isError, refetch, reviewsQuery } = useExploreHub();
 
   const trendingItems = useMemo((): TrendingWithTrack[] => {
     const raw = data?.trending ?? [];
@@ -557,6 +647,21 @@ export default function ExploreScreen() {
                   <Text style={styles.ctaPrimaryText}>Go to Discover</Text>
                 </Pressable>
               </View>
+            </DiscoverSection>
+
+            <DiscoverSection
+              title="Recent reviews"
+              description="Latest album ratings from the community."
+              actionLabel="Browse Discover →"
+              onActionPress={goDiscover}
+            >
+              <RecentReviewsPreview
+                reviews={data?.reviews ?? []}
+                loading={reviewsQuery.isLoading}
+                onPressAlbum={(r: ExploreReviewPreviewRow) =>
+                  router.push(`/album/${r.entity_id}` as const)
+                }
+              />
             </DiscoverSection>
 
             <DiscoverSection

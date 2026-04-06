@@ -1,4 +1,3 @@
-import { InlineLoading } from "@/components/ui/loading-states";
 import {
   layoutMainColumn,
   layoutMainSidebarGrid,
@@ -115,23 +114,96 @@ export function CommunityBillboardSkeleton() {
   );
 }
 
-/** Mobile tab shell: spinner instead of heavy skeleton (fast tab switch). */
+/** Mobile tab shell: light skeleton (no record spinner). */
 export function CommunityMobileShellSkeleton() {
   return (
-    <InlineLoading
-      message="Loading community…"
-      className="min-h-[12rem] rounded-xl border border-zinc-800/50 bg-zinc-950/25 p-5"
-    />
+    <div
+      className="animate-pulse space-y-4 rounded-xl border border-zinc-800/50 bg-zinc-950/25 p-5"
+      role="status"
+      aria-label="Loading community"
+    >
+      <div className="h-9 w-full max-w-md rounded-full bg-zinc-800/60" />
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className={`${communityCard} bg-zinc-900/35 ${i >= 2 ? "max-md:hidden" : ""}`}
+        >
+          <div className="flex gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-full bg-zinc-800/70" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-3/4 rounded bg-zinc-800/60" />
+              <div className="h-3 w-1/2 rounded bg-zinc-800/40" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
-/** Desktop sidebar: spinner (non-list widgets). */
+/** Desktop sidebar: pulse blocks (non-list widgets). */
 export function CommunityDesktopSidebarSkeleton() {
   return (
-    <InlineLoading
-      message="Loading sidebar…"
-      className="min-h-[14rem] rounded-xl border border-zinc-800/40 bg-zinc-950/20 py-10"
-    />
+    <div
+      className="animate-pulse space-y-4 rounded-xl border border-zinc-800/40 bg-zinc-950/20 py-6"
+      role="status"
+      aria-label="Loading sidebar"
+    >
+      <div className="mx-auto h-5 w-40 rounded bg-zinc-800/70" />
+      <div className="space-y-3 px-2">
+        <div className="h-4 w-full rounded bg-zinc-800/50" />
+        <div className="h-4 w-[88%] rounded bg-zinc-800/45" />
+        <div className="h-10 w-full rounded-lg bg-zinc-800/40" />
+        <div className="h-10 w-full rounded-lg bg-zinc-800/35" />
+      </div>
+      <div className="h-24 rounded-xl bg-zinc-900/50 ring-1 ring-white/[0.04]" />
+    </div>
+  );
+}
+
+/** Chart rail slot next to weekly billboard (desktop). */
+export function CommunityChartRailSkeleton() {
+  return (
+    <div
+      className="animate-pulse rounded-xl border border-zinc-800/40 bg-zinc-950/25 py-8"
+      role="status"
+      aria-label="Loading chart rail"
+    >
+      <div className="mx-auto max-w-sm space-y-4 px-4">
+        <div className="h-5 w-40 rounded bg-zinc-800/60" />
+        <div className="h-3 w-full rounded bg-zinc-800/40" />
+        <div className="h-3 w-[90%] rounded bg-zinc-800/35" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="h-24 rounded-lg bg-zinc-800/45" />
+          <div className="h-24 rounded-lg bg-zinc-800/40" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** In-chart loading state (week switch / fetch). */
+export function CommunityWeeklyChartSkeleton() {
+  return (
+    <div
+      className="animate-pulse min-h-[12rem] rounded-xl border border-zinc-800/50 bg-zinc-950/30 p-6"
+      role="status"
+      aria-label="Loading chart"
+    >
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-10">
+        <div className="mx-auto h-40 w-40 shrink-0 rounded-xl bg-zinc-800/60 sm:h-44 sm:w-44" />
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="h-4 w-24 rounded bg-zinc-800/50" />
+          <div className="h-9 w-3/4 max-w-md rounded bg-zinc-800/55" />
+          <div className="h-4 w-1/2 max-w-xs rounded bg-zinc-800/45" />
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-8 rounded-lg bg-zinc-800/40" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

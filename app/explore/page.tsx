@@ -2,32 +2,32 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
-import { LeaderboardPreview } from "@/components/explore/leaderboard-preview";
-import { TrendingStrip } from "@/components/explore/trending-strip";
+import { ExploreTrendingSection } from "@/components/explore/explore-trending-section";
+import { ExploreLeaderboardSection } from "@/components/explore/explore-leaderboard-section";
+import { ExploreDiscoverSection } from "@/components/explore/explore-discover-section";
+import { ExploreReviewsSection } from "@/components/explore/explore-reviews-section";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
 import { RecommendedCommunitiesSuspense } from "@/components/discover/recommended-communities-suspense";
-import { getExploreHubPayload } from "@/lib/explore-hub-data";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { SectionBlock } from "@/components/layout/section-block";
-import { InlineLoading } from "@/components/ui/loading-states";
-import { exploreLog, exploreLogLine } from "@/lib/explore-perf";
+import {
+  ExploreLeaderboardSectionSkeleton,
+  ExploreReviewsSectionSkeleton,
+  ExploreTastePreviewSkeleton,
+  ExploreTrendingSectionSkeleton,
+} from "@/components/explore/explore-section-skeletons";
+import { exploreLogLine } from "@/lib/explore-perf";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
 export default async function ExploreHubPage() {
   const start = Date.now();
-  exploreLogLine("explore: page start");
+  exploreLogLine("explore: page shell start");
 
-  const tParallel = Date.now();
-  const sessionPromise = getSession();
-  const hubPromise = getExploreHubPayload();
-
-  const [session, hub] = await Promise.all([sessionPromise, hubPromise]);
-  exploreLog("explore: parallel session+hub (wall)", Date.now() - tParallel);
-
+  const session = await getSession();
   const userId = session?.user?.id ?? null;
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
-  exploreLogLine(`explore: page shell (before Suspense children stream): ${Date.now() - start} ms`);
+  exploreLogLine(`explore: page shell ready: ${Date.now() - start} ms`);
 
   return (
     <div className={sectionGap}>
@@ -43,14 +43,7 @@ export default async function ExploreHubPage() {
       ) : null}
 
       {socialMusicUi && userId ? (
-        <Suspense
-          fallback={
-            <InlineLoading
-              message="Loading taste preview…"
-              className="min-h-[7rem] rounded-xl border border-zinc-800/60 bg-zinc-950/25 py-6"
-            />
-          }
-        >
+        <Suspense fallback={<ExploreTastePreviewSkeleton />}>
           <DiscoverTastePreview userId={userId} />
         </Suspense>
       ) : null}
@@ -60,7 +53,9 @@ export default async function ExploreHubPage() {
         description="What listeners are playing in the last 24 hours."
         action={{ label: "Full charts →", href: "/discover" }}
       >
-        <TrendingStrip items={hub.trending} />
+        <Suspense fallback={<ExploreTrendingSectionSkeleton />}>
+          <ExploreTrendingSection />
+        </Suspense>
       </SectionBlock>
 
       <SectionBlock
@@ -68,7 +63,9 @@ export default async function ExploreHubPage() {
         description="Most-played tracks on Tracklist."
         action={{ label: "View all →", href: "/leaderboard" }}
       >
-        <LeaderboardPreview entries={hub.leaderboard} />
+        <Suspense fallback={<ExploreLeaderboardSectionSkeleton />}>
+          <ExploreLeaderboardSection />
+        </Suspense>
       </SectionBlock>
 
       <SectionBlock
@@ -76,27 +73,17 @@ export default async function ExploreHubPage() {
         description="Rising artists, hidden gems, and personalized picks."
         action={{ label: "Open Discover →", href: "/discover" }}
       >
-        <div className="rounded-2xl bg-zinc-900/40 p-5 ring-1 ring-white/[0.06] sm:p-6">
-          <p className="text-sm leading-relaxed text-zinc-400">
-            Browse curated charts, recommendations, and community picks in one place.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              href="/discover"
-              className="inline-flex rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"
-            >
-              Go to Discover
-            </Link>
-            {socialMusicUi && userId ? (
-              <Link
-                href="/discover/recommended"
-                className="inline-flex rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-200 ring-1 ring-white/[0.08] transition hover:bg-zinc-700"
-              >
-                For you
-              </Link>
-            ) : null}
-          </div>
-        </div>
+        <ExploreDiscoverSection userId={userId} />
+      </SectionBlock>
+
+      <SectionBlock
+        title="Recent reviews"
+        description="Latest album ratings from the community."
+        action={{ label: "Browse Discover →", href: "/discover" }}
+      >
+        <Suspense fallback={<ExploreReviewsSectionSkeleton />}>
+          <ExploreReviewsSection />
+        </Suspense>
       </SectionBlock>
 
       <SectionBlock

@@ -23,6 +23,12 @@ const MEMORY_MAX_ENTRIES = 3000;
 export const STALE_FIRST_TTL_SEC = {
   feed: 90,
   explore: 180,
+  /** Split Explore hub sections (independent cache keys). */
+  exploreTrending: 180,
+  exploreLeaderboard: 180,
+  /** Static Discover CTA copy — rarely changes. */
+  exploreDiscover: 3600,
+  exploreReviews: 120,
   /** Personal weekly billboard / charts. */
   billboard: 3600,
   profileSummary: 60,
@@ -34,6 +40,10 @@ export const STALE_FIRST_TTL_SEC = {
 export const STALE_FIRST_STALE_AFTER_SEC = {
   feed: 30,
   explore: 60,
+  exploreTrending: 60,
+  exploreLeaderboard: 60,
+  exploreDiscover: 600,
+  exploreReviews: 45,
   billboard: 600,
   profileSummary: 20,
   communityInvite: 45,

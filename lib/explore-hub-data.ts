@@ -27,10 +27,9 @@ export type ExploreHubPayload = {
   leaderboard: LeaderboardEntry[];
 };
 
-/**
- * Shared by `GET /api/explore` and the Explore hub RSC so web and mobile hit the same pipeline.
- */
-export async function getExploreHubPayload(): Promise<ExploreHubPayload> {
+export async function getExploreTrendingPayload(): Promise<{
+  trending: ExploreHubTrendingRow[];
+}> {
   const tParallel = Date.now();
   const trendingP = (async () => {
     const t = Date.now();
@@ -38,13 +37,7 @@ export async function getExploreHubPayload(): Promise<ExploreHubPayload> {
     exploreLog("db getTrendingEntitiesCached", Date.now() - t);
     return r;
   })();
-  const leaderboardP = (async () => {
-    const t = Date.now();
-    const r = await getLeaderboard("popular", {}, "song", 8);
-    exploreLog("db getLeaderboard", Date.now() - t);
-    return r;
-  })();
-  const [trendingRaw, leaderboardTop] = await Promise.all([trendingP, leaderboardP]);
+  const trendingRaw = await trendingP;
   exploreLog("db parallel (wall)", Date.now() - tParallel);
 
   const trendingTrackIds = trendingRaw.map((e) => e.entity_id);
@@ -66,8 +59,29 @@ export async function getExploreHubPayload(): Promise<ExploreHubPayload> {
   const toEnrich = collectTrackIdsNeedingEnrichment(trendingTrackIds, tracksMap);
   scheduleExploreTrackEnrichment(toEnrich);
 
+  return { trending };
+}
+
+export async function getExploreLeaderboardPayload(): Promise<{
+  leaderboard: LeaderboardEntry[];
+}> {
+  const t = Date.now();
+  const leaderboardTop = await getLeaderboard("popular", {}, "song", 8);
+  exploreLog("db getLeaderboard", Date.now() - t);
+  return { leaderboard: leaderboardTop };
+}
+
+/**
+ * Shared by `GET /api/explore` (legacy combined) and callers that want both in one
+ * round-trip. Prefer independent `/api/explore/trending` + `/leaderboard` for progressive UI.
+ */
+export async function getExploreHubPayload(): Promise<ExploreHubPayload> {
+  const [trendingRes, leaderboardRes] = await Promise.all([
+    getExploreTrendingPayload(),
+    getExploreLeaderboardPayload(),
+  ]);
   return {
-    trending,
-    leaderboard: leaderboardTop,
+    trending: trendingRes.trending,
+    leaderboard: leaderboardRes.leaderboard,
   };
 }

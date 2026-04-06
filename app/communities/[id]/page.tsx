@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { InlineLoading } from "@/components/ui/loading-states";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
 import {
   CommunityBillboardSkeleton,
+  CommunityChartRailSkeleton,
   CommunityDesktopSidebarSkeleton,
   CommunityFeedSkeleton,
   CommunityMobileShellSkeleton,
@@ -191,14 +191,7 @@ export default async function CommunityDetailPage({
                       <CommunityBillboardStreamSlot communityId={id} />
                     </Suspense>
                   </CommunityPageSection>
-                  <Suspense
-                    fallback={
-                      <InlineLoading
-                        message="Loading chart rail…"
-                        className="min-h-[10rem] rounded-xl border border-zinc-800/40 bg-zinc-950/25 py-8"
-                      />
-                    }
-                  >
+                  <Suspense fallback={<CommunityChartRailSkeleton />}>
                     <CommunityDesktopChartRailSlot
                       communityId={id}
                       viewerId={session.user.id}

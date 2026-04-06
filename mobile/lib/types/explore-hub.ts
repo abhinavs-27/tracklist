@@ -1,6 +1,6 @@
 import type { TrendingEntity } from "@repo/types";
 
-/** Serialized Spotify track shape from `GET /api/explore` (JSON). */
+/** Serialized Spotify track shape from Explore APIs (JSON). */
 export type ExploreHubTrackJson = {
   id: string;
   name: string;
@@ -26,9 +26,35 @@ export type ExploreHubLeaderboardEntry = {
   average_rating: number | null;
 };
 
+export type ExploreDiscoverLink = {
+  href: string;
+  label: string;
+  variant: "primary" | "secondary";
+};
+
+export type ExploreDiscoverPayload = {
+  headline: string;
+  description: string;
+  links: ExploreDiscoverLink[];
+};
+
+export type ExploreReviewPreviewRow = {
+  id: string;
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  entity_id: string;
+  album_name: string;
+  artist_name: string;
+  rating: number;
+  created_at: string;
+};
+
 export type ExploreHubResponse = {
   trending: ExploreHubTrendingItem[];
   leaderboard: ExploreHubLeaderboardEntry[];
-  /** Present when served from stale-first API cache (`GET /api/explore`). */
+  discover?: ExploreDiscoverPayload;
+  reviews?: ExploreReviewPreviewRow[];
+  /** Present when served from stale-first API cache. */
   fetched_at?: string;
 };

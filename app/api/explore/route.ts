@@ -1,5 +1,11 @@
 import { withHandler } from "@/lib/api-handler";
-import { getExploreHubPayload } from "@/lib/explore-hub-data";
+import {
+  getExploreTrendingPayload,
+  getExploreLeaderboardPayload,
+} from "@/lib/explore-hub-data";
+import { getExploreDiscoverStaticPayload } from "@/lib/explore-discover-static";
+import { getExploreRecentAlbumReviews } from "@/lib/explore-reviews-preview";
+import { exploreSectionOrFallback } from "@/lib/explore-section-timeout";
 import { apiInternalError } from "@/lib/api-response";
 import { exploreLogLine } from "@/lib/explore-perf";
 import {
@@ -8,20 +14,44 @@ import {
   staleFirstApiOk,
 } from "@/lib/cache/stale-first-cache";
 
+/**
+ * Legacy combined Explore hub (mobile + older clients).
+ * Prefer `/api/explore/trending`, `/leaderboard`, `/discover`, `/reviews` for parallel loads.
+ */
 export const GET = withHandler(async (request) => {
   const start = Date.now();
-  exploreLogLine("explore: start");
+  exploreLogLine("explore: start (combined)");
   const bypassCache = request.nextUrl.searchParams.get("refresh") === "1";
 
   try {
     const res = await staleFirstApiOk(
-      "explore:hub:v1",
+      "explore:hub:v2",
       STALE_FIRST_TTL_SEC.explore,
       STALE_FIRST_STALE_AFTER_SEC.explore,
       async () => {
-        const payload = await getExploreHubPayload();
+        const [trendingRes, leaderboardRes, discover, reviewsRes] =
+          await Promise.all([
+            exploreSectionOrFallback(
+              () => getExploreTrendingPayload(),
+              { trending: [] },
+            ),
+            exploreSectionOrFallback(
+              () => getExploreLeaderboardPayload(),
+              { leaderboard: [] },
+            ),
+            Promise.resolve(getExploreDiscoverStaticPayload()),
+            exploreSectionOrFallback(
+              () => getExploreRecentAlbumReviews(8),
+              { reviews: [] },
+            ),
+          ]);
         exploreLogLine(`explore: total: ${Date.now() - start} ms`);
-        return payload;
+        return {
+          trending: trendingRes.trending,
+          leaderboard: leaderboardRes.leaderboard,
+          discover,
+          reviews: reviewsRes.reviews,
+        };
       },
       { bypassCache },
     );
