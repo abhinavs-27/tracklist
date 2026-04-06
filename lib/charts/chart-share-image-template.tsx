@@ -153,7 +153,6 @@ function StatBlock(props: {
           fontSize: props.compact ? 20 : 22,
           fontWeight: 700,
           color: "#fafafa",
-          fontVariantNumeric: "tabular-nums",
           lineHeight: 1.1,
         }}
       >
@@ -381,7 +380,6 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
                       fontSize: isFirst ? 17 : 15,
                       color: "#a1a1aa",
                       fontWeight: 500,
-                      fontVariantNumeric: "tabular-nums",
                     }}
                   >
                     {formatNumber(row.play_count)} plays
@@ -393,7 +391,6 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
                       alignItems: "baseline",
                       fontSize: isFirst ? 15 : 14,
                       fontWeight: 500,
-                      fontVariantNumeric: "tabular-nums",
                     }}
                   >
                     <span style={{ color: "#52525b" }}>weeks in top 10 · </span>
@@ -523,7 +520,6 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
 
       <div
         style={{
-          marginTop: "auto",
           paddingTop: 20,
           display: "flex",
           flexDirection: "row",
