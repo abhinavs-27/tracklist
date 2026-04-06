@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { Session } from "next-auth";
 import { SectionBlock } from "@/components/layout/section-block";
 import { TasteMatchSection } from "@/components/taste-match";
-import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albums-section";
 import { ProfileRecentActivity } from "@/components/profile/profile-recent-activity";
 import { LastfmSection } from "@/components/lastfm/lastfm-section";
 import { TasteIdentitySection } from "@/components/profile/taste-identity-section";
@@ -32,7 +31,6 @@ import {
   getCachedTasteIdentity,
   getCachedTopThisWeek,
   getCachedUserAchievements,
-  getCachedUserFavoriteAlbums,
   getCachedUserListsWithPreviews,
   getCachedUserMatches,
 } from "@/lib/profile/cached-profile-data";
@@ -88,7 +86,6 @@ export async function ProfileDeferredBody({
   const settled = await Promise.allSettled([
     getCachedUserListsWithPreviews(user.id, 50, 0),
     getCachedUserAchievements(user.id),
-    getCachedUserFavoriteAlbums(user.id),
     getCachedTasteIdentity(user.id),
     getCachedListeningReportPreview(user.id),
     getCachedProfilePulseInsights(user.id),
@@ -111,54 +108,47 @@ export async function ProfileDeferredBody({
       "[profile] getCachedUserAchievements failed:",
       settled[1].reason,
     );
-  const favoriteAlbums =
-    settled[2].status === "fulfilled" ? settled[2].value : [];
+  const tasteIdentity: TasteIdentity =
+    settled[2].status === "fulfilled" ? settled[2].value : EMPTY_TASTE;
   if (settled[2].status === "rejected")
     console.error(
-      "[profile] getCachedUserFavoriteAlbums failed:",
+      "[profile] getCachedTasteIdentity failed:",
       settled[2].reason,
     );
-  const tasteIdentity: TasteIdentity =
-    settled[3].status === "fulfilled" ? settled[3].value : EMPTY_TASTE;
+  const listeningReportPreview =
+    settled[3].status === "fulfilled" ? settled[3].value : null;
   if (settled[3].status === "rejected")
     console.error(
-      "[profile] getCachedTasteIdentity failed:",
+      "[profile] getCachedListeningReportPreview failed:",
       settled[3].reason,
     );
-  const listeningReportPreview =
+  const profilePulse =
     settled[4].status === "fulfilled" ? settled[4].value : null;
   if (settled[4].status === "rejected")
     console.error(
-      "[profile] getCachedListeningReportPreview failed:",
+      "[profile] getCachedProfilePulseInsights failed:",
       settled[4].reason,
     );
-  const profilePulse =
+  const weeklyTop =
     settled[5].status === "fulfilled" ? settled[5].value : null;
   if (settled[5].status === "rejected")
     console.error(
-      "[profile] getCachedProfilePulseInsights failed:",
+      "[profile] getCachedTopThisWeek failed:",
       settled[5].reason,
     );
-  const weeklyTop =
-    settled[6].status === "fulfilled" ? settled[6].value : null;
+  const userMatchesPrefetched =
+    settled[6].status === "fulfilled" ? settled[6].value : undefined;
   if (settled[6].status === "rejected")
     console.error(
-      "[profile] getCachedTopThisWeek failed:",
+      "[profile] getCachedUserMatches failed:",
       settled[6].reason,
     );
-  const userMatchesPrefetched =
+  const listeningInsightsPrefetched =
     settled[7].status === "fulfilled" ? settled[7].value : undefined;
   if (settled[7].status === "rejected")
     console.error(
-      "[profile] getCachedUserMatches failed:",
-      settled[7].reason,
-    );
-  const listeningInsightsPrefetched =
-    settled[8].status === "fulfilled" ? settled[8].value : undefined;
-  if (settled[8].status === "rejected")
-    console.error(
       "[profile] getCachedListeningInsights failed:",
-      settled[8].reason,
+      settled[7].reason,
     );
 
   const weeklyNarrative = buildWeeklyNarrative({
@@ -207,22 +197,6 @@ export async function ProfileDeferredBody({
             prefetchedMatches={userMatchesPrefetched}
           />
         )}
-
-        <SectionBlock
-          title="Favorite albums"
-          description={
-            isOwnProfile
-              ? "Albums you pin to your public profile."
-              : "Albums they pin to their public profile."
-          }
-        >
-          <ProfileFavoriteAlbumsSection
-            userId={profile.id}
-            favoriteAlbums={favoriteAlbums}
-            isOwnProfile={isOwnProfile}
-            showHeading={false}
-          />
-        </SectionBlock>
 
         {isSocialInboxAndMusicRecUiEnabled() && isOwnProfile ? (
           <RecommendedCommunitiesSuspense

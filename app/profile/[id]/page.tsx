@@ -12,7 +12,11 @@ import {
 import { isValidUuid } from "@/lib/validation";
 import type { TasteIdentity } from "@/lib/taste/types";
 import { buildProfileHeroLines } from "@/lib/profile/hero-lines";
-import { getCachedTasteIdentity } from "@/lib/profile/cached-profile-data";
+import {
+  getCachedTasteIdentity,
+  getCachedUserFavoriteAlbums,
+} from "@/lib/profile/cached-profile-data";
+import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albums-section";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
@@ -103,7 +107,7 @@ export default async function ProfilePage({
   }
 
   const tHeaderStart = Date.now();
-  const [profileSettled, tasteForHero] = await Promise.all([
+  const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
       getFollowCounts(user.id),
       session?.user?.id && session.user.id !== user.id
@@ -115,6 +119,10 @@ export default async function ProfilePage({
       getUserStreak(user.id),
     ]),
     getCachedTasteIdentity(user.id),
+    getCachedUserFavoriteAlbums(user.id).catch((e) => {
+      console.error("[profile] getCachedUserFavoriteAlbums (hero):", e);
+      return [];
+    }),
   ]);
   const headerMs = Date.now() - tHeaderStart;
   if (headerMs > 100) {
@@ -186,6 +194,13 @@ export default async function ProfilePage({
             userId={profile.id}
             viewerUserId={session?.user?.id ?? null}
             keyStatLine={heroLines.keyStatLine}
+          />
+          <ProfileFavoriteAlbumsSection
+            userId={profile.id}
+            favoriteAlbums={favoriteAlbumsHero}
+            isOwnProfile={isOwnProfile}
+            variant="hero"
+            showHeading
           />
         </div>
       </div>

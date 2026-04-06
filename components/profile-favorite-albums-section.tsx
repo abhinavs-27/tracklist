@@ -15,6 +15,8 @@ type ProfileFavoriteAlbumsSectionProps = {
   isOwnProfile: boolean;
   /** Hide H2 when a parent SectionBlock provides the title */
   showHeading?: boolean;
+  /** Flat strip inside profile hero (no outer card) */
+  variant?: "default" | "hero";
 };
 
 export function ProfileFavoriteAlbumsSection({
@@ -22,6 +24,7 @@ export function ProfileFavoriteAlbumsSection({
   favoriteAlbums,
   isOwnProfile,
   showHeading = true,
+  variant = "default",
 }: ProfileFavoriteAlbumsSectionProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -33,44 +36,64 @@ export function ProfileFavoriteAlbumsSection({
     image_url: a.image_url,
   }));
 
-  return (
-    <section className={communityCard}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        {showHeading ? (
-          <h2 className="text-base font-semibold text-white sm:text-lg">Favorite albums</h2>
-        ) : (
-          <span className="sr-only">Favorite albums</span>
-        )}
-        {isOwnProfile && (
-          <button
-            type="button"
-            onClick={() => setEditOpen(true)}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-zinc-600 bg-transparent px-3 py-2 text-sm font-medium text-zinc-300 touch-manipulation hover:border-zinc-500 hover:text-white"
-          >
-            {favoriteAlbums.length > 0 ? "Edit" : "Add albums"}
-          </button>
-        )}
-      </div>
-      {favoriteAlbums.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          {isOwnProfile
-            ? "Pick up to 4 favorite albums to feature here."
-            : "No favorite albums yet."}
-        </p>
+  const isHero = variant === "hero";
+  const shellClass = isHero
+    ? "w-full border-t border-white/[0.08] pt-6 mt-6"
+    : communityCard;
+
+  const heading = (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      {showHeading ? (
+        <h2
+          className={
+            isHero
+              ? "text-sm font-medium uppercase tracking-wide text-zinc-500"
+              : "text-base font-semibold text-white sm:text-lg"
+          }
+        >
+          Favorite albums
+        </h2>
       ) : (
-        <MediaGrid
-          layout="favoriteAlbums"
-          items={favoriteAlbums.map(
-            (fav): MediaItem => ({
-              id: fav.album_id,
-              type: "album",
-              title: fav.name,
-              artist: "",
-              artworkUrl: fav.image_url ?? null,
-            }),
-          )}
-        />
+        <span className="sr-only">Favorite albums</span>
       )}
+      {isOwnProfile && (
+        <button
+          type="button"
+          onClick={() => setEditOpen(true)}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-zinc-600 bg-transparent px-3 py-2 text-sm font-medium text-zinc-300 touch-manipulation hover:border-zinc-500 hover:text-white"
+        >
+          {favoriteAlbums.length > 0 ? "Edit" : "Add albums"}
+        </button>
+      )}
+    </div>
+  );
+
+  const body =
+    favoriteAlbums.length === 0 ? (
+      <p className="text-sm text-zinc-500">
+        {isOwnProfile
+          ? "Pick up to 4 favorite albums to feature here."
+          : "No favorite albums yet."}
+      </p>
+    ) : (
+      <MediaGrid
+        layout="favoriteAlbums"
+        items={favoriteAlbums.map(
+          (fav): MediaItem => ({
+            id: fav.album_id,
+            type: "album",
+            title: fav.name,
+            artist: "",
+            artworkUrl: fav.image_url ?? null,
+          }),
+        )}
+      />
+    );
+
+  return (
+    <section className={shellClass}>
+      {heading}
+      {body}
       <FavoriteAlbumsEditModal
         initialAlbums={items}
         isOpen={editOpen}
