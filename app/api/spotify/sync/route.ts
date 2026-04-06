@@ -14,7 +14,7 @@ import {
   getValidSpotifyAccessToken,
 } from "@/lib/spotify-user";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
-import { getOrFetchTracksBatch } from "@/lib/spotify-cache";
+import { scheduleTrackEnrichmentBatch } from "@/lib/catalog/non-blocking-enrichment";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist-genres";
 import { fanOutListenForUserCommunities } from "@/lib/community/community-feed-insert";
@@ -153,13 +153,9 @@ export async function POST(request: NextRequest) {
     const { grantAchievementsOnListen } = await import("@/lib/queries");
     await grantAchievementsOnListen(me.id);
 
-    // Warm songs/albums cache so feed listen-sessions RPC can join logs → songs and show sessions
+    // Hydrate catalog in background so feed listen-sessions never waits on Spotify in this request.
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
-    try {
-      await getOrFetchTracksBatch(idsToWarm, { allowNetwork: true });
-    } catch (e) {
-      console.warn("[spotify-sync] cache warm failed (feed listen sessions may be empty until tracks are loaded):", e);
-    }
+    scheduleTrackEnrichmentBatch(idsToWarm);
 
     try {
       const admin = createSupabaseAdminClient();

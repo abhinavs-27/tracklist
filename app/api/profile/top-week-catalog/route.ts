@@ -6,6 +6,14 @@ import {
 } from "@/lib/api-response";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import {
+  albumStubMetadataComplete,
+  artistDisplayMetadataComplete,
+  scheduleAlbumEnrichment,
+  scheduleArtistEnrichment,
+  scheduleTrackEnrichment,
+  trackDisplayMetadataComplete,
+} from "@/lib/catalog/non-blocking-enrichment";
+import {
   getOrFetchAlbumsBatch,
   getOrFetchArtistsBatch,
   getOrFetchTracksBatch,
@@ -14,7 +22,7 @@ import { isValidUuid } from "@/lib/validation";
 
 const MAX_EACH = 12;
 const MAX_TOTAL = 36;
-const OPTS = { allowNetwork: true as const };
+const OPTS = { allowNetwork: false as const };
 
 function uniqUuids(ids: unknown, cap: number): string[] {
   if (!Array.isArray(ids)) return [];
@@ -33,7 +41,7 @@ function uniqUuids(ids: unknown, cap: number): string[] {
 
 /**
  * POST body: { artistIds?, trackIds?, albumIds? } — canonical UUIDs only.
- * Fills artwork/names from Spotify via catalog cache (may hit network).
+ * Fills artwork/names from DB-backed catalog cache only; enqueues Spotify hydration when incomplete.
  * Used after the fast server render of “top this week”.
  */
 export async function POST(request: NextRequest) {
@@ -85,29 +93,38 @@ export async function POST(request: NextRequest) {
   return apiOk({
     artists: artistIds.map((id, i) => {
       const a = artistMetaList[i];
+      const metadata_complete = a ? artistDisplayMetadataComplete(a) : false;
+      if (!metadata_complete) scheduleArtistEnrichment(id);
       return {
         id,
         name: a?.name ?? null,
         imageUrl: a?.images?.[0]?.url ?? null,
+        metadata_complete,
       };
     }),
     tracks: trackIds.map((id, i) => {
       const t = trackMetaList[i];
+      const metadata_complete = t ? trackDisplayMetadataComplete(t) : false;
+      if (!metadata_complete) scheduleTrackEnrichment(id);
       return {
         id,
         name: t?.name ?? null,
         artistName: t?.artists?.[0]?.name ?? null,
         albumId: t?.album?.id?.trim() ?? null,
         albumImageUrl: t?.album?.images?.[0]?.url ?? null,
+        metadata_complete,
       };
     }),
     albums: albumIds.map((id, i) => {
       const al = albumMetaList[i];
+      const metadata_complete = albumStubMetadataComplete(al);
+      if (!metadata_complete) scheduleAlbumEnrichment(id);
       return {
         id,
         name: al?.name ?? null,
         artistName: al?.artists?.[0]?.name ?? null,
         imageUrl: al?.images?.[0]?.url ?? null,
+        metadata_complete,
       };
     }),
   });

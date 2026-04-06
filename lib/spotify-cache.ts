@@ -1317,14 +1317,17 @@ async function getOrFetchAlbumInner(
     if (c) dbAlbumId = c;
   }
 
+  /** `albums.id` and FK `album_id` are UUID; never pass a bare Spotify/Last.fm id into `.eq("id", ...)`. */
+  const albumUuid = isValidUuid(dbAlbumId) ? dbAlbumId : null;
+
   let spotifyAlbumApiId: string | null = isValidSpotifyId(normalized)
     ? normalized
     : null;
-  if (!spotifyAlbumApiId) {
+  if (!spotifyAlbumApiId && albumUuid) {
     const { data: extAl } = await supabase
       .from("album_external_ids")
       .select("external_id")
-      .eq("album_id", dbAlbumId)
+      .eq("album_id", albumUuid)
       .eq("source", "spotify")
       .limit(1)
       .maybeSingle();
@@ -1332,20 +1335,23 @@ async function getOrFetchAlbumInner(
     if (ex && isValidSpotifyId(ex)) spotifyAlbumApiId = ex;
   }
 
-  const { data: albumRow, error: albumErr } = await supabase
-    .from("albums")
-    .select(
-      "name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
-    )
-    .eq("id", dbAlbumId)
-    .maybeSingle();
+  const { data: albumRow, error: albumErr } =
+    albumUuid != null
+      ? await supabase
+          .from("albums")
+          .select(
+            "name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
+          )
+          .eq("id", albumUuid)
+          .maybeSingle()
+      : { data: null, error: null };
 
   if (albumErr) {
     console.error(`${LOG_PREFIX} albums select failed`, albumErr);
   }
 
-  if (albumRow) {
-    const album = { ...albumRow, id: dbAlbumId } as unknown as AlbumRow;
+  if (albumRow && albumUuid) {
+    const album = { ...albumRow, id: albumUuid } as unknown as AlbumRow;
     const cacheTime = album.cached_at ?? album.updated_at;
     const stale = isCacheStale(cacheTime);
 
@@ -1362,7 +1368,7 @@ async function getOrFetchAlbumInner(
       const { data: songRows, error: songsErr } = await supabase
         .from("tracks")
         .select("id, name, album_id, artist_id, duration_ms, track_number")
-        .eq("album_id", dbAlbumId)
+        .eq("album_id", albumUuid)
         .order("track_number", { ascending: true });
 
       if (songsErr) {
@@ -1383,17 +1389,17 @@ async function getOrFetchAlbumInner(
             const admin = createSupabaseAdminClient();
             const found = await resolveSpotifyAlbumIdBySearch(
               admin,
-              dbAlbumId,
+              albumUuid,
               albumTitle,
               arName,
             );
             if (found) {
-              await linkAlbumExternalId(admin, dbAlbumId, "spotify", found);
+              await linkAlbumExternalId(admin, albumUuid, "spotify", found);
               spotifyAlbumApiId = found;
             }
           } catch (e) {
             console.warn(
-              `${LOG_PREFIX} album Spotify id search failed for ${dbAlbumId}`,
+              `${LOG_PREFIX} album Spotify id search failed for ${albumUuid}`,
               e,
             );
           }
@@ -1413,12 +1419,12 @@ async function getOrFetchAlbumInner(
             .select(
               "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
             )
-            .eq("album_id", dbAlbumId)
+            .eq("album_id", albumUuid)
             .order("track_number", { ascending: true });
           songs = (refetched ?? []) as unknown as SongRow[];
         } catch (e) {
           console.warn(
-            `${LOG_PREFIX} album tracks backfill failed for ${dbAlbumId}`,
+            `${LOG_PREFIX} album tracks backfill failed for ${albumUuid}`,
             e,
           );
         }
@@ -1507,7 +1513,7 @@ async function getOrFetchAlbumInner(
     const { data: songRowsStale } = await supabase
       .from("tracks")
       .select("id, name, album_id, artist_id, duration_ms, track_number")
-      .eq("album_id", dbAlbumId)
+      .eq("album_id", albumUuid)
       .order("track_number", { ascending: true });
     let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
 
@@ -1524,17 +1530,17 @@ async function getOrFetchAlbumInner(
           const admin = createSupabaseAdminClient();
           const found = await resolveSpotifyAlbumIdBySearch(
             admin,
-            dbAlbumId,
+            albumUuid,
             albumTitle,
             arName,
           );
           if (found) {
-            await linkAlbumExternalId(admin, dbAlbumId, "spotify", found);
+            await linkAlbumExternalId(admin, albumUuid, "spotify", found);
             spotifyAlbumApiId = found;
           }
         } catch (e) {
           console.warn(
-            `${LOG_PREFIX} album Spotify id search (stale) failed for ${dbAlbumId}`,
+            `${LOG_PREFIX} album Spotify id search (stale) failed for ${albumUuid}`,
             e,
           );
         }
@@ -1555,12 +1561,12 @@ async function getOrFetchAlbumInner(
           .select(
             "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
           )
-          .eq("album_id", dbAlbumId)
+          .eq("album_id", albumUuid)
           .order("track_number", { ascending: true });
         songsStale = (refetchedStale ?? []) as unknown as SongRow[];
       } catch (e) {
         console.warn(
-          `${LOG_PREFIX} album tracks backfill failed (stale album) for ${dbAlbumId}`,
+          `${LOG_PREFIX} album tracks backfill failed (stale album) for ${albumUuid}`,
           e,
         );
       }

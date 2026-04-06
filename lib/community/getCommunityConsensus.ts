@@ -9,6 +9,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { scheduleTrackEnrichmentBatch } from "@/lib/catalog/non-blocking-enrichment";
 import {
   batchResultsToMap,
   getOrFetchTracksBatch,
@@ -156,22 +157,27 @@ function coverUrlFromTrack(
   return u ?? null;
 }
 
-/** When album rows have no `image_url` yet, pull cover art from Spotify (same as discover / explore). */
+/** DB-only catalog read; enqueue Spotify hydration for rows still missing artwork. */
 async function hydrateTrackImagesFromCatalog(
   rows: CommunityConsensusRow[],
 ): Promise<CommunityConsensusRow[]> {
   const missing = rows.filter((r) => !r.image?.trim());
   if (missing.length === 0) return rows;
   const ids = [...new Set(missing.map((r) => r.entityId))];
-  const fetched = await getOrFetchTracksBatch(ids, { allowNetwork: true });
+  const fetched = await getOrFetchTracksBatch(ids, { allowNetwork: false });
   const normIds = ids.map((id) => normalizeReviewEntityId(id));
   const map = batchResultsToMap(normIds, fetched);
-  return rows.map((r) => {
+  const stillMissing: string[] = [];
+  const merged = rows.map((r) => {
     if (r.image?.trim()) return r;
     const t = map.get(normalizeReviewEntityId(r.entityId));
     const url = coverUrlFromTrack(t);
-    return url ? { ...r, image: url } : r;
+    if (url) return { ...r, image: url };
+    stillMissing.push(r.entityId);
+    return r;
   });
+  scheduleTrackEnrichmentBatch(stillMissing);
+  return merged;
 }
 
 export type CommunityConsensusPage = {

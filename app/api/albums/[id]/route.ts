@@ -1,5 +1,9 @@
 import { withHandler } from "@/lib/api-handler";
 import { apiBadRequest, apiNotFound, apiOk } from "@/lib/api-response";
+import {
+  albumDisplayMetadataComplete,
+  scheduleAlbumEnrichment,
+} from "@/lib/catalog/non-blocking-enrichment";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import {
   getAlbumEngagementStats,
@@ -14,12 +18,16 @@ export const GET = withHandler(async (_request, { params }) => {
 
     let albumResp: Awaited<ReturnType<typeof getOrFetchAlbum>>;
     try {
-      albumResp = await getOrFetchAlbum(id, { allowNetwork: true });
+      albumResp = await getOrFetchAlbum(id, { allowNetwork: false });
     } catch {
       return apiNotFound("Album not found");
     }
 
     const { album, tracks } = albumResp;
+    const metadata_complete = albumDisplayMetadataComplete(album, tracks);
+    if (!metadata_complete) {
+      scheduleAlbumEnrichment(id);
+    }
 
     const artistNames = (album.artists ?? []).map((a) => a.name).filter(Boolean).join(", ");
     const artist_id = (album.artists ?? [])[0]?.id ?? null;
@@ -45,6 +53,7 @@ export const GET = withHandler(async (_request, { params }) => {
     const review_count = reviewsResult?.count ?? engagement.review_count;
 
     return apiOk({
+      metadata_complete,
       album: {
         id: album.id,
         name: album.name,

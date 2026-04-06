@@ -1,5 +1,11 @@
 import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import {
+  albumDisplayMetadataComplete,
+  scheduleAlbumEnrichment,
+  scheduleTrackEnrichment,
+  trackDisplayMetadataComplete,
+} from "@/lib/catalog/non-blocking-enrichment";
 import { getList, getListOwnerId } from "@/lib/queries";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
@@ -27,6 +33,7 @@ export type ListItemEnriched = {
   added_at: string;
   album?: SpotifyApi.AlbumObjectSimplified | SpotifyApi.AlbumObjectFull;
   track?: SpotifyApi.TrackObjectSimplified | SpotifyApi.TrackObjectFull;
+  metadata_complete?: boolean;
 };
 
 /** GET – list details + ordered items with album/song info. Public. */
@@ -41,20 +48,33 @@ export const GET = withHandler(async (_request, { params }) => {
     data.items.map(async (item) => {
       try {
         if (item.entity_type === "album") {
-          const { album } = await getOrFetchAlbum(item.entity_id);
+          const { album, tracks } = await getOrFetchAlbum(item.entity_id, {
+            allowNetwork: false,
+          });
+          const metadata_complete = albumDisplayMetadataComplete(album, tracks);
+          if (!metadata_complete) {
+            scheduleAlbumEnrichment(item.entity_id);
+          }
           return {
             ...item,
             album: album as SpotifyApi.AlbumObjectSimplified,
+            metadata_complete,
           };
         }
-        const track = await getOrFetchTrack(item.entity_id);
-        return { ...item, track };
+        const track = await getOrFetchTrack(item.entity_id, {
+          allowNetwork: false,
+        });
+        const metadata_complete = trackDisplayMetadataComplete(track);
+        if (!metadata_complete) {
+          scheduleTrackEnrichment(item.entity_id);
+        }
+        return { ...item, track, metadata_complete };
       } catch (e) {
         console.warn(
           `[lists] Failed to fetch ${item.entity_type} ${item.entity_id}:`,
           e,
         );
-        return { ...item };
+        return { ...item, metadata_complete: false };
       }
     }),
   );

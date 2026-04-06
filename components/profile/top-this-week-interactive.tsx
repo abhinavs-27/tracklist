@@ -19,21 +19,41 @@ type Payload = {
 };
 
 type CatalogPatchJson = {
-  artists?: { id: string; name: string | null; imageUrl: string | null }[];
+  artists?: {
+    id: string;
+    name: string | null;
+    imageUrl: string | null;
+    metadata_complete?: boolean;
+  }[];
   tracks?: {
     id: string;
     name: string | null;
     artistName: string | null;
     albumId: string | null;
     albumImageUrl: string | null;
+    metadata_complete?: boolean;
   }[];
   albums?: {
     id: string;
     name: string | null;
     artistName: string | null;
     imageUrl: string | null;
+    metadata_complete?: boolean;
   }[];
 };
+
+function catalogPatchNeedsFollowUp(json: CatalogPatchJson): boolean {
+  const ar = json.artists ?? [];
+  const tr = json.tracks ?? [];
+  const al = json.albums ?? [];
+  const stale = (row: { metadata_complete?: boolean }, hasImg: boolean) =>
+    row.metadata_complete === false || (row.metadata_complete == null && !hasImg);
+  return (
+    ar.some((x) => stale(x, Boolean(x.imageUrl?.trim()))) ||
+    tr.some((x) => stale(x, Boolean(x.albumImageUrl?.trim()))) ||
+    al.some((x) => stale(x, Boolean(x.imageUrl?.trim())))
+  );
+}
 
 const catalogInflight = new Map<string, Promise<CatalogPatchJson>>();
 
@@ -105,57 +125,64 @@ export function TopThisWeekInteractive({ payload }: { payload: Payload }) {
 
     let cancelled = false;
     void (async () => {
-      try {
-        const json = await fetchTopWeekCatalogDeduped(
-          artistIds,
-          trackIds,
-          albumIds,
-        );
-        if (cancelled) return;
+      const maxAttempts = 5;
+      const delayMs = 2200;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const json = await fetchTopWeekCatalogDeduped(
+            artistIds,
+            trackIds,
+            albumIds,
+          );
+          if (cancelled) return;
 
-        const aMap = new Map((json.artists ?? []).map((x) => [x.id, x]));
-        const tMap = new Map((json.tracks ?? []).map((x) => [x.id, x]));
-        const alMap = new Map((json.albums ?? []).map((x) => [x.id, x]));
+          const aMap = new Map((json.artists ?? []).map((x) => [x.id, x]));
+          const tMap = new Map((json.tracks ?? []).map((x) => [x.id, x]));
+          const alMap = new Map((json.albums ?? []).map((x) => [x.id, x]));
 
-        if (cancelled) return;
-        setArtists((prev) =>
-          prev.map((a) => {
-            const patch = aMap.get(a.artistId);
-            if (!patch) return a;
-            return {
-              ...a,
-              name: patch.name?.trim() || a.name,
-              imageUrl: patch.imageUrl?.trim() || a.imageUrl,
-            };
-          }),
-        );
-        setTracks((prev) =>
-          prev.map((t) => {
-            const patch = tMap.get(t.trackId);
-            if (!patch) return t;
-            return {
-              ...t,
-              name: patch.name?.trim() || t.name,
-              artistName: patch.artistName?.trim() || t.artistName,
-              albumId: patch.albumId?.trim() || t.albumId,
-              albumImageUrl: patch.albumImageUrl?.trim() || t.albumImageUrl,
-            };
-          }),
-        );
-        setAlbums((prev) =>
-          prev.map((a) => {
-            const patch = alMap.get(a.albumId);
-            if (!patch) return a;
-            return {
-              ...a,
-              name: patch.name?.trim() || a.name,
-              artistName: patch.artistName?.trim() || a.artistName,
-              imageUrl: patch.imageUrl?.trim() || a.imageUrl,
-            };
-          }),
-        );
-      } catch {
-        /* keep placeholders */
+          if (cancelled) return;
+          setArtists((prev) =>
+            prev.map((a) => {
+              const patch = aMap.get(a.artistId);
+              if (!patch) return a;
+              return {
+                ...a,
+                name: patch.name?.trim() || a.name,
+                imageUrl: patch.imageUrl?.trim() || a.imageUrl,
+              };
+            }),
+          );
+          setTracks((prev) =>
+            prev.map((t) => {
+              const patch = tMap.get(t.trackId);
+              if (!patch) return t;
+              return {
+                ...t,
+                name: patch.name?.trim() || t.name,
+                artistName: patch.artistName?.trim() || t.artistName,
+                albumId: patch.albumId?.trim() || t.albumId,
+                albumImageUrl: patch.albumImageUrl?.trim() || t.albumImageUrl,
+              };
+            }),
+          );
+          setAlbums((prev) =>
+            prev.map((a) => {
+              const patch = alMap.get(a.albumId);
+              if (!patch) return a;
+              return {
+                ...a,
+                name: patch.name?.trim() || a.name,
+                artistName: patch.artistName?.trim() || a.artistName,
+                imageUrl: patch.imageUrl?.trim() || a.imageUrl,
+              };
+            }),
+          );
+
+          if (!catalogPatchNeedsFollowUp(json) || cancelled) break;
+          await new Promise((r) => setTimeout(r, delayMs));
+        } catch {
+          /* keep placeholders */
+        }
       }
     })();
 

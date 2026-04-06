@@ -3,6 +3,10 @@ import { getHiddenGemsCached } from "@/lib/discover-cache";
 import { enrichTracksAsync } from "@/lib/discover-enrich";
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
 import {
+  albumStubMetadataComplete,
+  scheduleAlbumEnrichment,
+} from "@/lib/catalog/non-blocking-enrichment";
+import {
   batchResultsToMap,
   batchTracksToNormalizedMap,
   getOrFetchAlbumsBatch,
@@ -14,9 +18,7 @@ import { checkDiscoverRateLimit } from "@/lib/rate-limit";
 import { clampLimit } from "@/lib/validation";
 import type { HiddenGemGridItem } from "@/types";
 
-const DISCOVER_CATALOG_OPTS = {
-  allowNetwork: process.env.SPOTIFY_REFRESH_DISABLED !== "true",
-} as const;
+const DISCOVER_CATALOG_OPTS = { allowNetwork: false as const };
 
 const DISCOVER_TRACKS_DB_ONLY = { allowNetwork: false as const };
 
@@ -86,6 +88,13 @@ export async function GET(request: NextRequest) {
     const albumsMap = batchResultsToMap(albumIds, albumArr);
 
     enrichTracksAsync({ tracksMap, entityIds: songIds });
+
+    for (let i = 0; i < albumIds.length; i++) {
+      const al = albumArr[i];
+      if (!albumStubMetadataComplete(al)) {
+        scheduleAlbumEnrichment(albumIds[i]!);
+      }
+    }
 
     const out: HiddenGemGridItem[] = [];
 

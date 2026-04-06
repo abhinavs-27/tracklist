@@ -1,5 +1,9 @@
 import { NextRequest } from "next/server";
 import { apiBadRequest, apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
+import {
+  scheduleTrackEnrichment,
+  trackDisplayMetadataComplete,
+} from "@/lib/catalog/non-blocking-enrichment";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import { isValidSpotifyId } from "@/lib/validation";
@@ -20,7 +24,11 @@ export async function GET(
     const { id } = await ctx.params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify id");
 
-    const track = await getOrFetchTrack(id);
+    const track = await getOrFetchTrack(id, { allowNetwork: false });
+    const metadata_complete = trackDisplayMetadataComplete(track);
+    if (!metadata_complete) {
+      scheduleTrackEnrichment(id);
+    }
 
     const album = track.album;
     const artworkImageUrl = album?.images?.[0]?.url ?? null;
@@ -29,6 +37,7 @@ export async function GET(
     const release_date = album?.release_date ?? null;
 
     return apiOk({
+      metadata_complete,
       id: track.id,
       name: track.name,
       artist,
