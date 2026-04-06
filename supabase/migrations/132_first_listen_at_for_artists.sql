@@ -21,8 +21,8 @@ AS $$
     LEFT JOIN tracks t ON t.id = l.track_id
     WHERE l.user_id = p_user_id
       AND (
-        l.artist_id = ANY(p_artist_ids)
-        OR (t.artist_id IS NOT NULL AND t.artist_id = ANY(p_artist_ids))
+        l.artist_id::text = ANY(p_artist_ids)
+        OR (t.artist_id IS NOT NULL AND t.artist_id::text = ANY(p_artist_ids))
       )
   )
   SELECT
@@ -30,7 +30,7 @@ AS $$
     MIN(s.listened_at) AS first_listened_at
   FROM scoped s
   WHERE s.resolved_artist_id IS NOT NULL
-    AND s.resolved_artist_id = ANY(p_artist_ids)
+    AND s.resolved_artist_id::text = ANY(p_artist_ids)
   GROUP BY s.resolved_artist_id;
 $$;
 
