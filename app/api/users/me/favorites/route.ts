@@ -1,16 +1,58 @@
 import { NextRequest } from "next/server";
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { resolveCanonicalAlbumUuidFromEntityId } from "@/lib/catalog/entity-resolution";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
+  apiBadRequest,
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { ensureSpotifyAlbumInCatalog } from "@/lib/spotify-cache";
+import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import type { SupabaseServerClient } from "@/lib/supabase-server";
 
 type Body = {
   albums?: unknown;
 };
+
+/**
+ * Album picker sends Spotify base62 ids from `/api/search`; `user_favorite_albums.album_id` is `albums.id` (UUID).
+ */
+async function resolveFavoriteAlbumUuid(
+  supabase: SupabaseServerClient,
+  raw: string,
+): Promise<string | null> {
+  const id = raw.trim();
+  if (!id) return null;
+
+  let uuid = await resolveCanonicalAlbumUuidFromEntityId(supabase, id);
+  if (uuid) return uuid;
+
+  if (isValidSpotifyId(id)) {
+    try {
+      await ensureSpotifyAlbumInCatalog(id);
+    } catch (e) {
+      console.error("[users/me/favorites] ensureSpotifyAlbumInCatalog", id, e);
+      return null;
+    }
+    uuid = await resolveCanonicalAlbumUuidFromEntityId(supabase, id);
+    if (uuid) return uuid;
+    return null;
+  }
+
+  if (isValidUuid(id)) {
+    const { data } = await supabase
+      .from("albums")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+    return (data as { id?: string } | null)?.id ?? null;
+  }
+
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,12 +62,28 @@ export async function POST(request: NextRequest) {
     if (parseErr) return parseErr;
 
     const raw = Array.isArray(body!.albums) ? body!.albums : [];
-    const albumIds = raw
+    const rawIds = raw
       .map((v) => (typeof v === "string" ? v.trim() : ""))
       .filter((id) => id.length > 0)
       .slice(0, 4);
 
     const supabase = await createSupabaseServerClient();
+
+    const resolved = await Promise.all(
+      rawIds.map((r) => resolveFavoriteAlbumUuid(supabase, r)),
+    );
+    const albumIds: string[] = [];
+    const seen = new Set<string>();
+    for (const canon of resolved) {
+      if (!canon) {
+        return apiBadRequest(
+          "Could not resolve one or more albums. Try picking the album again.",
+        );
+      }
+      if (seen.has(canon)) continue;
+      seen.add(canon);
+      albumIds.push(canon);
+    }
 
     // Clear existing favorites for user, then insert new ones.
     const { error: deleteError } = await supabase

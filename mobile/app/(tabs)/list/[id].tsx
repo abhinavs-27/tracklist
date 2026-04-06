@@ -189,7 +189,7 @@ export default function ListDetailScreen() {
           </Pressable>
         </View>
         <View style={styles.center}>
-          <Text style={styles.errorTitle}>Couldn&apos;t load this list</Text>
+          <Text style={styles.errorTitle}>Couldn't load this list</Text>
           <Text style={styles.errorDetail} selectable>
             {error instanceof Error ? error.message : String(error ?? "")}
           </Text>

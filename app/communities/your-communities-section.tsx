@@ -20,7 +20,7 @@ export async function YourCommunitiesSection({ userId }: { userId: string }) {
     return (
       <div className={`p-10 text-center sm:p-12 ${cardElevated}`}>
         <p className="text-base text-zinc-400">
-          You&apos;re not in a community yet. Create one to compete with friends.
+          You're not in a community yet. Create one to compete with friends.
         </p>
         <Link
           href="/communities/new"

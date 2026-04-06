@@ -232,7 +232,7 @@ export function CommunityHiddenGemsSection(props: { communityId: string }) {
         {!loading && items.length === 0 ? (
           <p className="text-sm text-zinc-500">
             {rankBy === "catalog"
-              ? "No hidden gems in this range yet — need at least two members on the same entity, and it can&apos;t be mega-popular in the catalog (&gt;85)."
+              ? "No hidden gems in this range yet — need at least two members on the same entity, and it can't be mega-popular in the catalog (>85)."
               : "No hidden gems yet — same overlap rules, but nothing ranks as quiet on Tracklist after filtering very high global app plays."}
           </p>
         ) : null}

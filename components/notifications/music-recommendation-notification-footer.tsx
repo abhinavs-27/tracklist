@@ -66,7 +66,7 @@ export function MusicRecommendationNotificationFooter({
               ? " sent you a recommendation — send one back or like above."
               : " sent you a recommendation — send one back below."}
           </p>
-          <p className="text-[11px] text-amber-200/75">You haven&apos;t responded yet.</p>
+          <p className="text-[11px] text-amber-200/75">You haven't responded yet.</p>
           <button
             type="button"
             onClick={() => setRecOpen(true)}

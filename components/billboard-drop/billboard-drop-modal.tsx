@@ -128,7 +128,7 @@ export function BillboardDropModal({
                 </h2>
                 <p className="text-lg text-zinc-400">{highlights.weekLabel}</p>
                 <p className="text-sm leading-relaxed text-zinc-500">
-                  Every Sunday we seal your top tracks. Here&apos;s your moment
+                  Every Sunday we seal your top tracks. Here's your moment
                   before you dive into the full board.
                 </p>
                 <button
@@ -248,7 +248,7 @@ export function BillboardDropModal({
                 <p className="text-sm leading-relaxed text-zinc-400">
                   {communityCount > 0 ? (
                     <>
-                      You&apos;re in{" "}
+                      You're in{" "}
                       <span className="font-semibold text-zinc-200">
                         {communityCount}
                       </span>{" "}

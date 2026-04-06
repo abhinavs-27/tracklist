@@ -210,7 +210,7 @@ export function CommunityJoinClient({ token, initialPreview, viewer }: Props) {
         ) : viewer.joinOk && !viewer.hasLastfm ? (
           <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-emerald-900/35 bg-emerald-950/25 p-5">
             <p className="text-center text-sm font-medium text-emerald-100/95">
-              You&apos;re in — nice.
+              You're in — nice.
             </p>
             <p className="text-center text-sm leading-relaxed text-zinc-300">
               <span className="font-medium text-white">
@@ -218,7 +218,7 @@ export function CommunityJoinClient({ token, initialPreview, viewer }: Props) {
               </span>{" "}
               so this community (and your profile) can see your real listening
               history. Create a Last.fm account if you need one, connect Spotify
-              in Last.fm&apos;s settings, then add your username here.{" "}
+              in Last.fm's settings, then add your username here.{" "}
               <span className="text-zinc-400">Most people finish in about a minute.</span>
             </p>
             <button

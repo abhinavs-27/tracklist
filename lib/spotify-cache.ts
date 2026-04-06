@@ -629,6 +629,28 @@ export async function upsertAlbumFromSpotify(
   return albumUuid;
 }
 
+/**
+ * Ensure `albums` + `album_external_ids` exist from Spotify album metadata only (one GET /albums/:id).
+ * Does not paginate tracks — much faster than {@link getOrFetchAlbum} for flows that only need a UUID
+ * (e.g. `user_favorite_albums`). Full hydration can happen later on album pages or background jobs.
+ */
+export async function ensureSpotifyAlbumInCatalog(
+  spotifyAlbumId: string,
+): Promise<string> {
+  const id = spotifyAlbumId.trim();
+  if (!isValidSpotifyId(id)) {
+    throw new Error(
+      `ensureSpotifyAlbumInCatalog: invalid Spotify album id ${spotifyAlbumId}`,
+    );
+  }
+  const admin = createSupabaseAdminClient();
+  const existing = await getAlbumIdByExternalId(admin, "spotify", id);
+  if (existing) return existing;
+
+  const albumResp = await getAlbum(id, { skipCache: true });
+  return upsertAlbumFromSpotify(admin, albumResp);
+}
+
 export async function upsertTrackFromSpotify(
   supabase: SupabaseClient,
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified,

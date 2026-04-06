@@ -52,7 +52,7 @@ export default async function WeeklyReportPage({
             ← Home
           </Link>
           <h1 className="text-2xl font-bold text-white">Listening report</h1>
-          <p className="text-zinc-400">Could not load this week&apos;s report.</p>
+          <p className="text-zinc-400">Could not load this week's report.</p>
         </div>
       );
     }

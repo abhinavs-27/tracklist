@@ -19,7 +19,7 @@ export function CommunityTasteMatchCard({ score, label, shortLabel }: Props) {
       </Text>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.hint}>
-        Last 30 days of listens vs this group&apos;s combined mix.
+        Last 30 days of listens vs this group's combined mix.
       </Text>
     </View>
   );

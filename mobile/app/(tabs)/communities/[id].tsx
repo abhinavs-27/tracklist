@@ -285,7 +285,7 @@ export default function CommunityDetailScreen() {
                   pendingInviteId ? (
                     <>
                       <Text style={styles.muted}>
-                        You&apos;ve been invited to this private community.
+                        You've been invited to this private community.
                       </Text>
                       <View style={styles.inviteRow}>
                         <Pressable

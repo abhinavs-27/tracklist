@@ -28,7 +28,7 @@ export function CommunityTasteMatchCard({ score }: { score: number }) {
         {tasteSimilarityLabel(score)}
       </p>
       <p className={`mt-3 ${communityMeta} text-zinc-600`}>
-        How your last 30 days of listens align with this group&apos;s combined
+        How your last 30 days of listens align with this group's combined
         listening.
       </p>
     </div>

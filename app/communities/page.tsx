@@ -8,6 +8,10 @@ import {
   PendingInvitesSkeleton,
 } from "@/app/communities/pending-invites-section";
 import {
+  PopularPublicCommunitiesSection,
+  PopularPublicCommunitiesSkeleton,
+} from "@/app/communities/popular-public-communities-section";
+import {
   YourCommunitiesSection,
   YourCommunitiesSkeleton,
 } from "@/app/communities/your-communities-section";
@@ -56,6 +60,24 @@ export default async function CommunitiesPage() {
           <YourCommunitiesSection userId={userId} />
         </Suspense>
       </section>
+
+      <Suspense
+        fallback={
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Popular public communities
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Most members among public groups — join to show up on the leaderboard and feed.
+              </p>
+            </div>
+            <PopularPublicCommunitiesSkeleton />
+          </section>
+        }
+      >
+        <PopularPublicCommunitiesSection userId={userId} />
+      </Suspense>
     </div>
   );
 }

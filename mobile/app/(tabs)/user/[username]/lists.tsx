@@ -43,7 +43,7 @@ export default function UserListsScreen() {
           </Pressable>
         </View>
         <View style={styles.center}>
-          <Text style={styles.errorTitle}>Couldn&apos;t load lists</Text>
+          <Text style={styles.errorTitle}>Couldn't load lists</Text>
           <Text style={styles.errorDetail} selectable>
             {error instanceof Error ? error.message : String(error)}
           </Text>

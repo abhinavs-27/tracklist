@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { queryKeys } from "@/lib/query-keys";
 
 const STORAGE_KEY = "tracklist-community-onboarding-dismissed";
+/** Same session as finishing profile onboarding (`?welcome=1`); cleared after modal dismiss. */
+const WELCOME_SESSION_KEY = "tracklist-community-onboarding-after-welcome";
 
 /** One in-flight recommended fetch per user (avoids Strict Mode double POST in dev). */
 const recommendedInflight = new Map<string, Promise<void>>();
@@ -23,15 +26,36 @@ type Rec = {
 export function CommunityOnboarding() {
   const queryClient = useQueryClient();
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Rec[]>([]);
   const [joining, setJoining] = useState<string | null>(null);
 
+  const isPostOnboardingWelcome = useCallback((): boolean => {
+    if (typeof window === "undefined") return false;
+    if (searchParams.get("welcome") === "1") return true;
+    try {
+      return sessionStorage.getItem(WELCOME_SESSION_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("welcome") !== "1") return;
+    try {
+      sessionStorage.setItem(WELCOME_SESSION_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, [searchParams]);
+
   const checkAndLoad = useCallback(async () => {
     if (status !== "authenticated" || !session?.user?.id) return;
     if (typeof window === "undefined") return;
     if (localStorage.getItem(STORAGE_KEY) === "1") return;
+    if (!isPostOnboardingWelcome()) return;
 
     const uid = session.user.id;
     let p = recommendedInflight.get(uid);
@@ -51,10 +75,17 @@ export function CommunityOnboarding() {
           recommendations?: Rec[];
           isNewUser?: boolean;
         };
-        if (!data.isNewUser) return;
         const recs = data.recommendations ?? [];
         setItems(recs);
-        if (recs.length > 0) setOpen(true);
+        if (recs.length > 0) {
+          setOpen(true);
+        } else {
+          try {
+            sessionStorage.removeItem(WELCOME_SESSION_KEY);
+          } catch {
+            /* ignore */
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -63,7 +94,7 @@ export function CommunityOnboarding() {
     });
     recommendedInflight.set(uid, p);
     await p;
-  }, [status, session?.user?.id]);
+  }, [status, session?.user?.id, isPostOnboardingWelcome]);
 
   useEffect(() => {
     let idleId: number | undefined;
@@ -84,6 +115,11 @@ export function CommunityOnboarding() {
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, "1");
+    try {
+      sessionStorage.removeItem(WELCOME_SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
     setOpen(false);
   }
 

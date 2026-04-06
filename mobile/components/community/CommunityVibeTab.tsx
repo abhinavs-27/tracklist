@@ -283,7 +283,7 @@ export function CommunityVibeTab({
       (weekly.trend.genres.gained.length > 0 ||
         weekly.trend.genres.lost.length > 0) ? (
         <View style={styles.momentum}>
-          <Text style={styles.sectionTitle}>This week&apos;s genre leaders</Text>
+          <Text style={styles.sectionTitle}>This week's genre leaders</Text>
           <Text style={styles.sectionSub}>
             Momentum vs last week — genres surging or cooling in the group
           </Text>

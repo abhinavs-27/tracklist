@@ -69,7 +69,7 @@ export function CommunityPeopleTab({ communityId }: Props) {
 
   if (q.isError) {
     return (
-      <Text style={styles.err}>Couldn&apos;t load members. Pull to refresh and try again.</Text>
+      <Text style={styles.err}>Couldn't load members. Pull to refresh and try again.</Text>
     );
   }
 

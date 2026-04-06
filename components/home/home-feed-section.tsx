@@ -44,7 +44,7 @@ export async function HomeFeedSection({ userId }: { userId: string }) {
         <div className={`space-y-8 p-8 sm:p-10 ${cardElevated}`}>
           <div className="text-center">
             <p className="text-base text-zinc-400">
-              Your feed will fill in as you follow people. Here&apos;s what a week
+              Your feed will fill in as you follow people. Here's what a week
               of listening can look like on your chart — add friends to see their
               activity here.
             </p>

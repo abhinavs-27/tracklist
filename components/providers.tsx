@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { SessionProvider } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import { ToastProvider } from '@/components/toast';
@@ -30,7 +31,9 @@ export function Providers({
           <RecentViewsProvider>
             <LoggingProvider>
               {children}
-              <CommunityOnboarding />
+              <Suspense fallback={null}>
+                <CommunityOnboarding />
+              </Suspense>
               <LoggingShell hideQuickLogFab={hideQuickLogFab} />
             </LoggingProvider>
           </RecentViewsProvider>

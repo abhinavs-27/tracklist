@@ -224,7 +224,7 @@ export function CommunityActions({
                   </span>
                   <span>
                     <span className="font-medium text-zinc-300">
-                      Feed &amp; leaderboard
+                      Feed & leaderboard
                     </span>{" "}
                     disappear from your account.
                   </span>
@@ -238,7 +238,7 @@ export function CommunityActions({
                   </span>
                   <span>
                     <span className="font-medium text-zinc-300">
-                      Weekly stats &amp; roles
+                      Weekly stats & roles
                     </span>{" "}
                     for this community stop updating for you.
                   </span>

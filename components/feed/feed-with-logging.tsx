@@ -35,7 +35,7 @@ export function FeedWithLogging({
       {initialItems.length === 0 && !initialCursor ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
           <p className="text-zinc-400">
-            Your feed is empty. Follow people to see what they&apos;re listening to.
+            Your feed is empty. Follow people to see what they're listening to.
           </p>
           <Link
             href="/search"

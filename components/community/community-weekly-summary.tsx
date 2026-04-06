@@ -76,7 +76,7 @@ export function CommunityWeeklySummary(props: {
     return (
       <Wrap className={wrapClass}>
         <p className={`${communityBody} text-zinc-500`}>
-          Couldn&apos;t load this week&apos;s vibe.
+          Couldn't load this week's vibe.
         </p>
       </Wrap>
     );
@@ -179,7 +179,7 @@ export function CommunityWeeklySummary(props: {
             </p>
           </div>
           <p className={`mt-2 ${communityMeta} text-zinc-600`}>
-            Share of this community&apos;s listens in the last 7 days, by local time of day.
+            Share of this community's listens in the last 7 days, by local time of day.
           </p>
 
           {maxShare <= 0 ? (

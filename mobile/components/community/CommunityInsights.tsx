@@ -50,7 +50,7 @@ export function CommunityInsights({
         <View style={styles.header}>
           <Text style={styles.h2}>Group insights</Text>
           <Text style={styles.sub}>
-            Based on everyone&apos;s listens from the last seven days, by time of day.
+            Based on everyone's listens from the last seven days, by time of day.
           </Text>
         </View>
       )}
@@ -99,7 +99,7 @@ export function CommunityInsights({
           <Text style={styles.metricValAmber}>{pct(diversityScore)}</Text>
           <Text style={styles.metricSub}>{diversityLabel}</Text>
           <Text style={styles.metricHint}>
-            Avg. similarity of each member&apos;s top artists
+            Avg. similarity of each member's top artists
           </Text>
         </View>
       </View>

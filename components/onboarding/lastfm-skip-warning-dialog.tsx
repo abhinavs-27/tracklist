@@ -70,14 +70,14 @@ export function LastfmSkipWarningDialog({
           id="lastfm-skip-warning-title"
           className="text-center text-lg font-semibold tracking-tight text-white sm:text-left"
         >
-          Without Last.fm, listens won&apos;t sync automatically
+          Without Last.fm, listens won't sync automatically
         </h2>
         <p
           id="lastfm-skip-warning-desc"
           className="mt-2 text-center text-sm leading-relaxed text-zinc-400 sm:text-left"
         >
           Tracklist imports your plays from Last.fm (after you connect Spotify
-          there). If you skip this, we won&apos;t automatically pull your
+          there). If you skip this, we won't automatically pull your
           listening history — you can still log manually, but feeds, communities,
           and stats that rely on your real plays will stay empty or out of date
           until you connect Last.fm from your profile.

@@ -289,11 +289,11 @@ export function ProfileOnboarding({
         {inviteFlow ? (
           <div className="mb-10 rounded-2xl bg-emerald-950/45 px-5 py-5 text-center shadow-[0_12px_40px_-12px_rgba(6,78,59,0.35)] ring-1 ring-inset ring-emerald-400/20 sm:px-6">
             <p className="text-sm font-medium text-emerald-100 sm:text-base">
-              You&apos;re joining{" "}
+              You're joining{" "}
               <span className="text-white">
                 {communityInviteName ?? "a community"}
               </span>{" "}
-              — finish setup and we&apos;ll add you and open it when you&apos;re
+              — finish setup and we'll add you and open it when you're
               done.
             </p>
             <p className="mt-2 text-sm text-emerald-200/75">
@@ -504,7 +504,7 @@ export function ProfileOnboarding({
           {step === 4 ? (
             <div className="mt-6 space-y-6 sm:mt-8">
               <div>
-                <h2 className={h2}>You&apos;re almost there</h2>
+                <h2 className={h2}>You're almost there</h2>
                 <p className={bodyMuted}>
                   {inviteFlow ? (
                     <>
@@ -513,7 +513,7 @@ export function ProfileOnboarding({
                         {communityInviteName ?? "this community"}
                       </span>
                       . Follow anyone you like — you can change this anytime.
-                      When you continue, we&apos;ll add you to the community and
+                      When you continue, we'll add you to the community and
                       take you there.
                     </>
                   ) : (
@@ -578,7 +578,7 @@ export function ProfileOnboarding({
                 <p className="text-sm text-zinc-500">
                   {inviteFlow
                     ? "No other members to show yet — you can still continue and join the community."
-                    : "No suggestions yet — as more people log music, we&apos;ll find listeners who match your albums."}
+                    : "No suggestions yet — as more people log music, we'll find listeners who match your albums."}
                 </p>
               )}
 

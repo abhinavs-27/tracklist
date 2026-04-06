@@ -91,7 +91,9 @@ export function InviteMembersPanel({
   /** Sync if parent re-passes URL; reuse server value when defined so copy is instant (no extra GET). */
   useEffect(() => {
     if (initialInviteUrl === undefined) return;
-    setInviteUrl(typeof initialInviteUrl === "string" ? initialInviteUrl : null);
+    setInviteUrl(
+      typeof initialInviteUrl === "string" ? initialInviteUrl : null,
+    );
     setInvitePrefetchDone(true);
   }, [initialInviteUrl]);
 
@@ -183,7 +185,8 @@ export function InviteMembersPanel({
         setFeedback({
           tone: "warning",
           text:
-            (data as { error?: string }).error ?? "Could not create invite link",
+            (data as { error?: string }).error ??
+            "Could not create invite link",
         });
         return;
       }
@@ -211,7 +214,8 @@ export function InviteMembersPanel({
         setFeedback({
           tone: "warning",
           text:
-            (data as { error?: string }).error ?? "Could not create invite link",
+            (data as { error?: string }).error ??
+            "Could not create invite link",
         });
         return;
       }
@@ -269,9 +273,14 @@ export function InviteMembersPanel({
             <ClipboardIcon className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className={`font-medium text-zinc-200 ${communityBody}`}>Invite link</p>
+            <p className={`font-medium text-zinc-200 ${communityBody}`}>
+              Invite link
+            </p>
             <p className={`mt-1 leading-relaxed ${communityMeta}`}>
-              We&apos;ll <span className="font-medium text-zinc-400">copy the URL to your clipboard</span>{" "}
+              We'll{" "}
+              <span className="font-medium text-zinc-400">
+                copy the URL to your clipboard
+              </span>{" "}
               so you can paste it in a message, email, or anywhere else.
             </p>
           </div>
@@ -286,7 +295,11 @@ export function InviteMembersPanel({
           {!invitePrefetchDone ? (
             "Loading link…"
           ) : linkBusy ? (
-            inviteUrl ? "Copying…" : "Creating link…"
+            inviteUrl ? (
+              "Copying…"
+            ) : (
+              "Creating link…"
+            )
           ) : (
             <>
               <ClipboardIcon className="h-4 w-4" />
@@ -309,9 +322,13 @@ export function InviteMembersPanel({
 
         {inviteUrl ? (
           <div className="mt-3 space-y-2">
-            <div className={`rounded-xl bg-zinc-900/80 px-3 py-2 ring-1 ring-white/[0.06]`}>
+            <div
+              className={`rounded-xl bg-zinc-900/80 px-3 py-2 ring-1 ring-white/[0.06]`}
+            >
               <p className={`${communityMetaLabel} text-zinc-600`}>Link</p>
-              <p className={`mt-1 break-all font-mono text-zinc-300 ${communityMeta}`}>
+              <p
+                className={`mt-1 break-all font-mono text-zinc-300 ${communityMeta}`}
+              >
                 {inviteUrl}
               </p>
             </div>
@@ -336,7 +353,9 @@ export function InviteMembersPanel({
         ) : null}
       </div>
 
-      <p className={`mt-8 text-center ${communityMetaLabel} text-zinc-600`}>Or search</p>
+      <p className={`mt-8 text-center ${communityMetaLabel} text-zinc-600`}>
+        Or search
+      </p>
 
       <label className="sr-only" htmlFor="invite-user-search">
         Search users by username

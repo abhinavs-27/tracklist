@@ -54,7 +54,7 @@ export function ReviewModal({ spotifyName, onClose, onSuccess, createReview }: R
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="review-modal-title" className="text-xl font-semibold text-white">
-          Rate &amp; review
+          Rate & review
         </h2>
         <p className="mt-1 text-sm text-zinc-400 line-clamp-2" title={spotifyName}>
           {spotifyName}

@@ -158,7 +158,7 @@ export default function CommunitiesTabScreen() {
         </View>
       ) : error ? (
         <View style={styles.pad}>
-          <Text style={styles.err}>Couldn&apos;t load communities.</Text>
+          <Text style={styles.err}>Couldn't load communities.</Text>
           <Pressable onPress={onRefresh}>
             <Text style={styles.link}>Try again</Text>
           </Pressable>
@@ -175,7 +175,7 @@ export default function CommunitiesTabScreen() {
           }
           ListEmptyComponent={
             <Text style={styles.empty}>
-              You&apos;re not in a community yet. Create one to compete with
+              You're not in a community yet. Create one to compete with
               friends.
             </Text>
           }

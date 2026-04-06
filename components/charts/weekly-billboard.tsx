@@ -181,7 +181,7 @@ function CommunityMobileRowDetails({ row }: { row: WeeklyChartRankingApiRow }) {
   return (
     <details className="border-t border-zinc-800/80 bg-zinc-950/35 md:hidden">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-left text-xs font-medium text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-300">
-        <span>Plays, streak &amp; more</span>
+        <span>Plays, streak & more</span>
         <span className="shrink-0 text-zinc-600" aria-hidden>
           ▼
         </span>
@@ -694,7 +694,7 @@ const BillboardHero = memo(function BillboardHero({
         </dl>
         <details className={`mt-4 ${cardRadius} border border-zinc-800/80 bg-black/15 ring-1 ring-white/[0.04] md:hidden`}>
           <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-medium text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-300">
-            #1 · plays &amp; streaks
+            #1 · plays & streaks
           </summary>
           <dl className="grid grid-cols-1 gap-2 border-t border-zinc-800/60 px-3 py-3 text-sm sm:grid-cols-3">
             <BillboardHeroStatBlocks leader={leader} />

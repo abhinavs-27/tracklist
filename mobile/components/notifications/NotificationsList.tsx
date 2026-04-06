@@ -105,7 +105,7 @@ export function NotificationsList({
     const detail = error instanceof Error ? error.message : String(error);
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>Couldn&apos;t load notifications</Text>
+        <Text style={styles.errorText}>Couldn't load notifications</Text>
         {detail ? (
           <Text style={styles.errorDetail} selectable>
             {detail}

@@ -80,7 +80,7 @@ export function SampleWeeklyChartPreview({
         <p className="mt-1 text-sm text-zinc-400">{caption}</p>
         {variant === "marketing" ? (
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-            Follow people and you&apos;ll see their listens in your feed; jump into a
+            Follow people and you'll see their listens in your feed; jump into a
             community if you want a shared chart on top of that.
           </p>
         ) : null}

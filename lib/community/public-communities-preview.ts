@@ -31,11 +31,8 @@ async function countMembersByCommunityIds(
   return out;
 }
 
-/**
- * Public communities for the logged-out home feed: recent public communities, ranked by member count.
- */
-export async function getPublicCommunitiesPreview(
-  limit: number,
+async function rankPublicCommunitiesByMemberCount(
+  poolLimit: number,
 ): Promise<PublicCommunityPreview[]> {
   const admin = createSupabaseAdminClient();
   const { data: rows, error } = await admin
@@ -43,7 +40,7 @@ export async function getPublicCommunitiesPreview(
     .select("id, name, created_at")
     .eq("is_private", false)
     .order("created_at", { ascending: false })
-    .limit(48);
+    .limit(Math.min(Math.max(poolLimit, 1), 300));
 
   if (error || !rows?.length) return [];
 
@@ -61,5 +58,50 @@ export async function getPublicCommunitiesPreview(
     return a.name.localeCompare(b.name);
   });
 
-  return withCounts.slice(0, Math.max(1, Math.min(limit, 12)));
+  return withCounts;
+}
+
+/**
+ * Public communities for the logged-out home feed: recent public communities, ranked by member count.
+ */
+export async function getPublicCommunitiesPreview(
+  limit: number,
+): Promise<PublicCommunityPreview[]> {
+  const ranked = await rankPublicCommunitiesByMemberCount(48);
+  return ranked.slice(0, Math.max(1, Math.min(limit, 12)));
+}
+
+const TOP_PUBLIC_POOL = 200;
+
+/**
+ * Most popular public communities (by member count within a broad pool), excluding ones the user is already in.
+ * Used on `/communities` to suggest groups to join.
+ */
+export async function getTopPublicCommunitiesExcludingUser(
+  userId: string,
+  limit: number,
+): Promise<PublicCommunityPreview[]> {
+  const uid = userId?.trim();
+  if (!uid) return [];
+
+  const admin = createSupabaseAdminClient();
+  const { data: memberships, error: memErr } = await admin
+    .from("community_members")
+    .select("community_id")
+    .eq("user_id", uid);
+  if (memErr) {
+    console.warn(
+      "[public-communities-preview] membership lookup failed",
+      memErr.message,
+    );
+  }
+  const mine = new Set(
+    ((memberships ?? []) as { community_id: string }[]).map(
+      (m) => m.community_id,
+    ),
+  );
+
+  const ranked = await rankPublicCommunitiesByMemberCount(TOP_PUBLIC_POOL);
+  const filtered = ranked.filter((c) => !mine.has(c.id));
+  return filtered.slice(0, Math.max(1, Math.min(limit, 25)));
 }

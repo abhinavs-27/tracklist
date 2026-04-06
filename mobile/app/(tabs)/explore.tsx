@@ -584,7 +584,7 @@ export default function ExploreScreen() {
 
         {isError ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Couldn&apos;t load Explore</Text>
+            <Text style={styles.emptyTitle}>Couldn't load Explore</Text>
             <Text style={styles.emptyBody}>
               Pull down to try again, or check your connection.
             </Text>

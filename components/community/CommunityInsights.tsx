@@ -107,7 +107,7 @@ export function CommunityInsights({
           </p>
           <p className={`mt-1 ${communityBody} text-zinc-400`}>{diversityLabel}</p>
           <p className={`mt-2 ${communityMeta} text-zinc-600`}>
-            Avg. similarity of each member&apos;s top artists
+            Avg. similarity of each member's top artists
           </p>
         </div>
       </div>

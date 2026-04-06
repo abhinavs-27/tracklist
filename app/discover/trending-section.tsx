@@ -46,7 +46,7 @@ export function TrendingSection({ items }: TrendingSectionProps) {
       {mediaItems.length === 0 ? (
         <p className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center text-zinc-500">
           No trending tracks in the last 7 days yet. Start logging listens to
-          see what&apos;s hot.
+          see what's hot.
         </p>
       ) : (
         <MediaGrid items={mediaItems} />

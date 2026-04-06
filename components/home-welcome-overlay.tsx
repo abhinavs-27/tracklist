@@ -57,7 +57,7 @@ export function HomeWelcomeOverlay({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.12, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           >
-            You&apos;re in
+            You're in
           </motion.p>
           <motion.p
             className="mt-3 max-w-sm px-6 text-center text-sm text-zinc-400 sm:text-base"
