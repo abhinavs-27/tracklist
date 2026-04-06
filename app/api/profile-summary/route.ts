@@ -1,12 +1,17 @@
 import { NextRequest } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
-import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
+import { apiBadRequest, apiInternalError } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 import {
   getCachedRecentAlbumsFromLogs,
   getCachedRecentTracksFromLogs,
 } from "@/lib/profile/recent-activity-cache";
 import type { RecentAlbumItem, RecentTrackRow } from "@/lib/recent-from-logs";
+import {
+  STALE_FIRST_STALE_AFTER_SEC,
+  STALE_FIRST_TTL_SEC,
+  staleFirstApiOk,
+} from "@/lib/cache/stale-first-cache";
 
 export type ProfileSummaryResponse = {
   user_id: string;
@@ -43,26 +48,37 @@ export async function GET(request: NextRequest) {
       Math.max(1, parseInt(tracksLimitRaw ?? "8", 10) || 8),
     );
 
-    const isOwnProfile = !!viewer && viewer.id === userId;
+    const viewerKey = viewer?.id ?? "anon";
+    const cacheKey = `profile:summary:${userId}:${viewerKey}:${albumsLimit}:${tracksLimit}`;
 
-    const [albums, tracksBlock] = await Promise.all([
-      getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust),
-      isOwnProfile
-        ? getCachedRecentTracksFromLogs(userId, tracksLimit, 0, {
-            bust,
-            trySpotifySync: true,
-          })
-        : Promise.resolve({ items: [] as RecentTrackRow[], hasMore: false }),
-    ]);
+    return staleFirstApiOk(
+      cacheKey,
+      STALE_FIRST_TTL_SEC.profileSummary,
+      STALE_FIRST_STALE_AFTER_SEC.profileSummary,
+      async () => {
+        const isOwnProfile = !!viewer && viewer.id === userId;
 
-    const payload: ProfileSummaryResponse = {
-      user_id: userId,
-      albums,
-      recent_tracks: tracksBlock.items,
-      tracks_has_more: tracksBlock.hasMore,
-    };
+        const [albums, tracksBlock] = await Promise.all([
+          getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust),
+          isOwnProfile
+            ? getCachedRecentTracksFromLogs(userId, tracksLimit, 0, {
+                bust,
+                trySpotifySync: true,
+              })
+            : Promise.resolve({ items: [] as RecentTrackRow[], hasMore: false }),
+        ]);
 
-    return apiOk(payload);
+        const payload: ProfileSummaryResponse = {
+          user_id: userId,
+          albums,
+          recent_tracks: tracksBlock.items,
+          tracks_has_more: tracksBlock.hasMore,
+        };
+
+        return payload;
+      },
+      { bypassCache: bust },
+    );
   } catch (e) {
     return apiInternalError(e);
   }

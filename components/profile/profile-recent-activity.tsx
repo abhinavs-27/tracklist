@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { SpotifyConnectionCard } from "@/components/spotify-connection-card";
+import {
+  readStaleSessionCache,
+  writeStaleSessionCache,
+} from "@/lib/client/stale-session-cache";
 import { cardElevatedInteractive } from "@/lib/ui/surface";
 
 /** Preview length — keep the strip scannable (5–10). */
@@ -33,7 +37,30 @@ type RecentTrack = {
 type ProfileSummaryJson = {
   albums: RecentAlbumItem[];
   recent_tracks: RecentTrack[];
+  fetched_at?: string;
 };
+
+function profileSummarySessionKey(userId: string) {
+  return `profile-summary:${userId}`;
+}
+
+function hydrateProfileFromCache(
+  userId: string,
+  isOwnProfile: boolean,
+): { albums: RecentAlbumItem[]; tracks: RecentTrack[] | null } | null {
+  const c = readStaleSessionCache<ProfileSummaryJson>(
+    profileSummarySessionKey(userId),
+  );
+  if (c?.albums == null || !Array.isArray(c.albums)) return null;
+  return {
+    albums: c.albums,
+    tracks: isOwnProfile
+      ? Array.isArray(c.recent_tracks)
+        ? c.recent_tracks
+        : null
+      : [],
+  };
+}
 
 /** Dedupe concurrent profile-summary fetches (e.g. React Strict Mode double effect). */
 const profileSummaryInflight = new Map<string, Promise<ProfileSummaryJson>>();
@@ -56,7 +83,9 @@ async function loadProfileSummary(
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Couldn’t load profile activity");
-      return (await res.json()) as ProfileSummaryJson;
+      const json = (await res.json()) as ProfileSummaryJson;
+      writeStaleSessionCache(profileSummarySessionKey(userId), json);
+      return json;
     })().finally(() => {
       profileSummaryInflight.delete(key);
     });
@@ -177,8 +206,14 @@ export function ProfileRecentActivity({
   spotifyConnected: boolean;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
-  const [albums, setAlbums] = useState<RecentAlbumItem[] | null>(null);
-  const [tracks, setTracks] = useState<RecentTrack[] | null>(null);
+  const [albums, setAlbums] = useState<RecentAlbumItem[] | null>(() => {
+    const h = hydrateProfileFromCache(userId, isOwnProfile);
+    return h?.albums ?? null;
+  });
+  const [tracks, setTracks] = useState<RecentTrack[] | null>(() => {
+    const h = hydrateProfileFromCache(userId, isOwnProfile);
+    return h?.tracks ?? null;
+  });
 
   useEffect(() => {
     let cancelled = false;

@@ -6,6 +6,12 @@ import {
   apiNotFound,
   apiOk,
 } from "@/lib/api-response";
+import {
+  StaleFirstBypassError,
+  STALE_FIRST_STALE_AFTER_SEC,
+  STALE_FIRST_TTL_SEC,
+  staleFirstApiOk,
+} from "@/lib/cache/stale-first-cache";
 import { parseBody, validateUuidParam } from "@/lib/api-utils";
 import { getAppBaseUrl, getRequestOrigin, isLocalhostUrl } from "@/lib/app-url";
 import {
@@ -31,30 +37,50 @@ export const GET = withHandler(
     const uuidRes = validateUuidParam(rawId);
     if (!uuidRes.ok) return uuidRes.error;
     const communityId = uuidRes.id;
+    const bypassCache = searchParams.get("refresh") === "1";
 
-    const result = await getLatestActiveInviteLinkTokenForCommunity({
-      communityId,
-      actorUserId: me!.id,
-    });
+    const inviteBase = request;
+    const userId = me!.id;
+    const cacheKey = `community:invite:${userId}:${communityId}`;
 
-    if (!result.ok) {
-      switch (result.reason) {
-        case "not_found":
-          return apiNotFound("Community not found");
-        case "forbidden":
-          return apiForbidden("Only community members who can invite may use this");
-        default:
-          return apiBadRequest("Could not load invite link");
-      }
-    }
+    return staleFirstApiOk(
+      cacheKey,
+      STALE_FIRST_TTL_SEC.communityInvite,
+      STALE_FIRST_STALE_AFTER_SEC.communityInvite,
+      async () => {
+        const result = await getLatestActiveInviteLinkTokenForCommunity({
+          communityId,
+          actorUserId: userId,
+        });
 
-    if (!result.token) {
-      return apiOk({ invite_url: null as string | null });
-    }
+        if (!result.ok) {
+          switch (result.reason) {
+            case "not_found":
+              throw new StaleFirstBypassError(
+                apiNotFound("Community not found"),
+              );
+            case "forbidden":
+              throw new StaleFirstBypassError(
+                apiForbidden(
+                  "Only community members who can invite may use this",
+                ),
+              );
+            default:
+              throw new StaleFirstBypassError(
+                apiBadRequest("Could not load invite link"),
+              );
+          }
+        }
 
-    return apiOk({
-      invite_url: inviteUrlFromRequest(request, result.token),
-    });
+        if (!result.token) {
+          return { invite_url: null as string | null };
+        }
+        return {
+          invite_url: inviteUrlFromRequest(inviteBase, result.token),
+        };
+      },
+      { bypassCache },
+    );
   },
   { requireAuth: true },
 );

@@ -20,6 +20,11 @@ import {
   getCommunityMemberCount,
   isCommunityMember,
 } from "@/lib/community/queries";
+import {
+  STALE_FIRST_STALE_AFTER_SEC,
+  STALE_FIRST_TTL_SEC,
+  staleFirstApiOk,
+} from "@/lib/cache/stale-first-cache";
 
 /**
  * GET /api/community/join/:token — preview + viewer flags (optional auth).
@@ -37,17 +42,6 @@ export async function GET(
 
     const me = await getUserFromRequest(request);
     const userId = me?.id ?? null;
-    let lastfm_username: string | null = null;
-    if (userId) {
-      const admin = createSupabaseAdminClient();
-      const { data: u } = await admin
-        .from("users")
-        .select("lastfm_username")
-        .eq("id", userId)
-        .maybeSingle();
-      lastfm_username = (u as { lastfm_username: string | null } | null)
-        ?.lastfm_username ?? null;
-    }
 
     const link = await getInviteLinkByToken(token);
     if (!link) {
@@ -67,36 +61,61 @@ export async function GET(
       });
     }
 
-    const preview = await getCommunityInvitePreview(link.community_id);
-    if (!preview) {
-      return apiNotFound("Community not found");
-    }
+    const bypassCache = request.nextUrl.searchParams.get("refresh") === "1";
 
-    const is_member =
-      userId && preview.community.id
-        ? await isCommunityMember(preview.community.id, userId)
-        : false;
+    return staleFirstApiOk(
+      `community:join:${token}:${userId ?? "anon"}`,
+      STALE_FIRST_TTL_SEC.communityJoin,
+      STALE_FIRST_STALE_AFTER_SEC.communityJoin,
+      async () => {
+        let lastfm_username: string | null = null;
+        if (userId) {
+          const admin = createSupabaseAdminClient();
+          const { data: u } = await admin
+            .from("users")
+            .select("lastfm_username")
+            .eq("id", userId)
+            .maybeSingle();
+          lastfm_username = (u as { lastfm_username: string | null } | null)
+            ?.lastfm_username ?? null;
+        }
 
-    return apiOk({
-      valid: true,
-      expired: false,
-      community: {
-        id: preview.community.id,
-        name: preview.community.name,
-        description: preview.community.description,
-        is_private: preview.community.is_private,
-        member_count: preview.member_count,
+        const preview = await getCommunityInvitePreview(link.community_id);
+        if (!preview) {
+          return null;
+        }
+
+        const is_member =
+          userId && preview.community.id
+            ? await isCommunityMember(preview.community.id, userId)
+            : false;
+
+        return {
+          valid: true,
+          expired: false,
+          community: {
+            id: preview.community.id,
+            name: preview.community.name,
+            description: preview.community.description,
+            is_private: preview.community.is_private,
+            member_count: preview.member_count,
+          },
+          preview: {
+            top_tracks: preview.top_tracks,
+            recent_activity: preview.recent_activity,
+          },
+          viewer: {
+            is_logged_in: !!userId,
+            has_lastfm: !!lastfm_username?.trim(),
+            is_member,
+          },
+        };
       },
-      preview: {
-        top_tracks: preview.top_tracks,
-        recent_activity: preview.recent_activity,
+      {
+        bypassCache,
+        notFoundResponse: () => apiNotFound("Community not found"),
       },
-      viewer: {
-        is_logged_in: !!userId,
-        has_lastfm: !!lastfm_username?.trim(),
-        is_member,
-      },
-    });
+    );
   } catch (e) {
     return apiInternalError(e);
   }

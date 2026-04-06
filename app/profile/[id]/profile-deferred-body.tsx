@@ -296,6 +296,7 @@ export async function ProfileDeferredBody({
             }
           >
             <ProfileRecentActivity
+              key={profile.id}
               userId={profile.id}
               isOwnProfile={isOwnProfile}
               showSpotifyControls={

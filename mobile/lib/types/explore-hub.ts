@@ -29,4 +29,6 @@ export type ExploreHubLeaderboardEntry = {
 export type ExploreHubResponse = {
   trending: ExploreHubTrendingItem[];
   leaderboard: ExploreHubLeaderboardEntry[];
+  /** Present when served from stale-first API cache (`GET /api/explore`). */
+  fetched_at?: string;
 };

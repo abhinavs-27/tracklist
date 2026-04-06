@@ -6,7 +6,29 @@ import { WeeklyBillboardView } from "@/components/charts/weekly-billboard";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
 import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
+import {
+  readStaleSessionCache,
+  writeStaleSessionCache,
+} from "@/lib/client/stale-session-cache";
 import { cardMuted } from "@/lib/ui/surface";
+
+const WEEKS_FETCH_LIMIT = 104;
+
+function billboardWeeksCacheKey(type: ChartType) {
+  return `billboard-weeks:${type}:${WEEKS_FETCH_LIMIT}`;
+}
+
+function billboardChartCacheKey(type: ChartType, week: string | null) {
+  return `billboard-chart:${type}:${week ?? "latest"}`;
+}
+
+function stripFetchedAt(
+  row: LatestWeeklyChartApiResult & { fetched_at?: string },
+): LatestWeeklyChartApiResult {
+  const { fetched_at, ...rest } = row;
+  void fetched_at;
+  return rest;
+}
 
 const TABS: { value: ChartType; label: string }[] = [
   { value: "tracks", label: "Tracks" },
@@ -24,10 +46,32 @@ export function ChartsClient(props: {
   const [weekStart, setWeekStart] = useState<string | null>(
     props.initialWeekStart,
   );
-  const [weeks, setWeeks] = useState<WeekOption[]>([]);
-  const [data, setData] = useState<LatestWeeklyChartApiResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingWeeks, setLoadingWeeks] = useState(true);
+  const [weeks, setWeeks] = useState<WeekOption[]>(() => {
+    const c = readStaleSessionCache<{
+      weeks: WeekOption[];
+      fetched_at?: string;
+    }>(billboardWeeksCacheKey(props.initialType));
+    return c?.weeks ?? [];
+  });
+  const [data, setData] = useState<LatestWeeklyChartApiResult | null>(() => {
+    const c = readStaleSessionCache<
+      LatestWeeklyChartApiResult & { fetched_at?: string }
+    >(billboardChartCacheKey(props.initialType, props.initialWeekStart));
+    if (!c?.fetched_at) return null;
+    return stripFetchedAt(c);
+  });
+  const [loading, setLoading] = useState(() => {
+    const c = readStaleSessionCache<
+      LatestWeeklyChartApiResult & { fetched_at?: string }
+    >(billboardChartCacheKey(props.initialType, props.initialWeekStart));
+    return c?.fetched_at == null;
+  });
+  const [loadingWeeks, setLoadingWeeks] = useState(() => {
+    const c = readStaleSessionCache<
+      { weeks: WeekOption[]; fetched_at?: string } | undefined
+    >(billboardWeeksCacheKey(props.initialType));
+    return c?.fetched_at == null;
+  });
   const [error, setError] = useState<string | null>(null);
   const billboardAckSent = useRef(false);
 
@@ -41,18 +85,31 @@ export function ChartsClient(props: {
   }, []);
 
   const loadWeeks = useCallback(async (type: ChartType) => {
-    setLoadingWeeks(true);
+    const cacheKey = billboardWeeksCacheKey(type);
+    const cached = readStaleSessionCache<{
+      weeks: WeekOption[];
+      fetched_at?: string;
+    }>(cacheKey);
+    if (cached?.fetched_at) {
+      setWeeks(cached.weeks ?? []);
+      setLoadingWeeks(false);
+    } else {
+      setLoadingWeeks(true);
+    }
     try {
       const res = await fetch(
-        `/api/charts/weeks?type=${encodeURIComponent(type)}`,
+        `/api/charts/weeks?type=${encodeURIComponent(type)}&limit=${WEEKS_FETCH_LIMIT}`,
         { cache: "no-store" },
       );
       const json = (await res.json().catch(() => null)) as
-        | { weeks?: WeekOption[]; error?: string }
+        | { weeks?: WeekOption[]; error?: string; fetched_at?: string }
         | null;
       if (!res.ok) {
         setWeeks([]);
         return;
+      }
+      if (json && res.ok) {
+        writeStaleSessionCache(cacheKey, json);
       }
       setWeeks(json?.weeks ?? []);
     } catch {
@@ -64,7 +121,16 @@ export function ChartsClient(props: {
 
   const loadChart = useCallback(
     async (type: ChartType, week: string | null) => {
-      setLoading(true);
+      const cacheKey = billboardChartCacheKey(type, week);
+      const cached = readStaleSessionCache<
+        LatestWeeklyChartApiResult & { fetched_at?: string }
+      >(cacheKey);
+      if (cached?.fetched_at) {
+        setData(stripFetchedAt(cached));
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       try {
         const q = new URLSearchParams({ type });
@@ -73,7 +139,7 @@ export function ChartsClient(props: {
           cache: "no-store",
         });
         const json = (await res.json().catch(() => null)) as
-          | LatestWeeklyChartApiResult
+          | (LatestWeeklyChartApiResult & { fetched_at?: string })
           | { error?: string };
         if (!res.ok) {
           setData(null);
@@ -82,9 +148,15 @@ export function ChartsClient(props: {
           );
           return;
         }
-        setData(json as LatestWeeklyChartApiResult);
+        const row = json as LatestWeeklyChartApiResult & {
+          fetched_at?: string;
+        };
+        writeStaleSessionCache(cacheKey, row);
+        setData(stripFetchedAt(row));
       } catch {
-        setData(null);
+        if (!cached?.fetched_at) {
+          setData(null);
+        }
         setError("Could not load chart");
       } finally {
         setLoading(false);

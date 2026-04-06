@@ -95,4 +95,6 @@ export type FeedPageResponse = {
   items: FeedActivity[];
   nextCursor: string | null;
   events?: FeedStoryActivity[];
+  /** Present when served from stale-first API cache (`GET /api/feed`). */
+  fetched_at?: string;
 };

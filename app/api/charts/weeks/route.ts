@@ -1,7 +1,12 @@
 import { withHandler } from "@/lib/api-handler";
-import { apiBadRequest, apiOk } from "@/lib/api-response";
+import { apiBadRequest } from "@/lib/api-response";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 import { listWeeklyChartWeeksForUser } from "@/lib/charts/get-user-weekly-chart";
+import {
+  STALE_FIRST_STALE_AFTER_SEC,
+  STALE_FIRST_TTL_SEC,
+  staleFirstApiOk,
+} from "@/lib/cache/stale-first-cache";
 
 const TYPES: ChartType[] = ["tracks", "artists", "albums"];
 
@@ -24,19 +29,24 @@ export const GET = withHandler(
       156,
       Math.max(1, parseInt(searchParams.get("limit") ?? "104", 10) || 104),
     );
+    const bypassCache = searchParams.get("refresh") === "1";
+    const userId = me!.id;
+    const cacheKey = `billboard:weeks:${userId}:${chartType}:${limit}`;
 
-    const weeks = await listWeeklyChartWeeksForUser({
-      userId: me!.id,
-      chartType,
-      limit,
-    });
-
-    const res = apiOk({ weeks });
-    res.headers.set(
-      "Cache-Control",
-      "private, max-age=120, stale-while-revalidate=300",
+    return staleFirstApiOk(
+      cacheKey,
+      STALE_FIRST_TTL_SEC.billboard,
+      STALE_FIRST_STALE_AFTER_SEC.billboard,
+      async () => {
+        const weeks = await listWeeklyChartWeeksForUser({
+          userId,
+          chartType,
+          limit,
+        });
+        return { weeks };
+      },
+      { bypassCache },
     );
-    return res;
   },
   { requireAuth: true },
 );
