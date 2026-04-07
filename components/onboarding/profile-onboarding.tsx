@@ -2,20 +2,24 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   FavoriteAlbumsPicker,
-  MAX_FAVORITE_ALBUMS,
   type FavoriteAlbumPick,
 } from "@/components/favorite-albums-picker";
+import { ImageCropModal } from "@/components/profile/image-crop-modal";
 import { SampleWeeklyChartPreview } from "@/components/home/sample-weekly-chart-preview";
 import { LastfmConnectModal } from "@/components/onboarding/lastfm-connect-modal";
 import { LastfmSkipWarningDialog } from "@/components/onboarding/lastfm-skip-warning-dialog";
 import { FollowButton } from "@/components/follow-button";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import { uploadProfilePictureJPEG } from "@/lib/client/profile-picture-upload";
 import { queryKeys } from "@/lib/query-keys";
+import { resolveUserAvatarUrl } from "@/lib/profile-pictures/resolve-avatar-display";
+
+const MAX_PROFILE_PHOTO_INPUT_BYTES = 25 * 1024 * 1024;
 
 function pathWithWelcome(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`;
@@ -35,6 +39,8 @@ type SuggestedUser = {
 type Props = {
   userId: string;
   initialUsername: string;
+  /** Existing avatar (e.g. OAuth); optional upload can replace during step 1. */
+  initialAvatarUrl?: string | null;
   initialFavoriteAlbums: FavoriteAlbumPick[];
   /** If Last.fm was linked before this wizard, step 3 is a single “Continue”. */
   hasLastfmAlready?: boolean;
@@ -51,6 +57,7 @@ type Props = {
 export function ProfileOnboarding({
   userId,
   initialUsername,
+  initialAvatarUrl = null,
   initialFavoriteAlbums,
   hasLastfmAlready = false,
   nextPath = null,
@@ -61,13 +68,11 @@ export function ProfileOnboarding({
   const router = useRouter();
   const queryClient = useQueryClient();
   const { update: updateSession } = useSession();
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const savedAvatarUrlRef = useRef<string | null>(initialAvatarUrl);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [usernameInput, setUsernameInput] = useState(initialUsername);
-
-  useEffect(() => {
-    setUsernameInput(initialUsername);
-  }, [initialUsername]);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [favorites, setFavorites] =
     useState<FavoriteAlbumPick[]>(initialFavoriteAlbums);
@@ -78,8 +83,90 @@ export function ProfileOnboarding({
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [lastfmSkipWarningOpen, setLastfmSkipWarningOpen] = useState(false);
 
+  const [avatarDisplayUrl, setAvatarDisplayUrl] = useState<string | null>(
+    initialAvatarUrl,
+  );
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+  useEffect(() => {
+    setUsernameInput(initialUsername);
+  }, [initialUsername]);
+
+  useEffect(() => {
+    savedAvatarUrlRef.current = initialAvatarUrl;
+    setAvatarDisplayUrl(initialAvatarUrl);
+  }, [initialAvatarUrl]);
+
+  const revokeCropSrc = useCallback(() => {
+    setCropImageSrc((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (step !== 1) {
+      setCropModalOpen(false);
+      revokeCropSrc();
+    }
+  }, [step, revokeCropSrc]);
+
+  const pictureMutation = useMutation({
+    mutationFn: async (blob: Blob) =>
+      uploadProfilePictureJPEG(blob, { type: "user", id: userId }),
+    onMutate: (blob) => {
+      setPhotoError(null);
+      setAvatarDisplayUrl((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+    },
+    onSuccess: (result) => {
+      savedAvatarUrlRef.current = result.file_url;
+      setAvatarDisplayUrl((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return result.file_url;
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+    },
+    onError: (err) => {
+      setPhotoError(
+        err instanceof Error ? err.message : "Could not upload photo",
+      );
+      setAvatarDisplayUrl((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return savedAvatarUrlRef.current;
+      });
+    },
+  });
+
+  const avatarImgSrc = resolveUserAvatarUrl(userId, avatarDisplayUrl);
+  const displayNameForLetter =
+    usernameInput.trim() || initialUsername.trim() || "?";
+
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setPhotoError(null);
+    if (f.size > MAX_PROFILE_PHOTO_INPUT_BYTES) {
+      setPhotoError("Image is too large. Try a file under 25 MB.");
+      return;
+    }
+    revokeCropSrc();
+    setCropImageSrc(URL.createObjectURL(f));
+    setCropModalOpen(true);
+  };
+
+  const handleCropClose = () => {
+    setCropModalOpen(false);
+    revokeCropSrc();
+  };
 
   const finishAndGo = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
@@ -285,20 +372,31 @@ export function ProfileOnboarding({
         subtitle={`We’ll link listening to @${usernameInput.trim() || initialUsername} via Last.fm so your charts and feed match what you play.`}
       />
 
+      {cropImageSrc ? (
+        <ImageCropModal
+          imageSrc={cropImageSrc}
+          open={cropModalOpen}
+          onClose={handleCropClose}
+          onConfirm={async (blob) => {
+            await pictureMutation.mutateAsync(blob);
+          }}
+        />
+      ) : null}
+
       <div className="mx-auto w-full max-w-2xl py-4 sm:py-10">
         {inviteFlow ? (
           <div className="mb-10 rounded-2xl bg-emerald-950/45 px-5 py-5 text-center shadow-[0_12px_40px_-12px_rgba(6,78,59,0.35)] ring-1 ring-inset ring-emerald-400/20 sm:px-6">
             <p className="text-sm font-medium text-emerald-100 sm:text-base">
-              You're joining{" "}
+              You&apos;re joining{" "}
               <span className="text-white">
                 {communityInviteName ?? "a community"}
               </span>{" "}
-              — finish setup and we'll add you and open it when you're
+              — finish setup and we&apos;ll add you and open it when you&apos;re
               done.
             </p>
             <p className="mt-2 text-sm text-emerald-200/75">
-              Username, favorite albums, your listening chart, then meet members
-              — same steps as everyone else.
+              Username, optional profile photo, favorite albums, your listening
+              chart, then meet members — same steps as everyone else.
             </p>
           </div>
         ) : null}
@@ -350,6 +448,61 @@ export function ProfileOnboarding({
                   placeholder="your_username"
                 />
               </label>
+
+              <div className="border-t border-emerald-900/25 pt-6">
+                <p className={labelClass}>
+                  Profile photo{" "}
+                  <span className="font-normal text-zinc-500">(optional)</span>
+                </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Add a picture for your profile — crop and zoom before we save
+                  it. Skip this and add one later from your profile anytime.
+                </p>
+                <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-zinc-700 bg-zinc-800">
+                    {avatarImgSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- presigned / blob URLs
+                      <img
+                        src={avatarImgSrc}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-2xl font-medium text-zinc-400">
+                        {displayNameForLetter[0]?.toUpperCase() ?? "?"}
+                      </span>
+                    )}
+                    {pictureMutation.isPending ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-[10px] font-medium text-white">
+                        <InlineSpinner tone="emerald" />
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoFileChange}
+                    />
+                    <button
+                      type="button"
+                      disabled={stepBusy || pictureMutation.isPending}
+                      onClick={() => photoInputRef.current?.click()}
+                      className={secondaryBtn}
+                    >
+                      {avatarImgSrc ? "Change photo" : "Add photo"}
+                    </button>
+                    {photoError ? (
+                      <p className="text-sm text-red-400" role="alert">
+                        {photoError}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
               {usernameError ? (
                 <p className="text-sm text-red-400" role="alert">
                   {usernameError}
@@ -359,7 +512,7 @@ export function ProfileOnboarding({
                 <button
                   type="button"
                   onClick={() => void goStep1()}
-                  disabled={stepBusy}
+                  disabled={stepBusy || pictureMutation.isPending}
                   className={primaryBtn}
                 >
                   {stepBusy ? (
@@ -504,7 +657,7 @@ export function ProfileOnboarding({
           {step === 4 ? (
             <div className="mt-6 space-y-6 sm:mt-8">
               <div>
-                <h2 className={h2}>You're almost there</h2>
+                <h2 className={h2}>You&apos;re almost there</h2>
                 <p className={bodyMuted}>
                   {inviteFlow ? (
                     <>
@@ -513,7 +666,7 @@ export function ProfileOnboarding({
                         {communityInviteName ?? "this community"}
                       </span>
                       . Follow anyone you like — you can change this anytime.
-                      When you continue, we'll add you to the community and
+                      When you continue, we&apos;ll add you to the community and
                       take you there.
                     </>
                   ) : (

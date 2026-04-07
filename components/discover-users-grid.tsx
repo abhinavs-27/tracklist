@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import type { DiscoverUser, DiscoverUsersResponse } from '@/types';
+import { resolveUserAvatarUrl } from '@/lib/profile-pictures/resolve-avatar-display';
 import { FollowButton } from '@/components/follow-button';
 
 type SpotifyAlbumLite = {
@@ -114,6 +115,7 @@ export function DiscoverUsersGrid({ limit = 16 }: { limit?: number }) {
         const albumId = u.latest_album_spotify_id;
         const album = albumId ? albumsById[albumId] : null;
         const cover = album?.images?.[0]?.url;
+        const avatarSrc = resolveUserAvatarUrl(u.id, u.avatar_url);
         return (
           <article key={u.id} className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
             <div className="flex min-w-0 items-start justify-between gap-3">
@@ -122,8 +124,12 @@ export function DiscoverUsersGrid({ limit = 16 }: { limit?: number }) {
                 className="flex min-w-0 flex-1 items-center gap-3"
               >
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800">
-                  {u.avatar_url ? (
-                    <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                  {avatarSrc ? (
+                    <img
+                      src={avatarSrc}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">
                       {u.username?.[0]?.toUpperCase() ?? '?'}

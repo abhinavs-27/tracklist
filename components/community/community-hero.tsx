@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CommunityHeroTopArtist } from "@/lib/community/get-community-hero-data";
+import { resolveCommunityAvatarUrl } from "@/lib/profile-pictures/resolve-avatar-display";
 import {
   communityBody,
   communityInset,
@@ -16,6 +17,10 @@ type Props = {
   membersJoinedThisWeek: number;
   topThisWeek: CommunityHeroTopArtist[];
   backgroundImageUrls: string[];
+  /** Optional JPEG from `communities.avatar_url` (S3 or app proxy URL). */
+  avatarUrl?: string | null;
+  /** Required to resolve legacy S3 URLs to `/api/profile-pictures/community/:id`. */
+  communityId?: string;
   /** Toolbar actions — render top-right (Edit, Join, Joined, Leave, Sign in). */
   actions: React.ReactNode;
 };
@@ -75,9 +80,15 @@ export function CommunityHero({
   membersJoinedThisWeek,
   topThisWeek,
   backgroundImageUrls,
+  avatarUrl = null,
+  communityId,
   actions,
 }: Props) {
   const descriptionText = description?.trim() ?? "";
+  const communityAvatarSrc =
+    communityId && avatarUrl
+      ? resolveCommunityAvatarUrl(communityId, avatarUrl)
+      : avatarUrl;
 
   return (
     <div className="relative mb-8 w-full min-w-0 sm:mb-10">
@@ -101,6 +112,18 @@ export function CommunityHero({
           </div>
 
           <div className="mt-4 sm:mt-5">
+            <div className="flex flex-wrap items-start gap-4 sm:gap-5">
+              {communityAvatarSrc ? (
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-zinc-800/90 ring-1 ring-white/10 sm:h-[4.5rem] sm:w-[4.5rem]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={communityAvatarSrc}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : null}
+              <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2.5 gap-y-2">
               <h1 className={`text-balance ${pageTitle}`}>{name}</h1>
               {isPrivate ? (
@@ -137,6 +160,8 @@ export function CommunityHero({
                 {descriptionText}
               </p>
             ) : null}
+              </div>
+            </div>
           </div>
         </div>
 

@@ -50,7 +50,7 @@ async function getUserCommunitiesLegacy(
 
   const { data: comms, error: cErr } = await admin
     .from("communities")
-    .select("id, name, description, is_private, created_by, created_at")
+    .select("id, name, description, is_private, created_by, created_at, avatar_url")
     .in("id", ids)
     .order("created_at", { ascending: false });
 
@@ -104,6 +104,10 @@ export async function getUserCommunities(
         is_private: Boolean(row.is_private),
         created_by: String(row.created_by),
         created_at: String(row.created_at),
+        avatar_url:
+          row.avatar_url === null || row.avatar_url === undefined
+            ? null
+            : String(row.avatar_url),
         member_count: Math.max(0, Number(row.member_count) || 0),
         my_role,
       };
@@ -126,7 +130,7 @@ export async function getCommunityById(
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("communities")
-    .select("id, name, description, is_private, created_by, created_at")
+    .select("id, name, description, is_private, created_by, created_at, avatar_url")
     .eq("id", communityId.trim())
     .maybeSingle();
   if (error || !data) return null;
@@ -196,7 +200,7 @@ export async function createCommunity(
       is_private: !!input.is_private,
       created_by: userId,
     })
-    .select("id, name, description, is_private, created_by, created_at")
+    .select("id, name, description, is_private, created_by, created_at, avatar_url")
     .single();
 
   if (error || !row) {
@@ -403,7 +407,7 @@ export async function updateCommunitySettings(
     .from("communities")
     .update(updates)
     .eq("id", cid)
-    .select("id, name, description, is_private, created_by, created_at")
+    .select("id, name, description, is_private, created_by, created_at, avatar_url")
     .single();
 
   if (error || !row) {

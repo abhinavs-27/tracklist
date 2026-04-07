@@ -14,6 +14,8 @@ export type CommunityHeroStaticProps = {
   membersJoinedThisWeek: number;
   topThisWeek: CommunityHeroTopArtist[];
   backgroundImageUrls: string[];
+  avatarUrl?: string | null;
+  communityId?: string;
 };
 
 type Props = {

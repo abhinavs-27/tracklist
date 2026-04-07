@@ -30,6 +30,8 @@ export const queryKeys = {
   exploreDiscoveryBundle: (range: "24h" | "week") =>
     ["explore", "discovery-bundle", range] as const,
   feed: () => ["feed"] as const,
+  /** Signed-in user's favorite albums (`GET /api/users/me/favorites`). */
+  meFavoriteAlbums: () => ["me", "favoriteAlbums"] as const,
   /** GET `/api/notifications` + actor enrichment. */
   notifications: () => ["notifications"] as const,
   favorites: (userId: string) => ["favorites", userId] as const,

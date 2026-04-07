@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import type { CommunityRow } from "@/types";
+import { CommunityAvatarUpload } from "@/components/community/community-avatar-upload";
 
 export type CommunitySettingsRenderProps = {
   /** Edit + join/leave — place inside `CommunityHero` actions. */
@@ -116,6 +117,7 @@ export function CommunitySettings({
 
   const editFormInner = (
     <div className="space-y-4">
+      <CommunityAvatarUpload communityId={communityId} canEdit={canEdit} />
       <label className="block">
         <span className="text-xs font-medium text-zinc-400">Name</span>
         <input

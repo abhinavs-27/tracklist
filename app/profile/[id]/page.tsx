@@ -20,6 +20,7 @@ import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albu
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
+import { ProfileAvatarOptimisticProvider } from "@/components/profile/profile-avatar-context";
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -106,7 +107,6 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
-  const tHeaderStart = Date.now();
   const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
       getFollowCounts(user.id),
@@ -124,10 +124,6 @@ export default async function ProfilePage({
       return [];
     }),
   ]);
-  const headerMs = Date.now() - tHeaderStart;
-  if (headerMs > 100) {
-    console.log(`[perf] profile header data resolution ms=${headerMs} userId=${user.id}`);
-  }
 
   const counts =
     profileSettled[0].status === "fulfilled"
@@ -172,7 +168,7 @@ export default async function ProfilePage({
   const heroTaste: TasteIdentity = tasteForHero ?? EMPTY_TASTE;
   const heroLines = buildProfileHeroLines(heroTaste, streak);
 
-  return (
+  const main = (
     <div className={sectionGap}>
       <div
         className={`relative overflow-hidden ${cardElevated} bg-gradient-to-br from-zinc-900/90 via-zinc-900/85 to-zinc-900/80 p-6 ring-1 ring-white/[0.06] sm:p-8`}
@@ -201,6 +197,7 @@ export default async function ProfilePage({
             isOwnProfile={isOwnProfile}
             variant="hero"
             showHeading
+            showEditButton={false}
           />
         </div>
       </div>
@@ -224,5 +221,11 @@ export default async function ProfilePage({
         />
       </Suspense>
     </div>
+  );
+
+  return isOwnProfile ? (
+    <ProfileAvatarOptimisticProvider>{main}</ProfileAvatarOptimisticProvider>
+  ) : (
+    main
   );
 }

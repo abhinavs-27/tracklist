@@ -143,6 +143,8 @@ export type CommunityRow = {
   is_private: boolean;
   created_by: string;
   created_at: string;
+  /** Public profile image URL (JPEG), e.g. S3/CloudFront. */
+  avatar_url: string | null;
 };
 
 export type CommunityWithMeta = CommunityRow & {

@@ -17,6 +17,10 @@ type ProfileFavoriteAlbumsSectionProps = {
   showHeading?: boolean;
   /** Flat strip inside profile hero (no outer card) */
   variant?: "default" | "hero";
+  /**
+   * When false, no Edit / Add albums control (e.g. hero — use Edit profile instead).
+   */
+  showEditButton?: boolean;
 };
 
 export function ProfileFavoriteAlbumsSection({
@@ -25,6 +29,7 @@ export function ProfileFavoriteAlbumsSection({
   isOwnProfile,
   showHeading = true,
   variant = "default",
+  showEditButton = true,
 }: ProfileFavoriteAlbumsSectionProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -56,7 +61,7 @@ export function ProfileFavoriteAlbumsSection({
       ) : (
         <span className="sr-only">Favorite albums</span>
       )}
-      {isOwnProfile && (
+      {isOwnProfile && showEditButton ? (
         <button
           type="button"
           onClick={() => setEditOpen(true)}
@@ -64,7 +69,7 @@ export function ProfileFavoriteAlbumsSection({
         >
           {favoriteAlbums.length > 0 ? "Edit" : "Add albums"}
         </button>
-      )}
+      ) : null}
     </div>
   );
 
@@ -94,18 +99,20 @@ export function ProfileFavoriteAlbumsSection({
     <section className={shellClass}>
       {heading}
       {body}
-      <FavoriteAlbumsEditModal
-        initialAlbums={items}
-        isOpen={editOpen}
-        onClose={() => setEditOpen(false)}
-        onSaved={() => {
-          if (userId)
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.favorites(userId),
-            });
-          router.refresh();
-        }}
-      />
+      {showEditButton ? (
+        <FavoriteAlbumsEditModal
+          initialAlbums={items}
+          isOpen={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => {
+            if (userId)
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.favorites(userId),
+              });
+            router.refresh();
+          }}
+        />
+      ) : null}
     </section>
   );
 }

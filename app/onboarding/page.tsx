@@ -68,7 +68,7 @@ export default async function OnboardingPage({
   const admin = createSupabaseAdminClient();
   const { data: user, error: userErr } = await admin
     .from("users")
-    .select("id, username, lastfm_username, onboarding_completed")
+    .select("id, username, lastfm_username, onboarding_completed, avatar_url")
     .eq("id", userId)
     .maybeSingle();
 
@@ -81,6 +81,7 @@ export default async function OnboardingPage({
     username: string;
     lastfm_username: string | null;
     onboarding_completed: boolean;
+    avatar_url: string | null;
   };
 
   if (row.onboarding_completed === true) {
@@ -93,6 +94,7 @@ export default async function OnboardingPage({
     <ProfileOnboarding
       userId={row.id}
       initialUsername={row.username}
+      initialAvatarUrl={row.avatar_url ?? null}
       initialFavoriteAlbums={favoriteAlbums.map((f) => ({
         album_id: f.album_id,
         name: f.name,

@@ -2,6 +2,9 @@
 
 import { FollowButton } from './follow-button';
 import { FollowersModal } from "./followers-modal";
+import { ProfileAvatarPreviewDialog } from "@/components/profile/profile-avatar-preview-dialog";
+import { useProfileAvatarOptimistic } from "@/components/profile/profile-avatar-context";
+import { resolveUserAvatarUrl } from "@/lib/profile-pictures/resolve-avatar-display";
 import { useState, useEffect } from "react";
 
 interface ProfileHeaderProps {
@@ -40,10 +43,24 @@ export function ProfileHeader({
     "followers",
   );
   const [optimisticFollowerCount, setOptimisticFollowerCount] = useState(followersCount);
+  const [avatarPreviewOpen, setAvatarPreviewOpen] = useState(false);
+  const avatarCtx = useProfileAvatarOptimistic();
+  const displayAvatarUrl = avatarCtx?.optimisticAvatarUrl ?? avatarUrl;
+  const imgSrc = resolveUserAvatarUrl(userId, displayAvatarUrl);
 
   useEffect(() => {
     setOptimisticFollowerCount(followersCount);
   }, [followersCount]);
+
+  useEffect(() => {
+    if (
+      avatarCtx?.optimisticAvatarUrl &&
+      avatarUrl &&
+      avatarCtx.optimisticAvatarUrl === avatarUrl
+    ) {
+      avatarCtx.setOptimisticAvatarUrl(null);
+    }
+  }, [avatarUrl, avatarCtx]);
 
   const handleFollowChange = (isFollowingNow: boolean) => {
     setOptimisticFollowerCount((prev) =>
@@ -68,16 +85,26 @@ export function ProfileHeader({
           : "flex flex-row items-start gap-4 text-left"
       }
     >
-      <div
-        className={`shrink-0 overflow-hidden rounded-full bg-zinc-800 ${avatarClass}`}
-      >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+      <div className="shrink-0">
+        {imgSrc ? (
+          <button
+            type="button"
+            onClick={() => setAvatarPreviewOpen(true)}
+            className={`block h-full w-full overflow-hidden rounded-full bg-zinc-800 ring-offset-2 ring-offset-zinc-900 transition hover:ring-2 hover:ring-emerald-500/50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-emerald-500 ${avatarClass}`}
+            aria-label={`View larger photo for ${username}`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- blob + presigned display URLs */}
+            <img src={imgSrc} alt="" className="h-full w-full object-cover" />
+          </button>
         ) : (
           <div
-            className={`flex h-full w-full items-center justify-center text-zinc-500 ${isHero ? "text-4xl sm:text-5xl" : "text-3xl"}`}
+            className={`overflow-hidden rounded-full bg-zinc-800 ${avatarClass}`}
           >
-            {username[0]?.toUpperCase() ?? '?'}
+            <div
+              className={`flex h-full w-full items-center justify-center text-zinc-500 ${isHero ? "text-4xl sm:text-5xl" : "text-3xl"}`}
+            >
+              {username[0]?.toUpperCase() ?? '?'}
+            </div>
           </div>
         )}
       </div>
@@ -169,6 +196,14 @@ export function ProfileHeader({
         onClose={() => setFollowersOpen(false)}
         viewerUserId={viewerUserId ?? null}
       />
+      {imgSrc ? (
+        <ProfileAvatarPreviewDialog
+          open={avatarPreviewOpen}
+          onClose={() => setAvatarPreviewOpen(false)}
+          imageSrc={imgSrc}
+          username={username}
+        />
+      ) : null}
     </div>
   );
 }

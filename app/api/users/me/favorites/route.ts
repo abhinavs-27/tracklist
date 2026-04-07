@@ -9,6 +9,7 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
+import { getUserFavoriteAlbums } from "@/lib/queries";
 import { ensureSpotifyAlbumInCatalog } from "@/lib/spotify-cache";
 import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
 import type { SupabaseServerClient } from "@/lib/supabase-server";
@@ -52,6 +53,24 @@ async function resolveFavoriteAlbumUuid(
   }
 
   return null;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const me = await requireApiAuth(request);
+    const albums = await getUserFavoriteAlbums(me.id);
+    return apiOk({
+      albums: albums.map((a) => ({
+        album_id: a.album_id,
+        name: a.name,
+        image_url: a.image_url,
+      })),
+    });
+  } catch (e) {
+    const u = handleUnauthorized(e);
+    if (u) return u;
+    return apiInternalError(e);
+  }
 }
 
 export async function POST(request: NextRequest) {

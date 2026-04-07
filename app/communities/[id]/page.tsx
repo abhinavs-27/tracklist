@@ -112,6 +112,8 @@ export default async function CommunityDetailPage({
     membersJoinedThisWeek: memberGrowthWeek,
     topThisWeek: [] as CommunityHeroTopArtist[],
     backgroundImageUrls: heroListening.backgroundImageUrls,
+    avatarUrl: community.avatar_url ?? null,
+    communityId: id,
   };
 
   return (
