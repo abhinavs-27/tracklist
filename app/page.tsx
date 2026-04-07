@@ -32,11 +32,17 @@ export default async function HomePage({
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: onboardingRow, error: onboardingErr } = await admin
-    .from("users")
-    .select("onboarding_completed")
-    .eq("id", session.user.id)
-    .maybeSingle();
+  const [onboardingRes, billboardDrop] = await Promise.all([
+    admin
+      .from("users")
+      .select("onboarding_completed")
+      .eq("id", session.user.id)
+      .maybeSingle(),
+    getBillboardDropStatus(session.user.id),
+  ]);
+
+  const { data: onboardingRow, error: onboardingErr } = onboardingRes;
+
   if (onboardingErr) {
     console.error("[home] onboarding_completed lookup failed", onboardingErr);
   } else if (
@@ -46,8 +52,6 @@ export default async function HomePage({
   ) {
     redirect("/onboarding");
   }
-
-  const billboardDrop = await getBillboardDropStatus(session.user.id);
 
   return (
     <div className={sectionGap}>

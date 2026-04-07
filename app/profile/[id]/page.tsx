@@ -58,42 +58,45 @@ export default async function ProfilePage({
     typeof paramsResolved?.id === "string" ? paramsResolved.id.trim() : "";
   if (!segment) notFound();
 
-  const session = await getSession();
-
   const supabase = createSupabaseAdminClient();
-  let user: {
-    id: string;
-    username: string;
-    avatar_url: string | null;
-    bio: string | null;
-    created_at: string;
-    lastfm_username: string | null;
-    lastfm_last_synced_at: string | null;
-    onboarding_completed: boolean;
-  } | null = null;
-  let userError: unknown = null;
+  const sessionPromise = getSession();
 
-  if (segment && isValidUuid(segment)) {
-    const result = await supabase
-      .from("users")
-      .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
-      )
-      .eq("id", segment)
-      .maybeSingle();
-    user = result.data;
-    userError = result.error;
-  } else if (segment) {
-    const result = await supabase
-      .from("users")
-      .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
-      )
-      .eq("username", String(segment).trim())
-      .maybeSingle();
-    user = result.data;
-    userError = result.error;
-  }
+  const userPromise = (async () => {
+    if (segment && isValidUuid(segment)) {
+      return supabase
+        .from("users")
+        .select(
+          "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
+        )
+        .eq("id", segment)
+        .maybeSingle();
+    } else if (segment) {
+      return supabase
+        .from("users")
+        .select(
+          "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
+        )
+        .eq("username", String(segment).trim())
+        .maybeSingle();
+    }
+    return { data: null, error: null };
+  })();
+
+  const [session, userRes] = await Promise.all([sessionPromise, userPromise]);
+
+  const { data: user, error: userError } = userRes as {
+    data: {
+      id: string;
+      username: string;
+      avatar_url: string | null;
+      bio: string | null;
+      created_at: string;
+      lastfm_username: string | null;
+      lastfm_last_synced_at: string | null;
+      onboarding_completed: boolean;
+    } | null;
+    error: any;
+  };
 
   if (userError) {
     console.error("ProfilePage user fetch error:", userError);

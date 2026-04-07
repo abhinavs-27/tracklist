@@ -59,42 +59,56 @@ export const GET = withHandler(async (request: NextRequest) => {
     }
 
     // Parallelize independent fetches: users and album external IDs.
-    const [usersRes, albumExternalIdsRes] = await Promise.all([
+    const viewerId = viewer?.id ?? null;
+
+    // Parallelize independent fetches: users, album external IDs, and follow status.
+    const [usersRes, albumExternalIdsRes, followsRes] = await Promise.all([
       supabase
-        .from('users')
-        .select('id, username, avatar_url, bio, created_at')
-        .in('id', userIds),
+        .from("users")
+        .select("id, username, avatar_url, bio, created_at")
+        .in("id", userIds),
       (async () => {
         const albumUuids = [
           ...new Set(
-            [...latestAlbumByUser.values()].map((v) => v.album_id).filter(Boolean),
+            [...latestAlbumByUser.values()]
+              .map((v) => v.album_id)
+              .filter(Boolean),
           ),
         ];
-        if (albumUuids.length === 0) return { data: [] as { album_id: string; external_id: string }[] };
-        const res = await supabase
+        if (albumUuids.length === 0)
+          return {
+            data: [] as { album_id: string; external_id: string }[],
+          };
+        return supabase
           .from("album_external_ids")
           .select("album_id, external_id")
           .eq("source", "spotify")
           .in("album_id", albumUuids);
-        return res;
       })(),
+      viewerId
+        ? supabase
+            .from("follows")
+            .select("following_id")
+            .eq("follower_id", viewerId)
+            .in("following_id", userIds)
+        : Promise.resolve({ data: [] as { following_id: string }[] }),
     ]);
 
     if (usersRes.error) return apiInternalError(usersRes.error);
 
     const users = usersRes.data ?? [];
-    const viewerId = viewer?.id ?? null;
-
-    const enrichedUsers = await enrichUsersWithFollowStatus(
-      users.map((u) => ({
-        id: u.id,
-        username: u.username,
-        avatar_url: u.avatar_url,
-        bio: u.bio,
-        created_at: u.created_at,
-      })),
-      viewerId,
+    const followingSet = new Set(
+      (followsRes.data ?? []).map((f) => f.following_id),
     );
+
+    const enrichedUsers = users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      avatar_url: u.avatar_url,
+      bio: u.bio,
+      created_at: u.created_at,
+      is_following: followingSet.has(u.id),
+    }));
 
     const userMap = new Map(enrichedUsers.map((u) => [u.id, u]));
 

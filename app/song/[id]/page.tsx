@@ -34,19 +34,18 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const id = normalizeReviewEntityId(rawId);
   const session = await getServerSession(authOptions);
 
-  let track: SpotifyApi.TrackObjectFull;
-  try {
-    track = await getOrFetchTrack(id);
-  } catch {
-    notFound();
-  }
-
   const songSettled = await Promise.allSettled([
+    getOrFetchTrack(id),
     getReviewsForEntity("song", id),
     getEntityStats("song", id),
     getListenLogsForTrack(id, 10),
     getRelatedMedia("song", id, 12),
   ]);
+
+  if (songSettled[0].status === "rejected") {
+    notFound();
+  }
+  const track = songSettled[0].value;
 
   const defaultStats = {
     listen_count: 0,
@@ -54,26 +53,26 @@ export default async function SongPage({ params }: { params: PageParams }) {
     review_count: 0,
   };
   const reviewsData =
-    songSettled[0].status === "fulfilled"
-      ? songSettled[0].value
+    songSettled[1].status === "fulfilled"
+      ? songSettled[1].value
       : { reviews: [], average_rating: null, count: 0, my_review: null };
-  if (songSettled[0].status === "rejected")
-    console.error("[song] getReviewsForEntity failed:", songSettled[0].reason);
-  const stats =
-    songSettled[1].status === "fulfilled" ? songSettled[1].value : defaultStats;
   if (songSettled[1].status === "rejected")
-    console.error("[song] getEntityStats failed:", songSettled[1].reason);
-  const recentListens =
-    songSettled[2].status === "fulfilled" ? songSettled[2].value : [];
+    console.error("[song] getReviewsForEntity failed:", songSettled[1].reason);
+  const stats =
+    songSettled[2].status === "fulfilled" ? songSettled[2].value : defaultStats;
   if (songSettled[2].status === "rejected")
-    console.error(
-      "[song] getListenLogsForTrack failed:",
-      songSettled[2].reason,
-    );
-  const relatedSongsRaw =
+    console.error("[song] getEntityStats failed:", songSettled[2].reason);
+  const recentListens =
     songSettled[3].status === "fulfilled" ? songSettled[3].value : [];
   if (songSettled[3].status === "rejected")
-    console.error("[song] getRelatedMedia failed:", songSettled[3].reason);
+    console.error(
+      "[song] getListenLogsForTrack failed:",
+      songSettled[3].reason,
+    );
+  const relatedSongsRaw =
+    songSettled[4].status === "fulfilled" ? songSettled[4].value : [];
+  if (songSettled[4].status === "rejected")
+    console.error("[song] getRelatedMedia failed:", songSettled[4].reason);
 
   const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
   const relatedTracks =

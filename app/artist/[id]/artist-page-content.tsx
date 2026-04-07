@@ -26,19 +26,31 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const id = normalizeReviewEntityId(rawId);
   const session = await getServerSession(authOptions);
 
-  let artist: SpotifyApi.ArtistObjectFull;
-  try {
-    artist = await getOrFetchArtist(id, { allowNetwork: true });
-  } catch {
+  const [
+    artistRes,
+    topTracksRes,
+    popularAlbumsResultRes,
+    recentReviewsRes,
+  ] = await Promise.allSettled([
+    getOrFetchArtist(id, { allowNetwork: true }),
+    getTopTracksForArtist(id, 10),
+    getPopularAlbumsForArtist(id),
+    getReviewsForArtist(id, 8),
+  ]);
+
+  if (artistRes.status !== "fulfilled") {
     notFound();
   }
+  const artist = artistRes.value;
 
-  const [topTracks, popularAlbumsResult, recentReviews] =
-    await Promise.all([
-      getTopTracksForArtist(id, 10),
-      getPopularAlbumsForArtist(id),
-      getReviewsForArtist(id, 8),
-    ]);
+  const topTracks =
+    topTracksRes.status === "fulfilled" ? topTracksRes.value : [];
+  const popularAlbumsResult =
+    popularAlbumsResultRes.status === "fulfilled"
+      ? popularAlbumsResultRes.value
+      : { rows: [], hasMoreAlbums: false };
+  const recentReviews =
+    recentReviewsRes.status === "fulfilled" ? recentReviewsRes.value : [];
 
   const popularAlbums = popularAlbumsResult.rows;
   /** Spotify returned a full first page and a peek at offset=pageSize found more; full list loads on /albums. */
