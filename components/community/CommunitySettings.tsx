@@ -117,7 +117,12 @@ export function CommunitySettings({
 
   const editFormInner = (
     <div className="space-y-4">
-      <CommunityAvatarUpload communityId={communityId} canEdit={canEdit} />
+      <CommunityAvatarUpload
+        communityId={communityId}
+        canEdit={canEdit}
+        avatarUrl={community.avatar_url}
+        communityName={community.name}
+      />
       <label className="block">
         <span className="text-xs font-medium text-zinc-400">Name</span>
         <input

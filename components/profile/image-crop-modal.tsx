@@ -15,9 +15,17 @@ type Props = {
   onClose: () => void;
   /** Called with final JPEG blob (512px, ≤ ~300KB). */
   onConfirm: (blob: Blob) => void | Promise<void>;
+  /** Dialog heading (default: profile photo). */
+  title?: string;
 };
 
-export function ImageCropModal({ imageSrc, open, onClose, onConfirm }: Props) {
+export function ImageCropModal({
+  imageSrc,
+  open,
+  onClose,
+  onConfirm,
+  title = "Crop profile photo",
+}: Props) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(
@@ -72,7 +80,7 @@ export function ImageCropModal({ imageSrc, open, onClose, onConfirm }: Props) {
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <h2 id="image-crop-title" className="text-lg font-semibold text-white">
-            Crop profile photo
+            {title}
           </h2>
           <button
             type="button"
