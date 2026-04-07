@@ -108,7 +108,7 @@ export const POST = withHandler(
       return apiBadRequest('Invalid or unknown track_id / spotify_id');
     }
     if (trackIdRes.kind === 'pending') {
-      return NextResponse.json(
+      return apiOk(
         {
           error:
             'Catalog is syncing this track from Spotify. Retry in a few seconds.',
@@ -117,14 +117,14 @@ export const POST = withHandler(
           spotify_id: trackIdRes.spotifyId,
           entity: trackIdRes.entity,
         },
-        { status: 503 },
+        { status: 503 }
       );
     }
     const trackId = trackIdRes.id;
 
     const albumRes = await resolveLogEntityId(supabase, b.album_id, 'album');
     if (albumRes?.kind === 'pending') {
-      return NextResponse.json(
+      return apiOk(
         {
           error:
             'Catalog is syncing this album from Spotify. Retry in a few seconds.',
@@ -133,14 +133,14 @@ export const POST = withHandler(
           spotify_id: albumRes.spotifyId,
           entity: albumRes.entity,
         },
-        { status: 503 },
+        { status: 503 }
       );
     }
     const albumId = albumRes?.kind === 'resolved' ? albumRes.id : null;
 
     const artistRes = await resolveLogEntityId(supabase, b.artist_id, 'artist');
     if (artistRes?.kind === 'pending') {
-      return NextResponse.json(
+      return apiOk(
         {
           error:
             'Catalog is syncing this artist from Spotify. Retry in a few seconds.',
@@ -149,7 +149,7 @@ export const POST = withHandler(
           spotify_id: artistRes.spotifyId,
           entity: artistRes.entity,
         },
-        { status: 503 },
+        { status: 503 }
       );
     }
     const artistId = artistRes?.kind === 'resolved' ? artistRes.id : null;
