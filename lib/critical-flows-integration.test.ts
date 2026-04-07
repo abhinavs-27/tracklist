@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+
+vi.mock('server-only', () => ({}));
 import { POST as reviewPOST } from '../app/api/reviews/route';
 import { POST as logPOST } from '../app/api/logs/route';
 import { POST as syncPOST } from '../app/api/spotify/sync/route';
@@ -75,6 +77,12 @@ vi.mock('@/lib/queries', () => ({
     }
     return null;
   }),
+  fetchUserSummary: vi.fn(async (userId) => {
+    if (userId === 'test-user-id') {
+      return { id: 'test-user-id', username: 'testuser', avatar_url: null };
+    }
+    return null;
+  }),
   getListenLogsForUser: vi.fn(async () => []),
 }));
 
@@ -129,10 +137,9 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       mockSupabase.from.mockReturnValue(chain);
       chain.single
         .mockResolvedValueOnce({
-            data: { id: 'r1', entity_type: 'album', entity_id: 'a1', rating: 5, created_at: new Date().toISOString() },
+            data: { id: 'r1', entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 5, created_at: new Date().toISOString() },
             error: null
-        }) // upsert result
-        .mockResolvedValueOnce({ data: { id: 'test-user-id', username: 'testuser' }, error: null }); // user fetch
+        });
 
       const req = new NextRequest('http://localhost/api/reviews', {
         method: 'POST',
@@ -156,6 +163,26 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         });
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
+    });
+
+    it('should return 400 for invalid entity_id', async () => {
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'short', rating: 5 }),
+      });
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe('Invalid entity_id');
+    });
+
+    it('should return 400 for missing required fields', async () => {
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', rating: 5 }),
+      });
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
     });
   });
 
@@ -181,6 +208,17 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       const body = await res.json();
       expect(body.id).toBe('l1');
     });
+
+    it('should return 400 for missing track_id', async () => {
+      const req = new NextRequest('http://localhost/api/logs', {
+        method: 'POST',
+        body: JSON.stringify({ source: 'manual' }),
+      });
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe('Missing required field: track_id or spotify_id');
+    });
   });
 
   describe('POST /api/spotify/sync', () => {
@@ -192,13 +230,46 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           .mockReturnValueOnce(secondChain); // insert result fetch
 
         firstChain.in.mockResolvedValue({ data: [], error: null });
-        secondChain.select.mockResolvedValue({ data: [{ id: 'l1' }], error: null });
+        secondChain.select.mockResolvedValue({ data: [{ id: 'l1', track_id: 's1', listened_at: new Date().toISOString() }], error: null });
 
         const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
         const res = await syncPOST(req);
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.inserted).toBe(1);
+    });
+
+    it('should return 429 when rate limited', async () => {
+      const { checkSpotifyRateLimit } = await import('@/lib/rate-limit');
+      (checkSpotifyRateLimit as any).mockReturnValueOnce(false);
+
+      const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
+      const res = await syncPOST(req);
+      expect(res.status).toBe(429);
+    });
+
+    it('should return 400 when spotify is not connected', async () => {
+      const { getValidSpotifyAccessToken } = await import('@/lib/spotify-user');
+      (getValidSpotifyAccessToken as any).mockRejectedValueOnce(new Error('Spotify not connected'));
+
+      const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
+      const res = await syncPOST(req);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe('Spotify not connected');
+    });
+
+    it('should return 0 inserted when no new tracks are found', async () => {
+      const chain = createChain();
+      mockSupabase.from.mockReturnValue(chain);
+      chain.in.mockResolvedValue({ data: [{ track_id: 's1' }], error: null });
+
+      const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
+      const res = await syncPOST(req);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.inserted).toBe(0);
+      expect(body.skipped).toBe(1);
     });
   });
 
@@ -216,6 +287,15 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         const res = await userGET(req, { params: { username: 'missing' } } as any);
         expect(res.status).toBe(404);
     });
+
+    it('should handle internal query errors', async () => {
+      const { getFullUserProfile } = await import('@/lib/queries');
+      (getFullUserProfile as any).mockRejectedValueOnce(new Error('DB failure'));
+
+      const req = new NextRequest('http://localhost/api/users/testuser');
+      const res = await userGET(req, { params: { username: 'testuser' } } as any);
+      expect(res.status).toBe(500);
+    });
   });
 
   describe('GET /api/search', () => {
@@ -225,6 +305,23 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.artists.items[0].name).toBe('Test Artist');
+    });
+
+    it('should filter by type', async () => {
+      const req = new NextRequest('http://localhost/api/search?q=test&type=album');
+      const res = await searchGET(req);
+      expect(res.status).toBe(200);
+      const { searchSpotify } = await import('@/lib/spotify');
+      expect(searchSpotify).toHaveBeenCalledWith('test', ['album'], 10);
+    });
+
+    it('should apply custom limit (clamped to SEARCH_LIMIT)', async () => {
+      const req = new NextRequest('http://localhost/api/search?q=test&limit=25');
+      const res = await searchGET(req);
+      expect(res.status).toBe(200);
+      const { searchSpotify } = await import('@/lib/spotify');
+      // LIMITS.SEARCH_LIMIT is 10
+      expect(searchSpotify).toHaveBeenCalledWith('test', ['artist', 'album', 'track'], 10);
     });
 
     it('should return 400 for empty query', async () => {
