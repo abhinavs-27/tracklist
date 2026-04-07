@@ -41,7 +41,17 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         listen_count: 0,
         average_rating: null,
         review_count: 0,
-        rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        rating_distribution: {
+          "1": 0,
+          "1.5": 0,
+          "2": 0,
+          "2.5": 0,
+          "3": 0,
+          "3.5": 0,
+          "4": 0,
+          "4.5": 0,
+          "5": 0,
+        },
       };
 
       const sessionVal = sessionRes.status === "fulfilled" ? sessionRes.value : null;

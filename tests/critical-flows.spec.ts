@@ -65,7 +65,7 @@ test.describe('Critical Flows Integration', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // 4. Fill in the review
-    await page.getByRole('button', { name: '5 stars' }).click();
+    await page.getByRole('button', { name: '5 out of 5 stars' }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Excellent album');
 
     // 5. Submit and wait for request

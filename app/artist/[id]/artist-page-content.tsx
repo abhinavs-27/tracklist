@@ -12,6 +12,7 @@ import {
   getReviewsForArtist,
   getPopularAlbumsForArtist,
 } from "@/lib/queries";
+import { formatStarDisplay } from "@/lib/ratings";
 import { normalizeReviewEntityId } from "@/lib/validation";
 import { ArtistPopularTracks } from "@/app/artist/[id]/artist-popular-tracks";
 import { RecentListensSection } from "./recent-listens-section";
@@ -144,8 +145,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
               >
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-amber-400">
-                    {"★".repeat(Math.min(5, Math.max(1, r.rating)))}
-                    {"☆".repeat(5 - Math.min(5, Math.max(1, r.rating)))}
+                    {formatStarDisplay(Math.max(0, Math.min(5, Number(r.rating))))}
                   </span>
                   <Link
                     href={r.user_id ? `/profile/${r.user_id}` : "#"}

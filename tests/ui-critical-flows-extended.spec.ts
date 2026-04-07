@@ -42,7 +42,7 @@ test.describe('Extended UI Critical Flows', () => {
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    await page.getByRole('button', { name: '5 stars' }).click();
+    await page.getByRole('button', { name: '5 out of 5 stars' }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Excellent album');
 
     const [request] = await Promise.all([

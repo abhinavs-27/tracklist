@@ -184,6 +184,15 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   );
 });
 
+function formatStarDisplayHalf(rating: number): string {
+  const r = Math.max(0, Math.min(5, Number(rating)));
+  const halves = Math.round(r * 2) / 2;
+  const full = Math.floor(halves);
+  const hasHalf = halves - full >= 0.5 && halves < 5;
+  const empty = 5 - full - (hasHalf ? 1 : 0);
+  return "★".repeat(full) + (hasHalf ? "½" : "") + "☆".repeat(Math.max(0, empty));
+}
+
 function ReviewBlock({
   activity,
 }: {
@@ -193,7 +202,7 @@ function ReviewBlock({
   const review = activity.review;
   const user = review.user;
   const username = user?.username ?? "Unknown";
-  const rating = Math.max(0, Math.min(5, Math.floor(review.rating)));
+  const ratingNum = Math.max(0, Math.min(5, Number(review.rating)));
   const typeLabel = review.entity_type === "album" ? "Album" : "Track";
   const displayName = displayEntityName(activity.spotifyName, review.entity_type);
 
@@ -228,9 +237,11 @@ function ReviewBlock({
         </Text>
       </Text>
       <View style={styles.ratingRow}>
-        <Text style={styles.stars} accessibilityLabel={`Rating ${rating} of 5`}>
-          {"★".repeat(rating)}
-          {"☆".repeat(5 - rating)}
+        <Text
+          style={styles.stars}
+          accessibilityLabel={`Rating ${ratingNum.toFixed(1)} of 5`}
+        >
+          {formatStarDisplayHalf(ratingNum)}
         </Text>
         <Text style={styles.timeSmall}>
           {formatRelativeTime(review.created_at)}

@@ -209,11 +209,24 @@ export function validateEntityType(type: unknown): { ok: true; value: 'album' | 
 }
 
 export function validateRating(rating: unknown): { ok: true; value: number } | { ok: false; error: string } {
-  const r = Number(rating);
-  if (!Number.isInteger(r) || r < 1 || r > 5) {
-    return { ok: false, error: 'rating must be an integer 1–5' };
+  const r = typeof rating === "string" ? Number(rating.trim()) : Number(rating);
+  if (!Number.isFinite(r)) {
+    return {
+      ok: false,
+      error: "rating must be a number between 1 and 5 in half-star steps",
+    };
   }
-  return { ok: true, value: r };
+  const halves = Math.round(r * 2);
+  if (halves < 2 || halves > 10) {
+    return { ok: false, error: "rating must be between 1 and 5" };
+  }
+  if (Math.abs(r * 2 - halves) > 1e-9) {
+    return {
+      ok: false,
+      error: "rating must use half-star steps (1, 1.5, 2, … 5)",
+    };
+  }
+  return { ok: true, value: halves / 2 };
 }
 
 export function validateListType(type: unknown): { ok: true; value: 'album' | 'song' } | { ok: false; error: string } {

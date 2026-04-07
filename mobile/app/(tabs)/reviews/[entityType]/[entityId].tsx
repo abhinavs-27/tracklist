@@ -9,16 +9,22 @@ import { CommentThread } from "@/components/reviews/CommentThread";
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "@/lib/api";
 
-function clampStars(r: number) {
-  const n = Math.floor(r);
-  return Math.max(1, Math.min(5, n));
+const HALF_STAR_RATINGS = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
+
+function formatStarLine(rating: number): string {
+  const r = Math.max(0, Math.min(5, Number(rating)));
+  const halves = Math.round(r * 2) / 2;
+  const full = Math.floor(halves);
+  const hasHalf = halves - full >= 0.5 && halves < 5;
+  const empty = 5 - full - (hasHalf ? 1 : 0);
+  return "★".repeat(full) + (hasHalf ? "½" : "") + "☆".repeat(Math.max(0, empty));
 }
 
 function Stars({ rating }: { rating: number }) {
-  const r = clampStars(rating);
+  const r = Math.max(0, Math.min(5, Number(rating)));
   return (
     <Text style={{ color: theme.colors.amber, fontSize: 14, fontWeight: "900" }}>
-      ★ {r.toString()}
+      {formatStarLine(r)} {r.toFixed(1)}
     </Text>
   );
 }
@@ -109,13 +115,32 @@ export default function ReviewsScreen() {
         {myReview ? "Edit your review" : "Add your review"}
       </Text>
 
-      <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-        {[1, 2, 3, 4, 5].map((r) => {
-          const active = r <= rating;
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {HALF_STAR_RATINGS.map((r) => {
+          const active = rating === r;
           return (
-            <Pressable key={r} onPress={() => setRating(r)} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
-              <Text style={{ fontSize: 28, color: active ? theme.colors.amber : theme.colors.muted, fontWeight: "900" }}>
-                ★
+            <Pressable
+              key={r}
+              onPress={() => setRating(r)}
+              style={({ pressed }) => ({
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: active ? theme.colors.emerald : theme.colors.border,
+                backgroundColor: active ? "rgba(16,185,129,0.2)" : theme.colors.panel,
+                opacity: pressed ? 0.85 : 1,
+              })}
+              accessibilityLabel={`${r} out of 5 stars`}
+            >
+              <Text
+                style={{
+                  color: active ? theme.colors.emerald : theme.colors.text,
+                  fontWeight: "900",
+                  fontSize: 14,
+                }}
+              >
+                {r}
               </Text>
             </Pressable>
           );
@@ -239,7 +264,7 @@ export default function ReviewsScreen() {
                 {item.username ?? "Anonymous"}
               </Text>
               <Text style={{ color: theme.colors.amber, fontWeight: "900" }}>
-                ★ {clampStars(item.rating).toFixed(0)}
+                {formatStarLine(item.rating)} {Number(item.rating).toFixed(1)}
               </Text>
             </View>
 

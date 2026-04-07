@@ -14,6 +14,7 @@ import {
   clampLimit,
   isValidSpotifyId,
   isValidUuid,
+  validateRating,
   validateReviewContent,
 } from "../lib/validation";
 import { getReviewsForEntity } from "../services/reviewsService";
@@ -69,9 +70,9 @@ reviewsRouter.post("/", async (req, res) => {
     if (!isValidSpotifyId(entity_id)) {
       return badRequest(res, "Invalid entity_id (Spotify ID)");
     }
-    const r = Number(rating);
-    if (!Number.isInteger(r) || r < 1 || r > 5) {
-      return badRequest(res, "rating must be an integer 1–5");
+    const ratingResult = validateRating(rating);
+    if (!ratingResult.ok) {
+      return badRequest(res, ratingResult.error);
     }
     const reviewText = validateReviewContent(review_text);
 
@@ -80,7 +81,7 @@ reviewsRouter.post("/", async (req, res) => {
       user_id: userId,
       entity_type: entity_type as string,
       entity_id: entity_id as string,
-      rating: r,
+      rating: ratingResult.value,
       review_text: reviewText,
       updated_at: new Date().toISOString(),
     };
@@ -159,11 +160,11 @@ reviewsRouter.patch("/:id", async (req, res) => {
       updated_at: new Date().toISOString(),
     };
     if (rating != null) {
-      const r = Number(rating);
-      if (!Number.isInteger(r) || r < 1 || r > 5) {
-        return badRequest(res, "rating must be an integer 1–5");
+      const ratingResult = validateRating(rating);
+      if (!ratingResult.ok) {
+        return badRequest(res, ratingResult.error);
       }
-      updates.rating = r;
+      updates.rating = ratingResult.value;
     }
     if (review_text !== undefined) {
       updates.review_text = validateReviewContent(review_text);

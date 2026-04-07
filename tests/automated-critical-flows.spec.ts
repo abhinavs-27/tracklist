@@ -72,7 +72,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // 3. Fill and submit
-    await page.getByRole('button', { name: '4 stars' }).click();
+    await page.getByRole('button', { name: '4 out of 5 stars' }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Testing automated review creation');
 
     const [response] = await Promise.all([

@@ -10,6 +10,7 @@ import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
 import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
 import { AlbumFavoritedByModal } from "@/components/album-favorited-by-modal";
+import { HALF_STAR_RATINGS } from "@/lib/ratings";
 import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
 
 function AlbumLazySectionSkeleton() {
@@ -90,7 +91,12 @@ export type AlbumPageClientProps = {
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
   session: boolean;
   viewerUserId: string | null;
-  stats: { listen_count: number; average_rating: number | null; review_count: number; rating_distribution?: Record<number, number> };
+  stats: {
+    listen_count: number;
+    average_rating: number | null;
+    review_count: number;
+    rating_distribution?: Record<string, number>;
+  };
   engagementStats: {
     listen_count: number;
     review_count: number;
@@ -250,19 +256,32 @@ export function AlbumPageClient({
             {stats.rating_distribution && stats.review_count > 0 && (
               <div className="mt-3 flex flex-col gap-1">
                 <p className="text-xs text-zinc-500">Rating distribution</p>
-                <div className="flex items-end gap-1" role="img" aria-label="Rating distribution">
-                  {([1, 2, 3, 4, 5] as const).map((star) => {
-                    const count = stats.rating_distribution![star];
+                <div
+                  className="flex items-end gap-0.5 overflow-x-auto pb-1"
+                  role="img"
+                  aria-label="Rating distribution"
+                >
+                  {HALF_STAR_RATINGS.map((star) => {
+                    const key = String(star);
+                    const count = stats.rating_distribution![key] ?? 0;
                     const max = Math.max(...Object.values(stats.rating_distribution!));
                     const height = max > 0 ? (count / max) * 32 : 0;
                     return (
-                      <div key={star} className="flex flex-1 flex-col items-center gap-0.5">
+                      <div
+                        key={key}
+                        className="flex min-w-[1.25rem] flex-1 flex-col items-center gap-0.5"
+                      >
                         <div
                           className="w-full rounded-t bg-amber-500/40"
-                          style={{ height: `${Math.max(height, 2)}px`, minHeight: "2px" }}
-                          title={`${star} star: ${count}`}
+                          style={{
+                            height: `${Math.max(height, 2)}px`,
+                            minHeight: "2px",
+                          }}
+                          title={`${key} stars: ${count}`}
                         />
-                        <span className="text-[10px] text-zinc-500">{star}</span>
+                        <span className="whitespace-nowrap text-[8px] leading-none text-zinc-500 sm:text-[9px]">
+                          {key}
+                        </span>
                       </div>
                     );
                   })}

@@ -18,7 +18,8 @@
   "include": [
     "./**/*.ts",
     "./types/**/*.d.ts",
-    "../lib/user-search-directory.ts"
+    "../lib/user-search-directory.ts",
+    "../lib/ratings.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

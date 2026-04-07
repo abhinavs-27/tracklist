@@ -67,7 +67,7 @@ test.describe('Album review instant update', () => {
     await addReviewBtn.click();
 
     // Fill form: 5 stars and our unique text
-    await page.getByRole('button', { name: /5 stars?/i }).click();
+    await page.getByRole('button', { name: /5 out of 5 stars/i }).click();
     const textarea = page.getByPlaceholder(/what do you think/i);
     await textarea.fill(UNIQUE_REVIEW_TEXT);
 

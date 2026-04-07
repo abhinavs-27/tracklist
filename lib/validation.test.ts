@@ -24,8 +24,8 @@ describe('validation utilities', () => {
   });
 
   describe('validateRating', () => {
-    it('should return ok: true for ratings 1-5', () => {
-      [1, 2, 3, 4, 5].forEach((r) => {
+    it('should return ok: true for half-star ratings 1–5', () => {
+      [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].forEach((r) => {
         expect(validateRating(r)).toEqual({ ok: true, value: r });
       });
     });
@@ -33,8 +33,9 @@ describe('validation utilities', () => {
     it('should return ok: false for invalid ratings', () => {
       expect(validateRating(0)).toMatchObject({ ok: false });
       expect(validateRating(6)).toMatchObject({ ok: false });
-      expect(validateRating(2.5)).toMatchObject({ ok: false });
+      expect(validateRating(2.25)).toMatchObject({ ok: false });
       expect(validateRating('5')).toEqual({ ok: true, value: 5 });
+      expect(validateRating('3.5')).toEqual({ ok: true, value: 3.5 });
       expect(validateRating('invalid')).toMatchObject({ ok: false });
     });
   });

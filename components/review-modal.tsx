@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { StarRatingInput } from '@/components/ui/star-rating';
 
 export type CreateReviewPayload = {
   rating: number;
@@ -62,21 +63,7 @@ export function ReviewModal({ spotifyName, onClose, onSuccess, createReview }: R
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="space-y-1">
             <label className="block text-sm font-medium text-zinc-300">Rating</label>
-            <div className="flex gap-1" aria-label="Select rating from 1 to 5 stars">
-              {[1, 2, 3, 4, 5].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRating(r)}
-                  className={`rounded px-2 py-1 text-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-400/70 ${
-                    rating >= r ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                  aria-label={`${r} star${r > 1 ? 's' : ''}`}
-                >
-                  ★
-                </button>
-              ))}
-            </div>
+            <StarRatingInput value={rating} onChange={setRating} disabled={loading} />
           </div>
           <div className="space-y-1">
             <label className="block text-sm font-medium text-zinc-300">Review (optional)</label>

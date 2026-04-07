@@ -6,11 +6,11 @@ import { VirtualReviewList } from "@/components/virtual-review-list";
 import type { ReviewsResponse } from "@/lib/hooks/use-reviews";
 import { useAlbumReviewsContext } from "@/app/album/[id]/album-reviews-context";
 import { normalizeReviewEntityId } from "@/lib/validation";
-
-function formatStars(rating: number) {
-  const r = Math.max(1, Math.min(5, Math.floor(rating)));
-  return "★".repeat(r) + "☆".repeat(5 - r);
-}
+import {
+  formatStarDisplay,
+  roundRatingToHalfStep,
+} from "@/lib/ratings";
+import { StarRatingInput } from "@/components/ui/star-rating";
 
 export type ReviewsSectionWithDataProps = {
   entityType: "album" | "song";
@@ -91,7 +91,10 @@ export function ReviewsSectionWithData({
         <div className="flex items-center gap-3">
           {average != null && (
             <span className="text-amber-400" title={`Average: ${average}`}>
-              {formatStars(Math.round(average))} ({average.toFixed(1)})
+              <span className="mr-1.5 inline-flex align-middle">
+                {formatStarDisplay(roundRatingToHalfStep(average))}
+              </span>
+              ({average.toFixed(1)})
             </span>
           )}
           {count > 0 && (
@@ -128,19 +131,11 @@ export function ReviewsSectionWithData({
             <label className="block text-sm font-medium text-zinc-300">
               Rating
             </label>
-            <div className="mt-1 flex gap-1">
-              {[1, 2, 3, 4, 5].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setEditRating(r)}
-                  className={`rounded px-2 py-1 text-lg ${editRating >= r ? "text-amber-400" : "text-zinc-500"}`}
-                  aria-label={`${r} stars`}
-                >
-                  ★
-                </button>
-              ))}
-            </div>
+            <StarRatingInput
+              value={editRating}
+              onChange={setEditRating}
+              disabled={submitLoading}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-zinc-300">

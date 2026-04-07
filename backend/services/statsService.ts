@@ -3,6 +3,11 @@ import {
   resolveCanonicalTrackUuidFromEntityId,
 } from "../lib/catalogEntityResolution";
 import { getSupabase } from "../lib/supabase";
+import {
+  defaultRatingDistribution,
+  normalizeRatingDistribution,
+  ratingDistributionKey,
+} from "../lib/ratings";
 
 const LOG_COUNT_CHUNK = 400;
 
@@ -46,21 +51,15 @@ export type EntityStats = {
   listen_count: number;
   average_rating: number | null;
   review_count: number;
-  /** Count of reviews per star 1–5 for histogram/bar chart. */
-  rating_distribution?: {
-    1: number;
-    2: number;
-    3: number;
-    4: number;
-    5: number;
-  };
+  /** Count per half-star step; string keys "1" … "5" (JSONB). */
+  rating_distribution?: Record<string, number>;
 };
 
 const DEFAULT_ENTITY_STATS: EntityStats = {
   listen_count: 0,
   average_rating: null,
   review_count: 0,
-  rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  rating_distribution: defaultRatingDistribution(),
 };
 
 function mapAlbumStatsRow(row: {
@@ -69,20 +68,9 @@ function mapAlbumStatsRow(row: {
   avg_rating: number | null;
   rating_distribution: unknown;
 }): EntityStats {
-  const dist = row.rating_distribution as Record<string, number> | null;
-  const rating_distribution: {
-    1: number;
-    2: number;
-    3: number;
-    4: number;
-    5: number;
-  } = {
-    1: dist?.["1"] ?? 0,
-    2: dist?.["2"] ?? 0,
-    3: dist?.["3"] ?? 0,
-    4: dist?.["4"] ?? 0,
-    5: dist?.["5"] ?? 0,
-  };
+  const rating_distribution = normalizeRatingDistribution(
+    row.rating_distribution,
+  );
   return {
     listen_count: row.listen_count ?? 0,
     average_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
@@ -149,22 +137,12 @@ async function getEntityStatsLive(
   const average_rating =
     review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
 
-  const rating_distribution: {
-    1: number;
-    2: number;
-    3: number;
-    4: number;
-    5: number;
-  } = {
-    1: 0,
-    2: 0,
-    3: 0,
-    4: 0,
-    5: 0,
-  };
+  const rating_distribution = defaultRatingDistribution();
   for (const r of ratings) {
-    const star = Math.max(1, Math.min(5, Math.floor(r)));
-    rating_distribution[star as 1 | 2 | 3 | 4 | 5]++;
+    const key = ratingDistributionKey(Number(r));
+    if (key in rating_distribution) {
+      rating_distribution[key]++;
+    }
   }
 
   return { listen_count, average_rating, review_count, rating_distribution };

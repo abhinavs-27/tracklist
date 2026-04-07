@@ -37,7 +37,7 @@ test.describe('Review modal (album/track)', () => {
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('heading', { name: /rate.*review/i })).toBeVisible();
 
-    await page.getByRole('button', { name: /5 stars?/i }).click();
+    await page.getByRole('button', { name: /5 out of 5 stars/i }).click();
     await page.getByRole('button', { name: /^save review$/i }).click();
 
     const req = await page.waitForRequest((r) => r.url().includes('/api/reviews') && r.method() === 'POST');
@@ -66,7 +66,7 @@ test.describe('Review modal (album/track)', () => {
     await page.getByRole('button', { name: /rate.*review/i }).nth(1).click();
     await expect(page.getByText(/demo track/i)).toBeVisible();
 
-    await page.getByRole('button', { name: /4 stars?/i }).click();
+    await page.getByRole('button', { name: /4 out of 5 stars/i }).click();
     await page.getByRole('button', { name: /^save review$/i }).click();
 
     const req = await page.waitForRequest((r) => r.url().includes('/api/reviews') && r.method() === 'POST');

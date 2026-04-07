@@ -15,8 +15,8 @@ describe('Critical Flow Validation Tests', () => {
       expect(validateRating(10)).toMatchObject({ ok: false });
     });
 
-    it('should accept valid ratings 1-5', () => {
-      [1, 2, 3, 4, 5].forEach(r => {
+    it('should accept valid half-star ratings 1–5', () => {
+      [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].forEach((r) => {
         expect(validateRating(r)).toEqual({ ok: true, value: r });
       });
     });

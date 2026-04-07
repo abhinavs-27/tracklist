@@ -79,7 +79,7 @@ test.describe('Critical Flows: Main Integration', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // 3. Interaction
-    await page.getByRole('button', { name: '5 stars' }).click();
+    await page.getByRole('button', { name: '5 out of 5 stars' }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Top tier album!');
 
     const [response] = await Promise.all([

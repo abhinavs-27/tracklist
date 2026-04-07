@@ -16,8 +16,8 @@ type Props = {
 };
 
 function RatingStars({ rating }: { rating: number }) {
-  const safe = Math.max(1, Math.min(5, rating));
-  return <Text style={styles.rating}>★ {safe.toFixed(0)}</Text>;
+  const safe = Math.max(0, Math.min(5, Number(rating)));
+  return <Text style={styles.rating}>★ {safe.toFixed(1)}</Text>;
 }
 
 export function ReviewList({ reviews, viewAllLabel = "View all reviews", onViewAllPress }: Props) {

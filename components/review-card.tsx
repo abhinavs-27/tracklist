@@ -7,6 +7,7 @@ import { formatRelativeTime } from '@/lib/time';
 import { LikeButton } from './like-button';
 import { CommentThread } from './comment-thread';
 import { cardOutlined } from "@/lib/ui/surface";
+import { formatStarDisplay } from "@/lib/ratings";
 
 interface ReviewCardProps {
   review: ReviewWithUser;
@@ -29,7 +30,7 @@ function ReviewCardInner({
   variant = "default",
 }: ReviewCardProps) {
   const user = review.user;
-  const rating = Math.max(0, Math.min(5, Math.floor(review.rating)));
+  const ratingNum = Math.max(0, Math.min(5, Number(review.rating)));
   const fallback = review.entity_type === 'album' ? 'Unknown album' : 'Unknown track';
   const rawName = spotifyName ?? fallback;
   const displayName =
@@ -59,9 +60,11 @@ function ReviewCardInner({
         </h2>
         <p className="mt-2 text-[11px] uppercase tracking-wide text-zinc-500">{typeLabel}</p>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-          <span className="text-amber-400" aria-label={`Rating: ${rating} out of 5`}>
-            {"★".repeat(rating)}
-            {"☆".repeat(5 - rating)}
+          <span
+            className="text-amber-400"
+            aria-label={`Rating: ${ratingNum} out of 5`}
+          >
+            {formatStarDisplay(ratingNum)}
           </span>
           <span className="tabular-nums">{formatRelativeTime(review.created_at)}</span>
         </div>
@@ -116,8 +119,11 @@ function ReviewCardInner({
           </Link>
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs sm:text-[13px]">
-          <span className="text-amber-400" aria-label={`Rating: ${rating} out of 5`}>
-            {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
+          <span
+            className="text-amber-400"
+            aria-label={`Rating: ${ratingNum} out of 5`}
+          >
+            {formatStarDisplay(ratingNum)}
           </span>
           <span className="text-xs text-zinc-500">
             {formatRelativeTime(review.created_at)}

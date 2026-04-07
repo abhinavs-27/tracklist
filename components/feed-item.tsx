@@ -14,6 +14,7 @@ import { StoryFeedCard } from '@/components/feed/story-feed-card';
 import { ListenSessionSingleStoryCard } from '@/components/feed/listen-session-feed-card';
 import type { EnrichedFeedActivity } from '@/components/feed/group-feed-items';
 import { FeedActivityEngagement } from '@/components/feed/feed-activity-engagement';
+import { formatStarDisplay } from '@/lib/ratings';
 
 const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   activity,
@@ -106,11 +107,6 @@ interface FeedItemProps {
   viewerUserId: string;
 }
 
-function starsRow(rating: number): string {
-  const r = Math.max(0, Math.min(5, Math.round(rating)));
-  return `${"★".repeat(r)}${"☆".repeat(5 - r)}`;
-}
-
 const FeedStoryBlock = memo(function FeedStoryBlock({
   activity,
 }: {
@@ -187,7 +183,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
               {title}
             </Link>
             <span className="ml-2 text-amber-400/95" aria-label={`${rating} stars`}>
-              {starsRow(rating)}
+              {formatStarDisplay(rating)}
             </span>
           </>
         );

@@ -64,7 +64,7 @@ test.describe('Critical Flows: V3 Integration', () => {
 
     await page.goto('/e2e/logging');
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
-    await page.getByRole('button', { name: '4 stars' }).click();
+    await page.getByRole('button', { name: '4 out of 5 stars' }).click();
     await page.getByPlaceholder(/what did you think/i).fill('V3 success review');
 
     const [response] = await Promise.all([

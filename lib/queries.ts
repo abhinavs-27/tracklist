@@ -21,6 +21,11 @@ import {
   resolveCanonicalTrackUuidFromEntityId,
 } from "@/lib/catalog/entity-resolution";
 import {
+  defaultRatingDistribution,
+  normalizeRatingDistribution,
+  ratingDistributionKey,
+} from "@/lib/ratings";
+import {
   isValidLfmCatalogId,
   isValidSpotifyId,
   isValidUuid,
@@ -438,21 +443,15 @@ export type EntityStats = {
   listen_count: number;
   average_rating: number | null;
   review_count: number;
-  /** Count of reviews per star 1–5 for histogram/bar chart. */
-  rating_distribution?: {
-    1: number;
-    2: number;
-    3: number;
-    4: number;
-    5: number;
-  };
+  /** Count of reviews per half-star step (string keys for JSONB: "1", "1.5", … "5"). */
+  rating_distribution?: Record<string, number>;
 };
 
 const DEFAULT_ENTITY_STATS: EntityStats = {
   listen_count: 0,
   average_rating: null,
   review_count: 0,
-  rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  rating_distribution: defaultRatingDistribution(),
 };
 
 function mapAlbumStatsRow(row: {
@@ -461,20 +460,9 @@ function mapAlbumStatsRow(row: {
   avg_rating: number | null;
   rating_distribution: unknown;
 }): EntityStats {
-  const dist = row.rating_distribution as Record<string, number> | null;
-  const rating_distribution: {
-    1: number;
-    2: number;
-    3: number;
-    4: number;
-    5: number;
-  } = {
-    1: dist?.["1"] ?? 0,
-    2: dist?.["2"] ?? 0,
-    3: dist?.["3"] ?? 0,
-    4: dist?.["4"] ?? 0,
-    5: dist?.["5"] ?? 0,
-  };
+  const rating_distribution = normalizeRatingDistribution(
+    row.rating_distribution,
+  );
   return {
     listen_count: row.listen_count ?? 0,
     average_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
@@ -544,22 +532,12 @@ async function getEntityStatsLive(
   const average_rating =
     review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
 
-  const rating_distribution: {
-    1: number;
-    2: number;
-    3: number;
-    4: number;
-    5: number;
-  } = {
-    1: 0,
-    2: 0,
-    3: 0,
-    4: 0,
-    5: 0,
-  };
+  const rating_distribution = defaultRatingDistribution();
   for (const r of ratings) {
-    const star = Math.max(1, Math.min(5, Math.floor(r)));
-    rating_distribution[star as 1 | 2 | 3 | 4 | 5]++;
+    const key = ratingDistributionKey(Number(r));
+    if (key in rating_distribution) {
+      rating_distribution[key]++;
+    }
   }
 
   return { listen_count, average_rating, review_count, rating_distribution };
@@ -614,7 +592,10 @@ export async function getEntityStats(
         ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
         : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
     if (!canonicalId) {
-      const empty = { ...DEFAULT_ENTITY_STATS };
+      const empty: EntityStats = {
+        ...DEFAULT_ENTITY_STATS,
+        rating_distribution: defaultRatingDistribution(),
+      };
       setEntityStatsMemory(entityType, entityId, empty);
       return empty;
     }
@@ -667,7 +648,10 @@ export async function getEntityStats(
     return result;
   } catch (e) {
     console.error("[queries] getEntityStats failed:", e);
-    return { ...DEFAULT_ENTITY_STATS };
+    return {
+      ...DEFAULT_ENTITY_STATS,
+      rating_distribution: defaultRatingDistribution(),
+    };
   }
 }
 

@@ -140,3 +140,27 @@ export function validateListType(type: unknown): { ok: true; value: 'album' | 's
   return { ok: true, value: type };
 }
 
+export function validateRating(
+  rating: unknown,
+): { ok: true; value: number } | { ok: false; error: string } {
+  const r =
+    typeof rating === "string" ? Number(rating.trim()) : Number(rating);
+  if (!Number.isFinite(r)) {
+    return {
+      ok: false,
+      error: "rating must be a number between 1 and 5 in half-star steps",
+    };
+  }
+  const halves = Math.round(r * 2);
+  if (halves < 2 || halves > 10) {
+    return { ok: false, error: "rating must be between 1 and 5" };
+  }
+  if (Math.abs(r * 2 - halves) > 1e-9) {
+    return {
+      ok: false,
+      error: "rating must use half-star steps (1, 1.5, 2, … 5)",
+    };
+  }
+  return { ok: true, value: halves / 2 };
+}
+
