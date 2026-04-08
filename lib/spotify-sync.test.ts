@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+vi.mock('server-only', () => ({}));
 import { POST } from '../app/api/spotify/sync/route';
 import { NextRequest } from 'next/server';
 

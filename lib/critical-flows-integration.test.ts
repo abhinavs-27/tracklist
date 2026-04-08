@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+vi.mock('server-only', () => ({}));
 import { NextRequest } from 'next/server';
 import { POST as reviewPOST } from '../app/api/reviews/route';
 import { POST as logPOST } from '../app/api/logs/route';
@@ -62,6 +63,10 @@ vi.mock('@/lib/catalog/entity-resolution', () => ({
   getTrackIdByExternalId: vi.fn(async () => 'track-uuid'),
   getAlbumIdByExternalId: vi.fn(async () => 'album-uuid'),
   getArtistIdByExternalId: vi.fn(async () => 'artist-uuid'),
+  resolveLogEntityId: vi.fn(async (supabase, raw, kind) => {
+    if (!raw) return null;
+    return { kind: 'resolved', id: 'track-uuid' };
+  }),
 }));
 
 // Mock other internal helpers to avoid DB/external calls
@@ -69,6 +74,7 @@ vi.mock('@/lib/queries', () => ({
   grantAchievementOnReview: vi.fn(),
   grantAchievementsOnListen: vi.fn(),
   getReviewsForEntity: vi.fn(),
+  fetchUserSummary: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
   getFullUserProfile: vi.fn(async (username) => {
     if (username === 'testuser') {
         return { id: 'test-user-id', username: 'testuser', bio: 'Test bio' };
