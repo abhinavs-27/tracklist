@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -189,7 +188,9 @@ export default function ListDetailScreen() {
           </Pressable>
         </View>
         <View style={styles.center}>
-          <Text style={styles.errorTitle}>Couldn't load this list</Text>
+          <Text style={styles.errorTitle}>
+            {"Couldn't load this list"}
+          </Text>
           <Text style={styles.errorDetail} selectable>
             {error instanceof Error ? error.message : String(error ?? "")}
           </Text>
@@ -207,89 +208,94 @@ export default function ListDetailScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
       >
-        <ScrollView
+        <FlatList
+          data={items}
+          keyExtractor={(it) => it.id}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
-        >
-          <View style={styles.header}>
-            <Pressable onPress={() => router.back()} style={styles.back}>
-              <Text style={styles.backText}>← Back</Text>
-            </Pressable>
-            <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={2}>
-                {list.title}
-              </Text>
-              {isOwner ? (
-                <Pressable
-                  onPress={() => setEditOpen(true)}
-                  style={({ pressed }) => [
-                    styles.editBtn,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.editBtnText}>Edit</Text>
+          style={styles.flex}
+          removeClippedSubviews
+          ListHeaderComponent={
+            <>
+              <View style={styles.header}>
+                <Pressable onPress={() => router.back()} style={styles.back}>
+                  <Text style={styles.backText}>← Back</Text>
                 </Pressable>
-              ) : null}
-            </View>
-            {ownerUsername ? (
-              <Text style={styles.owner}>by {ownerUsername}</Text>
-            ) : null}
-            <Text style={styles.typeLine}>
-              {list.type === "album" ? "Album" : "Song"} list ·{" "}
-              {list.visibility}
-            </Text>
-            {list.description ? (
-              <Text style={styles.desc}>{list.description}</Text>
-            ) : null}
-          </View>
-
-          {isOwner ? (
-            <View style={styles.addSection}>
-              <Text style={styles.sectionTitle}>Add {list.type === "album" ? "albums" : "songs"}</Text>
-              <TextInput
-                value={addQuery}
-                onChangeText={setAddQuery}
-                placeholder={
-                  list.type === "album"
-                    ? "Search albums…"
-                    : "Search tracks…"
-                }
-                placeholderTextColor={theme.colors.muted}
-                style={styles.addInput}
-              />
-              {addSearching ? (
-                <ActivityIndicator color={theme.colors.emerald} />
-              ) : (
-                <FlatList
-                  data={addResults}
-                  keyExtractor={(i) => i.id}
-                  scrollEnabled={false}
-                  renderItem={({ item }) => (
+                <View style={styles.titleRow}>
+                  <Text style={styles.title} numberOfLines={2}>
+                    {list.title}
+                  </Text>
+                  {isOwner ? (
                     <Pressable
-                      onPress={() => {
-                        if (addMutation.isPending) return;
-                        addMutation.mutate(item.id);
-                      }}
+                      onPress={() => setEditOpen(true)}
                       style={({ pressed }) => [
-                        styles.addRow,
+                        styles.editBtn,
                         pressed && styles.pressed,
                       ]}
                     >
-                      <Artwork src={item.artworkUrl} size="sm" />
-                      <Text style={styles.addRowTitle} numberOfLines={2}>
-                        {item.name}
-                      </Text>
-                      <Text style={styles.addHint}>Add</Text>
+                      <Text style={styles.editBtnText}>Edit</Text>
                     </Pressable>
-                  )}
-                />
-              )}
-            </View>
-          ) : null}
+                  ) : null}
+                </View>
+                {ownerUsername ? (
+                  <Text style={styles.owner}>by {ownerUsername}</Text>
+                ) : null}
+                <Text style={styles.typeLine}>
+                  {list.type === "album" ? "Album" : "Song"} list ·{" "}
+                  {list.visibility}
+                </Text>
+                {list.description ? (
+                  <Text style={styles.desc}>{list.description}</Text>
+                ) : null}
+              </View>
 
-          <Text style={styles.sectionTitle}>Items ({items.length})</Text>
-          {items.map((it) => (
-            <View key={it.id} style={styles.row}>
+              {isOwner ? (
+                <View style={styles.addSection}>
+                  <Text style={styles.sectionTitle}>
+                    Add {list.type === "album" ? "albums" : "songs"}
+                  </Text>
+                  <TextInput
+                    value={addQuery}
+                    onChangeText={setAddQuery}
+                    placeholder={
+                      list.type === "album"
+                        ? "Search albums…"
+                        : "Search tracks…"
+                    }
+                    placeholderTextColor={theme.colors.muted}
+                    style={styles.addInput}
+                  />
+                  {addSearching ? (
+                    <ActivityIndicator color={theme.colors.emerald} />
+                  ) : (
+                    addResults.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => {
+                          if (addMutation.isPending) return;
+                          addMutation.mutate(item.id);
+                        }}
+                        style={({ pressed }) => [
+                          styles.addRow,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Artwork src={item.artworkUrl} size="sm" />
+                        <Text style={styles.addRowTitle} numberOfLines={2}>
+                          {item.name}
+                        </Text>
+                        <Text style={styles.addHint}>Add</Text>
+                      </Pressable>
+                    ))
+                  )}
+                </View>
+              ) : null}
+
+              <Text style={styles.sectionTitle}>Items ({items.length})</Text>
+            </>
+          }
+          renderItem={({ item: it }) => (
+            <View style={styles.row}>
               <Pressable
                 onPress={() => {
                   if (it.entity_type === "album") {
@@ -328,11 +334,11 @@ export default function ListDetailScreen() {
                 </Pressable>
               ) : null}
             </View>
-          ))}
-          {items.length === 0 ? (
+          )}
+          ListEmptyComponent={
             <Text style={styles.empty}>No items in this list yet.</Text>
-          ) : null}
-        </ScrollView>
+          }
+        />
       </KeyboardAvoidingView>
 
       <ListEditModal

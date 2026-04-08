@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+import { getSharedRedis } from "@/lib/redis-client";
 
 /**
  * Server-side cache for heavy community API responses (Redis when REDIS_URL is set,
@@ -10,27 +10,6 @@ const MEMORY_MAX_ENTRIES = 2000;
 
 /** Default TTL (seconds): middle of 5–15 minute window. */
 export const COMMUNITY_API_CACHE_TTL_SEC = 600;
-
-let redisClient: Redis | null | undefined;
-
-function getRedis(): Redis | null {
-  if (redisClient !== undefined) return redisClient;
-  const url = process.env.REDIS_URL?.trim();
-  if (!url) {
-    redisClient = null;
-    return null;
-  }
-  try {
-    redisClient = new Redis(url, {
-      maxRetriesPerRequest: 2,
-      lazyConnect: true,
-      enableReadyCheck: true,
-    });
-  } catch {
-    redisClient = null;
-  }
-  return redisClient;
-}
 
 function redisKey(logicalKey: string): string {
   return `${REDIS_KEY_PREFIX}${logicalKey}`;
@@ -74,7 +53,7 @@ async function readMemory<T>(logicalKey: string): Promise<T | undefined> {
 }
 
 async function readRedis<T>(logicalKey: string): Promise<T | undefined> {
-  const r = getRedis();
+  const r = getSharedRedis();
   if (!r) return undefined;
   try {
     const raw = await r.get(redisKey(logicalKey));
@@ -101,7 +80,7 @@ async function writeRedis(
   value: unknown,
   ttlSec: number,
 ): Promise<void> {
-  const r = getRedis();
+  const r = getSharedRedis();
   if (!r) return;
   try {
     const ex = Math.max(60, ttlSec);

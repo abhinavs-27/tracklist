@@ -1,6 +1,10 @@
 import { getSupabase } from "../lib/supabase";
+import { readDiscoverCache, writeDiscoverCache } from "../../lib/discover-redis";
 
 const TTL_MS = 15 * 60 * 1000;
+const EMPTY_TTL_MS = 60 * 1000;
+const TTL_SEC = Math.floor(TTL_MS / 1000);
+const EMPTY_TTL_SEC = Math.floor(EMPTY_TTL_MS / 1000);
 
 type CacheEntry<T> = { data: T; expiresAt: number };
 
@@ -200,8 +204,21 @@ export async function getTrendingEntitiesCached(limit = 20): Promise<TrendingEnt
   const hit = trendingCache.get(key) as CacheEntry<TrendingEntity[]> | undefined;
   if (hit && hit.expiresAt > now) return hit.data;
   prune(trendingCache as Map<string, CacheEntry<unknown[]>>);
+
+  const fromRedis = await readDiscoverCache<TrendingEntity[]>(key);
+  if (fromRedis !== undefined) {
+    trendingCache.set(key, { data: fromRedis, expiresAt: now + TTL_MS });
+    return fromRedis;
+  }
+
   const data = await getTrendingFromMvOrLive(limit);
-  trendingCache.set(key, { data, expiresAt: now + TTL_MS });
+  const ttl = data.length === 0 ? EMPTY_TTL_MS : TTL_MS;
+  trendingCache.set(key, { data, expiresAt: now + ttl });
+  void writeDiscoverCache(
+    key,
+    data,
+    data.length === 0 ? EMPTY_TTL_SEC : TTL_SEC,
+  );
   return data;
 }
 
@@ -214,8 +231,16 @@ export async function getRisingArtistsCached(
   const hit = risingCache.get(key) as CacheEntry<RisingArtist[]> | undefined;
   if (hit && hit.expiresAt > now) return hit.data;
   prune(risingCache as Map<string, CacheEntry<unknown[]>>);
+
+  const fromRedis = await readDiscoverCache<RisingArtist[]>(key);
+  if (fromRedis !== undefined) {
+    risingCache.set(key, { data: fromRedis, expiresAt: now + TTL_MS });
+    return fromRedis;
+  }
+
   const data = await getRisingFromMvOrLive(limit, windowDays);
   risingCache.set(key, { data, expiresAt: now + TTL_MS });
+  void writeDiscoverCache(key, data, TTL_SEC);
   return data;
 }
 
@@ -229,7 +254,15 @@ export async function getHiddenGemsCached(
   const hit = hiddenCache.get(key) as CacheEntry<HiddenGem[]> | undefined;
   if (hit && hit.expiresAt > now) return hit.data;
   prune(hiddenCache as Map<string, CacheEntry<unknown[]>>);
+
+  const fromRedis = await readDiscoverCache<HiddenGem[]>(key);
+  if (fromRedis !== undefined) {
+    hiddenCache.set(key, { data: fromRedis, expiresAt: now + TTL_MS });
+    return fromRedis;
+  }
+
   const data = await getHiddenFromMvOrLive(limit, minRating, maxListens);
   hiddenCache.set(key, { data, expiresAt: now + TTL_MS });
+  void writeDiscoverCache(key, data, TTL_SEC);
   return data;
 }

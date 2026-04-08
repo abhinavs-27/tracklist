@@ -3,8 +3,9 @@ import "server-only";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 
+import { attachRedisErrorHandler } from "@/lib/redis-error-handler";
 import { getArtist } from "@/lib/spotify";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getSpotifyClientMetrics } from "@tracklist/spotify-client";
 
 export type SpotifyEnrichJobData =
@@ -55,6 +56,7 @@ function getRedisConnection(): IORedis | null {
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
     });
+    attachRedisErrorHandler(redisConnection, "bullmq");
   } catch {
     redisConnection = null;
   }
@@ -282,7 +284,8 @@ export async function processSpotifyEnrichJob(
 
   const { upsertArtistFromSpotify, getOrFetchAlbum, getOrFetchTrack } =
     await import("@/lib/spotify-cache");
-  const supabase = await createSupabaseServerClient();
+  /** Admin client for worker/cron — no Next.js request cookies (see `createSpotifyEnrichWorker`). */
+  const supabase = createSupabaseAdminClient();
   if (job.name === "enrich_artist") {
     const a = await getArtist(job.artistId, { allowClientCredentials: true });
     await upsertArtistFromSpotify(supabase, a);

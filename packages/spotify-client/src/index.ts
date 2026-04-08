@@ -4,7 +4,7 @@
  */
 
 import Bottleneck from "bottleneck";
-import Redis from "ioredis";
+import { getSharedRedis } from "../../../lib/redis-client";
 
 export const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
@@ -96,18 +96,22 @@ const SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN = parsePositiveIntEnv(
 );
 
 /**
- * GET /v1/artists/{id}/albums is paginated (max 10/albums per call). Full discography
- * can issue many sequential requests; pace them separately from search/albums/artists
- * so they do not exhaust the main catalog reservoir and trigger Spotify 429s.
+ * GET /v1/artists/{id}/albums — Spotify does **not** use a separate endpoint quota; it counts
+ * toward the same app-wide Web API limit (rolling ~30s window) as every other call.
+ *
+ * We still use a dedicated Bottleneck (Redis-backed when `REDIS_URL` is set) so:
+ * - full discography pagination doesn’t starve the same bucket as search / bulk `/tracks` work, and
+ * - sequential pages stay paced (naive multi-artist crawls are the usual 429 source).
+ *
+ * Tune envs if you see 429s elsewhere — reduce main catalog limits or this bucket together.
  */
-/** Full discography pagination issues many sequential calls — keep under Spotify’s rolling limits. */
 const SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS = parsePositiveIntEnv(
   "SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS",
-  400,
+  450,
 );
 const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN = parsePositiveIntEnv(
   "SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN",
-  12,
+  20,
 );
 
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */
@@ -157,7 +161,7 @@ const spotifySingleTrackLimiter = (() => {
   return new Bottleneck({ ...opts });
 })();
 
-/** Paginated artist discography — stricter than the main catalog limiter. */
+/** Paginated artist discography — own bucket so pagination doesn’t monopolize the main catalog limiter. */
 const spotifyArtistAlbumsLimiter = (() => {
   const url = process.env.REDIS_URL?.trim();
   const opts = {
@@ -196,27 +200,6 @@ function selectCatalogLimiter(path: string): Bottleneck {
   return spotifyLimiter;
 }
 
-let redisClient: Redis | null | undefined;
-
-function getRedis(): Redis | null {
-  if (redisClient !== undefined) return redisClient;
-  const url = process.env.REDIS_URL?.trim();
-  if (!url) {
-    redisClient = null;
-    return null;
-  }
-  try {
-    redisClient = new Redis(url, {
-      maxRetriesPerRequest: 2,
-      lazyConnect: true,
-      enableReadyCheck: true,
-    });
-  } catch {
-    redisClient = null;
-  }
-  return redisClient;
-}
-
 const memoryCache = new Map<
   string,
   { payload: string; expiresAt: number; redisTtlSec: number }
@@ -251,7 +234,7 @@ function maybeLogSpotifyHealth(): void {
 async function getCached(
   key: string,
 ): Promise<{ data: unknown; isExpired: boolean } | null> {
-  const r = getRedis();
+  const r = getSharedRedis();
   if (r) {
     try {
       const raw = await r.get(redisKey(key));
@@ -302,7 +285,7 @@ async function setCached(
   const envelope: CachedEnvelope = { data: value, expiresAt };
   const payload = JSON.stringify(envelope);
   const redisTtl = Math.max(ttlSec * 2, ttlSec + 60);
-  const r = getRedis();
+  const r = getSharedRedis();
   if (r) {
     try {
       await r.set(redisKey(key), payload, "EX", redisTtl);
@@ -360,7 +343,7 @@ export function checkSpotifyEnabled(): void {
 }
 
 export async function checkCircuitBreaker(): Promise<void> {
-  const r = getRedis();
+  const r = getSharedRedis();
   if (r) {
     try {
       const v = await r.get(CIRCUIT_REDIS_KEY);
@@ -389,7 +372,7 @@ export async function checkCircuitBreaker(): Promise<void> {
 async function tripCircuitBreaker(retryAfterSec: number): Promise<void> {
   const until = Date.now() + Math.min(300, Math.max(1, retryAfterSec)) * 1000;
   inMemoryCircuitUntil = Math.max(inMemoryCircuitUntil, until);
-  const r = getRedis();
+  const r = getSharedRedis();
   if (r) {
     try {
       const ex = Math.min(600, Math.max(1, retryAfterSec * 2));
@@ -713,7 +696,8 @@ export async function bearerSpotifyFetchJson<T>(
 
   return withDedupe(dedupeKey, async () => {
     await checkCircuitBreaker();
-    const res = await spotifyLimiter.schedule(() =>
+    const bearerLimiter = selectCatalogLimiter(path);
+    const res = await bearerLimiter.schedule(() =>
       withTimeout(
         url.toString(),
         {

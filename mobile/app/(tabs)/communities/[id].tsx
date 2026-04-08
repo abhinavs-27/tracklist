@@ -254,7 +254,10 @@ export default function CommunityDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        nestedScrollEnabled
+      >
         <Pressable onPress={() => router.back()}>
           <Text style={styles.back}>← Communities</Text>
         </Pressable>

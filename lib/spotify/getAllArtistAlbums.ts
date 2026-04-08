@@ -12,9 +12,9 @@ export const SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT = 10;
 /** Pause between paginated GET /artists/{id}/albums pages (after each full page). Tunable via env. */
 function artistAlbumsPageGapMs(): number {
   const raw = process.env.SPOTIFY_ARTIST_ALBUMS_PAGE_GAP_MS?.trim();
-  if (!raw) return 220;
+  if (!raw) return 400;
   const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n >= 0 ? n : 220;
+  return Number.isFinite(n) && n >= 0 ? n : 400;
 }
 
 function dedupeAlbumsByGroupAndName(

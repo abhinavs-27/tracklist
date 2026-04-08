@@ -1,6 +1,6 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { LeaderboardRow } from "@/components/leaderboard/LeaderboardRow";
@@ -43,7 +43,14 @@ export default function LeaderboardScreen() {
   });
   const [yearRange, setYearRange] = useState<YearRange>({});
 
-  const { data, isLoading, error } = useLeaderboard({
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useLeaderboard({
     type,
     metric,
     startYear: yearRange.startYear,
@@ -51,6 +58,12 @@ export default function LeaderboardScreen() {
   });
 
   const entries: LeaderboardItem[] = data ?? [];
+
+  const onEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
@@ -158,6 +171,17 @@ export default function LeaderboardScreen() {
               metric={metric}
             />
           )}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.35}
+          removeClippedSubviews
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <ActivityIndicator
+                style={{ paddingVertical: 16 }}
+                color={theme.colors.emerald}
+              />
+            ) : null
+          }
           ListEmptyComponent={() => (
             <View style={{ paddingTop: 24, alignItems: "center" }}>
               <Text style={{ color: theme.colors.muted }}>No results.</Text>

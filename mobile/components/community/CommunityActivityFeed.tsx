@@ -1,6 +1,9 @@
 import {
   ActivityIndicator,
+  Dimensions,
+  FlatList,
   Image,
+  ListRenderItem,
   Pressable,
   StyleSheet,
   Text,
@@ -35,6 +38,14 @@ type Props = {
   onLoadMore: () => void;
 };
 
+function groupedRowKey(g: CommunityFeedGrouped, index: number): string {
+  if (g.kind === "group") {
+    const t = g.items[g.items.length - 1]?.created_at ?? "";
+    return `g-${g.userId}-${g.items.length}-${t}-${index}`;
+  }
+  return `s-${g.item.id}`;
+}
+
 export function CommunityActivityFeed({
   feed,
   feedNextOffset,
@@ -43,91 +54,92 @@ export function CommunityActivityFeed({
 }: Props) {
   const router = useRouter();
   const grouped = useMemo(() => groupCommunityFeedItems(feed), [feed]);
+  const listHeight = useMemo(() => {
+    const h = Dimensions.get("window").height;
+    return Math.max(360, Math.round(h * 0.55));
+  }, []);
 
-  if (feed.length === 0) {
-    return <Text style={styles.muted}>No activity yet.</Text>;
-  }
-
-  return (
-    <View style={styles.wrap}>
-      {grouped.map((g: CommunityFeedGrouped, idx: number) => {
-        if (g.kind === "group") {
-          return (
-            <View
-              key={`g-${g.userId}-${idx}`}
-              style={styles.card}
+  const renderItem: ListRenderItem<CommunityFeedGrouped> = ({ item: g }) => {
+    if (g.kind === "group") {
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Pressable
+              onPress={() =>
+                router.push(
+                  `/user/${encodeURIComponent(g.username)}` as Href,
+                )
+              }
             >
-              <View style={styles.cardHeader}>
-                <Pressable
-                  onPress={() =>
-                    router.push(
-                      `/user/${encodeURIComponent(g.username)}` as Href,
-                    )
-                  }
-                >
-                  {g.avatar_url ? (
-                    <Image
-                      source={{ uri: g.avatar_url }}
-                      style={styles.avatar}
-                    />
-                  ) : (
-                    <View style={styles.avatarPh}>
-                      <Text style={styles.avatarPhText}>
-                        {g.username[0]?.toUpperCase() ?? "?"}
-                      </Text>
-                    </View>
-                  )}
-                </Pressable>
-                <View style={styles.cardHeaderText}>
-                  <Text style={styles.batchTitle}>
-                    <Text style={styles.username}>{g.username}</Text>
-                    <Text style={styles.batchKicker}>
-                      {" "}
-                      · {g.items.length} listens
-                    </Text>
-                  </Text>
-                  <Text style={styles.timeMeta}>
-                    {formatRelative(g.items[g.items.length - 1].created_at)}
+              {g.avatar_url ? (
+                <Image
+                  source={{ uri: g.avatar_url }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={styles.avatarPh}>
+                  <Text style={styles.avatarPhText}>
+                    {g.username[0]?.toUpperCase() ?? "?"}
                   </Text>
                 </View>
-              </View>
-              <View style={styles.batchList}>
-                {g.items.map((item) => (
-                  <FeedLine
-                    key={item.id}
-                    item={item}
-                    router={router}
-                    compact
-                  />
-                ))}
-              </View>
+              )}
+            </Pressable>
+            <View style={styles.cardHeaderText}>
+              <Text style={styles.batchTitle}>
+                <Text style={styles.username}>{g.username}</Text>
+                <Text style={styles.batchKicker}>
+                  {" "}
+                  · {g.items.length} listens
+                </Text>
+              </Text>
+              <Text style={styles.timeMeta}>
+                {formatRelative(g.items[g.items.length - 1].created_at)}
+              </Text>
             </View>
-          );
-        }
-        return (
-          <FeedCard
-            key={g.item.id}
-            item={g.item}
-            router={router}
-          />
-        );
-      })}
-      {feedNextOffset != null ? (
-        <Pressable
-          onPress={() => void onLoadMore()}
-          disabled={feedLoadingMore}
-          style={({ pressed }) => [
-            styles.loadMoreBtn,
-            pressed && styles.loadMorePressed,
-            feedLoadingMore && styles.loadMoreDisabled,
-          ]}
-        >
-          <Text style={styles.loadMoreText}>
-            {feedLoadingMore ? "Loading…" : "Load more"}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
+          </View>
+          <View style={styles.batchList}>
+            {g.items.map((item) => (
+              <FeedLine
+                key={item.id}
+                item={item}
+                router={router}
+                compact
+              />
+            ))}
+          </View>
+        </View>
+      );
+    }
+    return <FeedCard item={g.item} router={router} />;
+  };
+
+  const onEndReached = () => {
+    if (feedNextOffset == null || feedLoadingMore) return;
+    void onLoadMore();
+  };
+
+  return (
+    <FlatList
+      data={grouped}
+      keyExtractor={(g, index) => groupedRowKey(g, index)}
+      renderItem={renderItem}
+      style={{ height: listHeight }}
+      contentContainerStyle={styles.listContent}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      onEndReached={onEndReached}
+      onEndReachedThreshold={0.35}
+      ListEmptyComponent={
+        <Text style={styles.muted}>No activity yet.</Text>
+      }
+      ListFooterComponent={
+        feedNextOffset != null && feedLoadingMore ? (
+          <View style={styles.footerLoading}>
+            <ActivityIndicator color={theme.colors.emerald} />
+          </View>
+        ) : null
+      }
+      removeClippedSubviews
+    />
   );
 }
 
@@ -242,7 +254,9 @@ function FeedLine({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 14 },
+  listContent: { paddingBottom: 8, flexGrow: 1 },
+  separator: { height: 14 },
+  footerLoading: { paddingVertical: 16, alignItems: "center" },
   muted: { fontSize: 14, color: theme.colors.muted, lineHeight: 20 },
   card: {
     borderRadius: 16,
@@ -310,17 +324,4 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
   },
-  loadMoreBtn: {
-    alignSelf: "center",
-    marginTop: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.active,
-  },
-  loadMorePressed: { opacity: 0.88 },
-  loadMoreDisabled: { opacity: 0.5 },
-  loadMoreText: { fontSize: 14, fontWeight: "600", color: theme.colors.text },
 });

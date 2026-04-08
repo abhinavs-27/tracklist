@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "merge-catalog": "tsx scripts/merge-catalog-duplicates.ts",
+    "worker:spotify-enrich": "NODE_OPTIONS='-r ./scripts/register-server-only-stub.cjs' tsx scripts/spotify-enrich-worker.ts",
     "dev": "next dev",
     "dev:backend": "npm run dev --prefix backend",
     "build": "next build",

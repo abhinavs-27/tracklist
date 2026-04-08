@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ListeningReportShareImageModal } from "@/components/reports/listening-report-share-image";
 import type { ListeningReportShareCardRow } from "@/components/reports/listening-report-share-card";
 import { useToast } from "@/components/toast";
@@ -446,6 +447,37 @@ export function ListeningReportsClient(props: { userId: string }) {
       endDate: range === "custom" ? endDate : undefined,
     });
   }
+
+  const reportRows = data?.items ?? [];
+  const reportListParentRef = useRef<HTMLDivElement>(null);
+  const reportSentinelRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+
+  const reportVirtualizer = useVirtualizer({
+    count: reportRows.length,
+    getScrollElement: () => reportListParentRef.current,
+    estimateSize: () => 76,
+    overscan: 6,
+    getItemKey: (index) => {
+      const row = reportRows[index];
+      return row ? `${row.entityId}-${row.rank}` : String(index);
+    },
+  });
+
+  useEffect(() => {
+    const root = reportListParentRef.current;
+    const target = reportSentinelRef.current;
+    if (!root || !target || data?.nextOffset == null) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreRef.current();
+      },
+      { root, rootMargin: "320px", threshold: 0 },
+    );
+    io.observe(target);
+    return () => io.disconnect();
+  }, [data?.nextOffset, reportRows.length]);
 
   async function saveReport() {
     const name =
@@ -912,78 +944,104 @@ export function ListeningReportsClient(props: { userId: string }) {
         ) : null}
 
         {data && data.items.length > 0 ? (
-          <ol className="space-y-2">
-            {data.items.map((row) => (
-              <li
-                key={`${row.entityId}-${row.rank}`}
-                className={`flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 transition ${
-                  row.isNew ? "border-violet-500/30 bg-violet-950/20" : ""
-                } ${loadingMore ? "opacity-60" : ""}`}
-              >
-                <span className="w-8 text-sm tabular-nums text-zinc-500">
-                  {row.rank}
-                </span>
-                {row.image ? (
-                  <img
-                    src={row.image}
-                    alt=""
-                    className="h-12 w-12 shrink-0 rounded object-cover"
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-zinc-800 text-zinc-500">
-                    ♪
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-white">{row.name}</p>
-                    {row.isNew ? (
-                      <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-                        New
+          <div
+            ref={reportListParentRef}
+            className="max-h-[min(70vh,640px)] overflow-auto"
+            aria-busy={loadingMore}
+            role="list"
+          >
+            <div
+              style={{
+                height: `${reportVirtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {reportVirtualizer.getVirtualItems().map((virtualRow) => {
+                const row = reportRows[virtualRow.index];
+                if (!row) return null;
+                return (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={reportVirtualizer.measureElement}
+                    role="listitem"
+                    className={`pb-2 ${loadingMore ? "opacity-60" : ""}`}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div
+                      className={`flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 transition ${
+                        row.isNew ? "border-violet-500/30 bg-violet-950/20" : ""
+                      }`}
+                    >
+                      <span className="w-8 text-sm tabular-nums text-zinc-500">
+                        {row.rank}
                       </span>
-                    ) : null}
+                      {row.image ? (
+                        <img
+                          src={row.image}
+                          alt=""
+                          className="h-12 w-12 shrink-0 rounded object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-zinc-800 text-zinc-500">
+                          ♪
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium text-white">{row.name}</p>
+                          {row.isNew ? (
+                            <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
+                              New
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-xs text-zinc-500">{row.count} plays</p>
+                      </div>
+                      <span
+                        className={`shrink-0 text-sm tabular-nums ${
+                          row.movement != null && row.movement > 0
+                            ? "text-emerald-400"
+                            : row.movement != null && row.movement < 0
+                              ? "text-red-400"
+                              : "text-zinc-500"
+                        }`}
+                      >
+                        {formatMovement(row.movement, row.isNew)}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs text-zinc-500">{row.count} plays</p>
-                </div>
-                <span
-                  className={`shrink-0 text-sm tabular-nums ${
-                    row.movement != null && row.movement > 0
-                      ? "text-emerald-400"
-                      : row.movement != null && row.movement < 0
-                        ? "text-red-400"
-                        : "text-zinc-500"
-                  }`}
-                >
-                  {formatMovement(row.movement, row.isNew)}
-                </span>
-              </li>
-            ))}
-          </ol>
+                );
+              })}
+            </div>
+            {data.nextOffset != null ? (
+              <div
+                ref={reportSentinelRef}
+                className="flex min-h-12 items-center justify-center py-4"
+              >
+                {loadingMore ? (
+                  <span className="inline-flex items-center gap-2 text-sm text-zinc-500">
+                    <span
+                      className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent"
+                      aria-hidden
+                    />
+                    Loading…
+                  </span>
+                ) : (
+                  <span className="sr-only">Scroll for more</span>
+                )}
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
-
-      {data?.nextOffset != null ? (
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => loadMore()}
-            disabled={loading}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-50"
-          >
-            {loadingMore ? (
-              <span className="inline-flex items-center gap-2">
-                <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent"
-                  aria-hidden
-                />
-                Loading…
-              </span>
-            ) : (
-              "Load more"
-            )}
-          </button>
-        </div>
-      ) : null}
 
       {shareModal && (
         <ListeningReportShareImageModal

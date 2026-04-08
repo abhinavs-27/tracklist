@@ -19,7 +19,10 @@
     "./**/*.ts",
     "./types/**/*.d.ts",
     "../lib/user-search-directory.ts",
-    "../lib/ratings.ts"
+    "../lib/ratings.ts",
+    "../lib/redis-client.ts",
+    "../lib/redis-error-handler.ts",
+    "../lib/discover-redis.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

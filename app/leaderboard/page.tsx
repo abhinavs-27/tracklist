@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   useLeaderboard,
-  type LeaderboardEntry,
   type LeaderboardFilters,
 } from "@/lib/hooks/use-leaderboard";
 import { YearRangeFilter, type YearRange } from "@/components/year-range-filter";
 import { getChartConfig } from "@/lib/discovery/chartConfigs";
-import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+import type { MediaItem } from "@/components/media/MediaGrid";
+import {
+  VirtualizedLeaderboardGrid,
+  VirtualizedLeaderboardList,
+} from "@/components/leaderboard/leaderboard-virtual-views";
 import {
   cardElevated,
-  cardElevatedInteractive,
   pageSubtitle,
   pageTitle,
   segmentedButtonActive,
@@ -20,65 +22,6 @@ import {
   segmentedShell,
   sectionGap,
 } from "@/lib/ui/surface";
-
-function LeaderboardListRow({
-  rank,
-  entry,
-  showFavoriteCount,
-}: {
-  rank: number;
-  entry: LeaderboardEntry;
-  showFavoriteCount: boolean;
-}) {
-  const href =
-    entry.entity_type === "album" ? `/album/${entry.id}` : `/song/${entry.id}`;
-  return (
-    <Link
-      href={href}
-      className={`flex flex-col gap-2 p-4 touch-manipulation sm:flex-row sm:items-center sm:gap-3 ${cardElevatedInteractive}`}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        <span className="w-6 shrink-0 text-right text-sm font-medium text-zinc-500 tabular-nums">
-          {rank}
-        </span>
-        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md bg-zinc-800 sm:h-12 sm:w-12">
-          {entry.artwork_url ? (
-            <img
-              src={entry.artwork_url}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-base text-zinc-500 sm:text-lg">
-              ♪
-            </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white sm:text-base">
-            {entry.name}
-          </p>
-          <p className="truncate text-xs text-zinc-500 sm:text-sm">{entry.artist}</p>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 text-xs text-zinc-400 tabular-nums shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05)] sm:pt-0 sm:shadow-none sm:text-sm sm:shrink-0">
-        <span>{entry.total_plays.toLocaleString()} plays</span>
-        {entry.average_rating != null ? (
-          <span className="text-amber-400">
-            ★ {entry.average_rating.toFixed(1)}
-          </span>
-        ) : (
-          <span className="text-zinc-500">—</span>
-        )}
-        {showFavoriteCount && (
-          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400 tabular-nums sm:text-xs">
-            {(entry.favorite_count ?? 0).toLocaleString()} favorited
-          </span>
-        )}
-      </div>
-    </Link>
-  );
-}
 
 function GridIcon({ className }: { className?: string }) {
   return (
@@ -168,10 +111,34 @@ export default function LeaderboardPage() {
     [yearRange.startYear, yearRange.endYear],
   );
 
-  const { data, isLoading, isPending, error } = useLeaderboard(
-    type,
-    filters,
-    entity,
+  const {
+    data,
+    isLoading,
+    isPending,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useLeaderboard(type, filters, entity);
+
+  const mediaItems: MediaItem[] = useMemo(
+    () =>
+      data.map(
+        (entry, i): MediaItem => ({
+          id: entry.id,
+          type: entry.entity_type,
+          title: entry.name,
+          artist: entry.artist,
+          artworkUrl: entry.artwork_url ?? null,
+          avgRating: entry.average_rating ?? undefined,
+          totalPlays: entry.total_plays,
+          rank: i + 1,
+          ...(type === "mostFavorited" && {
+            favoriteCount: entry.favorite_count ?? 0,
+          }),
+        }),
+      ),
+    [data, type],
   );
 
   return (
@@ -334,36 +301,22 @@ export default function LeaderboardPage() {
         )}
 
         {!error && !isLoading && data.length > 0 && view === "grid" && (
-          <MediaGrid
-            items={data.map(
-              (entry, i): MediaItem => ({
-                id: entry.id,
-                type: entry.entity_type,
-                title: entry.name,
-                artist: entry.artist,
-                artworkUrl: entry.artwork_url ?? null,
-                avgRating: entry.average_rating ?? undefined,
-                totalPlays: entry.total_plays,
-                rank: i + 1,
-                ...(type === "mostFavorited" && {
-                  favoriteCount: entry.favorite_count ?? 0,
-                }),
-              }),
-            )}
+          <VirtualizedLeaderboardGrid
+            items={mediaItems}
+            fetchNextPage={() => void fetchNextPage()}
+            hasNextPage={hasNextPage ?? false}
+            isFetchingNextPage={isFetchingNextPage}
           />
         )}
 
         {!error && !isLoading && data.length > 0 && view === "list" && (
-          <div className="space-y-3" role="list">
-            {data.map((entry, i) => (
-              <LeaderboardListRow
-                key={entry.id}
-                rank={i + 1}
-                entry={entry}
-                showFavoriteCount={type === "mostFavorited"}
-              />
-            ))}
-          </div>
+          <VirtualizedLeaderboardList
+            entries={data}
+            showFavoriteCount={type === "mostFavorited"}
+            fetchNextPage={() => void fetchNextPage()}
+            hasNextPage={hasNextPage ?? false}
+            isFetchingNextPage={isFetchingNextPage}
+          />
         )}
       </section>
     </div>

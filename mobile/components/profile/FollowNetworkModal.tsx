@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -81,7 +81,8 @@ export function FollowNetworkModal({
     if (append && !hasMore) return;
 
     const offset = append ? list.length : 0;
-    isFollowers ? setFollowersLoading(true) : setFollowingLoading(true);
+    if (isFollowers) setFollowersLoading(true);
+    else setFollowingLoading(true);
     setError(null);
     try {
       const path = `/api/users/${encodeURIComponent(profileUsername)}/${isFollowers ? "followers" : "following"}?limit=${PAGE_SIZE}&offset=${offset}`;
@@ -100,7 +101,8 @@ export function FollowNetworkModal({
     } catch {
       setError("Failed to load users.");
     } finally {
-      isFollowers ? setFollowersLoading(false) : setFollowingLoading(false);
+      if (isFollowers) setFollowersLoading(false);
+      else setFollowingLoading(false);
     }
   }
 
@@ -124,6 +126,13 @@ export function FollowNetworkModal({
     onClose();
     router.push(`/user/${encodeURIComponent(username)}` as const);
   }
+
+  const onEndReached = useCallback(() => {
+    if (!hasMore || loading) return;
+    void fetchPage(activeTab, true);
+    // fetchPage is stable per render; omit to avoid exhaustive-deps churn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loading, activeTab]);
 
   return (
     <Modal
@@ -263,6 +272,18 @@ export function FollowNetworkModal({
               keyExtractor={(u) => u.id}
               style={{ maxHeight: 320 }}
               keyboardShouldPersistTaps="handled"
+              onEndReached={onEndReached}
+              onEndReachedThreshold={0.35}
+              removeClippedSubviews
+              ListFooterComponent={
+                hasMore && loading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.emerald}
+                    style={{ paddingVertical: 12 }}
+                  />
+                ) : null
+              }
               renderItem={({ item: u }) => (
                 <View
                   style={{
@@ -308,27 +329,6 @@ export function FollowNetworkModal({
                   ) : null}
                 </View>
               )}
-              ListFooterComponent={
-                hasMore ? (
-                  <Pressable
-                    onPress={() => void fetchPage(activeTab, true)}
-                    disabled={loading}
-                    style={({ pressed }) => ({
-                      paddingVertical: 12,
-                      alignItems: "center",
-                      opacity: pressed || loading ? 0.7 : 1,
-                    })}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color={theme.colors.emerald} />
-                    ) : (
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.emerald }}>
-                        Load more
-                      </Text>
-                    )}
-                  </Pressable>
-                ) : null
-              }
             />
           )}
         </Pressable>

@@ -1,13 +1,15 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
+import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
+  FlatList,
   Image,
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -40,10 +42,10 @@ function tasteLine(m: CommunityMemberRosterEntry): string | null {
 
 export function CommunityPeopleTab({ communityId }: Props) {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const hPad = 36;
-  const gap = 10;
-  const cardW = Math.max(140, (width - hPad - gap) / 2);
+  const listHeight = useMemo(() => {
+    const h = Dimensions.get("window").height;
+    return Math.max(400, Math.round(h * 0.58));
+  }, []);
 
   const q = useInfiniteQuery({
     queryKey: queryKeys.communityMembersInfinite(communityId),
@@ -57,6 +59,55 @@ export function CommunityPeopleTab({ communityId }: Props) {
 
   const roster = q.data?.pages.flatMap((p) => p.roster) ?? [];
   const total = q.data?.pages[0]?.total ?? 0;
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = q;
+
+  const onEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const renderItem = useCallback(
+    ({ item: m }: { item: CommunityMemberRosterEntry }) => (
+      <Pressable
+        style={styles.card}
+        onPress={() =>
+          router.push(`/user/${encodeURIComponent(m.username)}` as Href)
+        }
+      >
+        <View style={styles.avatarWrap}>
+          {m.avatar_url ? (
+            <Image source={{ uri: m.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPh}>
+              <Text style={styles.avatarPhText}>
+                {m.username[0]?.toUpperCase() ?? "?"}
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.name} numberOfLines={1}>
+          {m.username}
+        </Text>
+        {m.is_community_creator ? (
+          <Text style={styles.creator}>Creator</Text>
+        ) : null}
+        {m.role === "admin" && !m.is_community_creator ? (
+          <Text style={styles.admin}>Admin</Text>
+        ) : null}
+        <Text style={styles.tasteLine} numberOfLines={2}>
+          {tasteLine(m) ?? "—"}
+        </Text>
+        <View style={styles.topArtistRow}>
+          <Text style={styles.topArtistLabel}>Top artist</Text>
+          <Text style={styles.topArtistName} numberOfLines={1}>
+            {m.top_artists[0] ?? "—"}
+          </Text>
+        </View>
+      </Pressable>
+    ),
+    [router],
+  );
 
   if (q.isPending) {
     return (
@@ -69,7 +120,9 @@ export function CommunityPeopleTab({ communityId }: Props) {
 
   if (q.isError) {
     return (
-      <Text style={styles.err}>Couldn't load members. Pull to refresh and try again.</Text>
+      <Text style={styles.err}>
+        {"Couldn't load members. Pull to refresh and try again."}
+      </Text>
     );
   }
 
@@ -78,68 +131,42 @@ export function CommunityPeopleTab({ communityId }: Props) {
   }
 
   return (
-    <View style={styles.root}>
-      <Text style={styles.intro}>
-        {total} member{total !== 1 ? "s" : ""} · tap a card to open their profile
-      </Text>
-      <View style={styles.grid}>
-        {roster.map((m) => (
-          <Pressable
-            key={m.user_id}
-            style={[styles.card, { width: cardW }]}
-            onPress={() =>
-              router.push(`/user/${encodeURIComponent(m.username)}` as Href)
-            }
-          >
-            <View style={styles.avatarWrap}>
-              {m.avatar_url ? (
-                <Image source={{ uri: m.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarPh}>
-                  <Text style={styles.avatarPhText}>
-                    {m.username[0]?.toUpperCase() ?? "?"}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.name} numberOfLines={1}>
-              {m.username}
-            </Text>
-            {m.is_community_creator ? (
-              <Text style={styles.creator}>Creator</Text>
-            ) : null}
-            {m.role === "admin" && !m.is_community_creator ? (
-              <Text style={styles.admin}>Admin</Text>
-            ) : null}
-            <Text style={styles.tasteLine} numberOfLines={2}>
-              {tasteLine(m) ?? "—"}
-            </Text>
-            <View style={styles.topArtistRow}>
-              <Text style={styles.topArtistLabel}>Top artist</Text>
-              <Text style={styles.topArtistName} numberOfLines={1}>
-                {m.top_artists[0] ?? "—"}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-      {q.hasNextPage ? (
-        <Pressable
-          style={styles.moreBtn}
-          onPress={() => void q.fetchNextPage()}
-          disabled={q.isFetchingNextPage}
-        >
-          <Text style={styles.moreBtnText}>
-            {q.isFetchingNextPage ? "Loading…" : "Load more"}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
+    <FlatList
+      data={roster}
+      keyExtractor={(m) => m.user_id}
+      style={{ height: listHeight }}
+      numColumns={2}
+      columnWrapperStyle={styles.columnWrap}
+      renderItem={renderItem}
+      ListHeaderComponent={
+        <Text style={styles.intro}>
+          {total} member{total !== 1 ? "s" : ""} · tap a card to open their profile
+        </Text>
+      }
+      contentContainerStyle={styles.listContent}
+      onEndReached={onEndReached}
+      onEndReachedThreshold={0.35}
+      removeClippedSubviews
+      ListFooterComponent={
+        hasNextPage && isFetchingNextPage ? (
+          <View style={styles.footerLoading}>
+            <ActivityIndicator color={theme.colors.emerald} />
+          </View>
+        ) : null
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  root: { marginTop: 4 },
+  listContent: { paddingBottom: 16 },
+  columnWrap: {
+    gap: 10,
+    marginBottom: 10,
+    justifyContent: "space-between",
+    flexDirection: "row",
+  },
+  footerLoading: { paddingVertical: 16, alignItems: "center" },
   center: { paddingVertical: 28, alignItems: "center", gap: 10 },
   mutedSmall: { fontSize: 13, color: theme.colors.muted },
   intro: {
@@ -148,13 +175,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 14,
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    justifyContent: "space-between",
-  },
   card: {
+    flex: 1,
+    minWidth: 0,
     borderRadius: 16,
     backgroundColor: theme.colors.panel,
     borderWidth: StyleSheet.hairlineWidth,
@@ -238,21 +261,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: "center",
     marginTop: 4,
-  },
-  moreBtn: {
-    alignSelf: "center",
-    marginTop: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: "rgba(16,185,129,0.12)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(16,185,129,0.35)",
-  },
-  moreBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: theme.colors.emerald,
   },
   muted: { fontSize: 14, color: theme.colors.muted },
   err: { fontSize: 14, color: theme.colors.danger, lineHeight: 20 },

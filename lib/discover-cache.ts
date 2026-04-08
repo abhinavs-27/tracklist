@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { readDiscoverCache, writeDiscoverCache } from "@/lib/discover-redis";
 import { logPerf } from "@/lib/profiling";
 import {
   getTrendingEntities,
@@ -13,6 +14,9 @@ import type { TrendingEntity, RisingArtist, HiddenGem } from "@/types";
 const TTL_MS = 15 * 60 * 1000; // 15 min (server-side cache; MVs refreshed every 5–15 min)
 /** Avoid caching “no trending” for 15m after MV/cron starts returning rows. */
 const EMPTY_TTL_MS = 60 * 1000;
+
+const TTL_SEC = Math.floor(TTL_MS / 1000);
+const EMPTY_TTL_SEC = Math.floor(EMPTY_TTL_MS / 1000);
 
 type CacheEntry<T> = { data: T; expiresAt: number };
 
@@ -127,18 +131,30 @@ export async function getTrendingEntitiesCached(
   if (hit && hit.expiresAt > now) return hit.data;
   prune(trendingCache);
 
+  const fromRedis = await readDiscoverCache<TrendingEntity[]>(key);
+  if (fromRedis !== undefined) {
+    trendingCache.set(key, { data: fromRedis, expiresAt: now + TTL_MS });
+    return fromRedis;
+  }
+
   const fromDaily = await getTrendingEntitiesFromPrecomputed(limit);
   if (fromDaily && fromDaily.length > 0) {
     trendingCache.set(key, {
       data: fromDaily,
       expiresAt: now + TTL_MS,
     });
+    void writeDiscoverCache(key, fromDaily, TTL_SEC);
     return fromDaily;
   }
 
   const data = await getTrendingFromMvOrLive(limit);
   const ttl = data.length === 0 ? EMPTY_TTL_MS : TTL_MS;
   trendingCache.set(key, { data, expiresAt: now + ttl });
+  void writeDiscoverCache(
+    key,
+    data,
+    data.length === 0 ? EMPTY_TTL_SEC : TTL_SEC,
+  );
   return data;
 }
 
@@ -158,8 +174,16 @@ export async function getRisingArtistsCached(
   const hit = risingCache.get(key);
   if (hit && hit.expiresAt > now) return hit.data;
   prune(risingCache);
+
+  const fromRedis = await readDiscoverCache<RisingArtist[]>(key);
+  if (fromRedis !== undefined) {
+    risingCache.set(key, { data: fromRedis, expiresAt: now + TTL_MS });
+    return fromRedis;
+  }
+
   const data = await getRisingFromMvOrLive(limit, windowDays);
   risingCache.set(key, { data, expiresAt: now + TTL_MS });
+  void writeDiscoverCache(key, data, TTL_SEC);
   return data;
 }
 
@@ -173,7 +197,15 @@ export async function getHiddenGemsCached(
   const hit = hiddenCache.get(key);
   if (hit && hit.expiresAt > now) return hit.data;
   prune(hiddenCache);
+
+  const fromRedis = await readDiscoverCache<HiddenGem[]>(key);
+  if (fromRedis !== undefined) {
+    hiddenCache.set(key, { data: fromRedis, expiresAt: now + TTL_MS });
+    return fromRedis;
+  }
+
   const data = await getHiddenFromMvOrLive(limit, minRating, maxListens);
   hiddenCache.set(key, { data, expiresAt: now + TTL_MS });
+  void writeDiscoverCache(key, data, TTL_SEC);
   return data;
 }

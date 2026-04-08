@@ -1,7 +1,7 @@
 import "server-only";
 
-import Redis from "ioredis";
 import { after } from "next/server";
+import { getSharedRedis } from "@/lib/redis-client";
 import type { NextResponse } from "next/server";
 import { apiOk } from "@/lib/api-response";
 
@@ -58,27 +58,6 @@ export const STALE_FIRST_STALE_AFTER_SEC = {
 
 type Stored<T> = { payload: T; fetchedAt: number };
 
-let redisClient: Redis | null | undefined;
-
-function getRedis(): Redis | null {
-  if (redisClient !== undefined) return redisClient;
-  const url = process.env.REDIS_URL?.trim();
-  if (!url) {
-    redisClient = null;
-    return null;
-  }
-  try {
-    redisClient = new Redis(url, {
-      maxRetriesPerRequest: 2,
-      lazyConnect: true,
-      enableReadyCheck: true,
-    });
-  } catch {
-    redisClient = null;
-  }
-  return redisClient;
-}
-
 function redisKey(logicalKey: string): string {
   return `${REDIS_KEY_PREFIX}${logicalKey}`;
 }
@@ -108,7 +87,7 @@ async function readMemory<T>(logicalKey: string): Promise<Stored<T> | undefined>
 }
 
 async function readRedis<T>(logicalKey: string): Promise<Stored<T> | undefined> {
-  const r = getRedis();
+  const r = getSharedRedis();
   if (!r) return undefined;
   try {
     const raw = await r.get(redisKey(logicalKey));
@@ -135,7 +114,7 @@ async function writeRedis(
   value: Stored<unknown>,
   ttlSec: number,
 ): Promise<void> {
-  const r = getRedis();
+  const r = getSharedRedis();
   if (!r) return;
   try {
     const ex = Math.max(60, ttlSec);

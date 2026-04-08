@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { queryKeys } from "../query-keys";
 import { fetcher } from "../api";
 
@@ -54,6 +54,29 @@ const typeToBackendEntity = {
   songs: "song",
 } as const satisfies Record<LeaderboardTypeInput, "album" | "song">;
 
+function mapEntry(
+  e: LeaderboardEntryFromApi,
+  metric: LeaderboardMetricInput,
+): LeaderboardItem {
+  const favRaw = e.favorite_count ?? e.favoriteCount;
+  const favoriteCount =
+    metric === "favorited"
+      ? Number(favRaw ?? 0)
+      : favRaw != null
+        ? Number(favRaw)
+        : undefined;
+  return {
+    id: e.id,
+    entityType: e.entity_type,
+    title: e.name,
+    artist: e.artist,
+    artworkUrl: e.artwork_url,
+    rating: e.average_rating,
+    playCount: Number(e.total_plays ?? 0),
+    favoriteCount,
+  };
+}
+
 export function useLeaderboard(params: UseLeaderboardParams) {
   const entity = typeToBackendEntity[params.type];
   const backendType = metricToBackendType[params.metric];
@@ -64,46 +87,36 @@ export function useLeaderboard(params: UseLeaderboardParams) {
     entity,
   });
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const infiniteQuery = useInfiniteQuery({
     queryKey: key,
-    queryFn: () => {
-      // Note: backend uses `type` for the metric and `entity` for songs/albums.
-      // We keep your hook signature (`type`=songs|albums, `metric`=popular|top_rated|favorited)
-      // by mapping them here.
+    queryFn: ({ pageParam }) => {
       const qp = new URLSearchParams({
         type: backendType,
         entity,
-        metric: params.metric,
       });
       if (params.startYear != null) qp.set("startYear", String(params.startYear));
       if (params.endYear != null) qp.set("endYear", String(params.endYear));
-
+      const cursor = pageParam as number | undefined;
+      if (cursor && cursor > 0) qp.set("cursor", String(cursor));
       return fetcher<LeaderboardResponse>(`/api/leaderboard?${qp.toString()}`);
     },
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    initialPageParam: 0,
     staleTime: 60 * 1000,
   });
 
   const items: LeaderboardItem[] =
-    data?.items.map((e) => {
-      const favRaw = e.favorite_count ?? e.favoriteCount;
-      const favoriteCount =
-        params.metric === "favorited"
-          ? Number(favRaw ?? 0)
-          : favRaw != null
-            ? Number(favRaw)
-            : undefined;
-      return {
-        id: e.id,
-        entityType: e.entity_type,
-        title: e.name,
-        artist: e.artist,
-        artworkUrl: e.artwork_url,
-        rating: e.average_rating,
-        playCount: Number(e.total_plays ?? 0),
-        favoriteCount,
-      };
-    }) ?? [];
+    infiniteQuery.data?.pages.flatMap((page) =>
+      page.items.map((e) => mapEntry(e, params.metric)),
+    ) ?? [];
 
-  return { data: items, isLoading, error, refetch };
+  return {
+    data: items,
+    isLoading: infiniteQuery.isLoading,
+    error: infiniteQuery.error,
+    refetch: infiniteQuery.refetch,
+    fetchNextPage: infiniteQuery.fetchNextPage,
+    hasNextPage: infiniteQuery.hasNextPage,
+    isFetchingNextPage: infiniteQuery.isFetchingNextPage,
+  };
 }
-

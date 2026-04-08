@@ -61,7 +61,7 @@ test.describe('Feed', () => {
       const hasContent =
         (await page.getByText(/your feed is empty/i).isVisible()) ||
         (await page.locator('[data-index]').first().isVisible().catch(() => false)) ||
-        (await page.getByRole('button', { name: /load more/i }).isVisible().catch(() => false));
+        (await page.getByRole('feed').isVisible().catch(() => false));
       expect(hasContent).toBeTruthy();
     }
   });
@@ -72,10 +72,10 @@ test.describe('Feed', () => {
     const signIn = page.getByRole('button', { name: /sign in with google/i });
     await feedHeading.waitFor({ state: 'visible', timeout: 10000 }).catch(() => signIn.waitFor({ state: 'visible', timeout: 5000 }));
     if (await feedHeading.isVisible()) {
-      const loadMore = page.getByRole('button', { name: /load more/i });
       const empty = page.getByText(/your feed is empty/i);
       const hasList = await page.locator('[data-index]').first().isVisible().catch(() => false);
-      const hasListOrEmpty = (await loadMore.isVisible()) || (await empty.isVisible()) || hasList;
+      const hasFeedRegion = await page.getByRole('feed').isVisible().catch(() => false);
+      const hasListOrEmpty = (await empty.isVisible()) || hasList || hasFeedRegion;
       expect(hasListOrEmpty).toBeTruthy();
     }
   });

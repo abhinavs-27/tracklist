@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import Link from "next/link";
 import { FollowButton } from "./follow-button";
 
@@ -23,6 +24,8 @@ type FollowersModalProps = {
 type TabKind = "followers" | "following";
 
 const PAGE_SIZE = 20;
+const ROW_ESTIMATE = 58;
+const ROW_OVERSCAN = 6;
 
 function ListSkeleton() {
   return (
@@ -37,6 +40,140 @@ function ListSkeleton() {
         </li>
       ))}
     </ul>
+  );
+}
+
+function FollowersVirtualList({
+  items,
+  hasMore,
+  tabLoading,
+  onLoadMore,
+  viewerUserId,
+  onClose,
+}: {
+  items: FollowerUser[];
+  hasMore: boolean;
+  tabLoading: boolean;
+  onLoadMore: () => void;
+  viewerUserId: string | null;
+  onClose: () => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const fetchRef = useRef(onLoadMore);
+  fetchRef.current = onLoadMore;
+
+  const getItemKey = useCallback(
+    (index: number) => items[index]?.id ?? `row-${index}`,
+    [items],
+  );
+
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_ESTIMATE,
+    overscan: ROW_OVERSCAN,
+    getItemKey,
+  });
+
+  useEffect(() => {
+    const root = parentRef.current;
+    const target = sentinelRef.current;
+    if (!root || !target || !hasMore) return;
+    const io = new IntersectionObserver(
+      (observed) => {
+        if (observed[0]?.isIntersecting) void fetchRef.current();
+      },
+      { root, rootMargin: "280px", threshold: 0 },
+    );
+    io.observe(target);
+    return () => io.disconnect();
+  }, [hasMore, items.length]);
+
+  const virtualItems = virtualizer.getVirtualItems();
+
+  return (
+    <div
+      ref={parentRef}
+      className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-4 text-sm"
+      role="list"
+      aria-busy={tabLoading}
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualItems.map((virtualRow) => {
+          const u = items[virtualRow.index];
+          if (!u) return null;
+          return (
+            <div
+              key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              role="listitem"
+              className="pb-2"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+                <Link
+                  href={`/profile/${encodeURIComponent(u.id)}`}
+                  onClick={onClose}
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-0.5 text-left hover:bg-zinc-800/80"
+                >
+                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-800">
+                    {u.avatar_url ? (
+                      <img
+                        src={u.avatar_url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                        {u.username[0]?.toUpperCase() ?? "?"}
+                      </div>
+                    )}
+                  </div>
+                  <span className="min-w-0 truncate font-medium text-white">
+                    {u.username}
+                  </span>
+                </Link>
+                {viewerUserId && u.id !== viewerUserId ? (
+                  <FollowButton
+                    userId={u.id}
+                    initialFollowing={u.is_following}
+                  />
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hasMore ? (
+        <div
+          ref={sentinelRef}
+          className="flex min-h-10 items-center justify-center py-3"
+          aria-hidden={!tabLoading}
+        >
+          {tabLoading ? (
+            <span className="text-xs text-zinc-500" role="status">
+              Loading…
+            </span>
+          ) : (
+            <span className="sr-only">Scroll for more</span>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -161,7 +298,8 @@ export function FollowersModal({
 
     if (loading || !hasMore) return;
 
-    isFollowers ? setFollowersLoading(true) : setFollowingLoading(true);
+    if (isFollowers) setFollowersLoading(true);
+    else setFollowingLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
@@ -190,7 +328,8 @@ export function FollowersModal({
     } catch {
       setError("Failed to load users.");
     } finally {
-      isFollowers ? setFollowersLoading(false) : setFollowingLoading(false);
+      if (isFollowers) setFollowersLoading(false);
+      else setFollowingLoading(false);
     }
   };
 
@@ -253,82 +392,36 @@ export function FollowersModal({
         </div>
 
         {/* Scrolls inside panel; header + tabs stay fixed */}
-        <div className="flex min-h-0 flex-1 flex-col px-4">
+        <div className="flex min-h-0 flex-1 flex-col px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div
-            className="min-h-0 max-h-[calc(92dvh-10.5rem)] flex-1 scroll-pb-4 overflow-y-auto overscroll-contain rounded-lg border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.04)] sm:max-h-[calc(85dvh-10rem)]"
+            className="flex min-h-0 max-h-[calc(92dvh-10.5rem)] flex-1 flex-col overflow-hidden overscroll-contain rounded-lg border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.04)] sm:max-h-[calc(85dvh-10rem)]"
             style={{ WebkitOverflowScrolling: "touch" }}
+            role="presentation"
           >
-              {error ? (
-                <p className="px-3 py-8 pb-10 text-center text-sm text-red-300">
-                  {error}
-                </p>
-              ) : showSkeleton ? (
-                <ListSkeleton />
-              ) : items.length === 0 ? (
-                <div className="flex min-h-[200px] items-center justify-center px-3 py-10 pb-12 text-center text-sm text-zinc-500">
-                  {isFollowersTab
-                    ? "No followers yet."
-                    : "Not following anyone yet."}
-                </div>
-              ) : (
-                <ul className="space-y-2 px-2 pt-2 pb-10 text-sm">
-                  {items.map((u) => (
-                    <li
-                      key={u.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2"
-                    >
-                      <Link
-                        href={`/profile/${encodeURIComponent(u.id)}`}
-                        onClick={onClose}
-                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-0.5 text-left hover:bg-zinc-800/80"
-                      >
-                        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-800">
-                          {u.avatar_url ? (
-                            <img
-                              src={u.avatar_url}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                              {u.username[0]?.toUpperCase() ?? "?"}
-                            </div>
-                          )}
-                        </div>
-                        <span className="min-w-0 truncate font-medium text-white">
-                          {u.username}
-                        </span>
-                      </Link>
-                      {viewerUserId && u.id !== viewerUserId ? (
-                        <FollowButton
-                          userId={u.id}
-                          initialFollowing={u.is_following}
-                        />
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              )}
+            {error ? (
+              <p className="px-3 py-8 pb-10 text-center text-sm text-red-300">
+                {error}
+              </p>
+            ) : showSkeleton ? (
+              <ListSkeleton />
+            ) : items.length === 0 ? (
+              <div className="flex min-h-[200px] items-center justify-center px-3 py-10 pb-12 text-center text-sm text-zinc-500">
+                {isFollowersTab
+                  ? "No followers yet."
+                  : "Not following anyone yet."}
+              </div>
+            ) : (
+              <FollowersVirtualList
+                items={items}
+                hasMore={hasMore}
+                tabLoading={tabLoading}
+                onLoadMore={() => void loadMore(activeTab)}
+                viewerUserId={viewerUserId}
+                onClose={onClose}
+              />
+            )}
           </div>
         </div>
-
-        {hasMore && !error && !showSkeleton && items.length > 0 ? (
-          <div className="shrink-0 border-t border-zinc-800/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <button
-              type="button"
-              onClick={() => void loadMore(activeTab)}
-              disabled={tabLoading}
-              className="w-full rounded-full bg-zinc-800 px-3 py-2.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
-            >
-              {tabLoading ? "Loading…" : "Load more"}
-            </button>
-          </div>
-        ) : (
-          <div
-            className="shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1"
-            aria-hidden
-          />
-        )}
       </div>
     </div>
   );

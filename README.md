@@ -60,7 +60,7 @@ A **music social** web and mobile app: log listens, rate albums and tracks with 
 - **Auth**: **NextAuth** (Google) for the web; session is JWT-based. API routes use `getServerSession` / `requireApiAuth` as appropriate.
 - **Data**: **Supabase** — `anon` + cookies for user-scoped server code, **service role** for admin/cron/Spotify tokens and jobs that bypass RLS.
 - **Optional Express**: `backend/` serves **`/api/*`** for mobile and split deployments. When enabled, **Next middleware** can forward browser **`/api/*`** to Express (see [Optional: Express API](#optional-express-api-backend)).
-- **Optional Redis**: **`REDIS_URL`** enables **BullMQ** (`bullmq` + `ioredis`) for background Spotify enrichment queues (`lib/jobs/spotifyQueue.ts`). Without Redis, eligible work still runs **inline** (e.g. cron handlers) so local dev and small deploys work without a worker.
+- **Optional Redis**: **`REDIS_URL`** enables shared **API caches** (stale-first, community, discover sections), **Spotify client** shared limits/SWR, and **BullMQ** enrichment (`lib/jobs/spotifyQueue.ts`; run `npm run worker:spotify-enrich` in production). Without Redis, caches are per-instance memory and eligible work still runs **inline** (e.g. cron handlers).
 
 ---
 
@@ -193,6 +193,14 @@ Copy **`.env.example`** to **`.env`**. Critical entries:
 |----------|---------|
 | `SPOTIFY_NETWORK_FOR_CATALOG_READS` | Set to `1` to allow `getOrFetch*` helpers to **call Spotify on cache miss** in server contexts (workers, cron). Default unset: DB-only reads unless `allowNetwork` is passed (e.g. some song pages for `lfm:*` ids). |
 
+**Spotify `GET /artists/{id}/albums` (paginated discography)** — Spotify uses **one app-wide** Web API quota (rolling window, ~30s); this endpoint is **not** on a separate limit. We still give it a **dedicated Bottleneck** bucket (`packages/spotify-client`) so long discography pagination doesn’t starve search/other catalog calls, and add a small **gap between pages** in `lib/spotify/getAllArtistAlbums.ts`. **`REDIS_URL`** coordinates Bottleneck across instances. Tune if needed:
+
+| Variable | Purpose |
+|----------|---------|
+| `SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS` | Min spacing between those calls (Bottleneck). Default `450`. |
+| `SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN` | Token bucket per minute for this route only. Default `20`. |
+| `SPOTIFY_ARTIST_ALBUMS_PAGE_GAP_MS` | Extra pause after each paginated page in `getAllArtistAlbums` (ms). Default `400`. |
+
 **Last.fm (optional)**
 
 | Variable | Purpose |
@@ -204,7 +212,16 @@ Copy **`.env.example`** to **`.env`**. Critical entries:
 
 | Variable | Purpose |
 |----------|---------|
-| `REDIS_URL` | Redis connection for **BullMQ** (`spotify-enrich` queue). If unset, enrichment jobs run **inline** where implemented (e.g. cron without a worker). |
+| `REDIS_URL` | **Optional.** Single Redis URL (`redis://` or `rediss://` for TLS). Caches and Spotify SWR use one **shared** ioredis connection ([`lib/redis-client.ts`](lib/redis-client.ts)); discover keys are shared between Next ([`lib/discover-cache.ts`](lib/discover-cache.ts)) and Express ([`backend/services/discoverService.ts`](backend/services/discoverService.ts)) via [`lib/discover-redis.ts`](lib/discover-redis.ts). **BullMQ** (`lib/jobs/spotifyQueue.ts`) uses its own connection (`maxRetriesPerRequest: null`). Bottleneck passes the URL string and manages its own Redis clients. If unset, caches fall back to per-process memory where implemented. **Production:** run `npm run worker:spotify-enrich` for queued enrichment (see `scripts/spotify-enrich-worker.ts`). |
+
+**Profiling (before adding more Redis / stale-first)**
+
+| Approach | Purpose |
+|----------|---------|
+| Vercel Observability / Speed Insights | Find slow routes and cold starts in production. |
+| [`lib/profiling.ts`](lib/profiling) `logPerf` | Server-side timings in route handlers and data loaders. |
+
+Use these to justify new caching: avoid Redis-wrapping **user-specific** or **rapidly mutating** responses unless keys and TTLs are clear.
 
 **Operations**
 
