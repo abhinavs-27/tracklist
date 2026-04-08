@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
 import { NextRequest } from 'next/server';
 import { POST as reviewPOST } from '../app/api/reviews/route';
 import { POST as logPOST } from '../app/api/logs/route';
@@ -28,6 +31,7 @@ function createChain() {
     maybeSingle: vi.fn().mockImplementation(() => chain),
     order: vi.fn().mockImplementation(() => chain),
     limit: vi.fn().mockImplementation(() => chain),
+    range: vi.fn().mockImplementation(() => chain),
   };
   return chain;
 }
@@ -84,6 +88,8 @@ vi.mock('@/lib/queries', () => ({
     }
     return null;
   }),
+  grantAchievementOnReview: vi.fn(),
+  grantAchievementsOnListen: vi.fn(),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({

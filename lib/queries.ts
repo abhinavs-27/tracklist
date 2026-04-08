@@ -88,12 +88,12 @@ export async function fetchUserSummary(
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("users")
-    .select("id, username, avatar_url")
+    .select("username, avatar_url")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
   return {
-    id: data.id,
+    id: userId,
     username: data.username,
     avatar_url: data.avatar_url ?? null,
   };
@@ -1784,12 +1784,15 @@ export async function getTopTracksForArtist(
 
     const { data: songRowsRaw } = await supabase
       .from("tracks")
-      .select("id, name, album_id, duration_ms, artist_id")
+      .select("id, name, album_id, duration_ms")
       .eq("artist_id", canonicalArtistId)
       .limit(1000);
     if (!songRowsRaw?.length) return [];
 
-    const songRows = songRowsRaw as {
+    const songRows = songRowsRaw.map((s: any) => ({
+      ...s,
+      artist_id: canonicalArtistId,
+    })) as {
       id: string;
       name: string;
       album_id: string;
@@ -3592,14 +3595,14 @@ export async function getProfileActivity(
       supabase
         .from("reviews")
         .select(
-          "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+          "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
         )
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit),
       supabase
         .from("follows")
-        .select("id, follower_id, following_id, created_at")
+        .select("id, following_id, created_at")
         .eq("follower_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit),
@@ -3624,29 +3627,45 @@ export async function getProfileActivity(
       .in("id", [...userIds]);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
-    const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
+    const reviewActivities: FeedActivity[] = (
+      reviewRows as unknown as {
+        id: string;
+        entity_type: string;
+        entity_id: string;
+        rating: number;
+        review_text: string | null;
+        created_at: string;
+        updated_at: string;
+      }[]
+    ).map((r) => ({
       type: "review",
       created_at: r.created_at,
       review: {
         id: r.id,
-        user_id: r.user_id,
+        user_id: userId,
         entity_type: r.entity_type as "album" | "song",
         entity_id: r.entity_id,
         rating: r.rating,
         review_text: r.review_text ?? null,
         created_at: r.created_at,
         updated_at: r.updated_at,
-        user: userMap.get(r.user_id) ?? null,
+        user: userMap.get(userId) ?? null,
       },
     }));
 
-    const followActivities: FeedActivity[] = followRows.map((f) => ({
+    const followActivities: FeedActivity[] = (
+      followRows as unknown as {
+        id: string;
+        following_id: string;
+        created_at: string;
+      }[]
+    ).map((f) => ({
       type: "follow",
       id: f.id,
       created_at: f.created_at,
-      follower_id: f.follower_id,
+      follower_id: userId,
       following_id: f.following_id,
-      follower_username: userMap.get(f.follower_id)?.username ?? null,
+      follower_username: userMap.get(userId)?.username ?? null,
       following_username: userMap.get(f.following_id)?.username ?? null,
     }));
 
@@ -3938,15 +3957,16 @@ export async function getList(
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: listRow, error: listError } = await supabase
+    const { data: rawListRow, error: listError } = await supabase
       .from("lists")
       .select(
-        "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+        "user_id, title, description, type, visibility, emoji, image_url, created_at",
       )
       .eq("id", listId)
       .maybeSingle();
 
-    if (listError || !listRow) return null;
+    if (listError || !rawListRow) return null;
+    const listRow = { ...rawListRow, id: listId };
 
     let itemRows:
       | {
