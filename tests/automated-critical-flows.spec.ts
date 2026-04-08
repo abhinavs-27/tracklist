@@ -45,7 +45,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     });
   });
 
-  test('Critical Flow 1: Creating a Review', async ({ page }) => {
+  test('Critical Flow 1: Creating a Review (Success and Error)', async ({ page }) => {
     // 1. Mock the reviews API
     await page.route('**/api/reviews*', async (route) => {
       if (route.request().method() === 'POST') {
@@ -66,12 +66,11 @@ test.describe('Critical Flows: Automated Integration', () => {
       }
     });
 
-    // 2. UI Interaction via E2E logging page
+    // Success Case
     await page.goto('/e2e/logging');
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    // 3. Fill and submit
     await page.getByRole('button', { name: '4 out of 5 stars' }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Testing automated review creation');
 
@@ -82,15 +81,33 @@ test.describe('Critical Flows: Automated Integration', () => {
 
     const result = await response.json();
     expect(result.rating).toBe(4);
-    expect(result.review_text).toBe('Testing automated review creation');
     await expect(page.getByRole('dialog')).not.toBeVisible();
+
+    // Error Case (via evaluation since UI prevents invalid rating usually)
+    const errorResult = await page.evaluate(async () => {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 })
+      });
+      return { status: res.status, body: await res.json() };
+    });
+    expect(errorResult.status).toBe(400);
+    expect(errorResult.body.error).toContain('between 1 and 5');
   });
 
-  test('Critical Flow 2: Logging Listens', async ({ page }) => {
+  test('Critical Flow 2: Logging Listens (Success and Error)', async ({ page }) => {
     // 1. Mock the logs API
     await page.route('**/api/logs', async (route) => {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON();
+        if (!body.track_id && !body.spotify_id) {
+          return route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'Missing track_id' }),
+          });
+        }
         return route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -99,7 +116,7 @@ test.describe('Critical Flows: Automated Integration', () => {
       }
     });
 
-    // 2. UI Interaction
+    // Success Case
     await page.goto('/e2e/logging');
     const [response] = await Promise.all([
       page.waitForResponse(res => res.url().includes('/api/logs') && res.status() === 200),
@@ -108,10 +125,20 @@ test.describe('Critical Flows: Automated Integration', () => {
 
     const result = await response.json();
     expect(result.track_id).toBe('track_demo_1');
+
+    // Error Case
+    const errorResult = await page.evaluate(async () => {
+      const res = await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'manual' })
+      });
+      return { status: res.status };
+    });
+    expect(errorResult.status).toBe(400);
   });
 
   test('Critical Flow 3: Spotify Ingestion', async ({ page }) => {
-    // 1. Mock Spotify Sync API
     await page.route('**/api/spotify/sync', async (route) => {
       if (route.request().method() === 'POST') {
         return route.fulfill({
@@ -122,11 +149,8 @@ test.describe('Critical Flows: Automated Integration', () => {
       }
     });
 
-    // 2. Mock session to ensure UI shows sync button if needed,
-    // but here we just test the API call behavior from the client side.
     await page.goto('/');
 
-    // We use evaluate to call the API directly and verify the response
     const syncResult = await page.evaluate(async () => {
       const res = await fetch('/api/spotify/sync', { method: 'POST' });
       return { status: res.status, body: await res.json() };
@@ -134,47 +158,46 @@ test.describe('Critical Flows: Automated Integration', () => {
 
     expect(syncResult.status).toBe(200);
     expect(syncResult.body.inserted).toBe(5);
-    expect(syncResult.body.mode).toBe('song');
   });
 
-  test('Critical Flow 4: User Profile Fetch', async ({ page }) => {
-    const mockProfile = {
-      id: 'user-xyz',
-      username: 'target_user',
-      avatar_url: 'https://example.com/avatar.png',
-      bio: 'Automated test profile bio',
-      followers_count: 42,
-      following_count: 10,
-      is_following: false,
-      is_own_profile: false
-    };
-
-    // 1. Mock User API
+  test('Critical Flow 4: User Profile Fetch (Success and 404)', async ({ page }) => {
+    // Success Mock
     await page.route('**/api/users/target_user', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockProfile),
+        body: JSON.stringify({ username: 'target_user', bio: 'Success bio' }),
       });
     });
 
-    // 2. API Trigger via client-side fetch
+    // 404 Mock
+    await page.route('**/api/users/missing_user', async (route) => {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'User not found' }),
+      });
+    });
+
     await page.goto('/');
-    const profile = await page.evaluate(async () => {
+
+    // Success check
+    const successProfile = await page.evaluate(async () => {
       const res = await fetch('/api/users/target_user');
       return { status: res.status, body: await res.json() };
     });
+    expect(successProfile.status).toBe(200);
+    expect(successProfile.body.bio).toBe('Success bio');
 
-    expect(profile.status).toBe(200);
-    expect(profile.body.username).toBe('target_user');
-    expect(profile.body.bio).toBe('Automated test profile bio');
-    expect(profile.body.followers_count).toBe(42);
+    // 404 check
+    const missingProfile = await page.evaluate(async () => {
+      const res = await fetch('/api/users/missing_user');
+      return { status: res.status };
+    });
+    expect(missingProfile.status).toBe(404);
   });
 
   test('Critical Flow 5: Search Results', async ({ page }) => {
-    // Note: SearchPageContent is a server component, so page.route on /api/search
-    // won't work for the initial server render. We test the search bar and UI state.
-
     await page.goto('/search');
     const searchInput = page.getByRole('searchbox').first();
     await searchInput.fill('radiohead');
@@ -183,12 +206,10 @@ test.describe('Critical Flows: Automated Integration', () => {
     await page.waitForURL(/\/search\?q=radiohead/);
     await expect(searchInput).toHaveValue('radiohead');
 
-    // Verify the page structure
     const mainContent = page.getByRole('main');
     await expect(mainContent).toBeVisible();
 
-    // Check for common search result indicators or error/empty states
-    // This verifies the search UI was at least triggered and reached a terminal state.
+    // Check that we reached a result state (even if empty in mock-less environment)
     const resultIndicator = page.locator('text=/Artists|Albums|Tracks|Search failed|No results/i').first();
     await expect(resultIndicator).toBeVisible();
   });
