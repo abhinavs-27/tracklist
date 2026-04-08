@@ -31,21 +31,26 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   /** Route params may arrive as `lfm%3A...`; DB + Spotify paths need `lfm:...`. */
   const id = normalizeReviewEntityId(rawId);
-  const session = await getSession();
+  const sessionPromise = getSession();
+  const trackPromise = getOrFetchTrack(id);
 
-  let track: SpotifyApi.TrackObjectFull;
-  try {
-    track = await getOrFetchTrack(id);
-  } catch {
+  const [session, trackRes, songSettled] = await Promise.all([
+    sessionPromise,
+    trackPromise.catch(() => null),
+    Promise.allSettled([
+      getReviewsForEntity("song", id),
+      getEntityStats("song", id),
+      sessionPromise.then((s) =>
+        getListenLogsForTrack(id, 10, 0, s?.user?.id ?? null),
+      ),
+      getRelatedMedia("song", id, 12),
+    ]),
+  ]);
+
+  if (!trackRes) {
     notFound();
   }
-
-  const songSettled = await Promise.allSettled([
-    getReviewsForEntity("song", id),
-    getEntityStats("song", id),
-    getListenLogsForTrack(id, 10, 0, session?.user?.id ?? null),
-    getRelatedMedia("song", id, 12),
-  ]);
+  const track = trackRes;
 
   const defaultStats = {
     listen_count: 0,

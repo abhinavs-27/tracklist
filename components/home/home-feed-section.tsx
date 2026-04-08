@@ -13,19 +13,7 @@ import { cardElevated, sectionGap, sectionTitle } from "@/lib/ui/surface";
 export async function HomeFeedSection({ userId }: { userId: string }) {
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
   const feedResult = await getHomeFeedInitialForUser(userId, 50);
-  const { items: feedItems, next_cursor: feedNextCursor } = feedResult;
-  const [withNames, withAlbums] = await Promise.all([
-    enrichFeedActivitiesWithEntityNames(feedItems),
-    enrichListenSessionsWithAlbums(feedItems),
-  ]);
-  const enrichedItems = withAlbums.map((activity, i) =>
-    activity.type === "review" && withNames[i]
-      ? {
-          ...activity,
-          spotifyName: (withNames[i] as { spotifyName?: string }).spotifyName,
-        }
-      : activity,
-  );
+  const { items: enrichedItems, next_cursor: feedNextCursor } = feedResult;
 
   return (
     <div className={sectionGap}>
@@ -40,7 +28,7 @@ export async function HomeFeedSection({ userId }: { userId: string }) {
         <RecommendedCommunitiesSuspense userId={userId} />
       ) : null}
 
-      {feedItems.length === 0 ? (
+      {enrichedItems.length === 0 ? (
         <div className={`space-y-8 p-8 sm:p-10 ${cardElevated}`}>
           <div className="text-center">
             <p className="text-base text-zinc-400">

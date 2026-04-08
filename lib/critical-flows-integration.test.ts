@@ -11,6 +11,8 @@ import { GET as searchGET } from '../app/api/search/route';
 
 // --- Mocks ---
 
+vi.mock('server-only', () => ({}));
+
 vi.mock('@/lib/auth', () => ({
   requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
   getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
