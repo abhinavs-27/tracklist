@@ -12,12 +12,12 @@
     "@tracklist/spotify-client": "file:../packages/spotify-client",
     "bottleneck": "^2.19.5",
     "ioredis": "^5.10.1",
-    "@supabase/supabase-js": "^2.101.1",
+    "@supabase/supabase-js": "^2.102.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^4.22.1",
-    "http-proxy-middleware": "^3.0.3",
+    "http-proxy-middleware": "^3.0.5",
     "next-auth": "^4.24.13"
   },
   "devDependencies": {

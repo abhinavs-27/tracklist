@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('server-only', () => ({}));
+
 import { NextRequest } from 'next/server';
 import { POST as reviewPOST } from '../app/api/reviews/route';
 import { POST as logPOST } from '../app/api/logs/route';
@@ -69,6 +72,7 @@ vi.mock('@/lib/queries', () => ({
   grantAchievementOnReview: vi.fn(),
   grantAchievementsOnListen: vi.fn(),
   getReviewsForEntity: vi.fn(),
+  fetchUserSummary: vi.fn(async (userId) => ({ id: userId, username: 'testuser', avatar_url: null })),
   getFullUserProfile: vi.fn(async (username) => {
     if (username === 'testuser') {
         return { id: 'test-user-id', username: 'testuser', bio: 'Test bio' };
