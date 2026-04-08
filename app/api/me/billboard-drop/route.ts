@@ -3,7 +3,7 @@ import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { getBillboardDropStatus } from "@/lib/billboard-drop/billboard-drop-state";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getLatestWeeklyChartForUser } from "@/lib/charts/get-user-weekly-chart";
+import { getLatestWeeklyChartMetaForUser } from "@/lib/charts/get-user-weekly-chart";
 import { BillboardDropBody } from "@/types";
 
 export const GET = withHandler(
@@ -31,7 +31,7 @@ export const POST = withHandler(
     const admin = createSupabaseAdminClient();
     const uid = user!.id;
 
-    const latest = await getLatestWeeklyChartForUser({
+    const latest = await getLatestWeeklyChartMetaForUser({
       userId: uid,
       chartType: "tracks",
     });

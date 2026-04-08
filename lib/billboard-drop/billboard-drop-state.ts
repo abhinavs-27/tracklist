@@ -1,14 +1,15 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+import { getBillboardWeeklyChartSnapshot } from "@/lib/charts/get-user-weekly-chart";
 import { getUserCommunities } from "@/lib/community/queries";
-import { getLatestWeeklyChartForUser } from "@/lib/charts/get-user-weekly-chart";
-import type {
+import type { BillboardDropStatus } from "@/lib/billboard-drop/billboard-drop-types";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+
+export type {
   BillboardDropHighlights,
   BillboardDropStatus,
 } from "@/lib/billboard-drop/billboard-drop-types";
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-
-export type { BillboardDropHighlights, BillboardDropStatus } from "@/lib/billboard-drop/billboard-drop-types";
 
 function pickBiggestMoverDelta(
   movement: number | null | undefined,
@@ -17,10 +18,10 @@ function pickBiggestMoverDelta(
   return movement;
 }
 
-export async function getBillboardDropStatus(
+async function getBillboardDropStatusUncached(
   userId: string,
 ): Promise<BillboardDropStatus> {
-  const chart = await getLatestWeeklyChartForUser({
+  const chart = await getBillboardWeeklyChartSnapshot({
     userId,
     chartType: "tracks",
   });
@@ -36,13 +37,16 @@ export async function getBillboardDropStatus(
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: row, error } = await admin
-    .from("users")
-    .select(
-      "billboard_drop_ack_week, billboard_drop_dismissed_week",
-    )
-    .eq("id", userId)
-    .maybeSingle();
+  const [{ data: row, error }, communities] = await Promise.all([
+    admin
+      .from("users")
+      .select(
+        "billboard_drop_ack_week, billboard_drop_dismissed_week",
+      )
+      .eq("id", userId)
+      .maybeSingle(),
+    getUserCommunities(userId, 100, 0),
+  ]);
 
   if (error) {
     console.warn("[billboard-drop] user row", error.message);
@@ -62,18 +66,16 @@ export async function getBillboardDropStatus(
   const shouldShowModal = needsAck && !dismissedThisWeek;
   const showBanner = needsAck && dismissedThisWeek;
 
-  const numberOne = chart.share.numberOne;
-  const newEntriesCount = chart.rankings.filter((r) => r.is_new).length;
-  const jump = chart.movers.biggest_jump;
-
-  const communities = await getUserCommunities(userId, 100, 0);
+  const numberOne = chart.numberOne;
+  const newEntriesCount = chart.newEntriesCount;
+  const jump = chart.biggestJump;
 
   return {
     hasChart: true,
     shouldShowModal,
     showBanner,
     highlights: {
-      weekLabel: chart.share.weekLabel,
+      weekLabel: chart.weekLabel,
       weekStart: latestWeek,
       numberOneTitle: numberOne?.name ?? "—",
       numberOneArtist: numberOne?.artist_name ?? null,
@@ -84,4 +86,16 @@ export async function getBillboardDropStatus(
     },
     communityCount: communities.length,
   };
+}
+
+const getBillboardDropStatusCached = unstable_cache(
+  async (userId: string) => getBillboardDropStatusUncached(userId),
+  ["billboard-drop-status"],
+  { revalidate: 60 },
+);
+
+export async function getBillboardDropStatus(
+  userId: string,
+): Promise<BillboardDropStatus> {
+  return getBillboardDropStatusCached(userId);
 }

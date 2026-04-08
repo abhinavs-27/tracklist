@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  getFeedForUser,
+  getHomeFeedInitialForUser,
   enrichFeedActivitiesWithEntityNames,
   enrichListenSessionsWithAlbums,
 } from "@/lib/feed";
@@ -12,7 +12,7 @@ import { cardElevated, sectionGap, sectionTitle } from "@/lib/ui/surface";
 
 export async function HomeFeedSection({ userId }: { userId: string }) {
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
-  const feedResult = await getFeedForUser(userId, 50, null);
+  const feedResult = await getHomeFeedInitialForUser(userId, 50);
   const { items: feedItems, next_cursor: feedNextCursor } = feedResult;
   const [withNames, withAlbums] = await Promise.all([
     enrichFeedActivitiesWithEntityNames(feedItems),

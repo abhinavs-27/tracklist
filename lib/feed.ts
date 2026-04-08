@@ -20,6 +20,22 @@ export async function getFeedForUser(
   );
 }
 
+/**
+ * Home page initial feed (RSC). Cannot use `unstable_cache`: `getMergedActivityFeed` calls
+ * `getActivityFeed`, which uses `createSupabaseServerClient()` (cookies).
+ */
+export async function getHomeFeedInitialForUser(
+  userId: string,
+  limit = 50,
+): Promise<ActivityFeedPage> {
+  return timeAsync(
+    "db",
+    "getFeedForUser",
+    () => getMergedActivityFeed(userId, limit, null),
+    { limit, hasCursor: false },
+  );
+}
+
 /** Enrich review activities with entity names (album/track) for display. Uses DB first, then spotify-cache for missing. */
 export async function enrichFeedActivitiesWithEntityNames(
   activities: FeedActivity[],

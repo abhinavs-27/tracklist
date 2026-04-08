@@ -225,6 +225,125 @@ export async function getLatestWeeklyChartForUser(args: {
   });
 }
 
+/** Latest week bounds only — for ack/dismiss flows that only need `week_start`. */
+export async function getLatestWeeklyChartMetaForUser(args: {
+  userId: string;
+  chartType: ChartType;
+}): Promise<{ week_start: string; week_end: string } | null> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("user_weekly_charts")
+    .select("week_start, week_end")
+    .eq("user_id", args.userId)
+    .eq("chart_type", args.chartType)
+    .order("week_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[weekly-chart] get latest meta", error.message);
+    return null;
+  }
+  if (!data) return null;
+  return data as { week_start: string; week_end: string };
+}
+
+export type BillboardWeeklyChartSnapshot = {
+  week_start: string;
+  week_end: string;
+  weekLabel: string;
+  numberOne: WeeklyChartRankingApiRow | null;
+  newEntriesCount: number;
+  biggestJump: WeeklyChartRankingApiRow | null;
+};
+
+/**
+ * Minimal weekly chart payload for billboard drop (no narrative, moment, or full-rank hydration).
+ */
+export async function getBillboardWeeklyChartSnapshot(args: {
+  userId: string;
+  chartType: ChartType;
+}): Promise<BillboardWeeklyChartSnapshot | null> {
+  const admin = createSupabaseAdminClient();
+
+  const { data, error } = await admin
+    .from("user_weekly_charts")
+    .select("week_start, week_end, chart_type, rankings")
+    .eq("user_id", args.userId)
+    .eq("chart_type", args.chartType)
+    .order("week_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[weekly-chart] billboard snapshot", error.message);
+    return null;
+  }
+  if (!data) return null;
+
+  const row = data as {
+    week_start: string;
+    week_end: string;
+    chart_type: ChartType;
+    rankings: unknown;
+  };
+
+  const rankingsRaw = parseRankings(row.rankings);
+  const currentKnown = filterKnownRankings(rankingsRaw);
+
+  const weekStartDate = new Date(row.week_start);
+  const prevWeekStart = new Date(weekStartDate);
+  prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
+
+  const { data: prevRow } = await admin
+    .from("user_weekly_charts")
+    .select("rankings")
+    .eq("user_id", args.userId)
+    .eq("chart_type", args.chartType)
+    .eq("week_start", prevWeekStart.toISOString())
+    .maybeSingle();
+
+  const prevRankings = filterKnownRankings(
+    parseRankings((prevRow as { rankings?: unknown } | null)?.rankings),
+  );
+
+  const moversRaw = computeBiggestMovers(currentKnown, prevRankings);
+  const weekLabel = formatWeeklyChartWeekLabel(row.week_start, row.week_end);
+
+  const sortedByRank = [...currentKnown].sort((a, b) => a.rank - b.rank);
+  const leaderRow = sortedByRank[0] ?? null;
+
+  const idsNeeded = new Set<string>();
+  if (leaderRow) idsNeeded.add(leaderRow.entity_id);
+  if (moversRaw.biggest_jump) {
+    idsNeeded.add(moversRaw.biggest_jump.entity_id);
+  }
+
+  const slimRankings = rankingsRaw.filter((r) => idsNeeded.has(r.entity_id));
+  const hydrated = await hydrateWeeklyChartRankings(args.chartType, slimRankings);
+  const hydratedVisible = hydrated.filter((r) => !isUnknownWeeklyChartRow(r));
+  const enriched = enrichWeeklyChartApiRows(hydratedVisible);
+
+  const numberOne = leaderRow ? pickEnriched(leaderRow, enriched) : null;
+  const biggestJump = moversRaw.biggest_jump
+    ? mergeMoverMovement(
+        pickEnriched(moversRaw.biggest_jump, enriched),
+        moversRaw.biggest_jump,
+      )
+    : null;
+
+  const newEntriesCount = currentKnown.filter((r) => r.is_new).length;
+
+  return {
+    week_start: row.week_start,
+    week_end: row.week_end,
+    weekLabel,
+    numberOne,
+    newEntriesCount,
+    biggestJump,
+  };
+}
+
 export type WeeklyChartWeekOption = {
   week_start: string;
   week_end: string;
