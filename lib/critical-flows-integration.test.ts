@@ -8,6 +8,8 @@ import { GET as searchGET } from '../app/api/search/route';
 
 // --- Mocks ---
 
+vi.mock('server-only', () => ({}));
+
 vi.mock('@/lib/auth', () => ({
   requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
   getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
@@ -76,6 +78,12 @@ vi.mock('@/lib/queries', () => ({
     return null;
   }),
   getListenLogsForUser: vi.fn(async () => []),
+  fetchUserSummary: vi.fn(async (userId) => {
+    if (userId === 'test-user-id') {
+      return { id: 'test-user-id', username: 'testuser', avatar_url: null };
+    }
+    return null;
+  }),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({

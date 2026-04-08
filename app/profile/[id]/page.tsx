@@ -59,10 +59,36 @@ export default async function ProfilePage({
     typeof paramsResolved?.id === "string" ? paramsResolved.id.trim() : "";
   if (!segment) notFound();
 
-  const session = await getSession();
-
+  const sessionPromise = getSession();
   const supabase = createSupabaseAdminClient();
-  let user: {
+
+  const userQueryPromise = (async () => {
+    if (segment && isValidUuid(segment)) {
+      return supabase
+        .from("users")
+        .select(
+          "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
+        )
+        .eq("id", segment)
+        .maybeSingle();
+    } else if (segment) {
+      return supabase
+        .from("users")
+        .select(
+          "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
+        )
+        .eq("username", String(segment).trim())
+        .maybeSingle();
+    }
+    return { data: null, error: null };
+  })();
+
+  const [session, userRes] = await Promise.all([
+    sessionPromise,
+    userQueryPromise,
+  ]);
+
+  const user = userRes.data as {
     id: string;
     username: string;
     avatar_url: string | null;
@@ -72,30 +98,8 @@ export default async function ProfilePage({
     lastfm_last_synced_at: string | null;
     onboarding_completed: boolean;
     logs_private: boolean;
-  } | null = null;
-  let userError: unknown = null;
-
-  if (segment && isValidUuid(segment)) {
-    const result = await supabase
-      .from("users")
-      .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
-      )
-      .eq("id", segment)
-      .maybeSingle();
-    user = result.data;
-    userError = result.error;
-  } else if (segment) {
-    const result = await supabase
-      .from("users")
-      .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
-      )
-      .eq("username", String(segment).trim())
-      .maybeSingle();
-    user = result.data;
-    userError = result.error;
-  }
+  } | null;
+  const userError = userRes.error;
 
   if (userError) {
     console.error("ProfilePage user fetch error:", userError);

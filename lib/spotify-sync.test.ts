@@ -3,6 +3,8 @@ import { POST } from '../app/api/spotify/sync/route';
 import { NextRequest } from 'next/server';
 
 // Mock dependencies
+vi.mock('server-only', () => ({}));
+
 vi.mock('@/lib/rate-limit', () => ({
   checkSpotifyRateLimit: vi.fn(() => true),
 }));

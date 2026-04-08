@@ -25,37 +25,44 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     "page",
     "albumPage",
     async () => {
-      const [albumRes, statsRes, sessionRes, engagementRes] = await Promise.allSettled([
-        getOrFetchAlbum(id, { allowNetwork: true }),
-        getEntityStats("album", id),
-        sessionPromise,
-        getAlbumEngagementStats(id),
-      ]);
+      const [albumRes, statsRes, sessionRes, engagementRes, friendActivityRes] =
+        await Promise.allSettled([
+          getOrFetchAlbum(id, { allowNetwork: true }),
+          getEntityStats("album", id),
+          sessionPromise,
+          getAlbumEngagementStats(id),
+          sessionPromise.then((s) =>
+            s?.user?.id ? getFriendsAlbumActivity(s.user.id, id, 10) : [],
+          ),
+        ]);
 
       if (albumRes.status !== "fulfilled") {
         notFound();
       }
 
       const { album: albumInner, tracks: tracksInner } = albumRes.value;
-      const statsInner = statsRes.status === "fulfilled" ? statsRes.value : {
-        listen_count: 0,
-        average_rating: null,
-        review_count: 0,
-        rating_distribution: {
-          "1": 0,
-          "1.5": 0,
-          "2": 0,
-          "2.5": 0,
-          "3": 0,
-          "3.5": 0,
-          "4": 0,
-          "4.5": 0,
-          "5": 0,
-        },
-      };
+      const statsInner =
+        statsRes.status === "fulfilled"
+          ? statsRes.value
+          : {
+              listen_count: 0,
+              average_rating: null,
+              review_count: 0,
+              rating_distribution: {
+                "1": 0,
+                "1.5": 0,
+                "2": 0,
+                "2.5": 0,
+                "3": 0,
+                "3.5": 0,
+                "4": 0,
+                "4.5": 0,
+                "5": 0,
+              },
+            };
 
-      const sessionVal = sessionRes.status === "fulfilled" ? sessionRes.value : null;
-      const viewerId = sessionVal?.user?.id ?? null;
+      const sessionVal =
+        sessionRes.status === "fulfilled" ? sessionRes.value : null;
       const engagementInner =
         engagementRes.status === "fulfilled"
           ? engagementRes.value
@@ -66,9 +73,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
               favorite_count: 0,
             };
 
-      const friendActivityInner = viewerId
-        ? await getFriendsAlbumActivity(viewerId, id, 10)
-        : [];
+      const friendActivityInner =
+        friendActivityRes.status === "fulfilled" ? friendActivityRes.value : [];
 
       return {
         album: albumInner,

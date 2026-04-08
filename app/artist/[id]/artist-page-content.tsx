@@ -23,21 +23,22 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   /** Params may be `lfm%3A…` from links; DB + Spotify need `lfm:…`. */
   const id = normalizeReviewEntityId(rawId);
-  const session = await getSession();
+  const sessionPromise = getSession();
+  const artistPromise = getOrFetchArtist(id, { allowNetwork: true });
 
-  let artist: SpotifyApi.ArtistObjectFull;
-  try {
-    artist = await getOrFetchArtist(id, { allowNetwork: true });
-  } catch {
-    notFound();
-  }
-
-  const [topTracks, popularAlbumsResult, recentReviews] =
+  const [session, artistRes, topTracks, popularAlbumsResult, recentReviews] =
     await Promise.all([
+      sessionPromise,
+      artistPromise.catch(() => null),
       getTopTracksForArtist(id, 10),
       getPopularAlbumsForArtist(id),
       getReviewsForArtist(id, 8),
     ]);
+
+  if (!artistRes) {
+    notFound();
+  }
+  const artist = artistRes;
 
   const popularAlbums = popularAlbumsResult.rows;
   /** Spotify returned a full first page and a peek at offset=pageSize found more; full list loads on /albums. */
