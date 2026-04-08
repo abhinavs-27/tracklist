@@ -66,6 +66,16 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `feed_events` | `(user_id, created_at DESC)` | `131` | Optimized for personal and following feed lookups. |
 | `community_weekly_charts` | `(community_id, chart_type, week_start DESC)` | `131` | Optimized for fetching latest community charts. |
 | `community_members` | `(community_id, role, created_at)` | `131` | Optimized for community roster retrieval and sorting. |
+| `reviews` | `(entity_type, entity_id, created_at DESC)` | `141` | Optimized for fetching latest reviews for an entity. |
+| `logs` | `(track_id, listened_at DESC)` | `141` | Optimized for track activity history. |
+| `users` | `(username gin_trgm_ops)` | `141` | Optimized for fuzzy user search via ILIKE. |
+| `users` | `(created_at, id)` | `141` | Optimized for directory listing of users. |
+| `follows` | `(following_id, created_at DESC)` | `141` | Optimized for follower retrieval. |
+| `follows` | `(follower_id, created_at DESC)` | `141` | Optimized for following retrieval. |
+| `albums` | `(release_date DESC, id)` | `141` | Optimized for leaderboard release date filtering. |
+| `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
+| `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
+| `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
 
 ## Recommendations for Future Queries
 
