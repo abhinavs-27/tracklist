@@ -1,9 +1,8 @@
 import "server-only";
-import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { headers } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "./get-session";
 import { apiUnauthorized } from "@/lib/api-response";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { normalizeEmail, generateUsernameFromEmail } from "./utils";
@@ -130,7 +129,7 @@ export async function getUserFromRequest(
   request?: NextRequest | Request | null,
 ): Promise<User | null> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     const sessionEmail = session?.user?.email;
     if (
       session &&
@@ -220,7 +219,7 @@ export async function getUserFromRequest(
  * not a stale `session.user.id` (JWT can desync from `public.users`; do not confuse
  * with `auth.users` in the Supabase dashboard).
  *
- * Email is taken from `me`, then the signed JWT cookie via `getToken`, then `getServerSession`.
+ * Email is taken from `me`, then the signed JWT cookie via `getToken`, then {@link getSession}.
  */
 export async function resolveUserIdForMutation(
   me: User,
@@ -257,7 +256,7 @@ export async function resolveUserIdForMutation(
   }
 
   resolved = await tryEmail(
-    (await getServerSession(authOptions))?.user?.email ?? undefined,
+    (await getSession())?.user?.email ?? undefined,
   );
   if (resolved) return resolved;
 

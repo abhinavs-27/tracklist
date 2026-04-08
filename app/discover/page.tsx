@@ -1,8 +1,7 @@
 /* eslint-disable react-hooks/purity -- server-only discover perf timings (Date.now) */
 import Link from "next/link";
 import { Suspense } from "react";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { RecommendedCommunitiesSuspense } from "@/components/discover/recommended-communities-suspense";
 import { DiscoverTastePreview } from "@/components/discover/discover-taste-preview";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
@@ -17,7 +16,7 @@ function DiscoverSectionSkeleton() {
 }
 
 export default async function DiscoverPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
   return (

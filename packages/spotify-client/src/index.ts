@@ -4,6 +4,7 @@
  */
 
 import Bottleneck from "bottleneck";
+import { getSpotifyBottleneckRedisConnection } from "../../../lib/bottleneck-spotify-connection";
 import { getSharedRedis } from "../../../lib/redis-client";
 
 export const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
@@ -116,13 +117,13 @@ const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN = parsePositiveIntEnv(
 
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */
 export const spotifyLimiter = (() => {
-  const url = process.env.REDIS_URL?.trim();
-  if (url) {
+  const connection = getSpotifyBottleneckRedisConnection();
+  if (connection) {
     return new Bottleneck({
       datastore: "ioredis",
+      connection,
       clearDatastore: false,
       id: "spotify-catalog-limiter",
-      clientOptions: url,
       maxConcurrent: 1,
       minTime: SPOTIFY_MIN_TIME_MS,
       reservoir: SPOTIFY_RESERVOIR_PER_MIN,
@@ -141,7 +142,7 @@ export const spotifyLimiter = (() => {
 
 /** Separate limiter so burst single-track GETs do not compete with albums/artists/search. */
 const spotifySingleTrackLimiter = (() => {
-  const url = process.env.REDIS_URL?.trim();
+  const connection = getSpotifyBottleneckRedisConnection();
   const opts = {
     maxConcurrent: 1,
     minTime: SPOTIFY_SINGLE_TRACK_MIN_TIME_MS,
@@ -149,12 +150,12 @@ const spotifySingleTrackLimiter = (() => {
     reservoirRefreshAmount: SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN,
     reservoirRefreshInterval: 60 * 1000,
   } as const;
-  if (url) {
+  if (connection) {
     return new Bottleneck({
       datastore: "ioredis",
+      connection,
       clearDatastore: false,
       id: "spotify-single-track-limiter",
-      clientOptions: url,
       ...opts,
     });
   }
@@ -163,7 +164,7 @@ const spotifySingleTrackLimiter = (() => {
 
 /** Paginated artist discography — own bucket so pagination doesn’t monopolize the main catalog limiter. */
 const spotifyArtistAlbumsLimiter = (() => {
-  const url = process.env.REDIS_URL?.trim();
+  const connection = getSpotifyBottleneckRedisConnection();
   const opts = {
     maxConcurrent: 1,
     minTime: SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS,
@@ -171,12 +172,12 @@ const spotifyArtistAlbumsLimiter = (() => {
     reservoirRefreshAmount: SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN,
     reservoirRefreshInterval: 60 * 1000,
   } as const;
-  if (url) {
+  if (connection) {
     return new Bottleneck({
       datastore: "ioredis",
+      connection,
       clearDatastore: false,
       id: "spotify-artist-albums-limiter",
-      clientOptions: url,
       ...opts,
     });
   }

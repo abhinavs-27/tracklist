@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { CommunityJoinClient } from "@/components/community/community-join-client";
 import { getCommunityInvitePreview } from "@/lib/community/invite-link-preview";
 import {
@@ -36,7 +35,7 @@ export default async function CommunityJoinPage({
 
   const [preview, session] = await Promise.all([
     getCommunityInvitePreview(link.community_id),
-    getServerSession(authOptions),
+    getSession(),
   ]);
   if (!preview) notFound();
 

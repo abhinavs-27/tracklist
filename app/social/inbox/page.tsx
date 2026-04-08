@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { InboxKindFilters } from "@/components/social/inbox-kind-filters";
 import { InboxPageNav } from "@/components/social/inbox-page-nav";
 import { InboxThreadRow } from "@/components/social/inbox-thread-row";
@@ -38,7 +37,7 @@ export default async function SocialInboxPage({
 }: {
   searchParams: Promise<{ kind?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/auth/signin");
 
   const sp = await searchParams;

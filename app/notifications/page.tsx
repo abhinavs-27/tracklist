@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { NotificationsAcknowledge } from "@/components/notifications/notifications-acknowledge";
 import { FollowReciprocityHint } from "@/components/notifications/follow-reciprocity-hint";
 import { MusicRecommendationNotificationFooter } from "@/components/notifications/music-recommendation-notification-footer";
@@ -35,7 +34,7 @@ function recommendationTitle(n: NotificationRow): string {
 }
 
 export default async function NotificationsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/auth/signin");
 
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();

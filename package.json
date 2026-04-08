@@ -15,7 +15,9 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "test:unit": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "perf:feed-asymmetry": "node scripts/perf-feed-asymmetry.mjs",
+    "perf:album-catalog": "node scripts/perf-album-catalog.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1025.0",

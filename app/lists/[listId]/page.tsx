@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { getList } from "@/lib/queries";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { getOrFetchTrack } from "@/lib/spotify-cache";
@@ -24,7 +23,7 @@ export type ListItemEnriched = {
 
 export default async function ListDetailPage({ params }: { params: PageParams }) {
   const { listId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const data = await getList(listId);
   if (!data) notFound();
 

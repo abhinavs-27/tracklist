@@ -1,5 +1,13 @@
 import "server-only";
 
+/**
+ * Merged feed uses two DB access patterns: `getActivityFeed` (Supabase server client + RLS)
+ * for reviews/follows/listens, and admin reads for `follows`, `feed_events`, and story
+ * enrichment. That split keeps RLS on the legacy path; a full admin rewrite would need a
+ * security review. Redis stale-first on the enriched output (`lib/feed.ts`) reduces repeat
+ * read load without changing this boundary.
+ */
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";

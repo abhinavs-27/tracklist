@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
@@ -32,7 +31,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   /** Route params may arrive as `lfm%3A...`; DB + Spotify paths need `lfm:...`. */
   const id = normalizeReviewEntityId(rawId);
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   let track: SpotifyApi.TrackObjectFull;
   try {

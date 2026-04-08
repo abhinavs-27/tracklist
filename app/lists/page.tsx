@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { contentMax4xl } from "@/lib/ui/layout";
 import { cardMutedCompact, cardOutlined } from "@/lib/ui/surface";
 import { ListsSearchContent } from "./lists-search-content";
@@ -9,7 +8,7 @@ import { ListsSearchContent } from "./lists-search-content";
  * Dedicated lists page: search lists by title. Your own lists live on your profile.
  */
 export default async function ListsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user ? (session.user as { id?: string }).id : null;
 
   return (

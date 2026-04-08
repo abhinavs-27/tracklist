@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { ChartsClient } from "./charts-client";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 import { contentMax4xl } from "@/lib/ui/layout";
@@ -18,7 +17,7 @@ type PageProps = {
 };
 
 export default async function WeeklyBillboardPage(props: PageProps) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/auth/signin?callbackUrl=/charts");
   }

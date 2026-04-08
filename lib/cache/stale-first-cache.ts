@@ -189,18 +189,22 @@ export type StaleFirstApiOkOptions<T extends Record<string, unknown>> = {
   notFoundResponse?: () => NextResponse;
 };
 
+export type StaleFirstHitMeta = {
+  /** Matches `X-Tracklist-Stale-First` on the HTTP route. */
+  staleFirst: "hit" | "miss" | "miss-inflight" | "bypass";
+};
+
 /**
- * Stale-first JSON responses: return cached payload immediately when present,
- * optionally refresh in the background after `staleAfterSec`.
- * Adds `fetched_at` (ISO) to the response body.
+ * Same cache keying and TTL as {@link staleFirstApiOk}, for RSC and server code that
+ * need the payload without wrapping in `NextResponse`. Adds `fetched_at` (ISO).
  */
-export async function staleFirstApiOk<T extends Record<string, unknown>>(
+export async function staleFirstGetValue<T extends Record<string, unknown>>(
   logicalKey: string,
   ttlSec: number,
   staleAfterSec: number,
   fetcher: () => Promise<T | null>,
   options?: StaleFirstApiOkOptions<T>,
-): Promise<NextResponse> {
+): Promise<(T & { fetched_at: string }) & StaleFirstHitMeta> {
   const cacheWhen = options?.cacheWhen ?? ((): boolean => true);
   const bypass = options?.bypassCache === true;
 
@@ -211,13 +215,10 @@ export async function staleFirstApiOk<T extends Record<string, unknown>>(
       if (ageMs > staleAfterSec * 1000) {
         scheduleBackgroundRefresh(logicalKey, ttlSec, fetcher, cacheWhen);
       }
-      const res = apiOk(mergeFetched(cached.payload, cached.fetchedAt));
-      res.headers.set(
-        "Cache-Control",
-        "private, no-store, must-revalidate",
-      );
-      res.headers.set("X-Tracklist-Stale-First", "hit");
-      return res;
+      return {
+        ...mergeFetched(cached.payload, cached.fetchedAt),
+        staleFirst: "hit",
+      };
     }
   }
 
@@ -227,18 +228,18 @@ export async function staleFirstApiOk<T extends Record<string, unknown>>(
       const shared = (await existing) as LoadResult<T>;
       if (shared.kind === "notfound") {
         const nf = options?.notFoundResponse;
-        if (nf) return nf();
+        if (nf) throw new StaleFirstBypassError(nf());
         throw new Error(
           "[stale-first] notFoundResponse required when fetcher returns null",
         );
       }
-      const res = apiOk(mergeFetched(shared.stored.payload, shared.stored.fetchedAt));
-      res.headers.set("Cache-Control", "private, no-store, must-revalidate");
-      res.headers.set("X-Tracklist-Stale-First", "miss-inflight");
-      return res;
+      return {
+        ...mergeFetched(shared.stored.payload, shared.stored.fetchedAt),
+        staleFirst: "miss-inflight",
+      };
     } catch (e) {
       if (e instanceof StaleFirstBypassError) {
-        return e.response;
+        throw e;
       }
       throw e;
     }
@@ -263,7 +264,7 @@ export async function staleFirstApiOk<T extends Record<string, unknown>>(
     result = await promise;
   } catch (e) {
     if (e instanceof StaleFirstBypassError) {
-      return e.response;
+      throw e;
     }
     throw e;
   } finally {
@@ -272,14 +273,47 @@ export async function staleFirstApiOk<T extends Record<string, unknown>>(
 
   if (result.kind === "notfound") {
     const nf = options?.notFoundResponse;
-    if (nf) return nf();
+    if (nf) throw new StaleFirstBypassError(nf());
     throw new Error(
       "[stale-first] notFoundResponse required when fetcher returns null",
     );
   }
 
-  const res = apiOk(mergeFetched(result.stored.payload, result.stored.fetchedAt));
-  res.headers.set("Cache-Control", "private, no-store, must-revalidate");
-  res.headers.set("X-Tracklist-Stale-First", bypass ? "bypass" : "miss");
-  return res;
+  return {
+    ...mergeFetched(result.stored.payload, result.stored.fetchedAt),
+    staleFirst: bypass ? "bypass" : "miss",
+  };
+}
+
+/**
+ * Stale-first JSON responses: return cached payload immediately when present,
+ * optionally refresh in the background after `staleAfterSec`.
+ * Adds `fetched_at` (ISO) to the response body.
+ */
+export async function staleFirstApiOk<T extends Record<string, unknown>>(
+  logicalKey: string,
+  ttlSec: number,
+  staleAfterSec: number,
+  fetcher: () => Promise<T | null>,
+  options?: StaleFirstApiOkOptions<T>,
+): Promise<NextResponse> {
+  try {
+    const merged = await staleFirstGetValue(
+      logicalKey,
+      ttlSec,
+      staleAfterSec,
+      fetcher,
+      options,
+    );
+    const { staleFirst, fetched_at, ...payload } = merged;
+    const res = apiOk({ ...payload, fetched_at });
+    res.headers.set("Cache-Control", "private, no-store, must-revalidate");
+    res.headers.set("X-Tracklist-Stale-First", staleFirst);
+    return res;
+  } catch (e) {
+    if (e instanceof StaleFirstBypassError) {
+      return e.response;
+    }
+    throw e;
+  }
 }

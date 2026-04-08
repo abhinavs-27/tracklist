@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
 import {
   CommunityBillboardSkeleton,
@@ -63,7 +62,7 @@ export default async function CommunityDetailPage({
   const id = rawId?.trim() ?? "";
   if (!isValidUuid(id)) notFound();
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const community = await getCommunityById(id);
   if (!community) notFound();
 

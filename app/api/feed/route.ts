@@ -1,10 +1,6 @@
 import { withHandler } from "@/lib/api-handler";
 import { LIMITS } from "@/lib/validation";
-import { getMergedActivityFeed } from "@/lib/feed/merged-feed";
-import {
-  enrichFeedActivitiesWithEntityNames,
-  enrichListenSessionsWithAlbums,
-} from "@/lib/feed";
+import { fetchFeedEnrichedPayload, feedStaleFirstCacheKey } from "@/lib/feed";
 import { getPaginationParams } from "@/lib/api-utils";
 import {
   STALE_FIRST_STALE_AFTER_SEC,
@@ -29,40 +25,13 @@ export const GET = withHandler(
     const bypassCache = searchParams.get("refresh") === "1";
 
     const userId = me!.id;
-    const cacheKey = `feed:${userId}:${limit}:${cursor ?? "null"}`;
+    const cacheKey = feedStaleFirstCacheKey(userId, limit, cursor);
 
     return staleFirstApiOk(
       cacheKey,
       STALE_FIRST_TTL_SEC.feed,
       STALE_FIRST_STALE_AFTER_SEC.feed,
-      async () => {
-        const { items, next_cursor } = await getMergedActivityFeed(
-          userId,
-          limit,
-          cursor,
-        );
-
-        const [withNames, withAlbums] = await Promise.all([
-          enrichFeedActivitiesWithEntityNames(items),
-          enrichListenSessionsWithAlbums(items),
-        ]);
-
-        const enrichedList = withAlbums.map((activity, i) =>
-          activity.type === "review" && withNames[i]
-            ? {
-                ...activity,
-                spotifyName: (withNames[i] as { spotifyName?: string }).spotifyName,
-              }
-            : activity,
-        );
-
-        const events = enrichedList.filter((a) => a.type === "feed_story");
-        return {
-          items: enrichedList,
-          nextCursor: next_cursor,
-          events,
-        };
-      },
+      () => fetchFeedEnrichedPayload(userId, limit, cursor),
       { bypassCache },
     );
   },

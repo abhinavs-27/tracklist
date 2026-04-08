@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { getPeriodReport } from "@/lib/queries";
 import { getWeeklyListeningStory } from "@/lib/reports/weekly-listening-story";
 import { getOrFetchAlbum, getOrFetchTrack } from "@/lib/spotify-cache";
@@ -35,7 +34,7 @@ export default async function WeeklyReportPage({
 }: {
   searchParams: Promise<{ period?: string; offset?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/auth/signin");
 
   const params = await searchParams;

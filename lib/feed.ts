@@ -3,37 +3,107 @@ import "server-only";
 import { getEntityDisplayNames } from "@/lib/queries";
 import type { ActivityFeedPage } from "@/lib/queries";
 import { getMergedActivityFeed } from "@/lib/feed/merged-feed";
-import { timeAsync } from "@/lib/profiling";
+import { logPerf, timeAsync } from "@/lib/profiling";
+import {
+  STALE_FIRST_STALE_AFTER_SEC,
+  STALE_FIRST_TTL_SEC,
+  staleFirstGetValue,
+} from "@/lib/cache/stale-first-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { FeedActivity } from "@/types";
+
+/** Same logical key as `GET /api/feed` for Redis + in-memory stale-first. */
+export function feedStaleFirstCacheKey(
+  userId: string,
+  limit: number,
+  cursor: string | null,
+): string {
+  return `feed:${userId}:${limit}:${cursor ?? "null"}`;
+}
+
+/**
+ * Payload shape stored in stale-first (Redis + memory) for `/api/feed` and home RSC.
+ * Matches the JSON body of `GET /api/feed` except `fetched_at` is added by the cache layer.
+ */
+export type FeedEnrichedCachePayload = {
+  items: FeedActivity[];
+  nextCursor: string | null;
+  events: FeedActivity[];
+};
+
+export async function fetchFeedEnrichedPayload(
+  userId: string,
+  limit: number,
+  cursor: string | null,
+): Promise<FeedEnrichedCachePayload> {
+  const { items, next_cursor } = await getMergedActivityFeed(
+    userId,
+    limit,
+    cursor,
+  );
+
+  const [withNames, withAlbums] = await Promise.all([
+    enrichFeedActivitiesWithEntityNames(items),
+    enrichListenSessionsWithAlbums(items),
+  ]);
+
+  const enrichedList = withAlbums.map((activity, i) =>
+    activity.type === "review" && withNames[i]
+      ? {
+          ...activity,
+          spotifyName: (withNames[i] as { spotifyName?: string }).spotifyName,
+        }
+      : activity,
+  );
+
+  const events = enrichedList.filter((a) => a.type === "feed_story");
+  return {
+    items: enrichedList,
+    nextCursor: next_cursor,
+    events,
+  };
+}
 
 export async function getFeedForUser(
   userId: string,
   limit = 50,
   cursor: string | null = null,
 ): Promise<ActivityFeedPage> {
-  return timeAsync(
-    "db",
-    "getFeedForUser",
-    () => getMergedActivityFeed(userId, limit, cursor),
-    { limit, hasCursor: !!cursor },
-  );
+  return timeAsync("db", "getFeedForUser", async () => {
+    const p = await fetchFeedEnrichedPayload(userId, limit, cursor);
+    return { items: p.items, next_cursor: p.nextCursor };
+  }, { limit, hasCursor: !!cursor });
 }
 
 /**
- * Home page initial feed (RSC). Cannot use `unstable_cache`: `getMergedActivityFeed` calls
- * `getActivityFeed`, which uses `createSupabaseServerClient()` (cookies).
+ * Home page initial feed (RSC). Uses the same Redis stale-first key as `GET /api/feed`
+ * (`feed:${userId}:${limit}:${cursor}`) so the first HTML payload shares cache with
+ * pagination. Next.js `unstable_cache` is not used here (request-scoped cookies + user
+ * isolation are handled via this key + server-only fetchers). Security: only code paths
+ * that already know `userId` from the session call this; RLS-backed `getActivityFeed`
+ * inside `fetchFeedEnrichedPayload` is unchanged.
  */
 export async function getHomeFeedInitialForUser(
   userId: string,
   limit = 50,
 ): Promise<ActivityFeedPage> {
-  return timeAsync(
-    "db",
-    "getFeedForUser",
-    () => getMergedActivityFeed(userId, limit, null),
-    { limit, hasCursor: false },
-  );
+  return timeAsync("db", "getFeedForUser", async () => {
+    const cacheKey = feedStaleFirstCacheKey(userId, limit, null);
+    const t0 = performance.now();
+    const stale = await staleFirstGetValue(
+      cacheKey,
+      STALE_FIRST_TTL_SEC.feed,
+      STALE_FIRST_STALE_AFTER_SEC.feed,
+      () => fetchFeedEnrichedPayload(userId, limit, null),
+    );
+    logPerf("cache", "homeFeedStaleFirst", performance.now() - t0, {
+      staleFirst: stale.staleFirst,
+    });
+    return {
+      items: stale.items,
+      next_cursor: stale.nextCursor,
+    };
+  }, { limit, hasCursor: false });
 }
 
 /** Enrich review activities with entity names (album/track) for display. Uses DB first, then spotify-cache for missing. */

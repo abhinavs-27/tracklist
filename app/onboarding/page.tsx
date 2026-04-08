@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getUserFavoriteAlbums } from "@/lib/queries";
 import { safeOnboardingNextPath } from "@/lib/onboarding/safe-next-path";
@@ -51,7 +50,7 @@ export default async function OnboardingPage({
 
   const inviteFlow = Boolean(inviteToken);
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id ?? null;
 
   if (!userId) {

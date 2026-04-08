@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { BillboardDropSection } from "@/components/billboard-drop/billboard-drop-section";
 import { HomeWelcomeOverlay } from "@/components/home-welcome-overlay";
@@ -19,7 +18,7 @@ export default async function HomePage({
   const sp = searchParams != null ? await searchParams : {};
   const welcomeOnboarding = sp.welcome === "1";
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user?.id) {
     return (

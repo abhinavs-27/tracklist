@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { contentMax2xl } from "@/lib/ui/layout";
 import { LIMITS } from "@/lib/validation";
 import { ListeningReportsClient } from "./listening-reports-client";
 
 export default async function ListeningReportsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/auth/signin?callbackUrl=/reports/listening");
   }

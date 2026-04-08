@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { CommunityFeedClient } from "@/components/community/community-feed-client";
 import { CommunityInsights } from "@/components/community/CommunityInsights";
 import { CommunityInsightsCompact } from "@/components/community/community-insights-compact";
@@ -180,7 +179,7 @@ export async function CommunityBillboardStreamSlot({
 }: {
   communityId: string;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const viewerId = session?.user?.id;
   if (!viewerId) return null;
   const billboard = await getCachedCommunityBillboardTracksInitial(
@@ -249,7 +248,7 @@ export async function CommunityInsightsSlot({
   /** When true, omits the "Top artists" block (e.g. when discovery carousels show artists). */
   hideTopArtists?: boolean;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
   const insights = await getCachedCommunityInsights(communityId);
   if (!insights) return null;

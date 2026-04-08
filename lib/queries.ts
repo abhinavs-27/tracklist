@@ -1,7 +1,6 @@
 import "server-only";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getAlbums } from "@/lib/spotify";
@@ -299,7 +298,7 @@ export async function getReviewsForEntity(
       .order("created_at", { ascending: false })
       .limit(cappedLimit);
 
-    const sessionPromise = getServerSession(authOptions);
+    const sessionPromise = getSession();
 
     const countPromise = supabase
       .from("reviews")

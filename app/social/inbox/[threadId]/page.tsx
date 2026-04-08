@@ -1,8 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { LikeReactionBar } from "@/components/reactions/like-reaction-bar";
 import { LIKES_ENABLED } from "@/lib/feature-likes";
 import { InboxPageNav } from "@/components/social/inbox-page-nav";
@@ -44,7 +43,7 @@ export default async function SocialThreadPage({
   const { threadId } = await params;
   if (!isValidUuid(threadId)) notFound();
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/auth/signin");
 
   const detail = await getThreadDetail(threadId, session.user.id);

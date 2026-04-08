@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
@@ -24,7 +23,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   /** Params may be `lfm%3A…` from links; DB + Spotify need `lfm:…`. */
   const id = normalizeReviewEntityId(rawId);
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   let artist: SpotifyApi.ArtistObjectFull;
   try {

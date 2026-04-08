@@ -1,13 +1,12 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import { PageHeading } from "@/components/ui/page-heading";
 import { contentMax2xl } from "@/lib/ui/layout";
 import { UserSearchContent } from "./user-search-content";
 import { sectionGap } from "@/lib/ui/surface";
 
 export default async function SearchUsersPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const viewerUserId = session?.user?.id ?? null;
 
   return (

@@ -2,9 +2,12 @@ import Redis from "ioredis";
 import { attachRedisErrorHandler } from "./redis-error-handler";
 
 /**
- * Single shared ioredis connection for HTTP response caches and discover keys.
- * BullMQ (`lib/jobs/spotifyQueue.ts`) keeps its own connection with `maxRetriesPerRequest: null`.
- * Bottleneck passes `REDIS_URL` and manages its own clients.
+ * Single shared ioredis connection for HTTP response caches, discover keys, and the **main**
+ * client passed to `Bottleneck.IORedisConnection` (Spotify limiters share one connection pair).
+ *
+ * `maxRetriesPerRequest: null` matches BullMQ / ioredis expectations for blocking commands.
+ * BullMQ (`lib/jobs/spotifyQueue.ts`) still uses a **separate** connection so job polling does
+ * not contend with app cache traffic on the same socket.
  */
 let sharedRedis: Redis | null | undefined;
 
@@ -17,7 +20,7 @@ export function getSharedRedis(): Redis | null {
   }
   try {
     const r = new Redis(url, {
-      maxRetriesPerRequest: 2,
+      maxRetriesPerRequest: null,
       lazyConnect: true,
       enableReadyCheck: true,
     });

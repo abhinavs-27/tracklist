@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/auth";
 import {
   getListeningReports,
   listeningReportsResultFromSnapshot,
@@ -23,7 +22,7 @@ export default async function SharedListeningReportPage({
   params: PageParams;
 }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   const row = await getSavedReportById(id);
   if (!row) notFound();
