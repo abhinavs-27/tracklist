@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   /** gzip for `next start`; Vercel also applies Brotli/gzip at the edge. */
   compress: true,
+  /**
+   * ioredis ships compiled JS under `built/` (`"main": "./built/index.js"`). Next’s serverless
+   * file tracer can copy `package.json` without the `built/` tree, causing
+   * `Cannot find module '.../ioredis/built/index.js'` in production (Vercel).
+   */
+  serverExternalPackages: ["ioredis", "bullmq"],
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/ioredis/**/*"],
+  },
 };
 
 export default nextConfig;

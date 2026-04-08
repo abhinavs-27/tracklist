@@ -7,6 +7,7 @@ import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
 import { getAlbumEngagementStats, getEntityStats, getFriendsAlbumActivity } from "@/lib/queries";
 import { timeAsync } from "@/lib/profiling";
+import { scheduleAlbumCatalogWarmupAfterNavigation } from "@/lib/catalog/album-warmup";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { sectionGap } from "@/lib/ui/surface";
 import { normalizeReviewEntityId } from "@/lib/validation";
@@ -80,6 +81,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     },
     { id },
   );
+
+  scheduleAlbumCatalogWarmupAfterNavigation(id);
 
   const viewerId = session?.user?.id ?? null;
   const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();

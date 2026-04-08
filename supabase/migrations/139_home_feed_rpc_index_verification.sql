@@ -1,4 +1,5 @@
 -- Home feed merged path: get_feed_reviews (017), get_feed_follows (017), get_feed_listen_sessions (023),
+-- optional single-call bundle get_home_feed_legacy_bundle (140),
 -- plus feed_events story queries (065+).
 --
 -- Expected supporting indexes (no-op if already applied):
