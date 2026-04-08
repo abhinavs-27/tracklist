@@ -7,7 +7,7 @@ import {
   defaultRatingDistribution,
   normalizeRatingDistribution,
   ratingDistributionKey,
-} from "../lib/ratings";
+} from "@/lib/ratings";
 
 const LOG_COUNT_CHUNK = 400;
 

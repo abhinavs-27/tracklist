@@ -13,7 +13,11 @@
     "declaration": false,
     "sourceMap": true,
     "moduleResolution": "node",
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0",
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": [
     "./**/*.ts",
@@ -22,7 +26,9 @@
     "../lib/ratings.ts",
     "../lib/redis-client.ts",
     "../lib/redis-error-handler.ts",
-    "../lib/discover-redis.ts"
+    "../lib/discover-redis.ts",
+    "../lib/feed/legacy-feed-bundle.ts",
+    "../types/index.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
