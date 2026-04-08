@@ -120,11 +120,13 @@ export async function getListenLogsForTrack(
   spotifyTrackId: string,
   limit = 30,
   offset = 0,
+  viewerUserId?: string | null,
 ): Promise<ListenLogWithUser[]> {
   const raw = await getListenLogsInternal({
     spotifyTrackId,
     limit: Math.max(limit * 5, 50),
     offset,
+    viewerUserId,
   });
   const seen = new Set<string>();
   const onePerUser = raw.filter((log) => {
@@ -140,6 +142,8 @@ async function getListenLogsInternal(opts: {
   spotifyTrackId?: string;
   limit: number;
   offset?: number;
+  /** When listing logs for a track, exclude users with `logs_private` unless this is the viewer. */
+  viewerUserId?: string | null;
 }): Promise<ListenLogWithUser[]> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -181,7 +185,7 @@ async function getListenLogsInternal(opts: {
     const { data: rawLogs, error } = await query;
     if (error || !rawLogs?.length) return [];
 
-    const logs = rawLogs.map((l: any) => ({
+    let logs = rawLogs.map((l: any) => ({
       ...l,
       user_id: opts.userId ?? l.user_id,
       track_id: resolvedTrackFilter ?? l.track_id,
@@ -193,6 +197,25 @@ async function getListenLogsInternal(opts: {
       source: string | null;
       created_at: string;
     }[];
+
+    if (opts.spotifyTrackId && logs.length) {
+      const uidList = [...new Set(logs.map((l) => l.user_id))];
+      const { data: privRows } = await supabase
+        .from("users")
+        .select("id, logs_private")
+        .in("id", uidList);
+      const hidden = new Set(
+        (privRows ?? [])
+          .filter((u) => {
+            const row = u as { id: string; logs_private?: boolean | null };
+            if (!row.logs_private) return false;
+            if (opts.viewerUserId && row.id === opts.viewerUserId) return false;
+            return true;
+          })
+          .map((u) => (u as { id: string }).id),
+      );
+      logs = logs.filter((l) => !hidden.has(l.user_id));
+    }
 
     const userIds = [...new Set(logs.map((l) => l.user_id))];
     const userMap = await fetchUserMap(supabase, userIds);
@@ -2368,13 +2391,25 @@ export async function getAlbumListeners(
     if (unique.length === 0) return [];
 
     const userIds = unique.map((u) => u.user_id);
+    const { data: privRows } = await supabase
+      .from("users")
+      .select("id, logs_private")
+      .in("id", userIds);
+    const privateIds = new Set(
+      (privRows ?? [])
+        .filter((u) => (u as { logs_private?: boolean }).logs_private)
+        .map((u) => (u as { id: string }).id),
+    );
+    const uniqueFiltered = unique.filter((u) => !privateIds.has(u.user_id));
+    if (uniqueFiltered.length === 0) return [];
+
     const { data: users } = await supabase
       .from("users")
       .select("id, username, avatar_url")
-      .in("id", userIds);
+      .in("id", uniqueFiltered.map((u) => u.user_id));
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
-    return unique
+    return uniqueFiltered
       .map((u) => {
         const user = userMap.get(u.user_id);
         if (!user) return null;

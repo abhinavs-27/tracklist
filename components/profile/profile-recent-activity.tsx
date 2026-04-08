@@ -199,11 +199,14 @@ export function ProfileRecentActivity({
   isOwnProfile,
   showSpotifyControls,
   spotifyConnected,
+  logsPrivateHidden = false,
 }: {
   userId: string;
   isOwnProfile: boolean;
   showSpotifyControls: boolean;
   spotifyConnected: boolean;
+  /** Other viewers when the profile owner hides log-derived activity. */
+  logsPrivateHidden?: boolean;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [albums, setAlbums] = useState<RecentAlbumItem[] | null>(() => {
@@ -272,8 +275,9 @@ export function ProfileRecentActivity({
         </div>
       ) : !hasAny ? (
         <p className="rounded-2xl border border-zinc-800/90 bg-zinc-950/40 px-4 py-4 text-sm text-zinc-500 ring-1 ring-inset ring-white/[0.05]">
-          No recent activity yet. Log listens, sync Last.fm, or connect Spotify to
-          see albums and plays here.
+          {logsPrivateHidden
+            ? "This person’s listening history is private."
+            : "No recent activity yet. Log listens, sync Last.fm, or connect Spotify to see albums and plays here."}
         </p>
       ) : (
         <div className={strip}>

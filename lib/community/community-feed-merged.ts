@@ -417,6 +417,29 @@ export async function getCommunityFeedMerged(
 
   let storyRows = storyRowsRaw.filter((r) => isFeedStoryKind(r.type));
   if (storyRows.length > 0) {
+    const storyUserIds = [...new Set(storyRows.map((r) => r.user_id))];
+    const { data: storyPrivRows } = await admin
+      .from("users")
+      .select("id, logs_private")
+      .in("id", storyUserIds);
+    const logsPrivateMembers = new Set(
+      (storyPrivRows ?? [])
+        .filter((u) => (u as { logs_private?: boolean }).logs_private)
+        .map((u) => (u as { id: string }).id),
+    );
+    const listenDerivedStory = new Set([
+      "discovery",
+      "top-artist-shift",
+      "streak",
+      "binge",
+      "milestone",
+    ]);
+    storyRows = storyRows.filter((r) => {
+      if (!logsPrivateMembers.has(r.user_id)) return true;
+      return !listenDerivedStory.has(r.type);
+    });
+  }
+  if (storyRows.length > 0) {
     await enrichFeedStoryPayloadsFromDb(admin, storyRows);
   }
 

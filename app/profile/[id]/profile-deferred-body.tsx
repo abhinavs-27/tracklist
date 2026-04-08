@@ -59,6 +59,8 @@ type ProfileDeferredBodyProps = {
     lastfm_username: string | null;
     lastfm_last_synced_at: string | null;
   };
+  /** Profile subject — when true, other viewers don’t see log-derived activity. */
+  logsPrivate: boolean;
   profile: {
     id: string;
     username: string;
@@ -79,6 +81,7 @@ export async function ProfileDeferredBody({
   profile,
   session,
   spotifyConnected,
+  logsPrivate,
 }: ProfileDeferredBodyProps) {
   const isOwnProfile = !!profile.is_own_profile;
   const spotifyProfileControlsVisible = isSpotifyProfileIntegrationVisible();
@@ -277,6 +280,7 @@ export async function ProfileDeferredBody({
                 isOwnProfile && spotifyProfileControlsVisible
               }
               spotifyConnected={spotifyConnected}
+              logsPrivateHidden={!isOwnProfile && logsPrivate}
             />
           </SectionBlock>
 

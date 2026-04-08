@@ -5,6 +5,8 @@ export interface User {
   email?: string;
   bio?: string | null;
   created_at?: string;
+  /** When true, passive listens are hidden from feeds and public profile views. */
+  logs_private?: boolean;
 }
 
 export interface Follow {

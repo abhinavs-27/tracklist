@@ -4,6 +4,8 @@ import { getCachedRecentAlbumsFromLogs } from "@/lib/profile/recent-activity-cac
 import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 import type { RecentAlbumItem } from "@/lib/recent-from-logs";
+import { viewerSeesUserLogs } from "@/lib/privacy/logs-private";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export type { RecentAlbumItem };
 
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("user_id");
     if (!userId || !isValidUuid(userId)) return apiBadRequest("Valid user_id required");
 
-    await getUserFromRequest(request);
+    const viewer = await getUserFromRequest(request);
 
     const limitRaw = searchParams.get("limit");
     const limit = limitRaw
@@ -22,6 +24,20 @@ export async function GET(request: NextRequest) {
       : 12;
 
     const bust = searchParams.get("refresh") === "1";
+
+    const admin = createSupabaseAdminClient();
+    const { data: privacyRow } = await admin
+      .from("users")
+      .select("logs_private")
+      .eq("id", userId)
+      .maybeSingle();
+    const logsPrivate = Boolean(
+      (privacyRow as { logs_private?: boolean } | null)?.logs_private,
+    );
+    if (!viewerSeesUserLogs(viewer?.id ?? null, userId, logsPrivate)) {
+      return apiOk({ albums: [] as RecentAlbumItem[] });
+    }
+
     const albums = await getCachedRecentAlbumsFromLogs(userId, limit, bust);
     return apiOk({ albums });
   } catch (e) {

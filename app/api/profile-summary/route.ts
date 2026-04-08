@@ -12,6 +12,8 @@ import {
   STALE_FIRST_TTL_SEC,
   staleFirstApiOk,
 } from "@/lib/cache/stale-first-cache";
+import { viewerSeesUserLogs } from "@/lib/privacy/logs-private";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export type ProfileSummaryResponse = {
   user_id: string;
@@ -58,8 +60,25 @@ export async function GET(request: NextRequest) {
       async () => {
         const isOwnProfile = !!viewer && viewer.id === userId;
 
+        const admin = createSupabaseAdminClient();
+        const { data: privacyRow } = await admin
+          .from("users")
+          .select("logs_private")
+          .eq("id", userId)
+          .maybeSingle();
+        const logsPrivate = Boolean(
+          (privacyRow as { logs_private?: boolean } | null)?.logs_private,
+        );
+        const canSeeLogDerived = viewerSeesUserLogs(
+          viewer?.id ?? null,
+          userId,
+          logsPrivate,
+        );
+
         const [albums, tracksBlock] = await Promise.all([
-          getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust),
+          canSeeLogDerived
+            ? getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust)
+            : Promise.resolve([] as RecentAlbumItem[]),
           isOwnProfile
             ? getCachedRecentTracksFromLogs(userId, tracksLimit, 0, {
                 bust,

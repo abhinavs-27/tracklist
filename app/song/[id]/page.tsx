@@ -44,7 +44,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const songSettled = await Promise.allSettled([
     getReviewsForEntity("song", id),
     getEntityStats("song", id),
-    getListenLogsForTrack(id, 10),
+    getListenLogsForTrack(id, 10, 0, session?.user?.id ?? null),
     getRelatedMedia("song", id, 12),
   ]);
 

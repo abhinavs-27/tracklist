@@ -21,6 +21,7 @@ import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
 import { ProfileAvatarOptimisticProvider } from "@/components/profile/profile-avatar-context";
+import { PrivateLogsToggle } from "@/components/profile/private-logs-toggle";
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -70,6 +71,7 @@ export default async function ProfilePage({
     lastfm_username: string | null;
     lastfm_last_synced_at: string | null;
     onboarding_completed: boolean;
+    logs_private: boolean;
   } | null = null;
   let userError: unknown = null;
 
@@ -77,7 +79,7 @@ export default async function ProfilePage({
     const result = await supabase
       .from("users")
       .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
       )
       .eq("id", segment)
       .maybeSingle();
@@ -87,7 +89,7 @@ export default async function ProfilePage({
     const result = await supabase
       .from("users")
       .select(
-        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed",
+        "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
       )
       .eq("username", String(segment).trim())
       .maybeSingle();
@@ -212,12 +214,17 @@ export default async function ProfilePage({
         viewerUserId={session?.user?.id ?? null}
       />
 
+      {isOwnProfile ? (
+        <PrivateLogsToggle initialPrivate={user.logs_private ?? false} />
+      ) : null}
+
       <Suspense fallback={<ProfileBelowFoldSkeleton />}>
         <ProfileDeferredBody
           user={user}
           profile={profile}
           session={session}
           spotifyConnected={spotifyConnected}
+          logsPrivate={user.logs_private ?? false}
         />
       </Suspense>
     </div>
