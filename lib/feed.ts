@@ -47,14 +47,16 @@ export async function fetchFeedEnrichedPayload(
     enrichListenSessionsWithAlbums(items),
   ]);
 
-  const enrichedList = withAlbums.map((activity, i) =>
-    activity.type === "review" && withNames[i]
-      ? {
-          ...activity,
-          spotifyName: (withNames[i] as { spotifyName?: string }).spotifyName,
-        }
-      : activity,
-  );
+  const enrichedList = withAlbums.map((activity, i) => {
+    const withName = withNames[i] as FeedActivity & { spotifyName?: string };
+    if (activity.type === "review" && withName && withName.type === "review") {
+      return {
+        ...activity,
+        spotifyName: withName.spotifyName,
+      };
+    }
+    return activity;
+  });
 
   const events = enrichedList.filter((a) => a.type === "feed_story");
   return {

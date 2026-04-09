@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
@@ -104,6 +104,7 @@ export type AlbumPageClientProps = {
     favorite_count: number;
   };
   friendActivity: FriendActivityItem[];
+  initialTrackStats?: Record<string, TrackStatRow>;
 };
 
 export function AlbumPageClient({
@@ -115,57 +116,13 @@ export function AlbumPageClient({
   stats,
   engagementStats,
   friendActivity,
+  initialTrackStats = {},
 }: AlbumPageClientProps) {
   const image = album.images?.[0]?.url;
   const firstTrack = tracks.items?.[0];
   const [favoritedByOpen, setFavoritedByOpen] = useState(false);
 
-  const [trackStats, setTrackStats] = useState<Record<string, TrackStatRow>>({});
-  const [trackStatsLoading, setTrackStatsLoading] = useState(true);
-
-  const trackIdsKey = useMemo(
-    () => tracks.items?.map((t) => t.id).join(",") ?? "",
-    [tracks.items],
-  );
-
-  useEffect(() => {
-    const ids = tracks.items?.map((t) => t.id) ?? [];
-    if (ids.length === 0) {
-      setTrackStatsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    const chunkSize = 400;
-    void (async () => {
-      try {
-        const merged: Record<string, TrackStatRow> = {};
-        for (let i = 0; i < ids.length; i += chunkSize) {
-          const chunk = ids.slice(i, i + chunkSize);
-          const res = await fetch("/api/track-stats/batch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ track_ids: chunk }),
-          });
-          if (!res.ok) {
-            if (!cancelled) setTrackStats({});
-            return;
-          }
-          const payload = (await res.json()) as {
-            stats?: Record<string, TrackStatRow>;
-          };
-          Object.assign(merged, payload.stats ?? {});
-        }
-        if (!cancelled) setTrackStats(merged);
-      } catch {
-        if (!cancelled) setTrackStats({});
-      } finally {
-        if (!cancelled) setTrackStatsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [trackIdsKey]);
+  const [trackStats] = useState<Record<string, TrackStatRow>>(initialTrackStats);
 
   const emptyTrackStat: TrackStatRow = {
     listen_count: 0,
@@ -350,14 +307,10 @@ export function AlbumPageClient({
                       )}
                     </div>
                     <div className="flex min-h-[1.25rem] items-center gap-3 pl-8 sm:pl-9">
-                      {trackStatsLoading ? (
-                        <span className="inline-block h-3 w-28 animate-pulse rounded bg-zinc-800/60" />
-                      ) : (
-                        <TrackStatsWithReviews
-                          trackId={t.id}
-                          serverStats={songStats}
-                        />
-                      )}
+                      <TrackStatsWithReviews
+                        trackId={t.id}
+                        serverStats={songStats}
+                      />
                     </div>
                   </div>
                 );
