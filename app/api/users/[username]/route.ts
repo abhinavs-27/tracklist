@@ -5,18 +5,15 @@ import {
   apiBadRequest,
   apiNotFound,
   apiForbidden,
-  apiConflict,
-  apiInternalError,
+  apiError,
   apiOk,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import {
   isValidUsername,
-  validateUsernameUpdate,
-  validateBio,
-  validateAvatarUrl,
 } from "@/lib/validation";
 import { getFullUserProfile } from "@/lib/queries";
+import { updateUserProfile } from "@/lib/user/profile-update";
 
 export const GET = withHandler(async (request, { params }) => {
   const { username } = params;
@@ -48,47 +45,19 @@ export const PATCH = withHandler(
     if (!profileRow || profileRow.id !== me!.id) return apiForbidden();
 
     const { data: body, error: parseErr } =
-      await parseBody<Record<string, unknown>>(request);
+      await parseBody<any>(request);
     if (parseErr) return parseErr;
 
-    const b = body!;
-    const updates: {
-      username?: string;
-      bio?: string | null;
-      avatar_url?: string | null;
-    } = {};
-
-    const usernameResult = validateUsernameUpdate(b.username);
-    if (usernameResult.ok) updates.username = usernameResult.value;
-
-    if (b.bio !== undefined) updates.bio = validateBio(b.bio);
-
-    if (b.avatar_url !== undefined) {
-      const validated = validateAvatarUrl(b.avatar_url);
-      updates.avatar_url = validated;
+    const result = await updateUserProfile(supabase, me!.id, body!);
+    if (!result.ok) {
+      return apiError(result.error, result.status);
     }
 
-    if (Object.keys(updates).length === 0) {
-      return apiBadRequest("No valid fields to update");
-    }
-
-    const { data, error } = await supabase
-      .from("users")
-      .update(updates)
-      .eq("id", me!.id)
-      .select("id, username, avatar_url, bio, created_at")
-      .single();
-
-    if (error) {
-      if (error.code === "23505") return apiConflict("Username taken");
-      console.error("User update error:", error);
-      return apiInternalError(error);
-    }
     console.log("[users] profile-updated", {
       userId: me!.id,
-      fields: Object.keys(updates),
+      fields: Object.keys(body!),
     });
-    return apiOk(data);
+    return apiOk(result.data);
   },
   { requireAuth: true },
 );

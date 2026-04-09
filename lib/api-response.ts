@@ -21,10 +21,9 @@ export function apiOk<T>(
 export function apiError(
   message: string,
   status: number,
-  options?: { code?: string }
+  options?: Record<string, any>
 ): NextResponse {
-  const body: { error: string; code?: string } = { error: message };
-  if (options?.code) body.code = options.code;
+  const body = { error: message, ...options };
   return NextResponse.json(body, { status });
 }
 
@@ -56,10 +55,25 @@ export function apiTooManyRequests(message = 'Too many requests'): NextResponse 
   return apiError(message, 429);
 }
 
+export function apiServiceUnavailable(
+  message = 'Service Unavailable',
+  options?: Record<string, any>
+): NextResponse {
+  return apiError(message, 503, options);
+}
+
 /**
  * Use for 500s: log the real error, return generic message to client.
  */
 export function apiInternalError(realError: unknown): NextResponse {
   console.error(realError);
   return apiError(GENERIC_ERROR, 500);
+}
+
+export function apiBadGateway(message = 'Bad Gateway'): NextResponse {
+  return apiError(message, 502);
+}
+
+export function apiGatewayTimeout(message = 'Gateway Timeout'): NextResponse {
+  return apiError(message, 504);
 }

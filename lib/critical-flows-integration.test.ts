@@ -73,6 +73,13 @@ vi.mock('@/lib/catalog/entity-resolution', () => ({
   getTrackIdByExternalId: vi.fn(async () => 'track-uuid'),
   getAlbumIdByExternalId: vi.fn(async () => 'album-uuid'),
   getArtistIdByExternalId: vi.fn(async () => 'artist-uuid'),
+  resolveLogEntityId: vi.fn(async (supabase, raw, kind) => {
+    if (!raw) return null;
+    if (raw === '2nLhD10Z7Sb4RFyCX2ZCyx') {
+      return { kind: 'resolved', id: 'track-uuid' };
+    }
+    return { kind: 'resolved', id: raw };
+  }),
 }));
 
 vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
@@ -224,8 +231,12 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     });
 
     it('should return 503 if catalog is pending', async () => {
-        const { getTrackIdByExternalId } = await import('@/lib/catalog/entity-resolution');
-        vi.mocked(getTrackIdByExternalId).mockResolvedValueOnce(null);
+        const { resolveLogEntityId } = await import('@/lib/catalog/entity-resolution');
+        vi.mocked(resolveLogEntityId).mockResolvedValueOnce({
+          kind: 'pending',
+          spotifyId: '2nLhD10Z7Sb4RFyCX2ZCyx',
+          entity: 'track'
+        });
 
         const req = new NextRequest('http://localhost/api/logs', {
           method: 'POST',
