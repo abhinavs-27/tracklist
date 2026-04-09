@@ -283,6 +283,7 @@ export async function getReviewsForEntity(
   const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
     const supabase = await createSupabaseServerClient();
+    const sessionPromise = getSession();
 
     const canonicalEntityId =
       entityType === "album"
@@ -305,18 +306,29 @@ export async function getReviewsForEntity(
       .order("created_at", { ascending: false })
       .limit(cappedLimit);
 
-    const sessionPromise = getSession();
-
     const countPromise = supabase
       .from("reviews")
       .select("id", { count: "exact", head: true })
       .eq("entity_type", entityType)
       .eq("entity_id", canonicalEntityId);
 
-    const [reviewsRes, session, countRes] = await Promise.all([
+    const myReviewPromise = sessionPromise.then((s) => {
+      const userId = s?.user?.id;
+      if (!userId) return { data: null };
+      return supabase
+        .from("reviews")
+        .select("id, rating, review_text, created_at, updated_at")
+        .eq("entity_type", entityType)
+        .eq("entity_id", canonicalEntityId)
+        .eq("user_id", userId)
+        .maybeSingle();
+    });
+
+    const [reviewsRes, session, countRes, myRowRes] = await Promise.all([
       reviewsPromise,
       sessionPromise,
       countPromise,
+      myReviewPromise,
     ]);
 
     if (reviewsRes.error) return null;
@@ -324,23 +336,8 @@ export async function getReviewsForEntity(
     const userId = session?.user?.id ?? null;
     const reviewRows = reviewsRes.data ?? [];
 
-    const myRowPromise = userId
-      ? supabase
-          .from("reviews")
-          .select("id, rating, review_text, created_at, updated_at")
-          .eq("entity_type", entityType)
-          .eq("entity_id", canonicalEntityId)
-          .eq("user_id", userId)
-          .maybeSingle()
-      : Promise.resolve({ data: null });
-
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const userMapPromise = fetchUserMap(supabase, userIds);
-
-    const [myRowRes, userMap] = await Promise.all([
-      myRowPromise,
-      userMapPromise,
-    ]);
+    const userMap = await fetchUserMap(supabase, userIds);
 
     const myRow = myRowRes.data;
 
@@ -818,11 +815,16 @@ export async function getTrackStatsForTrackIds(
       const result = await getTrackStatsForTrackIdsSingleBatch(uniqueIds);
       return Object.fromEntries(trackIds.map((id) => [id, result[id] ?? empty]));
     }
-    const merged: Record<string, EntityStats> = {};
+
+    const chunkPromises = [];
     for (let i = 0; i < uniqueIds.length; i += TRACK_STATS_CHUNK) {
       const chunk = uniqueIds.slice(i, i + TRACK_STATS_CHUNK);
-      Object.assign(merged, await getTrackStatsForTrackIdsSingleBatch(chunk));
+      chunkPromises.push(getTrackStatsForTrackIdsSingleBatch(chunk));
     }
+
+    const chunkResults = await Promise.all(chunkPromises);
+    const merged: Record<string, EntityStats> = Object.assign({}, ...chunkResults);
+
     return Object.fromEntries(trackIds.map((id) => [id, merged[id] ?? empty]));
   } catch (e) {
     console.error("[queries] getTrackStatsForTrackIds failed:", e);
@@ -1801,7 +1803,20 @@ export async function getTopTracksForArtist(
     }[];
 
     const trackIds = songRows.map((s) => s.id);
-    const statsMap = await getTrackStatsForTrackIds(trackIds);
+    const albumIds = [...new Set(songRows.map((s) => s.album_id))];
+    const artistIds = [...new Set(songRows.map((s) => s.artist_id))];
+
+    const [statsMap, albumRowsRes, artistRowsRes] = await Promise.all([
+      getTrackStatsForTrackIds(trackIds),
+      supabase.from("albums").select("id, name, image_url").in("id", albumIds),
+      supabase
+        .from("artists")
+        .select("id, name")
+        .in("id", artistIds.filter(Boolean) as string[]),
+    ]);
+
+    const albumRows = albumRowsRes.data;
+    const artistRows = artistRowsRes.data;
 
     const sortedIds = [...trackIds]
       .sort((a, b) => {
@@ -1815,16 +1830,6 @@ export async function getTopTracksForArtist(
       .slice(0, limit);
 
     const songMap = new Map(songRows.map((s) => [s.id, s]));
-    const albumIds = [...new Set(songRows.map((s) => s.album_id))];
-    const artistIds = [...new Set(songRows.map((s) => s.artist_id))];
-
-    const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
-      supabase.from("albums").select("id, name, image_url").in("id", albumIds),
-      supabase
-        .from("artists")
-        .select("id, name")
-        .in("id", artistIds.filter(Boolean) as string[]),
-    ]);
     const albumMap = new Map((albumRows ?? []).map((a) => [a.id, a]));
     const artistMap = new Map((artistRows ?? []).map((a) => [a.id, a]));
 
@@ -1993,18 +1998,18 @@ async function enrichSpotifyAlbumsForArtist(
   const supabase = await createSupabaseServerClient();
   const albumIds = spotifyAlbums.map((a) => a.id);
 
-  const canonicalArtistId =
-    await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
-  const spotifyToCanonicalAlbum = await mapSpotifyAlbumIdsToCanonical(
-    supabase,
-    albumIds,
-  );
+  const [canonicalArtistId, spotifyToCanonicalAlbum] = await Promise.all([
+    resolveCanonicalArtistUuidFromEntityId(supabase, artistId),
+    mapSpotifyAlbumIdsToCanonical(supabase, albumIds),
+  ]);
+
   const canonicalToSpotifyAlbum = new Map<string, string>();
   for (const [spotifyAid, canonicalAid] of spotifyToCanonicalAlbum) {
     canonicalToSpotifyAlbum.set(canonicalAid, spotifyAid);
   }
 
   const albumToTracks = new Map<string, string[]>();
+  const trackFetchPromises: Promise<any[]>[] = [];
   if (canonicalArtistId) {
     for (let i = 0; i < albumIds.length; i += ALBUM_ID_IN_CHUNK) {
       const chunk = albumIds.slice(i, i + ALBUM_ID_IN_CHUNK);
@@ -2013,37 +2018,52 @@ async function enrichSpotifyAlbumsForArtist(
         .filter((id): id is string => Boolean(id));
       if (canonicalChunk.length === 0) continue;
 
-      const { data: songRows } = await supabase
-        .from("tracks")
-        .select("id, album_id")
-        .eq("artist_id", canonicalArtistId)
-        .in("album_id", canonicalChunk);
-      for (const s of songRows ?? []) {
-        const spotifyAid = canonicalToSpotifyAlbum.get(s.album_id);
-        if (!spotifyAid) continue;
-        const list = albumToTracks.get(spotifyAid) ?? [];
-        list.push(s.id);
-        albumToTracks.set(spotifyAid, list);
-      }
+      trackFetchPromises.push(
+        supabase
+          .from("tracks")
+          .select("id, album_id")
+          .eq("artist_id", canonicalArtistId)
+          .in("album_id", canonicalChunk)
+          .then((res) => res.data ?? []),
+      );
     }
   }
 
-  const allTrackIds = [...new Set([...albumToTracks.values()].flat())];
-  const playByTrack = await countLogsByTrackIds(supabase, allTrackIds);
-
   const reviewAgg = new Map<string, { count: number; sum: number }>();
+  const reviewFetchPromises: Promise<any[]>[] = [];
   for (let i = 0; i < albumIds.length; i += REVIEW_IN_CHUNK) {
     const chunk = albumIds.slice(i, i + REVIEW_IN_CHUNK);
     const canonicalChunk = chunk
       .map((sid) => spotifyToCanonicalAlbum.get(sid))
       .filter((id): id is string => Boolean(id));
     if (canonicalChunk.length === 0) continue;
-    const { data: revRows } = await supabase
-      .from("reviews")
-      .select("entity_id, rating")
-      .eq("entity_type", "album")
-      .in("entity_id", canonicalChunk);
-    for (const r of revRows ?? []) {
+    reviewFetchPromises.push(
+      supabase
+        .from("reviews")
+        .select("entity_id, rating")
+        .eq("entity_type", "album")
+        .in("entity_id", canonicalChunk)
+        .then((res) => res.data ?? []),
+    );
+  }
+
+  const [trackRowsBatch, reviewRowsBatch] = await Promise.all([
+    Promise.all(trackFetchPromises),
+    Promise.all(reviewFetchPromises),
+  ]);
+
+  for (const songRows of trackRowsBatch) {
+    for (const s of songRows) {
+      const spotifyAid = canonicalToSpotifyAlbum.get(s.album_id);
+      if (!spotifyAid) continue;
+      const list = albumToTracks.get(spotifyAid) ?? [];
+      list.push(s.id);
+      albumToTracks.set(spotifyAid, list);
+    }
+  }
+
+  for (const revRows of reviewRowsBatch) {
+    for (const r of revRows) {
       const spotifyEntity = canonicalToSpotifyAlbum.get(r.entity_id);
       if (!spotifyEntity) continue;
       const cur = reviewAgg.get(spotifyEntity) ?? { count: 0, sum: 0 };
@@ -2052,6 +2072,9 @@ async function enrichSpotifyAlbumsForArtist(
       reviewAgg.set(spotifyEntity, cur);
     }
   }
+
+  const allTrackIds = [...new Set([...albumToTracks.values()].flat())];
+  const playByTrack = await countLogsByTrackIds(supabase, allTrackIds);
 
   const orderIndex = new Map(spotifyAlbums.map((a, i) => [a.id, i]));
 
@@ -2147,14 +2170,14 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
   avg_rating: number | null;
   favorite_count: number;
 }> {
-  const stats = await getEntityStats("album", albumId);
-  let favorite_count = 0;
   try {
     const supabase = await createSupabaseServerClient();
-    const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
-      supabase,
-      albumId,
-    );
+    const [stats, canonicalId] = await Promise.all([
+      getEntityStats("album", albumId),
+      resolveCanonicalAlbumUuidFromEntityId(supabase, albumId),
+    ]);
+
+    let favorite_count = 0;
     if (canonicalId) {
       const { data: row } = await supabase
         .from("entity_stats")
@@ -2164,15 +2187,22 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
         .maybeSingle();
       favorite_count = Number(row?.favorite_count ?? 0);
     }
+
+    return {
+      listen_count: stats.listen_count,
+      review_count: stats.review_count,
+      avg_rating: stats.average_rating,
+      favorite_count,
+    };
   } catch (e) {
-    console.warn("[queries] getAlbumEngagementStats favorite_count:", e);
+    console.error("[queries] getAlbumEngagementStats failed:", e);
+    return {
+      listen_count: 0,
+      review_count: 0,
+      avg_rating: null,
+      favorite_count: 0,
+    };
   }
-  return {
-    listen_count: stats.listen_count,
-    review_count: stats.review_count,
-    avg_rating: stats.average_rating,
-    favorite_count,
-  };
 }
 
 export type AlbumFavoritedByUserRow = {
@@ -2261,19 +2291,21 @@ export async function getFriendsAlbumActivity(
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: songRows } = await supabase
-      .from("tracks")
-      .select("id")
-      .eq("album_id", albumId)
-      .limit(1000);
+    const [{ data: songRows }, { data: followRows }] = await Promise.all([
+      supabase
+        .from("tracks")
+        .select("id")
+        .eq("album_id", albumId)
+        .limit(1000),
+      supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", viewerId)
+        .limit(500),
+    ]);
+
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
-
-    const { data: followRows } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", viewerId)
-      .limit(500);
     const followingIds = (followRows ?? []).map((f) => f.following_id);
     if (followingIds.length === 0) return [];
 
@@ -3696,23 +3728,20 @@ export async function getEntityDisplayNames(
 
   const supabase = await createSupabaseServerClient();
 
-  if (songIds.length > 0) {
-    const { data: songs } = await supabase
-      .from("tracks")
-      .select("id, name")
-      .in("id", songIds);
-    for (const s of songs ?? []) {
-      if (s.name) map.set(s.id, s.name);
-    }
+  const [songsRes, albumsRes] = await Promise.all([
+    songIds.length > 0
+      ? supabase.from("tracks").select("id, name").in("id", songIds)
+      : Promise.resolve({ data: [] }),
+    albumIds.length > 0
+      ? supabase.from("albums").select("id, name").in("id", albumIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  for (const s of songsRes.data ?? []) {
+    if (s.name) map.set(s.id, s.name);
   }
-  if (albumIds.length > 0) {
-    const { data: albums } = await supabase
-      .from("albums")
-      .select("id, name")
-      .in("id", albumIds);
-    for (const a of albums ?? []) {
-      if (a.name) map.set(a.id, a.name);
-    }
+  for (const a of albumsRes.data ?? []) {
+    if (a.name) map.set(a.id, a.name);
   }
   return map;
 }
