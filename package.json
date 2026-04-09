@@ -17,10 +17,15 @@
     "test:unit": "vitest run",
     "typecheck": "tsc --noEmit",
     "perf:feed-asymmetry": "node scripts/perf-feed-asymmetry.mjs",
-    "perf:album-catalog": "node scripts/perf-album-catalog.mjs"
+    "perf:album-catalog": "node scripts/perf-album-catalog.mjs",
+    "build:sqs-worker": "node scripts/build-sqs-worker.mjs",
+    "worker:sqs": "npm run build:sqs-worker && node workers/sqs-worker/dist/index.js",
+    "build:lambda:billboard-scheduler": "node scripts/build-lambda-billboard-scheduler.mjs",
+    "build:lambda:minimal": "node scripts/build-lambda-minimal.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1025.0",
+    "@aws-sdk/client-sqs": "^3.1025.0",
     "@aws-sdk/s3-request-presigner": "^3.1025.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
@@ -41,6 +46,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-easy-crop": "^5.5.7",
+    "server-only": "^0.0.1",
     "vercel": "^50.37.3"
   },
   "overrides": {
@@ -64,10 +70,12 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.2.2",
+    "@types/aws-lambda": "^8.10.161",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.2",
     "tailwindcss": "^4.2.2",

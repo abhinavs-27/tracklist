@@ -3,8 +3,9 @@ import { computeWeeklyChartsForAllUsers } from "@/lib/charts/compute-weekly-char
 import { apiUnauthorized, apiOk, apiError } from "@/lib/api-response";
 
 /**
- * Weekly (schedule: Sun 05:00 UTC): compute **user** Weekly Billboard rows only.
- * Runs before `/api/cron/weekly-charts-communities`. Authorization: Bearer CRON_SECRET.
+ * Manual / legacy: compute **all** user weekly billboards in one request (may time out at scale).
+ * Production: EventBridge → Lambda or `/api/cron/schedule/billboard-week` → SQS `billboard-jobs` + worker.
+ * Authorization: Bearer CRON_SECRET.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim();

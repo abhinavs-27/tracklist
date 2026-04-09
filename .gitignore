@@ -44,3 +44,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# bundled workers / Lambda (rebuild: build:sqs-worker, build:lambda:billboard-scheduler, build:lambda:minimal)
+/workers/sqs-worker/dist/
+/infra/aws/lambda/billboard-scheduler/dist/
+/lambda/dist/

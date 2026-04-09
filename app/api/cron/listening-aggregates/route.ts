@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { updateListeningAggregates } from "@/lib/analytics/updateListeningAggregates";
 import { apiUnauthorized, apiOk, apiError } from "@/lib/api-response";
+import { runListeningAggregates } from "@/lib/cron/cron-runners";
 
 /**
  * Daily: roll pending logs into `user_listening_aggregates`.
- * Authorization: Bearer CRON_SECRET (optional in dev).
+ * Production schedule: EventBridge → SQS.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await updateListeningAggregates();
-    return apiOk({ ok: true, ...result });
+    const result = await runListeningAggregates();
+    return apiOk(result);
   } catch (e) {
     console.error("[cron] listening-aggregates", e);
     return apiError("Aggregation failed", 500);

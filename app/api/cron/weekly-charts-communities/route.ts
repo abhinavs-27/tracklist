@@ -3,8 +3,9 @@ import { computeCommunityWeeklyChartsForAll } from "@/lib/charts/compute-communi
 import { apiUnauthorized, apiOk, apiError } from "@/lib/api-response";
 
 /**
- * Weekly (schedule: Sun 06:00 UTC): compute **community** weekly billboards only.
- * Runs after user charts (`/api/cron/weekly-charts-users`). Authorization: Bearer CRON_SECRET.
+ * Manual / legacy: compute **all** community weekly billboards in one request.
+ * Production: SQS `GENERATE_COMMUNITY_BILLBOARD` jobs after user rows exist (same week window).
+ * Authorization: Bearer CRON_SECRET.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim();

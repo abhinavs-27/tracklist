@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiOk } from "@/lib/api-response";
-import { runUpgradeLastfmAlbumCovers } from "@/lib/catalog/upgrade-lastfm-album-covers";
+import { runUpgradeLastfmAlbumCovers } from "@/lib/cron/cron-runners";
 
 const DEFAULT_BATCH = 20;
 const MAX_BATCH = 40;
@@ -9,9 +9,8 @@ const DEFAULT_SCAN = 600;
 
 /**
  * Daily (or on-demand): re-fetch album art from Spotify when `albums.image_url` still points at
- * Last.fm CDN but `album_external_ids` has Spotify. Does not block user traffic — run via cron.
- *
- * Query: `batch` (default 20, max 40), `scan` (default 600, max 5000), `gapMs` (pause between Spotify calls, default 400).
+ * Last.fm CDN but `album_external_ids` has Spotify.
+ * Production schedule: EventBridge → SQS.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -31,12 +30,12 @@ export async function GET(request: NextRequest) {
         : Math.min(5000, Math.max(0, parseInt(gapRaw, 10) || 0));
 
     const result = await runUpgradeLastfmAlbumCovers({
-      maxBatch: batch,
-      scanLimit: scan,
+      batch,
+      scan,
       gapMs,
     });
 
-    return apiOk({ ok: true, ...result });
+    return apiOk(result);
   } catch (e) {
     console.error("[cron upgrade-lastfm-album-covers]", e);
     return apiError(e instanceof Error ? e.message : "upgrade failed", 500);

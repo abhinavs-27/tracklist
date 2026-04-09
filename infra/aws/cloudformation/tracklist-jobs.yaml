@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  SQS queues (billboard + cron) with DLQs, EventBridge rules that enqueue cron JSON to SQS.
+  Deploy the billboard fan-out Lambda separately (see scripts/build-lambda-billboard-scheduler.mjs)
+  and attach it to BillboardWeeklyScheduleRule.
+
+Parameters:
+  BillboardSchedulerLambdaArn:
+    Type: String
+    Default: ""
+    Description: Optional ARN of Lambda that runs enqueueBillboardWeekJobs (Sunday fan-out).
+
+Conditions:
+  HasBillboardLambda: !Not [!Equals [!Ref BillboardSchedulerLambdaArn, ""]]
+
+Resources:
+  BillboardJobsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: billboard-jobs-dlq
+      MessageRetentionPeriod: 1209600
+
+  BillboardJobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: billboard-jobs
+      VisibilityTimeout: 600
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt BillboardJobsDLQ.Arn
+        maxReceiveCount: 5
+
+  CronJobsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tracklist-cron-jobs-dlq
+      MessageRetentionPeriod: 1209600
+
+  CronJobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tracklist-cron-jobs
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt CronJobsDLQ.Arn
+        maxReceiveCount: 5
+
+  CronQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref CronJobsQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowEventBridgeSend
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt CronJobsQueue.Arn
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: PutEventsToCronSqs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt CronJobsQueue.Arn
+
+  # --- Daily / weekly schedules (UTC) — match former vercel.json ---
+  RuleRefreshStats:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-refresh-stats
+      Description: Daily 00:00 UTC — REFRESH_STATS
+      ScheduleExpression: cron(0 0 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsRefreshStats
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"REFRESH_STATS"}'
+
+  RuleComputeCooccurrence:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-compute-cooccurrence
+      Description: Daily 00:30 UTC — COMPUTE_COOCCURRENCE
+      ScheduleExpression: cron(30 0 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsCooccurrence
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"COMPUTE_COOCCURRENCE"}'
+
+  RuleLastfmSync:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-lastfm-sync
+      Description: Daily 00:00 UTC — LASTFM_SYNC
+      ScheduleExpression: cron(0 0 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsLastfm
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"LASTFM_SYNC"}'
+
+  RuleTasteIdentity:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-taste-identity
+      Description: Daily 00:00 UTC — TASTE_IDENTITY_REFRESH
+      ScheduleExpression: cron(0 0 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsTaste
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"TASTE_IDENTITY_REFRESH"}'
+
+  RuleCommunityFeatureWeekly:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-community-feature-weekly
+      Description: Monday 03:15 UTC — COMMUNITY_FEATURE_WEEKLY
+      ScheduleExpression: cron(15 3 ? * MON *)
+      State: ENABLED
+      Targets:
+        - Id: SqsCommunityFeature
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"COMMUNITY_FEATURE_WEEKLY","limit":80}'
+
+  RuleBillboardWeeklyEmail:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-billboard-weekly-email
+      Description: Sunday 07:00 UTC — BILLBOARD_WEEKLY_EMAIL
+      ScheduleExpression: cron(0 7 ? * SUN *)
+      State: ENABLED
+      Targets:
+        - Id: SqsBillboardEmail
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"BILLBOARD_WEEKLY_EMAIL"}'
+
+  RuleListeningAggregates:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-listening-aggregates
+      Description: Daily 01:20 UTC — LISTENING_AGGREGATES
+      ScheduleExpression: cron(20 1 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsListeningAgg
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"LISTENING_AGGREGATES"}'
+
+  RuleRepairLastfmAggregates:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-repair-lastfm-aggregates
+      Description: Daily 01:40 UTC — REPAIR_LASTFM_AGGREGATES
+      ScheduleExpression: cron(40 1 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsRepairLfm
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"REPAIR_LASTFM_AGGREGATES","batch":500}'
+
+  RuleUpgradeLastfmCovers:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-upgrade-lastfm-album-covers
+      Description: Daily 02:50 UTC — UPGRADE_LASTFM_ALBUM_COVERS
+      ScheduleExpression: cron(50 2 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsUpgradeCovers
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"UPGRADE_LASTFM_ALBUM_COVERS","batch":20,"scan":600}'
+
+  BillboardWeeklyScheduleRule:
+    Condition: HasBillboardLambda
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-billboard-weekly-fanout
+      Description: Sunday 05:00 UTC — Lambda enqueues user/community billboard SQS messages
+      ScheduleExpression: cron(0 5 ? * SUN *)
+      State: ENABLED
+      Targets:
+        - Arn: !Ref BillboardSchedulerLambdaArn
+          Id: BillboardEnqueueLambda
+
+  BillboardSchedulerInvokePermission:
+    Condition: HasBillboardLambda
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref BillboardSchedulerLambdaArn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt BillboardWeeklyScheduleRule.Arn
+
+Outputs:
+  BillboardJobsQueueUrl:
+    Description: >
+      BILLBOARD_JOBS_QUEUE_URL for the ECS/EC2 worker and the billboard scheduler Lambda.
+      Lambda IAM needs sqs:SendMessage on this queue; worker needs ReceiveMessage, DeleteMessage, ChangeMessageVisibility.
+    Value: !Ref BillboardJobsQueue
+  CronJobsQueueUrl:
+    Description: CRON_JOBS_QUEUE_URL for the worker (ReceiveMessage, DeleteMessage).
+    Value: !Ref CronJobsQueue
+  BillboardJobsQueueArn:
+    Value: !GetAtt BillboardJobsQueue.Arn
+  CronJobsQueueArn:
+    Value: !GetAtt CronJobsQueue.Arn
