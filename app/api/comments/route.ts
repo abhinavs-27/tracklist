@@ -39,7 +39,7 @@ export const POST = withHandler(
         review_id: validReviewId,
         content: contentResult.value,
       })
-      .select('id, content, created_at')
+      .select('id, content, created_at, review_id')
       .single();
     data = prefRes.data as Record<string, unknown> | null;
     error = prefRes.error;
@@ -63,8 +63,8 @@ export const POST = withHandler(
       }
     }
 
-    if (data) {
-      data = { ...data, user_id: me!.id, review_id: validReviewId };
+    if (data && !data.review_id) {
+      data.review_id = validReviewId;
     }
 
     if (error) {
