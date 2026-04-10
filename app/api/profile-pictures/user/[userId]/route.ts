@@ -6,6 +6,11 @@ import {
 } from "@/lib/profile-pictures/config";
 import { presignProfilePictureGet } from "@/lib/profile-pictures/presign";
 import { isValidUuid } from "@/lib/validation";
+import {
+  apiBadGateway,
+  apiNotFound,
+  apiServiceUnavailable,
+} from "@/lib/api-response";
 
 /**
  * Redirects to a presigned S3 GET (1h) so <img src={...}> works with a private bucket.
@@ -17,11 +22,11 @@ export async function GET(
 ) {
   const { userId } = await segment.params;
   if (!userId?.trim() || !isValidUuid(userId)) {
-    return new NextResponse("Not found", { status: 404 });
+    return apiNotFound("User not found");
   }
 
   if (!isProfilePictureUploadConfigured()) {
-    return new NextResponse("Not configured", { status: 503 });
+    return apiServiceUnavailable("Not configured");
   }
 
   const key = profilePictureObjectKey("user", userId);
@@ -43,6 +48,6 @@ export async function GET(
     return res;
   } catch (e) {
     console.error("[profile-pictures] presign GetObject failed", e);
-    return new NextResponse("Bad gateway", { status: 502 });
+    return apiBadGateway("Bad gateway");
   }
 }

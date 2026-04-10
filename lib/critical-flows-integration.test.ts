@@ -73,6 +73,13 @@ vi.mock('@/lib/catalog/entity-resolution', () => ({
   getTrackIdByExternalId: vi.fn(async () => 'track-uuid'),
   getAlbumIdByExternalId: vi.fn(async () => 'album-uuid'),
   getArtistIdByExternalId: vi.fn(async () => 'artist-uuid'),
+  resolveLogEntityId: vi.fn(async (supabase, raw, kind) => {
+    if (!raw) return null;
+    if (raw === 'catalog-pending-id' || (typeof raw === 'string' && raw.includes('pending'))) {
+      return { kind: 'pending', spotifyId: String(raw), entity: kind };
+    }
+    return { kind: 'resolved', id: 'track-uuid' };
+  }),
 }));
 
 vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
@@ -224,12 +231,9 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     });
 
     it('should return 503 if catalog is pending', async () => {
-        const { getTrackIdByExternalId } = await import('@/lib/catalog/entity-resolution');
-        vi.mocked(getTrackIdByExternalId).mockResolvedValueOnce(null);
-
         const req = new NextRequest('http://localhost/api/logs', {
           method: 'POST',
-          body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
+          body: JSON.stringify({ track_id: 'catalog-pending-id', source: 'manual' }),
         });
         const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(503);

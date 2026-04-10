@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { withHandler } from "@/lib/api-handler";
 import { createCommunity, getUserCommunities } from "@/lib/community/queries";
-import { apiBadRequest, apiOk } from "@/lib/api-response";
+import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { validateCommunityName, validateCommunityDescription, validateIsPrivate } from "@/lib/validation";
 import { CommunityCreateBody } from "@/types";
@@ -26,13 +26,17 @@ export const POST = withHandler(
     const description = validateCommunityDescription(body!.description);
     const is_private = validateIsPrivate(body!.is_private);
 
-    const community = await createCommunity(me!.id, {
-      name: nameResult.value,
-      description,
-      is_private,
-    });
-    if (!community) return apiBadRequest("Could not create community");
-    return apiOk({ community });
+    try {
+      const community = await createCommunity(me!.id, {
+        name: nameResult.value,
+        description,
+        is_private,
+      });
+      if (!community) return apiBadRequest("Could not create community");
+      return apiOk({ community });
+    } catch (e) {
+      return apiInternalError(e);
+    }
   },
   { requireAuth: true },
 );
