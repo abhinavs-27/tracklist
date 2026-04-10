@@ -204,28 +204,38 @@ async function getListenLogsInternal(opts: {
       created_at: string;
     }[];
 
+    const uidList = [...new Set(logs.map((l) => l.user_id))];
+    const userMapPromise = fetchUserMap(supabase, uidList);
+
     if (opts.spotifyTrackId && logs.length) {
-      const uidList = [...new Set(logs.map((l) => l.user_id))];
-      const { data: privRows } = await supabase
+      const privPromise = supabase
         .from("users")
         .select("id, logs_private")
         .in("id", uidList);
+
+      const [privRowsRes, userMap] = await Promise.all([
+        privPromise,
+        userMapPromise,
+      ]);
+
       const hidden = new Set(
-        (privRows ?? [])
-          .filter((u) => {
-            const row = u as { id: string; logs_private?: boolean | null };
-            if (!row.logs_private) return false;
-            if (opts.viewerUserId && row.id === opts.viewerUserId) return false;
+        (privRowsRes.data ?? [])
+          .filter((u: any) => {
+            if (!u.logs_private) return false;
+            if (opts.viewerUserId && u.id === opts.viewerUserId) return false;
             return true;
           })
-          .map((u) => (u as { id: string }).id),
+          .map((u: any) => u.id),
       );
       logs = logs.filter((l) => !hidden.has(l.user_id));
+
+      return logs.map((log) => ({
+        ...log,
+        user: userMap.get(log.user_id) ?? null,
+      }));
     }
 
-    const userIds = [...new Set(logs.map((l) => l.user_id))];
-    const userMap = await fetchUserMap(supabase, userIds);
-
+    const userMap = await userMapPromise;
     return logs.map((log) => ({
       ...log,
       user: userMap.get(log.user_id) ?? null,
@@ -297,6 +307,9 @@ export async function getReviewsForEntity(
       };
     }
 
+    const session = await getSession();
+    const userId = session?.user?.id ?? null;
+
     const reviewsPromise = supabase
       .from("reviews")
       .select("id, user_id, rating, review_text, created_at, updated_at")
@@ -305,24 +318,11 @@ export async function getReviewsForEntity(
       .order("created_at", { ascending: false })
       .limit(cappedLimit);
 
-    const sessionPromise = getSession();
-
     const countPromise = supabase
       .from("reviews")
       .select("id", { count: "exact", head: true })
       .eq("entity_type", entityType)
       .eq("entity_id", canonicalEntityId);
-
-    const [reviewsRes, session, countRes] = await Promise.all([
-      reviewsPromise,
-      sessionPromise,
-      countPromise,
-    ]);
-
-    if (reviewsRes.error) return null;
-
-    const userId = session?.user?.id ?? null;
-    const reviewRows = reviewsRes.data ?? [];
 
     const myRowPromise = userId
       ? supabase
@@ -334,15 +334,19 @@ export async function getReviewsForEntity(
           .maybeSingle()
       : Promise.resolve({ data: null });
 
-    const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const userMapPromise = fetchUserMap(supabase, userIds);
-
-    const [myRowRes, userMap] = await Promise.all([
+    const [reviewsRes, countRes, myRowRes] = await Promise.all([
+      reviewsPromise,
+      countPromise,
       myRowPromise,
-      userMapPromise,
     ]);
 
+    if (reviewsRes.error) return null;
+
+    const reviewRows = reviewsRes.data ?? [];
     const myRow = myRowRes.data;
+
+    const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
+    const userMapPromise = fetchUserMap(supabase, userIds);
 
     const reviewIdsForLikes = [
       ...new Set(
@@ -351,11 +355,16 @@ export async function getReviewsForEntity(
         ),
       ),
     ];
-    const likeStatMap = await fetchReviewLikeStatsMap(
+    const likeStatMapPromise = fetchReviewLikeStatsMap(
       supabase,
       reviewIdsForLikes,
       userId,
     );
+
+    const [userMap, likeStatMap] = await Promise.all([
+      userMapPromise,
+      likeStatMapPromise,
+    ]);
 
     const reviews: ReviewWithUser[] = reviewRows.map((r) => {
       const u = userMap.get(r.user_id);
@@ -610,6 +619,7 @@ function setEntityStatsMemory(
 export async function getEntityStats(
   entityType: "album" | "song",
   entityId: string,
+  canonicalIdOverride?: string | null,
 ): Promise<EntityStats> {
   const mem = getEntityStatsFromMemory(entityType, entityId);
   if (mem) return mem;
@@ -617,9 +627,11 @@ export async function getEntityStats(
   try {
     const supabase = await createSupabaseServerClient();
     const canonicalId =
-      entityType === "album"
-        ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
-        : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
+      canonicalIdOverride !== undefined
+        ? canonicalIdOverride
+        : entityType === "album"
+          ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
+          : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
     if (!canonicalId) {
       const empty: EntityStats = {
         ...DEFAULT_ENTITY_STATS,
@@ -2141,38 +2153,60 @@ export async function getPopularAlbumsForArtist(
 }
 
 /** Album engagement: listen count, review count, average rating, profile favorite count. */
-export async function getAlbumEngagementStats(albumId: string): Promise<{
+export async function getAlbumEngagementStats(
+  albumId: string,
+  opts?: {
+    canonicalId?: string | null;
+    initialStats?: EntityStats;
+  },
+): Promise<{
   listen_count: number;
   review_count: number;
   avg_rating: number | null;
   favorite_count: number;
 }> {
-  const stats = await getEntityStats("album", albumId);
-  let favorite_count = 0;
+  const { canonicalId: canonicalIdParam, initialStats } = opts ?? {};
   try {
     const supabase = await createSupabaseServerClient();
-    const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
-      supabase,
-      albumId,
-    );
+    const canonicalId =
+      canonicalIdParam !== undefined
+        ? canonicalIdParam
+        : await resolveCanonicalAlbumUuidFromEntityId(supabase, albumId);
+
+    const statsPromise =
+      initialStats ?? getEntityStats("album", albumId, canonicalId);
+
+    let favorite_count_promise = Promise.resolve(0);
     if (canonicalId) {
-      const { data: row } = await supabase
+      favorite_count_promise = supabase
         .from("entity_stats")
         .select("favorite_count")
         .eq("entity_type", "album")
         .eq("entity_id", canonicalId)
-        .maybeSingle();
-      favorite_count = Number(row?.favorite_count ?? 0);
+        .maybeSingle()
+        .then((res) => Number(res.data?.favorite_count ?? 0));
     }
+
+    const [stats, favorite_count] = await Promise.all([
+      statsPromise,
+      favorite_count_promise,
+    ]);
+
+    return {
+      listen_count: stats.listen_count,
+      review_count: stats.review_count,
+      avg_rating: stats.average_rating,
+      favorite_count,
+    };
   } catch (e) {
-    console.warn("[queries] getAlbumEngagementStats favorite_count:", e);
+    console.warn("[queries] getAlbumEngagementStats failed:", e);
+    return {
+      listen_count: 0,
+      review_count: 0,
+      avg_rating: null,
+      favorite_count: 0,
+    };
   }
-  return {
-    listen_count: stats.listen_count,
-    review_count: stats.review_count,
-    avg_rating: stats.average_rating,
-    favorite_count,
-  };
 }
 
 export type AlbumFavoritedByUserRow = {

@@ -19,28 +19,29 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
 
-  const sessionPromise = getSession();
-
   const { album, tracks, stats, session, engagementStats, friendActivity } = await timeAsync(
     "page",
     "albumPage",
     async () => {
-      const [albumRes, statsRes, sessionRes, engagementRes, friendActivityRes] =
-        await Promise.allSettled([
-          getOrFetchAlbum(id, { allowNetwork: true }),
-          getEntityStats("album", id),
-          sessionPromise,
-          getAlbumEngagementStats(id),
-          sessionPromise.then((s) =>
-            s?.user?.id ? getFriendsAlbumActivity(s.user.id, id, 10) : [],
-          ),
-        ]);
+      // 1) Fetch base data: session and album metadata
+      const [session, albumRes] = await Promise.all([
+        getSession(),
+        getOrFetchAlbum(id, { allowNetwork: true }).catch(() => null),
+      ]);
 
-      if (albumRes.status !== "fulfilled") {
+      if (!albumRes) {
         notFound();
       }
 
-      const { album: albumInner, tracks: tracksInner } = albumRes.value;
+      const { album: albumInner, tracks: tracksInner } = albumRes;
+      const userId = session?.user?.id ?? null;
+
+      // 2) Parallelize stats and social activity now that we have session + album info
+      const [statsRes, friendActivityRes] = await Promise.allSettled([
+        getEntityStats("album", id),
+        userId ? getFriendsAlbumActivity(userId, id, 10) : Promise.resolve([]),
+      ]);
+
       const statsInner =
         statsRes.status === "fulfilled"
           ? statsRes.value
@@ -49,38 +50,23 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
               average_rating: null,
               review_count: 0,
               rating_distribution: {
-                "1": 0,
-                "1.5": 0,
-                "2": 0,
-                "2.5": 0,
-                "3": 0,
-                "3.5": 0,
-                "4": 0,
-                "4.5": 0,
-                "5": 0,
+                "1": 0, "1.5": 0, "2": 0, "2.5": 0, "3": 0, "3.5": 0, "4": 0, "4.5": 0, "5": 0,
               },
-            };
-
-      const sessionVal =
-        sessionRes.status === "fulfilled" ? sessionRes.value : null;
-      const engagementInner =
-        engagementRes.status === "fulfilled"
-          ? engagementRes.value
-          : {
-              listen_count: statsInner.listen_count,
-              review_count: statsInner.review_count,
-              avg_rating: statsInner.average_rating,
-              favorite_count: 0,
             };
 
       const friendActivityInner =
         friendActivityRes.status === "fulfilled" ? friendActivityRes.value : [];
 
+      // 3) Engagement stats (likes/favorites) reuse the stats we just fetched
+      const engagementInner = await getAlbumEngagementStats(id, {
+        initialStats: statsInner,
+      });
+
       return {
         album: albumInner,
         tracks: tracksInner,
         stats: statsInner,
-        session: sessionVal,
+        session,
         engagementStats: engagementInner,
         friendActivity: friendActivityInner,
       };
