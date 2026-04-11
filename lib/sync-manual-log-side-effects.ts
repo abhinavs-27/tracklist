@@ -41,9 +41,12 @@ export async function syncBatchLogSideEffects(
   const uniqueIds = [...new Set(entries.map((e) => e.trackId))];
 
   if (!options?.skipSpotifyEnrich) {
-    for (const id of uniqueIds) {
-      await enqueueSpotifyEnrich({ name: "enrich_track", trackId: id });
-    }
+    // Parallelize enqueuing jobs
+    await Promise.all(
+      uniqueIds.map((id) =>
+        enqueueSpotifyEnrich({ name: "enrich_track", trackId: id }),
+      ),
+    );
   }
 
   const supabase = createSupabaseAdminClient();

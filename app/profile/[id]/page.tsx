@@ -113,6 +113,7 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
+  // All dependent profile data initiated simultaneously
   const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
       getFollowCounts(user.id),

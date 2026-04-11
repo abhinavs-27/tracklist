@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
-import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
+import { getOrFetchTrack } from "@/lib/spotify-cache";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
 import { SongStatsBar } from "@/app/song/[id]/song-stats-bar";
 import { ListenCard } from "@/components/listen-card";
-import { MediaGrid } from "@/components/media/MediaGrid";
-import { getRelatedMedia } from "@/lib/discovery/getRelatedMedia";
 import {
   getReviewsForEntity,
   getEntityStats,
@@ -17,6 +16,7 @@ import {
 } from "@/lib/queries";
 import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
 import { normalizeReviewEntityId } from "@/lib/validation";
+import { FansAlsoLikeSection } from "./fans-also-like-section";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -43,7 +43,6 @@ export default async function SongPage({ params }: { params: PageParams }) {
       sessionPromise.then((s) =>
         getListenLogsForTrack(id, 10, 0, s?.user?.id ?? null),
       ),
-      getRelatedMedia("song", id, 12),
     ]),
   ]);
 
@@ -74,18 +73,6 @@ export default async function SongPage({ params }: { params: PageParams }) {
       "[song] getListenLogsForTrack failed:",
       songSettled[2].reason,
     );
-  const relatedSongsRaw =
-    songSettled[3].status === "fulfilled" ? songSettled[3].value : [];
-  if (songSettled[3].status === "rejected")
-    console.error("[song] getRelatedMedia failed:", songSettled[3].reason);
-
-  const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
-  const relatedTracks =
-    relatedTrackIds.length > 0
-      ? (await getOrFetchTracksBatch(relatedTrackIds)).filter(
-          (t): t is SpotifyApi.TrackObjectFull => t != null,
-        )
-      : [];
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
@@ -166,25 +153,16 @@ export default async function SongPage({ params }: { params: PageParams }) {
       </div>
 
       {/* Fans also like (co-occurrence) */}
-      {relatedTracks.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">
-            Fans also like
-          </h2>
-          <p className="mb-3 text-sm text-zinc-400">
-            Other songs listeners of this track also played
-          </p>
-          <MediaGrid
-            items={relatedTracks.map((t) => ({
-              id: t.id,
-              type: "song",
-              title: t.name,
-              artist: t.artists?.map((a) => a.name).join(", ") ?? "",
-              artworkUrl: t.album?.images?.[0]?.url ?? null,
-            }))}
-          />
-        </section>
-      )}
+      <Suspense
+        fallback={
+          <section>
+            <h2 className="mb-3 h-7 w-48 animate-pulse rounded-lg bg-zinc-800/60" />
+            <div className="h-32 w-full animate-pulse rounded-2xl bg-zinc-900/50" />
+          </section>
+        }
+      >
+        <FansAlsoLikeSection id={id} />
+      </Suspense>
 
       {/* Reviews */}
       <EntityReviewsSection
