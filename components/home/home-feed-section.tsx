@@ -1,18 +1,23 @@
 import Link from "next/link";
 import {
   getHomeFeedInitialForUser,
-  enrichFeedActivitiesWithEntityNames,
-  enrichListenSessionsWithAlbums,
 } from "@/lib/feed";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { FeedListVirtual } from "@/components/feed-list-virtual";
 import { RecommendedCommunitiesSuspense } from "@/components/discover/recommended-communities-suspense";
 import { SampleWeeklyChartPreview } from "@/components/home/sample-weekly-chart-preview";
 import { cardElevated, sectionGap, sectionTitle } from "@/lib/ui/surface";
+import type { ActivityFeedPage } from "@/lib/queries";
 
-export async function HomeFeedSection({ userId }: { userId: string }) {
+export async function HomeFeedSection({
+  userId,
+  initialFeed,
+}: {
+  userId: string;
+  initialFeed?: ActivityFeedPage;
+}) {
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
-  const feedResult = await getHomeFeedInitialForUser(userId, 50);
+  const feedResult = initialFeed ?? (await getHomeFeedInitialForUser(userId, 50));
   const { items: enrichedItems, next_cursor: feedNextCursor } = feedResult;
 
   return (

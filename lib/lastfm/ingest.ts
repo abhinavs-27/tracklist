@@ -11,15 +11,7 @@ import { DEFAULT_SCROBBLE_DEDUP_MS } from "@/lib/lastfm/dedupe";
 import { isValidUuid } from "@/lib/validation";
 
 import {
-  findAlbumIdByArtistAndName,
-  findArtistIdByNormalizedName,
-  findTrackIdByArtistAlbumAndName,
-  getAlbumIdByExternalId,
-  getArtistIdByExternalId,
-  getTrackIdByExternalId,
-  linkAlbumExternalId,
-  linkArtistExternalId,
-  linkTrackExternalId,
+  normalizedName,
 } from "@/lib/catalog/entity-resolution";
 
 import { lfmAlbumId, lfmArtistId, lfmSongId } from "./lfm-ids";
@@ -40,10 +32,6 @@ type LfmDedupeEntry = {
 
 /**
  * Drop scrobbles that already have a matching `logs` or `listens` row (same user, same song, same time window).
- *
- * - `logs.track_id` is UUID-only: never pass synthetic `lfm:*` into `.in("track_id", …)`.
- * - When no UUID mapping exists yet, still check `listens` (artist/track + time) and a wide `logs` scan
- *   joined via `track_external_ids` so we do not double-import after a partial run.
  */
 async function filterAgainstExistingLfmLogs(
   supabase: SupabaseClient,
@@ -60,7 +48,7 @@ async function filterAgainstExistingLfmLogs(
     .eq("source", "lastfm")
     .in("external_id", lfmSongKeys);
   const lfmToCanon = new Map(
-    (extRows ?? []).map((r) => [
+    ((extRows ?? []) as any[]).map((r) => [
       (r as { external_id: string }).external_id,
       (r as { track_id: string }).track_id,
     ]),
@@ -103,10 +91,6 @@ async function filterAgainstExistingLfmLogs(
     }
   }
 
-  /**
-   * When no Last.fm→UUID mapping exists yet, or the narrow query failed: scan logs in the time
-   * window and keep rows whose `track_id` links to one of our `lfm:*` keys (via `track_external_ids`).
-   */
   if (lfmSongKeys.length > 0 && (uuidSet.length === 0 || logsByUuidFailed)) {
     const { data: windowLogs, error: winErr } = await supabase
       .from("logs")
@@ -120,7 +104,7 @@ async function filterAgainstExistingLfmLogs(
     } else if ((windowLogs ?? []).length > 0) {
       const tids = [
         ...new Set(
-          (windowLogs ?? []).map((w) => (w as { track_id: string }).track_id),
+          ((windowLogs ?? []) as any[]).map((w) => (w as { track_id: string }).track_id),
         ),
       ];
       const { data: te } = await supabase
@@ -131,13 +115,13 @@ async function filterAgainstExistingLfmLogs(
         .in("external_id", lfmSongKeys);
 
       const allowed = new Set(
-        (te ?? []).map((r) => (r as { track_id: string }).track_id),
+        ((te ?? []) as any[]).map((r) => (r as { track_id: string }).track_id),
       );
-      for (const r of te ?? []) {
+      for (const r of (te ?? []) as any[]) {
         const row = r as { track_id: string; external_id: string };
         trackToLfm.set(row.track_id, row.external_id);
       }
-      for (const w of windowLogs ?? []) {
+      for (const w of (windowLogs ?? []) as any[]) {
         const row = w as { track_id: string; listened_at: string };
         if (allowed.has(row.track_id)) logHits.push(row);
       }
@@ -193,17 +177,9 @@ async function filterAgainstExistingLfmLogs(
 }
 
 export type IngestLastfmScrobblesOptions = {
-  /**
-   * When false, skip enqueueing `resolve_track_spotify` and `enrich_track` batch jobs
-   * (Last.fm-only backfill; run enrichment-retry / repair later). Default true.
-   */
   enqueueSpotifyResolve?: boolean;
 };
 
-/**
- * Primary Last.fm ingestion: `listens` + minimal `artists` / `songs` rows + `logs`,
- * then enqueue async Spotify enrichment (never blocks on Spotify), unless disabled.
- */
 export async function ingestLastfmScrobbles(
   supabase: SupabaseClient,
   userId: string,
@@ -242,179 +218,297 @@ export async function ingestLastfmScrobbles(
   }
 
   const now = new Date().toISOString();
-  let insertedListens = 0;
-  /** One resolve job per distinct song per batch (avoids duplicate BullMQ work + spreads load). */
+
+  // Batch insert listens
+  const listensToInsert = pending.map((p) => ({
+    user_id: userId,
+    artist_name: p.scrobble.artistName,
+    track_name: p.scrobble.trackName,
+    spotify_track_id: null,
+    source: "lastfm",
+    listened_at: p.listenedAt,
+  }));
+
+  const { data: insertedListensRows, error: listensErr } = await supabase
+    .from("listens")
+    .upsert(listensToInsert, {
+      onConflict: "user_id,artist_name,track_name,listened_at",
+      ignoreDuplicates: true,
+    })
+    .select("id");
+
+  const insertedListens = insertedListensRows?.length ?? 0;
+  if (listensErr) {
+    console.warn("[lastfm ingest] listens batch upsert failed", listensErr);
+  }
+
+  // Batch process artists
+  const uniqueArtists = new Map<string, string>();
+  for (const p of pending) {
+    uniqueArtists.set(p.artistId, p.scrobble.artistName);
+  }
+
+  const artistIds = [...uniqueArtists.keys()];
+  const artistNames = [...new Set(uniqueArtists.values())];
+
+  const [artistExtRes, artistNameRes] = await Promise.all([
+    supabase.from("artist_external_ids").select("external_id, artist_id").eq("source", "lastfm").in("external_id", artistIds),
+    supabase.from("artists").select("id, name_normalized").in("name_normalized", artistNames.map(normalizedName))
+  ]);
+
+  const artistUuidByExtId = new Map<string, string>();
+  for (const row of (artistExtRes.data ?? []) as { external_id: string; artist_id: string }[]) {
+    artistUuidByExtId.set(row.external_id, row.artist_id);
+  }
+
+  const artistUuidByNormalizedName = new Map<string, string>();
+  for (const row of (artistNameRes.data ?? []) as { id: string; name_normalized: string }[]) {
+    artistUuidByNormalizedName.set(row.name_normalized, row.id);
+  }
+
+  const artistsToUpsert = [];
+  for (const [artId, artName] of uniqueArtists) {
+    const uuid = artistUuidByExtId.get(artId) ?? artistUuidByNormalizedName.get(normalizedName(artName));
+    artistsToUpsert.push({
+      ...(uuid ? { id: uuid } : {}),
+      name: artName,
+      lastfm_name: artName,
+      data_source: "lastfm",
+      needs_spotify_enrichment: true,
+      last_updated: now,
+      updated_at: now,
+    });
+  }
+
+  const { data: upsertedArtists, error: artistErr } = await supabase
+    .from("artists")
+    .upsert(artistsToUpsert, { onConflict: "id" })
+    .select("id, lastfm_name");
+
+  if (artistErr) {
+    console.error("[lastfm ingest] artists batch upsert failed", artistErr);
+    return { insertedLogs: 0, insertedListens, skipped: scrobbles.length };
+  }
+
+  const artistUuidByLfmName = new Map<string, string>();
+  for (const a of (upsertedArtists ?? []) as { id: string; lastfm_name: string }[]) {
+    artistUuidByLfmName.set(a.lastfm_name, a.id);
+  }
+
+  // Link Artist External IDs
+  const artistLinks = [];
+  for (const [artId, artName] of uniqueArtists) {
+    const uuid = artistUuidByLfmName.get(artName);
+    if (uuid) artistLinks.push({ artist_id: uuid, source: "lastfm", external_id: artId });
+  }
+  if (artistLinks.length > 0) {
+    await supabase.from("artist_external_ids").upsert(artistLinks, { onConflict: "source,external_id", ignoreDuplicates: true });
+  }
+
+  // Batch process albums
+  const uniqueAlbums = new Map<string, { artistName: string; albumTitle: string; artworkUrl: string | null }>();
+  for (const p of pending) {
+    const albumTitle = p.scrobble.albumName?.trim() || null;
+    if (albumTitle) {
+      const key = lfmAlbumId(p.scrobble.artistName, albumTitle);
+      if (!uniqueAlbums.has(key)) {
+        uniqueAlbums.set(key, { artistName: p.scrobble.artistName, albumTitle, artworkUrl: p.scrobble.artworkUrl ?? null });
+      }
+    }
+  }
+
+  const lfmAlbumKeys = [...uniqueAlbums.keys()];
+  const albumUuidByExtId = new Map<string, string>();
+  if (lfmAlbumKeys.length > 0) {
+    const { data: albExtRes } = await supabase.from("album_external_ids").select("external_id, album_id").eq("source", "lastfm").in("external_id", lfmAlbumKeys);
+    for (const row of (albExtRes ?? []) as { external_id: string; album_id: string }[]) {
+      albumUuidByExtId.set(row.external_id, row.album_id);
+    }
+  }
+
+  const albumsToResolveByName = [];
+  for (const [key, val] of uniqueAlbums) {
+    if (!albumUuidByExtId.has(key)) {
+      const artistUuid = artistUuidByLfmName.get(val.artistName);
+      if (artistUuid) albumsToResolveByName.push({ artistUuid, albumTitle: val.albumTitle, key });
+    }
+  }
+
+  const albumUuidByNameAndArtist = new Map<string, string>();
+  if (albumsToResolveByName.length > 0) {
+    const artistIdsForAlbums = [...new Set(albumsToResolveByName.map(a => a.artistUuid))];
+    const { data: existingAlbums } = await supabase.from("albums").select("id, artist_id, name_normalized").in("artist_id", artistIdsForAlbums);
+    const lookup = new Map<string, string>();
+    for (const a of (existingAlbums ?? []) as { id: string; artist_id: string; name_normalized: string }[]) {
+      lookup.set(`${a.artist_id}|${a.name_normalized}`, a.id);
+    }
+    for (const a of albumsToResolveByName) {
+      const uuid = lookup.get(`${a.artistUuid}|${normalizedName(a.albumTitle)}`);
+      if (uuid) albumUuidByNameAndArtist.set(a.key, uuid);
+    }
+  }
+
+  const allResolvedAlbumUuids = [...new Set([...albumUuidByExtId.values(), ...albumUuidByNameAndArtist.values()])];
+  const albumImageByUuid = new Map<string, string | null>();
+  if (allResolvedAlbumUuids.length > 0) {
+    const { data: albDetails } = await supabase.from("albums").select("id, image_url").in("id", allResolvedAlbumUuids);
+    for (const d of (albDetails ?? []) as { id: string; image_url: string | null }[]) {
+      albumImageByUuid.set(d.id, d.image_url);
+    }
+  }
+
+  const albumsToUpsert = [];
+  for (const [key, val] of uniqueAlbums) {
+    const uuid = albumUuidByExtId.get(key) ?? albumUuidByNameAndArtist.get(key);
+    const artistUuid = artistUuidByLfmName.get(val.artistName);
+    if (!artistUuid) continue;
+
+    const existingImg = uuid ? albumImageByUuid.get(uuid) : null;
+
+    albumsToUpsert.push({
+      ...(uuid ? { id: uuid } : {}),
+      name: val.albumTitle,
+      artist_id: artistUuid,
+      image_url: val.artworkUrl || existingImg || null,
+      updated_at: now,
+      cached_at: now,
+    });
+  }
+
+  const albumUuidByLfmKey = new Map<string, string>();
+  if (albumsToUpsert.length > 0) {
+    const { data: upsertedAlbums, error: albumErr } = await supabase
+      .from("albums")
+      .upsert(albumsToUpsert, { onConflict: "id" })
+      .select("id, name, artist_id");
+    if (albumErr) {
+      console.error("[lastfm ingest] albums batch upsert failed", albumErr);
+    } else {
+      for (const a of (upsertedAlbums ?? []) as { id: string; name: string; artist_id: string }[]) {
+        for (const [key, val] of uniqueAlbums) {
+          if (normalizedName(val.albumTitle) === normalizedName(a.name) && artistUuidByLfmName.get(val.artistName) === a.artist_id) {
+            albumUuidByLfmKey.set(key, a.id);
+          }
+        }
+      }
+    }
+  }
+
+  const albumLinks = [];
+  for (const [key, uuid] of albumUuidByLfmKey) {
+    albumLinks.push({ album_id: uuid, source: "lastfm", external_id: key });
+  }
+  if (albumLinks.length > 0) {
+    await supabase.from("album_external_ids").upsert(albumLinks, { onConflict: "source,external_id", ignoreDuplicates: true });
+  }
+
+  // Batch process tracks
+  const uniqueTracks = new Map<string, { artistName: string; trackName: string; albumName: string | null }>();
+  for (const p of pending) {
+    if (!uniqueTracks.has(p.songId)) {
+      uniqueTracks.set(p.songId, { artistName: p.scrobble.artistName, trackName: p.scrobble.trackName, albumName: p.scrobble.albumName ?? null });
+    }
+  }
+
+  const trackIds = [...uniqueTracks.keys()];
+  const trackUuidByExtId = new Map<string, string>();
+  if (trackIds.length > 0) {
+    const { data: trackExtRes } = await supabase.from("track_external_ids").select("external_id, track_id").eq("source", "lastfm").in("external_id", trackIds);
+    for (const row of (trackExtRes ?? []) as { external_id: string; track_id: string }[]) {
+      trackUuidByExtId.set(row.external_id, row.track_id);
+    }
+  }
+
+  const tracksToResolveByName = [];
+  for (const [songId, val] of uniqueTracks) {
+    if (!trackUuidByExtId.has(songId)) {
+      const artistUuid = artistUuidByLfmName.get(val.artistName);
+      const albumUuid = val.albumName ? albumUuidByLfmKey.get(lfmAlbumId(val.artistName, val.albumName)) : null;
+      if (artistUuid) tracksToResolveByName.push({ artistUuid, albumUuid, trackName: val.trackName, songId });
+    }
+  }
+
+  const trackUuidByNameArtistAlbum = new Map<string, string>();
+  if (tracksToResolveByName.length > 0) {
+    const artistIdsForTracks = [...new Set(tracksToResolveByName.map(t => t.artistUuid))];
+    const { data: existingTracks } = await supabase.from("tracks").select("id, artist_id, album_id, name_normalized").in("artist_id", artistIdsForTracks);
+    const lookup = new Map<string, string>();
+    for (const t of (existingTracks ?? []) as { id: string; artist_id: string; album_id: string | null; name_normalized: string }[]) {
+      lookup.set(`${t.artist_id}|${t.album_id ?? "null"}|${t.name_normalized}`, t.id);
+    }
+    for (const t of tracksToResolveByName) {
+      const uuid = lookup.get(`${t.artistUuid}|${t.albumUuid ?? "null"}|${normalizedName(t.trackName)}`);
+      if (uuid) trackUuidByNameArtistAlbum.set(t.songId, uuid);
+    }
+  }
+
+  const tracksToUpsert = [];
+  for (const [songId, val] of uniqueTracks) {
+    const uuid = trackUuidByExtId.get(songId) ?? trackUuidByNameArtistAlbum.get(songId);
+    const artistUuid = artistUuidByLfmName.get(val.artistName);
+    const albumUuid = val.albumName ? albumUuidByLfmKey.get(lfmAlbumId(val.artistName, val.albumName)) : null;
+    if (!artistUuid) continue;
+
+    tracksToUpsert.push({
+      ...(uuid ? { id: uuid } : {}),
+      name: val.trackName,
+      lastfm_name: val.trackName,
+      lastfm_artist_name: val.artistName,
+      album_id: albumUuid,
+      artist_id: artistUuid,
+      data_source: "lastfm",
+      needs_spotify_enrichment: true,
+      updated_at: now,
+    });
+  }
+
+  const trackUuidByLfmSongId = new Map<string, string>();
+  if (tracksToUpsert.length > 0) {
+    const { data: upsertedTracks, error: trackErr } = await supabase
+      .from("tracks")
+      .upsert(tracksToUpsert, { onConflict: "id" })
+      .select("id, name, artist_id, album_id");
+    if (trackErr) {
+      console.error("[lastfm ingest] tracks batch upsert failed", trackErr);
+    } else {
+      for (const t of (upsertedTracks ?? []) as { id: string; name: string; artist_id: string; album_id: string | null }[]) {
+        for (const [songId, val] of uniqueTracks) {
+          const albumUuid = val.albumName ? albumUuidByLfmKey.get(lfmAlbumId(val.artistName, val.albumName)) : null;
+          if (val.trackName === t.name && artistUuidByLfmName.get(val.artistName) === t.artist_id && albumUuid === t.album_id) {
+            trackUuidByLfmSongId.set(songId, t.id);
+          }
+        }
+      }
+    }
+  }
+
+  const trackLinks = [];
+  for (const [songId, uuid] of trackUuidByLfmSongId) {
+    trackLinks.push({ track_id: uuid, source: "lastfm", external_id: songId });
+  }
+  if (trackLinks.length > 0) {
+    await supabase.from("track_external_ids").upsert(trackLinks, { onConflict: "source,external_id", ignoreDuplicates: true });
+  }
+
+  const ingestedForLogs: { listenedAt: string; trackUuid: string }[] = [];
   const resolveQueuedForSong = new Set<string>();
   let resolveStaggerSlot = 0;
-  const ingestedForLogs: { listenedAt: string; trackUuid: string }[] = [];
 
   for (const p of pending) {
-    const { scrobble, songId, artistId, listenedAt } = p;
-    const { artistName, trackName, albumName } = scrobble;
+    const trackUuid = trackUuidByLfmSongId.get(p.songId);
+    if (!trackUuid) continue;
 
-    const { error: listenErr } = await supabase.from("listens").insert({
-      user_id: userId,
-      artist_name: artistName,
-      track_name: trackName,
-      spotify_track_id: null,
-      source: "lastfm",
-      listened_at: listenedAt,
-    });
-    if (!listenErr) insertedListens++;
-    else if (listenErr.code !== "23505") {
-      console.warn("[lastfm ingest] listens insert failed", listenErr);
-    }
+    ingestedForLogs.push({ listenedAt: p.listenedAt, trackUuid });
 
-    let artistUuid =
-      (await getArtistIdByExternalId(supabase, "lastfm", artistId)) ??
-      (await findArtistIdByNormalizedName(supabase, artistName));
-    if (!artistUuid) {
-      const { data: insArt, error: insArtErr } = await supabase
-        .from("artists")
-        .insert({
-          name: artistName,
-          lastfm_name: artistName,
-          data_source: "lastfm",
-          needs_spotify_enrichment: true,
-          last_updated: now,
-          updated_at: now,
-        })
-        .select("id")
-        .single();
-      if (insArtErr || !insArt) {
-        console.warn("[lastfm ingest] artist insert failed", insArtErr);
-        continue;
-      }
-      artistUuid = insArt.id as string;
-    } else {
-      await supabase
-        .from("artists")
-        .update({
-          name: artistName,
-          lastfm_name: artistName,
-          data_source: "lastfm",
-          needs_spotify_enrichment: true,
-          last_updated: now,
-          updated_at: now,
-        })
-        .eq("id", artistUuid);
-    }
-    await linkArtistExternalId(supabase, artistUuid, "lastfm", artistId);
-
-    const albumTitle = albumName?.trim() || null;
-    let albumUuid: string | null = null;
-    if (albumTitle) {
-      const lfmAlbumKey = lfmAlbumId(artistName, albumTitle);
-      albumUuid =
-        (await getAlbumIdByExternalId(supabase, "lastfm", lfmAlbumKey)) ??
-        (await findAlbumIdByArtistAndName(supabase, artistUuid, albumTitle));
-      const coverFromScrobble =
-        typeof scrobble.artworkUrl === "string" && scrobble.artworkUrl.trim()
-          ? scrobble.artworkUrl.trim()
-          : null;
-      const { data: existingAlb } = albumUuid
-        ? await supabase
-            .from("albums")
-            .select("image_url")
-            .eq("id", albumUuid)
-            .maybeSingle()
-        : { data: null };
-      const keepImg = (
-        existingAlb as { image_url?: string | null } | null
-      )?.image_url?.trim();
-      if (!albumUuid) {
-        const { data: insAlb, error: insAlbErr } = await supabase
-          .from("albums")
-          .insert({
-            name: albumTitle,
-            artist_id: artistUuid,
-            image_url: coverFromScrobble || keepImg || null,
-            updated_at: now,
-            cached_at: now,
-          })
-          .select("id")
-          .single();
-        if (insAlbErr || !insAlb) {
-          console.warn("[lastfm ingest] album insert failed", insAlbErr);
-        } else {
-          albumUuid = insAlb.id as string;
-        }
-      } else {
-        await supabase
-          .from("albums")
-          .update({
-            name: albumTitle,
-            artist_id: artistUuid,
-            image_url: coverFromScrobble || keepImg || null,
-            updated_at: now,
-            cached_at: now,
-          })
-          .eq("id", albumUuid);
-      }
-      if (albumUuid) {
-        await linkAlbumExternalId(supabase, albumUuid, "lastfm", lfmAlbumKey);
-      }
-    }
-
-    let trackUuid =
-      (await getTrackIdByExternalId(supabase, "lastfm", songId)) ??
-      (await findTrackIdByArtistAlbumAndName(
-        supabase,
-        artistUuid,
-        albumUuid,
-        trackName,
-      ));
-    if (!trackUuid) {
-      const { data: insTr, error: insTrErr } = await supabase
-        .from("tracks")
-        .insert({
-          name: trackName,
-          lastfm_name: trackName,
-          lastfm_artist_name: artistName,
-          album_id: albumUuid,
-          artist_id: artistUuid,
-          data_source: "lastfm",
-          needs_spotify_enrichment: true,
-          updated_at: now,
-        })
-        .select("id")
-        .single();
-      if (insTrErr || !insTr) {
-        console.warn("[lastfm ingest] track insert failed", insTrErr);
-        continue;
-      }
-      trackUuid = insTr.id as string;
-    } else {
-      await supabase
-        .from("tracks")
-        .update({
-          name: trackName,
-          lastfm_name: trackName,
-          lastfm_artist_name: artistName,
-          album_id: albumUuid,
-          artist_id: artistUuid,
-          data_source: "lastfm",
-          needs_spotify_enrichment: true,
-          updated_at: now,
-        })
-        .eq("id", trackUuid);
-    }
-    await linkTrackExternalId(supabase, trackUuid, "lastfm", songId);
-    ingestedForLogs.push({ listenedAt, trackUuid });
-
-    /** Track job maps Last.fm → Spotify and links catalog to real Spotify ids (see resolveTrackSpotifyJob). */
-    if (
-      enqueueSpotifyResolve &&
-      !resolveQueuedForSong.has(songId)
-    ) {
-      resolveQueuedForSong.add(songId);
+    if (enqueueSpotifyResolve && !resolveQueuedForSong.has(p.songId)) {
+      resolveQueuedForSong.add(p.songId);
       void enqueueSpotifyEnrich(
         {
           name: "resolve_track_spotify",
-          lfmSongId: songId,
-          artistName,
-          trackName,
-          albumName: albumName ?? null,
+          lfmSongId: p.songId,
+          artistName: p.scrobble.artistName,
+          trackName: p.scrobble.trackName,
+          albumName: p.scrobble.albumName ?? null,
         },
         { staggerIndex: resolveStaggerSlot++ },
       );
@@ -450,18 +544,7 @@ export async function ingestLastfmScrobbles(
   const insertedLogs = inserted?.length ?? 0;
 
   if (insertedLogs > 0) {
-    const { error: achErr } = await supabase.rpc(
-      "grant_achievements_on_listen",
-      {
-        p_user_id: userId,
-      },
-    );
-    if (achErr) {
-      console.warn(
-        "[lastfm ingest] grant_achievements_on_listen failed",
-        achErr,
-      );
-    }
+    await supabase.rpc("grant_achievements_on_listen", { p_user_id: userId });
     await syncBatchLogSideEffects(
       userId,
       ingestedForLogs.map((r) => ({
@@ -479,9 +562,6 @@ export async function ingestLastfmScrobbles(
   };
 }
 
-/**
- * Fetch recent Last.fm tracks and ingest (admin client).
- */
 export async function ingestRecentTracks(
   userId: string,
   lastfmUsername: string,

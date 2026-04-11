@@ -9,6 +9,7 @@ import { VisitorFeed } from "@/components/home/visitor-feed";
 import { VisitorSignupTriggers } from "@/components/home/visitor-signup-triggers";
 import { HomeFeedSkeleton } from "@/components/skeletons/home-feed-skeleton";
 import { sectionGap } from "@/lib/ui/surface";
+import { getHomeFeedInitialForUser } from "@/lib/feed";
 
 export default async function HomePage({
   searchParams,
@@ -29,12 +30,21 @@ export default async function HomePage({
     );
   }
 
+  const userId = session.user.id;
   const admin = createSupabaseAdminClient();
-  const { data: onboardingRow, error: onboardingErr } = await admin
-    .from("users")
-    .select("onboarding_completed")
-    .eq("id", session.user.id)
-    .maybeSingle();
+
+  // Parallelize onboarding check and initial feed fetching
+  const [onboardingRes, initialFeed] = await Promise.all([
+    admin
+      .from("users")
+      .select("onboarding_completed")
+      .eq("id", userId)
+      .maybeSingle(),
+    getHomeFeedInitialForUser(userId, 50),
+  ]);
+
+  const { data: onboardingRow, error: onboardingErr } = onboardingRes;
+
   if (onboardingErr) {
     console.error("[home] onboarding_completed lookup failed", onboardingErr);
   } else if (
@@ -51,10 +61,10 @@ export default async function HomePage({
         <HomeWelcomeOverlay initialActive={welcomeOnboarding} />
       </Suspense>
       <Suspense fallback={null}>
-        <BillboardDropSection userId={session.user.id} />
+        <BillboardDropSection userId={userId} />
       </Suspense>
       <Suspense fallback={<HomeFeedSkeleton />}>
-        <HomeFeedSection userId={session.user.id} />
+        <HomeFeedSection userId={userId} initialFeed={initialFeed} />
       </Suspense>
     </div>
   );
