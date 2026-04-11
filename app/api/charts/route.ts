@@ -1,6 +1,6 @@
 import { withHandler } from "@/lib/api-handler";
 import { apiBadRequest, apiNotFound } from "@/lib/api-response";
-import type { ChartType } from "@/lib/charts/weekly-chart-types";
+import { parseChartType } from "@/lib/charts/weekly-chart-types";
 import { getWeeklyChartForUser } from "@/lib/charts/get-user-weekly-chart";
 import {
   STALE_FIRST_STALE_AFTER_SEC,
@@ -8,19 +8,10 @@ import {
   staleFirstApiOk,
 } from "@/lib/cache/stale-first-cache";
 
-const TYPES: ChartType[] = ["tracks", "artists", "albums"];
-
-function parseChartType(raw: string | null): ChartType | null {
-  if (raw && TYPES.includes(raw as ChartType)) {
-    return raw as ChartType;
-  }
-  return null;
-}
-
 /** GET /api/charts?type=…&weekStart=… (optional ISO `week_start` from stored charts; omit = latest). */
 export const GET = withHandler(
   async (request, { user: me }) => {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const chartType = parseChartType(searchParams.get("type"));
     if (!chartType) {
       return apiBadRequest("type must be tracks, artists, or albums");
