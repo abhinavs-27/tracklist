@@ -1,6 +1,15 @@
 import type { CommunityChartRankMovement } from "@/lib/charts/community-chart-rank-movement";
 
 export type ChartType = "tracks" | "artists" | "albums";
+export const CHART_TYPES: ChartType[] = ["tracks", "artists", "albums"];
+
+export function parseChartType(raw: string | null): ChartType | null {
+  const s = raw?.trim().toLowerCase();
+  if (s && (CHART_TYPES as string[]).includes(s)) {
+    return s as ChartType;
+  }
+  return null;
+}
 
 /** Community billboard only: who drove plays for an entity this week. */
 export type CommunityChartContributor = {
