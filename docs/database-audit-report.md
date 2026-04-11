@@ -77,6 +77,23 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
 
+# Database Audit Report - June 2024
+
+Following the June 2024 audit, further refinements were implemented to optimize data transfer and aggregation.
+
+## New Recommended Indexes
+
+The following indexes are critical for the current query patterns and were verified to exist or are recommended for future growth:
+
+| Table | Index Columns | Rationale |
+|-------|---------------|-----------|
+| `logs` | `(track_id, listened_at DESC)` | Powers track activity feeds and "friends who listened" logic. |
+| `reviews` | `(entity_type, entity_id, created_at DESC)` | Crucial for album/song page review lists. |
+| `reviews` | `(user_id, created_at DESC)` | Powers user profile activity feeds. |
+| `follows` | `(follower_id, created_at DESC)` | Optimized for listing users someone follows. |
+| `follows` | `(following_id, created_at DESC)` | Optimized for listing a user's followers. |
+| `list_items` | `(list_id, position)` | Ensures fast retrieval of ordered list content. |
+
 ## Recommendations for Future Queries
 
 1. **Always use explicit `.select()`**: Even if all columns are needed, explicit lists prevent over-fetching if the schema grows.

@@ -716,8 +716,8 @@ async function getTrackStatsForTrackIdsSingleBatch(
 
   const missingIds = uniqueIds.filter((id) => !(id in result));
   if (missingIds.length > 0) {
-    const [logsRes, reviewsRes] = await Promise.all([
-      supabase.from("logs").select("track_id").in("track_id", missingIds),
+    const [listenCounts, reviewsRes] = await Promise.all([
+      countLogsByTrackIds(supabase, missingIds),
       supabase
         .from("reviews")
         .select("entity_id, rating")
@@ -725,13 +725,6 @@ async function getTrackStatsForTrackIdsSingleBatch(
         .in("entity_id", missingIds),
     ]);
 
-    const listenCounts = new Map<string, number>();
-    for (const row of logsRes.data ?? []) {
-      listenCounts.set(
-        row.track_id,
-        (listenCounts.get(row.track_id) ?? 0) + 1,
-      );
-    }
     const reviewCounts = new Map<string, number>();
     const ratingSums = new Map<string, number>();
     for (const row of reviewsRes.data ?? []) {
@@ -2598,7 +2591,8 @@ export async function getUserFavoriteAlbums(
       .from("user_favorite_albums")
       .select("album_id, position")
       .eq("user_id", userId)
-      .order("position", { ascending: true });
+      .order("position", { ascending: true })
+      .limit(50);
 
     if (error || !rows?.length) return [];
 
@@ -2825,7 +2819,7 @@ export async function getFollowers(
   userId: string,
   limit = 100,
   offset = 0,
-): Promise<{ id: string; follower_id: string }[]> {
+): Promise<{ follower_id: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const from = offset;
@@ -2833,12 +2827,12 @@ export async function getFollowers(
 
     const { data, error } = await supabase
       .from("follows")
-      .select("id, follower_id")
+      .select("follower_id")
       .eq("following_id", userId)
       .order("created_at", { ascending: false })
       .range(from, to);
     if (error) throw error;
-    return (data ?? []) as { id: string; follower_id: string }[];
+    return (data ?? []) as { follower_id: string }[];
   } catch (e) {
     console.error("[queries] getFollowers failed:", e);
     return [];
@@ -2850,7 +2844,7 @@ export async function getFollowing(
   userId: string,
   limit = 100,
   offset = 0,
-): Promise<{ id: string; following_id: string }[]> {
+): Promise<{ following_id: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const from = offset;
@@ -2858,12 +2852,12 @@ export async function getFollowing(
 
     const { data, error } = await supabase
       .from("follows")
-      .select("id, following_id")
+      .select("following_id")
       .eq("follower_id", userId)
       .order("created_at", { ascending: false })
       .range(from, to);
     if (error) throw error;
-    return (data ?? []) as { id: string; following_id: string }[];
+    return (data ?? []) as { following_id: string }[];
   } catch (e) {
     console.error("[queries] getFollowing failed:", e);
     return [];
