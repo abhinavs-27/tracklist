@@ -107,7 +107,8 @@ export async function fetchArtistTracksFromDb(
     const { data: songRows } = await supabase
       .from("tracks")
       .select("id, name, album_id, artist_id, duration_ms")
-      .eq("artist_id", canonicalArtistId);
+      .eq("artist_id", canonicalArtistId)
+      .limit(1000);
     if (!songRows?.length) return [];
 
     const trackIds = songRows.map((s) => s.id);

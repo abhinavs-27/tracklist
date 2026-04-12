@@ -540,7 +540,7 @@ async function getEntityStatsLive(
       .from("tracks")
       .select("id")
       .eq("album_id", canonicalEntityId)
-      .limit(2000);
+      .limit(1000);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const playMap = await countLogsByTrackIds(supabase, ids);
@@ -2598,7 +2598,8 @@ export async function getUserFavoriteAlbums(
       .from("user_favorite_albums")
       .select("album_id, position")
       .eq("user_id", userId)
-      .order("position", { ascending: true });
+      .order("position", { ascending: true })
+      .limit(50);
 
     if (error || !rows?.length) return [];
 
@@ -2766,7 +2767,9 @@ export async function getUserAchievements(
     const { data: ua, error: uaError } = await supabase
       .from("user_achievements")
       .select("achievement_id, earned_at")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .order("earned_at", { ascending: false })
+      .limit(100);
     if (uaError || !ua?.length) return [];
     const ids = (ua as UserAchievementRow[]).map((u) => u.achievement_id);
     const { data: achievements, error: aError } = await supabase
