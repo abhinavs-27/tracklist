@@ -61,11 +61,28 @@ export async function GET(request: NextRequest) {
         const isOwnProfile = !!viewer && viewer.id === userId;
 
         const admin = createSupabaseAdminClient();
-        const { data: privacyRow } = await admin
+
+        // Parallelize privacy check with album and track fetches
+        const privacyPromise = admin
           .from("users")
           .select("logs_private")
           .eq("id", userId)
           .maybeSingle();
+
+        const [privacyRes, tracksBlock, albums] = await Promise.all([
+          privacyPromise,
+          isOwnProfile
+            ? getCachedRecentTracksFromLogs(userId, tracksLimit, 0, {
+                bust,
+                trySpotifySync: true,
+              })
+            : Promise.resolve({ items: [] as RecentTrackRow[], hasMore: false }),
+          isOwnProfile
+            ? getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust)
+            : Promise.resolve(null)
+        ]);
+
+        const privacyRow = privacyRes.data;
         const logsPrivate = Boolean(
           (privacyRow as { logs_private?: boolean } | null)?.logs_private,
         );
@@ -75,21 +92,16 @@ export async function GET(request: NextRequest) {
           logsPrivate,
         );
 
-        const [albums, tracksBlock] = await Promise.all([
-          canSeeLogDerived
-            ? getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust)
-            : Promise.resolve([] as RecentAlbumItem[]),
-          isOwnProfile
-            ? getCachedRecentTracksFromLogs(userId, tracksLimit, 0, {
-                bust,
-                trySpotifySync: true,
-              })
-            : Promise.resolve({ items: [] as RecentTrackRow[], hasMore: false }),
-        ]);
+        let finalAlbums = albums;
+        if (!isOwnProfile) {
+          finalAlbums = canSeeLogDerived
+            ? await getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust)
+            : [];
+        }
 
         const payload: ProfileSummaryResponse = {
           user_id: userId,
-          albums,
+          albums: finalAlbums ?? [],
           recent_tracks: tracksBlock.items,
           tracks_has_more: tracksBlock.hasMore,
         };
