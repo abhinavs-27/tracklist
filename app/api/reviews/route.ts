@@ -85,7 +85,12 @@ export const POST = withHandler(
       .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
       .single();
 
-    if (error) return apiInternalError(error);
+    if (error) {
+      const { handlePostgrestError } = await import("@/lib/api-utils");
+      return handlePostgrestError(error, {
+        "23505": "You have already reviewed this entity",
+      });
+    }
     const { grantAchievementOnReview } = await import("@/lib/queries");
     await grantAchievementOnReview(me!.id);
 
