@@ -164,12 +164,14 @@ export async function enrichListenSessionsWithAlbums(
           .from("albums")
           .select("id, name, artist_id, image_url")
           .in("id", albumIdList)
+          .limit(500)
       : Promise.resolve({ data: [] as DbAlbum[] }),
     trackIdList.length > 0
       ? supabase
           .from("tracks")
           .select("id, name, artist_id")
           .in("id", trackIdList)
+          .limit(500)
       : Promise.resolve({ data: [] as DbTrack[] }),
   ]);
 
