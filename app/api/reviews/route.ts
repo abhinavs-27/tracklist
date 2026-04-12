@@ -86,35 +86,42 @@ export const POST = withHandler(
       .single();
 
     if (error) return apiInternalError(error);
-    const { grantAchievementOnReview } = await import("@/lib/queries");
-    await grantAchievementOnReview(me!.id);
 
-    const { recordRatingFeedEvent } = await import("@/lib/feed/generate-events");
-    await recordRatingFeedEvent(me!.id, {
-      review_id: data.id,
-      entity_type: data.entity_type,
-      entity_id: data.entity_id,
-      rating: data.rating,
-    });
-
-    try {
-      const { fanOutReviewForUserCommunities } = await import(
-        "@/lib/community/community-feed-insert"
-      );
-      await fanOutReviewForUserCommunities({
-        userId: me!.id,
-        reviewId: data.id,
-        entityType: data.entity_type,
-        entityId: data.entity_id,
-        rating: data.rating,
-        reviewText: data.review_text ?? null,
-        createdAt: data.created_at,
-      });
-    } catch (e) {
-      console.warn("[reviews] community_feed fan-out", e);
-    }
-
-    const userRow = await fetchUserSummary(me!.id);
+    // Parallelize post-upsert tasks
+    const [userRow] = await Promise.all([
+      fetchUserSummary(me!.id),
+      (async () => {
+        const { grantAchievementOnReview } = await import("@/lib/queries");
+        await grantAchievementOnReview(me!.id);
+      })(),
+      (async () => {
+        const { recordRatingFeedEvent } = await import("@/lib/feed/generate-events");
+        await recordRatingFeedEvent(me!.id, {
+          review_id: data.id,
+          entity_type: data.entity_type,
+          entity_id: data.entity_id,
+          rating: data.rating,
+        });
+      })(),
+      (async () => {
+        try {
+          const { fanOutReviewForUserCommunities } = await import(
+            "@/lib/community/community-feed-insert"
+          );
+          await fanOutReviewForUserCommunities({
+            userId: me!.id,
+            reviewId: data.id,
+            entityType: data.entity_type,
+            entityId: data.entity_id,
+            rating: data.rating,
+            reviewText: data.review_text ?? null,
+            createdAt: data.created_at,
+          });
+        } catch (e) {
+          console.warn("[reviews] community_feed fan-out", e);
+        }
+      })(),
+    ]);
 
     const reviewWithUser = {
       id: data.id,

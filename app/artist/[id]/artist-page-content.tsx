@@ -1,20 +1,17 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
-import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import {
   getTopTracksForArtist,
-  getReviewsForArtist,
-  getPopularAlbumsForArtist,
 } from "@/lib/queries";
-import { formatStarDisplay } from "@/lib/ratings";
 import { normalizeReviewEntityId } from "@/lib/validation";
 import { ArtistPopularTracks } from "@/app/artist/[id]/artist-popular-tracks";
 import { RecentListensSection } from "./recent-listens-section";
+import { ArtistAlbumsSection } from "./artist-albums-section";
+import { ArtistReviewsSection } from "./artist-reviews-section";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -26,23 +23,17 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const sessionPromise = getSession();
   const artistPromise = getOrFetchArtist(id, { allowNetwork: true });
 
-  const [session, artistRes, topTracks, popularAlbumsResult, recentReviews] =
+  const [session, artistRes, topTracks] =
     await Promise.all([
       sessionPromise,
       artistPromise.catch(() => null),
       getTopTracksForArtist(id, 10),
-      getPopularAlbumsForArtist(id),
-      getReviewsForArtist(id, 8),
     ]);
 
   if (!artistRes) {
     notFound();
   }
   const artist = artistRes;
-
-  const popularAlbums = popularAlbumsResult.rows;
-  /** Spotify returned a full first page and a peek at offset=pageSize found more; full list loads on /albums. */
-  const showAlbumsViewMore = popularAlbumsResult.hasMoreAlbums;
 
   const heroPopular = topTracks[0] ?? null;
   const heroTrack = heroPopular?.track ?? null;
@@ -102,71 +93,21 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
       {topTracks?.length ? <ArtistPopularTracks tracks={topTracks} /> : null}
 
-      {popularAlbums.length > 0 ? (
-        <section>
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-            <h2 className="text-lg font-semibold text-white">Albums</h2>
-            {showAlbumsViewMore ? (
-              <Link
-                href={`/artist/${id}/albums`}
-                className="text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
-              >
-                View more
-              </Link>
-            ) : null}
-          </div>
-          <MediaGrid
-            items={popularAlbums.map(
-              (a): MediaItem => ({
-                id: a.id,
-                type: "album",
-                title: a.name,
-                artist: artist.name,
-                artworkUrl: a.image_url ?? null,
-                avgRating: a.average_rating ?? undefined,
-                totalPlays: a.listen_count,
-              }),
-            )}
-            columns={4}
-          />
-        </section>
-      ) : null}
+      <Suspense
+        fallback={
+          <div className="h-48 animate-pulse rounded-xl bg-zinc-900/50" />
+        }
+      >
+        <ArtistAlbumsSection artistId={id} artistName={artist.name} />
+      </Suspense>
 
-      {recentReviews.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-white">
-            Recent reviews
-          </h2>
-          <ul className="space-y-3">
-            {recentReviews.map((r) => (
-              <li
-                key={r.id}
-                className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3"
-              >
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-amber-400">
-                    {formatStarDisplay(Math.max(0, Math.min(5, Number(r.rating))))}
-                  </span>
-                  <Link
-                    href={r.user_id ? `/profile/${r.user_id}` : "#"}
-                    className="font-medium text-white hover:underline"
-                  >
-                    {r.username ?? "Unknown"}
-                  </Link>
-                  <span className="text-zinc-500">
-                    {new Date(r.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                {r.review_text && (
-                  <p className="mt-1 whitespace-pre-line text-sm text-zinc-300">
-                    {r.review_text}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <Suspense
+        fallback={
+          <div className="h-48 animate-pulse rounded-xl bg-zinc-900/50" />
+        }
+      >
+        <ArtistReviewsSection artistId={id} />
+      </Suspense>
 
       <Suspense fallback={null}>
         <RecentListensSection artistId={id} />
