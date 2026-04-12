@@ -6,6 +6,7 @@ import {
   apiNotFound,
   apiBadRequest,
   apiInternalError,
+  apiServiceUnavailable,
 } from './api-response';
 
 describe('api-response helpers', () => {
@@ -49,5 +50,23 @@ describe('api-response helpers', () => {
     expect(body.error).toBe("Something went wrong. Please try again.");
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+
+  it('apiError supports custom metadata', async () => {
+    const response = apiError('Pending', 503, { code: 'pending', retry_after: 30 });
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toEqual({
+      error: 'Pending',
+      code: 'pending',
+      retry_after: 30,
+    });
+  });
+
+  it('apiServiceUnavailable returns 503 with optional metadata', async () => {
+    const response = apiServiceUnavailable('Down', { code: 'maint' });
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Down', code: 'maint' });
   });
 });
