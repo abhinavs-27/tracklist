@@ -13,11 +13,16 @@ import { GET as searchGET } from '../app/api/search/route';
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('@/lib/auth', () => ({
-  requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
-  getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
-  handleUnauthorized: vi.fn(() => null),
-}));
+vi.mock('@/lib/auth', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
+    getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
+    // Use actual handleUnauthorized to respect the custom error class
+    handleUnauthorized: actual.handleUnauthorized,
+  };
+});
 
 // Mock Supabase
 function createChain() {
@@ -87,7 +92,6 @@ vi.mock('@/lib/queries', () => ({
   grantAchievementOnReview: vi.fn(),
   grantAchievementsOnListen: vi.fn(),
   getReviewsForEntity: vi.fn(),
-  fetchUserSummary: vi.fn(async (userId) => ({ id: userId, username: 'testuser', avatar_url: null })),
   getFullUserProfile: vi.fn(async (username) => {
     if (username === 'testuser') {
         return { id: 'test-user-id', username: 'testuser', bio: 'Test bio' };
@@ -104,8 +108,6 @@ vi.mock('@/lib/queries', () => ({
     }
     return null;
   }),
-  grantAchievementOnReview: vi.fn(),
-  grantAchievementsOnListen: vi.fn(),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({
@@ -175,10 +177,52 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       expect(body.rating).toBe(5);
     });
 
+    it('should truncate review text if it exceeds 10,000 characters', async () => {
+      const longText = 'a'.repeat(10005);
+      const chain = createChain();
+      mockSupabase.from.mockImplementation((table) => {
+        if (table === 'reviews') return chain;
+        return createChain();
+      });
+
+      chain.single.mockResolvedValue({
+          data: { id: 'r1', review_text: 'a'.repeat(10000) },
+          error: null
+      });
+
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({
+          entity_type: 'album',
+          entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
+          rating: 5,
+          review_text: longText
+        }),
+      });
+
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(200);
+
+      // Verify the text sent to Supabase was truncated
+      expect(chain.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ review_text: 'a'.repeat(10000) }),
+        expect.anything()
+      );
+    });
+
+    it('should return 401 for unauthorized access', async () => {
+      const { requireApiAuth, UnauthorizedError } = await import('@/lib/auth');
+      vi.mocked(requireApiAuth).mockRejectedValueOnce(new UnauthorizedError());
+
+      const req = new NextRequest('http://localhost/api/reviews', { method: 'POST', body: '{}' });
+      const res = await reviewPOST(req, {} as any);
+      expect(res.status).toBe(401);
+    });
+
     it('should return 400 for invalid rating', async () => {
         const req = new NextRequest('http://localhost/api/reviews', {
           method: 'POST',
-          body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 }),
+          body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 6 }),
         });
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
@@ -212,6 +256,15 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.id).toBe('l1');
+    });
+
+    it('should return 401 for unauthorized access', async () => {
+      const { requireApiAuth, UnauthorizedError } = await import('@/lib/auth');
+      vi.mocked(requireApiAuth).mockRejectedValueOnce(new UnauthorizedError());
+
+      const req = new NextRequest('http://localhost/api/logs', { method: 'POST', body: '{}' });
+      const res = await logPOST(req, {} as any);
+      expect(res.status).toBe(401);
     });
 
     it('should return 400 if track_id is missing', async () => {
@@ -296,6 +349,16 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       const body = await res.json();
       expect(body.artists.items.length).toBeGreaterThan(0);
       expect(body.artists.items[0].name).toBe('Test Artist');
+    });
+
+    it('should respect and clamp the limit parameter', async () => {
+      const { searchSpotify } = await import('@/lib/spotify');
+
+      const req = new NextRequest('http://localhost/api/search?q=test&limit=50');
+      await searchGET(req);
+
+      // Should be clamped to SEARCH_LIMIT (10)
+      expect(searchSpotify).toHaveBeenCalledWith('test', expect.anything(), 10);
     });
 
     it('should return 400 for empty query', async () => {

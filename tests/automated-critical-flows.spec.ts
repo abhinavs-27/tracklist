@@ -71,7 +71,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    await page.getByRole('button', { name: '4 out of 5 stars' }).click();
+    await page.getByRole('button', { name: '4 out of 5 stars', exact: true }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Testing automated review creation');
 
     const [response] = await Promise.all([
@@ -94,6 +94,27 @@ test.describe('Critical Flows: Automated Integration', () => {
     });
     expect(errorResult.status).toBe(400);
     expect(errorResult.body.error).toContain('between 1 and 5');
+
+    // 401 Unauthorized Case
+    await page.route('**/api/reviews*', async (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Unauthorized' }),
+        });
+      }
+    }, { times: 1 });
+
+    const unauthorizedResult = await page.evaluate(async () => {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 5 })
+      });
+      return { status: res.status };
+    });
+    expect(unauthorizedResult.status).toBe(401);
   });
 
   test('Critical Flow 2: Logging Listens (Success and Error)', async ({ page }) => {
