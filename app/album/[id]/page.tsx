@@ -12,6 +12,7 @@ import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { sectionGap } from "@/lib/ui/surface";
 import { normalizeReviewEntityId } from "@/lib/validation";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
+import { AlbumTracksSection } from "./album-tracks-section";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -106,6 +107,24 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           engagementStats={engagementStats}
           friendActivity={friendActivity}
         />
+
+        <Suspense
+          fallback={
+            <section>
+              <div className="mb-5 h-7 w-48 animate-pulse rounded-lg bg-zinc-800/60" />
+              <div className="space-y-2">
+                {[...Array(8)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-16 animate-pulse rounded-lg bg-zinc-900/50"
+                  />
+                ))}
+              </div>
+            </section>
+          }
+        >
+          <AlbumTracksSection tracks={tracks} session={!!session} />
+        </Suspense>
 
         {showAlbumRecUi ? (
           <Suspense

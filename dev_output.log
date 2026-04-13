@@ -1,0 +1,358 @@
+
+> music-social-media@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.2 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 778ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+[middleware] onboarding gate skipped: set NEXTAUTH_SECRET so signed-in users can be checked for incomplete onboarding
+○ Compiling /song/[id] ...
+Tracklist running in development
+Tracklist running in development
+[queries] getReviewsForEntity failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getReviewsForEntity (lib/queries.ts:285:54)
+    at SongPage (app/song/[id]/page.tsx:41:26)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[queries] getEntityStats failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getEntityStats (lib/queries.ts:618:54)
+    at SongPage (app/song/[id]/page.tsx:42:21)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[next-auth][warn][NEXTAUTH_URL]
+https://next-auth.js.org/warnings#nextauth_url
+[next-auth][warn][NO_SECRET]
+https://next-auth.js.org/warnings#no_secret
+[queries] getListenLogsInternal failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getListenLogsInternal (lib/queries.ts:155:54)
+    at getListenLogsForTrack (lib/queries.ts:131:21)
+    at <unknown> (app/song/[id]/page.tsx:44:30)
+    at async SongPage (app/song/[id]/page.tsx:37:44)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+ GET /song/track1 200 in 28.9s (next.js: 25.5s, proxy.ts: 278ms, application-code: 3.2s)
+[queries] getReviewsForEntity failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getReviewsForEntity (lib/queries.ts:285:54)
+    at SongPage (app/song/[id]/page.tsx:41:26)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[queries] getEntityStats failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getEntityStats (lib/queries.ts:618:54)
+    at SongPage (app/song/[id]/page.tsx:42:21)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[queries] getListenLogsInternal failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getListenLogsInternal (lib/queries.ts:155:54)
+    at getListenLogsForTrack (lib/queries.ts:131:21)
+    at <unknown> (app/song/[id]/page.tsx:44:30)
+    at async SongPage (app/song/[id]/page.tsx:37:44)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+ GET /song/track1 200 in 330ms (next.js: 46ms, proxy.ts: 10ms, application-code: 275ms)
+Tracklist running in development
+Tracklist running in development
+[queries] getEntityStats failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getEntityStats (lib/queries.ts:618:54)
+    at AlbumPage.id.id (app/album/[id]/page.tsx:32:25)
+    at timeAsync (lib/profiling.ts:70:26)
+    at AlbumPage (app/album/[id]/page.tsx:25:93)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[queries] getEntityStats failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getEntityStats (lib/queries.ts:618:54)
+    at getAlbumEngagementStats (lib/queries.ts:2150:23)
+    at AlbumPage.id.id (app/album/[id]/page.tsx:34:34)
+    at timeAsync (lib/profiling.ts:70:26)
+    at AlbumPage (app/album/[id]/page.tsx:25:93)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[queries] getAlbumEngagementStats favorite_count: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getAlbumEngagementStats (lib/queries.ts:2153:54)
+    at async AlbumPage.id.id (app/album/[id]/page.tsx:30:9)
+    at async timeAsync (lib/profiling.ts:70:20)
+    at async AlbumPage (app/album/[id]/page.tsx:25:78)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+ GET /album/album1 200 in 2.7s (next.js: 2.3s, proxy.ts: 6ms, application-code: 314ms)
+Tracklist running in development
+[queries] getTopTracksForArtist failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getTopTracksForArtist (lib/queries.ts:1779:54)
+    at ArtistPageContent (app/artist/[id]/artist-page-content.tsx:31:28)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+ GET /artist/artist1 200 in 4.1s (next.js: 3.9s, proxy.ts: 5ms, application-code: 165ms)
+[queries] getLeaderboard failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getLeaderboard (lib/queries.ts:1204:54)
+    at getExploreLeaderboardPayload (lib/explore-hub-data.ts:69:46)
+    at ExploreLeaderboardSection.leaderboard (components/explore/explore-leaderboard-section.tsx:7:39)
+    at exploreSectionOrFallback (lib/explore-section-timeout.ts:16:40)
+    at ExploreLeaderboardSection (components/explore/explore-leaderboard-section.tsx:6:57)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[explore-reviews-preview] Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getExploreRecentAlbumReviews (lib/explore-reviews-preview.ts:28:54)
+    at ExploreReviewsSection.reviews (components/explore/explore-reviews-section.tsx:7:39)
+    at exploreSectionOrFallback (lib/explore-section-timeout.ts:16:40)
+    at ExploreReviewsSection (components/explore/explore-reviews-section.tsx:6:53)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+explore: db getLeaderboard: 52ms
+[queries] getTrendingEntities failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getTrendingEntities (lib/queries.ts:4246:54)
+    at getTrendingFromMvOrLive (lib/discover-cache.ts:57:29)
+    at async getTrendingEntitiesCached (lib/discover-cache.ts:150:16)
+    at async (lib/explore-hub-data.ts:36:15)
+    at async getExploreTrendingPayload (lib/explore-hub-data.ts:40:23)
+    at async exploreSectionOrFallback (lib/explore-section-timeout.ts:16:20)
+    at async ExploreTrendingSection (components/explore/explore-trending-section.tsx:6:24)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+explore: db getTrendingEntitiesCached: 297ms
+explore: db parallel (wall): 343ms
+explore: db getOrFetchTracksBatch (no network): 277ms
+explore: process enrich trending: 0ms
+⨯ Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at listUsersByCreatedAt (lib/queries.ts:3218:52)
+    at VisitorProfilesStrip (components/home/visitor-profiles-strip.tsx:6:43)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   } {
+  digest: '135495009'
+}
+⨯ Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY
+    at createSupabaseServiceRoleClient (lib/supabase/server.ts:14:11)
+    at rankPublicCommunitiesByMemberCount (lib/community/public-communities-preview.ts:37:42)
+    at getPublicCommunitiesPreview (lib/community/public-communities-preview.ts:70:24)
+    at PublicCommunitiesPreviewSection (components/home/public-communities-preview-section.tsx:7:56)
+  12 |
+  13 |   if (!url || !serviceKey) {
+> 14 |     throw new Error(
+     |           ^
+  15 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVI...
+  16 |     );
+  17 |   } {
+  digest: '939815742'
+}
+ GET / 200 in 4.6s (next.js: 2.4s, proxy.ts: 30ms, application-code: 2.2s)
+[browser] Uncaught Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at listUsersByCreatedAt (lib/queries.ts:3218:52)
+    at VisitorProfilesStrip (components/home/visitor-profiles-strip.tsx:6:43)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+[queries] getLeaderboard failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getLeaderboard (lib/queries.ts:1204:54)
+    at getExploreLeaderboardPayload (lib/explore-hub-data.ts:69:46)
+    at ExploreLeaderboardSection.leaderboard (components/explore/explore-leaderboard-section.tsx:7:39)
+    at exploreSectionOrFallback (lib/explore-section-timeout.ts:16:40)
+    at ExploreLeaderboardSection (components/explore/explore-leaderboard-section.tsx:6:57)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+explore: db getTrendingEntitiesCached: 56ms
+[explore-reviews-preview] Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getExploreRecentAlbumReviews (lib/explore-reviews-preview.ts:28:54)
+    at ExploreReviewsSection.reviews (components/explore/explore-reviews-section.tsx:7:39)
+    at exploreSectionOrFallback (lib/explore-section-timeout.ts:16:40)
+    at ExploreReviewsSection (components/explore/explore-reviews-section.tsx:6:53)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+explore: db getLeaderboard: 66ms
+explore: db parallel (wall): 62ms
+explore: db getOrFetchTracksBatch (no network): 4ms
+explore: process enrich trending: 0ms
+⨯ Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at listUsersByCreatedAt (lib/queries.ts:3218:52)
+    at VisitorProfilesStrip (components/home/visitor-profiles-strip.tsx:6:43)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   } {
+  digest: '135495009'
+}
+⨯ Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY
+    at createSupabaseServiceRoleClient (lib/supabase/server.ts:14:11)
+    at rankPublicCommunitiesByMemberCount (lib/community/public-communities-preview.ts:37:42)
+    at getPublicCommunitiesPreview (lib/community/public-communities-preview.ts:70:24)
+    at PublicCommunitiesPreviewSection (components/home/public-communities-preview-section.tsx:7:56)
+  12 |
+  13 |   if (!url || !serviceKey) {
+> 14 |     throw new Error(
+     |           ^
+  15 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVI...
+  16 |     );
+  17 |   } {
+  digest: '939815742'
+}
+ GET / 200 in 251ms (next.js: 5ms, proxy.ts: 6ms, application-code: 240ms)
+[queries] getLeaderboard failed: Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getLeaderboard (lib/queries.ts:1204:54)
+    at getExploreLeaderboardPayload (lib/explore-hub-data.ts:69:46)
+    at ExploreLeaderboardSection.leaderboard (components/explore/explore-leaderboard-section.tsx:7:39)
+    at exploreSectionOrFallback (lib/explore-section-timeout.ts:16:40)
+    at ExploreLeaderboardSection (components/explore/explore-leaderboard-section.tsx:6:57)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+explore: db getTrendingEntitiesCached: 36ms
+[explore-reviews-preview] Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at getExploreRecentAlbumReviews (lib/explore-reviews-preview.ts:28:54)
+    at ExploreReviewsSection.reviews (components/explore/explore-reviews-section.tsx:7:39)
+    at exploreSectionOrFallback (lib/explore-section-timeout.ts:16:40)
+    at ExploreReviewsSection (components/explore/explore-reviews-section.tsx:6:53)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   }
+explore: db getLeaderboard: 44ms
+explore: db parallel (wall): 41ms
+explore: db getOrFetchTracksBatch (no network): 4ms
+explore: process enrich trending: 0ms
+⨯ Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY)
+    at createSupabaseServerClient (lib/supabase-server.ts:16:11)
+    at listUsersByCreatedAt (lib/queries.ts:3218:52)
+    at VisitorProfilesStrip (components/home/visitor-profiles-strip.tsx:6:43)
+  14 | export async function createSupabaseServerClient() {
+  15 |   if (!supabaseUrl || !supabaseAnonKey) {
+> 16 |     throw new Error(
+     |           ^
+  17 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and NEXT_PUBLIC_SU...
+  18 |     );
+  19 |   } {
+  digest: '135495009'
+}
+⨯ Error: Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY
+    at createSupabaseServiceRoleClient (lib/supabase/server.ts:14:11)
+    at rankPublicCommunitiesByMemberCount (lib/community/public-communities-preview.ts:37:42)
+    at getPublicCommunitiesPreview (lib/community/public-communities-preview.ts:70:24)
+    at PublicCommunitiesPreviewSection (components/home/public-communities-preview-section.tsx:7:56)
+  12 |
+  13 |   if (!url || !serviceKey) {
+> 14 |     throw new Error(
+     |           ^
+  15 |       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVI...
+  16 |     );
+  17 |   } {
+  digest: '939815742'
+}
+ GET / 200 in 228ms (next.js: 4ms, proxy.ts: 4ms, application-code: 220ms)
