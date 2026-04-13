@@ -4,7 +4,7 @@ import { getAlbum, getAlbumTracks } from "../lib/spotify";
 import { getAlbumEngagementStats, getTrackStatsForTrackIds } from "../services/statsService";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { getReviewsForEntity } from "../services/reviewsService";
-import { isValidSpotifyId } from "../lib/validation";
+import { isValidSpotifyId } from "../../lib/validation";
 
 export const albumsRouter = Router();
 

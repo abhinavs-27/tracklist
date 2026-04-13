@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { resolveCanonicalArtistUuidFromEntityId } from "./catalogEntityResolution";
+import { resolveCanonicalArtistUuidFromEntityId } from "../../lib/catalog/entity-resolution";
 
 /** Album row for mobile /api/artists — same source as web `getPopularAlbumsForArtist`. */
 export type ArtistMobileAlbum = {

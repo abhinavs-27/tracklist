@@ -15,7 +15,7 @@ import {
   validateListTitle,
   validateListDescription,
   validateListType,
-} from "../lib/validation";
+} from "../../lib/validation";
 import { getSessionUserId } from "../lib/auth";
 import {
   addListItem,

@@ -8,7 +8,7 @@ import {
 } from "../lib/http";
 import { getSessionUserId } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
-import { isValidUuid } from "../lib/validation";
+import { isValidUuid } from "../../lib/validation";
 
 export const likesRouter = Router();
 

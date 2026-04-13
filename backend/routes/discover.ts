@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { internalError, ok, tooManyRequests } from "../lib/http";
 import { checkDiscoverRateLimit } from "../lib/rateLimit";
-import { clampLimit } from "../lib/validation";
+import { clampLimit } from "../../lib/validation";
 import {
   getHiddenGemsCached,
   getRisingArtistsCached,

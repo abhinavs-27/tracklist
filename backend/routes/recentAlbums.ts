@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
-import { isValidUuid } from "../lib/validation";
+import { isValidUuid } from "../../lib/validation";
 import { getRecentAlbumsFromLogs } from "../lib/recentAlbumsFromLogs";
 
 const MAX_ALBUMS = 12;

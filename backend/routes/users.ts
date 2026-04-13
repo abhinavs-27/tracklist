@@ -3,7 +3,7 @@ import { getSession } from "../lib/auth";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
 import { getFavoriteAlbumsForUser } from "../services/favoriteAlbumsService";
 import { getFollowListWithStatus } from "../services/followNetworkService";
-import { clampLimit, isValidUsername, isValidUuid } from "../lib/validation";
+import { clampLimit, isValidUsername, isValidUuid } from "../../lib/validation";
 
 /**
  * GET /api/users/:username — public profile (mirrors Next.js).
