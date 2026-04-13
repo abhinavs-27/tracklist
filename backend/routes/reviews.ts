@@ -16,7 +16,7 @@ import {
   isValidUuid,
   validateRating,
   validateReviewContent,
-} from "../lib/validation";
+} from "../../lib/validation";
 import { getReviewsForEntity } from "../services/reviewsService";
 
 export const reviewsRouter = Router();

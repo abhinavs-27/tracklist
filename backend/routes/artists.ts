@@ -3,7 +3,7 @@ import { badRequest, internalError, notFound, ok } from "../lib/http";
 import { getArtist, getArtistAlbums } from "../lib/spotify";
 import { getTrackStatsForTrackIds } from "../services/statsService";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
-import { isValidSpotifyId } from "../lib/validation";
+import { isValidSpotifyId } from "../../lib/validation";
 import {
   fetchArtistAlbumsFromDb,
   fetchArtistTracksFromDb,

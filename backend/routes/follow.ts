@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getSession } from "../lib/auth";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
-import { isValidUuid } from "../lib/validation";
+import { isValidUuid } from "../../lib/validation";
 
 /** POST / DELETE /api/follow — mirrors Next.js `app/api/follow/route.ts`. */
 export const followRouter = Router();

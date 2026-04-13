@@ -73,6 +73,10 @@ vi.mock('@/lib/catalog/entity-resolution', () => ({
   getTrackIdByExternalId: vi.fn(async () => 'track-uuid'),
   getAlbumIdByExternalId: vi.fn(async () => 'album-uuid'),
   getArtistIdByExternalId: vi.fn(async () => 'artist-uuid'),
+  resolveEntityWithPending: vi.fn(async (supabase, raw, kind) => {
+    if (!raw) return null;
+    return { kind: 'resolved', id: kind + '-uuid' };
+  }),
 }));
 
 vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
@@ -224,17 +228,26 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     });
 
     it('should return 503 if catalog is pending', async () => {
-        const { getTrackIdByExternalId } = await import('@/lib/catalog/entity-resolution');
-        vi.mocked(getTrackIdByExternalId).mockResolvedValueOnce(null);
+      const { resolveEntityWithPending } = await import(
+        '@/lib/catalog/entity-resolution'
+      );
+      vi.mocked(resolveEntityWithPending).mockResolvedValueOnce({
+        kind: 'pending',
+        spotifyId: '2nLhD10Z7Sb4RFyCX2ZCyx',
+        entity: 'track',
+      });
 
-        const req = new NextRequest('http://localhost/api/logs', {
-          method: 'POST',
-          body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
-        });
-        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
-        expect(res.status).toBe(503);
-        const body = await res.json();
-        expect(body.code).toBe('catalog_pending');
+      const req = new NextRequest('http://localhost/api/logs', {
+        method: 'POST',
+        body: JSON.stringify({
+          track_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
+          source: 'manual',
+        }),
+      });
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(503);
+      const body = await res.json();
+      expect(body.code).toBe('catalog_pending');
     });
   });
 

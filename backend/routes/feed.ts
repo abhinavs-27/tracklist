@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getSessionUserId } from "../lib/auth";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
 import { unauthorized, internalError, ok, badRequest } from "../lib/http";
-import { clampLimit, LIMITS } from "../lib/validation";
+import { clampLimit, LIMITS } from "../../lib/validation";
 import {
   enrichFeedResponse,
   getActivityFeedForExpress,

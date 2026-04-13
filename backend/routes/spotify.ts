@@ -3,7 +3,7 @@ import { badRequest, internalError, ok, tooManyRequests } from "../lib/http";
 import { checkSpotifyRateLimit } from "../lib/rateLimit";
 import { isSpotifyIntegrationEnabled } from "../lib/spotify-integration-enabled";
 import { getTrack } from "../lib/spotify";
-import { isValidSpotifyId } from "../lib/validation";
+import { isValidSpotifyId } from "../../lib/validation";
 
 export const spotifyDataRouter = Router();
 

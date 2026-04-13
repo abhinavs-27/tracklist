@@ -6,7 +6,7 @@ import {
   LIMITS,
   sanitizeString,
   validateSearchQuery,
-} from "../lib/validation";
+} from "../../lib/validation";
 import { getSessionUserId } from "../lib/auth";
 import { searchUsers } from "../services/userSearchService";
 import { enrichUsersWithFollowStatus } from "../services/followService";

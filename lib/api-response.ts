@@ -21,39 +21,77 @@ export function apiOk<T>(
 export function apiError(
   message: string,
   status: number,
-  options?: { code?: string }
+  options?: { code?: string; [key: string]: unknown }
 ): NextResponse {
-  const body: { error: string; code?: string } = { error: message };
-  if (options?.code) body.code = options.code;
+  const body: Record<string, unknown> = { error: message, ...options };
   return NextResponse.json(body, { status });
 }
 
-export function apiUnauthorized(message = 'Unauthorized'): NextResponse {
-  return apiError(message, 401);
+export function apiUnauthorized(
+  message = "Unauthorized",
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 401, options);
 }
 
-export function apiForbidden(message = 'Forbidden'): NextResponse {
-  return apiError(message, 403);
+export function apiForbidden(
+  message = "Forbidden",
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 403, options);
 }
 
-export function apiNotFound(message = 'Resource not found'): NextResponse {
-  return apiError(message, 404);
+export function apiNotFound(
+  message = "Resource not found",
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 404, options);
 }
 
-export function apiBadRequest(message: string): NextResponse {
-  return apiError(message, 400);
+export function apiBadRequest(
+  message: string,
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 400, options);
 }
 
 export function apiNoContent(): NextResponse {
   return new NextResponse(null, { status: 204 });
 }
 
-export function apiConflict(message: string): NextResponse {
-  return apiError(message, 409);
+export function apiConflict(
+  message: string,
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 409, options);
 }
 
-export function apiTooManyRequests(message = 'Too many requests'): NextResponse {
-  return apiError(message, 429);
+export function apiTooManyRequests(
+  message = "Too many requests",
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 429, options);
+}
+
+export function apiServiceUnavailable(
+  message = "Service Unavailable",
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 503, options);
+}
+
+export function apiBadGateway(
+  message = "Bad Gateway",
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 502, options);
+}
+
+export function apiGatewayTimeout(
+  message = "Gateway Timeout",
+  options?: { code?: string; [key: string]: unknown },
+): NextResponse {
+  return apiError(message, 504, options);
 }
 
 /**

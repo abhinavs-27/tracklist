@@ -1,5 +1,5 @@
 import { getSupabase } from "../lib/supabase";
-import { sanitizeString } from "../lib/validation";
+import { sanitizeString } from "../../lib/validation";
 
 const USER_SEARCH_QUERY_MAX_LENGTH = 50;
 

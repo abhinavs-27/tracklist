@@ -1,7 +1,7 @@
 import {
   resolveCanonicalAlbumUuidFromEntityId,
   resolveCanonicalTrackUuidFromEntityId,
-} from "../lib/catalogEntityResolution";
+} from "../../lib/catalog/entity-resolution";
 import { getSupabase } from "../lib/supabase";
 import {
   defaultRatingDistribution,

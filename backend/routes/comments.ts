@@ -2,7 +2,7 @@ import { Router } from "express";
 import { badRequest, internalError, ok, unauthorized } from "../lib/http";
 import { getSessionUserId } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
-import { isValidUuid, validateCommentContent } from "../lib/validation";
+import { isValidUuid, validateCommentContent } from "../../lib/validation";
 
 export const commentsRouter = Router();
 
