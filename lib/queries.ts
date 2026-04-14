@@ -2766,7 +2766,9 @@ export async function getUserAchievements(
     const { data: ua, error: uaError } = await supabase
       .from("user_achievements")
       .select("achievement_id, earned_at")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .order("earned_at", { ascending: false })
+      .limit(100);
     if (uaError || !ua?.length) return [];
     const ids = (ua as UserAchievementRow[]).map((u) => u.achievement_id);
     const { data: achievements, error: aError } = await supabase
@@ -3996,13 +3998,14 @@ export async function getList(
     if (itemsError?.code === "42703") {
       const fallback = await supabase
         .from("list_items")
-        .select("id, list_id, entity_type, entity_id, position")
+        .select("id, entity_type, entity_id, position")
         .eq("list_id", listId)
         .order("position", { ascending: true })
         .range(from, to);
       if (!fallback.error) {
         itemRows = (fallback.data ?? []).map((r) => ({
           ...r,
+          list_id: listId,
           added_at: new Date().toISOString(),
         }));
         itemsError = null;
@@ -4052,12 +4055,12 @@ export async function createList(
         image_url: null,
       })
       .select(
-        "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+        "id, title, description, type, visibility, emoji, image_url, created_at",
       )
       .single();
 
     if (error) throw error;
-    return data as ListRow;
+    return { ...data, user_id: userId } as ListRow;
   } catch (e) {
     console.error("[queries] createList failed:", e);
     return null;
@@ -4104,16 +4107,16 @@ export async function addListItem(
         entity_id: entityId,
         position: nextPosition,
       })
-      .select("id, list_id, entity_type, entity_id, position, added_at")
+      .select("id, entity_type, entity_id, position, added_at")
       .single();
 
     if (!insertResult.error) {
-      return insertResult.data as ListItemRow;
+      return { ...insertResult.data, list_id: listId } as ListItemRow;
     }
     if (insertResult.error.code === "42703") {
       const fallback = await supabase
         .from("list_items")
-        .select("id, list_id, entity_type, entity_id, position")
+        .select("id, entity_type, entity_id, position")
         .eq("list_id", listId)
         .eq("position", nextPosition)
         .order("position", { ascending: false })
@@ -4122,6 +4125,7 @@ export async function addListItem(
       if (!fallback.error && fallback.data) {
         return {
           ...fallback.data,
+          list_id: listId,
           added_at: new Date().toISOString(),
         } as ListItemRow;
       }
