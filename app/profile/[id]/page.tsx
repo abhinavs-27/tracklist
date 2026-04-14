@@ -1,39 +1,19 @@
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
-import { ProfileHeader } from "@/components/profile-header";
 import { ProfileQuickActions } from "@/components/profile/profile-quick-actions";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import {
-  getFollowCounts,
-  isFollowing,
-  getUserStreak,
-} from "@/lib/queries";
 import { isValidUuid } from "@/lib/validation";
-import type { TasteIdentity } from "@/lib/taste/types";
-import { buildProfileHeroLines } from "@/lib/profile/hero-lines";
 import {
-  getCachedTasteIdentity,
   getCachedUserFavoriteAlbums,
 } from "@/lib/profile/cached-profile-data";
 import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albums-section";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
+import { ProfileHeroLoader } from "@/app/profile/[id]/profile-hero-loader";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
 import { ProfileAvatarOptimisticProvider } from "@/components/profile/profile-avatar-context";
 import { PrivateLogsToggle } from "@/components/profile/private-logs-toggle";
-
-const EMPTY_TASTE: TasteIdentity = {
-  topArtists: [],
-  topAlbums: [],
-  topGenres: [],
-  obscurityScore: null,
-  diversityScore: 0,
-  listeningStyle: "plotting-the-plot",
-  avgTracksPerSession: 0,
-  totalLogs: 0,
-  summary: "",
-};
 
 async function hasSpotifyToken(userId: string): Promise<boolean> {
   try {
@@ -113,37 +93,15 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
-  const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
-    Promise.allSettled([
-      getFollowCounts(user.id),
-      session?.user?.id && session.user.id !== user.id
-        ? isFollowing(session.user.id, user.id)
-        : Promise.resolve(false),
-      session?.user?.id === user.id
-        ? hasSpotifyToken(user.id)
-        : Promise.resolve(false),
-      getUserStreak(user.id),
-    ]),
-    getCachedTasteIdentity(user.id),
+  const [favoriteAlbumsHero, spotifyConnected] = await Promise.all([
     getCachedUserFavoriteAlbums(user.id).catch((e) => {
       console.error("[profile] getCachedUserFavoriteAlbums (hero):", e);
       return [];
     }),
+    session?.user?.id === user.id
+      ? hasSpotifyToken(user.id)
+      : Promise.resolve(false),
   ]);
-
-  const counts =
-    profileSettled[0].status === "fulfilled"
-      ? profileSettled[0].value
-      : { followers_count: 0, following_count: 0 };
-  if (profileSettled[0].status === "rejected")
-    console.error(
-      "[profile] getFollowCounts failed:",
-      profileSettled[0].reason,
-    );
-  const isFollowingUser =
-    profileSettled[1].status === "fulfilled" ? profileSettled[1].value : false;
-  if (profileSettled[1].status === "rejected")
-    console.error("[profile] isFollowing failed:", profileSettled[1].reason);
 
   const profile = {
     id: user.id,
@@ -151,28 +109,10 @@ export default async function ProfilePage({
     avatar_url: user.avatar_url ?? null,
     bio: user.bio ?? null,
     created_at: user.created_at,
-    followers_count: counts.followers_count,
-    following_count: counts.following_count,
-    is_following: isFollowingUser,
     is_own_profile: !!session?.user?.id && session.user.id === user.id,
   };
 
   const isOwnProfile = !!profile.is_own_profile;
-
-  const spotifyConnected =
-    profileSettled[2].status === "fulfilled" ? profileSettled[2].value : false;
-  if (profileSettled[2].status === "rejected")
-    console.error(
-      "[profile] hasSpotifyToken failed:",
-      profileSettled[2].reason,
-    );
-  const streak =
-    profileSettled[3].status === "fulfilled" ? profileSettled[3].value : null;
-  if (profileSettled[3].status === "rejected")
-    console.error("[profile] getUserStreak failed:", profileSettled[3].reason);
-
-  const heroTaste: TasteIdentity = tasteForHero ?? EMPTY_TASTE;
-  const heroLines = buildProfileHeroLines(heroTaste, streak);
 
   const main = (
     <div className={sectionGap}>
@@ -184,19 +124,19 @@ export default async function ProfilePage({
           aria-hidden
         />
         <div className="relative min-w-0">
-          <ProfileHeader
-            variant="hero"
-            username={profile.username}
-            avatarUrl={profile.avatar_url}
-            bio={profile.bio}
-            followersCount={profile.followers_count ?? 0}
-            followingCount={profile.following_count ?? 0}
-            isOwnProfile={isOwnProfile}
-            isFollowing={profile.is_following ?? false}
-            userId={profile.id}
-            viewerUserId={session?.user?.id ?? null}
-            keyStatLine={heroLines.keyStatLine}
-          />
+          <Suspense
+            fallback={
+              <div className="h-32 w-full animate-pulse rounded-xl bg-zinc-800/50" />
+            }
+          >
+            <ProfileHeroLoader
+              userId={profile.id}
+              username={profile.username}
+              avatarUrl={profile.avatar_url}
+              bio={profile.bio}
+              session={session}
+            />
+          </Suspense>
           <ProfileFavoriteAlbumsSection
             userId={profile.id}
             favoriteAlbums={favoriteAlbumsHero}

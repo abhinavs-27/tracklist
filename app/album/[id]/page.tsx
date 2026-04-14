@@ -5,7 +5,8 @@ import { AlbumPageClient } from "@/app/album/[id]/album-page-client";
 import { AlbumRecommendationsLoader } from "@/app/album/[id]/album-recommendations-loader";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
-import { getAlbumEngagementStats, getEntityStats, getFriendsAlbumActivity } from "@/lib/queries";
+import { AlbumStatsSection } from "@/app/album/[id]/album-stats-section";
+import { getEntityStats } from "@/lib/queries";
 import { timeAsync } from "@/lib/profiling";
 import { scheduleAlbumCatalogWarmupAfterNavigation } from "@/lib/catalog/album-warmup";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
@@ -21,20 +22,15 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
 
   const sessionPromise = getSession();
 
-  const { album, tracks, stats, session, engagementStats, friendActivity } = await timeAsync(
+  const { album, tracks, stats, session } = await timeAsync(
     "page",
     "albumPage",
     async () => {
-      const [albumRes, statsRes, sessionRes, engagementRes, friendActivityRes] =
-        await Promise.allSettled([
-          getOrFetchAlbum(id, { allowNetwork: true }),
-          getEntityStats("album", id),
-          sessionPromise,
-          getAlbumEngagementStats(id),
-          sessionPromise.then((s) =>
-            s?.user?.id ? getFriendsAlbumActivity(s.user.id, id, 10) : [],
-          ),
-        ]);
+      const [albumRes, statsRes, sessionRes] = await Promise.allSettled([
+        getOrFetchAlbum(id, { allowNetwork: true }),
+        getEntityStats("album", id),
+        sessionPromise,
+      ]);
 
       if (albumRes.status !== "fulfilled") {
         notFound();
@@ -63,26 +59,12 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
 
       const sessionVal =
         sessionRes.status === "fulfilled" ? sessionRes.value : null;
-      const engagementInner =
-        engagementRes.status === "fulfilled"
-          ? engagementRes.value
-          : {
-              listen_count: statsInner.listen_count,
-              review_count: statsInner.review_count,
-              avg_rating: statsInner.average_rating,
-              favorite_count: 0,
-            };
-
-      const friendActivityInner =
-        friendActivityRes.status === "fulfilled" ? friendActivityRes.value : [];
 
       return {
         album: albumInner,
         tracks: tracksInner,
         stats: statsInner,
         session: sessionVal,
-        engagementStats: engagementInner,
-        friendActivity: friendActivityInner,
       };
     },
     { id },
@@ -101,11 +83,19 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           album={album}
           tracks={tracks}
           session={!!session}
-          viewerUserId={viewerId}
           stats={stats}
-          engagementStats={engagementStats}
-          friendActivity={friendActivity}
-        />
+        >
+          <Suspense fallback={<div className="h-10 animate-pulse rounded bg-zinc-800/50" />}>
+            <AlbumStatsSection
+              albumId={id}
+              albumName={album.name}
+              viewerUserId={viewerId}
+              initialListenCount={stats.listen_count}
+              initialReviewCount={stats.review_count}
+              initialAvgRating={stats.average_rating}
+            />
+          </Suspense>
+        </AlbumPageClient>
 
         {showAlbumRecUi ? (
           <Suspense
