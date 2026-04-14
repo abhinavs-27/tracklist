@@ -76,6 +76,10 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `user_achievements` | `(user_id, earned_at DESC)` | `142` | Optimized for profile rendering (recent achievements). |
+| `user_favorite_albums` | `(user_id, position)` | `142` | Optimized for ordered profile favorites. |
+| `logs` | `(user_id, listened_at DESC)` | `142` | Optimized for personal listening history. |
+| `notifications` | `(user_id, created_at DESC)` | `142` | Optimized for notification listing. |
 
 ## Recommendations for Future Queries
 
