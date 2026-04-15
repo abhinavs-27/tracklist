@@ -21,11 +21,17 @@ export function apiOk<T>(
 export function apiError(
   message: string,
   status: number,
-  options?: { code?: string }
+  options?: { code?: string } & Record<string, unknown>
 ): NextResponse {
-  const body: { error: string; code?: string } = { error: message };
-  if (options?.code) body.code = options.code;
+  const body: Record<string, unknown> = { error: message };
+  if (options) {
+    Object.assign(body, options);
+  }
   return NextResponse.json(body, { status });
+}
+
+export function apiServiceUnavailable(message = 'Service Unavailable', options?: Record<string, unknown>): NextResponse {
+  return apiError(message, 503, options);
 }
 
 export function apiUnauthorized(message = 'Unauthorized'): NextResponse {

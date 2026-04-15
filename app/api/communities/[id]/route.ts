@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { requireApiAuth } from "@/lib/auth";
 import { withHandler } from "@/lib/api-handler";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
 import {
@@ -24,18 +23,12 @@ import { CommunityUpdateBody } from "@/types";
  * GET /api/communities/[id] — metadata + member count.
  * If signed in, includes is_member.
  */
-export const GET = withHandler(async (request, { params }) => {
+export const GET = withHandler<{ id: string }>(async (_request, { params, user: viewer }) => {
   const uuidRes = validateUuidParam(params.id);
   if (!uuidRes.ok) return uuidRes.error;
   const id = uuidRes.id;
 
-  let userId: string | null = null;
-  try {
-    const me = await requireApiAuth(request);
-    userId = me.id;
-  } catch {
-    userId = null;
-  }
+  const userId = viewer?.id ?? null;
 
   const community = await getCommunityById(id);
   if (!community) return apiNotFound("Community not found");
@@ -64,7 +57,7 @@ export const GET = withHandler(async (request, { params }) => {
 });
 
 /** PATCH /api/communities/[id] — name, description, is_private (permission rules in `updateCommunitySettings`). */
-export const PATCH = withHandler(
+export const PATCH = withHandler<{ id: string }>(
   async (request, { user: me, params }) => {
     const uuidRes = validateUuidParam(params.id);
     if (!uuidRes.ok) return uuidRes.error;

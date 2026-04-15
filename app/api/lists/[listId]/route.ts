@@ -16,10 +16,9 @@ import {
   apiBadRequest,
   apiOk,
 } from "@/lib/api-response";
-import { parseBody } from "@/lib/api-utils";
+import { parseBody, validateUuidParam } from "@/lib/api-utils";
 import { ListUpdateBody } from "@/types";
 import {
-  isValidUuid,
   validateListTitle,
   validateListDescription,
 } from "@/lib/validation";
@@ -37,11 +36,13 @@ export type ListItemEnriched = {
 };
 
 /** GET – list details + ordered items with album/song info. Public. */
-export const GET = withHandler(async (_request, { params }) => {
+export const GET = withHandler<{ listId: string }>(async (_request, { params }) => {
   const { listId } = params;
-  if (!isValidUuid(listId)) return apiNotFound("List not found");
+  const uuidRes = validateUuidParam(listId);
+  if (!uuidRes.ok) return uuidRes.error;
+  const validListId = uuidRes.id;
 
-  const data = await getList(listId);
+  const data = await getList(validListId);
   if (!data) return apiNotFound("List not found");
 
   const enriched: ListItemEnriched[] = await Promise.all(
@@ -87,12 +88,14 @@ export const GET = withHandler(async (_request, { params }) => {
 });
 
 /** PATCH – update list metadata (title, description, visibility, emoji/image). Auth + ownership required. */
-export const PATCH = withHandler(
+export const PATCH = withHandler<{ listId: string }>(
   async (request, { user: me, params }) => {
     const { listId } = params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+    const uuidRes = validateUuidParam(listId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const validListId = uuidRes.id;
 
-    const ownerId = await getListOwnerId(listId);
+    const ownerId = await getListOwnerId(validListId);
     if (!ownerId || ownerId !== me!.id) {
       return apiForbidden("You do not own this list");
     }
@@ -132,7 +135,7 @@ export const PATCH = withHandler(
     const { data, error } = await supabase
       .from("lists")
       .update(updates)
-      .eq("id", listId)
+      .eq("id", validListId)
       .select(
         "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
       )
@@ -143,7 +146,7 @@ export const PATCH = withHandler(
 
     console.log("[lists] list-updated", {
       userId: me!.id,
-      listId,
+      listId: validListId,
     });
 
     return apiOk(data);
@@ -152,23 +155,25 @@ export const PATCH = withHandler(
 );
 
 /** DELETE – delete a list (and its items via CASCADE). Auth + ownership required. */
-export const DELETE = withHandler(
+export const DELETE = withHandler<{ listId: string }>(
   async (request, { user: me, params }) => {
     const { listId } = params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+    const uuidRes = validateUuidParam(listId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const validListId = uuidRes.id;
 
-    const ownerId = await getListOwnerId(listId);
+    const ownerId = await getListOwnerId(validListId);
     if (!ownerId || ownerId !== me!.id) {
       return apiForbidden("You do not own this list");
     }
 
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.from("lists").delete().eq("id", listId);
+    const { error } = await supabase.from("lists").delete().eq("id", validListId);
     if (error) return apiInternalError(error);
 
     console.log("[lists] list-deleted", {
       userId: me!.id,
-      listId,
+      listId: validListId,
     });
 
     return apiOk({ success: true });
