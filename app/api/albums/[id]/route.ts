@@ -12,7 +12,7 @@ import {
 } from "@/lib/queries";
 import { isValidSpotifyId } from "@/lib/validation";
 
-export const GET = withHandler(async (_request, { params }) => {
+export const GET = withHandler<{ id: string }>(async (_request, { params }) => {
     const { id } = params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
 
@@ -88,4 +88,3 @@ export const GET = withHandler(async (_request, { params }) => {
       },
     });
 });
-

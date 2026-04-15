@@ -21,10 +21,12 @@ export const POST = withHandler(
     const { data: body, error: parseErr } = await parseBody<CommunityCreateBody>(request);
     if (parseErr) return parseErr;
 
-    const nameResult = validateCommunityName(body!.name);
+    if (!body) return apiBadRequest("No body provided");
+
+    const nameResult = validateCommunityName(body.name);
     if (!nameResult.ok) return apiBadRequest(nameResult.error);
-    const description = validateCommunityDescription(body!.description);
-    const is_private = validateIsPrivate(body!.is_private);
+    const description = validateCommunityDescription(body.description);
+    const is_private = validateIsPrivate(body.is_private);
 
     const community = await createCommunity(me!.id, {
       name: nameResult.value,
