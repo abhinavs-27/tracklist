@@ -66,10 +66,31 @@ export default async function CommunityDetailPage({
   const community = await getCommunityById(id);
   if (!community) notFound();
 
-  const memberCount = await getCommunityMemberCount(id);
   const userId = session?.user?.id ?? null;
-  const isMember = userId ? await isCommunityMember(id, userId) : false;
-  const myRole = userId ? await getCommunityMemberRole(id, userId) : null;
+
+  const [
+    memberCountRes,
+    isMemberRes,
+    myRoleRes,
+    pendingInviteRes,
+    memberGrowthWeekRes,
+    heroListeningRes,
+  ] = await Promise.allSettled([
+    getCommunityMemberCount(id),
+    userId ? isCommunityMember(id, userId) : Promise.resolve(false),
+    userId ? getCommunityMemberRole(id, userId) : Promise.resolve(null),
+    userId ? getPendingInviteForUserToCommunity(id, userId) : Promise.resolve(null),
+    getCommunityMemberGrowthThisWeek(id),
+    getCommunityHeroListeningData(id),
+  ]);
+
+  const memberCount = memberCountRes.status === "fulfilled" ? memberCountRes.value : 0;
+  const isMember = isMemberRes.status === "fulfilled" ? isMemberRes.value : false;
+  const myRole = myRoleRes.status === "fulfilled" ? myRoleRes.value : null;
+  const pendingInvite = pendingInviteRes.status === "fulfilled" ? pendingInviteRes.value : null;
+  const memberGrowthWeek = memberGrowthWeekRes.status === "fulfilled" ? memberGrowthWeekRes.value : 0;
+  const heroListening = heroListeningRes.status === "fulfilled" ? heroListeningRes.value : { backgroundImageUrls: [] };
+
   const canEdit =
     userId && isMember && myRole
       ? canEditCommunitySettings(community.is_private, true, myRole)
@@ -82,15 +103,6 @@ export default async function CommunityDetailPage({
     userId && isMember && myRole
       ? canInviteToCommunity(community.is_private, true, myRole)
       : false;
-  const pendingInvite =
-    userId && !isMember
-      ? await getPendingInviteForUserToCommunity(id, userId)
-      : null;
-
-  const [memberGrowthWeek, heroListening] = await Promise.all([
-    getCommunityMemberGrowthThisWeek(id),
-    getCommunityHeroListeningData(id),
-  ]);
 
   const communityActions = (
     <CommunityActions

@@ -8,8 +8,8 @@ import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
 import { EntityReviewsSection } from "@/components/entity-reviews-section";
 import { SongStatsBar } from "@/app/song/[id]/song-stats-bar";
 import { ListenCard } from "@/components/listen-card";
-import { MediaGrid } from "@/components/media/MediaGrid";
-import { getRelatedMedia } from "@/lib/discovery/getRelatedMedia";
+import { FansAlsoLikeSection } from "@/app/song/[id]/fans-also-like-section";
+import { Suspense } from "react";
 import {
   getReviewsForEntity,
   getEntityStats,
@@ -43,7 +43,6 @@ export default async function SongPage({ params }: { params: PageParams }) {
       sessionPromise.then((s) =>
         getListenLogsForTrack(id, 10, 0, s?.user?.id ?? null),
       ),
-      getRelatedMedia("song", id, 12),
     ]),
   ]);
 
@@ -74,18 +73,6 @@ export default async function SongPage({ params }: { params: PageParams }) {
       "[song] getListenLogsForTrack failed:",
       songSettled[2].reason,
     );
-  const relatedSongsRaw =
-    songSettled[3].status === "fulfilled" ? songSettled[3].value : [];
-  if (songSettled[3].status === "rejected")
-    console.error("[song] getRelatedMedia failed:", songSettled[3].reason);
-
-  const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
-  const relatedTracks =
-    relatedTrackIds.length > 0
-      ? (await getOrFetchTracksBatch(relatedTrackIds)).filter(
-          (t): t is SpotifyApi.TrackObjectFull => t != null,
-        )
-      : [];
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
@@ -166,25 +153,9 @@ export default async function SongPage({ params }: { params: PageParams }) {
       </div>
 
       {/* Fans also like (co-occurrence) */}
-      {relatedTracks.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">
-            Fans also like
-          </h2>
-          <p className="mb-3 text-sm text-zinc-400">
-            Other songs listeners of this track also played
-          </p>
-          <MediaGrid
-            items={relatedTracks.map((t) => ({
-              id: t.id,
-              type: "song",
-              title: t.name,
-              artist: t.artists?.map((a) => a.name).join(", ") ?? "",
-              artworkUrl: t.album?.images?.[0]?.url ?? null,
-            }))}
-          />
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <FansAlsoLikeSection songId={id} />
+      </Suspense>
 
       {/* Reviews */}
       <EntityReviewsSection
