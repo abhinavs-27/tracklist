@@ -154,41 +154,34 @@ export async function enrichListenSessionsWithAlbums(
   const albumIdList = [...albumIds];
   const trackIdList = [...trackIdsNeedingName];
 
-  type DbArtist = { id: string; name: string };
-  type DbAlbum = { id: string; name: string; artist_id: string; image_url: string | null };
-  type DbTrack = { id: string; name: string; artist_id: string | null };
+  type DbAlbum = {
+    id: string;
+    name: string;
+    artist_id: string;
+    image_url: string | null;
+    artists: { name: string } | null;
+  };
+  type DbTrack = {
+    id: string;
+    name: string;
+    artist_id: string | null;
+    artists: { name: string } | null;
+  };
 
   const [{ data: albumRows }, { data: trackRows }] = await Promise.all([
     albumIdList.length > 0
       ? supabase
           .from("albums")
-          .select("id, name, artist_id, image_url")
+          .select("id, name, artist_id, image_url, artists(name)")
           .in("id", albumIdList)
       : Promise.resolve({ data: [] as DbAlbum[] }),
     trackIdList.length > 0
       ? supabase
           .from("tracks")
-          .select("id, name, artist_id")
+          .select("id, name, artist_id, artists(name)")
           .in("id", trackIdList)
       : Promise.resolve({ data: [] as DbTrack[] }),
   ]);
-
-  const artistIds = new Set<string>();
-  for (const a of (albumRows ?? []) as DbAlbum[]) artistIds.add(a.artist_id);
-  for (const t of (trackRows ?? []) as DbTrack[]) {
-    if (t.artist_id) artistIds.add(t.artist_id);
-  }
-  const { data: artistRows } =
-    artistIds.size > 0
-      ? await supabase
-          .from("artists")
-          .select("id, name")
-          .in("id", [...artistIds])
-      : { data: [] as DbArtist[] };
-
-  const artistNameById = new Map(
-    ((artistRows ?? []) as DbArtist[]).map((r) => [r.id, r.name]),
-  );
 
   const albumMap = new Map(
     ((albumRows ?? []) as DbAlbum[]).map((a) => [
@@ -197,7 +190,7 @@ export async function enrichListenSessionsWithAlbums(
         id: a.id,
         name: a.name,
         images: a.image_url ? [{ url: a.image_url }] : [],
-        artists: [{ id: a.artist_id, name: artistNameById.get(a.artist_id) ?? "" }],
+        artists: [{ id: a.artist_id, name: a.artists?.name ?? "" }],
       },
     ]),
   );
@@ -207,7 +200,7 @@ export async function enrichListenSessionsWithAlbums(
       {
         name: t.name,
         artists: t.artist_id
-          ? [{ id: t.artist_id, name: artistNameById.get(t.artist_id) ?? "" }]
+          ? [{ id: t.artist_id, name: t.artists?.name ?? "" }]
           : [],
       },
     ]),

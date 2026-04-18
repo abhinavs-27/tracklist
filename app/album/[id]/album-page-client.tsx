@@ -22,10 +22,6 @@ function AlbumLazySectionSkeleton() {
   );
 }
 
-const FriendsWhoListened = dynamic(
-  () => import("./friends-who-listened").then((m) => ({ default: m.FriendsWhoListened })),
-  { loading: AlbumLazySectionSkeleton },
-);
 function formatDuration(ms: number | undefined) {
   if (!ms) return null;
   const min = Math.floor(ms / 60000);
@@ -91,19 +87,8 @@ export type AlbumPageClientProps = {
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
   session: boolean;
   viewerUserId: string | null;
-  stats: {
-    listen_count: number;
-    average_rating: number | null;
-    review_count: number;
-    rating_distribution?: Record<string, number>;
-  };
-  engagementStats: {
-    listen_count: number;
-    review_count: number;
-    avg_rating: number | null;
-    favorite_count: number;
-  };
-  friendActivity: FriendActivityItem[];
+  statsSection?: React.ReactNode;
+  friendActivitySection?: React.ReactNode;
 };
 
 export function AlbumPageClient({
@@ -112,9 +97,8 @@ export function AlbumPageClient({
   tracks,
   session,
   viewerUserId,
-  stats,
-  engagementStats,
-  friendActivity,
+  statsSection,
+  friendActivitySection,
 }: AlbumPageClientProps) {
   const image = album.images?.[0]?.url;
   const firstTrack = tracks.items?.[0];
@@ -221,73 +205,7 @@ export function AlbumPageClient({
               </p>
             )}
 
-            <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm text-zinc-400">
-              {engagementStats.avg_rating != null && (
-                <span className="text-amber-400">
-                  ★ {engagementStats.avg_rating.toFixed(1)} average rating
-                </span>
-              )}
-              {engagementStats.listen_count > 0 && (
-                <span>
-                  {engagementStats.listen_count.toLocaleString()} listen{engagementStats.listen_count !== 1 ? "s" : ""}
-                </span>
-              )}
-              {engagementStats.review_count > 0 && (
-                <span>
-                  {engagementStats.review_count} review{engagementStats.review_count !== 1 ? "s" : ""}
-                </span>
-              )}
-              {engagementStats.favorite_count > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setFavoritedByOpen(true)}
-                  className="m-0 inline cursor-pointer border-0 bg-transparent p-0 font-normal text-inherit underline-offset-2 transition hover:text-zinc-300 hover:underline"
-                >
-                  {engagementStats.favorite_count.toLocaleString()} favorited
-                </button>
-              )}
-              {engagementStats.listen_count === 0 &&
-                engagementStats.review_count === 0 &&
-                engagementStats.favorite_count === 0 && (
-                <span className="text-zinc-500">No listens or reviews yet</span>
-              )}
-            </div>
-
-            {stats.rating_distribution && stats.review_count > 0 && (
-              <div className="mt-3 flex flex-col gap-1">
-                <p className="text-xs text-zinc-500">Rating distribution</p>
-                <div
-                  className="flex items-end gap-0.5 overflow-x-auto pb-1"
-                  role="img"
-                  aria-label="Rating distribution"
-                >
-                  {HALF_STAR_RATINGS.map((star) => {
-                    const key = String(star);
-                    const count = stats.rating_distribution![key] ?? 0;
-                    const max = Math.max(...Object.values(stats.rating_distribution!));
-                    const height = max > 0 ? (count / max) * 32 : 0;
-                    return (
-                      <div
-                        key={key}
-                        className="flex min-w-[1.25rem] flex-1 flex-col items-center gap-0.5"
-                      >
-                        <div
-                          className="w-full rounded-t bg-amber-500/40"
-                          style={{
-                            height: `${Math.max(height, 2)}px`,
-                            minHeight: "2px",
-                          }}
-                          title={`${key} stars: ${count}`}
-                        />
-                        <span className="whitespace-nowrap text-[8px] leading-none text-zinc-500 sm:text-[9px]">
-                          {key}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {statsSection}
 
             {session && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -317,7 +235,7 @@ export function AlbumPageClient({
           viewerUserId={viewerUserId}
         />
 
-        {friendActivity.length > 0 && <FriendsWhoListened activity={friendActivity} />}
+        {friendActivitySection}
 
         {tracks.items?.length ? (
           <section>
