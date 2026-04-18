@@ -5,7 +5,9 @@ import { AlbumPageClient } from "@/app/album/[id]/album-page-client";
 import { AlbumRecommendationsLoader } from "@/app/album/[id]/album-recommendations-loader";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
-import { getAlbumEngagementStats, getEntityStats, getFriendsAlbumActivity } from "@/lib/queries";
+import { AlbumEngagementStats } from "@/app/album/[id]/album-engagement-stats";
+import { AlbumFriendActivity } from "@/app/album/[id]/album-friend-activity";
+import { getEntityStats } from "@/lib/queries";
 import { timeAsync } from "@/lib/profiling";
 import { scheduleAlbumCatalogWarmupAfterNavigation } from "@/lib/catalog/album-warmup";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
@@ -21,19 +23,15 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
 
   const sessionPromise = getSession();
 
-  const { album, tracks, stats, session, engagementStats, friendActivity } = await timeAsync(
+  const { album, tracks, stats, session } = await timeAsync(
     "page",
     "albumPage",
     async () => {
-      const [albumRes, statsRes, sessionRes, engagementRes, friendActivityRes] =
+      const [albumRes, statsRes, sessionRes] =
         await Promise.allSettled([
           getOrFetchAlbum(id, { allowNetwork: true }),
           getEntityStats("album", id),
           sessionPromise,
-          getAlbumEngagementStats(id),
-          sessionPromise.then((s) =>
-            s?.user?.id ? getFriendsAlbumActivity(s.user.id, id, 10) : [],
-          ),
         ]);
 
       if (albumRes.status !== "fulfilled") {
@@ -63,26 +61,12 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
 
       const sessionVal =
         sessionRes.status === "fulfilled" ? sessionRes.value : null;
-      const engagementInner =
-        engagementRes.status === "fulfilled"
-          ? engagementRes.value
-          : {
-              listen_count: statsInner.listen_count,
-              review_count: statsInner.review_count,
-              avg_rating: statsInner.average_rating,
-              favorite_count: 0,
-            };
-
-      const friendActivityInner =
-        friendActivityRes.status === "fulfilled" ? friendActivityRes.value : [];
 
       return {
         album: albumInner,
         tracks: tracksInner,
         stats: statsInner,
         session: sessionVal,
-        engagementStats: engagementInner,
-        friendActivity: friendActivityInner,
       };
     },
     { id },
@@ -102,9 +86,25 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           tracks={tracks}
           session={!!session}
           viewerUserId={viewerId}
-          stats={stats}
-          engagementStats={engagementStats}
-          friendActivity={friendActivity}
+          statsSection={
+            <Suspense
+              fallback={
+                <div className="mt-3 flex gap-x-4">
+                  <div className="h-5 w-32 animate-pulse rounded bg-zinc-800/60" />
+                  <div className="h-5 w-24 animate-pulse rounded bg-zinc-800/60" />
+                </div>
+              }
+            >
+              <AlbumEngagementStats albumId={id} serverStats={stats} />
+            </Suspense>
+          }
+          friendActivitySection={
+            viewerId ? (
+              <Suspense fallback={null}>
+                <AlbumFriendActivity userId={viewerId} albumId={id} />
+              </Suspense>
+            ) : null
+          }
         />
 
         {showAlbumRecUi ? (
