@@ -72,7 +72,8 @@ test.describe('Critical Flows: Automated Integration', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
 
     await page.getByRole('button', { name: '4 out of 5 stars' }).click();
-    await page.getByPlaceholder(/what did you think/i).fill('Testing automated review creation');
+    const longText = 'a'.repeat(11000);
+    await page.getByPlaceholder(/what did you think/i).fill(longText);
 
     const [response] = await Promise.all([
       page.waitForResponse(res => res.url().includes('/api/reviews') && res.status() === 201),
