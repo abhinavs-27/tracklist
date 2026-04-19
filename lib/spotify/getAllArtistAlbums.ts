@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { enqueueSpotifyEnrich } from "@/lib/jobs/spotifyQueue";
 import { getArtistAlbums } from "@/lib/spotify";
 import { resolveCanonicalArtistIdToSpotifyApiId } from "@/lib/spotify-cache";
 
@@ -57,6 +58,10 @@ async function getArtistAlbumsPageResolved(
 ): Promise<SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>> {
   const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonicalArtistId);
   if (!apiId) {
+    void enqueueSpotifyEnrich({
+      name: "enrich_artist",
+      artistId: canonicalArtistId,
+    });
     return {
       items: [],
       total: 0,
@@ -117,7 +122,10 @@ export async function getAllArtistAlbums(
   artistId: string,
 ): Promise<SpotifyApi.AlbumObjectSimplified[]> {
   const apiId = await resolveCanonicalArtistIdToSpotifyApiId(artistId);
-  if (!apiId) return [];
+  if (!apiId) {
+    void enqueueSpotifyEnrich({ name: "enrich_artist", artistId });
+    return [];
+  }
 
   const merged: SpotifyApi.AlbumObjectSimplified[] = [];
   let offset = 0;

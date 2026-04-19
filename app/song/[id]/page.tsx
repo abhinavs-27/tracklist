@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { LogListenButton } from "@/components/logging/log-listen-button";
@@ -15,8 +15,17 @@ import {
   getEntityStats,
   getListenLogsForTrack,
 } from "@/lib/queries";
+import {
+  GetOrCreateEntityError,
+  getOrCreateEntity,
+} from "@/lib/catalog/getOrCreateEntity";
+import { redirectToCanonicalEntityIfNeeded } from "@/lib/catalog/redirect-to-canonical-entity-route";
 import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
-import { normalizeReviewEntityId } from "@/lib/validation";
+import {
+  isUUID,
+  isValidSpotifyId,
+  normalizeReviewEntityId,
+} from "@/lib/validation";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -31,60 +40,89 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   /** Route params may arrive as `lfm%3A...`; DB + Spotify paths need `lfm:...`. */
   const id = normalizeReviewEntityId(rawId);
-  const sessionPromise = getSession();
-  const trackPromise = getOrFetchTrack(id);
 
-  const [session, trackRes, songSettled] = await Promise.all([
-    sessionPromise,
-    trackPromise.catch(() => null),
-    Promise.allSettled([
-      getReviewsForEntity("song", id),
-      getEntityStats("song", id),
-      sessionPromise.then((s) =>
-        getListenLogsForTrack(id, 10, 0, s?.user?.id ?? null),
-      ),
-      getRelatedMedia("song", id, 12),
-    ]),
-  ]);
+  console.log("[Song Resolve] incoming:", id);
 
-  if (!trackRes) {
+  if (!isUUID(id) && isValidSpotifyId(id)) {
+    let resolvedId: string;
+    try {
+      resolvedId = (
+        await getOrCreateEntity({
+          type: "track",
+          spotifyId: id,
+          allowNetwork: true,
+        })
+      ).id;
+    } catch (e) {
+      if (e instanceof GetOrCreateEntityError) notFound();
+      throw e;
+    }
+    console.log("[Song Resolve] created/resolved:", resolvedId);
+    redirect(`/song/${resolvedId}`);
+  }
+
+  /**
+   * Session + track fetch before reviews/stats/related so `resolveCanonicalTrackUuidFromEntityId`
+   * succeeds after catalog upsert (same race as album pages when parallel with getOrFetchTrack).
+   * `allowNetwork: true` allows first-visit Spotify track URLs to hydrate the DB once.
+   */
+  const session = await getSession();
+  let fetched: Awaited<ReturnType<typeof getOrFetchTrack>>;
+  try {
+    fetched = await getOrFetchTrack(id, { allowNetwork: true });
+  } catch {
     notFound();
   }
-  const track = trackRes;
+  redirectToCanonicalEntityIfNeeded("song", id, fetched.canonicalTrackId);
+  const entityId = fetched.canonicalTrackId ?? id;
+  const track = fetched.track;
 
-  const defaultStats = {
-    listen_count: 0,
-    average_rating: null as number | null,
-    review_count: 0,
-  };
-  const reviewsData =
-    songSettled[0].status === "fulfilled"
-      ? songSettled[0].value
-      : { reviews: [], average_rating: null, count: 0, my_review: null };
-  if (songSettled[0].status === "rejected")
-    console.error("[song] getReviewsForEntity failed:", songSettled[0].reason);
-  const stats =
-    songSettled[1].status === "fulfilled" ? songSettled[1].value : defaultStats;
-  if (songSettled[1].status === "rejected")
-    console.error("[song] getEntityStats failed:", songSettled[1].reason);
-  const recentListens =
-    songSettled[2].status === "fulfilled" ? songSettled[2].value : [];
-  if (songSettled[2].status === "rejected")
-    console.error(
-      "[song] getListenLogsForTrack failed:",
-      songSettled[2].reason,
+  /**
+   * Sequential server Supabase work: parallel `createSupabaseServerClient()` deadlocks RSC
+   * (see `artist-page-content.tsx` / album page).
+   */
+  let reviewsData: Awaited<ReturnType<typeof getReviewsForEntity>>;
+  try {
+    reviewsData = await getReviewsForEntity("song", entityId);
+  } catch (e) {
+    console.error("[song] getReviewsForEntity failed:", e);
+    reviewsData = {
+      reviews: [],
+      average_rating: null,
+      count: 0,
+      my_review: null,
+    };
+  }
+  const stats: Awaited<ReturnType<typeof getEntityStats>> =
+    await getEntityStats("song", entityId);
+  let recentListens: Awaited<ReturnType<typeof getListenLogsForTrack>>;
+  try {
+    recentListens = await getListenLogsForTrack(
+      entityId,
+      10,
+      0,
+      session?.user?.id ?? null,
     );
-  const relatedSongsRaw =
-    songSettled[3].status === "fulfilled" ? songSettled[3].value : [];
-  if (songSettled[3].status === "rejected")
-    console.error("[song] getRelatedMedia failed:", songSettled[3].reason);
+  } catch (e) {
+    console.error("[song] getListenLogsForTrack failed:", e);
+    recentListens = [];
+  }
+  let relatedSongsRaw: Awaited<ReturnType<typeof getRelatedMedia>>;
+  try {
+    relatedSongsRaw = await getRelatedMedia("song", entityId, 12);
+  } catch (e) {
+    console.error("[song] getRelatedMedia failed:", e);
+    relatedSongsRaw = [];
+  }
 
   const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
   const relatedTracks =
     relatedTrackIds.length > 0
-      ? (await getOrFetchTracksBatch(relatedTrackIds)).filter(
-          (t): t is SpotifyApi.TrackObjectFull => t != null,
-        )
+      ? (
+          await getOrFetchTracksBatch(relatedTrackIds, {
+            allowNetwork: false,
+          })
+        ).filter((t): t is SpotifyApi.TrackObjectFull => t != null)
       : [];
 
   const album = track.album;
@@ -98,11 +136,11 @@ export default async function SongPage({ params }: { params: PageParams }) {
       {session ? (
         <RecordRecentView
           kind="song"
-          id={id}
+          id={entityId}
           title={track.name}
           subtitle={primaryArtist?.name ?? ""}
           artworkUrl={image ?? null}
-          trackId={id}
+          trackId={track.id}
           albumId={album?.id ?? null}
           artistId={primaryArtist?.id ?? null}
         />
@@ -145,18 +183,18 @@ export default async function SongPage({ params }: { params: PageParams }) {
           )}
           {duration && <p className="mt-1 text-xs text-zinc-600">{duration}</p>}
 
-          <SongStatsBar songId={id} serverStats={stats} />
+          <SongStatsBar songId={entityId} serverStats={stats} />
 
           {session && (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <LogListenButton
-                trackId={id}
+                trackId={track.id}
                 albumId={album?.id ?? null}
                 artistId={primaryArtist?.id ?? null}
                 displayName={track.name}
               />
               <AlbumLogButton
-                spotifyId={id}
+                spotifyId={track.id}
                 type="song"
                 spotifyName={track.name}
               />
@@ -189,7 +227,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
       {/* Reviews */}
       <EntityReviewsSection
         entityType="song"
-        entityId={id}
+        entityId={entityId}
         spotifyName={track.name}
         initialData={reviewsData}
       />

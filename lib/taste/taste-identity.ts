@@ -39,6 +39,8 @@ const TOP_N = 10;
 const TOP_GENRES = 10;
 const LOG_CAP = 8000;
 const SESSION_GAP_MS = 30 * 60 * 1000;
+/** PostgREST `.in(uuid…)` expands the request URL; ~400 UUIDs (~15k+ chars) trips undici/header limits. */
+const TRACK_IDS_POSTGREST_CHUNK = 100;
 
 const EMPTY: TasteIdentity = {
   topArtists: [],
@@ -512,9 +514,8 @@ async function fetchSongsBatch(
     { album_id: string; artist_id: string; popularity: number | null }
   >();
   const unique = [...new Set(ids)].filter(Boolean);
-  const CHUNK = 400;
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
+  for (let i = 0; i < unique.length; i += TRACK_IDS_POSTGREST_CHUNK) {
+    const chunk = unique.slice(i, i + TRACK_IDS_POSTGREST_CHUNK);
     const { data, error } = await admin
       .from("tracks")
       .select("id, album_id, artist_id, popularity")
@@ -554,9 +555,8 @@ async function fetchSongTitlesBatch(
     { name: string; album_id: string | null; artist_id: string | null }
   >();
   const unique = [...new Set(ids)].filter(Boolean);
-  const CHUNK = 400;
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
+  for (let i = 0; i < unique.length; i += TRACK_IDS_POSTGREST_CHUNK) {
+    const chunk = unique.slice(i, i + TRACK_IDS_POSTGREST_CHUNK);
     const { data, error } = await admin
       .from("tracks")
       .select("id, name, album_id, artist_id")

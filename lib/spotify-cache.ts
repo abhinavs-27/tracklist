@@ -10,16 +10,17 @@ import {
   getArtistAlbums,
   getTrack,
   getTracks,
-  searchSpotify,
 } from "@/lib/spotify";
-import { pickBestArtistMatch } from "@/lib/spotify/matching";
-import { resolveSpotifyAlbumIdBySearch } from "@/lib/spotify/resolve-album-by-search";
+import { firstSpotifyImageUrl } from "@/lib/spotify/best-image-url";
 import { MAX_SPOTIFY_ITEMS } from "@/lib/spotify/client";
 import {
   catalogReadsAllowSpotifyNetwork,
   type CatalogFetchOpts,
 } from "@/lib/spotify/catalog-read-policy";
-import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
+import { logArtistFetchInner } from "@/lib/artist-page-load-log";
+import { enqueueSpotifyEnrich } from "@/lib/jobs/spotifyQueue";
+import { spotifyResolverNetworkTimeoutMs } from "@/lib/catalog/spotify-resolver-timeout";
+import { promiseWithTimeout } from "@/lib/promise-timeout";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   findAlbumIdByArtistAndName,
@@ -31,6 +32,9 @@ import {
   linkAlbumExternalId,
   linkArtistExternalId,
   linkTrackExternalId,
+  resolveCanonicalAlbumUuidFromEntityId,
+  resolveCanonicalArtistUuidFromEntityId,
+  resolveCanonicalTrackUuidFromEntityId,
 } from "@/lib/catalog/entity-resolution";
 import {
   isValidLfmCatalogId,
@@ -42,6 +46,32 @@ import {
 export type { CatalogFetchOpts } from "@/lib/spotify/catalog-read-policy";
 
 const LOG_PREFIX = "[spotify-cache]";
+
+/**
+ * Hard cap for resolve + GET /artists/{id} so RSC cannot hang forever on Redis Bottleneck queues
+ * or stuck Spotify fetches. Override via `SPOTIFY_ARTIST_NETWORK_TIMEOUT_MS`.
+ */
+function spotifyArtistNetworkTimeoutMs(): number {
+  const raw = process.env.SPOTIFY_ARTIST_NETWORK_TIMEOUT_MS?.trim();
+  const n = raw ? Number.parseInt(raw, 10) : 15_000;
+  return Number.isFinite(n) && n >= 5_000 ? n : 15_000;
+}
+
+/** Resolve canonical id → Spotify API id, then GET /artists/{id}. Used under a single timeout. */
+async function resolveAndFetchSpotifyArtistObject(
+  canonicalArtistId: string,
+): Promise<SpotifyApi.ArtistObjectFull | null> {
+  logArtistFetchInner(canonicalArtistId, "before resolveCanonicalArtistIdToSpotifyApiId");
+  const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonicalArtistId);
+  logArtistFetchInner(canonicalArtistId, "after resolveCanonicalArtistIdToSpotifyApiId", {
+    hasApiId: Boolean(apiId),
+  });
+  if (!apiId) return null;
+  logArtistFetchInner(canonicalArtistId, "before getArtist", { apiId });
+  const artist = await getArtist(apiId);
+  logArtistFetchInner(canonicalArtistId, "after getArtist", { name: artist?.name });
+  return artist;
+}
 
 /** PostgREST `.in()` URL size stays reasonable; Spotify batches use MAX_SPOTIFY_ITEMS. */
 const SUPABASE_IN_CHUNK = 120;
@@ -134,6 +164,24 @@ function albumNeedsTrackBackfill(
   );
 }
 
+/**
+ * `refreshAlbumFromSpotify` can run many GETs + upserts with no inner deadline — RSC would hang on
+ * `loading.tsx` forever. Override: SPOTIFY_REFRESH_ALBUM_PAGE_TIMEOUT_MS (min 5000).
+ */
+function refreshAlbumFromSpotifyPageTimeoutMs(): number {
+  const raw = process.env.SPOTIFY_REFRESH_ALBUM_PAGE_TIMEOUT_MS?.trim();
+  const n = raw ? Number.parseInt(raw, 10) : 45_000;
+  return Number.isFinite(n) && n >= 5_000 ? n : 45_000;
+}
+
+/** Last.fm–primary rows use `data_source` lastfm/mixed; skip redundant Spotify re-fetch when already native. */
+function tracksAreAllSpotifySourced(
+  songs: { data_source?: string | null }[],
+): boolean {
+  if (songs.length === 0) return false;
+  return songs.every((s) => s.data_source === "spotify");
+}
+
 // --- DB row types (match 009_spotify_entities + 035_spotify_cached_at)
 
 type ArtistRow = {
@@ -173,6 +221,7 @@ type SongRow = {
   cached_at?: string | null;
   lastfm_name?: string | null;
   lastfm_artist_name?: string | null;
+  data_source?: string | null;
 };
 
 function buildSyntheticLfmTrack(
@@ -211,7 +260,7 @@ function withCanonicalSongId(
 }
 
 /** Mirror `resolveTrackSpotifyJob`: persist Spotify ids onto the synthetic `lfm:*` row (service role). */
-async function persistLfmSongSpotifyLink(
+export async function persistLfmSongSpotifyLink(
   lfmSongId: string,
   track: SpotifyApi.TrackObjectFull,
 ): Promise<void> {
@@ -316,51 +365,6 @@ async function getLastfmExternalForTrack(
   return ext && isValidLfmCatalogId(ext) ? ext : null;
 }
 
-/**
- * When Spotify mapping is missing but we have Last.fm title/artist strings, resolve via search (same as enrichment job).
- */
-async function tryResolveLfmSongViaLastfmSearch(
-  song: SongRow,
-  opts: CatalogFetchOpts | undefined,
-): Promise<SpotifyApi.TrackObjectFull | null> {
-  const trackName =
-    (song.name && song.name.trim()) ||
-    (song.lastfm_name && song.lastfm_name.trim()) ||
-    "";
-  const artistName =
-    (song.lastfm_artist_name && song.lastfm_artist_name.trim()) || "";
-  if (!trackName || !artistName) return null;
-
-  const match = await mapLastfmToSpotify(
-    trackName,
-    artistName,
-    null,
-    { durationMs: song.duration_ms ?? undefined },
-  );
-  if (!match) return null;
-
-  try {
-    const track = await getOrFetchTrackInner(match.trackId, opts);
-    const admin = createSupabaseAdminClient();
-    const lfmKey = await getLastfmExternalForTrack(admin, song.id);
-    if (lfmKey) {
-      try {
-        await persistLfmSongSpotifyLink(lfmKey, track);
-      } catch (e) {
-        console.warn(`${LOG_PREFIX} persistLfmSongSpotifyLink (search path)`, e);
-      }
-      return withCanonicalSongId(lfmKey, track);
-    }
-    return track;
-  } catch (e) {
-    console.warn(`${LOG_PREFIX} tryResolveLfmSongViaLastfmSearch failed`, {
-      songId: song.id,
-      error: e instanceof Error ? e.message : String(e),
-    });
-    return null;
-  }
-}
-
 async function trackFromDbSongRow(
   supabase: SupabaseClient,
   song: SongRow,
@@ -426,33 +430,7 @@ async function trackFromDbSongRow(
 
 // --- Helpers: upsert from Spotify payloads
 
-/**
- * Spotify returns several sizes per cover. Prefer the largest bitmap when width/height
- * are present (nested track→album payloads often list multiple entries ascending by size,
- * so taking `[0]` or “first URL” can persist a 64px asset and look soft on feed heroes).
- * If no dimensions are given, prefer the **last** URL (common ascending order); if only
- * one URL exists, use it.
- */
-export function firstSpotifyImageUrl(
-  images: SpotifyApi.ImageObject[] | undefined | null,
-): string | null {
-  if (!images?.length) return null;
-  const valid = images.filter((im) => im?.url?.trim());
-  if (valid.length === 0) return null;
-  if (valid.length === 1) return valid[0]!.url!.trim();
-
-  const scored = valid.map((im) => {
-    const w = im.width ?? 0;
-    const h = im.height ?? 0;
-    const area = w > 0 && h > 0 ? w * h : 0;
-    return { im, area };
-  });
-  if (scored.some((s) => s.area > 0)) {
-    scored.sort((a, b) => b.area - a.area);
-    return scored[0]!.im.url!.trim();
-  }
-  return valid[valid.length - 1]!.url!.trim();
-}
+export { firstSpotifyImageUrl };
 
 function albumCoverUrlFromTrackPayload(
   track: SpotifyApi.TrackObjectFull | SpotifyApi.TrackObjectSimplified,
@@ -490,6 +468,8 @@ export async function upsertArtistFromSpotify(
   options?: {
     /** Full Spotify payload: skip read-before-write (halves DB round-trips for batch backfills). */
     skipMerge?: boolean;
+    /** Resolver tracing: log before artists row + external_id link (see getOrCreateEntity). */
+    resolverTrace?: boolean;
   },
 ): Promise<string> {
   const now = new Date().toISOString();
@@ -532,6 +512,9 @@ export async function upsertArtistFromSpotify(
       : (ex?.image_url ?? null);
 
   if (!artistUuid) {
+    if (options?.resolverTrace) {
+      console.log("[Resolver] inserting main row");
+    }
     const { data: inserted, error: insErr } = await supabase
       .from("artists")
       .insert({
@@ -553,6 +536,9 @@ export async function upsertArtistFromSpotify(
     }
     artistUuid = inserted!.id as string;
   } else {
+    if (options?.resolverTrace) {
+      console.log("[Resolver] inserting main row");
+    }
     const { error: upErr } = await supabase
       .from("artists")
       .update({
@@ -573,6 +559,9 @@ export async function upsertArtistFromSpotify(
     }
   }
 
+  if (options?.resolverTrace) {
+    console.log("[Resolver] inserting external_id mapping");
+  }
   await linkArtistExternalId(supabase, artistUuid, "spotify", spotifyKey);
   logUpsert("artist", artistUuid);
   return artistUuid;
@@ -581,11 +570,24 @@ export async function upsertArtistFromSpotify(
 export async function upsertAlbumFromSpotify(
   supabase: SupabaseClient,
   album: SpotifyApi.AlbumObjectFull | SpotifyApi.AlbumObjectSimplified,
+  opts?: {
+    /**
+     * When set (e.g. GET /artists/{id}/albums discography sync), attach the row to this
+     * canonical artist instead of `album.artists[0]` — Spotify’s first artist is not always
+     * the album/artist you requested.
+     */
+    forceArtistUuid?: string;
+    /** Resolver tracing: log before albums row + external_id link (see getOrCreateEntity). */
+    resolverTrace?: boolean;
+  },
 ): Promise<string> {
   const first = album.artists?.[0];
   if (!first) throw new Error("Album has no artist");
 
-  const artistUuid = await upsertArtistFromSpotify(supabase, first);
+  const artistUuid =
+    opts?.forceArtistUuid !== undefined
+      ? opts.forceArtistUuid
+      : await upsertArtistFromSpotify(supabase, first);
   const now = new Date().toISOString();
 
   let albumUuid =
@@ -603,6 +605,9 @@ export async function upsertAlbumFromSpotify(
   };
 
   if (!albumUuid) {
+    if (opts?.resolverTrace) {
+      console.log("[Resolver] inserting main row");
+    }
     const { data: inserted, error: insErr } = await supabase
       .from("albums")
       .insert(row)
@@ -614,6 +619,9 @@ export async function upsertAlbumFromSpotify(
     }
     albumUuid = inserted!.id as string;
   } else {
+    if (opts?.resolverTrace) {
+      console.log("[Resolver] inserting main row");
+    }
     const { error: upErr } = await supabase
       .from("albums")
       .update(row)
@@ -624,6 +632,9 @@ export async function upsertAlbumFromSpotify(
     }
   }
 
+  if (opts?.resolverTrace) {
+    console.log("[Resolver] inserting external_id mapping");
+  }
   await linkAlbumExternalId(supabase, albumUuid, "spotify", album.id);
   logUpsert("album", albumUuid);
   return albumUuid;
@@ -647,8 +658,76 @@ export async function ensureSpotifyAlbumInCatalog(
   const existing = await getAlbumIdByExternalId(admin, "spotify", id);
   if (existing) return existing;
 
-  const albumResp = await getAlbum(id, { skipCache: true });
+  const albumResp = await promiseWithTimeout(
+    getAlbum(id, { skipCache: true }),
+    spotifyResolverNetworkTimeoutMs(),
+    "TIMEOUT",
+  );
   return upsertAlbumFromSpotify(admin, albumResp);
+}
+
+/**
+ * Minimal catalog row + `artist_external_ids` for a Spotify artist id (GET /artists/:id + upsert).
+ * Use when only the internal UUID is needed; full hydration uses {@link getOrFetchArtist}.
+ */
+export async function ensureSpotifyArtistInCatalog(
+  spotifyArtistId: string,
+): Promise<string> {
+  const sid = spotifyArtistId.trim();
+  if (!isValidSpotifyId(sid)) {
+    throw new Error(
+      `ensureSpotifyArtistInCatalog: invalid Spotify artist id ${spotifyArtistId}`,
+    );
+  }
+  const admin = createSupabaseAdminClient();
+  const existing = await getArtistIdByExternalId(admin, "spotify", sid);
+  if (existing) return existing;
+  const artist = await promiseWithTimeout(
+    getArtist(sid),
+    spotifyResolverNetworkTimeoutMs(),
+    "TIMEOUT",
+  );
+  return upsertArtistFromSpotify(admin, artist);
+}
+
+/**
+ * Minimal catalog row + `track_external_ids` for a Spotify track id (GET /tracks/:id + upsert).
+ * Use when only the internal UUID is needed; full hydration uses {@link getOrFetchTrack}.
+ */
+export async function ensureSpotifyTrackInCatalog(
+  spotifyTrackId: string,
+): Promise<string> {
+  const sid = spotifyTrackId.trim();
+  if (!isValidSpotifyId(sid)) {
+    throw new Error(
+      `ensureSpotifyTrackInCatalog: invalid Spotify track id ${spotifyTrackId}`,
+    );
+  }
+  const admin = createSupabaseAdminClient();
+  const existing = await getTrackIdByExternalId(admin, "spotify", sid);
+  if (existing) return existing;
+  const track = await promiseWithTimeout(
+    getTrack(sid),
+    spotifyResolverNetworkTimeoutMs(),
+    "TIMEOUT",
+  );
+  const alb = track.album;
+  if (!alb) throw new Error("ensureSpotifyTrackInCatalog: track has no album");
+  await upsertTrackFromSpotify(
+    admin,
+    track,
+    alb.id,
+    alb.name,
+    firstSpotifyImageUrl(alb.images),
+    "release_date" in alb ? alb.release_date : undefined,
+  );
+  const uuid = await getTrackIdByExternalId(admin, "spotify", sid);
+  if (!uuid) {
+    throw new Error(
+      `ensureSpotifyTrackInCatalog: missing mapping after upsert for ${sid}`,
+    );
+  }
+  return uuid;
 }
 
 export async function upsertTrackFromSpotify(
@@ -658,6 +737,7 @@ export async function upsertTrackFromSpotify(
   albumName: string,
   albumImageUrl: string | null,
   albumReleaseDate?: string,
+  opts?: { resolverTrace?: boolean },
 ): Promise<string> {
   const first = track.artists?.[0];
   if (!first) throw new Error("Track has no artist");
@@ -761,6 +841,9 @@ export async function upsertTrackFromSpotify(
   };
 
   if (!trackUuid) {
+    if (opts?.resolverTrace) {
+      console.log("[Resolver] inserting main row");
+    }
     const { data: insTr, error: trErr } = await supabase
       .from("tracks")
       .insert(trackPayload)
@@ -772,6 +855,9 @@ export async function upsertTrackFromSpotify(
     }
     trackUuid = insTr!.id as string;
   } else {
+    if (opts?.resolverTrace) {
+      console.log("[Resolver] inserting main row");
+    }
     const { error: trErr } = await supabase
       .from("tracks")
       .update(trackPayload)
@@ -782,6 +868,9 @@ export async function upsertTrackFromSpotify(
     }
   }
 
+  if (opts?.resolverTrace) {
+    console.log("[Resolver] inserting external_id mapping");
+  }
   await linkTrackExternalId(supabase, trackUuid, "spotify", track.id);
   logUpsert("track", trackUuid);
   return trackUuid;
@@ -861,7 +950,8 @@ async function upsertTrackRowOnly(
  * Spotify Web API paths (`/artists/{id}`, `/artists/{id}/albums`) require a base62 catalog id.
  * Callers may pass a Spotify id or a canonical UUID — resolve via `artist_external_ids` before any GET.
  *
- * When no Spotify mapping exists, {@link resolveArtistSpotifyJob} can search and link the row.
+ * **Request path only:** returns a Spotify api id when already linked or when `rawId` is a Spotify id.
+ * Does **not** call Spotify search; use {@link resolveCanonicalArtistSpotifyInWorker} from the enrich queue.
  */
 export async function resolveCanonicalArtistIdToSpotifyApiId(
   rawId: string,
@@ -895,83 +985,57 @@ export async function resolveCanonicalArtistIdToSpotifyApiId(
   if (artistUuid) {
     const sid = await spotifyIdForCanonicalArtist(artistUuid);
     if (sid) return sid;
-
-    const { data: row } = await supabase
-      .from("artists")
-      .select("id, name")
-      .eq("id", artistUuid)
-      .maybeSingle();
-    const name = (row as { name?: string } | null)?.name?.trim();
-    if (!name) return null;
-
-    try {
-      const res = await searchSpotify(name, ["artist"], 5, {
-        allowLastfmMapping: true,
-      });
-      const items = res.artists?.items ?? [];
-      const pick = pickBestArtistMatch(name, items);
-      if (!pick) return null;
-
-      const fullPop = pick as SpotifyApi.ArtistObjectFull & {
-        popularity?: number;
-      };
-      const pop =
-        typeof fullPop.popularity === "number"
-          ? clampPopularity(fullPop.popularity)
-          : null;
-      const genres =
-        "genres" in pick && Array.isArray(pick.genres) && pick.genres.length > 0
-          ? pick.genres
-          : null;
-      const imageUrl =
-        "images" in pick && pick.images?.[0]?.url ? pick.images[0].url : null;
-      const now = new Date().toISOString();
-
-      await linkArtistExternalId(supabase, artistUuid, "spotify", pick.id);
-      const { error } = await supabase
-        .from("artists")
-        .update({
-          name: pick.name,
-          image_url: imageUrl,
-          genres,
-          popularity: pop,
-          needs_spotify_enrichment: false,
-          data_source: "mixed",
-          last_updated: now,
-          updated_at: now,
-          cached_at: now,
-        })
-        .eq("id", artistUuid);
-      if (error) {
-        console.warn(
-          `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId link failed`,
-          error,
-        );
-      }
-      return pick.id;
-    } catch (e) {
-      console.warn(
-        `${LOG_PREFIX} resolveCanonicalArtistIdToSpotifyApiId search failed`,
-        id,
-        e,
-      );
-      return null;
-    }
   }
 
   return null;
 }
 
 // --- getOrFetchArtist (DB-first cache + TTL)
+// Ensure-first: await getOrFetchArtist before DB-backed queries for Spotify route ids.
 
 async function getOrFetchArtistInner(
   id: string,
   opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.ArtistObjectFull> {
-  const supabase = await createSupabaseServerClient();
-  const net = catalogReadsAllowSpotifyNetwork(opts);
+  const outerMs = spotifyArtistNetworkTimeoutMs() + 20_000;
+  try {
+    return await promiseWithTimeout(
+      getOrFetchArtistInnerBody(id, opts),
+      outerMs,
+      `getOrFetchArtistInner(all,${id})`,
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`${LOG_PREFIX} getOrFetchArtistInner outer timeout`, {
+      id,
+      msg,
+    });
+    return {
+      id,
+      name: id,
+      images: undefined,
+      genres: [],
+      popularity: 0,
+      followers: { total: 0 },
+    } as SpotifyApi.ArtistObjectFull;
+  }
+}
 
-  const { data: row, error } = await supabase
+async function getOrFetchArtistInnerBody(
+  id: string,
+  opts?: CatalogFetchOpts,
+): Promise<SpotifyApi.ArtistObjectFull> {
+  const net = catalogReadsAllowSpotifyNetwork(opts);
+  /**
+   * Catalog artist row read uses the service role so we do not call `cookies()` here.
+   * In parallel `Promise.all` (e.g. artist page), `await cookies()` inside
+   * `createSupabaseServerClient()` has been observed to stall this task indefinitely
+   * while other server-client queries in the same request complete.
+   */
+  const db = createSupabaseAdminClient();
+  logArtistFetchInner(id, "loaded admin client for artists read");
+
+  const { data: row, error } = await db
     .from("artists")
     .select("name, image_url, genres, popularity, cached_at, updated_at")
     .eq("id", id)
@@ -996,6 +1060,7 @@ async function getOrFetchArtistInner(
     }
 
     if (!net) {
+      void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: id });
       return {
         id,
         name: a.name,
@@ -1006,19 +1071,38 @@ async function getOrFetchArtistInner(
       } as SpotifyApi.ArtistObjectFull;
     }
 
+    const fallbackNoImage: SpotifyApi.ArtistObjectFull = {
+      id,
+      name: a.name,
+      images: undefined,
+      genres: a.genres ?? undefined,
+      popularity: typeof a.popularity === "number" ? a.popularity : 0,
+      followers: { total: 0 },
+    } as SpotifyApi.ArtistObjectFull;
+
     try {
-      const apiId = await resolveCanonicalArtistIdToSpotifyApiId(id);
-      if (!apiId) {
-        return {
-          id,
-          name: a.name,
-          images: undefined,
-          genres: a.genres ?? undefined,
-          popularity: typeof a.popularity === "number" ? a.popularity : 0,
-          followers: { total: 0 },
-        } as SpotifyApi.ArtistObjectFull;
+      const timeoutMs = spotifyArtistNetworkTimeoutMs();
+      let artist: SpotifyApi.ArtistObjectFull | null;
+      try {
+        artist = await promiseWithTimeout(
+          resolveAndFetchSpotifyArtistObject(id),
+          timeoutMs,
+          `resolveAndFetchSpotifyArtist(${id})`,
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn(
+          `${LOG_PREFIX} resolve+getArtist (no image in DB) failed or timed out`,
+          { id, msg },
+        );
+        logArtistFetchInner(id, "timeout or error (no image path)", { msg });
+        void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: id });
+        return fallbackNoImage;
       }
-      const artist = await getArtist(apiId);
+      if (!artist) {
+        void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: id });
+        return fallbackNoImage;
+      }
       try {
         await upsertArtistFromSpotify(createSupabaseAdminClient(), artist);
       } catch (e) {
@@ -1033,14 +1117,7 @@ async function getOrFetchArtistInner(
         `${LOG_PREFIX} getArtist (no image in DB) failed, using cached row`,
         e,
       );
-      return {
-        id,
-        name: a.name,
-        images: undefined,
-        genres: a.genres ?? undefined,
-        popularity: typeof a.popularity === "number" ? a.popularity : 0,
-        followers: { total: 0 },
-      } as SpotifyApi.ArtistObjectFull;
+      return fallbackNoImage;
     }
   }
 
@@ -1058,19 +1135,35 @@ async function getOrFetchArtistInner(
   }
 
   const missStart = performance.now();
+  const placeholderMiss: SpotifyApi.ArtistObjectFull = {
+    id,
+    name: id,
+    images: undefined,
+    genres: [],
+    popularity: 0,
+    followers: { total: 0 },
+  } as SpotifyApi.ArtistObjectFull;
+
   try {
-    const apiId = await resolveCanonicalArtistIdToSpotifyApiId(id);
-    if (!apiId) {
-      return {
-        id,
-        name: id,
-        images: undefined,
-        genres: [],
-        popularity: 0,
-        followers: { total: 0 },
-      } as SpotifyApi.ArtistObjectFull;
+    const timeoutMs = spotifyArtistNetworkTimeoutMs();
+    let artist: SpotifyApi.ArtistObjectFull | null;
+    try {
+      artist = await promiseWithTimeout(
+        resolveAndFetchSpotifyArtistObject(id),
+        timeoutMs,
+        `resolveAndFetchSpotifyArtist(${id})`,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(`${LOG_PREFIX} artist cache miss timed out`, { id, msg });
+      logArtistFetchInner(id, "timeout (cache miss)", { msg });
+      void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: id });
+      return placeholderMiss;
     }
-    const artist = await getArtist(apiId);
+    if (!artist) {
+      void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: id });
+      return placeholderMiss;
+    }
     try {
       await upsertArtistFromSpotify(createSupabaseAdminClient(), artist);
     } catch (e) {
@@ -1087,14 +1180,24 @@ async function getOrFetchArtistInner(
 export async function getOrFetchArtist(
   id: string,
   opts?: CatalogFetchOpts,
-): Promise<SpotifyApi.ArtistObjectFull> {
+): Promise<{
+  artist: SpotifyApi.ArtistObjectFull;
+  /** DB `artists.id` when linked; use for queries after ensure. */
+  canonicalArtistId: string | null;
+}> {
   const canonicalId = normalizeReviewEntityId(id);
-  return timeAsync(
+  const artist = await timeAsync(
     "cache",
     "getOrFetchArtist",
     () => getOrFetchArtistInner(canonicalId, opts),
     { id: canonicalId },
   );
+  const supabase = createSupabaseAdminClient();
+  const canonicalArtistId = await resolveCanonicalArtistUuidFromEntityId(
+    supabase,
+    canonicalId,
+  );
+  return { artist, canonicalArtistId };
 }
 
 // --- getOrFetchArtistAlbums: fetch from Spotify, upsert albums (and artists)
@@ -1109,6 +1212,7 @@ export async function getOrFetchArtistAlbums(
   try {
     const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonical);
     if (!apiId) {
+      void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: canonical });
       return {
         items: [],
         total: 0,
@@ -1143,6 +1247,103 @@ export async function getOrFetchArtistAlbums(
       previous: null,
     };
   }
+}
+
+/** Spotify artist albums page size (API max 10). */
+const SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE = 10;
+
+function spotifyArtistAlbumsPageGapMs(): number {
+  const raw = process.env.SPOTIFY_ARTIST_ALBUMS_PAGE_GAP_MS?.trim();
+  if (!raw) return 400;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 400;
+}
+
+/**
+ * Paginate GET /artists/{id}/albums and upsert every album under the canonical artist row.
+ * **Only for BullMQ / in-memory queue** — can take minutes; never call from RSC.
+ */
+export async function syncArtistDiscographyForCanonicalArtist(
+  canonicalArtistId: string,
+): Promise<{ spotifyTotal: number; upsertOk: number; upsertErr: number }> {
+  const admin = createSupabaseAdminClient();
+  const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonicalArtistId);
+  if (!apiId) {
+    console.warn(
+      `${LOG_PREFIX} syncArtistDiscographyForCanonicalArtist: no Spotify API id`,
+      { canonicalArtistId },
+    );
+    void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: canonicalArtistId });
+    return { spotifyTotal: 0, upsertOk: 0, upsertErr: 0 };
+  }
+
+  let firstPage: SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>;
+  try {
+    firstPage = await getArtistAlbums(apiId, SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE, 0);
+  } catch (e) {
+    console.error(
+      `${LOG_PREFIX} syncArtistDiscographyForCanonicalArtist first page failed`,
+      e,
+    );
+    void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: canonicalArtistId });
+    return { spotifyTotal: 0, upsertOk: 0, upsertErr: 0 };
+  }
+
+  const spotifyTotal = firstPage.total ?? 0;
+  if (spotifyTotal === 0) {
+    return { spotifyTotal: 0, upsertOk: 0, upsertErr: 0 };
+  }
+
+  let upsertOk = 0;
+  let upsertErr = 0;
+  const upsertPage = async (items: SpotifyApi.AlbumObjectSimplified[]) => {
+    for (const a of items) {
+      try {
+        await upsertAlbumFromSpotify(admin, a, {
+          forceArtistUuid: canonicalArtistId,
+        });
+        upsertOk += 1;
+      } catch (err) {
+        upsertErr += 1;
+        console.error(
+          `${LOG_PREFIX} syncArtistDiscography upsertAlbumFromSpotify`,
+          a.id,
+          err,
+        );
+      }
+    }
+  };
+
+  await upsertPage(firstPage.items ?? []);
+
+  let offset = SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE;
+  const gapMs = spotifyArtistAlbumsPageGapMs();
+  while (offset < spotifyTotal) {
+    if (gapMs > 0) await new Promise((r) => setTimeout(r, gapMs));
+    let page: SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified>;
+    try {
+      page = await getArtistAlbums(apiId, SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE, offset);
+    } catch (e) {
+      console.error(
+        `${LOG_PREFIX} syncArtistDiscography page failed`,
+        { offset, e },
+      );
+      break;
+    }
+    const items = page.items ?? [];
+    await upsertPage(items);
+    if (items.length < SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE) break;
+    offset += SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE;
+  }
+
+  console.log(`${LOG_PREFIX} syncArtistDiscographyForCanonicalArtist done`, {
+    canonicalArtistId,
+    spotifyTotal,
+    upsertOk,
+    upsertErr,
+  });
+
+  return { spotifyTotal, upsertOk, upsertErr };
 }
 
 // --- Top tracks from logs (no Spotify dependency)
@@ -1318,6 +1519,10 @@ export async function getOrFetchArtistTopTracks(
 }
 
 // --- getOrFetchAlbum (lazy cache with tracks)
+//
+// Ensure-first contract: for Spotify / lfm route ids, callers that need DB-backed stats,
+// reviews, or friends must await getOrFetchAlbum (or getOrFetchTrack / getOrFetchArtist)
+// before other server work. Returned `canonical*Id` is the DB primary key when linked.
 
 async function getOrFetchAlbumInner(
   id: string,
@@ -1326,7 +1531,17 @@ async function getOrFetchAlbumInner(
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
 }> {
-  const supabase = await createSupabaseServerClient();
+  const innerT0 = Date.now();
+  /**
+   * Service role — catalog reads/writes here do not need the user session. Using the anon
+   * server client would `await cookies()` and holding that across long Spotify + upsert work
+   * has been observed to deadlock RSC when other branches also call `cookies()` in parallel.
+   */
+  const supabase = createSupabaseAdminClient();
+  console.log(`${LOG_PREFIX} getOrFetchAlbumInner after createSupabaseAdminClient`, {
+    id,
+    ms: Date.now() - innerT0,
+  });
   const net = catalogReadsAllowSpotifyNetwork(opts);
   const normalized = normalizeReviewEntityId(id);
 
@@ -1377,6 +1592,12 @@ async function getOrFetchAlbumInner(
     const cacheTime = album.cached_at ?? album.updated_at;
     const stale = isCacheStale(cacheTime);
 
+    console.log(`${LOG_PREFIX} getOrFetchAlbumInner db hit`, {
+      albumUuid,
+      stale,
+      ms: Date.now() - innerT0,
+    });
+
     if (!stale) {
       const { data: artistRow } = await supabase
         .from("artists")
@@ -1389,7 +1610,9 @@ async function getOrFetchAlbumInner(
 
       const { data: songRows, error: songsErr } = await supabase
         .from("tracks")
-        .select("id, name, album_id, artist_id, duration_ms, track_number")
+        .select(
+          "id, name, album_id, artist_id, duration_ms, track_number, data_source",
+        )
         .eq("album_id", albumUuid)
         .order("track_number", { ascending: true });
 
@@ -1403,51 +1626,51 @@ async function getOrFetchAlbumInner(
         albumNeedsTrackBackfill(songs.length, album.total_tracks) ||
         !album.image_url?.trim();
 
+      /** Spotify album id resolution runs in the enrich queue — do not block RSC on search. */
       if (!spotifyAlbumApiId && net && needsSpotifyHydrate) {
         const arName = artist?.name?.trim();
         const albumTitle = album.name?.trim();
         if (arName && albumTitle) {
-          try {
-            const admin = createSupabaseAdminClient();
-            const found = await resolveSpotifyAlbumIdBySearch(
-              admin,
-              albumUuid,
-              albumTitle,
-              arName,
-            );
-            if (found) {
-              await linkAlbumExternalId(admin, albumUuid, "spotify", found);
-              spotifyAlbumApiId = found;
-            }
-          } catch (e) {
-            console.warn(
-              `${LOG_PREFIX} album Spotify id search failed for ${albumUuid}`,
-              e,
-            );
-          }
+          void enqueueSpotifyEnrich({ name: "enrich_album", albumId: albumUuid });
         }
       }
 
+      /**
+       * Full Spotify refresh can paginate many `/albums/{id}/tracks` calls and upsert the catalog.
+       * When we already have rows to render, return immediately and hydrate in the background so
+       * `/album/[id]` does not sit on `loading.tsx` for minutes (429 backoff, large albums).
+       */
       if (net && spotifyAlbumApiId && needsSpotifyHydrate) {
-        try {
-          const result = await refreshAlbumFromSpotify(
-            supabase,
-            spotifyAlbumApiId,
-          );
-          if (result?.album && result?.tracks)
-            return { album: result.album, tracks: result.tracks };
-          const { data: refetched } = await supabase
-            .from("tracks")
-            .select(
-              "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
-            )
-            .eq("album_id", albumUuid)
-            .order("track_number", { ascending: true });
-          songs = (refetched ?? []) as unknown as SongRow[];
-        } catch (e) {
-          console.warn(
-            `${LOG_PREFIX} album tracks backfill failed for ${albumUuid}`,
-            e,
+        if (songs.length === 0) {
+          try {
+            const result = await promiseWithTimeout(
+              refreshAlbumFromSpotify(supabase, spotifyAlbumApiId),
+              refreshAlbumFromSpotifyPageTimeoutMs(),
+              "[album page] refreshAlbumFromSpotify(fresh)",
+            );
+            if (result?.album && result?.tracks)
+              return { album: result.album, tracks: result.tracks };
+            const { data: refetched } = await supabase
+              .from("tracks")
+              .select(
+                "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, data_source",
+              )
+              .eq("album_id", albumUuid)
+              .order("track_number", { ascending: true });
+            songs = (refetched ?? []) as unknown as SongRow[];
+          } catch (e) {
+            console.warn(
+              `${LOG_PREFIX} album tracks backfill failed for ${albumUuid}`,
+              e,
+            );
+            void enqueueSpotifyEnrich({ name: "enrich_album", albumId: albumUuid });
+          }
+        } else if (!tracksAreAllSpotifySourced(songs)) {
+          void refreshAlbumFromSpotify(supabase, spotifyAlbumApiId).catch((e) =>
+            console.warn(
+              `${LOG_PREFIX} background album refresh (fresh cache) failed for ${spotifyAlbumApiId}`,
+              e,
+            ),
           );
         }
       }
@@ -1522,6 +1745,11 @@ async function getOrFetchAlbumInner(
           previous: null,
         };
 
+      console.log(`${LOG_PREFIX} getOrFetchAlbumInner return fresh-cache`, {
+        albumUuid,
+        songCount: songs.length,
+        ms: Date.now() - innerT0,
+      });
       return { album: albumPayload, tracks: tracksPayload };
     }
 
@@ -1534,7 +1762,9 @@ async function getOrFetchAlbumInner(
     const artistStale = artistRowStale as unknown as ArtistRow | null;
     const { data: songRowsStale } = await supabase
       .from("tracks")
-      .select("id, name, album_id, artist_id, duration_ms, track_number")
+      .select(
+        "id, name, album_id, artist_id, duration_ms, track_number, data_source",
+      )
       .eq("album_id", albumUuid)
       .order("track_number", { ascending: true });
     let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
@@ -1548,49 +1778,44 @@ async function getOrFetchAlbumInner(
       const arName = artistStale?.name?.trim();
       const albumTitle = album.name?.trim();
       if (arName && albumTitle) {
-        try {
-          const admin = createSupabaseAdminClient();
-          const found = await resolveSpotifyAlbumIdBySearch(
-            admin,
-            albumUuid,
-            albumTitle,
-            arName,
-          );
-          if (found) {
-            await linkAlbumExternalId(admin, albumUuid, "spotify", found);
-            spotifyAlbumApiId = found;
-          }
-        } catch (e) {
-          console.warn(
-            `${LOG_PREFIX} album Spotify id search (stale) failed for ${albumUuid}`,
-            e,
-          );
-        }
+        void enqueueSpotifyEnrich({ name: "enrich_album", albumId: albumUuid });
       }
     }
 
     if (net && spotifyAlbumApiId && needsStaleSpotifyHydrate) {
-      ranStaleSyncBackfill = true;
-      try {
-        const result = await refreshAlbumFromSpotify(
-          supabase,
-          spotifyAlbumApiId,
+      if (songsStale.length === 0) {
+        ranStaleSyncBackfill = true;
+        try {
+          const result = await promiseWithTimeout(
+            refreshAlbumFromSpotify(supabase, spotifyAlbumApiId),
+            refreshAlbumFromSpotifyPageTimeoutMs(),
+            "[album page] refreshAlbumFromSpotify(stale)",
+          );
+          if (result?.album && result?.tracks)
+            return { album: result.album, tracks: result.tracks };
+          const { data: refetchedStale } = await supabase
+            .from("tracks")
+            .select(
+              "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, data_source",
+            )
+            .eq("album_id", albumUuid)
+            .order("track_number", { ascending: true });
+          songsStale = (refetchedStale ?? []) as unknown as SongRow[];
+        } catch (e) {
+          console.warn(
+            `${LOG_PREFIX} album tracks backfill failed (stale album) for ${albumUuid}`,
+            e,
+          );
+          void enqueueSpotifyEnrich({ name: "enrich_album", albumId: albumUuid });
+        }
+      } else if (!tracksAreAllSpotifySourced(songsStale)) {
+        void refreshAlbumFromSpotify(supabase, spotifyAlbumApiId).catch((e) =>
+          console.warn(
+            `${LOG_PREFIX} background album refresh (stale cache) failed for ${spotifyAlbumApiId}`,
+            e,
+          ),
         );
-        if (result?.album && result?.tracks)
-          return { album: result.album, tracks: result.tracks };
-        const { data: refetchedStale } = await supabase
-          .from("tracks")
-          .select(
-            "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at",
-          )
-          .eq("album_id", albumUuid)
-          .order("track_number", { ascending: true });
-        songsStale = (refetchedStale ?? []) as unknown as SongRow[];
-      } catch (e) {
-        console.warn(
-          `${LOG_PREFIX} album tracks backfill failed (stale album) for ${albumUuid}`,
-          e,
-        );
+        ranStaleSyncBackfill = true;
       }
     }
 
@@ -1657,7 +1882,12 @@ async function getOrFetchAlbumInner(
         next: null,
         previous: null,
       };
-    if (!ranStaleSyncBackfill && net && spotifyAlbumApiId) {
+    if (
+      !ranStaleSyncBackfill &&
+      net &&
+      spotifyAlbumApiId &&
+      !tracksAreAllSpotifySourced(songsStale)
+    ) {
       refreshAlbumFromSpotify(supabase, spotifyAlbumApiId).catch((e) =>
         console.warn(
           `${LOG_PREFIX} background album refresh failed for ${spotifyAlbumApiId}`,
@@ -1665,10 +1895,20 @@ async function getOrFetchAlbumInner(
         ),
       );
     }
+    console.log(`${LOG_PREFIX} getOrFetchAlbumInner return stale-cache`, {
+      albumUuid,
+      songCount: songsStale.length,
+      ms: Date.now() - innerT0,
+    });
     return { album: albumPayloadStale, tracks: tracksPayloadStale };
   }
 
   logCacheMiss("album", normalized);
+  console.log(`${LOG_PREFIX} getOrFetchAlbumInner cache miss → Spotify`, {
+    normalized,
+    net,
+    ms: Date.now() - innerT0,
+  });
 
   if (!net) {
     return {
@@ -1699,6 +1939,10 @@ async function getOrFetchAlbumInner(
     logPerf("cache_miss", "album", performance.now() - missStart, {
       id: normalized,
     });
+    console.log(`${LOG_PREFIX} getOrFetchAlbumInner return cache-miss-spotify`, {
+      normalized,
+      ms: Date.now() - innerT0,
+    });
     return { album: albumResp, tracks: tracksResp };
   } catch (e) {
     console.error(`${LOG_PREFIX} getAlbum/getAlbumTracks failed`, e);
@@ -1712,9 +1956,11 @@ export async function getOrFetchAlbum(
 ): Promise<{
   album: SpotifyApi.AlbumObjectFull;
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
+  /** DB `albums.id` when linked; use for stats/reviews after ensure. */
+  canonicalAlbumId: string | null;
 }> {
   const canonicalId = normalizeReviewEntityId(id);
-  return timeAsync(
+  const data = await timeAsync(
     "cache",
     "getOrFetchAlbum",
     () => getOrFetchAlbumInner(canonicalId, opts),
@@ -1722,6 +1968,12 @@ export async function getOrFetchAlbum(
       id: canonicalId,
     },
   );
+  const supabase = createSupabaseAdminClient();
+  const canonicalAlbumId = await resolveCanonicalAlbumUuidFromEntityId(
+    supabase,
+    canonicalId,
+  );
+  return { ...data, canonicalAlbumId };
 }
 
 /**
@@ -1770,9 +2022,27 @@ export async function refreshAlbumFromSpotify(
     for (const t of tracksResp.items ?? []) {
       const spotifyAid = t.artists?.[0]?.id ?? albumArtistId;
       if (!spotifyAid) continue;
-      const artistCanon =
+      let artistCanon =
         (await getArtistIdByExternalId(db, "spotify", spotifyAid)) ?? null;
-      if (!artistCanon) continue;
+      if (!artistCanon) {
+        const artistToUpsert =
+          t.artists?.find((a) => a.id === spotifyAid) ??
+          albumResp.artists?.find((a) => a.id === spotifyAid) ??
+          t.artists?.[0] ??
+          albumResp.artists?.[0];
+        if (artistToUpsert?.id) {
+          await upsertArtistFromSpotify(db, artistToUpsert);
+          artistCanon =
+            (await getArtistIdByExternalId(db, "spotify", spotifyAid)) ??
+            null;
+        }
+      }
+      if (!artistCanon) {
+        console.warn(
+          `${LOG_PREFIX} refreshAlbumFromSpotify: skip track (no canonical artist) spotifyArtist=${spotifyAid} track=${t.id} ${t.name ?? ""}`,
+        );
+        continue;
+      }
       await upsertTrackRowOnly(db, t, albumCanon, artistCanon);
     }
     return { album: albumResp, tracks: tracksResp };
@@ -1783,13 +2053,14 @@ export async function refreshAlbumFromSpotify(
 }
 
 // --- getOrFetchTrack (DB-first cache + TTL)
+// Ensure-first: await getOrFetchTrack before DB-backed stats/reviews for Spotify route ids.
 
 async function getOrFetchTrackInner(
   id: string,
   opts?: CatalogFetchOpts,
 ): Promise<SpotifyApi.TrackObjectFull> {
-  const supabase = await createSupabaseServerClient();
-  const admin = createSupabaseAdminClient();
+  /** Catalog reads only; service role avoids `cookies()` across Spotify/network (see getOrFetchAlbumInner). */
+  const supabase = createSupabaseAdminClient();
   const net = catalogReadsAllowSpotifyNetwork(opts);
   const normalized = normalizeReviewEntityId(id);
 
@@ -1806,7 +2077,7 @@ async function getOrFetchTrackInner(
       if (!alb) throw new Error("Track has no album");
       try {
         await upsertTrackFromSpotify(
-          admin,
+          supabase,
           track,
           alb.id,
           alb.name,
@@ -1855,6 +2126,24 @@ async function getOrFetchTrackInner(
     const lfmKey = await getLastfmExternalForTrack(supabase, song.id);
     const spotifyExt = await getSpotifyExternalForTrack(supabase, song.id);
 
+    if (lfmKey && (!song.album_id || !song.artist_id)) {
+      return buildSyntheticLfmTrack(song);
+    }
+
+    const cacheTime = song.cached_at ?? song.updated_at;
+    if (!isCacheStale(cacheTime)) {
+      return trackFromDbSongRow(supabase, song);
+    }
+
+    if (
+      lfmKey &&
+      !spotifyExt &&
+      catalogReadsAllowSpotifyNetwork(opts)
+    ) {
+      void enqueueSpotifyEnrich({ name: "enrich_track", trackId: song.id });
+      return trackFromDbSongRow(supabase, song);
+    }
+
     if (lfmKey && spotifyExt && net) {
       try {
         const t = await getTrack(spotifyExt, {
@@ -1866,29 +2155,19 @@ async function getOrFetchTrackInner(
       }
     }
 
-    if (
-      lfmKey &&
-      !spotifyExt &&
-      catalogReadsAllowSpotifyNetwork(opts)
-    ) {
-      const resolved = await tryResolveLfmSongViaLastfmSearch(song, opts);
-      if (resolved) return resolved;
-    }
-
-    if (lfmKey && (!song.album_id || !song.artist_id)) {
-      return buildSyntheticLfmTrack(song);
-    }
-
-    const cacheTime = song.cached_at ?? song.updated_at;
-    if (!isCacheStale(cacheTime)) {
-      return trackFromDbSongRow(supabase, song);
-    }
     if (!net) {
+      if (lfmKey && spotifyExt) {
+        void enqueueSpotifyEnrich({ name: "enrich_track", trackId: song.id });
+      }
       return trackFromDbSongRow(supabase, song);
     }
     if (lfmKey) {
       return trackFromDbSongRow(supabase, song);
     }
+  }
+
+  if (!songRow && isValidUuid(canon)) {
+    throw new Error(`Unknown track id ${normalized}`);
   }
 
   logCacheMiss("song", normalized);
@@ -1918,7 +2197,7 @@ async function getOrFetchTrackInner(
 
     try {
       await upsertTrackFromSpotify(
-        admin,
+        supabase,
         track,
         alb.id,
         alb.name,
@@ -1940,7 +2219,11 @@ async function getOrFetchTrackInner(
 export async function getOrFetchTrack(
   id: string,
   opts?: CatalogFetchOpts,
-): Promise<SpotifyApi.TrackObjectFull> {
+): Promise<{
+  track: SpotifyApi.TrackObjectFull;
+  /** DB `tracks.id` when linked; use for stats/reviews after ensure. */
+  canonicalTrackId: string | null;
+}> {
   const canonicalId = normalizeReviewEntityId(id);
   const mergedOpts: CatalogFetchOpts = {
     ...opts,
@@ -1951,12 +2234,18 @@ export async function getOrFetchTrack(
       ? true
       : opts?.allowLastfmMapping,
   };
-  return timeAsync(
+  const track = await timeAsync(
     "cache",
     "getOrFetchTrack",
     () => getOrFetchTrackInner(canonicalId, mergedOpts),
     { id: canonicalId },
   );
+  const supabase = createSupabaseAdminClient();
+  const canonicalTrackId = await resolveCanonicalTrackUuidFromEntityId(
+    supabase,
+    canonicalId,
+  );
+  return { track, canonicalTrackId };
 }
 
 // --- Batch getOrFetch: DB-first, then single batch Spotify API (chunked), merge, preserve order
@@ -2778,6 +3067,7 @@ async function getOrFetchArtistsBatchInner(
       for (const id of missingIds) {
         const apiId = await resolveCanonicalArtistIdToSpotifyApiId(id);
         if (!apiId) {
+          void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: id });
           lookup.set(id, null);
           continue;
         }

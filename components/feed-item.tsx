@@ -15,6 +15,7 @@ import { ListenSessionSingleStoryCard } from '@/components/feed/listen-session-f
 import type { EnrichedFeedActivity } from '@/components/feed/group-feed-items';
 import { FeedActivityEngagement } from '@/components/feed/feed-activity-engagement';
 import { formatStarDisplay } from '@/lib/ratings';
+import { feedAlbumCoverUrl } from "@/lib/feed-artwork";
 
 const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   activity,
@@ -29,7 +30,7 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   const timeAgo = formatRelativeTime(activity.created_at);
   const sessions = activity.sessions ?? [];
   const first = sessions[0];
-  const heroUrl = first?.album?.images?.[0]?.url ?? null;
+  const heroUrl = feedAlbumCoverUrl(first?.album ?? undefined);
 
   return (
     <StoryFeedCard className="overflow-hidden">

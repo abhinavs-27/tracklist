@@ -1,19 +1,23 @@
 import "server-only";
 
+import { after } from "next/server";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 
 import { attachRedisErrorHandler } from "@/lib/redis-error-handler";
-import { getArtist } from "@/lib/spotify";
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getSpotifyClientMetrics } from "@tracklist/spotify-client";
 
 export type SpotifyEnrichJobData =
   | { name: "enrich_artist"; artistId: string }
+  /** Full GET /artists/{id}/albums pagination + DB upserts — worker / in-memory only. */
+  | { name: "sync_artist_discography"; artistId: string }
   | { name: "enrich_album"; albumId: string }
   | { name: "enrich_track"; trackId: string }
   /** High-priority catalog fetch (e.g. user-facing); no secrets in payload. */
   | { name: "user_fetch"; trackId: string }
+  | { name: "resolve_canonical_artist"; artistUuid: string }
+  | { name: "resolve_canonical_album"; albumUuid: string }
+  | { name: "resolve_canonical_track"; trackUuid: string }
   | {
       name: "resolve_artist_spotify";
       lfmArtistId: string;
@@ -86,7 +90,10 @@ function priorityForJob(job: SpotifyEnrichJobData): number {
   if (job.name === "user_fetch") return PRIORITY_USER;
   if (
     job.name === "resolve_artist_spotify" ||
-    job.name === "resolve_track_spotify"
+    job.name === "resolve_track_spotify" ||
+    job.name === "resolve_canonical_artist" ||
+    job.name === "resolve_canonical_album" ||
+    job.name === "resolve_canonical_track"
   ) {
     return PRIORITY_LASTFM;
   }
@@ -122,12 +129,19 @@ const queueMetrics: EnrichQueueMetrics = {
 function jobKey(job: SpotifyEnrichJobData): string {
   switch (job.name) {
     case "enrich_artist":
+    case "sync_artist_discography":
       return `${job.name}:${job.artistId}`;
     case "enrich_album":
       return `${job.name}:${job.albumId}`;
     case "enrich_track":
     case "user_fetch":
       return `${job.name}:${job.trackId}`;
+    case "resolve_canonical_artist":
+      return `${job.name}:${job.artistUuid}`;
+    case "resolve_canonical_album":
+      return `${job.name}:${job.albumUuid}`;
+    case "resolve_canonical_track":
+      return `${job.name}:${job.trackUuid}`;
     case "resolve_artist_spotify":
       return `${job.name}:${job.lfmArtistId}`;
     case "resolve_track_spotify":
@@ -152,7 +166,11 @@ function scheduleInMemoryProcessor(delayMs = 0): void {
 
 function isLastfmResolveJob(job: SpotifyEnrichJobData): boolean {
   return (
-    job.name === "resolve_track_spotify" || job.name === "resolve_artist_spotify"
+    job.name === "resolve_track_spotify" ||
+    job.name === "resolve_artist_spotify" ||
+    job.name === "resolve_canonical_artist" ||
+    job.name === "resolve_canonical_album" ||
+    job.name === "resolve_canonical_track"
   );
 }
 
@@ -214,7 +232,10 @@ async function enqueueInMemory(job: SpotifyEnrichJobData): Promise<void> {
   if (job.name === "user_fetch") inMemoryQueueUserFetch.push(job);
   else if (
     job.name === "resolve_artist_spotify" ||
-    job.name === "resolve_track_spotify"
+    job.name === "resolve_track_spotify" ||
+    job.name === "resolve_canonical_artist" ||
+    job.name === "resolve_canonical_album" ||
+    job.name === "resolve_canonical_track"
   ) {
     inMemoryQueueLastfm.push(job);
   } else {
@@ -222,7 +243,14 @@ async function enqueueInMemory(job: SpotifyEnrichJobData): Promise<void> {
   }
   queueMetrics.enqueued += 1;
   recalcPendingEnrichments();
-  scheduleInMemoryProcessor(0);
+  /** Run after the RSC response finishes — same-process queue must not interleave with request DB work. */
+  try {
+    after(() => {
+      scheduleInMemoryProcessor(0);
+    });
+  } catch {
+    scheduleInMemoryProcessor(0);
+  }
 }
 
 export type EnqueueSpotifyEnrichOptions = {
@@ -250,12 +278,17 @@ export async function enqueueSpotifyEnrich(
     staggerIndex > 0
       ? staggerIndex * staggerMs
       : undefined;
-  await q.add(job.name, job, {
-    priority: priorityForJob(job),
-    removeOnComplete: 500,
-    removeOnFail: 200,
-    ...(delay != null && delay > 0 ? { delay } : {}),
-  });
+  /** Never await BullMQ on the request path — Redis slowness must not block RSC (can hang ~minutes). */
+  void q
+    .add(job.name, job, {
+      priority: priorityForJob(job),
+      removeOnComplete: 500,
+      removeOnFail: 200,
+      ...(delay != null && delay > 0 ? { delay } : {}),
+    })
+    .catch((err: unknown) => {
+      console.error("[spotify-queue] BullMQ add failed", job.name, err);
+    });
 }
 
 /** Alias for hydration / enrichment queue (Spotify best-effort). */
@@ -282,21 +315,60 @@ export async function processSpotifyEnrichJob(
     return;
   }
 
-  const { upsertArtistFromSpotify, getOrFetchAlbum, getOrFetchTrack } =
+  const {
+    resolveCanonicalArtistSpotifyInWorker,
+    resolveCanonicalAlbumSpotifyInWorker,
+    resolveCanonicalTrackSpotifyInWorker,
+  } = await import("@/lib/jobs/resolve-canonical-spotify");
+  const { getOrFetchAlbum, getOrFetchTrack, getOrFetchArtist } =
     await import("@/lib/spotify-cache");
-  /** Admin client for worker/cron — no Next.js request cookies (see `createSpotifyEnrichWorker`). */
-  const supabase = createSupabaseAdminClient();
+
+  if (job.name === "sync_artist_discography") {
+    const { syncArtistDiscographyForCanonicalArtist } = await import(
+      "@/lib/spotify-cache"
+    );
+    /** In dev without Redis, in-memory queue runs in the Next process — never block the loop for minutes. */
+    if (getSpotifyEnrichQueue()) {
+      await syncArtistDiscographyForCanonicalArtist(job.artistId);
+    } else {
+      void syncArtistDiscographyForCanonicalArtist(job.artistId).catch((e) => {
+        console.error(
+          "[spotify-queue] sync_artist_discography (background) failed",
+          e,
+        );
+      });
+    }
+    return;
+  }
+
   if (job.name === "enrich_artist") {
-    const a = await getArtist(job.artistId, { allowClientCredentials: true });
-    await upsertArtistFromSpotify(supabase, a);
+    await resolveCanonicalArtistSpotifyInWorker(job.artistId);
+    await getOrFetchArtist(job.artistId, { allowNetwork: true });
     return;
   }
   if (job.name === "enrich_album") {
+    await resolveCanonicalAlbumSpotifyInWorker(job.albumId);
     await getOrFetchAlbum(job.albumId, { allowNetwork: true });
     return;
   }
   if (job.name === "enrich_track" || job.name === "user_fetch") {
+    await resolveCanonicalTrackSpotifyInWorker(job.trackId);
     await getOrFetchTrack(job.trackId, { allowNetwork: true });
+    return;
+  }
+  if (job.name === "resolve_canonical_artist") {
+    await resolveCanonicalArtistSpotifyInWorker(job.artistUuid);
+    await getOrFetchArtist(job.artistUuid, { allowNetwork: true });
+    return;
+  }
+  if (job.name === "resolve_canonical_album") {
+    await resolveCanonicalAlbumSpotifyInWorker(job.albumUuid);
+    await getOrFetchAlbum(job.albumUuid, { allowNetwork: true });
+    return;
+  }
+  if (job.name === "resolve_canonical_track") {
+    await resolveCanonicalTrackSpotifyInWorker(job.trackUuid);
+    await getOrFetchTrack(job.trackUuid, { allowNetwork: true });
   }
 }
 

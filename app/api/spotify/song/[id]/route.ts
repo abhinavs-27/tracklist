@@ -24,7 +24,7 @@ export async function GET(
     const { id } = await ctx.params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify id");
 
-    const track = await getOrFetchTrack(id, { allowNetwork: false });
+    const { track } = await getOrFetchTrack(id, { allowNetwork: false });
     const metadata_complete = trackDisplayMetadataComplete(track);
     if (!metadata_complete) {
       scheduleTrackEnrichment(id);

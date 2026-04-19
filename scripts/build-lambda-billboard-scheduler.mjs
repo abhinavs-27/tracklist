@@ -46,10 +46,7 @@ await esbuild.build({
     "next/*",
     "@opentelemetry/api",
     "@opentelemetry/*",
-    "react",
-    "react-dom",
-    "styled-jsx",
-    "styled-jsx/*",
+    // react / styled-jsx must be bundled — Lambda zip has no node_modules
   ],
   logLevel: "info",
 });

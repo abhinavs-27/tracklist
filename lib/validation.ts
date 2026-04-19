@@ -42,6 +42,14 @@ export function isValidUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_REGEX.test(value);
 }
 
+/**
+ * Loose 36-character hex + hyphen shape for route-layer enforcement ("must look like a UUID").
+ * Prefer {@link isValidUuid} for RFC-correct validation; use this when matching user-facing routes.
+ */
+export function isUUID(id: string): boolean {
+  return /^[0-9a-fA-F-]{36}$/.test(id);
+}
+
 /** Non-UUID anchor for community feed rows (e.g. `ls:user:track:time`). */
 export function isValidFeedItemTargetId(value: unknown): value is string {
   if (typeof value !== "string") return false;

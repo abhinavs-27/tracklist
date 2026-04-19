@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { memo } from "react";
 import { CatalogArtworkPlaceholder } from "@/components/catalog-artwork-placeholder";
+import { feedAlbumCoverUrl } from "@/lib/feed-artwork";
 import type { FeedListenSession } from "@/types";
 
 /** Match main feed collapse cap for "N songs" expand lists. */
@@ -14,7 +15,7 @@ export const ListenSessionRow = memo(function ListenSessionRow({
   session: FeedListenSession;
 }) {
   const album = session.album;
-  const image = album?.images?.[0]?.url;
+  const image = feedAlbumCoverUrl(album ?? undefined);
   const trackName = session.track_name ?? album?.name ?? "Track";
   const artistName =
     session.artist_name ??

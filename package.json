@@ -21,7 +21,8 @@
     "build:sqs-worker": "node scripts/build-sqs-worker.mjs",
     "worker:sqs": "npm run build:sqs-worker && node workers/sqs-worker/dist/index.js",
     "build:lambda:billboard-scheduler": "node scripts/build-lambda-billboard-scheduler.mjs",
-    "build:lambda:minimal": "node scripts/build-lambda-minimal.mjs"
+    "build:lambda:minimal": "node scripts/build-lambda-minimal.mjs",
+    "backfill:album-art": "NODE_OPTIONS='-r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-art-spotify.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1025.0",

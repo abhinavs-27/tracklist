@@ -200,7 +200,7 @@ async function hydrateTop(
   }
   if (albumId) {
     try {
-      const data = await getOrFetchAlbum(albumId);
+      const data = await getOrFetchAlbum(albumId, { allowNetwork: true });
       if (data?.album) {
         album = {
           id: data.album.id,
@@ -214,7 +214,9 @@ async function hydrateTop(
   }
   if (trackId) {
     try {
-      const t = await getOrFetchTrack(trackId);
+      const { track: t } = await getOrFetchTrack(trackId, {
+        allowNetwork: true,
+      });
       if (t) {
         track = {
           id: t.id,

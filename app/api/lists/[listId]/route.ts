@@ -61,7 +61,7 @@ export const GET = withHandler(async (_request, { params }) => {
             metadata_complete,
           };
         }
-        const track = await getOrFetchTrack(item.entity_id, {
+        const { track } = await getOrFetchTrack(item.entity_id, {
           allowNetwork: false,
         });
         const metadata_complete = trackDisplayMetadataComplete(track);

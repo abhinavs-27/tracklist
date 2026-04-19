@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { getOrCreateEntity } from "@/lib/catalog/getOrCreateEntity";
 import { resolveCanonicalAlbumUuidFromEntityId } from "@/lib/catalog/entity-resolution";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -10,7 +11,6 @@ import {
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { getUserFavoriteAlbums } from "@/lib/queries";
-import { ensureSpotifyAlbumInCatalog } from "@/lib/spotify-cache";
 import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
 import type { SupabaseServerClient } from "@/lib/supabase-server";
 
@@ -33,14 +33,16 @@ async function resolveFavoriteAlbumUuid(
 
   if (isValidSpotifyId(id)) {
     try {
-      await ensureSpotifyAlbumInCatalog(id);
+      const r = await getOrCreateEntity({
+        type: "album",
+        spotifyId: id,
+        allowNetwork: true,
+      });
+      return r.id;
     } catch (e) {
-      console.error("[users/me/favorites] ensureSpotifyAlbumInCatalog", id, e);
+      console.error("[users/me/favorites] getOrCreateEntity album", id, e);
       return null;
     }
-    uuid = await resolveCanonicalAlbumUuidFromEntityId(supabase, id);
-    if (uuid) return uuid;
-    return null;
   }
 
   if (isValidUuid(id)) {

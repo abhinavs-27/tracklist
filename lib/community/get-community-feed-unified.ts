@@ -347,10 +347,12 @@ async function mergedItemsToV2(
       const sample = reviewMerged.find((r) => r.metadata.entity_id === eid);
       const et = sample?.metadata.entity_type;
       if (et === "album") {
-        const a = await getOrFetchAlbum(eid);
+        const a = await getOrFetchAlbum(eid, { allowNetwork: true });
         fallbackName.set(eid, a.album?.name ?? null);
       } else {
-        const t = await getOrFetchTrack(eid);
+        const { track: t } = await getOrFetchTrack(eid, {
+          allowNetwork: true,
+        });
         fallbackName.set(eid, t?.name ?? null);
       }
     }),

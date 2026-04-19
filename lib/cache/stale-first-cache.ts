@@ -1,6 +1,5 @@
 import "server-only";
 
-import { after } from "next/server";
 import { getSharedRedis } from "@/lib/redis-client";
 import type { NextResponse } from "next/server";
 import { apiOk } from "@/lib/api-response";
@@ -172,13 +171,15 @@ function scheduleBackgroundRefresh<T extends Record<string, unknown>>(
     }
   };
 
-  try {
-    after(() => {
-      void run();
-    });
-  } catch {
+  /**
+   * Do not use `after()` from `next/server` here: refresh fetchers often call
+   * `createSupabaseServerClient()` → `cookies()`, which Next forbids inside `after()`.
+   * A microtask runs before the macrotask queue (still during the same request turn in
+   * typical RSC flows) so dynamic APIs remain valid.
+   */
+  void Promise.resolve().then(() => {
     void run();
-  }
+  });
 }
 
 export type StaleFirstApiOkOptions<T extends Record<string, unknown>> = {

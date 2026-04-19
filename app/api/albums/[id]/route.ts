@@ -23,7 +23,8 @@ export const GET = withHandler(async (_request, { params }) => {
       return apiNotFound("Album not found");
     }
 
-    const { album, tracks } = albumResp;
+    const { album, tracks, canonicalAlbumId } = albumResp;
+    const entityId = canonicalAlbumId ?? id;
     const metadata_complete = albumDisplayMetadataComplete(album, tracks);
     if (!metadata_complete) {
       scheduleAlbumEnrichment(id);
@@ -34,14 +35,14 @@ export const GET = withHandler(async (_request, { params }) => {
     const artwork_url = album.images?.[0]?.url ?? null;
     const release_date = album.release_date ?? null;
 
-    const engagement = await getAlbumEngagementStats(id);
+    const engagement = await getAlbumEngagementStats(entityId);
 
     const trackIds = (tracks.items ?? []).map((t) => t.id);
     const trackStats = await getTrackStatsForTrackIds(trackIds);
 
     const favorite_count = engagement.favorite_count;
 
-    const reviewsResult = await getReviewsForEntity("album", id, 5);
+    const reviewsResult = await getReviewsForEntity("album", entityId, 5);
     const reviews =
       reviewsResult?.reviews?.map((r) => ({
         id: r.id,

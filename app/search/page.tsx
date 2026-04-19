@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { SearchBar } from '@/components/search-bar';
 import { SearchPageContent } from './search-content';
 
@@ -26,9 +25,7 @@ export default async function SearchPage({
           </p>
         </>
       ) : (
-        <Suspense fallback={<p className="text-zinc-500">Loading...</p>}>
-          <SearchPageContent searchParams={params} />
-        </Suspense>
+        <SearchPageContent searchParams={params} />
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { enqueueSpotifyEnrich } from "@/lib/jobs/spotifyQueue";
+import { isDebugLastfmSync } from "@/lib/lastfm/sync-debug";
 import { scheduleEnrichArtistGenresForTrackIds } from "@/lib/taste/enrich-artist-genres";
 
 /**
@@ -40,17 +41,32 @@ export async function syncBatchLogSideEffects(
 
   const uniqueIds = [...new Set(entries.map((e) => e.trackId))];
 
+  const tEnrich0 = Date.now();
   if (!options?.skipSpotifyEnrich) {
     for (const id of uniqueIds) {
       await enqueueSpotifyEnrich({ name: "enrich_track", trackId: id });
     }
   }
+  const enrichEnqueueMs = Date.now() - tEnrich0;
 
   const supabase = createSupabaseAdminClient();
   scheduleEnrichArtistGenresForTrackIds(supabase, uniqueIds);
 
+  const tRefresh0 = Date.now();
   const { error: refreshError } = await supabase.rpc("refresh_entity_stats");
+  const refreshEntityStatsMs = Date.now() - tRefresh0;
   if (refreshError) {
     console.warn("[syncBatchLog] refresh_entity_stats failed", refreshError);
+  } else if (isDebugLastfmSync()) {
+    console.log("[lastfm-sync] batch side-effects", {
+      uniqueTrackIds: uniqueIds.length,
+      enrichEnqueueMs,
+      refreshEntityStatsMs,
+    });
+  } else if (refreshEntityStatsMs >= 3000) {
+    console.warn("[syncBatchLog] refresh_entity_stats slow", {
+      ms: refreshEntityStatsMs,
+      uniqueTrackIds: uniqueIds.length,
+    });
   }
 }

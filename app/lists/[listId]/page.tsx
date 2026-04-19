@@ -31,10 +31,14 @@ export default async function ListDetailPage({ params }: { params: PageParams })
     data.items.map(async (item) => {
       try {
         if (item.entity_type === "album") {
-          const { album } = await getOrFetchAlbum(item.entity_id);
+          const { album } = await getOrFetchAlbum(item.entity_id, {
+            allowNetwork: true,
+          });
           return { ...item, album: album as SpotifyApi.AlbumObjectSimplified };
         }
-        const track = await getOrFetchTrack(item.entity_id);
+        const { track } = await getOrFetchTrack(item.entity_id, {
+          allowNetwork: true,
+        });
         return { ...item, track };
       } catch (e) {
         console.warn(`[lists] Failed to fetch ${item.entity_type} ${item.entity_id}:`, e);

@@ -8,6 +8,7 @@ import { fetchLastfmRecentTracksSafe } from "@/lib/lastfm/fetch-recent";
 import type { LastfmNormalizedScrobble } from "@/lib/lastfm/types";
 import { syncBatchLogSideEffects } from "@/lib/sync-manual-log-side-effects";
 import { DEFAULT_SCROBBLE_DEDUP_MS } from "@/lib/lastfm/dedupe";
+import { isDebugLastfmSync } from "@/lib/lastfm/sync-debug";
 import { isValidUuid } from "@/lib/validation";
 
 import {
@@ -223,17 +224,26 @@ export async function ingestLastfmScrobbles(
     listenedAt: s.listenedAtIso,
   }));
 
+  const tFilter0 = Date.now();
   const toConsider = await filterAgainstExistingLfmLogs(
     supabase,
     userId,
     candidates.map((c) => ({ songId: c.songId, listenedAt: c.listenedAt })),
   );
+  const filterMs = Date.now() - tFilter0;
   const allow = new Set(toConsider.map((t) => `${t.songId}|${t.listenedAt}`));
   const pending = candidates.filter((c) =>
     allow.has(`${c.songId}|${c.listenedAt}`),
   );
 
   if (pending.length === 0) {
+    if (isDebugLastfmSync()) {
+      console.log("[lastfm-sync] ingest dedupe only", {
+        userId,
+        filterMs,
+        candidates: scrobbles.length,
+      });
+    }
     return {
       insertedLogs: 0,
       insertedListens: 0,
@@ -248,6 +258,7 @@ export async function ingestLastfmScrobbles(
   let resolveStaggerSlot = 0;
   const ingestedForLogs: { listenedAt: string; trackUuid: string }[] = [];
 
+  const tLoop0 = Date.now();
   for (const p of pending) {
     const { scrobble, songId, artistId, listenedAt } = p;
     const { artistName, trackName, albumName } = scrobble;
@@ -420,6 +431,7 @@ export async function ingestLastfmScrobbles(
       );
     }
   }
+  const perScrobbleLoopMs = Date.now() - tLoop0;
 
   const logRows = ingestedForLogs.map((row) => ({
     user_id: userId,
@@ -430,6 +442,7 @@ export async function ingestLastfmScrobbles(
     artist_id: null as string | null,
   }));
 
+  const tLogs0 = Date.now();
   const { data: inserted, error: logErr } = await supabase
     .from("logs")
     .upsert(logRows, {
@@ -437,6 +450,7 @@ export async function ingestLastfmScrobbles(
       ignoreDuplicates: true,
     })
     .select("id, track_id, listened_at");
+  const logsUpsertMs = Date.now() - tLogs0;
 
   if (logErr) {
     console.error("[lastfm ingest] logs upsert failed", logErr);
@@ -450,18 +464,21 @@ export async function ingestLastfmScrobbles(
   const insertedLogs = inserted?.length ?? 0;
 
   if (insertedLogs > 0) {
+    const tAch0 = Date.now();
     const { error: achErr } = await supabase.rpc(
       "grant_achievements_on_listen",
       {
         p_user_id: userId,
       },
     );
+    const achievementsRpcMs = Date.now() - tAch0;
     if (achErr) {
       console.warn(
         "[lastfm ingest] grant_achievements_on_listen failed",
         achErr,
       );
     }
+    const tBatchFx0 = Date.now();
     await syncBatchLogSideEffects(
       userId,
       ingestedForLogs.map((r) => ({
@@ -470,6 +487,28 @@ export async function ingestLastfmScrobbles(
       })),
       { skipSpotifyEnrich: !enqueueSpotifyResolve },
     );
+    const batchSideEffectsMs = Date.now() - tBatchFx0;
+
+    if (isDebugLastfmSync()) {
+      console.log("[lastfm-sync] ingest breakdown", {
+        userId,
+        pending: pending.length,
+        filterMs,
+        perScrobbleLoopMs,
+        msPerPending:
+          pending.length > 0
+            ? Math.round(perScrobbleLoopMs / pending.length)
+            : 0,
+        logsUpsertMs,
+        achievementsRpcMs,
+        batchSideEffectsMs,
+      });
+    } else if (batchSideEffectsMs >= 3000) {
+      console.warn("[lastfm-sync] batch side-effects took long (often refresh_entity_stats)", {
+        userId,
+        batchSideEffectsMs,
+      });
+    }
   }
 
   return {

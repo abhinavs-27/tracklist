@@ -45,7 +45,7 @@ export default async function RootLayout({
           .select("lastfm_username")
           .eq("id", uid)
           .maybeSingle(),
-        countUnreadNotifications(uid),
+        countUnreadNotifications(uid, supabase),
       ]);
       hideQuickLogFab = Boolean(
         (meRow as { lastfm_username?: string | null } | null)?.lastfm_username?.trim(),

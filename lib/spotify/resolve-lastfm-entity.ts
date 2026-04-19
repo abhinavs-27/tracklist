@@ -79,7 +79,9 @@ function toJob(input: ResolveLastfmEntityInput): { key: string; job: SpotifyEnri
 
 /**
  * Queue Last.fm → Spotify linking (track/artist; BullMQ or in-memory).
- * **Albums:** resolved synchronously in `getOrFetchAlbum` via `resolveSpotifyAlbumIdBySearch`.
+ * **Albums / canonical rows:** Spotify id search + link runs in `processSpotifyEnrichJob`
+ * (`enrich_album`, `resolveCanonicalAlbumSpotifyInWorker`), not on the RSC request path.
+ * With `REDIS_URL`, jobs are durable via BullMQ; without it, the in-memory queue drains in-process.
  */
 export function scheduleResolveSpotifyForLastfmEntity(
   input: ResolveLastfmEntityInput,

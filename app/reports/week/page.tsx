@@ -117,7 +117,9 @@ export default async function WeeklyReportPage({
   }
   if (report.top_album_id) {
     try {
-      const data = await getOrFetchAlbum(report.top_album_id);
+      const data = await getOrFetchAlbum(report.top_album_id, {
+        allowNetwork: true,
+      });
       topAlbum = data?.album
         ? {
             name: data.album.name,
@@ -131,7 +133,9 @@ export default async function WeeklyReportPage({
   }
   if (report.top_track_id) {
     try {
-      const track = await getOrFetchTrack(report.top_track_id);
+      const { track } = await getOrFetchTrack(report.top_track_id, {
+        allowNetwork: true,
+      });
       topTrack = track
         ? {
             name: track.name,

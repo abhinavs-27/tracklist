@@ -187,10 +187,8 @@ export async function runComputeCooccurrence(): Promise<{
   songs: Awaited<ReturnType<typeof computeSongCooccurrence>>;
   albums: Awaited<ReturnType<typeof computeAlbumCooccurrence>>;
 }> {
-  const [songResult, albumResult] = await Promise.all([
-    computeSongCooccurrence(),
-    computeAlbumCooccurrence(),
-  ]);
+  const songResult = await computeSongCooccurrence();
+  const albumResult = await computeAlbumCooccurrence();
   return { ok: true, songs: songResult, albums: albumResult };
 }
 

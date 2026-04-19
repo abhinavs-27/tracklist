@@ -30,7 +30,9 @@ export async function GET(
 
     const supabase = await createSupabaseServerClient();
     const canon = await getArtistIdByExternalId(supabase, "spotify", id);
-    const artist = await getOrFetchArtist(canon ?? id, { allowNetwork: false });
+    const { artist } = await getOrFetchArtist(canon ?? id, {
+      allowNetwork: false,
+    });
 
     const metadata_complete = artistDisplayMetadataComplete(artist);
     if (!metadata_complete) {

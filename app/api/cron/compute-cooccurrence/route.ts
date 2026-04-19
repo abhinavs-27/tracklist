@@ -12,7 +12,7 @@ export async function GET() {
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "compute-cooccurrence cron failed";
-    console.log("[cron] compute-cooccurrence-complete", { success: false });
+    console.log("[cron] compute-cooccurrence-complete", { success: false, message });
     return apiError(message, 500);
   }
 }

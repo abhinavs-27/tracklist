@@ -4,17 +4,10 @@ import { getSession } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getAlbums } from "@/lib/spotify";
-import {
-  getCachedAllArtistAlbums,
-  getCachedArtistAlbumsFirstPage,
-  getCachedArtistAlbumsFirstPageMeta,
-  getCachedPeekArtistAlbumsHasMore,
-  SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT,
-} from "@/lib/spotify/getAllArtistAlbums";
+import { enqueueSpotifyEnrich } from "@/lib/jobs/spotifyQueue";
 import { upsertAlbumFromSpotify } from "@/lib/spotify-cache";
 import {
   getTrackIdByExternalId,
-  mapSpotifyAlbumIdsToCanonical,
   resolveCanonicalAlbumUuidFromEntityId,
   resolveCanonicalArtistUuidFromEntityId,
   resolveCanonicalTrackUuidFromEntityId,
@@ -31,6 +24,12 @@ import {
   type FeedListenSessionRow,
   type FeedReviewRpcRow,
 } from "@/lib/feed/legacy-feed-bundle";
+import {
+  albumPagePhaseEnd,
+  albumPagePhaseError,
+  albumPagePhaseStart,
+} from "@/lib/album-page-load-log";
+import { isArtistPageDebugEnabled } from "@/lib/artist-page-load-log";
 import {
   isValidLfmCatalogId,
   isValidSpotifyId,
@@ -518,6 +517,11 @@ async function getEntityStatsLive(
   /** Canonical `albums.id` or `tracks.id` UUID. */
   canonicalEntityId: string,
 ): Promise<EntityStats> {
+  const albumLiveT0 =
+    entityType === "album"
+      ? albumPagePhaseStart("getEntityStatsLive(album)", canonicalEntityId)
+      : null;
+
   const supabase = await createSupabaseServerClient();
 
   let listen_count = 0;
@@ -543,7 +547,24 @@ async function getEntityStatsLive(
       .limit(2000);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
-      const playMap = await countLogsByTrackIds(supabase, ids);
+      /**
+       * `album_stats` miss: summing per-track log counts via chunked RPCs can take minutes on
+       * huge albums and blocks `/album/[id]`. Cap work for the live path; cron refresh_entity_stats
+       * still fills `album_stats` for accurate totals.
+       */
+      const MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN = 600;
+      if (ids.length > MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN) {
+        console.warn(
+          "[queries] getEntityStatsLive album: capping listen aggregation",
+          {
+            albumId: canonicalEntityId,
+            trackCount: ids.length,
+            cap: MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN,
+          },
+        );
+      }
+      const capped = ids.slice(0, MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN);
+      const playMap = await countLogsByTrackIds(supabase, capped);
       listen_count = Array.from(playMap.values()).reduce((a, b) => a + b, 0);
     }
   }
@@ -567,6 +588,13 @@ async function getEntityStatsLive(
     if (key in rating_distribution) {
       rating_distribution[key]++;
     }
+  }
+
+  if (albumLiveT0 != null) {
+    albumPagePhaseEnd("getEntityStatsLive(album)", canonicalEntityId, albumLiveT0, {
+      listen_count,
+      review_count,
+    });
   }
 
   return { listen_count, average_rating, review_count, rating_distribution };
@@ -621,11 +649,11 @@ export async function getEntityStats(
         ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
         : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
     if (!canonicalId) {
+      // Skip memory cache: canonical may appear after catalog upsert.
       const empty: EntityStats = {
         ...DEFAULT_ENTITY_STATS,
         rating_distribution: defaultRatingDistribution(),
       };
-      setEntityStatsMemory(entityType, entityId, empty);
       return empty;
     }
 
@@ -1983,48 +2011,79 @@ export type ArtistAlbumEngagementRow = {
 
 const ALBUM_ID_IN_CHUNK = 120;
 const REVIEW_IN_CHUNK = 120;
+const ALBUMS_DB_PAGE = 1000;
+/** Overview ranks "popular" among recent releases only — avoids loading thousands of albums per request. */
+const POPULAR_ALBUMS_PREFETCH_MAX = 200;
+const ARTIST_ALBUMS_SYNC_TAG = "[artist-albums-sync]";
 
-async function enrichSpotifyAlbumsForArtist(
-  artistId: string,
-  spotifyAlbums: SpotifyApi.AlbumObjectSimplified[],
-): Promise<ArtistAlbumEngagementRow[]> {
-  if (!spotifyAlbums.length) return [];
+/** Verbose logs: `ARTIST_ALBUMS_SYNC_DEBUG=1` or `TRACKLIST_DEBUG_ARTIST_PAGE*` / IDs (see artist-page-load-log). */
+function artistAlbumsVerbose(artistEntityId: string): boolean {
+  if (process.env.ARTIST_ALBUMS_SYNC_DEBUG === "1") return true;
+  return isArtistPageDebugEnabled(artistEntityId);
+}
 
-  const supabase = await createSupabaseServerClient();
-  const albumIds = spotifyAlbums.map((a) => a.id);
+/** Non-blocking: full discography sync runs in BullMQ / in-memory queue only (never await on RSC). */
+function scheduleArtistDiscographyBackfill(canonicalArtistId: string): void {
+  void enqueueSpotifyEnrich({
+    name: "sync_artist_discography",
+    artistId: canonicalArtistId,
+  });
+}
 
-  const canonicalArtistId =
-    await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
-  const spotifyToCanonicalAlbum = await mapSpotifyAlbumIdsToCanonical(
-    supabase,
-    albumIds,
-  );
-  const canonicalToSpotifyAlbum = new Map<string, string>();
-  for (const [spotifyAid, canonicalAid] of spotifyToCanonicalAlbum) {
-    canonicalToSpotifyAlbum.set(canonicalAid, spotifyAid);
+async function fetchAllCanonicalAlbumRowsForArtist(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  canonicalArtistId: string,
+  /** When set, stop after this many rows (same order as full fetch: newest release first). */
+  maxRows?: number,
+): Promise<{ id: string; name: string; image_url: string | null }[]> {
+  const out: { id: string; name: string; image_url: string | null }[] = [];
+  for (let from = 0; ; from += ALBUMS_DB_PAGE) {
+    const { data, error } = await supabase
+      .from("albums")
+      .select("id, name, image_url")
+      .eq("artist_id", canonicalArtistId)
+      .order("release_date", { ascending: false, nullsFirst: false })
+      .range(from, from + ALBUMS_DB_PAGE - 1);
+    if (error) {
+      console.error("[queries] fetchAllCanonicalAlbumRowsForArtist", error);
+      break;
+    }
+    const rows =
+      (data as { id: string; name: string; image_url: string | null }[]) ?? [];
+    if (maxRows != null) {
+      const need = maxRows - out.length;
+      if (need <= 0) break;
+      out.push(...rows.slice(0, need));
+      if (out.length >= maxRows || rows.length < ALBUMS_DB_PAGE) break;
+      continue;
+    }
+    out.push(...rows);
+    if (rows.length < ALBUMS_DB_PAGE) break;
   }
+  return out;
+}
+
+async function enrichCanonicalAlbumRowsForArtist(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  albums: { id: string; name: string; image_url: string | null }[],
+  canonicalArtistId: string,
+): Promise<ArtistAlbumEngagementRow[]> {
+  if (!albums.length) return [];
+
+  const albumIds = albums.map((a) => a.id);
 
   const albumToTracks = new Map<string, string[]>();
-  if (canonicalArtistId) {
-    for (let i = 0; i < albumIds.length; i += ALBUM_ID_IN_CHUNK) {
-      const chunk = albumIds.slice(i, i + ALBUM_ID_IN_CHUNK);
-      const canonicalChunk = chunk
-        .map((sid) => spotifyToCanonicalAlbum.get(sid))
-        .filter((id): id is string => Boolean(id));
-      if (canonicalChunk.length === 0) continue;
-
-      const { data: songRows } = await supabase
-        .from("tracks")
-        .select("id, album_id")
-        .eq("artist_id", canonicalArtistId)
-        .in("album_id", canonicalChunk);
-      for (const s of songRows ?? []) {
-        const spotifyAid = canonicalToSpotifyAlbum.get(s.album_id);
-        if (!spotifyAid) continue;
-        const list = albumToTracks.get(spotifyAid) ?? [];
-        list.push(s.id);
-        albumToTracks.set(spotifyAid, list);
-      }
+  for (let i = 0; i < albumIds.length; i += ALBUM_ID_IN_CHUNK) {
+    const chunk = albumIds.slice(i, i + ALBUM_ID_IN_CHUNK);
+    const { data: songRows } = await supabase
+      .from("tracks")
+      .select("id, album_id")
+      .eq("artist_id", canonicalArtistId)
+      .in("album_id", chunk);
+    for (const s of songRows ?? []) {
+      const list = albumToTracks.get(s.album_id) ?? [];
+      list.push(s.id);
+      albumToTracks.set(s.album_id, list);
     }
   }
 
@@ -2034,28 +2093,22 @@ async function enrichSpotifyAlbumsForArtist(
   const reviewAgg = new Map<string, { count: number; sum: number }>();
   for (let i = 0; i < albumIds.length; i += REVIEW_IN_CHUNK) {
     const chunk = albumIds.slice(i, i + REVIEW_IN_CHUNK);
-    const canonicalChunk = chunk
-      .map((sid) => spotifyToCanonicalAlbum.get(sid))
-      .filter((id): id is string => Boolean(id));
-    if (canonicalChunk.length === 0) continue;
     const { data: revRows } = await supabase
       .from("reviews")
       .select("entity_id, rating")
       .eq("entity_type", "album")
-      .in("entity_id", canonicalChunk);
+      .in("entity_id", chunk);
     for (const r of revRows ?? []) {
-      const spotifyEntity = canonicalToSpotifyAlbum.get(r.entity_id);
-      if (!spotifyEntity) continue;
-      const cur = reviewAgg.get(spotifyEntity) ?? { count: 0, sum: 0 };
+      const cur = reviewAgg.get(r.entity_id) ?? { count: 0, sum: 0 };
       cur.count += 1;
       cur.sum += r.rating;
-      reviewAgg.set(spotifyEntity, cur);
+      reviewAgg.set(r.entity_id, cur);
     }
   }
 
-  const orderIndex = new Map(spotifyAlbums.map((a, i) => [a.id, i]));
+  const orderIndex = new Map(albums.map((a, i) => [a.id, i]));
 
-  const rows: ArtistAlbumEngagementRow[] = spotifyAlbums.map((a) => {
+  const rows: ArtistAlbumEngagementRow[] = albums.map((a) => {
     const tids = albumToTracks.get(a.id) ?? [];
     let listen_count = 0;
     for (const tid of tids) {
@@ -2070,7 +2123,7 @@ async function enrichSpotifyAlbumsForArtist(
     return {
       id: a.id,
       name: a.name,
-      image_url: a.images?.[0]?.url ?? null,
+      image_url: a.image_url,
       listen_count,
       review_count,
       average_rating,
@@ -2085,28 +2138,37 @@ async function enrichSpotifyAlbumsForArtist(
   return rows;
 }
 
-async function fetchArtistAlbumsWithEngagement(
-  artistId: string,
-  scope: "first-page" | "full",
-): Promise<ArtistAlbumEngagementRow[]> {
-  const spotifyAlbums =
-    scope === "first-page"
-      ? await getCachedArtistAlbumsFirstPage(artistId)
-      : await getCachedAllArtistAlbums(artistId);
-  return enrichSpotifyAlbumsForArtist(artistId, spotifyAlbums);
-}
-
 /**
- * Full Spotify album list + batched log/review aggregates.
- * Not wrapped in unstable_cache: this path uses createSupabaseServerClient (cookies),
- * which is incompatible with Next.js cache callbacks.
- * Spotify: first page only on the artist page; full paginated list on /artist/[id]/albums.
+ * Full album list for /artist/[id]/albums: engagement-ranked rows from Supabase.
+ * Discography sync is scheduled in the background queue (no Spotify on this request).
  */
 export async function getArtistAlbumsWithEngagement(
   artistId: string,
 ): Promise<ArtistAlbumEngagementRow[]> {
   try {
-    return await fetchArtistAlbumsWithEngagement(artistId, "full");
+    const supabase = await createSupabaseServerClient();
+    const canonicalArtistId =
+      await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+    if (!canonicalArtistId) return [];
+
+    scheduleArtistDiscographyBackfill(canonicalArtistId);
+
+    const albums = await fetchAllCanonicalAlbumRowsForArtist(
+      supabase,
+      canonicalArtistId,
+    );
+    if (albums.length === 0) {
+      void enqueueSpotifyEnrich({
+        name: "enrich_artist",
+        artistId: canonicalArtistId,
+      });
+      return [];
+    }
+    return enrichCanonicalAlbumRowsForArtist(
+      supabase,
+      albums,
+      canonicalArtistId,
+    );
   } catch (e) {
     console.error("[queries] getArtistAlbumsWithEngagement failed:", e);
     return [];
@@ -2115,24 +2177,80 @@ export async function getArtistAlbumsWithEngagement(
 
 export type PopularAlbumsForArtistResult = {
   rows: ArtistAlbumEngagementRow[];
-  /** True when Spotify has more than the first page; second request peeks offset=pageSize. */
+  /** True when the catalog has more albums than the overview `limit`. */
   hasMoreAlbums: boolean;
 };
 
+/**
+ * Albums for the artist overview (default cap 8). DB-only; discography backfill is queued
+ * (`sync_artist_discography`) — never block RSC on Spotify.
+ */
 export async function getPopularAlbumsForArtist(
   artistId: string,
-  limit = 20,
+  limit = 8,
 ): Promise<PopularAlbumsForArtistResult> {
   try {
-    const meta = await getCachedArtistAlbumsFirstPageMeta(artistId);
-    if (!meta.albums.length) {
+    const supabase = await createSupabaseServerClient();
+    const canonicalArtistId =
+      await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
+    if (!canonicalArtistId) {
+      if (artistAlbumsVerbose(artistId)) {
+        console.log(ARTIST_ALBUMS_SYNC_TAG, "no canonical artist uuid", { artistId });
+      }
       return { rows: [], hasMoreAlbums: false };
     }
-    const enriched = await enrichSpotifyAlbumsForArtist(artistId, meta.albums);
+
+    scheduleArtistDiscographyBackfill(canonicalArtistId);
+
+    if (artistAlbumsVerbose(artistId)) {
+      console.log(ARTIST_ALBUMS_SYNC_TAG, "scheduled sync_artist_discography (non-blocking)", {
+        artistId,
+        canonicalArtistId,
+      });
+    }
+
+    const { count: totalAlbumCount } = await supabase
+      .from("albums")
+      .select("id", { count: "exact", head: true })
+      .eq("artist_id", canonicalArtistId);
+
+    const albums = await fetchAllCanonicalAlbumRowsForArtist(
+      supabase,
+      canonicalArtistId,
+      POPULAR_ALBUMS_PREFETCH_MAX,
+    );
+
+    if (albums.length === 0) {
+      void enqueueSpotifyEnrich({
+        name: "enrich_artist",
+        artistId: canonicalArtistId,
+      });
+      return { rows: [], hasMoreAlbums: false };
+    }
+
+    const enriched = await enrichCanonicalAlbumRowsForArtist(
+      supabase,
+      albums,
+      canonicalArtistId,
+    );
     const rows = enriched.slice(0, limit);
-    const hasMoreAlbums =
-      meta.rawCount >= SPOTIFY_ARTIST_ALBUMS_PAGE_LIMIT &&
-      (await getCachedPeekArtistAlbumsHasMore(artistId));
+    const total = totalAlbumCount ?? albums.length;
+    const hasMoreAlbums = total > limit;
+
+    if (artistAlbumsVerbose(artistId)) {
+      console.log(ARTIST_ALBUMS_SYNC_TAG, "getPopularAlbumsForArtist result", {
+        artistId,
+        canonicalArtistId,
+        overviewLimit: limit,
+        dbAlbumCountAfter: total,
+        albumRowsFetched: albums.length,
+        enrichedCount: enriched.length,
+        rowsReturned: rows.length,
+        hasMoreAlbums,
+        topRowNames: rows.map((r) => r.name),
+      });
+    }
+
     return { rows, hasMoreAlbums };
   } catch (e) {
     console.error("[queries] getPopularAlbumsForArtist failed:", e);
@@ -2258,16 +2376,29 @@ export async function getFriendsAlbumActivity(
   albumId: string,
   limit = 10,
 ): Promise<FriendAlbumActivityRow[]> {
+  const t0 = albumPagePhaseStart("getFriendsAlbumActivity", albumId);
   try {
     const supabase = await createSupabaseServerClient();
+
+    const canonicalAlbumId =
+      await resolveCanonicalAlbumUuidFromEntityId(supabase, albumId);
+    if (!canonicalAlbumId) {
+      albumPagePhaseEnd("getFriendsAlbumActivity", albumId, t0, {
+        reason: "no_canonical_album",
+      });
+      return [];
+    }
 
     const { data: songRows } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", albumId)
+      .eq("album_id", canonicalAlbumId)
       .limit(1000);
     const trackIds = (songRows ?? []).map((s) => s.id);
-    if (trackIds.length === 0) return [];
+    if (trackIds.length === 0) {
+      albumPagePhaseEnd("getFriendsAlbumActivity", albumId, t0, { reason: "no_tracks" });
+      return [];
+    }
 
     const { data: followRows } = await supabase
       .from("follows")
@@ -2275,7 +2406,12 @@ export async function getFriendsAlbumActivity(
       .eq("follower_id", viewerId)
       .limit(500);
     const followingIds = (followRows ?? []).map((f) => f.following_id);
-    if (followingIds.length === 0) return [];
+    if (followingIds.length === 0) {
+      albumPagePhaseEnd("getFriendsAlbumActivity", albumId, t0, {
+        reason: "no_follows",
+      });
+      return [];
+    }
 
     const thirtyDaysAgo = new Date(
       Date.now() - 30 * 24 * 60 * 60 * 1000,
@@ -2289,7 +2425,12 @@ export async function getFriendsAlbumActivity(
       .order("listened_at", { ascending: false })
       .limit(100);
 
-    if (error || !logs?.length) return [];
+    if (error || !logs?.length) {
+      albumPagePhaseEnd("getFriendsAlbumActivity", albumId, t0, {
+        reason: "no_logs",
+      });
+      return [];
+    }
 
     const seen = new Set<string>();
     const onePerUser = logs.filter((l) => {
@@ -2309,7 +2450,7 @@ export async function getFriendsAlbumActivity(
         .from("reviews")
         .select("user_id, rating")
         .eq("entity_type", "album")
-        .eq("entity_id", albumId)
+        .eq("entity_id", canonicalAlbumId)
         .in("user_id", userIds),
     ]);
     const userMap = new Map((usersRes.data ?? []).map((u) => [u.id, u]));
@@ -2317,7 +2458,7 @@ export async function getFriendsAlbumActivity(
       (reviewsRes.data ?? []).map((r) => [r.user_id, r.rating]),
     );
 
-    return limited
+    const rows = limited
       .map((l) => {
         const user = userMap.get(l.user_id);
         if (!user) return null;
@@ -2330,8 +2471,13 @@ export async function getFriendsAlbumActivity(
         };
       })
       .filter((x): x is FriendAlbumActivityRow => x != null);
+    albumPagePhaseEnd("getFriendsAlbumActivity", albumId, t0, {
+      resultRows: rows.length,
+    });
+    return rows;
   } catch (e) {
     console.error("[queries] getFriendsAlbumActivity failed:", e);
+    albumPagePhaseError("getFriendsAlbumActivity", albumId, t0, e);
     return [];
   }
 }
@@ -2691,9 +2837,11 @@ export type NotificationRow = {
 
 export async function countUnreadNotifications(
   userId: string,
+  /** When set, avoids a second `createSupabaseServerClient()` (parallel clients + `cookies()` can deadlock RSC). */
+  existingClient?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<number> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = existingClient ?? (await createSupabaseServerClient());
     const { count, error } = await supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })

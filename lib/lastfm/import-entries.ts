@@ -2,16 +2,12 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { getOrCreateEntity } from "@/lib/catalog/getOrCreateEntity";
 import {
   getAlbumIdByExternalId,
   getArtistIdByExternalId,
   getTrackIdByExternalId,
 } from "@/lib/catalog/entity-resolution";
-import {
-  getOrFetchAlbum,
-  getOrFetchArtist,
-  getOrFetchTrack,
-} from "@/lib/spotify-cache";
 import { syncBatchLogSideEffects } from "@/lib/sync-manual-log-side-effects";
 import { isValidSpotifyId } from "@/lib/validation";
 
@@ -108,8 +104,16 @@ export async function insertLastfmImportEntries(
   for (const sid of uniqueSpotifyTracks) {
     let u = await getTrackIdByExternalId(supabase, "spotify", sid);
     if (!u) {
-      await getOrFetchTrack(sid, { allowNetwork: true });
-      u = await getTrackIdByExternalId(supabase, "spotify", sid);
+      try {
+        const r = await getOrCreateEntity({
+          type: "track",
+          spotifyId: sid,
+          allowNetwork: true,
+        });
+        u = r.id;
+      } catch {
+        u = null;
+      }
     }
     if (u) trackUuidBySpotify.set(sid, u);
   }
@@ -120,8 +124,16 @@ export async function insertLastfmImportEntries(
     if (!spotifyAlbumId || !isValidSpotifyId(spotifyAlbumId)) return null;
     let u = await getAlbumIdByExternalId(supabase, "spotify", spotifyAlbumId);
     if (!u) {
-      await getOrFetchAlbum(spotifyAlbumId, { allowNetwork: true });
-      u = await getAlbumIdByExternalId(supabase, "spotify", spotifyAlbumId);
+      try {
+        const r = await getOrCreateEntity({
+          type: "album",
+          spotifyId: spotifyAlbumId,
+          allowNetwork: true,
+        });
+        u = r.id;
+      } catch {
+        u = null;
+      }
     }
     return u;
   }
@@ -132,8 +144,16 @@ export async function insertLastfmImportEntries(
     if (!spotifyArtistId || !isValidSpotifyId(spotifyArtistId)) return null;
     let u = await getArtistIdByExternalId(supabase, "spotify", spotifyArtistId);
     if (!u) {
-      await getOrFetchArtist(spotifyArtistId, { allowNetwork: true });
-      u = await getArtistIdByExternalId(supabase, "spotify", spotifyArtistId);
+      try {
+        const r = await getOrCreateEntity({
+          type: "artist",
+          spotifyId: spotifyArtistId,
+          allowNetwork: true,
+        });
+        u = r.id;
+      } catch {
+        u = null;
+      }
     }
     return u;
   }

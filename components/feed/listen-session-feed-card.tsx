@@ -12,10 +12,10 @@ import type { FeedListenSession } from "@/types";
 import { StoryFeedCard } from "@/components/feed/story-feed-card";
 import type { FeedListenSessionActivity } from "@/components/feed/group-feed-items";
 import { FeedListenGroupEngagement } from "@/components/feed/feed-activity-engagement";
+import { feedAlbumCoverUrl } from "@/lib/feed-artwork";
 
 function albumHeroImage(session: FeedListenSessionActivity) {
-  const url = session.album?.images?.[0]?.url;
-  return url ?? null;
+  return feedAlbumCoverUrl(session.album ?? undefined);
 }
 
 function sessionAlbumName(session: FeedListenSessionActivity) {

@@ -6,7 +6,35 @@
  * Intended for cron or background job; use admin client for writes.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+
+type MediaCooccurrenceRow = {
+  content_type: "song" | "album";
+  content_id: string;
+  related_content_id: string;
+  score: number;
+  updated_at: string;
+};
+
+/** PostgREST `.in(uuid…)` expands the URL; large batches hit client header limits. */
+const TRACK_IDS_POSTGREST_CHUNK = 100;
+/** One giant upsert can exceed Postgres `statement_timeout` on large pair sets. */
+const MEDIA_COOCCURRENCE_UPSERT_CHUNK = 2500;
+
+async function upsertMediaCooccurrenceBatched(
+  supabase: SupabaseClient,
+  rows: MediaCooccurrenceRow[],
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += MEDIA_COOCCURRENCE_UPSERT_CHUNK) {
+    const slice = rows.slice(i, i + MEDIA_COOCCURRENCE_UPSERT_CHUNK);
+    const { error } = await supabase.from("media_cooccurrence").upsert(slice, {
+      onConflict: "content_type,content_id,related_content_id",
+    });
+    if (error) throw new Error(error.message);
+  }
+}
 
 /** Key for pair count: "contentId\trelatedId" (both directions stored). */
 function pairKey(a: string, b: string): [string, string] {
@@ -128,19 +156,15 @@ export async function computeSongCooccurrence(): Promise<{
   }
 
   const now = new Date().toISOString();
-  const toUpsert = normalized.map((r) => ({
-    content_type: "song" as const,
+  const toUpsert: MediaCooccurrenceRow[] = normalized.map((r) => ({
+    content_type: "song",
     content_id: r.contentId,
     related_content_id: r.relatedId,
     score: r.score,
     updated_at: now,
   }));
 
-  const { error } = await supabase.from("media_cooccurrence").upsert(toUpsert, {
-    onConflict: "content_type,content_id,related_content_id",
-  });
-
-  if (error) throw new Error(error.message);
+  await upsertMediaCooccurrenceBatched(supabase, toUpsert);
 
   return {
     usersProcessed: userSongs.size,
@@ -190,13 +214,13 @@ export async function computeAlbumCooccurrence(): Promise<{
   ];
   const trackToAlbum = new Map<string, string>();
   if (trackIds.length > 0) {
-    const batch = 500;
-    for (let i = 0; i < trackIds.length; i += batch) {
-      const chunk = trackIds.slice(i, i + batch);
-      const { data } = await supabase
+    for (let i = 0; i < trackIds.length; i += TRACK_IDS_POSTGREST_CHUNK) {
+      const chunk = trackIds.slice(i, i + TRACK_IDS_POSTGREST_CHUNK);
+      const { data, error: trackErr } = await supabase
         .from("tracks")
         .select("id, album_id")
         .in("id", chunk);
+      if (trackErr) throw new Error(trackErr.message);
       for (const row of (data ?? []) as { id: string; album_id: string }[]) {
         trackToAlbum.set(row.id, row.album_id);
       }
@@ -244,19 +268,15 @@ export async function computeAlbumCooccurrence(): Promise<{
   }
 
   const now = new Date().toISOString();
-  const toUpsert = normalized.map((r) => ({
-    content_type: "album" as const,
+  const toUpsert: MediaCooccurrenceRow[] = normalized.map((r) => ({
+    content_type: "album",
     content_id: r.contentId,
     related_content_id: r.relatedId,
     score: r.score,
     updated_at: now,
   }));
 
-  const { error } = await supabase.from("media_cooccurrence").upsert(toUpsert, {
-    onConflict: "content_type,content_id,related_content_id",
-  });
-
-  if (error) throw new Error(error.message);
+  await upsertMediaCooccurrenceBatched(supabase, toUpsert);
 
   return {
     usersProcessed: userAlbums.size,

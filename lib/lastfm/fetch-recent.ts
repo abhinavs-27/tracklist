@@ -1,6 +1,7 @@
 import "server-only";
 
 import { fetchLastfmApi } from "@/lib/lastfm/lastfm-api-fetch";
+import { isDebugLastfmSync } from "@/lib/lastfm/sync-debug";
 import type { LastfmNormalizedScrobble } from "./types";
 
 const LASTFM_API = "https://ws.audioscrobbler.com/2.0/";
@@ -130,6 +131,7 @@ export async function fetchLastfmRecentTracksSafe(
   const maxAttempts = 3;
   const timeoutMs = 8000;
   const backoffBaseMs = 500;
+  const fetchStarted = Date.now();
 
   let lastErr: unknown;
 
@@ -177,6 +179,13 @@ export async function fetchLastfmRecentTracksSafe(
       }
 
       clearTimeout(tid);
+      if (isDebugLastfmSync()) {
+        console.log("[lastfm-sync] lastfm API ok", {
+          ms: Date.now() - fetchStarted,
+          tracks: parsed.tracks.length,
+          attempts: attempt,
+        });
+      }
       return { ok: true, tracks: parsed.tracks };
     } catch (e) {
       clearTimeout(tid);

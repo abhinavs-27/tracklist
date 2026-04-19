@@ -36,6 +36,7 @@ export async function SearchPageContent({
     );
   }
 
+  /** Links use Spotify ids; catalog rows are ensured on the destination entity page (not here — avoids N Spotify calls per search). */
   const result = await search(query);
   if (!result) {
     return (

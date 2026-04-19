@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fetchLastfmRecentTracksSafe } from "@/lib/lastfm/fetch-recent";
 import { ingestLastfmScrobbles } from "@/lib/lastfm/ingest";
+import { isDebugLastfmSync } from "@/lib/lastfm/sync-debug";
 
 export const LASTFM_USER_SYNC_FETCH_LIMIT = 100;
 
@@ -54,13 +55,23 @@ export async function syncLastfmScrobblesForUser(
     throw new Error("syncLastfmScrobblesForUser: empty username");
   }
 
+  const syncStarted = Date.now();
   try {
+    const tFetch0 = Date.now();
     const fetchResult = await fetchLastfmRecentTracksSafe(
       username,
       LASTFM_USER_SYNC_FETCH_LIMIT,
     );
+    const fetchMs = Date.now() - tFetch0;
 
     if (!fetchResult.ok) {
+      console.warn("[lastfm-sync] fetch failed", {
+        userId,
+        username,
+        fetchMs,
+        error: fetchResult.error,
+        errorCode: fetchResult.errorCode,
+      });
       return {
         imported: 0,
         lastSyncedAt: null,
@@ -70,7 +81,9 @@ export async function syncLastfmScrobblesForUser(
       };
     }
 
+    const tMax0 = Date.now();
     const maxAt = await getMaxLastfmListenAt(supabase, userId);
+    const maxListenQueryMs = Date.now() - tMax0;
     const watermarkMs = maxAt ? new Date(maxAt).getTime() : 0;
     const fresh = fetchResult.tracks.filter(
       (t) => new Date(t.listenedAtIso).getTime() > watermarkMs,
@@ -87,16 +100,51 @@ export async function syncLastfmScrobblesForUser(
         .from("users")
         .update({ lastfm_last_synced_at: nowIso })
         .eq("id", userId);
+      const totalMs = Date.now() - syncStarted;
+      console.log("[lastfm-sync] complete (nothing new)", {
+        userId,
+        username,
+        totalMs,
+        fetchMs,
+        maxListenQueryMs,
+        fetchedTracks: fetchResult.tracks.length,
+        fresh: 0,
+      });
       return { imported: 0, lastSyncedAt: nowIso, fetchFailed: false };
     }
 
+    const tIngest0 = Date.now();
     const ingest = await ingestLastfmScrobbles(supabase, userId, fresh);
+    const ingestMs = Date.now() - tIngest0;
 
     await supabase
       .from("users")
       .update({ lastfm_last_synced_at: nowIso })
       .eq("id", userId);
 
+    const totalMs = Date.now() - syncStarted;
+    console.log("[lastfm-sync] complete", {
+      userId,
+      username,
+      totalMs,
+      fetchMs,
+      maxListenQueryMs,
+      ingestMs,
+      fetchedTracks: fetchResult.tracks.length,
+      freshToImport: fresh.length,
+      importedLogs: ingest.insertedLogs,
+      skippedDedupe: ingest.skipped,
+    });
+    if (isDebugLastfmSync()) {
+      console.log("[lastfm-sync] debug: slow locally is usually many sequential Supabase round-trips per scrobble in ingest + refresh_entity_stats after import.");
+    }
+    if (totalMs >= 8000) {
+      console.warn("[lastfm-sync] slow run — set TRACKLIST_DEBUG_LASTFM_SYNC=1 for ingest breakdown", {
+        userId,
+        totalMs,
+        ingestMs,
+      });
+    }
     return {
       imported: ingest.insertedLogs,
       lastSyncedAt: nowIso,
@@ -104,7 +152,12 @@ export async function syncLastfmScrobblesForUser(
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[lastfm sync] skipped user (sync error)", { userId, username, error: msg });
+    console.warn("[lastfm sync] skipped user (sync error)", {
+      userId,
+      username,
+      error: msg,
+      ms: Date.now() - syncStarted,
+    });
     return {
       imported: 0,
       lastSyncedAt: null,

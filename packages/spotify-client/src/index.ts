@@ -502,9 +502,7 @@ async function fetchCatalogResponseWithRetry(
   const token = await getClientCredentialsToken();
   metrics.apiCalls++;
 
-  const limiter = selectCatalogLimiter(path);
-
-  const res = await limiter.schedule(() =>
+  const doFetch = () =>
     withTimeout(
       url,
       {
@@ -515,8 +513,29 @@ async function fetchCatalogResponseWithRetry(
         signal,
       },
       DEFAULT_TIMEOUT_MS,
-    ),
-  );
+    );
+
+  /**
+   * Interactive paths: do not queue behind Bottleneck (Redis lock / minTime / reservoir).
+   * - `/search` — user typing; already bypassed.
+   * - Single-entity `GET /albums|artists|tracks/{id}` — same UX as search (click from results → first
+   *   paint). Without this, navigation waits behind the global catalog bucket while the HTTP call
+   *   never starts — looks like "Spotify is slow" but it is queue wait (see getOrCreateEntity).
+   * - `GET /albums/{id}/tracks` — required for album page track list after minimal ensure (GET album
+   *   only). If this stays throttled while `/albums/{id}` bypasses, `refreshAlbumFromSpotify` can
+   *   time out or never run before RSC gives up; users see metadata but zero tracks.
+   * Heavier bulk work stays on other paths (e.g. `/artists/{id}/albums` pagination).
+   */
+  const bypassLimiter =
+    path === "/search" ||
+    /^\/albums\/[^/]+$/.test(path) ||
+    /^\/albums\/[^/]+\/tracks$/.test(path) ||
+    /^\/artists\/[^/]+$/.test(path) ||
+    /^\/tracks\/[^/]+$/.test(path);
+
+  const res = bypassLimiter
+    ? await doFetch()
+    : await selectCatalogLimiter(path).schedule(doFetch);
 
   if (res.status === 429) {
     metrics.rate429Hits++;
