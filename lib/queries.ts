@@ -443,7 +443,8 @@ export async function getReviewsForUser(
     const { data: users } = await supabase
       .from("users")
       .select("username, avatar_url")
-      .eq("id", userId);
+      .eq("id", userId)
+      .limit(1);
 
     const user = users?.[0] ? { id: userId, ...users[0] } : null;
 
