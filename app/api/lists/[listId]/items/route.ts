@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { getListOwnerId, addListItem } from "@/lib/queries";
 import {
   apiForbidden,
@@ -8,29 +7,27 @@ import {
   apiInternalError,
   apiOk,
 } from "@/lib/api-response";
-import { parseBody } from "@/lib/api-utils";
-import { isValidUuid, isValidSpotifyId } from "@/lib/validation";
+import { parseBody, validateUuidParam } from "@/lib/api-utils";
+import { isValidSpotifyId } from "@/lib/validation";
+
+type Params = { listId: string };
 
 /** POST – add item to list. Body: { entity_type: 'album'|'song', entity_id }. Owner only. */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ listId: string }> }
-) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { listId } = await params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+export const POST = withHandler<Params>(
+  async (request, { user: me, params }) => {
+    const uuidRes = validateUuidParam(params.listId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const listId = uuidRes.id;
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId) return apiNotFound("List not found");
-    if (ownerId !== me.id) return apiForbidden("Not the list owner");
+    if (ownerId !== me!.id) return apiForbidden("Not the list owner");
 
     const { data: body, error: parseErr } = await parseBody<{ entity_type?: unknown; entity_id?: unknown }>(request);
     if (parseErr) return parseErr;
 
     const entityType = body?.entity_type;
-    const entityId = body.entity_id;
+    const entityId = body?.entity_id;
     if (entityType !== "album" && entityType !== "song") {
       return apiBadRequest("entity_type must be 'album' or 'song'");
     }
@@ -57,7 +54,7 @@ export async function POST(
       const title =
         (listRow as { title?: string } | null)?.title?.trim() || "My list";
       await fanOutListItemAddForUserCommunities({
-        userId: me.id,
+        userId: me!.id,
         listId,
         listTitle: title,
         entityType,
@@ -70,7 +67,7 @@ export async function POST(
     }
 
     console.log("[lists] list-item-added", {
-      userId: me.id,
+      userId: me!.id,
       listId,
       itemId: item.id,
       entityType,
@@ -78,9 +75,6 @@ export async function POST(
     });
 
     return apiOk(item);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);

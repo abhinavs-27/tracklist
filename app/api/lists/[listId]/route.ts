@@ -16,13 +16,14 @@ import {
   apiBadRequest,
   apiOk,
 } from "@/lib/api-response";
-import { parseBody } from "@/lib/api-utils";
+import { parseBody, validateUuidParam } from "@/lib/api-utils";
 import { ListUpdateBody } from "@/types";
 import {
-  isValidUuid,
   validateListTitle,
   validateListDescription,
 } from "@/lib/validation";
+
+type Params = { listId: string };
 
 export type ListItemEnriched = {
   id: string;
@@ -37,9 +38,10 @@ export type ListItemEnriched = {
 };
 
 /** GET – list details + ordered items with album/song info. Public. */
-export const GET = withHandler(async (_request, { params }) => {
-  const { listId } = params;
-  if (!isValidUuid(listId)) return apiNotFound("List not found");
+export const GET = withHandler<Params>(async (_request, { params }) => {
+  const uuidRes = validateUuidParam(params.listId);
+  if (!uuidRes.ok) return uuidRes.error;
+  const listId = uuidRes.id;
 
   const data = await getList(listId);
   if (!data) return apiNotFound("List not found");
@@ -87,10 +89,11 @@ export const GET = withHandler(async (_request, { params }) => {
 });
 
 /** PATCH – update list metadata (title, description, visibility, emoji/image). Auth + ownership required. */
-export const PATCH = withHandler(
+export const PATCH = withHandler<Params>(
   async (request, { user: me, params }) => {
-    const { listId } = params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+    const uuidRes = validateUuidParam(params.listId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const listId = uuidRes.id;
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId || ownerId !== me!.id) {
@@ -152,10 +155,11 @@ export const PATCH = withHandler(
 );
 
 /** DELETE – delete a list (and its items via CASCADE). Auth + ownership required. */
-export const DELETE = withHandler(
+export const DELETE = withHandler<Params>(
   async (request, { user: me, params }) => {
-    const { listId } = params;
-    if (!isValidUuid(listId)) return apiNotFound("List not found");
+    const uuidRes = validateUuidParam(params.listId);
+    if (!uuidRes.ok) return uuidRes.error;
+    const listId = uuidRes.id;
 
     const ownerId = await getListOwnerId(listId);
     if (!ownerId || ownerId !== me!.id) {
