@@ -52,7 +52,7 @@ export async function createList(
       image_url: null,
     })
     .select(
-      "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+      "id, title, description, type, visibility, emoji, image_url, created_at",
     )
     .single();
 
@@ -60,7 +60,7 @@ export async function createList(
     console.error("[listMutation] createList", error);
     return null;
   }
-  return data as ListRow;
+  return { ...data, user_id: userId } as ListRow;
 }
 
 export async function addListItem(
