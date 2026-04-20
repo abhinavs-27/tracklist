@@ -2,6 +2,11 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import {
+  scheduleAlbumEnrichment,
+  scheduleArtistEnrichment,
+  scheduleTrackEnrichment,
+} from '@/lib/catalog/non-blocking-enrichment';
 
 export type MusicExternalSource = "spotify" | "lastfm";
 
@@ -100,6 +105,64 @@ export async function resolveCanonicalTrackUuidFromEntityId(
   if (isValidLfmCatalogId(id)) {
     return getTrackIdByExternalId(supabase, "lastfm", id);
   }
+  return null;
+}
+
+export type ResolveEntityOutcome =
+  | { kind: "resolved"; id: string }
+  | { kind: "pending"; spotifyId: string; entity: "track" | "album" | "artist" };
+
+/**
+ * Higher-level resolution for API handlers. Handles UUID, Spotify, and Last.fm IDs.
+ * If Spotify ID is valid but not in catalog, schedules enrichment and returns "pending".
+ */
+export async function resolveEntityWithPending(
+  supabase: SupabaseClient,
+  raw: string | null | undefined,
+  kind: "track" | "album" | "artist",
+): Promise<ResolveEntityOutcome | null> {
+  if (raw == null) return null;
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!s) return null;
+
+  if (isValidUuid(s)) return { kind: "resolved", id: s };
+
+  if (isValidSpotifyId(s)) {
+    let u: string | null = null;
+    if (kind === "track") {
+      u = await getTrackIdByExternalId(supabase, "spotify", s);
+      if (!u) {
+        scheduleTrackEnrichment(s);
+        return { kind: "pending", spotifyId: s, entity: "track" };
+      }
+    } else if (kind === "album") {
+      u = await getAlbumIdByExternalId(supabase, "spotify", s);
+      if (!u) {
+        scheduleAlbumEnrichment(s);
+        return { kind: "pending", spotifyId: s, entity: "album" };
+      }
+    } else if (kind === "artist") {
+      u = await getArtistIdByExternalId(supabase, "spotify", s);
+      if (!u) {
+        scheduleArtistEnrichment(s);
+        return { kind: "pending", spotifyId: s, entity: "artist" };
+      }
+    }
+    return u ? { kind: "resolved", id: u } : null;
+  }
+
+  if (isValidLfmCatalogId(s)) {
+    let u: string | null = null;
+    if (kind === "track") {
+      u = await getTrackIdByExternalId(supabase, "lastfm", s);
+    } else if (kind === "album") {
+      u = await getAlbumIdByExternalId(supabase, "lastfm", s);
+    } else if (kind === "artist") {
+      u = await getArtistIdByExternalId(supabase, "lastfm", s);
+    }
+    return u ? { kind: "resolved", id: u } : null;
+  }
+
   return null;
 }
 
