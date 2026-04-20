@@ -11,8 +11,6 @@ import { GET as searchGET } from '../app/api/search/route';
 
 // --- Mocks ---
 
-vi.mock('server-only', () => ({}));
-
 vi.mock('@/lib/auth', () => ({
   requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
   getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
@@ -73,6 +71,13 @@ vi.mock('@/lib/catalog/entity-resolution', () => ({
   getTrackIdByExternalId: vi.fn(async () => 'track-uuid'),
   getAlbumIdByExternalId: vi.fn(async () => 'album-uuid'),
   getArtistIdByExternalId: vi.fn(async () => 'artist-uuid'),
+  resolveEntityWithPending: vi.fn(async (supabase, raw, kind) => {
+    if (raw === 'pending-id') {
+      return { kind: 'pending', spotifyId: 'pending-id', entity: kind };
+    }
+    if (raw === 'invalid') return null;
+    return { kind: 'resolved', id: 'track-uuid' };
+  }),
 }));
 
 vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
@@ -87,7 +92,12 @@ vi.mock('@/lib/queries', () => ({
   grantAchievementOnReview: vi.fn(),
   grantAchievementsOnListen: vi.fn(),
   getReviewsForEntity: vi.fn(),
-  fetchUserSummary: vi.fn(async (userId) => ({ id: userId, username: 'testuser', avatar_url: null })),
+  fetchUserSummary: vi.fn(async (userId) => {
+    if (userId === 'test-user-id') {
+      return { id: 'test-user-id', username: 'testuser', avatar_url: null };
+    }
+    return null;
+  }),
   getFullUserProfile: vi.fn(async (username) => {
     if (username === 'testuser') {
         return { id: 'test-user-id', username: 'testuser', bio: 'Test bio' };
@@ -98,14 +108,6 @@ vi.mock('@/lib/queries', () => ({
     return null;
   }),
   getListenLogsForUser: vi.fn(async () => []),
-  fetchUserSummary: vi.fn(async (userId) => {
-    if (userId === 'test-user-id') {
-      return { id: 'test-user-id', username: 'testuser', avatar_url: null };
-    }
-    return null;
-  }),
-  grantAchievementOnReview: vi.fn(),
-  grantAchievementsOnListen: vi.fn(),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({
@@ -224,12 +226,9 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     });
 
     it('should return 503 if catalog is pending', async () => {
-        const { getTrackIdByExternalId } = await import('@/lib/catalog/entity-resolution');
-        vi.mocked(getTrackIdByExternalId).mockResolvedValueOnce(null);
-
         const req = new NextRequest('http://localhost/api/logs', {
           method: 'POST',
-          body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
+          body: JSON.stringify({ track_id: 'pending-id', source: 'manual' }),
         });
         const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(503);
