@@ -435,7 +435,8 @@ export async function getReviewsForUser(
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .range(from, to);
+      .range(from, to)
+      .limit(limit);
 
     if (error || !rows?.length) return [];
 
@@ -2984,7 +2985,8 @@ export async function getFollowers(
       .select("id, follower_id")
       .eq("following_id", userId)
       .order("created_at", { ascending: false })
-      .range(from, to);
+      .range(from, to)
+      .limit(limit);
     if (error) throw error;
     return (data ?? []) as { id: string; follower_id: string }[];
   } catch (e) {
@@ -3009,7 +3011,8 @@ export async function getFollowing(
       .select("id, following_id")
       .eq("follower_id", userId)
       .order("created_at", { ascending: false })
-      .range(from, to);
+      .range(from, to)
+      .limit(limit);
     if (error) throw error;
     return (data ?? []) as { id: string; following_id: string }[];
   } catch (e) {
@@ -3031,6 +3034,7 @@ export async function isFollowing(
       .select("id")
       .eq("follower_id", viewerUserId)
       .eq("following_id", targetUserId)
+      .limit(1)
       .maybeSingle();
     if (error) throw error;
     return !!data;
@@ -3102,6 +3106,7 @@ export async function getFullUserProfile(
         "id, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
       )
       .eq("username", username)
+      .limit(1)
       .single();
 
     if (error || !userRow) return null;
@@ -3116,6 +3121,7 @@ export async function getFullUserProfile(
           .select("id")
           .eq("follower_id", viewerId)
           .eq("following_id", user.id)
+          .limit(1)
           .maybeSingle();
         return !followError && !!follow;
       }
@@ -3163,7 +3169,8 @@ export async function getFollowerUsers(
       .select("users:users!follower_id (id, username, avatar_url)")
       .eq("following_id", userId)
       .order("users(username)", { ascending: true })
-      .range(from, to);
+      .range(from, to)
+      .limit(limit);
 
     if (error || !users?.length) return [];
 
@@ -3201,7 +3208,8 @@ export async function getFollowingUsers(
       .select("users:users!following_id (id, username, avatar_url)")
       .eq("follower_id", userId)
       .order("users(username)", { ascending: true })
-      .range(from, to);
+      .range(from, to)
+      .limit(limit);
 
     if (error || !users?.length) return [];
 
@@ -4111,6 +4119,7 @@ export async function getList(
         "user_id, title, description, type, visibility, emoji, image_url, created_at",
       )
       .eq("id", listId)
+      .limit(1)
       .maybeSingle();
 
     if (listError || !rawListRow) return null;
@@ -4136,7 +4145,8 @@ export async function getList(
       .select("id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)
       .order("position", { ascending: true })
-      .range(from, to);
+      .range(from, to)
+      .limit(limit);
     itemRows = (itemsResult.data ?? []).map((r: any) => ({ ...r, list_id: listId }));
     itemsError = itemsResult.error;
 
@@ -4147,7 +4157,8 @@ export async function getList(
         .select("id, list_id, entity_type, entity_id, position")
         .eq("list_id", listId)
         .order("position", { ascending: true })
-        .range(from, to);
+        .range(from, to)
+        .limit(limit);
       if (!fallback.error) {
         itemRows = (fallback.data ?? []).map((r) => ({
           ...r,
@@ -4374,6 +4385,7 @@ export async function getListOwnerId(listId: string): Promise<string | null> {
       .from("lists")
       .select("user_id")
       .eq("id", listId)
+      .limit(1)
       .maybeSingle();
     if (error || !data) return null;
     return data.user_id;
