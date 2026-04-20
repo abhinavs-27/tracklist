@@ -13,6 +13,7 @@ import { spotifyResolverRouteTimeoutMs } from "@/lib/catalog/spotify-resolver-ti
 import { redirectToCanonicalEntityIfNeeded } from "@/lib/catalog/redirect-to-canonical-entity-route";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
 import { sectionGap } from "@/lib/ui/surface";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   isUUID,
   isValidSpotifyId,
@@ -92,19 +93,23 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
        * `cookies()`) has deadlocked RSC — same pattern as `artist-page-content.tsx`.
        */
       const viewerId = sessionVal?.user?.id ?? null;
-      const statsInner = await withAlbumPagePhaseLog(
-        "getEntityStats(album)",
-        id,
-        getEntityStats("album", entityIdInner),
-      );
-      const engagementInner = await withAlbumPagePhaseLog(
-        "getAlbumEngagementStats",
-        id,
-        getAlbumEngagementStats(entityIdInner),
-      );
-      const friendActivityInner = viewerId
-        ? await getFriendsAlbumActivity(viewerId, entityIdInner, 10)
-        : [];
+      const supabase = await createSupabaseServerClient();
+
+      const [statsInner, engagementInner, friendActivityInner] = await Promise.all([
+        withAlbumPagePhaseLog(
+          "getEntityStats(album)",
+          id,
+          getEntityStats("album", entityIdInner, supabase),
+        ),
+        withAlbumPagePhaseLog(
+          "getAlbumEngagementStats",
+          id,
+          getAlbumEngagementStats(entityIdInner, supabase),
+        ),
+        viewerId
+          ? getFriendsAlbumActivity(viewerId, entityIdInner, 10, supabase)
+          : Promise.resolve([]),
+      ]);
 
       return {
         album: albumInner,
