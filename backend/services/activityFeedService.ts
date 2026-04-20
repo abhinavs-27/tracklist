@@ -127,7 +127,9 @@ async function getActivityFeedFallback(
       .in("user_id", followingIds)
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
-    if (cursor) reviewsQuery = reviewsQuery.lt("created_at", cursor);
+    if (cursor) {
+      reviewsQuery = reviewsQuery.lt("created_at", cursor);
+    }
 
     let followsQuery = supabase
       .from("follows")
@@ -135,7 +137,9 @@ async function getActivityFeedFallback(
       .in("follower_id", followingIds)
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
-    if (cursor) followsQuery = followsQuery.lt("created_at", cursor);
+    if (cursor) {
+      followsQuery = followsQuery.lt("created_at", cursor);
+    }
 
     const [reviewsRes, followsRes] = await Promise.all([
       reviewsQuery,

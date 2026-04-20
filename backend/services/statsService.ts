@@ -110,14 +110,16 @@ async function getEntityStatsLive(
       const { count } = await supabase
         .from("logs")
         .select("id", { count: "exact", head: true })
-        .eq("track_id", canonicalEntityId);
+        .eq("track_id", canonicalEntityId)
+        .limit(1);
       listen_count = count ?? 0;
     }
   } else {
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", canonicalEntityId);
+      .eq("album_id", canonicalEntityId)
+      .limit(1000);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const playMap = await countLogsByTrackIds(supabase, ids);
@@ -129,7 +131,8 @@ async function getEntityStatsLive(
     .from("reviews")
     .select("rating")
     .eq("entity_type", entityType)
-    .eq("entity_id", canonicalEntityId);
+    .eq("entity_id", canonicalEntityId)
+    .limit(5000);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
   const review_count = ratings.length;
@@ -209,6 +212,7 @@ export async function getEntityStats(
         .from("album_stats")
         .select("listen_count, review_count, avg_rating, rating_distribution")
         .eq("album_id", canonicalId)
+        .limit(1)
         .maybeSingle();
 
       if (!error && row) {
@@ -229,6 +233,7 @@ export async function getEntityStats(
         .from("track_stats")
         .select("listen_count, review_count, avg_rating")
         .eq("track_id", canonicalId)
+        .limit(1)
         .maybeSingle();
 
       if (!error && row) {
@@ -254,6 +259,82 @@ export async function getEntityStats(
   }
 }
 
+const TRACK_STATS_CHUNK = 120;
+
+async function getTrackStatsForTrackIdsSingleBatch(
+  uniqueIds: string[],
+): Promise<Record<string, EntityStats>> {
+  const empty: EntityStats = {
+    listen_count: 0,
+    average_rating: null,
+    review_count: 0,
+  };
+  if (uniqueIds.length === 0) return {};
+
+  const supabase = getSupabase();
+  const result: Record<string, EntityStats> = {};
+
+  const { data: rows, error } = await supabase
+    .from("track_stats")
+    .select("track_id, listen_count, review_count, avg_rating")
+    .in("track_id", uniqueIds)
+    .limit(uniqueIds.length);
+
+  if (!error && rows?.length) {
+    for (const row of rows as {
+      track_id: string;
+      listen_count: number;
+      review_count: number;
+      avg_rating: number | null;
+    }[]) {
+      result[row.track_id] = mapTrackStatsRow(row);
+    }
+  }
+
+  const missingIds = uniqueIds.filter((id) => !(id in result));
+  if (missingIds.length > 0) {
+    const [logsRes, reviewsRes] = await Promise.all([
+      supabase.from("logs").select("track_id").in("track_id", missingIds),
+      supabase
+        .from("reviews")
+        .select("entity_id, rating")
+        .eq("entity_type", "song")
+        .in("entity_id", missingIds),
+    ]);
+
+    const listenCounts = new Map<string, number>();
+    for (const row of logsRes.data ?? []) {
+      listenCounts.set(
+        row.track_id,
+        (listenCounts.get(row.track_id) ?? 0) + 1,
+      );
+    }
+    const reviewCounts = new Map<string, number>();
+    const ratingSums = new Map<string, number>();
+    for (const row of reviewsRes.data ?? []) {
+      reviewCounts.set(
+        row.entity_id,
+        (reviewCounts.get(row.entity_id) ?? 0) + 1,
+      );
+      ratingSums.set(
+        row.entity_id,
+        (ratingSums.get(row.entity_id) ?? 0) + row.rating,
+      );
+    }
+
+    for (const trackId of missingIds) {
+      const listen_count = listenCounts.get(trackId) ?? 0;
+      const review_count = reviewCounts.get(trackId) ?? 0;
+      const sum = ratingSums.get(trackId) ?? 0;
+      const average_rating =
+        review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
+      result[trackId] = { listen_count, average_rating, review_count };
+    }
+  }
+
+  return Object.fromEntries(uniqueIds.map((id) => [id, result[id] ?? empty]));
+}
+
 /** Per-track stats for multiple song IDs. Reads from track_stats first; fallback aggregation for missing. */
 export async function getTrackStatsForTrackIds(
   trackIds: string[],
@@ -266,70 +347,19 @@ export async function getTrackStatsForTrackIds(
   if (trackIds.length === 0) return {};
 
   try {
-    const supabase = getSupabase();
     const uniqueIds = [...new Set(trackIds)];
-    const result: Record<string, EntityStats> = {};
-
-    const { data: rows, error } = await supabase
-      .from("track_stats")
-      .select("track_id, listen_count, review_count, avg_rating")
-      .in("track_id", uniqueIds);
-
-    if (!error && rows?.length) {
-      for (const row of rows as {
-        track_id: string;
-        listen_count: number;
-        review_count: number;
-        avg_rating: number | null;
-      }[]) {
-        result[row.track_id] = mapTrackStatsRow(row);
-      }
+    if (uniqueIds.length <= TRACK_STATS_CHUNK) {
+      const result = await getTrackStatsForTrackIdsSingleBatch(uniqueIds);
+      return Object.fromEntries(trackIds.map((id) => [id, result[id] ?? empty]));
     }
-
-    const missingIds = uniqueIds.filter((id) => !(id in result));
-    if (missingIds.length > 0) {
-      const [logsRes, reviewsRes] = await Promise.all([
-        supabase.from("logs").select("track_id").in("track_id", missingIds),
-        supabase
-          .from("reviews")
-          .select("entity_id, rating")
-          .eq("entity_type", "song")
-          .in("entity_id", missingIds),
-      ]);
-
-      const listenCounts = new Map<string, number>();
-      for (const row of logsRes.data ?? []) {
-        listenCounts.set(
-          row.track_id,
-          (listenCounts.get(row.track_id) ?? 0) + 1,
-        );
-      }
-      const reviewCounts = new Map<string, number>();
-      const ratingSums = new Map<string, number>();
-      for (const row of reviewsRes.data ?? []) {
-        reviewCounts.set(
-          row.entity_id,
-          (reviewCounts.get(row.entity_id) ?? 0) + 1,
-        );
-        ratingSums.set(
-          row.entity_id,
-          (ratingSums.get(row.entity_id) ?? 0) + row.rating,
-        );
-      }
-
-      for (const trackId of missingIds) {
-        const listen_count = listenCounts.get(trackId) ?? 0;
-        const review_count = reviewCounts.get(trackId) ?? 0;
-        const sum = ratingSums.get(trackId) ?? 0;
-        const average_rating =
-          review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
-        result[trackId] = { listen_count, average_rating, review_count };
-      }
+    const merged: Record<string, EntityStats> = {};
+    for (let i = 0; i < uniqueIds.length; i += TRACK_STATS_CHUNK) {
+      const chunk = uniqueIds.slice(i, i + TRACK_STATS_CHUNK);
+      Object.assign(merged, await getTrackStatsForTrackIdsSingleBatch(chunk));
     }
-
-    return Object.fromEntries(trackIds.map((id) => [id, result[id] ?? empty]));
+    return Object.fromEntries(trackIds.map((id) => [id, merged[id] ?? empty]));
   } catch (e) {
-    console.error("[queries] getTrackStatsForTrackIds failed:", e);
+    console.error("[statsService] getTrackStatsForTrackIds failed:", e);
     return Object.fromEntries(trackIds.map((id) => [id, empty]));
   }
 }
@@ -354,6 +384,7 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
         .select("favorite_count")
         .eq("entity_type", "album")
         .eq("entity_id", canonicalId)
+        .limit(1)
         .maybeSingle();
       favorite_count = Number(row?.favorite_count ?? 0);
     }

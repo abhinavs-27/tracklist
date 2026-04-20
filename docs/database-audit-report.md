@@ -76,6 +76,11 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `follows` | `(follower_id, following_id)` | `143` | Optimized for following status checks and friend activity retrieval. |
+| `feed_events` | `(user_id, created_at DESC)` | `143` | Optimized for fetching feed events for multiple users ordered by creation. |
+| `reviews` | `(user_id, created_at DESC)` | `143` | Optimized for fetching recent reviews for a specific user. |
+| `tracks` | `(artist_id, album_id)` | `143` | Optimized for filtering and fetching tracks by artist and album. |
+| `logs` | `(track_id, user_id, listened_at DESC)` | `143` | Optimized for counting logs for specific tracks and users. |
 
 ## Recommendations for Future Queries
 

@@ -334,7 +334,8 @@ export async function getLeaderboard(
           .select("id")
           .gte("release_date", `${from}-01-01`)
           .lte("release_date", `${to}-12-31`)
-          .range(rangeFrom, rangeFrom + pageSize - 1);
+          .range(rangeFrom, rangeFrom + pageSize - 1)
+          .limit(pageSize);
         if (error) break;
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
@@ -351,7 +352,8 @@ export async function getLeaderboard(
           .from("albums")
           .select("id")
           .like("release_date", `${year}%`)
-          .range(rangeFrom, rangeFrom + pageSize - 1);
+          .range(rangeFrom, rangeFrom + pageSize - 1)
+          .limit(pageSize);
         if (error) break;
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
@@ -370,7 +372,8 @@ export async function getLeaderboard(
           .select("id")
           .gte("release_date", `${decade}-01-01`)
           .lt("release_date", `${yearNum}-01-01`)
-          .range(rangeFrom, rangeFrom + pageSize - 1);
+          .range(rangeFrom, rangeFrom + pageSize - 1)
+          .limit(pageSize);
         if (error) break;
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
@@ -496,7 +499,8 @@ export async function getLeaderboard(
           const { data: songs } = await supabase
             .from("tracks")
             .select("id")
-            .in("album_id", slice);
+            .in("album_id", slice)
+            .limit(1000);
           if (songs) trackIds.push(...songs.map((s) => s.id));
         }
 
@@ -508,7 +512,8 @@ export async function getLeaderboard(
           const { data: rows } = await supabase
             .from("track_stats")
             .select("track_id, listen_count, avg_rating")
-            .in("track_id", slice);
+            .in("track_id", slice)
+            .limit(CHUNK);
           if (rows) statsRowsMerged.push(...rows);
         }
         if (statsRowsMerged.length === 0) return [];
@@ -518,7 +523,7 @@ export async function getLeaderboard(
           .from("track_stats")
           .select("track_id, listen_count, avg_rating")
           .order("listen_count", { ascending: false })
-          .limit(500);
+          .limit(limit * 4 || 500);
         if (statsError || !rows?.length) return [];
         statsRows = rows as {
           track_id: string;
@@ -619,7 +624,8 @@ export async function getLeaderboard(
         const { data: rows, error: statsError } = await supabase
           .from("album_stats")
           .select("album_id, listen_count, avg_rating")
-          .in("album_id", slice);
+          .in("album_id", slice)
+          .limit(CHUNK);
         if (statsError) {
           return getAlbumLeaderboardFromEntityStatsFallback(
             supabase,

@@ -87,7 +87,8 @@ export async function getReviewsForEntity(
       .from("reviews")
       .select("id", { count: "exact", head: true })
       .eq("entity_type", entityType)
-      .eq("entity_id", entityId);
+      .eq("entity_id", entityId)
+      .limit(1);
 
     let my_review: EntityReviewItem | null = null;
     if (viewerUserId) {
@@ -99,6 +100,7 @@ export async function getReviewsForEntity(
         .eq("entity_type", entityType)
         .eq("entity_id", entityId)
         .eq("user_id", viewerUserId)
+        .limit(1)
         .maybeSingle();
       if (myRow) {
         my_review = {
