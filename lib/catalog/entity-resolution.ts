@@ -2,8 +2,63 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import {
+  scheduleAlbumEnrichment,
+  scheduleArtistEnrichment,
+  scheduleTrackEnrichment,
+} from "@/lib/catalog/non-blocking-enrichment";
 
 export type MusicExternalSource = "spotify" | "lastfm";
+
+export type ResolveEntityOutcome =
+  | { kind: "resolved"; id: string }
+  | { kind: "pending"; spotifyId: string; entity: "track" | "album" | "artist" };
+
+/**
+ * Resolves an entity ID (UUID or Spotify ID) to a canonical UUID.
+ * If the entity is not found and a Spotify ID is provided, it triggers background enrichment and returns "pending".
+ */
+export async function resolveEntityWithPending(
+  supabase: SupabaseClient,
+  rawId: string | null | undefined,
+  kind: "track" | "album" | "artist",
+): Promise<ResolveEntityOutcome | null> {
+  if (rawId == null) return null;
+  const s = typeof rawId === "string" ? rawId.trim() : "";
+  if (!s) return null;
+
+  if (isValidUuid(s)) return { kind: "resolved", id: s };
+  if (!isValidSpotifyId(s)) return null;
+
+  if (kind === "track") {
+    const id = await getTrackIdByExternalId(supabase, "spotify", s);
+    if (!id) {
+      scheduleTrackEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "track" };
+    }
+    return { kind: "resolved", id };
+  }
+
+  if (kind === "album") {
+    const id = await getAlbumIdByExternalId(supabase, "spotify", s);
+    if (!id) {
+      scheduleAlbumEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "album" };
+    }
+    return { kind: "resolved", id };
+  }
+
+  if (kind === "artist") {
+    const id = await getArtistIdByExternalId(supabase, "spotify", s);
+    if (!id) {
+      scheduleArtistEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "artist" };
+    }
+    return { kind: "resolved", id };
+  }
+
+  return null;
+}
 
 /** Match DB generated column: lower(trim(both from name)) */
 export function normalizedName(name: string): string {
