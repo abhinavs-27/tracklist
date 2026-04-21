@@ -1,48 +1,46 @@
-# Project Dependency Audit Summary
+# Project Dependency Audit Summary (Updated 2026-04-21)
 
 ## Audit Status
-- **Vulnerabilities Fixed:** 0 (Baseline was 0 vulnerabilities).
+- **Vulnerabilities Fixed:** Resolved high-severity DoS in `next` and high-severity injection in `basic-ftp` (via `vercel` upgrade).
+- **Core Updates:**
+  - Upgraded Root `next` to `16.2.4`.
+  - Upgraded Root `vercel` to `50.44.0`.
+  - Upgraded all projects to `typescript@6.0.3`.
+  - Upgraded `@supabase/supabase-js` to `2.104.0`.
+  - Upgraded `@tanstack/react-query` to `5.99.2`.
 - **Core Guidelines Followed:**
-  - Updated all dependencies to their "Wanted" versions as specified by semantic versioning in `package.json`.
-  - Avoided major version upgrades for core stability (Next.js, Express, React Native).
-  - Maintained Expo-specific versioning constraints (`~`) for `@types/react` and `@types/react-dom` in the mobile project.
+  - Updated all dependencies to their latest safe versions within major version constraints.
+  - Maintained Expo-specific versioning for `mobile/` dependencies.
+  - Fixed TypeScript deprecation warnings in `backend/tsconfig.json`.
 - **Verification:**
-  - Successfully ran `npm run build` for the root project.
+  - Successfully ran `npm run build`, `npm run typecheck`, and `npm run test:unit` for the root project.
   - Successfully ran `npm run build` for the backend project.
-  - Successfully ran `npm run test:unit` (30/30 passed).
-  - Verified that mobile typecheck and lint issues are pre-existing and not regressions from the upgrades.
+  - Verified that mobile typecheck issues are pre-existing baseline and not regressions.
 
 ## Updated Dependencies
 
 ### Root Project
 | Package | Version Change |
 |---------|----------------|
-| `@tanstack/react-query` | `5.96.0` -> `5.96.2` |
-| `@tanstack/react-query-devtools` | `5.96.0` -> `5.96.2` |
-| `@types/node` | `25.5.0` -> `25.5.2` |
-| `bullmq` | `5.71.1` -> `5.73.0` |
-| `eslint-config-next` | `16.2.0` -> `16.2.2` |
-| `vercel` | `50.37.3` -> `50.39.0` |
+| `next` | `16.2.2` -> `16.2.4` |
+| `vercel` | `50.39.0` -> `50.44.0` |
+| `typescript` | `6.0.2` -> `6.0.3` |
+| `@supabase/supabase-js` | `2.101.1` -> `2.104.0` |
+| `vitest` | `4.1.2` -> `4.1.4` |
+| `bullmq` | `5.73.0` -> `5.75.2` |
+| `next-auth` | `4.24.13` -> `4.24.14` |
 
 ### Backend Project
 | Package | Version Change |
 |---------|----------------|
-| `@types/node` | `22.10.7` -> `22.19.17` |
+| `typescript` | `6.0.2` -> `6.0.3` |
+| `@supabase/supabase-js` | `2.101.1` -> `2.104.0` |
+| `dotenv` | `17.4.1` -> `17.4.2` |
 
 ### Mobile Project
 | Package | Version Change |
 |---------|----------------|
-| `@react-native-async-storage/async-storage` | `3.0.1` -> `3.0.2` |
-| `@tanstack/react-query` | `5.96.0` -> `5.96.2` |
-| `expo` | `55.0.9` -> `55.0.11` |
-| `expo-auth-session` | `55.0.9` -> `55.0.12` |
-| `expo-blur` | `55.0.10` -> `55.0.12` |
-| `expo-constants` | `55.0.9` -> `55.0.11` |
-| `expo-image` | `55.0.6` -> `55.0.8` |
-| `expo-linking` | `55.0.8` -> `55.0.11` |
-| `expo-notifications` | `55.0.13` -> `55.0.16` |
-| `expo-router` | `55.0.7` -> `55.0.10` |
-| `expo-status-bar` | `55.0.4` -> `55.0.5` |
-| `expo-web-browser` | `55.0.10` -> `55.0.12` |
-| `@types/react` | `~19.2.2` (unchanged) |
-| `@types/react-dom` | `~19.2.3` (unchanged) |
+| `typescript` | `6.0.2` -> `6.0.3` |
+| `@supabase/supabase-js` | `2.101.1` -> `2.104.0` |
+| `@babel/runtime` | `7.25.7` -> `7.26.10` |
+| `axios` | `1.14.0` -> `1.15.1` |
