@@ -153,6 +153,7 @@ function isSocialInboxAndMusicRecUiEnabled(): boolean {
 
 export async function middleware(request: NextRequest) {
   const t0 = performance.now();
+  const { pathname } = request.nextUrl;
   mwLog("start", t0);
 
   if (isMaintenanceMode()) {
@@ -160,17 +161,99 @@ export async function middleware(request: NextRequest) {
     return maintenanceResponse(request);
   }
 
+  /**
+   * Performance: Check for API proxy first to avoid any session lookups or page logic
+   * for proxied backend calls.
+   */
+  const backend = process.env.API_BACKEND_URL?.trim();
+  if (backend && pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
+    /**
+     * Implemented in Next (`app/api/leaderboard/route.ts` + `lib/queries`).
+     * Do not proxy — otherwise dev breaks when Express on `API_BACKEND_URL` is not
+     * running (middleware `fetch` throws → 500) and duplicates backend logic.
+     */
+    if (pathname === "/api/leaderboard") return NextResponse.next();
+
+    /**
+     * Reactions use NextAuth session cookies + `app/api/reactions/*` + Supabase.
+     * Express does not decode those cookies → proxied POSTs return 401.
+     */
+    if (pathname.startsWith("/api/reactions")) return NextResponse.next();
+
+    /**
+     * Communities + weekly chart PNGs are implemented only in Next (`app/api/communities/*`,
+     * `app/api/charts/*`, e.g. `@vercel/og` share-image). If proxied to Express, those paths
+     * 404 or mis-handle binary responses — works locally when `API_BACKEND_URL` is unset.
+     */
+    if (
+      pathname.startsWith("/api/communities/") ||
+      pathname.startsWith("/api/charts/")
+    ) {
+      return NextResponse.next();
+    }
+
+    const base = backend.replace(/\/$/, "");
+    const target = `${base}${pathname}${request.nextUrl.search}`;
+
+    const headers = new Headers();
+    request.headers.forEach((value, key) => {
+      const k = key.toLowerCase();
+      if (k === "host" || k === "connection") return;
+      headers.set(key, value);
+    });
+
+    let body: ArrayBuffer | undefined;
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      try {
+        body = await request.arrayBuffer();
+      } catch {
+        body = undefined;
+      }
+    }
+
+    const tFetch = performance.now();
+    try {
+      const res = await fetch(target, {
+        method: request.method,
+        headers,
+        body: body && body.byteLength > 0 ? body : undefined,
+      });
+
+      mwLog(`proxy_fetch(${Math.round(performance.now() - tFetch)}ms)`, t0);
+
+      const out = new NextResponse(res.body, { status: res.status });
+      res.headers.forEach((value, key) => {
+        const k = key.toLowerCase();
+        if (k === "transfer-encoding") return;
+        out.headers.set(key, value);
+      });
+      return out;
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      console.error("[middleware] API_BACKEND_URL proxy failed:", target, detail);
+      return NextResponse.json(
+        {
+          error: "API backend unavailable",
+          detail:
+            process.env.NODE_ENV === "development"
+              ? `${detail} (is Express running at ${base}?)`
+              : undefined,
+        },
+        { status: 503 },
+      );
+    }
+  }
+
   if (!isSocialInboxAndMusicRecUiEnabled()) {
-    const p = request.nextUrl.pathname;
-    if (p === "/social/inbox" || p.startsWith("/social/inbox/")) {
+    if (pathname === "/social/inbox" || pathname.startsWith("/social/inbox/")) {
       const dest = request.nextUrl.clone();
       dest.pathname = "/discover";
       dest.search = "";
       return NextResponse.redirect(dest);
     }
     if (
-      p === "/discover/recommended" ||
-      p.startsWith("/discover/recommended/")
+      pathname === "/discover/recommended" ||
+      pathname.startsWith("/discover/recommended/")
     ) {
       const dest = request.nextUrl.clone();
       dest.pathname = "/discover";
@@ -181,11 +264,23 @@ export async function middleware(request: NextRequest) {
 
   const secret = process.env.NEXTAUTH_SECRET;
   let token: Awaited<ReturnType<typeof getToken>> = null;
-  if (secret && !shouldSkipOnboardingGate(request.nextUrl.pathname)) {
-    const tJwt = performance.now();
-    token = await getToken({ req: request, secret });
-    mwLog(`getToken(${Math.round(performance.now() - tJwt)}ms)`, t0);
-  } else if (!secret && !shouldSkipOnboardingGate(request.nextUrl.pathname)) {
+  const skipGate = shouldSkipOnboardingGate(pathname);
+
+  if (secret && !skipGate) {
+    /**
+     * Performance: Only call getToken if there's actually a session cookie.
+     * Parsing JWT is expensive; if no cookie exists, token is null.
+     */
+    const hasSessionCookie = request.cookies.getAll().some(c =>
+      c.name.includes("next-auth.session-token")
+    );
+
+    if (hasSessionCookie) {
+      const tJwt = performance.now();
+      token = await getToken({ req: request, secret });
+      mwLog(`getToken(${Math.round(performance.now() - tJwt)}ms)`, t0);
+    }
+  } else if (!secret && !skipGate) {
     if (!warnedOnboardingMissingSecret) {
       warnedOnboardingMissingSecret = true;
       console.warn(
@@ -200,99 +295,14 @@ export async function middleware(request: NextRequest) {
       : null;
   if (onboardingRedirect) return onboardingRedirect;
 
-  const backend = process.env.API_BACKEND_URL?.trim();
-  if (!backend) {
-    mwLog("next (no API_BACKEND_URL)", t0);
-    return NextResponse.next();
-  }
-
-  const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/api/")) {
-    mwLog("next (not /api)", t0);
-    return NextResponse.next();
-  }
-  if (pathname.startsWith("/api/auth")) {
-    mwLog("next (/api/auth)", t0);
-    return NextResponse.next();
-  }
-
-  /**
-   * Implemented in Next (`app/api/leaderboard/route.ts` + `lib/queries`).
-   * Do not proxy — otherwise dev breaks when Express on `API_BACKEND_URL` is not
-   * running (middleware `fetch` throws → 500) and duplicates backend logic.
-   */
-  if (pathname === "/api/leaderboard") return NextResponse.next();
-
-  /**
-   * Reactions use NextAuth session cookies + `app/api/reactions/*` + Supabase.
-   * Express does not decode those cookies → proxied POSTs return 401.
-   */
-  if (pathname.startsWith("/api/reactions")) return NextResponse.next();
-
-  /**
-   * Communities + weekly chart PNGs are implemented only in Next (`app/api/communities/*`,
-   * `app/api/charts/*`, e.g. `@vercel/og` share-image). If proxied to Express, those paths
-   * 404 or mis-handle binary responses — works locally when `API_BACKEND_URL` is unset.
-   */
-  if (
-    pathname.startsWith("/api/communities/") ||
-    pathname.startsWith("/api/charts/")
-  ) {
-    return NextResponse.next();
-  }
-
-  const base = backend.replace(/\/$/, "");
-  const target = `${base}${pathname}${request.nextUrl.search}`;
-
-  const headers = new Headers();
-  request.headers.forEach((value, key) => {
-    const k = key.toLowerCase();
-    if (k === "host" || k === "connection") return;
-    headers.set(key, value);
-  });
-
-  let body: ArrayBuffer | undefined;
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    try {
-      body = await request.arrayBuffer();
-    } catch {
-      body = undefined;
-    }
-  }
-
-  const tFetch = performance.now();
-  try {
-    const res = await fetch(target, {
-      method: request.method,
-      headers,
-      body: body && body.byteLength > 0 ? body : undefined,
-    });
-
-    mwLog(`proxy_fetch(${Math.round(performance.now() - tFetch)}ms)`, t0);
-
-    const out = new NextResponse(res.body, { status: res.status });
-    res.headers.forEach((value, key) => {
-      const k = key.toLowerCase();
-      if (k === "transfer-encoding") return;
-      out.headers.set(key, value);
-    });
-    return out;
-  } catch (e) {
-    const detail = e instanceof Error ? e.message : String(e);
-    console.error("[middleware] API_BACKEND_URL proxy failed:", target, detail);
-    return NextResponse.json(
-      {
-        error: "API backend unavailable",
-        detail:
-          process.env.NODE_ENV === "development"
-            ? `${detail} (is Express running at ${base}?)`
-            : undefined,
-      },
-      { status: 503 },
-    );
-  }
+  mwLog("next", t0);
+  return NextResponse.next();
 }
 
+/**
+ * Filter middleware to only run on relevant paths.
+ * Excludes static assets and internal Next.js paths.
+ */
 export const config = {
   matcher: [
     "/",
