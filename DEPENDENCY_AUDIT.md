@@ -1,48 +1,47 @@
-# Project Dependency Audit Summary
+# Project Dependency Audit Summary (May 2026 Update)
 
 ## Audit Status
-- **Vulnerabilities Fixed:** 0 (Baseline was 0 vulnerabilities).
+- **Vulnerabilities Fixed:**
+  - Fixed **Next.js Denial of Service with Server Components** (GHSA-q4gf-8mx6-v5v3) by upgrading `next` from `16.2.2` to `16.2.4`.
+  - Fixed **basic-ftp CRLF Injection and DoS** (GHSA-6v7q-wjvx-w8wg, GHSA-chqc-8p9q-pq6q, GHSA-rp42-5vxx-qpwr) by upgrading `vercel` from `50.37.3` to `50.44.0` (which pulls a patched `basic-ftp` via `get-uri`).
+  - Fixed **Axios SSRF and Header Injection** (GHSA-3p68-rc4w-qgx5, GHSA-fvcv-3m26-pcqx) by upgrading `axios` from `1.14.0` to `1.15.2` in the mobile project.
+  - Fixed **follow-redirects Authentication Header Leak** (GHSA-r4q5-vmmm-2653) by updating dependencies in backend and mobile.
 - **Core Guidelines Followed:**
-  - Updated all dependencies to their "Wanted" versions as specified by semantic versioning in `package.json`.
-  - Avoided major version upgrades for core stability (Next.js, Express, React Native).
-  - Maintained Expo-specific versioning constraints (`~`) for `@types/react` and `@types/react-dom` in the mobile project.
+  - Updated all dependencies to their latest "Wanted" versions as specified by semantic versioning.
+  - Resolved TypeScript deprecation warnings in the backend project by updating `tsconfig.json`.
+  - Fixed regression in unit tests caused by duplicate mock properties.
 - **Verification:**
-  - Successfully ran `npm run build` for the root project.
-  - Successfully ran `npm run build` for the backend project.
-  - Successfully ran `npm run test:unit` (30/30 passed).
-  - Verified that mobile typecheck and lint issues are pre-existing and not regressions from the upgrades.
+  - `npm audit`: 0 vulnerabilities (Root, Backend, Mobile).
+  - `npm run build`: Success (Root, Backend).
+  - `npm run test:unit`: 54/54 passed (Root).
+  - `npm run typecheck`: Success (Root).
 
 ## Updated Dependencies
 
 ### Root Project
 | Package | Version Change |
 |---------|----------------|
-| `@tanstack/react-query` | `5.96.0` -> `5.96.2` |
-| `@tanstack/react-query-devtools` | `5.96.0` -> `5.96.2` |
-| `@types/node` | `25.5.0` -> `25.5.2` |
-| `bullmq` | `5.71.1` -> `5.73.0` |
-| `eslint-config-next` | `16.2.0` -> `16.2.2` |
-| `vercel` | `50.37.3` -> `50.39.0` |
+| `next` | `16.2.2` -> `16.2.4` |
+| `next-auth` | `4.24.13` -> `4.24.14` |
+| `vercel` | `50.37.3` -> `50.44.0` |
+| `@aws-sdk/*` | `3.1025.0` -> `3.1034.0` |
+| `@supabase/ssr` | `0.10.0` -> `0.10.2` |
+| `@supabase/supabase-js` | `2.101.1` -> `2.104.0` |
+| `@tanstack/react-query` | `5.96.0` -> `5.99.2` |
+| `bullmq` | `5.71.1` -> `5.75.2` |
 
 ### Backend Project
 | Package | Version Change |
 |---------|----------------|
-| `@types/node` | `22.10.7` -> `22.19.17` |
+| `@supabase/supabase-js` | `2.101.1` -> `2.104.0` |
+| `dotenv` | `17.4.1` -> `17.4.2` |
+| `next-auth` | `4.24.13` -> `4.24.14` |
 
 ### Mobile Project
 | Package | Version Change |
 |---------|----------------|
-| `@react-native-async-storage/async-storage` | `3.0.1` -> `3.0.2` |
-| `@tanstack/react-query` | `5.96.0` -> `5.96.2` |
-| `expo` | `55.0.9` -> `55.0.11` |
-| `expo-auth-session` | `55.0.9` -> `55.0.12` |
-| `expo-blur` | `55.0.10` -> `55.0.12` |
-| `expo-constants` | `55.0.9` -> `55.0.11` |
-| `expo-image` | `55.0.6` -> `55.0.8` |
-| `expo-linking` | `55.0.8` -> `55.0.11` |
-| `expo-notifications` | `55.0.13` -> `55.0.16` |
-| `expo-router` | `55.0.7` -> `55.0.10` |
-| `expo-status-bar` | `55.0.4` -> `55.0.5` |
-| `expo-web-browser` | `55.0.10` -> `55.0.12` |
-| `@types/react` | `~19.2.2` (unchanged) |
-| `@types/react-dom` | `~19.2.3` (unchanged) |
+| `axios` | `1.14.0` -> `1.15.2` |
+| `expo` | `55.0.9` -> `55.0.17` |
+| `@tanstack/react-query` | `5.96.0` -> `5.99.2` |
+| `@supabase/supabase-js` | `2.101.1` -> `2.104.0` |
+| `expo-*` (various) | Upgraded to latest 55.0.x versions |
