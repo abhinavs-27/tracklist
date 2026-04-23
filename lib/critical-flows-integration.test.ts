@@ -168,7 +168,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 5, review_text: 'Great!' }),
       });
 
-      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await reviewPOST(req, { params: Promise.resolve({}), user: { id: 'test-user-id' } });
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.id).toBe('r1');
@@ -180,7 +180,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 }),
         });
-        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await reviewPOST(req, { params: Promise.resolve({}), user: { id: 'test-user-id' } });
         expect(res.status).toBe(400);
     });
 
@@ -189,7 +189,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ entity_type: 'album' }),
         });
-        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await reviewPOST(req, { params: Promise.resolve({}), user: { id: 'test-user-id' } });
         expect(res.status).toBe(400);
     });
   });
@@ -208,7 +208,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
       });
 
-      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await logPOST(req, { params: Promise.resolve({}), user: { id: 'test-user-id' } });
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.id).toBe('l1');
@@ -219,7 +219,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ source: 'manual' }),
         });
-        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await logPOST(req, { params: Promise.resolve({}), user: { id: 'test-user-id' } });
         expect(res.status).toBe(400);
     });
 
@@ -231,7 +231,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
         });
-        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await logPOST(req, { params: Promise.resolve({}), user: { id: 'test-user-id' } });
         expect(res.status).toBe(503);
         const body = await res.json();
         expect(body.code).toBe('catalog_pending');
@@ -269,7 +269,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
   describe('GET /api/users/[username]', () => {
     it('should fetch a user profile', async () => {
       const req = new NextRequest('http://localhost/api/users/testuser');
-      const res = await userGET(req, { params: { username: 'testuser' } } as any);
+      const res = await userGET(req, { params: Promise.resolve({ username: 'testuser' }) });
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.username).toBe('testuser');
@@ -277,13 +277,13 @@ describe('Critical Flows: API Integration (Vitest)', () => {
 
     it('should return 404 for non-existent user', async () => {
         const req = new NextRequest('http://localhost/api/users/missing');
-        const res = await userGET(req, { params: { username: 'missing' } } as any);
+        const res = await userGET(req, { params: Promise.resolve({ username: 'missing' }) });
         expect(res.status).toBe(404);
     });
 
     it('should return 500 on database error', async () => {
         const req = new NextRequest('http://localhost/api/users/error');
-        const res = await userGET(req, { params: { username: 'error' } } as any);
+        const res = await userGET(req, { params: Promise.resolve({ username: 'error' }) });
         expect(res.status).toBe(500);
     });
   });
