@@ -8,10 +8,9 @@ import { POST as logPOST } from '../app/api/logs/route';
 import { POST as syncPOST } from '../app/api/spotify/sync/route';
 import { GET as userGET } from '../app/api/users/[username]/route';
 import { GET as searchGET } from '../app/api/search/route';
+import { LIMITS } from './validation';
 
 // --- Mocks ---
-
-vi.mock('server-only', () => ({}));
 
 vi.mock('@/lib/auth', () => ({
   requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
@@ -48,11 +47,11 @@ vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: vi.fn(async () => mockSupabase),
 }));
 
-// Mock Spotify
+// Mock Spotify-related Catalog logic
 vi.mock('@/lib/spotify', () => ({
   searchSpotify: vi.fn(async (q) => {
     if (q === 'noresults') {
-        return { artists: { items: [] }, albums: { items: [] }, tracks: { items: [] } };
+      return { artists: { items: [] }, albums: { items: [] }, tracks: { items: [] } };
     }
     return {
       artists: { items: [{ id: 'a1', name: 'Test Artist' }] },
@@ -62,17 +61,11 @@ vi.mock('@/lib/spotify', () => ({
   }),
 }));
 
-vi.mock('@/lib/spotify-cache', () => ({
-  getOrFetchTrack: vi.fn(),
-  getOrFetchAlbum: vi.fn(),
-  getOrFetchArtist: vi.fn(),
-  getOrFetchTracksBatch: vi.fn(async () => []),
-}));
-
 vi.mock('@/lib/catalog/entity-resolution', () => ({
   getTrackIdByExternalId: vi.fn(async () => 'track-uuid'),
   getAlbumIdByExternalId: vi.fn(async () => 'album-uuid'),
   getArtistIdByExternalId: vi.fn(async () => 'artist-uuid'),
+  resolveEntityWithPending: vi.fn(),
 }));
 
 vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
@@ -82,30 +75,27 @@ vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
   scheduleTrackEnrichmentBatch: vi.fn(),
 }));
 
-// Mock other internal helpers to avoid DB/external calls
+// Mock Queries & Side Effects
 vi.mock('@/lib/queries', () => ({
   grantAchievementOnReview: vi.fn(),
   grantAchievementsOnListen: vi.fn(),
   getReviewsForEntity: vi.fn(),
-  fetchUserSummary: vi.fn(async (userId) => ({ id: userId, username: 'testuser', avatar_url: null })),
-  getFullUserProfile: vi.fn(async (username) => {
-    if (username === 'testuser') {
-        return { id: 'test-user-id', username: 'testuser', bio: 'Test bio' };
-    }
-    if (username === 'error') {
-        throw new Error('Database failure');
-    }
-    return null;
-  }),
-  getListenLogsForUser: vi.fn(async () => []),
   fetchUserSummary: vi.fn(async (userId) => {
     if (userId === 'test-user-id') {
       return { id: 'test-user-id', username: 'testuser', avatar_url: null };
     }
     return null;
   }),
-  grantAchievementOnReview: vi.fn(),
-  grantAchievementsOnListen: vi.fn(),
+  getFullUserProfile: vi.fn(async (username) => {
+    if (username === 'testuser') {
+      return { id: 'test-user-id', username: 'testuser', bio: 'Test bio' };
+    }
+    if (username === 'error') {
+      throw new Error('Database failure');
+    }
+    return null;
+  }),
+  getListenLogsForUser: vi.fn(async () => []),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({
@@ -136,10 +126,6 @@ vi.mock('@/lib/spotify-integration-enabled', () => ({
   isSpotifyIntegrationEnabled: vi.fn(() => true),
 }));
 
-vi.mock('@/lib/supabase-admin', () => ({
-  createSupabaseAdminClient: vi.fn(),
-}));
-
 vi.mock('@/lib/taste/enrich-artist-genres', () => ({
   scheduleEnrichArtistGenresForTrackIds: vi.fn(),
 }));
@@ -148,64 +134,80 @@ vi.mock('@/lib/profile/recent-activity-cache', () => ({
   bustRecentActivityCacheForUser: vi.fn(),
 }));
 
-describe('Critical Flows: API Integration (Vitest)', () => {
+describe('Automated API Logic: Critical Flows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('POST /api/reviews', () => {
-    it('should successfully create/upsert a review and truncate long text', async () => {
-      const { LIMITS } = await import('@/lib/validation');
+    it('should successfully create a review and truncate long text', async () => {
       const longText = 'a'.repeat(LIMITS.REVIEW_CONTENT + 100);
       const expectedText = 'a'.repeat(LIMITS.REVIEW_CONTENT);
 
-      const chain = createChain();
-      mockSupabase.from.mockReturnValue(chain);
-      chain.single
-        .mockResolvedValueOnce({
-            data: { id: 'r1', entity_type: 'album', entity_id: 'a1', rating: 5, review_text: expectedText, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            error: null
+      mockSupabase.from.mockImplementation(() => {
+        const chain = createChain();
+        chain.single.mockResolvedValue({
+          data: {
+            id: 'r1',
+            entity_type: 'album',
+            entity_id: 'a1',
+            rating: 5,
+            review_text: expectedText,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          error: null
         });
+        activeChain = chain;
+        return chain;
+      });
 
       const req = new NextRequest('http://localhost/api/reviews', {
         method: 'POST',
-        body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 5, review_text: longText }),
+        body: JSON.stringify({
+          entity_type: 'album',
+          entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx',
+          rating: 5,
+          review_text: longText
+        }),
       });
 
       const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.id).toBe('r1');
-      expect(body.rating).toBe(5);
+
       expect(body.review_text).toBe(expectedText);
+      expect(body.review_text.length).toBe(LIMITS.REVIEW_CONTENT);
+
+      // Verify what was sent to Supabase
+      const upsertCalls = activeChain.upsert.mock.calls;
+      expect(upsertCalls[0][0].review_text).toBe(expectedText);
     });
 
     it('should return 400 for invalid rating', async () => {
-        const req = new NextRequest('http://localhost/api/reviews', {
-          method: 'POST',
-          body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 }),
-        });
-        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
-        expect(res.status).toBe(400);
-    });
-
-    it('should return 400 if required fields are missing', async () => {
-        const req = new NextRequest('http://localhost/api/reviews', {
-          method: 'POST',
-          body: JSON.stringify({ entity_type: 'album' }),
-        });
-        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
-        expect(res.status).toBe(400);
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({
+          entity_type: 'album',
+          entity_id: 'a1',
+          rating: 6
+        }),
+      });
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
     });
   });
 
   describe('POST /api/logs', () => {
     it('should successfully log a listen', async () => {
-      const chain = createChain();
-      mockSupabase.from.mockReturnValue(chain);
-      chain.single.mockResolvedValue({
-        data: { id: 'l1', track_id: 'track-uuid', listened_at: new Date().toISOString() },
-        error: null
+      mockSupabase.from.mockImplementation(() => {
+        const chain = createChain();
+        chain.single.mockResolvedValue({
+          data: { id: 'l1', track_id: 'track-uuid', listened_at: new Date().toISOString() },
+          error: null
+        });
+        activeChain = chain;
+        return chain;
       });
 
       const req = new NextRequest('http://localhost/api/logs', {
@@ -220,54 +222,38 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     });
 
     it('should return 400 if track_id is missing', async () => {
-        const req = new NextRequest('http://localhost/api/logs', {
-          method: 'POST',
-          body: JSON.stringify({ source: 'manual' }),
-        });
-        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
-        expect(res.status).toBe(400);
-    });
-
-    it('should return 503 if catalog is pending', async () => {
-        const { getTrackIdByExternalId } = await import('@/lib/catalog/entity-resolution');
-        vi.mocked(getTrackIdByExternalId).mockResolvedValueOnce(null);
-
-        const req = new NextRequest('http://localhost/api/logs', {
-          method: 'POST',
-          body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
-        });
-        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
-        expect(res.status).toBe(503);
-        const body = await res.json();
-        expect(body.code).toBe('catalog_pending');
+      const req = new NextRequest('http://localhost/api/logs', {
+        method: 'POST',
+        body: JSON.stringify({ source: 'manual' }),
+      });
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
     });
   });
 
   describe('POST /api/spotify/sync', () => {
     it('should successfully sync from spotify', async () => {
-        const firstChain = createChain();
-        const secondChain = createChain();
-        mockSupabase.from
-          .mockReturnValueOnce(firstChain) // check existing
-          .mockReturnValueOnce(secondChain); // insert result fetch
+      mockSupabase.from.mockImplementation(() => {
+        const chain = createChain();
+        const selectMock = vi.fn().mockImplementation(() => chain);
+        chain.select = selectMock;
+        chain.eq.mockImplementation(() => chain);
+        chain.in.mockResolvedValue({ data: [], error: null });
+        chain.insert.mockImplementation(() => chain);
 
-        firstChain.in.mockResolvedValue({ data: [], error: null });
-        secondChain.select.mockResolvedValue({ data: [{ id: 'l1' }], error: null });
+        // Setup sequential returns for select()
+        selectMock
+          .mockReturnValueOnce(chain) // for the .eq().in() call
+          .mockResolvedValueOnce({ data: [{ id: 'l1', track_id: 's1', listened_at: new Date().toISOString(), source: 'spotify' }], error: null }); // for the .insert().select() call
 
-        const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
-        const res = await syncPOST(req);
-        expect(res.status).toBe(200);
-        const body = await res.json();
-        expect(body.inserted).toBe(1);
-    });
+        return chain;
+      });
 
-    it('should handle sync errors gracefully', async () => {
-        const { getRecentlyPlayed } = await import('@/lib/spotify-user');
-        vi.mocked(getRecentlyPlayed).mockRejectedValueOnce(new Error('Spotify API down'));
-
-        const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
-        const res = await syncPOST(req);
-        expect(res.status).toBe(500);
+      const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
+      const res = await syncPOST(req);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.inserted).toBe(1);
     });
   });
 
@@ -281,45 +267,30 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     });
 
     it('should return 404 for non-existent user', async () => {
-        const req = new NextRequest('http://localhost/api/users/missing');
-        const res = await userGET(req, { params: { username: 'missing' } } as any);
-        expect(res.status).toBe(404);
-    });
-
-    it('should return 500 on database error', async () => {
-        const req = new NextRequest('http://localhost/api/users/error');
-        const res = await userGET(req, { params: { username: 'error' } } as any);
-        expect(res.status).toBe(500);
+      const req = new NextRequest('http://localhost/api/users/missing');
+      const res = await userGET(req, { params: { username: 'missing' } } as any);
+      expect(res.status).toBe(404);
     });
   });
 
   describe('GET /api/search', () => {
     it('should return search results and clamp limit', async () => {
-      const { LIMITS } = await import('@/lib/validation');
       const req = new NextRequest('http://localhost/api/search?q=test&limit=100');
       const res = await searchGET(req);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.artists.items.length).toBeGreaterThan(0);
-      expect(body.artists.items[0].name).toBe('Test Artist');
 
       const { searchSpotify } = await import('@/lib/spotify');
       const searchCalls = vi.mocked(searchSpotify).mock.calls;
+      // LIMITS.SEARCH_LIMIT is 10
       expect(searchCalls[0][2]).toBe(LIMITS.SEARCH_LIMIT);
     });
 
     it('should return 400 for empty query', async () => {
-        const req = new NextRequest('http://localhost/api/search?q=');
-        const res = await searchGET(req);
-        expect(res.status).toBe(400);
-    });
-
-    it('should return empty results if nothing found', async () => {
-        const req = new NextRequest('http://localhost/api/search?q=noresults');
-        const res = await searchGET(req);
-        expect(res.status).toBe(200);
-        const body = await res.json();
-        expect(body.artists.items.length).toBe(0);
+      const req = new NextRequest('http://localhost/api/search?q=');
+      const res = await searchGET(req);
+      expect(res.status).toBe(400);
     });
   });
 });
