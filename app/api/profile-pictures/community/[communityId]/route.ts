@@ -6,6 +6,7 @@ import {
 } from "@/lib/profile-pictures/config";
 import { presignProfilePictureGet } from "@/lib/profile-pictures/presign";
 import { isValidUuid } from "@/lib/validation";
+import { apiBadGateway, apiNotFound, apiServiceUnavailable } from "@/lib/api-response";
 
 export async function GET(
   _request: Request,
@@ -13,11 +14,11 @@ export async function GET(
 ) {
   const { communityId } = await segment.params;
   if (!communityId?.trim() || !isValidUuid(communityId)) {
-    return new NextResponse("Not found", { status: 404 });
+    return apiNotFound("Invalid community ID");
   }
 
   if (!isProfilePictureUploadConfigured()) {
-    return new NextResponse("Not configured", { status: 503 });
+    return apiServiceUnavailable("Profile picture upload not configured");
   }
 
   const key = profilePictureObjectKey("community", communityId);
@@ -38,6 +39,6 @@ export async function GET(
     return res;
   } catch (e) {
     console.error("[profile-pictures] presign GetObject failed", e);
-    return new NextResponse("Bad gateway", { status: 502 });
+    return apiBadGateway("Failed to generate presigned URL");
   }
 }
