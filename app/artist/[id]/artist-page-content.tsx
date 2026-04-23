@@ -15,8 +15,9 @@ import {
   getReviewsForArtist,
   getPopularAlbumsForArtist,
 } from "@/lib/queries";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { formatStarDisplay } from "@/lib/ratings";
-import { isValidSpotifyId, isValidUuid, normalizeReviewEntityId } from "@/lib/validation";
+import { normalizeReviewEntityId } from "@/lib/validation";
 import { ArtistPopularTracks } from "@/app/artist/[id]/artist-popular-tracks";
 import { RecentListensSection } from "./recent-listens-section";
 
@@ -32,7 +33,6 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
     console.log("[artist-page-load] shell", {
       id,
       path: `/artist/${id}`,
-      t0: Date.now(),
     });
   }
 
@@ -70,29 +70,33 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const entityId = artistFetched.canonicalArtistId ?? id;
   const artist = artistFetched.artist;
 
-  const topTracks = await withArtistPagePhaseLog(
-    "getTopTracksForArtist",
-    id,
-    getTopTracksForArtist(entityId, 10),
-    (rows) => ({ trackCount: rows.length }),
-  );
-
-  const recentReviews = await withArtistPagePhaseLog(
-    "getReviewsForArtist",
-    id,
-    getReviewsForArtist(entityId, 8),
-    (rows) => ({ reviewCount: rows.length }),
-  );
-
-  const popularAlbumsResult = await withArtistPagePhaseLog(
-    "getPopularAlbumsForArtist",
-    id,
-    getPopularAlbumsForArtist(entityId, 8),
-    (r) => ({
-      albumRows: r.rows.length,
-      hasMoreAlbums: r.hasMoreAlbums,
-    }),
-  );
+  /**
+   * Parallel server Supabase work: sharing a single client avoids `cookies()` deadlock.
+   */
+  const supabase = await createSupabaseServerClient();
+  const [topTracks, recentReviews, popularAlbumsResult] = await Promise.all([
+    withArtistPagePhaseLog(
+      "getTopTracksForArtist",
+      id,
+      getTopTracksForArtist(entityId, 10, supabase),
+      (rows) => ({ trackCount: rows.length }),
+    ),
+    withArtistPagePhaseLog(
+      "getReviewsForArtist",
+      id,
+      getReviewsForArtist(entityId, 8, 0, supabase),
+      (rows) => ({ reviewCount: rows.length }),
+    ),
+    withArtistPagePhaseLog(
+      "getPopularAlbumsForArtist",
+      id,
+      getPopularAlbumsForArtist(entityId, 8, supabase),
+      (r) => ({
+        albumRows: r.rows.length,
+        hasMoreAlbums: r.hasMoreAlbums,
+      }),
+    ),
+  ]);
 
   const popularAlbums = popularAlbumsResult.rows;
   /** More albums exist in the catalog than the overview grid; full list on /albums. */
