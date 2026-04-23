@@ -17,10 +17,11 @@ export async function getRelatedMedia(
   contentType: "song" | "album",
   contentId: string,
   limit = 20,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<RelatedMediaItem[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabaseClient = supabase ?? (await createSupabaseServerClient());
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("media_cooccurrence")
     .select("related_content_id, score")
     .eq("content_type", contentType)
