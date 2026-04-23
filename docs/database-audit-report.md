@@ -76,6 +76,11 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `list_items` | `(entity_type, entity_id)` | `144` | Optimized for finding lists containing a specific item. |
+| `reviews` | `(user_id, entity_type, created_at DESC)` | `144` | Optimized for profile filtering of reviews by type. |
+| `logs` | `(user_id, track_id, listened_at DESC)` | `144` | Optimized for "your history with this track". |
+| `reviews` | `(entity_type, entity_id, user_id)` | `144` | Optimized for album favorited by users RPC. |
+| `user_achievements` | `(user_id, earned_at DESC)` | `144` | Optimized for user achievement lookups ordered by time. |
 
 ## Recommendations for Future Queries
 

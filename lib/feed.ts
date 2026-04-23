@@ -183,7 +183,7 @@ export async function enrichListenSessionsWithAlbums(
       ? await supabase
           .from("artists")
           .select("id, name")
-          .in("id", [...artistIds])
+          .in("id", [...artistIds].slice(0, 500))
       : { data: [] as DbArtist[] };
 
   const artistNameById = new Map(

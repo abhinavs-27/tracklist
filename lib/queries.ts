@@ -1733,12 +1733,12 @@ export async function getReviewsForArtist(
         .from("albums")
         .select("id")
         .eq("artist_id", canonicalArtistId)
-        .limit(1000),
+        .limit(250),
       supabase
         .from("tracks")
         .select("id")
         .eq("artist_id", canonicalArtistId)
-        .limit(1000),
+        .limit(250),
     ]);
 
     const entityIds = [
@@ -1814,7 +1814,7 @@ export async function getTopTracksForArtist(
       .from("tracks")
       .select("id, name, album_id, duration_ms")
       .eq("artist_id", canonicalArtistId)
-      .limit(1000);
+      .limit(500);
     if (!songRowsRaw?.length) return [];
 
     const songRows = songRowsRaw.map((s: any) => ({
@@ -1913,7 +1913,7 @@ export async function getListenLogsForArtist(
       .from("tracks")
       .select("id")
       .eq("artist_id", canonicalArtistId)
-      .limit(1000);
+      .limit(500);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
@@ -1965,7 +1965,7 @@ export async function getListenLogsForAlbum(
       .from("tracks")
       .select("id")
       .eq("album_id", canonicalAlbumId)
-      .limit(1000);
+      .limit(500);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
@@ -2393,7 +2393,7 @@ export async function getFriendsAlbumActivity(
       .from("tracks")
       .select("id")
       .eq("album_id", canonicalAlbumId)
-      .limit(1000);
+      .limit(500);
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) {
       albumPagePhaseEnd("getFriendsAlbumActivity", albumId, t0, { reason: "no_tracks" });
@@ -2504,7 +2504,7 @@ export async function getAlbumListeners(
       .from("tracks")
       .select("id")
       .eq("album_id", albumId)
-      .limit(1000);
+      .limit(500);
 
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
