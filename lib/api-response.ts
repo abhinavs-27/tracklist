@@ -21,10 +21,12 @@ export function apiOk<T>(
 export function apiError(
   message: string,
   status: number,
-  options?: { code?: string }
+  options?: { code?: string } & Record<string, unknown>
 ): NextResponse {
-  const body: { error: string; code?: string } = { error: message };
-  if (options?.code) body.code = options.code;
+  const { code, ...extra } = options ?? {};
+  const body: Record<string, unknown> = { error: message };
+  if (code) body.code = code;
+  Object.assign(body, extra);
   return NextResponse.json(body, { status });
 }
 
@@ -54,6 +56,21 @@ export function apiConflict(message: string): NextResponse {
 
 export function apiTooManyRequests(message = 'Too many requests'): NextResponse {
   return apiError(message, 429);
+}
+
+export function apiServiceUnavailable(
+  message = 'Service unavailable',
+  options?: { code?: string } & Record<string, unknown>
+): NextResponse {
+  return apiError(message, 503, options);
+}
+
+export function apiBadGateway(message = 'Bad gateway'): NextResponse {
+  return apiError(message, 502);
+}
+
+export function apiGatewayTimeout(message = 'Gateway timeout'): NextResponse {
+  return apiError(message, 504);
 }
 
 /**
