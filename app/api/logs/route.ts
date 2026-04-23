@@ -1,5 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
@@ -8,6 +7,7 @@ import {
   apiBadRequest,
   apiInternalError,
   apiOk,
+  apiServiceUnavailable,
 } from '@/lib/api-response';
 import { parseBody, getPaginationParams } from '@/lib/api-utils';
 import { LogCreateBody } from '@/types';
@@ -108,48 +108,42 @@ export const POST = withHandler(
       return apiBadRequest('Invalid or unknown track_id / spotify_id');
     }
     if (trackIdRes.kind === 'pending') {
-      return NextResponse.json(
+      return apiServiceUnavailable(
+        'Catalog is syncing this track from Spotify. Retry in a few seconds.',
         {
-          error:
-            'Catalog is syncing this track from Spotify. Retry in a few seconds.',
           code: 'catalog_pending',
           metadata_complete: false,
           spotify_id: trackIdRes.spotifyId,
           entity: trackIdRes.entity,
-        },
-        { status: 503 },
+        }
       );
     }
     const trackId = trackIdRes.id;
 
     const albumRes = await resolveLogEntityId(supabase, b.album_id, 'album');
     if (albumRes?.kind === 'pending') {
-      return NextResponse.json(
+      return apiServiceUnavailable(
+        'Catalog is syncing this album from Spotify. Retry in a few seconds.',
         {
-          error:
-            'Catalog is syncing this album from Spotify. Retry in a few seconds.',
           code: 'catalog_pending',
           metadata_complete: false,
           spotify_id: albumRes.spotifyId,
           entity: albumRes.entity,
-        },
-        { status: 503 },
+        }
       );
     }
     const albumId = albumRes?.kind === 'resolved' ? albumRes.id : null;
 
     const artistRes = await resolveLogEntityId(supabase, b.artist_id, 'artist');
     if (artistRes?.kind === 'pending') {
-      return NextResponse.json(
+      return apiServiceUnavailable(
+        'Catalog is syncing this artist from Spotify. Retry in a few seconds.',
         {
-          error:
-            'Catalog is syncing this artist from Spotify. Retry in a few seconds.',
           code: 'catalog_pending',
           metadata_complete: false,
           spotify_id: artistRes.spotifyId,
           entity: artistRes.entity,
-        },
-        { status: 503 },
+        }
       );
     }
     const artistId = artistRes?.kind === 'resolved' ? artistRes.id : null;
