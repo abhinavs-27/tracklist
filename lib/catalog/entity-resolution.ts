@@ -1,7 +1,16 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import {
+  isValidLfmCatalogId,
+  isValidSpotifyId,
+  isValidUuid,
+} from "@/lib/validation";
+import {
+  scheduleAlbumEnrichment,
+  scheduleArtistEnrichment,
+  scheduleTrackEnrichment,
+} from "@/lib/catalog/non-blocking-enrichment";
 
 export type MusicExternalSource = "spotify" | "lastfm";
 
@@ -227,4 +236,46 @@ export async function linkTrackExternalId(
   if (error && error.code !== "23505") {
     throw new Error(`linkTrackExternalId: ${error.message}`);
   }
+}
+
+export type ResolveLogEntityOutcome =
+  | { kind: "resolved"; id: string }
+  | { kind: "pending"; spotifyId: string; entity: "track" | "album" | "artist" };
+
+/**
+ * Resolves a catalog entity ID from a raw ID (UUID or Spotify ID).
+ * If it's a Spotify ID and not yet in the catalog, it schedules enrichment and returns 'pending'.
+ */
+export async function resolveLogEntityId(
+  supabase: SupabaseClient,
+  raw: string | null | undefined,
+  kind: "track" | "album" | "artist",
+): Promise<ResolveLogEntityOutcome | null> {
+  if (raw == null) return null;
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!s) return null;
+  if (isValidUuid(s)) return { kind: "resolved", id: s };
+  if (!isValidSpotifyId(s)) return null;
+  if (kind === "track") {
+    const u = await getTrackIdByExternalId(supabase, "spotify", s);
+    if (!u) {
+      scheduleTrackEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "track" };
+    }
+    return { kind: "resolved", id: u };
+  }
+  if (kind === "album") {
+    const u = await getAlbumIdByExternalId(supabase, "spotify", s);
+    if (!u) {
+      scheduleAlbumEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "album" };
+    }
+    return { kind: "resolved", id: u };
+  }
+  const u = await getArtistIdByExternalId(supabase, "spotify", s);
+  if (!u) {
+    scheduleArtistEnrichment(s);
+    return { kind: "pending", spotifyId: s, entity: "artist" };
+  }
+  return { kind: "resolved", id: u };
 }
