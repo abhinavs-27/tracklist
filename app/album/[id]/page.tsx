@@ -6,6 +6,7 @@ import { AlbumRecommendationsLoader } from "@/app/album/[id]/album-recommendatio
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
 import { getAlbumEngagementStats, getEntityStats, getFriendsAlbumActivity } from "@/lib/queries";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { timeAsync } from "@/lib/profiling";
 import { scheduleAlbumCatalogWarmupAfterNavigation } from "@/lib/catalog/album-warmup";
 import { getOrCreateEntity, withTimeout } from "@/lib/catalog/getOrCreateEntity";
@@ -88,23 +89,27 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
       const entityIdInner = fetched!.canonicalAlbumId ?? id;
 
       /**
-       * Sequential Supabase server work: parallel `createSupabaseServerClient()` (each awaits
-       * `cookies()`) has deadlocked RSC — same pattern as `artist-page-content.tsx`.
+       * Data fetching: parallelize stats, engagement and friend activity fetching
+       * using a shared Supabase client to eliminate waterfalls and avoid RSC deadlocks.
        */
       const viewerId = sessionVal?.user?.id ?? null;
-      const statsInner = await withAlbumPagePhaseLog(
-        "getEntityStats(album)",
-        id,
-        getEntityStats("album", entityIdInner),
-      );
-      const engagementInner = await withAlbumPagePhaseLog(
-        "getAlbumEngagementStats",
-        id,
-        getAlbumEngagementStats(entityIdInner),
-      );
-      const friendActivityInner = viewerId
-        ? await getFriendsAlbumActivity(viewerId, entityIdInner, 10)
-        : [];
+      const supabase = await createSupabaseServerClient();
+
+      const [statsInner, engagementInner, friendActivityInner] = await Promise.all([
+        withAlbumPagePhaseLog(
+          "getEntityStats(album)",
+          id,
+          getEntityStats("album", entityIdInner, supabase),
+        ),
+        withAlbumPagePhaseLog(
+          "getAlbumEngagementStats",
+          id,
+          getAlbumEngagementStats(entityIdInner, supabase),
+        ),
+        viewerId
+          ? getFriendsAlbumActivity(viewerId, entityIdInner, 10, supabase)
+          : Promise.resolve([] as Awaited<ReturnType<typeof getFriendsAlbumActivity>>),
+      ]);
 
       return {
         album: albumInner,
