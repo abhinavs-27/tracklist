@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
+import { withHandler } from "@/lib/api-handler";
 import {
   apiBadRequest,
-  apiInternalError,
   apiOk,
 } from "@/lib/api-response";
 import {
@@ -18,14 +18,11 @@ import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isValidSpotifyId } from "@/lib/validation";
 
-type RouteParams = Promise<{ id: string }>;
+type RouteParams = { id: string };
 
-export async function GET(
-  _request: NextRequest,
-  ctx: { params: RouteParams },
-) {
-  try {
-    const { id } = await ctx.params;
+export const GET = withHandler<RouteParams>(
+  async (_request: NextRequest, { params }) => {
+    const { id } = params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify artist id");
 
     const supabase = await createSupabaseServerClient();
@@ -108,7 +105,5 @@ export async function GET(
         review_count: 0,
       },
     });
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  },
+);

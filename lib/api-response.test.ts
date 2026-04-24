@@ -5,6 +5,9 @@ import {
   apiUnauthorized,
   apiNotFound,
   apiBadRequest,
+  apiServiceUnavailable,
+  apiBadGateway,
+  apiGatewayTimeout,
   apiInternalError,
 } from './api-response';
 
@@ -39,6 +42,23 @@ describe('api-response helpers', () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.error).toBe('Bad Input');
+  });
+
+  it('apiServiceUnavailable returns 503 and includes options', async () => {
+    const response = apiServiceUnavailable('Syncing', { code: 'pending', retry_after: 30 });
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Syncing', code: 'pending', retry_after: 30 });
+  });
+
+  it('apiBadGateway returns 502', async () => {
+    const response = apiBadGateway();
+    expect(response.status).toBe(502);
+  });
+
+  it('apiGatewayTimeout returns 504', async () => {
+    const response = apiGatewayTimeout();
+    expect(response.status).toBe(504);
   });
 
   it('apiInternalError returns 500 and suppresses real error', async () => {

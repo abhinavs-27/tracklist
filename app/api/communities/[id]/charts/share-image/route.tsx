@@ -1,10 +1,9 @@
 import { NextRequest } from "next/server";
 
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import {
   apiBadRequest,
   apiForbidden,
-  apiInternalError,
   apiNotFound,
 } from "@/lib/api-response";
 import { generateChartShareImageResponse } from "@/lib/charts/generate-chart-share-image";
@@ -52,23 +51,21 @@ const COMMUNITY_SHARE_SUBTITLE: Record<ChartType, string> = {
 
 export const maxDuration = 60;
 
+type RouteParams = { id: string };
+
 /**
  * GET /api/communities/[id]/charts/share-image?type=…&weekStart=…
  * Members only. Title uses community name (same PNG layout as personal billboard).
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
-  try {
-    const user = await requireApiAuth(request);
-    const { id: rawId } = await context.params;
+export const GET = withHandler<RouteParams>(
+  async (request: NextRequest, { params, user }) => {
+    const { id: rawId } = params;
     const communityId = rawId?.trim() ?? "";
     if (!communityId || !isValidUuid(communityId)) {
       return apiBadRequest("Invalid community id");
     }
 
-    const member = await isCommunityMember(communityId, user.id);
+    const member = await isCommunityMember(communityId, user!.id);
     if (!member) {
       return apiForbidden("Join this community to export this chart");
     }
@@ -89,7 +86,7 @@ export async function GET(
       communityId,
       chartType,
       weekStart,
-      viewerId: user.id,
+      viewerId: user!.id,
     });
     if (!data) {
       return apiNotFound("No chart for this week.");
@@ -120,9 +117,6 @@ export async function GET(
       numberOneImageUrl,
       usernameDisplay: null,
     });
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);

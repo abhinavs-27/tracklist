@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { apiBadRequest, apiInternalError, apiOk, apiTooManyRequests } from "@/lib/api-response";
+import { apiBadRequest, apiOk, apiTooManyRequests } from "@/lib/api-response";
 import {
   scheduleTrackEnrichment,
   trackDisplayMetadataComplete,
@@ -7,21 +7,17 @@ import {
 import { getOrFetchTrack } from "@/lib/spotify-cache";
 import { checkSpotifyRateLimit } from "@/lib/rate-limit";
 import { isValidSpotifyId } from "@/lib/validation";
+import { withHandler } from "@/lib/api-handler";
 
-type RouteParams = Promise<{ id: string }>;
+type RouteParams = { id: string };
 
-export async function GET(
-  request: NextRequest,
-  ctx: {
-    params: RouteParams;
-  },
-) {
-  if (!checkSpotifyRateLimit(request)) {
-    return apiTooManyRequests();
-  }
+export const GET = withHandler<RouteParams>(
+  async (request: NextRequest, { params }) => {
+    if (!checkSpotifyRateLimit(request)) {
+      return apiTooManyRequests();
+    }
 
-  try {
-    const { id } = await ctx.params;
+    const { id } = params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify id");
 
     const { track } = await getOrFetchTrack(id, { allowNetwork: false });
@@ -47,8 +43,6 @@ export async function GET(
       album_name: album?.name ?? null,
       album_id: album?.id ?? null,
     });
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  },
+);
 

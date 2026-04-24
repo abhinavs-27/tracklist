@@ -1,17 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getAlbum } from '@/lib/spotify';
-import { apiBadRequest, apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
+import { apiBadRequest, apiOk, apiTooManyRequests } from '@/lib/api-response';
 import { isValidSpotifyId } from '@/lib/validation';
 import { checkSpotifyRateLimit } from '@/lib/rate-limit';
+import { withHandler } from '@/lib/api-handler';
 
-type RouteParams = Promise<{ id: string }>;
+type RouteParams = { id: string };
 
-export async function GET(request: NextRequest, ctx: { params: RouteParams }) {
-  if (!checkSpotifyRateLimit(request)) {
-    return apiTooManyRequests();
-  }
-  try {
-    const { id } = await ctx.params;
+export const GET = withHandler<RouteParams>(
+  async (request: NextRequest, { params }) => {
+    if (!checkSpotifyRateLimit(request)) {
+      return apiTooManyRequests();
+    }
+    const { id } = params;
     if (!isValidSpotifyId(id)) return apiBadRequest('Invalid spotify id');
 
     const album = await getAlbum(id);
@@ -29,8 +30,6 @@ export async function GET(request: NextRequest, ctx: { params: RouteParams }) {
         'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400',
       },
     });
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  },
+);
 
