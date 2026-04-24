@@ -76,6 +76,32 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `reviews` | `(entity_type, entity_id, user_id, created_at DESC)` | `145` | Optimized for entity review lookups with user context. |
+| `feed_events` | `(user_id, type, created_at DESC)` | `145` | Optimized for user story filtering in feed. |
+| `users` | `(id) WHERE logs_private = true` | `145` | Optimized for private log status checks. |
+| `list_items` | `(list_id, entity_type, entity_id, position)` | `145` | Optimized for list item preview retrieval. |
+
+# Database Audit Report - April 2025
+
+This section summarizes the database query audit and subsequent optimizations performed in April 2025.
+
+## Overview
+
+The audit revisited core queries in `lib/queries.ts` and `backend/services/` to further eliminate redundant data fetching and optimize query performance.
+
+## April 2025 Optimizations
+
+### 1. Advanced Join for User Metadata
+`getReviewsForUser` in `lib/queries.ts` was refactored to use a single query with a join to the `users` table, eliminating the previous sequential lookup.
+
+### 2. Tightened Aggregation Limits
+`getEntityStatsLive` now enforces a strict `MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN` (600) directly in the database query to prevent stalls when aggregating large albums.
+
+### 3. Explicit Payload Mapping
+The Express backend's `activityFeedService.ts` was updated to explicitly map user metadata fields, ensuring consistent and minimal data transfer for mobile clients.
+
+### 4. New Composite Indexes (Migration 145)
+New indexes were added to support complex filtering in activity feeds and list management.
 
 ## Recommendations for Future Queries
 

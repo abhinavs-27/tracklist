@@ -171,21 +171,26 @@ async function getActivityFeedFallback(
         review_text: string | null;
         created_at: string;
         updated_at: string;
-      }) => ({
-        type: "review" as const,
-        created_at: r.created_at,
-        review: {
-          id: r.id,
-          user_id: r.user_id,
-          entity_type: r.entity_type as "album" | "song",
-          entity_id: r.entity_id,
-          rating: r.rating,
-          review_text: r.review_text ?? null,
+      }) => {
+        const u = userMap.get(r.user_id);
+        return {
+          type: "review" as const,
           created_at: r.created_at,
-          updated_at: r.updated_at,
-          user: userMap.get(r.user_id) ?? null,
-        },
-      }),
+          review: {
+            id: r.id,
+            user_id: r.user_id,
+            entity_type: r.entity_type as "album" | "song",
+            entity_id: r.entity_id,
+            rating: r.rating,
+            review_text: r.review_text ?? null,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+            user: u
+              ? { id: u.id, username: u.username, avatar_url: u.avatar_url }
+              : null,
+          },
+        };
+      },
     );
 
     const followActivities: FeedActivity[] = followRows.map((f) => ({

@@ -156,8 +156,8 @@ async function getListenLogsInternal(opts: {
     const from = opts.offset ?? 0;
     const to = from + opts.limit - 1;
 
-    const selectFields = ["id", "listened_at", "source", "created_at"];
-    // user_id and track_id are omitted if already filtered by equality to reduce payload size.
+    const selectFields = ["id", "listened_at"];
+    // user_id, track_id, source, created_at are omitted if not needed or already filtered by equality to reduce payload size.
     if (!opts.userId) selectFields.push("user_id");
     if (!opts.spotifyTrackId) selectFields.push("track_id");
 
@@ -194,14 +194,7 @@ async function getListenLogsInternal(opts: {
       ...l,
       user_id: opts.userId ?? l.user_id,
       track_id: resolvedTrackFilter ?? l.track_id,
-    })) as {
-      id: string;
-      user_id: string;
-      track_id: string;
-      listened_at: string;
-      source: string | null;
-      created_at: string;
-    }[];
+    })) as ListenLogWithUser[];
 
     if (opts.spotifyTrackId && logs.length) {
       const uidList = [...new Set(logs.map((l) => l.user_id))];
@@ -431,7 +424,7 @@ export async function getReviewsForUser(
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, entity_type, entity_id, rating, review_text, created_at, updated_at, users(id, username, avatar_url)",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -439,14 +432,7 @@ export async function getReviewsForUser(
 
     if (error || !rows?.length) return [];
 
-    const { data: users } = await supabase
-      .from("users")
-      .select("username, avatar_url")
-      .eq("id", userId);
-
-    const user = users?.[0] ? { id: userId, ...users[0] } : null;
-
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       user_id: userId,
       entity_type: r.entity_type as "album" | "song",
@@ -455,7 +441,13 @@ export async function getReviewsForUser(
       review_text: r.review_text ?? null,
       created_at: r.created_at,
       updated_at: r.updated_at,
-      user,
+      user: r.users
+        ? {
+            id: r.users.id,
+            username: r.users.username,
+            avatar_url: r.users.avatar_url ?? null,
+          }
+        : null,
     }));
   } catch (e) {
     console.error("[queries] getReviewsForUser failed:", e);
@@ -540,31 +532,20 @@ async function getEntityStatsLive(
       listen_count = count ?? 0;
     }
   } else {
+    /**
+     * `album_stats` miss: summing per-track log counts via chunked RPCs can take minutes on
+     * huge albums and blocks `/album/[id]`. Cap work for the live path; cron refresh_entity_stats
+     * still fills `album_stats` for accurate totals.
+     */
+    const MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN = 600;
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
       .eq("album_id", canonicalEntityId)
-      .limit(2000);
+      .limit(MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
-      /**
-       * `album_stats` miss: summing per-track log counts via chunked RPCs can take minutes on
-       * huge albums and blocks `/album/[id]`. Cap work for the live path; cron refresh_entity_stats
-       * still fills `album_stats` for accurate totals.
-       */
-      const MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN = 600;
-      if (ids.length > MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN) {
-        console.warn(
-          "[queries] getEntityStatsLive album: capping listen aggregation",
-          {
-            albumId: canonicalEntityId,
-            trackCount: ids.length,
-            cap: MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN,
-          },
-        );
-      }
-      const capped = ids.slice(0, MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN);
-      const playMap = await countLogsByTrackIds(supabase, capped);
+      const playMap = await countLogsByTrackIds(supabase, ids);
       listen_count = Array.from(playMap.values()).reduce((a, b) => a + b, 0);
     }
   }
