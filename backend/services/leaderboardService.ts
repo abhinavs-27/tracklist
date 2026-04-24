@@ -328,6 +328,7 @@ export async function getLeaderboard(
       const acc: string[] = [];
       let rangeFrom = 0;
       const pageSize = 1000;
+      let failed = false;
       for (;;) {
         const { data: albums, error } = await supabase
           .from("albums")
@@ -335,35 +336,43 @@ export async function getLeaderboard(
           .gte("release_date", `${from}-01-01`)
           .lte("release_date", `${to}-12-31`)
           .range(rangeFrom, rangeFrom + pageSize - 1);
-        if (error) break;
+        if (error) {
+          failed = true;
+          break;
+        }
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
         if (rows.length < pageSize) break;
         rangeFrom += pageSize;
       }
-      albumIds = acc;
+      albumIds = failed ? [] : acc;
     } else if (year != null) {
       const acc: string[] = [];
       let rangeFrom = 0;
       const pageSize = 1000;
+      let failed = false;
       for (;;) {
         const { data: albums, error } = await supabase
           .from("albums")
           .select("id")
           .like("release_date", `${year}%`)
           .range(rangeFrom, rangeFrom + pageSize - 1);
-        if (error) break;
+        if (error) {
+          failed = true;
+          break;
+        }
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
         if (rows.length < pageSize) break;
         rangeFrom += pageSize;
       }
-      albumIds = acc;
+      albumIds = failed ? [] : acc;
     } else if (decade != null) {
       const yearNum = decade + 10;
       const acc: string[] = [];
       let rangeFrom = 0;
       const pageSize = 1000;
+      let failed = false;
       for (;;) {
         const { data: albums, error } = await supabase
           .from("albums")
@@ -371,13 +380,16 @@ export async function getLeaderboard(
           .gte("release_date", `${decade}-01-01`)
           .lt("release_date", `${yearNum}-01-01`)
           .range(rangeFrom, rangeFrom + pageSize - 1);
-        if (error) break;
+        if (error) {
+          failed = true;
+          break;
+        }
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
         if (rows.length < pageSize) break;
         rangeFrom += pageSize;
       }
-      albumIds = acc;
+      albumIds = failed ? [] : acc;
     }
 
     if (albumIds !== null && albumIds.length === 0) return [];
