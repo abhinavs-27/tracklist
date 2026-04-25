@@ -83,8 +83,11 @@ export async function fetchUserMap<
  */
 export async function fetchUserSummary(
   userId: string,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<{ id: string; username: string; avatar_url: string | null } | null> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = supabaseClient ?? (await createSupabaseServerClient());
   const { data, error } = await supabase
     .from("users")
     .select("username, avatar_url")
@@ -103,8 +106,13 @@ export async function fetchUserSummary(
  */
 export async function fetchUserSummaryMap(
   userIds: string[],
-): Promise<Map<string, { id: string; username: string; avatar_url: string | null }>> {
-  const supabase = await createSupabaseServerClient();
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
+): Promise<
+  Map<string, { id: string; username: string; avatar_url: string | null }>
+> {
+  const supabase = supabaseClient ?? (await createSupabaseServerClient());
   return fetchUserMap(supabase, userIds, "id, username, avatar_url");
 }
 
@@ -117,8 +125,11 @@ export async function getListenLogsForUser(
   limit = 30,
   offset = 0,
   spotifyTrackId?: string,
+  supabase?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<ListenLogWithUser[]> {
-  return getListenLogsInternal({ userId, limit, offset, spotifyTrackId });
+  return getListenLogsInternal({ userId, limit, offset, spotifyTrackId, supabase });
 }
 
 export async function getListenLogsForTrack(
@@ -126,12 +137,16 @@ export async function getListenLogsForTrack(
   limit = 30,
   offset = 0,
   viewerUserId?: string | null,
+  supabase?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<ListenLogWithUser[]> {
   const raw = await getListenLogsInternal({
     spotifyTrackId,
     limit: Math.max(limit * 5, 50),
     offset,
     viewerUserId,
+    supabase,
   });
   const seen = new Set<string>();
   const onePerUser = raw.filter((log) => {
@@ -149,9 +164,12 @@ async function getListenLogsInternal(opts: {
   offset?: number;
   /** When listing logs for a track, exclude users with `logs_private` unless this is the viewer. */
   viewerUserId?: string | null;
+  supabase?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>;
 }): Promise<ListenLogWithUser[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = opts.supabase ?? (await createSupabaseServerClient());
 
     const from = opts.offset ?? 0;
     const to = from + opts.limit - 1;
@@ -278,10 +296,13 @@ export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<ReviewsResult | null> {
   const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
     const canonicalEntityId =
       entityType === "album"
@@ -516,13 +537,16 @@ async function getEntityStatsLive(
   entityType: "album" | "song",
   /** Canonical `albums.id` or `tracks.id` UUID. */
   canonicalEntityId: string,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<EntityStats> {
   const albumLiveT0 =
     entityType === "album"
       ? albumPagePhaseStart("getEntityStatsLive(album)", canonicalEntityId)
       : null;
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
   let listen_count = 0;
   if (entityType === "song") {
@@ -638,12 +662,15 @@ function setEntityStatsMemory(
 export async function getEntityStats(
   entityType: "album" | "song",
   entityId: string,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<EntityStats> {
   const mem = getEntityStatsFromMemory(entityType, entityId);
   if (mem) return mem;
 
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
     const canonicalId =
       entityType === "album"
         ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
@@ -700,7 +727,7 @@ export async function getEntityStats(
       }
     }
 
-    if (!result) result = await getEntityStatsLive(entityType, canonicalId);
+    if (!result) result = await getEntityStatsLive(entityType, canonicalId, supabase);
     setEntityStatsMemory(entityType, entityId, result);
     return result;
   } catch (e) {
@@ -715,6 +742,9 @@ export async function getEntityStats(
 /** Single batch for {@link getTrackStatsForTrackIds} (Supabase `.in()` size limits). */
 async function getTrackStatsForTrackIdsSingleBatch(
   uniqueIds: string[],
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<Record<string, EntityStats>> {
   const empty: EntityStats = {
     listen_count: 0,
@@ -723,7 +753,7 @@ async function getTrackStatsForTrackIdsSingleBatch(
   };
   if (uniqueIds.length === 0) return {};
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = supabaseClient ?? (await createSupabaseServerClient());
   const result: Record<string, EntityStats> = {};
 
   const { data: rows, error } = await supabase
@@ -832,6 +862,9 @@ async function fetchSongIdsForAlbumIdsForLeaderboard(
 /** Per-track stats for multiple song IDs. Reads from track_stats first; fallback aggregation for missing. */
 export async function getTrackStatsForTrackIds(
   trackIds: string[],
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<Record<string, EntityStats>> {
   const empty: EntityStats = {
     listen_count: 0,
@@ -843,13 +876,13 @@ export async function getTrackStatsForTrackIds(
   try {
     const uniqueIds = [...new Set(trackIds)];
     if (uniqueIds.length <= TRACK_STATS_CHUNK) {
-      const result = await getTrackStatsForTrackIdsSingleBatch(uniqueIds);
+      const result = await getTrackStatsForTrackIdsSingleBatch(uniqueIds, supabaseClient);
       return Object.fromEntries(trackIds.map((id) => [id, result[id] ?? empty]));
     }
     const merged: Record<string, EntityStats> = {};
     for (let i = 0; i < uniqueIds.length; i += TRACK_STATS_CHUNK) {
       const chunk = uniqueIds.slice(i, i + TRACK_STATS_CHUNK);
-      Object.assign(merged, await getTrackStatsForTrackIdsSingleBatch(chunk));
+      Object.assign(merged, await getTrackStatsForTrackIdsSingleBatch(chunk, supabaseClient));
     }
     return Object.fromEntries(trackIds.map((id) => [id, merged[id] ?? empty]));
   } catch (e) {
@@ -1720,9 +1753,12 @@ export async function getReviewsForArtist(
   artistId: string,
   limit = 10,
   offset = 0,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<ReviewWithUser[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
     const canonicalArtistId =
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
@@ -1802,9 +1838,12 @@ export type ArtistPopularTrack = {
 export async function getTopTracksForArtist(
   artistId: string,
   limit = 10,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<ArtistPopularTrack[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
     const canonicalArtistId =
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
@@ -1829,7 +1868,7 @@ export async function getTopTracksForArtist(
     }[];
 
     const trackIds = songRows.map((s) => s.id);
-    const statsMap = await getTrackStatsForTrackIds(trackIds);
+    const statsMap = await getTrackStatsForTrackIds(trackIds, supabase);
 
     const sortedIds = [...trackIds]
       .sort((a, b) => {
@@ -1901,9 +1940,12 @@ export async function getListenLogsForArtist(
   artistId: string,
   limit = 20,
   offset = 0,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<ListenLogWithUser[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
     const canonicalArtistId =
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
@@ -1953,9 +1995,12 @@ export async function getListenLogsForAlbum(
   albumId: string,
   limit = 20,
   offset = 0,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<ListenLogWithUser[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
     const canonicalAlbumId =
       await resolveCanonicalAlbumUuidFromEntityId(supabase, albumId);
@@ -2188,9 +2233,12 @@ export type PopularAlbumsForArtistResult = {
 export async function getPopularAlbumsForArtist(
   artistId: string,
   limit = 8,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<PopularAlbumsForArtistResult> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
     const canonicalArtistId =
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
     if (!canonicalArtistId) {
@@ -2259,16 +2307,21 @@ export async function getPopularAlbumsForArtist(
 }
 
 /** Album engagement: listen count, review count, average rating, profile favorite count. */
-export async function getAlbumEngagementStats(albumId: string): Promise<{
+export async function getAlbumEngagementStats(
+  albumId: string,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
+): Promise<{
   listen_count: number;
   review_count: number;
   avg_rating: number | null;
   favorite_count: number;
 }> {
-  const stats = await getEntityStats("album", albumId);
+  const stats = await getEntityStats("album", albumId, supabaseClient);
   let favorite_count = 0;
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
     const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
       supabase,
       albumId,
@@ -2375,10 +2428,13 @@ export async function getFriendsAlbumActivity(
   viewerId: string,
   albumId: string,
   limit = 10,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<FriendAlbumActivityRow[]> {
   const t0 = albumPagePhaseStart("getFriendsAlbumActivity", albumId);
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
     const canonicalAlbumId =
       await resolveCanonicalAlbumUuidFromEntityId(supabase, albumId);
@@ -2646,9 +2702,12 @@ export async function getUserRecommendations(
 
 export async function getUserStreak(
   userId: string,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<UserStreak | null> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
     const { data, error } = await supabase
       .from("user_streaks")
       .select("current_streak, longest_streak, last_listen_date")
@@ -3022,10 +3081,13 @@ export async function getFollowing(
 export async function isFollowing(
   viewerUserId: string,
   targetUserId: string,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
 ): Promise<boolean> {
   if (viewerUserId === targetUserId) return false;
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
     const { data, error } = await supabase
       .from("follows")
       .select("id")
@@ -3041,12 +3103,17 @@ export async function isFollowing(
 }
 
 /** Follower and following counts for a user. */
-export async function getFollowCounts(userId: string): Promise<{
+export async function getFollowCounts(
+  userId: string,
+  supabaseClient?:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
+): Promise<{
   followers_count: number;
   following_count: number;
 }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseClient ?? (await createSupabaseServerClient());
     const { data, error } = await supabase.rpc("get_follow_counts", {
       p_user_id: userId,
     });

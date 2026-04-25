@@ -35,6 +35,7 @@ export const STALE_FIRST_TTL_SEC = {
   /** Personal weekly billboard / charts. */
   billboard: 3600,
   profileSummary: 60,
+  reviews: 60,
   communityInvite: 120,
   communityJoin: 120,
 } as const;
@@ -51,6 +52,7 @@ export const STALE_FIRST_STALE_AFTER_SEC = {
   exploreDiscoverySection: 60,
   billboard: 600,
   profileSummary: 20,
+  reviews: 20,
   communityInvite: 45,
   communityJoin: 45,
 } as const;

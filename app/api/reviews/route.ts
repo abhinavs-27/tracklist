@@ -7,6 +7,11 @@ import {
   apiOk,
 } from "@/lib/api-response";
 import { parseBody, getPaginationParams } from "@/lib/api-utils";
+import {
+  STALE_FIRST_STALE_AFTER_SEC,
+  STALE_FIRST_TTL_SEC,
+  staleFirstApiOk,
+} from "@/lib/cache/stale-first-cache";
 import { ReviewCreateBody } from "@/types";
 import {
   isValidReviewEntityId,
@@ -24,6 +29,7 @@ export const GET = withHandler(async (request: NextRequest) => {
   const rawEntityId = searchParams.get("entity_id");
   const entityId = rawEntityId ? normalizeReviewEntityId(rawEntityId) : null;
   const { limit } = getPaginationParams(searchParams, 10, 20);
+  const bypassCache = searchParams.get("refresh") === "1";
 
   if (!entityType || !entityId) {
     return apiBadRequest("entity_type and entity_id required");
@@ -36,10 +42,18 @@ export const GET = withHandler(async (request: NextRequest) => {
     return apiBadRequest("Invalid entity_id");
   }
 
-  const result = await getReviewsForEntity(typeResult.value, entityId, limit);
-  if (!result) return apiInternalError("Failed to fetch reviews");
+  const cacheKey = `reviews:${typeResult.value}:${entityId}:${limit}`;
 
-  return apiOk(result);
+  return staleFirstApiOk(
+    cacheKey,
+    STALE_FIRST_TTL_SEC.reviews,
+    STALE_FIRST_STALE_AFTER_SEC.reviews,
+    async () => {
+      const res = await getReviewsForEntity(typeResult.value, entityId, limit);
+      return res as unknown as Record<string, unknown> | null;
+    },
+    { bypassCache },
+  );
 });
 
 /** POST – create or upsert review (one per user per entity) */

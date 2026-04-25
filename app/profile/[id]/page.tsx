@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { ProfileHeader } from "@/components/profile-header";
 import { ProfileQuickActions } from "@/components/profile/profile-quick-actions";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   getFollowCounts,
   isFollowing,
@@ -113,16 +114,18 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
+  const serverSupabase = await createSupabaseServerClient();
+
   const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
-      getFollowCounts(user.id),
+      getFollowCounts(user.id, serverSupabase),
       session?.user?.id && session.user.id !== user.id
-        ? isFollowing(session.user.id, user.id)
+        ? isFollowing(session.user.id, user.id, serverSupabase)
         : Promise.resolve(false),
       session?.user?.id === user.id
         ? hasSpotifyToken(user.id)
         : Promise.resolve(false),
-      getUserStreak(user.id),
+      getUserStreak(user.id, serverSupabase),
     ]),
     getCachedTasteIdentity(user.id),
     getCachedUserFavoriteAlbums(user.id).catch((e) => {

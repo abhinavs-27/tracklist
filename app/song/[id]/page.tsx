@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
@@ -81,39 +82,34 @@ export default async function SongPage({ params }: { params: PageParams }) {
    * Sequential server Supabase work: parallel `createSupabaseServerClient()` deadlocks RSC
    * (see `artist-page-content.tsx` / album page).
    */
-  let reviewsData: Awaited<ReturnType<typeof getReviewsForEntity>>;
-  try {
-    reviewsData = await getReviewsForEntity("song", entityId);
-  } catch (e) {
-    console.error("[song] getReviewsForEntity failed:", e);
-    reviewsData = {
-      reviews: [],
-      average_rating: null,
-      count: 0,
-      my_review: null,
-    };
-  }
-  const stats: Awaited<ReturnType<typeof getEntityStats>> =
-    await getEntityStats("song", entityId);
-  let recentListens: Awaited<ReturnType<typeof getListenLogsForTrack>>;
-  try {
-    recentListens = await getListenLogsForTrack(
+  const supabase = await createSupabaseServerClient();
+
+  const [reviewsData, stats, recentListens, relatedSongsRaw] = await Promise.all([
+    getReviewsForEntity("song", entityId, 20, supabase).catch((e) => {
+      console.error("[song] getReviewsForEntity failed:", e);
+      return {
+        reviews: [],
+        average_rating: null,
+        count: 0,
+        my_review: null,
+      };
+    }),
+    getEntityStats("song", entityId, supabase),
+    getListenLogsForTrack(
       entityId,
       10,
       0,
       session?.user?.id ?? null,
-    );
-  } catch (e) {
-    console.error("[song] getListenLogsForTrack failed:", e);
-    recentListens = [];
-  }
-  let relatedSongsRaw: Awaited<ReturnType<typeof getRelatedMedia>>;
-  try {
-    relatedSongsRaw = await getRelatedMedia("song", entityId, 12);
-  } catch (e) {
-    console.error("[song] getRelatedMedia failed:", e);
-    relatedSongsRaw = [];
-  }
+      supabase,
+    ).catch((e) => {
+      console.error("[song] getListenLogsForTrack failed:", e);
+      return [];
+    }),
+    getRelatedMedia("song", entityId, 12, supabase).catch((e) => {
+      console.error("[song] getRelatedMedia failed:", e);
+      return [];
+    }),
+  ]);
 
   const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
   const relatedTracks =
