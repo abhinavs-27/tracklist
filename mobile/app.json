@@ -38,7 +38,9 @@
           "color": "#10b981",
           "sounds": []
         }
-      ]
+      ],
+      "expo-image",
+      "expo-web-browser"
     ]
   }
 }
