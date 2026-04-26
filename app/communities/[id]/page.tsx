@@ -12,6 +12,7 @@ import {
   CommunitySectionSkeleton,
 } from "@/components/community/community-section-skeleton";
 import { getCommunityById } from "@/lib/community/queries";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
 import {
   canEditCommunitySettings,
@@ -63,13 +64,19 @@ export default async function CommunityDetailPage({
   if (!isValidUuid(id)) notFound();
 
   const session = await getSession();
-  const community = await getCommunityById(id);
+  const supabase = await createSupabaseServerClient();
+  const community = await getCommunityById(id, supabase);
   if (!community) notFound();
 
-  const memberCount = await getCommunityMemberCount(id);
   const userId = session?.user?.id ?? null;
-  const isMember = userId ? await isCommunityMember(id, userId) : false;
-  const myRole = userId ? await getCommunityMemberRole(id, userId) : null;
+
+  const [memberCount, isMember, myRole, pendingInvite] = await Promise.all([
+    getCommunityMemberCount(id, supabase),
+    userId ? isCommunityMember(id, userId, supabase) : Promise.resolve(false),
+    userId ? getCommunityMemberRole(id, userId, supabase) : Promise.resolve(null),
+    userId ? getPendingInviteForUserToCommunity(id, userId, supabase) : Promise.resolve(null),
+  ]);
+
   const canEdit =
     userId && isMember && myRole
       ? canEditCommunitySettings(community.is_private, true, myRole)
@@ -82,10 +89,6 @@ export default async function CommunityDetailPage({
     userId && isMember && myRole
       ? canInviteToCommunity(community.is_private, true, myRole)
       : false;
-  const pendingInvite =
-    userId && !isMember
-      ? await getPendingInviteForUserToCommunity(id, userId)
-      : null;
 
   const [memberGrowthWeek, heroListening] = await Promise.all([
     getCommunityMemberGrowthThisWeek(id),

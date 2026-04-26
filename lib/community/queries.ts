@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { CommunityRow, CommunityWithMeta } from "@/types";
 
 import type { CommunityMemberRole } from "@/lib/community/member-role";
@@ -126,9 +127,10 @@ export async function getUserCommunities(
 
 export async function getCommunityById(
   communityId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<CommunityRow | null> {
-  const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
+  const sb = supabase ?? createSupabaseAdminClient();
+  const { data, error } = await sb
     .from("communities")
     .select("id, name, description, is_private, created_by, created_at, avatar_url")
     .eq("id", communityId.trim())
@@ -139,9 +141,10 @@ export async function getCommunityById(
 
 export async function getCommunityMemberCount(
   communityId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<number> {
-  const admin = createSupabaseAdminClient();
-  const { count, error } = await admin
+  const sb = supabase ?? createSupabaseAdminClient();
+  const { count, error } = await sb
     .from("community_members")
     .select("id", { count: "exact", head: true })
     .eq("community_id", communityId.trim());
@@ -152,9 +155,10 @@ export async function getCommunityMemberCount(
 export async function isCommunityMember(
   communityId: string,
   userId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<boolean> {
-  const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
+  const sb = supabase ?? createSupabaseAdminClient();
+  const { data, error } = await sb
     .from("community_members")
     .select("id")
     .eq("community_id", communityId.trim())
@@ -167,9 +171,10 @@ export async function isCommunityMember(
 export async function getCommunityMemberRole(
   communityId: string,
   userId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<CommunityMemberRole | null> {
-  const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
+  const sb = supabase ?? createSupabaseAdminClient();
+  const { data, error } = await sb
     .from("community_members")
     .select("role")
     .eq("community_id", communityId.trim())

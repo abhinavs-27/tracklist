@@ -22,6 +22,7 @@ import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
 import { ProfileAvatarOptimisticProvider } from "@/components/profile/profile-avatar-context";
 import { PrivateLogsToggle } from "@/components/profile/private-logs-toggle";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -35,10 +36,13 @@ const EMPTY_TASTE: TasteIdentity = {
   summary: "",
 };
 
-async function hasSpotifyToken(userId: string): Promise<boolean> {
+async function hasSpotifyToken(
+  userId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<boolean> {
   try {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
+    const sb = supabase ?? (await createSupabaseServerClient());
+    const { data, error } = await sb
       .from("spotify_tokens")
       .select("user_id")
       .eq("user_id", userId)
@@ -113,16 +117,19 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
+  /** Parallelize fetches with a shared Supabase client to avoid RSC deadlocks. */
+  const supabaseServer = await createSupabaseServerClient();
+
   const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
-      getFollowCounts(user.id),
+      getFollowCounts(user.id, supabaseServer),
       session?.user?.id && session.user.id !== user.id
-        ? isFollowing(session.user.id, user.id)
+        ? isFollowing(session.user.id, user.id, supabaseServer)
         : Promise.resolve(false),
       session?.user?.id === user.id
-        ? hasSpotifyToken(user.id)
+        ? hasSpotifyToken(user.id, supabaseServer)
         : Promise.resolve(false),
-      getUserStreak(user.id),
+      getUserStreak(user.id, supabaseServer),
     ]),
     getCachedTasteIdentity(user.id),
     getCachedUserFavoriteAlbums(user.id).catch((e) => {
