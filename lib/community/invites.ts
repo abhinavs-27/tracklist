@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { CommunityInvitePending, CommunityRow } from "@/types";
 
 import { canInviteToCommunity } from "@/lib/community/permissions";
@@ -10,9 +11,10 @@ import { getCommunityById, getCommunityMemberRole } from "@/lib/community/querie
 export async function getPendingInviteForUserToCommunity(
   communityId: string,
   userId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<{ id: string } | null> {
-  const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
+  const sb = supabase ?? createSupabaseAdminClient();
+  const { data, error } = await sb
     .from("community_invites")
     .select("id")
     .eq("community_id", communityId.trim())
