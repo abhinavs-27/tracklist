@@ -56,6 +56,21 @@ export function apiTooManyRequests(message = 'Too many requests'): NextResponse 
   return apiError(message, 429);
 }
 
+export function apiBadGateway(message = 'Bad gateway'): NextResponse {
+  return apiError(message, 502);
+}
+
+export function apiServiceUnavailable(
+  message = 'Service unavailable',
+  options?: { code?: string; [key: string]: unknown }
+): NextResponse {
+  const { code, ...rest } = options ?? {};
+  const body: { error: string; code?: string; [key: string]: unknown } = { error: message };
+  if (code) body.code = code;
+  Object.assign(body, rest);
+  return NextResponse.json(body, { status: 503 });
+}
+
 /**
  * Use for 500s: log the real error, return generic message to client.
  */

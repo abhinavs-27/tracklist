@@ -6,6 +6,8 @@ import {
   apiNotFound,
   apiBadRequest,
   apiInternalError,
+  apiBadGateway,
+  apiServiceUnavailable,
 } from './api-response';
 
 describe('api-response helpers', () => {
@@ -49,5 +51,18 @@ describe('api-response helpers', () => {
     expect(body.error).toBe("Something went wrong. Please try again.");
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+
+  it('apiBadGateway returns 502', async () => {
+    const response = apiBadGateway();
+    expect(response.status).toBe(502);
+  });
+
+  it('apiServiceUnavailable returns 503', async () => {
+    const response = apiServiceUnavailable('Syncing', { code: 'catalog_pending' });
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.error).toBe('Syncing');
+    expect(body.code).toBe('catalog_pending');
   });
 });
