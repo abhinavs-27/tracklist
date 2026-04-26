@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { withHandler } from "@/lib/api-handler";
+import { apiNotFound, apiServiceUnavailable, apiBadGateway } from "@/lib/api-response";
 
 import {
   isProfilePictureUploadConfigured,
@@ -7,17 +9,14 @@ import {
 import { presignProfilePictureGet } from "@/lib/profile-pictures/presign";
 import { isValidUuid } from "@/lib/validation";
 
-export async function GET(
-  _request: Request,
-  segment: { params: Promise<{ communityId: string }> },
-) {
-  const { communityId } = await segment.params;
+export const GET = withHandler(async (request, { params }) => {
+  const { communityId } = params;
   if (!communityId?.trim() || !isValidUuid(communityId)) {
-    return new NextResponse("Not found", { status: 404 });
+    return apiNotFound("Community not found");
   }
 
   if (!isProfilePictureUploadConfigured()) {
-    return new NextResponse("Not configured", { status: 503 });
+    return apiServiceUnavailable("Profile picture service not configured");
   }
 
   const key = profilePictureObjectKey("community", communityId);
@@ -38,6 +37,6 @@ export async function GET(
     return res;
   } catch (e) {
     console.error("[profile-pictures] presign GetObject failed", e);
-    return new NextResponse("Bad gateway", { status: 502 });
+    return apiBadGateway("Failed to generate access URL");
   }
-}
+});
