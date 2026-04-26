@@ -76,6 +76,11 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `reviews` | `(entity_type, entity_id, user_id, created_at DESC)` | `142` | Optimized for fetching entity reviews while allowing fast "my review" lookup. |
+| `logs` | `(user_id, listened_at DESC)` | `142` | Optimized for user profile listening history. |
+| `tracks` | `(artist_id, album_id)` | `142` | Optimized for artist discography and top track lookups. |
+| `list_items` | `(list_id, entity_type, entity_id, position)` | `142` | Optimized for list membership checks and preview generation. |
+| `users` | `(id) WHERE logs_private = true` | `142` | Optimized for privacy filtering during log aggregation. |
 
 ## Recommendations for Future Queries
 

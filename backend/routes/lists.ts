@@ -214,7 +214,7 @@ listsRouter.get("/:listId", async (req, res) => {
     const { data: listRow, error: listError } = await supabase
       .from("lists")
       .select(
-        "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+        "user_id, title, description, type, visibility, emoji, image_url, created_at",
       )
       .eq("id", listId)
       .maybeSingle();
@@ -238,7 +238,7 @@ listsRouter.get("/:listId", async (req, res) => {
 
     const itemsResult = await supabase
       .from("list_items")
-      .select("id, list_id, entity_type, entity_id, position, added_at")
+      .select("id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)
       .order("position", { ascending: true })
       .range(0, 99);
@@ -249,13 +249,14 @@ listsRouter.get("/:listId", async (req, res) => {
     if (itemsError?.code === "42703") {
       const fallback = await supabase
         .from("list_items")
-        .select("id, list_id, entity_type, entity_id, position")
+        .select("id, entity_type, entity_id, position")
         .eq("list_id", listId)
         .order("position", { ascending: true })
         .range(0, 99);
       if (!fallback.error) {
         itemRows = (fallback.data ?? []).map((r) => ({
           ...r,
+          list_id: listId,
           added_at: new Date().toISOString(),
         }));
         itemsError = null;
@@ -299,7 +300,7 @@ listsRouter.get("/:listId", async (req, res) => {
     );
 
     ok(res, {
-      list: listRow,
+      list: { ...listRow, id: listId },
       owner_username: owner?.username ?? null,
       items: enriched,
     });
