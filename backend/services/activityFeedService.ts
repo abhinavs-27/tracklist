@@ -154,8 +154,9 @@ async function getActivityFeedFallback(
     }[];
 
     const userIds = new Set<string>();
+    userIds.add(userId);
     reviewRows.forEach((r: { user_id: string }) => userIds.add(r.user_id));
-    followRows.forEach((f) => {
+    followRows.forEach((f: { follower_id: string, following_id: string }) => {
       userIds.add(f.follower_id);
       userIds.add(f.following_id);
     });
@@ -188,7 +189,7 @@ async function getActivityFeedFallback(
       }),
     );
 
-    const followActivities: FeedActivity[] = followRows.map((f) => ({
+    const followActivities: FeedActivity[] = followRows.map((f: { id: string, follower_id: string, following_id: string, created_at: string }) => ({
       type: "follow" as const,
       id: f.id,
       created_at: f.created_at,
