@@ -2,6 +2,11 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import {
+  scheduleAlbumEnrichment,
+  scheduleArtistEnrichment,
+  scheduleTrackEnrichment,
+} from "@/lib/catalog/non-blocking-enrichment";
 
 export type MusicExternalSource = "spotify" | "lastfm";
 
@@ -227,4 +232,54 @@ export async function linkTrackExternalId(
   if (error && error.code !== "23505") {
     throw new Error(`linkTrackExternalId: ${error.message}`);
   }
+}
+
+export type ResolveEntityOutcome =
+  | { kind: "resolved"; id: string }
+  | { kind: "pending"; spotifyId: string; entity: "track" | "album" | "artist" };
+
+/**
+ * Resolves a raw entity ID (UUID or Spotify ID) to a canonical UUID.
+ * If it's a Spotify ID and not in DB, triggers enrichment and returns 'pending'.
+ */
+export async function resolveAndCheckPending(
+  supabase: SupabaseClient,
+  rawId: string | null | undefined,
+  kind: "track" | "album" | "artist",
+): Promise<ResolveEntityOutcome | null> {
+  if (!rawId) return null;
+  const s = rawId.trim();
+  if (!s) return null;
+
+  if (isValidUuid(s)) return { kind: "resolved", id: s };
+  if (!isValidSpotifyId(s)) return null;
+
+  if (kind === "track") {
+    const id = await getTrackIdByExternalId(supabase, "spotify", s);
+    if (!id) {
+      scheduleTrackEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "track" };
+    }
+    return { kind: "resolved", id };
+  }
+
+  if (kind === "album") {
+    const id = await getAlbumIdByExternalId(supabase, "spotify", s);
+    if (!id) {
+      scheduleAlbumEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "album" };
+    }
+    return { kind: "resolved", id };
+  }
+
+  if (kind === "artist") {
+    const id = await getArtistIdByExternalId(supabase, "spotify", s);
+    if (!id) {
+      scheduleArtistEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "artist" };
+    }
+    return { kind: "resolved", id };
+  }
+
+  return null;
 }
