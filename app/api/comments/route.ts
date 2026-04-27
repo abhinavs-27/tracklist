@@ -102,26 +102,43 @@ export const GET = withHandler(async (request: NextRequest) => {
   // Preferred schema: comments(review_id).
   const prefGetRes = await supabase
     .from('comments')
-    .select('id, user_id, content, created_at')
+    .select('id, user_id, content, created_at, users(id, username, avatar_url)')
     .eq('review_id', validReviewId)
     .order('created_at', { ascending: true });
-  comments = (prefGetRes.data as Record<string, unknown>[] | null)?.map(c => ({ ...c, review_id: validReviewId })) ?? null;
+  comments = (prefGetRes.data as any[] | null)?.map(c => ({
+    ...c,
+    review_id: validReviewId,
+    user: c.users ? {
+      id: c.users.id,
+      username: c.users.username,
+      avatar_url: c.users.avatar_url ?? null,
+    } : null,
+    users: undefined,
+  })) ?? null;
   error = prefGetRes.error;
 
   // Fallback schema: comments(log_id).
   if (error && isMissingReviewIdColumn(error)) {
     const fallGetRes = await supabase
       .from('comments')
-      .select('id, user_id, content, created_at')
+      .select('id, user_id, content, created_at, users(id, username, avatar_url)')
       .eq('log_id', validReviewId)
       .order('created_at', { ascending: true });
-    comments = (fallGetRes.data as Record<string, unknown>[] | null);
+    comments = (fallGetRes.data as any[] | null)?.map(c => ({
+      ...c,
+      review_id: validReviewId,
+      user: c.users ? {
+        id: c.users.id,
+        username: c.users.username,
+        avatar_url: c.users.avatar_url ?? null,
+      } : null,
+      users: undefined,
+    })) ?? null;
     error = fallGetRes.error;
     if (error) {
       console.error('Comments GET (fallback) error:', error);
       return apiInternalError(error as { message: string });
     }
-    comments = (comments ?? []).map((c) => ({ ...c, review_id: validReviewId }));
   }
 
   if (error) {
@@ -131,9 +148,5 @@ export const GET = withHandler(async (request: NextRequest) => {
 
   if (!comments?.length) return apiOk([]);
 
-  const userIds = [...new Set(comments.map((c) => c.user_id as string))];
-  const userMap = await fetchUserSummaryMap(userIds);
-
-  const result = comments.map((c) => ({ ...c, user: userMap.get(c.user_id as string) ?? null }));
-  return apiOk(result);
+  return apiOk(comments);
 });
