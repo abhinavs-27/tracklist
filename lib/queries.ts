@@ -431,7 +431,7 @@ export async function getReviewsForUser(
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, entity_type, entity_id, rating, review_text, created_at, updated_at, users(id, username, avatar_url)",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -439,14 +439,7 @@ export async function getReviewsForUser(
 
     if (error || !rows?.length) return [];
 
-    const { data: users } = await supabase
-      .from("users")
-      .select("username, avatar_url")
-      .eq("id", userId);
-
-    const user = users?.[0] ? { id: userId, ...users[0] } : null;
-
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       user_id: userId,
       entity_type: r.entity_type as "album" | "song",
@@ -455,7 +448,13 @@ export async function getReviewsForUser(
       review_text: r.review_text ?? null,
       created_at: r.created_at,
       updated_at: r.updated_at,
-      user,
+      user: r.users
+        ? {
+            id: r.users.id,
+            username: r.users.username,
+            avatar_url: r.users.avatar_url ?? null,
+          }
+        : null,
     }));
   } catch (e) {
     console.error("[queries] getReviewsForUser failed:", e);
@@ -2981,7 +2980,7 @@ export async function getFollowers(
 
     const { data, error } = await supabase
       .from("follows")
-      .select("id, follower_id")
+      .select("follower_id")
       .eq("following_id", userId)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -3006,7 +3005,7 @@ export async function getFollowing(
 
     const { data, error } = await supabase
       .from("follows")
-      .select("id, following_id")
+      .select("following_id")
       .eq("follower_id", userId)
       .order("created_at", { ascending: false })
       .range(from, to);

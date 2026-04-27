@@ -76,6 +76,8 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `comments` | `(review_id) WHERE review_id IS NOT NULL` | `146` | Optimized for fetching comments for a review. |
+| `comments` | `(log_id) WHERE log_id IS NOT NULL` | `146` | Optimized for fetching comments for a log (fallback schema). |
 
 ## Recommendations for Future Queries
 
