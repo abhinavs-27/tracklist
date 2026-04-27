@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -16,20 +15,14 @@ import {
   validateReviewContent,
 } from "@/lib/validation";
 
-type RouteParams = Promise<{ id: string }>;
-
 /** PATCH – update own review */
-export async function PATCH(
-  request: NextRequest,
-  ctx: { params: RouteParams }
-) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { id } = await ctx.params;
+export const PATCH = withHandler<{ id: string }>(
+  async (request, { user: me, params }) => {
+    const { id } = params;
     if (!isValidUuid(id)) return apiBadRequest("Invalid review id");
 
-    const { data: body, error: parseErr } = await parseBody<Record<string, unknown>>(request);
+    const { data: body, error: parseErr } =
+      await parseBody<Record<string, unknown>>(request);
     if (parseErr) return parseErr;
 
     const { rating, review_text } = body!;
@@ -42,7 +35,7 @@ export async function PATCH(
       .single();
 
     if (fetchErr || !existing) return apiNotFound("Review not found");
-    if (existing.user_id !== me.id) return apiForbidden("Not your review");
+    if (existing.user_id !== me!.id) return apiForbidden("Not your review");
 
     const updates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
@@ -60,31 +53,25 @@ export async function PATCH(
       .from("reviews")
       .update(updates)
       .eq("id", id)
-      .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at")
+      .select(
+        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+      )
       .single();
 
     if (error) return apiInternalError(error);
     console.log("[reviews] review-updated", {
-      userId: me.id,
+      userId: me!.id,
       reviewId: data.id,
     });
     return apiOk(data);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);
 
 /** DELETE – delete own review */
-export async function DELETE(
-  request: NextRequest,
-  ctx: { params: RouteParams }
-) {
-  try {
-    const me = await requireApiAuth(request);
-
-    const { id } = await ctx.params;
+export const DELETE = withHandler<{ id: string }>(
+  async (_request, { user: me, params }) => {
+    const { id } = params;
     if (!isValidUuid(id)) return apiBadRequest("Invalid review id");
 
     const supabase = await createSupabaseServerClient();
@@ -95,18 +82,15 @@ export async function DELETE(
       .single();
 
     if (fetchErr || !existing) return apiNotFound("Review not found");
-    if (existing.user_id !== me.id) return apiForbidden("Not your review");
+    if (existing.user_id !== me!.id) return apiForbidden("Not your review");
 
     const { error } = await supabase.from("reviews").delete().eq("id", id);
     if (error) return apiInternalError(error);
     console.log("[reviews] review-deleted", {
-      userId: me.id,
+      userId: me!.id,
       reviewId: id,
     });
     return apiNoContent();
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true },
+);
