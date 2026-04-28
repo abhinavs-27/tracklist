@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleUnauthorized, requireApiAuth, type User } from './auth';
 import { apiInternalError } from './api-response';
 
-type HandlerContext = {
-  params: Record<string, string>;
+type HandlerContext<TParams = Record<string, string>> = {
+  params: TParams;
   user?: User;
 };
 
-type APIHandler = (
+type APIHandler<TParams = Record<string, string>> = (
   request: NextRequest,
-  context: HandlerContext
+  context: HandlerContext<TParams>
 ) => Promise<NextResponse>;
 
 type HandlerOptions = {
@@ -18,15 +18,19 @@ type HandlerOptions = {
 
 /**
  * High-order function to wrap API handlers with standard error handling and authentication.
+ * Generic TParams allows for type-safe access to route parameters.
  */
-export function withHandler(handler: APIHandler, options: HandlerOptions = {}) {
+export function withHandler<TParams = Record<string, string>>(
+  handler: APIHandler<TParams>,
+  options: HandlerOptions = {}
+) {
   return async (
     request: NextRequest,
-    { params }: { params?: Promise<Record<string, string>> | Record<string, string> } = {}
+    { params }: { params?: Promise<TParams> | TParams } = {}
   ): Promise<NextResponse> => {
     try {
-      const resolvedParams = params ? await params : {};
-      const context: HandlerContext = { params: resolvedParams };
+      const resolvedParams = (params ? await params : {}) as TParams;
+      const context: HandlerContext<TParams> = { params: resolvedParams };
 
       if (options.requireAuth) {
         context.user = await requireApiAuth(request);
