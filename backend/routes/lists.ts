@@ -214,7 +214,7 @@ listsRouter.get("/:listId", async (req, res) => {
     const { data: listRow, error: listError } = await supabase
       .from("lists")
       .select(
-        "id, user_id, title, description, type, visibility, emoji, image_url, created_at",
+        "id, user_id, title, description, type, visibility, emoji, image_url, created_at, owner:users(username)",
       )
       .eq("id", listId)
       .maybeSingle();
@@ -223,6 +223,8 @@ listsRouter.get("/:listId", async (req, res) => {
       notFound(res, "List not found");
       return;
     }
+
+    const owner_username = (listRow.owner as unknown as { username: string } | null)?.username ?? null;
 
     let itemRows:
       | {
@@ -267,12 +269,6 @@ listsRouter.get("/:listId", async (req, res) => {
       console.error("[lists] list_items error:", itemsError);
     }
 
-    const { data: owner } = await supabase
-      .from("users")
-      .select("username")
-      .eq("id", listRow.user_id as string)
-      .maybeSingle();
-
     const enriched = await Promise.all(
       safeItemRows.map(async (item) => {
         try {
@@ -300,7 +296,7 @@ listsRouter.get("/:listId", async (req, res) => {
 
     ok(res, {
       list: listRow,
-      owner_username: owner?.username ?? null,
+      owner_username,
       items: enriched,
     });
   } catch (e) {

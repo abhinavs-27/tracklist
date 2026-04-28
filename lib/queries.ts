@@ -431,7 +431,7 @@ export async function getReviewsForUser(
     const { data: rows, error } = await supabase
       .from("reviews")
       .select(
-        "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, entity_type, entity_id, rating, review_text, created_at, updated_at, users(id, username, avatar_url)",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -439,14 +439,7 @@ export async function getReviewsForUser(
 
     if (error || !rows?.length) return [];
 
-    const { data: users } = await supabase
-      .from("users")
-      .select("username, avatar_url")
-      .eq("id", userId);
-
-    const user = users?.[0] ? { id: userId, ...users[0] } : null;
-
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       user_id: userId,
       entity_type: r.entity_type as "album" | "song",
@@ -455,7 +448,13 @@ export async function getReviewsForUser(
       review_text: r.review_text ?? null,
       created_at: r.created_at,
       updated_at: r.updated_at,
-      user,
+      user: r.users
+        ? {
+            id: r.users.id,
+            username: r.users.username,
+            avatar_url: r.users.avatar_url ?? null,
+          }
+        : null,
     }));
   } catch (e) {
     console.error("[queries] getReviewsForUser failed:", e);
@@ -2079,7 +2078,8 @@ async function enrichCanonicalAlbumRowsForArtist(
       .from("tracks")
       .select("id, album_id")
       .eq("artist_id", canonicalArtistId)
-      .in("album_id", chunk);
+      .in("album_id", chunk)
+      .limit(2000);
     for (const s of songRows ?? []) {
       const list = albumToTracks.get(s.album_id) ?? [];
       list.push(s.id);
@@ -2097,7 +2097,8 @@ async function enrichCanonicalAlbumRowsForArtist(
       .from("reviews")
       .select("entity_id, rating")
       .eq("entity_type", "album")
-      .in("entity_id", chunk);
+      .in("entity_id", chunk)
+      .limit(5000);
     for (const r of revRows ?? []) {
       const cur = reviewAgg.get(r.entity_id) ?? { count: 0, sum: 0 };
       cur.count += 1;
