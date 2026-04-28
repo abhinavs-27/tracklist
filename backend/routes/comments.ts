@@ -38,7 +38,7 @@ commentsRouter.post("/", async (req, res) => {
         review_id,
         content: contentResult.value,
       })
-      .select("id, user_id, review_id, content, created_at")
+      .select("id, user_id, review_id, content, created_at, user:users(id, username, avatar_url)")
       .single());
 
     if (error && isMissingReviewIdColumn(error)) {
@@ -49,7 +49,7 @@ commentsRouter.post("/", async (req, res) => {
           log_id: review_id,
           content: contentResult.value,
         })
-        .select("id, user_id, log_id, content, created_at")
+        .select("id, user_id, log_id, content, created_at, user:users(id, username, avatar_url)")
         .single());
       if (error) return internalError(res, error);
       data = { ...data!, review_id };
@@ -61,13 +61,7 @@ commentsRouter.post("/", async (req, res) => {
       return internalError(res, error);
     }
 
-    const { data: user } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .eq("id", userId)
-      .single();
-
-    return ok(res, { ...data, user: user ?? null });
+    return ok(res, data);
   } catch (e) {
     return internalError(res, e);
   }
@@ -85,14 +79,14 @@ commentsRouter.get("/", async (req, res) => {
 
     ({ data: comments, error } = await supabase
       .from("comments")
-      .select("id, user_id, review_id, content, created_at")
+      .select("id, user_id, review_id, content, created_at, user:users(id, username, avatar_url)")
       .eq("review_id", reviewId)
       .order("created_at", { ascending: true }));
 
     if (error && isMissingReviewIdColumn(error)) {
       ({ data: comments, error } = await supabase
         .from("comments")
-        .select("id, user_id, log_id, content, created_at")
+        .select("id, user_id, log_id, content, created_at, user:users(id, username, avatar_url)")
         .eq("log_id", reviewId)
         .order("created_at", { ascending: true }));
       if (error) return internalError(res, error);
@@ -103,18 +97,7 @@ commentsRouter.get("/", async (req, res) => {
 
     if (!comments?.length) return ok(res, []);
 
-    const userIds = [...new Set(comments.map((c) => c.user_id as string))];
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .in("id", userIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
-
-    const result = comments.map((c) => ({
-      ...c,
-      user: userMap.get(c.user_id as string) ?? null,
-    }));
-    return ok(res, result);
+    return ok(res, comments);
   } catch (e) {
     return internalError(res, e);
   }

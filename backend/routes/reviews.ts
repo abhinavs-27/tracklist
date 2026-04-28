@@ -92,7 +92,7 @@ reviewsRouter.post("/", async (req, res) => {
         onConflict: "user_id,entity_type,entity_id",
       })
       .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
+        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at, user:users(id, username, avatar_url)",
       )
       .single();
 
@@ -104,11 +104,7 @@ reviewsRouter.post("/", async (req, res) => {
       /* optional RPC */
     }
 
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("id, username, avatar_url")
-      .eq("id", userId)
-      .single();
+    const userRow = (data as any).user as { id: string, username: string, avatar_url: string | null } | null;
 
     const reviewWithUser = {
       id: data.id,

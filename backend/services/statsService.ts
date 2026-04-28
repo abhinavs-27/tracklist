@@ -117,7 +117,8 @@ async function getEntityStatsLive(
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", canonicalEntityId);
+      .eq("album_id", canonicalEntityId)
+      .limit(2000);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const playMap = await countLogsByTrackIds(supabase, ids);
@@ -129,7 +130,8 @@ async function getEntityStatsLive(
     .from("reviews")
     .select("rating")
     .eq("entity_type", entityType)
-    .eq("entity_id", canonicalEntityId);
+    .eq("entity_id", canonicalEntityId)
+    .limit(5000);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
   const review_count = ratings.length;
