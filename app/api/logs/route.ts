@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { grantAchievementsOnListen, getListenLogsForUser } from '@/lib/queries';
@@ -8,63 +6,16 @@ import {
   apiBadRequest,
   apiInternalError,
   apiOk,
+  apiServiceUnavailable,
 } from '@/lib/api-response';
 import { parseBody, getPaginationParams } from '@/lib/api-utils';
 import { LogCreateBody } from '@/types';
-import {
-  getAlbumIdByExternalId,
-  getArtistIdByExternalId,
-  getTrackIdByExternalId,
-} from '@/lib/catalog/entity-resolution';
-import {
-  scheduleAlbumEnrichment,
-  scheduleArtistEnrichment,
-  scheduleTrackEnrichment,
-} from '@/lib/catalog/non-blocking-enrichment';
+import { resolveAndCheckPending } from '@/lib/catalog/entity-resolution';
 import {
   isValidSpotifyId,
-  isValidUuid,
   LIMITS,
   sanitizeString,
 } from '@/lib/validation';
-
-type ResolveLogEntityOutcome =
-  | { kind: "resolved"; id: string }
-  | { kind: "pending"; spotifyId: string; entity: "track" | "album" | "artist" };
-
-async function resolveLogEntityId(
-  supabase: SupabaseClient,
-  raw: string | null | undefined,
-  kind: 'track' | 'album' | 'artist',
-): Promise<ResolveLogEntityOutcome | null> {
-  if (raw == null) return null;
-  const s = typeof raw === 'string' ? raw.trim() : '';
-  if (!s) return null;
-  if (isValidUuid(s)) return { kind: "resolved", id: s };
-  if (!isValidSpotifyId(s)) return null;
-  if (kind === 'track') {
-    const u = await getTrackIdByExternalId(supabase, 'spotify', s);
-    if (!u) {
-      scheduleTrackEnrichment(s);
-      return { kind: "pending", spotifyId: s, entity: "track" };
-    }
-    return { kind: "resolved", id: u };
-  }
-  if (kind === 'album') {
-    const u = await getAlbumIdByExternalId(supabase, 'spotify', s);
-    if (!u) {
-      scheduleAlbumEnrichment(s);
-      return { kind: "pending", spotifyId: s, entity: "album" };
-    }
-    return { kind: "resolved", id: u };
-  }
-  const u = await getArtistIdByExternalId(supabase, 'spotify', s);
-  if (!u) {
-    scheduleArtistEnrichment(s);
-    return { kind: "pending", spotifyId: s, entity: "artist" };
-  }
-  return { kind: "resolved", id: u };
-}
 
 const LOG_SOURCES = new Set([
   'spotify',
@@ -103,53 +54,48 @@ export const POST = withHandler(
     const note = sanitizeString(b.note, LIMITS.COMMENT_CONTENT);
 
     const supabase = await createSupabaseServerClient();
-    const trackIdRes = await resolveLogEntityId(supabase, trackRaw, 'track');
+
+    const trackIdRes = await resolveAndCheckPending(supabase, trackRaw, 'track');
     if (!trackIdRes) {
       return apiBadRequest('Invalid or unknown track_id / spotify_id');
     }
     if (trackIdRes.kind === 'pending') {
-      return NextResponse.json(
+      return apiServiceUnavailable(
+        'Catalog is syncing this track from Spotify. Retry in a few seconds.',
         {
-          error:
-            'Catalog is syncing this track from Spotify. Retry in a few seconds.',
           code: 'catalog_pending',
           metadata_complete: false,
           spotify_id: trackIdRes.spotifyId,
           entity: trackIdRes.entity,
-        },
-        { status: 503 },
+        }
       );
     }
     const trackId = trackIdRes.id;
 
-    const albumRes = await resolveLogEntityId(supabase, b.album_id, 'album');
+    const albumRes = await resolveAndCheckPending(supabase, b.album_id, 'album');
     if (albumRes?.kind === 'pending') {
-      return NextResponse.json(
+      return apiServiceUnavailable(
+        'Catalog is syncing this album from Spotify. Retry in a few seconds.',
         {
-          error:
-            'Catalog is syncing this album from Spotify. Retry in a few seconds.',
           code: 'catalog_pending',
           metadata_complete: false,
           spotify_id: albumRes.spotifyId,
           entity: albumRes.entity,
-        },
-        { status: 503 },
+        }
       );
     }
     const albumId = albumRes?.kind === 'resolved' ? albumRes.id : null;
 
-    const artistRes = await resolveLogEntityId(supabase, b.artist_id, 'artist');
+    const artistRes = await resolveAndCheckPending(supabase, b.artist_id, 'artist');
     if (artistRes?.kind === 'pending') {
-      return NextResponse.json(
+      return apiServiceUnavailable(
+        'Catalog is syncing this artist from Spotify. Retry in a few seconds.',
         {
-          error:
-            'Catalog is syncing this artist from Spotify. Retry in a few seconds.',
           code: 'catalog_pending',
           metadata_complete: false,
           spotify_id: artistRes.spotifyId,
           entity: artistRes.entity,
-        },
-        { status: 503 },
+        }
       );
     }
     const artistId = artistRes?.kind === 'resolved' ? artistRes.id : null;

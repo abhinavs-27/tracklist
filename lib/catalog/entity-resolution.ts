@@ -2,6 +2,11 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import {
+  scheduleAlbumEnrichment,
+  scheduleArtistEnrichment,
+  scheduleTrackEnrichment,
+} from "./non-blocking-enrichment";
 
 export type MusicExternalSource = "spotify" | "lastfm";
 
@@ -227,4 +232,50 @@ export async function linkTrackExternalId(
   if (error && error.code !== "23505") {
     throw new Error(`linkTrackExternalId: ${error.message}`);
   }
+}
+
+export type ResolveAndCheckPendingOutcome =
+  | { kind: "resolved"; id: string }
+  | { kind: "pending"; spotifyId: string; entity: "track" | "album" | "artist" };
+
+/**
+ * High-level utility to resolve a canonical UUID from a raw entity ID (UUID or external).
+ * If the entity is not found in the catalog, it schedules enrichment and returns a "pending" status.
+ */
+export async function resolveAndCheckPending(
+  supabase: SupabaseClient,
+  rawId: string | null | undefined,
+  kind: "track" | "album" | "artist",
+): Promise<ResolveAndCheckPendingOutcome | null> {
+  if (rawId == null) return null;
+  const s = typeof rawId === "string" ? rawId.trim() : "";
+  if (!s) return null;
+
+  if (isValidUuid(s)) return { kind: "resolved", id: s };
+  if (!isValidSpotifyId(s)) return null;
+
+  if (kind === "track") {
+    const u = await getTrackIdByExternalId(supabase, "spotify", s);
+    if (!u) {
+      scheduleTrackEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "track" };
+    }
+    return { kind: "resolved", id: u };
+  }
+
+  if (kind === "album") {
+    const u = await getAlbumIdByExternalId(supabase, "spotify", s);
+    if (!u) {
+      scheduleAlbumEnrichment(s);
+      return { kind: "pending", spotifyId: s, entity: "album" };
+    }
+    return { kind: "resolved", id: u };
+  }
+
+  const u = await getArtistIdByExternalId(supabase, "spotify", s);
+  if (!u) {
+    scheduleArtistEnrichment(s);
+    return { kind: "pending", spotifyId: s, entity: "artist" };
+  }
+  return { kind: "resolved", id: u };
 }
