@@ -38,7 +38,7 @@ commentsRouter.post("/", async (req, res) => {
         review_id,
         content: contentResult.value,
       })
-      .select("id, user_id, review_id, content, created_at")
+      .select("id, content, created_at")
       .single());
 
     if (error && isMissingReviewIdColumn(error)) {
@@ -49,10 +49,12 @@ commentsRouter.post("/", async (req, res) => {
           log_id: review_id,
           content: contentResult.value,
         })
-        .select("id, user_id, log_id, content, created_at")
+        .select("id, content, created_at")
         .single());
       if (error) return internalError(res, error);
-      data = { ...data!, review_id };
+      data = { ...data!, user_id: userId, review_id };
+    } else if (data) {
+      data = { ...data, user_id: userId, review_id };
     }
 
     if (error) {
@@ -85,18 +87,17 @@ commentsRouter.get("/", async (req, res) => {
 
     ({ data: comments, error } = await supabase
       .from("comments")
-      .select("id, user_id, review_id, content, created_at")
+      .select("id, user_id, content, created_at")
       .eq("review_id", reviewId)
       .order("created_at", { ascending: true }));
 
     if (error && isMissingReviewIdColumn(error)) {
       ({ data: comments, error } = await supabase
         .from("comments")
-        .select("id, user_id, log_id, content, created_at")
+        .select("id, user_id, content, created_at")
         .eq("log_id", reviewId)
         .order("created_at", { ascending: true }));
       if (error) return internalError(res, error);
-      comments = (comments ?? []).map((c) => ({ ...c, review_id: reviewId }));
     }
 
     if (error) return internalError(res, error);
@@ -112,8 +113,10 @@ commentsRouter.get("/", async (req, res) => {
 
     const result = comments.map((c) => ({
       ...c,
+      review_id: reviewId,
       user: userMap.get(c.user_id as string) ?? null,
     }));
+
     return ok(res, result);
   } catch (e) {
     return internalError(res, e);
