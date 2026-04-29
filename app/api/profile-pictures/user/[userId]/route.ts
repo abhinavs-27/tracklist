@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-
+import { withHandler } from "@/lib/api-handler";
+import {
+  apiBadGateway,
+  apiNotFound,
+  apiServiceUnavailable,
+} from "@/lib/api-response";
 import {
   isProfilePictureUploadConfigured,
   profilePictureObjectKey,
@@ -11,17 +16,14 @@ import { isValidUuid } from "@/lib/validation";
  * Redirects to a presigned S3 GET (1h) so <img src={...}> works with a private bucket.
  * IAM: signer credentials need s3:GetObject on profile_pictures/* (in addition to PutObject).
  */
-export async function GET(
-  _request: Request,
-  segment: { params: Promise<{ userId: string }> },
-) {
-  const { userId } = await segment.params;
+export const GET = withHandler<{ userId: string }>(async (_request, { params }) => {
+  const { userId } = params;
   if (!userId?.trim() || !isValidUuid(userId)) {
-    return new NextResponse("Not found", { status: 404 });
+    return apiNotFound("Not found");
   }
 
   if (!isProfilePictureUploadConfigured()) {
-    return new NextResponse("Not configured", { status: 503 });
+    return apiServiceUnavailable("Not configured");
   }
 
   const key = profilePictureObjectKey("user", userId);
@@ -43,6 +45,6 @@ export async function GET(
     return res;
   } catch (e) {
     console.error("[profile-pictures] presign GetObject failed", e);
-    return new NextResponse("Bad gateway", { status: 502 });
+    return apiBadGateway("Bad gateway");
   }
-}
+});
