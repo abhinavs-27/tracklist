@@ -81,39 +81,34 @@ export default async function SongPage({ params }: { params: PageParams }) {
    * Sequential server Supabase work: parallel `createSupabaseServerClient()` deadlocks RSC
    * (see `artist-page-content.tsx` / album page).
    */
-  let reviewsData: Awaited<ReturnType<typeof getReviewsForEntity>>;
-  try {
-    reviewsData = await getReviewsForEntity("song", entityId);
-  } catch (e) {
-    console.error("[song] getReviewsForEntity failed:", e);
-    reviewsData = {
-      reviews: [],
-      average_rating: null,
-      count: 0,
-      my_review: null,
-    };
-  }
-  const stats: Awaited<ReturnType<typeof getEntityStats>> =
-    await getEntityStats("song", entityId);
-  let recentListens: Awaited<ReturnType<typeof getListenLogsForTrack>>;
-  try {
-    recentListens = await getListenLogsForTrack(
-      entityId,
-      10,
-      0,
-      session?.user?.id ?? null,
-    );
-  } catch (e) {
-    console.error("[song] getListenLogsForTrack failed:", e);
-    recentListens = [];
-  }
-  let relatedSongsRaw: Awaited<ReturnType<typeof getRelatedMedia>>;
-  try {
-    relatedSongsRaw = await getRelatedMedia("song", entityId, 12);
-  } catch (e) {
-    console.error("[song] getRelatedMedia failed:", e);
-    relatedSongsRaw = [];
-  }
+  const supabase = await createSupabaseServerClient();
+  const [reviewsDataRes, statsRes, recentListensRes, relatedSongsRawRes] =
+    await Promise.allSettled([
+      getReviewsForEntity("song", entityId, 20, supabase),
+      getEntityStats("song", entityId, supabase),
+      getListenLogsForTrack(entityId, 10, 0, session?.user?.id ?? null, supabase),
+      getRelatedMedia("song", entityId, 12, supabase),
+    ]);
+
+  const reviewsData =
+    reviewsDataRes.status === "fulfilled" && reviewsDataRes.value
+      ? reviewsDataRes.value
+      : { reviews: [], average_rating: null, count: 0, my_review: null };
+
+  const stats =
+    statsRes.status === "fulfilled"
+      ? statsRes.value
+      : {
+          listen_count: 0,
+          review_count: 0,
+          avg_rating: null,
+          rating_distribution: {},
+        };
+
+  const recentListens =
+    recentListensRes.status === "fulfilled" ? recentListensRes.value : [];
+  const relatedSongsRaw =
+    relatedSongsRawRes.status === "fulfilled" ? relatedSongsRawRes.value : [];
 
   const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
   const relatedTracks =

@@ -129,42 +129,54 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (insertedLogs?.length) {
-      try {
-        for (const row of insertedLogs as {
-          id: string;
-          track_id: string;
-          listened_at: string;
-          source: string;
-        }[]) {
-          await fanOutListenForUserCommunities({
-            userId: me.id,
-            logId: row.id,
-            listenedAt: row.listened_at,
-            source: row.source ?? "spotify",
-            trackId: row.track_id,
-          });
-        }
-      } catch (e) {
-        console.warn("[spotify-sync] community_feed fan-out", e);
-      }
-    }
-
-    const { grantAchievementsOnListen } = await import("@/lib/queries");
-    await grantAchievementsOnListen(me.id);
-
-    // Hydrate catalog in background so feed listen-sessions never waits on Spotify in this request.
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
-    scheduleTrackEnrichmentBatch(idsToWarm);
 
-    try {
-      const admin = createSupabaseAdminClient();
-      scheduleEnrichArtistGenresForTrackIds(admin, idsToWarm);
-    } catch (e) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[spotify-sync] Last.fm genre enrich schedule failed", e);
-      }
-    }
+    await Promise.all([
+      (async () => {
+        if (insertedLogs?.length) {
+          try {
+            await Promise.all(
+              (
+                insertedLogs as {
+                  id: string;
+                  track_id: string;
+                  listened_at: string;
+                  source: string;
+                }[]
+              ).map((row) =>
+                fanOutListenForUserCommunities({
+                  userId: me.id,
+                  logId: row.id,
+                  listenedAt: row.listened_at,
+                  source: row.source ?? "spotify",
+                  trackId: row.track_id,
+                }),
+              ),
+            );
+          } catch (e) {
+            console.warn("[spotify-sync] community_feed fan-out", e);
+          }
+        }
+      })(),
+      (async () => {
+        const { grantAchievementsOnListen } = await import("@/lib/queries");
+        await grantAchievementsOnListen(me.id);
+      })(),
+      (async () => {
+        // Hydrate catalog in background
+        scheduleTrackEnrichmentBatch(idsToWarm);
+      })(),
+      (async () => {
+        try {
+          const admin = createSupabaseAdminClient();
+          scheduleEnrichArtistGenresForTrackIds(admin, idsToWarm);
+        } catch (e) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[spotify-sync] Last.fm genre enrich schedule failed", e);
+          }
+        }
+      })(),
+    ]);
 
     console.log("[spotify-ingest] manual-sync-complete", {
       userId: me.id,
