@@ -126,12 +126,14 @@ export async function getListenLogsForTrack(
   limit = 30,
   offset = 0,
   viewerUserId?: string | null,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<ListenLogWithUser[]> {
   const raw = await getListenLogsInternal({
     spotifyTrackId,
     limit: Math.max(limit * 5, 50),
     offset,
     viewerUserId,
+    supabase,
   });
   const seen = new Set<string>();
   const onePerUser = raw.filter((log) => {
@@ -149,9 +151,10 @@ async function getListenLogsInternal(opts: {
   offset?: number;
   /** When listing logs for a track, exclude users with `logs_private` unless this is the viewer. */
   viewerUserId?: string | null;
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>;
 }): Promise<ListenLogWithUser[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = opts.supabase ?? (await createSupabaseServerClient());
 
     const from = opts.offset ?? 0;
     const to = from + opts.limit - 1;
@@ -278,10 +281,11 @@ export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<ReviewsResult | null> {
   const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabase ?? (await createSupabaseServerClient());
 
     const canonicalEntityId =
       entityType === "album"
@@ -638,12 +642,13 @@ function setEntityStatsMemory(
 export async function getEntityStats(
   entityType: "album" | "song",
   entityId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<EntityStats> {
   const mem = getEntityStatsFromMemory(entityType, entityId);
   if (mem) return mem;
 
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabase ?? (await createSupabaseServerClient());
     const canonicalId =
       entityType === "album"
         ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
@@ -1720,9 +1725,10 @@ export async function getReviewsForArtist(
   artistId: string,
   limit = 10,
   offset = 0,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<ReviewWithUser[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabase ?? (await createSupabaseServerClient());
 
     const canonicalArtistId =
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
@@ -1802,9 +1808,10 @@ export type ArtistPopularTrack = {
 export async function getTopTracksForArtist(
   artistId: string,
   limit = 10,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<ArtistPopularTrack[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabase ?? (await createSupabaseServerClient());
 
     const canonicalArtistId =
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
@@ -2188,9 +2195,10 @@ export type PopularAlbumsForArtistResult = {
 export async function getPopularAlbumsForArtist(
   artistId: string,
   limit = 8,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<PopularAlbumsForArtistResult> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabase ?? (await createSupabaseServerClient());
     const canonicalArtistId =
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
     if (!canonicalArtistId) {
@@ -2259,16 +2267,20 @@ export async function getPopularAlbumsForArtist(
 }
 
 /** Album engagement: listen count, review count, average rating, profile favorite count. */
-export async function getAlbumEngagementStats(albumId: string): Promise<{
+export async function getAlbumEngagementStats(
+  albumId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<{
   listen_count: number;
   review_count: number;
   avg_rating: number | null;
   favorite_count: number;
 }> {
-  const stats = await getEntityStats("album", albumId);
+  const supabaseResolved = supabase ?? (await createSupabaseServerClient());
+  const stats = await getEntityStats("album", albumId, supabaseResolved);
   let favorite_count = 0;
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabaseResolved;
     const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
       supabase,
       albumId,
@@ -2375,10 +2387,11 @@ export async function getFriendsAlbumActivity(
   viewerId: string,
   albumId: string,
   limit = 10,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<FriendAlbumActivityRow[]> {
   const t0 = albumPagePhaseStart("getFriendsAlbumActivity", albumId);
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = supabase ?? (await createSupabaseServerClient());
 
     const canonicalAlbumId =
       await resolveCanonicalAlbumUuidFromEntityId(supabase, albumId);
