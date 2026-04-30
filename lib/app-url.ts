@@ -39,18 +39,21 @@ export function isLocalhostUrl(url: string): boolean {
 
 /**
  * Returns the app base URL (no trailing slash).
- * - Production: `PUBLIC_APP_URL` (canonical public domain, e.g. emails / OG) if set;
- *   else `NEXTAUTH_URL` if not localhost; else `VERCEL_URL` (often `*.vercel.app` — avoid for user-facing links).
- * - Development: uses NEXTAUTH_URL or http://127.0.0.1:3000.
+ * - `PUBLIC_APP_URL` always wins when set and non-localhost (works in Lambda, Vercel, local).
+ * - Production: `NEXTAUTH_URL` if not localhost; else `VERCEL_URL`.
+ * - Development: `NEXTAUTH_URL` or http://127.0.0.1:3000.
  */
 export function getAppBaseUrl(): string {
+  // PUBLIC_APP_URL is the explicit canonical domain — checked first in every environment
+  // so that Lambda workers (where NODE_ENV may not be "production") still get the right URL.
+  const publicAppUrl = process.env.PUBLIC_APP_URL?.trim();
+  if (publicAppUrl && !isLocalhostUrl(publicAppUrl)) {
+    return publicAppUrl.replace(/\/$/, "");
+  }
+
   const isProduction = process.env.NODE_ENV === "production";
 
   if (isProduction) {
-    const publicAppUrl = process.env.PUBLIC_APP_URL?.trim();
-    if (publicAppUrl && !isLocalhostUrl(publicAppUrl)) {
-      return publicAppUrl.replace(/\/$/, "");
-    }
     const nextAuthUrl = process.env.NEXTAUTH_URL?.trim();
     if (nextAuthUrl && !isLocalhostUrl(nextAuthUrl)) {
       return nextAuthUrl.replace(/\/$/, "");
