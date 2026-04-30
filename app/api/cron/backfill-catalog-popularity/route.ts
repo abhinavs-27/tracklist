@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { apiOk, apiError } from "@/lib/api-response";
+import { apiOk, apiError, apiServiceUnavailable } from "@/lib/api-response";
 import { runCatalogPopularityBackfill } from "@/lib/catalog-popularity-backfill";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
@@ -18,9 +18,8 @@ export async function GET(request: NextRequest) {
   try {
     const lastfmConfigured = Boolean(process.env.LASTFM_API_KEY?.trim());
     if (!lastfmConfigured) {
-      return apiError(
-        "Missing LASTFM_API_KEY. Add it to the environment for this Next.js server.",
-        503,
+      return apiServiceUnavailable(
+        "Missing LASTFM_API_KEY. Add it to the environment for this Next.js server."
       );
     }
 

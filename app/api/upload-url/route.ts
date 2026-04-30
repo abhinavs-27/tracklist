@@ -1,11 +1,11 @@
 import { withHandler } from "@/lib/api-handler";
 import {
   apiBadRequest,
-  apiError,
   apiForbidden,
   apiInternalError,
   apiNotFound,
   apiOk,
+  apiServiceUnavailable,
 } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
 import { canEditCommunitySettings } from "@/lib/community/permissions";
@@ -25,7 +25,7 @@ import { isValidUuid } from "@/lib/validation";
 export const POST = withHandler(
   async (request, { user: me }) => {
     if (!isProfilePictureUploadConfigured()) {
-      return apiError("Profile picture upload is not configured", 503);
+      return apiServiceUnavailable("Profile picture upload is not configured");
     }
 
     const { data: body, error: parseErr } = await parseBody<{
