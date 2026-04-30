@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleUnauthorized, requireApiAuth } from '@/lib/auth';
-import { apiError, apiInternalError } from '@/lib/api-response';
+import { apiForbidden, apiInternalError } from '@/lib/api-response';
 import { isSpotifyIntegrationEnabled } from '@/lib/spotify-integration-enabled';
 import { getSpotifyAuthorizeUrl } from '@/lib/spotify-user';
 import { getRequestOrigin } from '@/lib/app-url';
@@ -18,9 +18,8 @@ export async function GET(request: NextRequest) {
     const me = await requireApiAuth(request);
 
     if (!isSpotifyIntegrationEnabled()) {
-      return apiError(
+      return apiForbidden(
         "Spotify account linking is not enabled. Set NEXT_PUBLIC_ENABLE_SPOTIFY / ENABLE_SPOTIFY_INTEGRATION or hide profile UI with NEXT_PUBLIC_HIDE_SPOTIFY_PROFILE.",
-        403,
         { code: "SPOTIFY_LINKING_DISABLED" },
       );
     }

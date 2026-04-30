@@ -2,6 +2,11 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import {
+  scheduleAlbumEnrichment,
+  scheduleArtistEnrichment,
+  scheduleTrackEnrichment
+} from "./non-blocking-enrichment";
 
 export type MusicExternalSource = "spotify" | "lastfm";
 
@@ -227,4 +232,48 @@ export async function linkTrackExternalId(
   if (error && error.code !== "23505") {
     throw new Error(`linkTrackExternalId: ${error.message}`);
   }
+}
+
+export type ResolveEntityOutcome =
+  | { kind: "resolved"; id: string }
+  | { kind: "pending"; spotifyId: string; entity: "track" | "album" | "artist" };
+
+/**
+ * Resolves an entity ID (track, album, or artist) to its canonical UUID.
+ * If the entity is not found and looks like a Spotify ID, it schedules enrichment and returns "pending".
+ */
+export async function resolveAndCheckPending(
+  supabase: SupabaseClient,
+  rawId: string | null | undefined,
+  kind: "track" | "album" | "artist",
+): Promise<ResolveEntityOutcome | null> {
+  if (!rawId?.trim()) return null;
+  const id = rawId.trim();
+
+  if (isValidUuid(id)) return { kind: "resolved", id };
+  if (!isValidSpotifyId(id)) return null;
+
+  let canonicalId: string | null = null;
+  if (kind === "track") {
+    canonicalId = await getTrackIdByExternalId(supabase, "spotify", id);
+    if (!canonicalId) {
+      scheduleTrackEnrichment(id);
+    }
+  } else if (kind === "album") {
+    canonicalId = await getAlbumIdByExternalId(supabase, "spotify", id);
+    if (!canonicalId) {
+      scheduleAlbumEnrichment(id);
+    }
+  } else if (kind === "artist") {
+    canonicalId = await getArtistIdByExternalId(supabase, "spotify", id);
+    if (!canonicalId) {
+      scheduleArtistEnrichment(id);
+    }
+  }
+
+  if (canonicalId) {
+    return { kind: "resolved", id: canonicalId };
+  }
+
+  return { kind: "pending", spotifyId: id, entity: kind };
 }

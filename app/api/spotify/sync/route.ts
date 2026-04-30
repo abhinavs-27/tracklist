@@ -3,7 +3,7 @@ import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
-  apiError,
+  apiForbidden,
   apiInternalError,
   apiOk,
   apiTooManyRequests,
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const me = await requireApiAuth(request);
 
     if (!isSpotifyIntegrationEnabled()) {
-      return apiError("Spotify account linking is not enabled.", 403, {
+      return apiForbidden("Spotify account linking is not enabled.", {
         code: "SPOTIFY_LINKING_DISABLED",
       });
     }
