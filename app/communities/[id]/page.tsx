@@ -62,14 +62,21 @@ export default async function CommunityDetailPage({
   const id = rawId?.trim() ?? "";
   if (!isValidUuid(id)) notFound();
 
-  const session = await getSession();
-  const community = await getCommunityById(id);
+  const [session, community] = await Promise.all([
+    getSession(),
+    getCommunityById(id),
+  ]);
   if (!community) notFound();
 
-  const memberCount = await getCommunityMemberCount(id);
   const userId = session?.user?.id ?? null;
-  const isMember = userId ? await isCommunityMember(id, userId) : false;
-  const myRole = userId ? await getCommunityMemberRole(id, userId) : null;
+
+  const [memberCount, isMember, myRole, pendingInvite] = await Promise.all([
+    getCommunityMemberCount(id),
+    userId ? isCommunityMember(id, userId) : Promise.resolve(false),
+    userId ? getCommunityMemberRole(id, userId) : Promise.resolve(null),
+    userId ? getPendingInviteForUserToCommunity(id, userId) : Promise.resolve(null),
+  ]);
+
   const canEdit =
     userId && isMember && myRole
       ? canEditCommunitySettings(community.is_private, true, myRole)
@@ -82,10 +89,6 @@ export default async function CommunityDetailPage({
     userId && isMember && myRole
       ? canInviteToCommunity(community.is_private, true, myRole)
       : false;
-  const pendingInvite =
-    userId && !isMember
-      ? await getPendingInviteForUserToCommunity(id, userId)
-      : null;
 
   const [memberGrowthWeek, heroListening] = await Promise.all([
     getCommunityMemberGrowthThisWeek(id),
