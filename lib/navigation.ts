@@ -28,8 +28,7 @@ export function getActiveTab(
 
   if (
     pathname === "/explore" ||
-    pathname.startsWith("/discover") ||
-    pathname.startsWith("/leaderboard") ||
+    pathname.startsWith("/browse") ||
     pathname.startsWith("/search/users")
   ) {
     return "explore";

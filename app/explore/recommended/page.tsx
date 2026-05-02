@@ -22,8 +22,8 @@ export default async function RecommendedPage() {
   return (
     <div className="space-y-6">
       <header>
-        <Link href="/discover" className="text-sm text-emerald-400 hover:underline">
-          ← Discover
+        <Link href="/explore" className="text-sm text-emerald-400 hover:underline">
+          ← Explore
         </Link>
         <h1 className="mt-2 text-xl font-bold text-white sm:text-2xl">Recommended for you</h1>
         <p className="mt-1 text-sm text-zinc-400 sm:text-base">

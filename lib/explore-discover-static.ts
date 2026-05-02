@@ -18,7 +18,7 @@ export function getExploreDiscoverStaticPayload(): ExploreDiscoverPayload {
     links: [
       { href: "/discover", label: "Go to Discover", variant: "primary" },
       {
-        href: "/discover/recommended",
+        href: "/explore/recommended",
         label: "For you",
         variant: "secondary",
       },

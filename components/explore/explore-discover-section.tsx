@@ -15,7 +15,7 @@ export function ExploreDiscoverSection({ userId }: Props) {
       <p className="text-sm leading-relaxed text-zinc-400">{d.description}</p>
       <div className="mt-4 flex flex-wrap gap-3">
         {d.links.map((link) => {
-          if (link.href === "/discover/recommended" && (!socialMusicUi || !userId)) {
+          if (link.href === "/explore/recommended" && (!socialMusicUi || !userId)) {
             return null;
           }
           const isPrimary = link.variant === "primary";

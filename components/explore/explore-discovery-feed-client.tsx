@@ -411,39 +411,18 @@ export function ExploreDiscoveryFeedClient({
       ) : null}
 
       <SectionBlock
-        title="Classic leaderboard"
-        description="All-time popular songs and albums — the original charts."
-        action={{ label: "Open leaderboard →", href: "/leaderboard" }}
+        title="Browse"
+        action={{ label: "All-time rankings →", href: "/browse" }}
       >
         <Link
-          href="/leaderboard"
+          href="/browse"
           className="block rounded-2xl bg-gradient-to-br from-emerald-950/40 to-zinc-900/60 p-5 ring-1 ring-emerald-500/15 transition hover:ring-emerald-500/35 sm:p-6"
         >
           <p className="text-sm text-zinc-300">
-            Prefer ranked lists? Jump to global most-played and top-rated
-            leaderboards anytime.
+            Most played, highest rated, most favorited — filter by decade or custom year range.
           </p>
           <span className="mt-3 inline-flex text-sm font-semibold text-emerald-400">
-            Go to leaderboard →
-          </span>
-        </Link>
-      </SectionBlock>
-
-      <SectionBlock
-        title="More charts"
-        description="Trending strips, rising artists, and hidden gems in one place."
-        action={{ label: "Discover →", href: "/discover" }}
-      >
-        <Link
-          href="/discover"
-          className="block rounded-2xl bg-zinc-900/40 p-5 ring-1 ring-white/[0.06] transition hover:bg-zinc-900/60 sm:p-6"
-        >
-          <p className="text-sm text-zinc-400">
-            The Discover page still hosts full trending, rising artist, and gem
-            sections.
-          </p>
-          <span className="mt-3 inline-flex text-sm font-medium text-emerald-400">
-            Open Discover →
+            Browse albums & tracks →
           </span>
         </Link>
       </SectionBlock>

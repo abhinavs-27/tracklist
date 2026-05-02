@@ -1008,6 +1008,7 @@ async function getAlbumLeaderboardFromEntityStatsFallback(
   type: "popular" | "topRated",
   albumIdsFilter: string[] | null,
   limit: number,
+  yearRange?: { from: number; to: number } | null,
 ): Promise<LeaderboardEntry[]> {
   /** Popular needs many candidates: merged plays often correct zeros from entity_stats alone. */
   const entityStatsCap = Math.max(
@@ -1020,7 +1021,11 @@ async function getAlbumLeaderboardFromEntityStatsFallback(
     .eq("entity_type", "album")
     .limit(entityStatsCap);
 
-  if (albumIdsFilter && albumIdsFilter.length > 0) {
+  if (yearRange) {
+    statsQuery = statsQuery
+      .gte("release_year", yearRange.from)
+      .lte("release_year", yearRange.to);
+  } else if (albumIdsFilter && albumIdsFilter.length > 0) {
     statsQuery = statsQuery.in("entity_id", albumIdsFilter);
   }
 
@@ -1233,33 +1238,14 @@ export async function getLeaderboard(
     const { year, decade, startYear, endYear, skipLeaderboardRpc } = filters;
 
     let albumIds: string[] | null = null;
+    // year range filter applied directly on entity_stats.release_year (set by migration 144)
+    const yearRangeFilter = (startYear != null || endYear != null)
+      ? { from: startYear ?? endYear!, to: endYear ?? startYear! }
+      : null;
 
-    // Prefer explicit year range if provided (paginate: default PostgREST cap is 1000 rows)
-    if (startYear != null || endYear != null) {
-      const from = startYear ?? endYear!;
-      const to = endYear ?? startYear!;
-      const acc: string[] = [];
-      let rangeFrom = 0;
-      const pageSize = 1000;
-      let failed = false;
-      for (;;) {
-        const { data: albums, error } = await supabase
-          .from("albums")
-          .select("id")
-          .gte("release_date", `${from}-01-01`)
-          .lte("release_date", `${to}-12-31`)
-          .range(rangeFrom, rangeFrom + pageSize - 1);
-        if (error) {
-          console.error("[queries] getLeaderboard albums (year range):", error);
-          failed = true;
-          break;
-        }
-        const rows = albums ?? [];
-        acc.push(...rows.map((a) => a.id));
-        if (rows.length < pageSize) break;
-        rangeFrom += pageSize;
-      }
-      albumIds = failed ? [] : acc;
+    // Only fall back to collecting album IDs for the legacy year/decade path (no release_year column)
+    if (yearRangeFilter != null) {
+      // handled via release_year on entity_stats — no album ID collection needed
     } else if (year != null) {
       const acc: string[] = [];
       let rangeFrom = 0;
@@ -1324,7 +1310,11 @@ export async function getLeaderboard(
         .order("play_count", { ascending: false })
         .limit(Math.max(limit * 2, 100));
 
-      if (albumIds && albumIds.length > 0) {
+      if (yearRangeFilter) {
+        statsQuery = statsQuery
+          .gte("release_year", yearRangeFilter.from)
+          .lte("release_year", yearRangeFilter.to);
+      } else if (albumIds && albumIds.length > 0) {
         statsQuery = statsQuery.in("entity_id", albumIds);
       }
 
@@ -1574,7 +1564,16 @@ export async function getLeaderboard(
     const albumStatsLimit = type === "popular" ? 2000 : 500;
     let albumStatsRows: AlbumStatRow[] | null = null;
 
-    if (albumIds && albumIds.length > 0) {
+    if (yearRangeFilter) {
+      // Use entity_stats.release_year directly — avoids collecting album IDs
+      return getAlbumLeaderboardFromEntityStatsFallback(
+        supabase,
+        type,
+        null,
+        limit,
+        yearRangeFilter,
+      );
+    } else if (albumIds && albumIds.length > 0) {
       const mergedAlbumStats: AlbumStatRow[] = [];
       for (let i = 0; i < albumIds.length; i += LEADERBOARD_ALBUM_IN_CHUNK) {
         const chunk = albumIds.slice(i, i + LEADERBOARD_ALBUM_IN_CHUNK);

@@ -7,10 +7,14 @@ import { RecommendedCommunitiesSuspense } from "@/components/discover/recommende
 import { ExploreDiscoveryLoader } from "@/components/explore/explore-discovery-loader";
 import { ExploreDiscoverySkeleton } from "@/components/explore/explore-discovery-skeleton";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
-import { SectionBlock } from "@/components/layout/section-block";
 import { ExploreTastePreviewSkeleton } from "@/components/explore/explore-section-skeletons";
 import { exploreLogLine } from "@/lib/explore-perf";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
+import { RisingArtistsLoader } from "@/components/explore/rising-artists-loader";
+
+function SectionSkeleton() {
+  return <div className="min-h-[160px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />;
+}
 
 export default async function ExploreHubPage() {
   const start = Date.now();
@@ -27,8 +31,7 @@ export default async function ExploreHubPage() {
       <header>
         <h1 className={pageTitle}>Explore</h1>
         <p className="mt-3 max-w-2xl text-base text-zinc-400 sm:text-lg">
-          A live discovery feed — rising tracks, reviews, saves, and community
-          charts. Classic leaderboards are one tap away.
+          Trending tracks, rising artists, hidden gems, and community picks.
         </p>
       </header>
 
@@ -46,23 +49,23 @@ export default async function ExploreHubPage() {
         <ExploreDiscoveryLoader />
       </Suspense>
 
-      <SectionBlock
-        title="Find people"
-        description="Search by username or browse members with similar taste."
-        action={{ label: "Find people →", href: "/search/users" }}
+      <Suspense fallback={<SectionSkeleton />}>
+        <RisingArtistsLoader />
+      </Suspense>
+
+      <Link
+        href="/search/users"
+        className="group flex flex-col rounded-2xl bg-zinc-900/40 p-5 ring-1 ring-white/[0.06] transition hover:bg-zinc-900/60 hover:ring-white/[0.10] sm:p-6"
       >
-        <Link
-          href="/search/users"
-          className="block rounded-2xl bg-zinc-900/40 p-5 ring-1 ring-white/[0.06] transition hover:bg-zinc-900/60 sm:p-6"
-        >
-          <p className="text-sm text-zinc-400">
-            Follow friends, invite collaborators, and grow your network.
-          </p>
-          <span className="mt-3 inline-flex text-sm font-medium text-emerald-400">
-            Open search →
-          </span>
-        </Link>
-      </SectionBlock>
+        <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">People</p>
+        <p className="mt-2 text-lg font-semibold text-white">Find listeners</p>
+        <p className="mt-1 text-sm text-zinc-400">
+          Search by username or browse members with similar taste.
+        </p>
+        <span className="mt-4 text-sm font-medium text-emerald-400 transition group-hover:text-emerald-300">
+          Find people →
+        </span>
+      </Link>
     </div>
   );
 }

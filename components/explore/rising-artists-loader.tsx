@@ -1,6 +1,6 @@
 import { getRisingArtistsCached } from "@/lib/discover-cache";
 import { getOrFetchArtistsBatch } from "@/lib/spotify-cache";
-import { RisingArtistsSection } from "./rising-artists-section";
+import { RisingArtistsSection } from "@/components/explore/rising-artists-section";
 
 const MAX_ITEMS = 20;
 const DISCOVER_CATALOG_OPTS = {
