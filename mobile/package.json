@@ -35,8 +35,14 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "@types/react-dom": "~19.2.3",
+    "@types/spotify-api": "^0.0.26",
     "babel-plugin-module-resolver": "^5.0.3",
     "typescript": "^6.0.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "uuid": "14.0.0",
+    "postcss": "8.5.12",
+    "@xmldom/xmldom": "^0.9.7"
+  }
 }

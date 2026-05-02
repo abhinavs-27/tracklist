@@ -28,5 +28,10 @@
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.2"
+  },
+  "overrides": {
+    "uuid": "14.0.0",
+    "postcss": "8.5.12",
+    "next": "16.2.4"
   }
 }
