@@ -44,36 +44,44 @@ function ReviewCardInner({
       : `/song/${review.entity_id}`;
 
   if (variant === "story") {
+    const username = user?.username ?? "Unknown";
     return (
-      <div className="min-w-0 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
-        <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
-          <Link
-            href={user?.id ? `/profile/${user.id}` : "#"}
-            className="hover:text-emerald-400 hover:underline"
-          >
-            {user?.username ?? "Unknown"}
+      <div className="min-w-0">
+        {/* Header — matches listen session card style */}
+        <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+          <Link href={user?.id ? `/profile/${user.id}` : "#"} className="mt-0.5 shrink-0">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover ring-1 ring-white/10" />
+            ) : (
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200 ring-1 ring-white/10">
+                {username[0]?.toUpperCase() ?? "?"}
+              </span>
+            )}
           </Link>
-          <span className="font-normal text-zinc-400"> reviewed </span>
-          <Link href={entityHref} className="text-white hover:text-emerald-400 hover:underline">
-            {displayName}
-          </Link>
-        </h2>
-        <p className="mt-2 text-[11px] uppercase tracking-wide text-zinc-500">{typeLabel}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-          <span
-            className="text-amber-400"
-            aria-label={`Rating: ${ratingNum} out of 5`}
-          >
-            {formatStarDisplay(ratingNum)}
-          </span>
-          <span className="tabular-nums">{formatRelativeTime(review.created_at)}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm leading-snug">
+              <Link href={user?.id ? `/profile/${user.id}` : "#"} className="font-semibold text-white hover:underline">
+                {username}
+              </Link>
+              <span className="text-zinc-400"> rated </span>
+              <Link href={entityHref} className="font-medium text-white hover:text-emerald-400 hover:underline">
+                {displayName}
+              </Link>
+              <span className="ml-1.5 text-amber-400/90">{formatStarDisplay(ratingNum)}</span>
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">{formatRelativeTime(review.created_at)}</p>
+          </div>
         </div>
+
+        {/* Review text */}
         {review.review_text ? (
-          <p className="mt-3 line-clamp-4 text-[14px] leading-relaxed text-zinc-300 whitespace-pre-line sm:text-[15px]">
+          <p className="px-4 pb-3 line-clamp-4 text-sm leading-relaxed text-zinc-300 whitespace-pre-line">
             {review.review_text}
           </p>
         ) : null}
-        <div className="relative mt-4 flex items-center gap-3">
+
+        {/* Engagement */}
+        <div className="flex items-center gap-4 border-t border-zinc-800/60 px-4 py-2.5">
           <LikeButton
             key={review.id}
             reviewId={review.id}

@@ -154,7 +154,22 @@ export default async function NotificationsPage() {
                       })()}
                     </>
                   )}
+                  {n.type === "like" && n.actor_user_id && (
+                    <>
+                      <Link href={`/profile/${n.actor_user_id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">
+                        {actorMap.get(n.actor_user_id) ?? "Someone"}
+                      </Link>
+                      {n.entity_type === "feed_review"
+                        ? " liked your review"
+                        : n.entity_type === "feed_listen_session" || n.entity_type === "feed_listen_sessions_summary"
+                          ? " liked your listen"
+                          : n.entity_type === "feed_feed_story"
+                            ? " liked your activity"
+                            : " liked your post"}
+                    </>
+                  )}
                   {n.type !== "follow" &&
+                    n.type !== "like" &&
                     n.type !== "music_recommendation" &&
                     !(
                       n.type === "community_invite" &&

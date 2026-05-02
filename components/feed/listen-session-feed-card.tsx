@@ -2,117 +2,130 @@
 
 import Link from "next/link";
 import { useState, memo } from "react";
-import { CatalogArtworkPlaceholder } from "@/components/catalog-artwork-placeholder";
-import {
-  ListenSessionRow,
-  LISTEN_SESSIONS_DISPLAY_CAP,
-} from "@/components/listen-session-row";
+import { ListenSessionRow, LISTEN_SESSIONS_DISPLAY_CAP } from "@/components/listen-session-row";
 import { formatRelativeTime } from "@/lib/time";
 import type { FeedListenSession } from "@/types";
 import { StoryFeedCard } from "@/components/feed/story-feed-card";
 import type { FeedListenSessionActivity } from "@/components/feed/group-feed-items";
-import { FeedListenGroupEngagement } from "@/components/feed/feed-activity-engagement";
+import { LikeReactionBar } from "@/components/reactions/like-reaction-bar";
+import { CommentThread, CommentToggleButton } from "@/components/comment-thread";
 import { feedAlbumCoverUrl } from "@/lib/feed-artwork";
 
-function albumHeroImage(session: FeedListenSessionActivity) {
-  return feedAlbumCoverUrl(session.album ?? undefined);
+function art(s: FeedListenSessionActivity) {
+  return feedAlbumCoverUrl(s.album ?? undefined);
 }
 
-function sessionAlbumName(session: FeedListenSessionActivity) {
-  return session.album?.name?.trim() || null;
+function albumName(s: FeedListenSessionActivity) {
+  return s.album?.name?.trim() || null;
 }
 
-function sessionTrackLabel(session: FeedListenSessionActivity) {
+function artistName(s: FeedListenSessionActivity) {
+  return s.artist_name?.trim() || s.album?.artists?.map((a) => a.name).join(", ") || null;
+}
+
+function Avatar({ user, username }: { user: FeedListenSessionActivity["user"]; username: string }) {
   return (
-    session.track_name?.trim() ||
-    session.album?.name?.trim() ||
-    "Track"
+    <Link href={user?.id ? `/profile/${user.id}` : "#"} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+      {user?.avatar_url ? (
+        <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10" />
+      ) : (
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-200 ring-1 ring-white/10">
+          {username[0]?.toUpperCase() ?? "?"}
+        </span>
+      )}
+    </Link>
   );
 }
 
-function sessionArtistLine(session: FeedListenSessionActivity) {
+function AlbumThumb({ src, href }: { src: string | null; href: string }) {
   return (
-    session.artist_name?.trim() ||
-    session.album?.artists?.map((a) => a.name).join(", ") ||
-    ""
+    <Link href={href} className="group shrink-0">
+      <div className="h-[72px] w-[72px] overflow-hidden rounded-xl bg-zinc-800 ring-1 ring-white/[0.07]">
+        {src ? (
+          <img src={src} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-zinc-700 to-zinc-900" />
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function EngagementRow({ reactionTarget, commentTarget }: {
+  reactionTarget: { targetType: string; targetId: string };
+  commentTarget: { targetType: "feed_item"; targetId: string };
+}) {
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [commentCount] = useState(0);
+  return (
+    <div className="border-t border-zinc-800/50 px-4">
+      {/* Only icon buttons in the flex row — expansion never grows inside here */}
+      <div className="flex items-center gap-4 py-2">
+        <LikeReactionBar target={reactionTarget} noTopBorder compact />
+        <CommentToggleButton
+          open={commentOpen}
+          onToggle={() => setCommentOpen((o) => !o)}
+          count={commentCount}
+        />
+      </div>
+      {/* Thread body renders below the button row, completely outside the flex */}
+      {commentOpen && (
+        <CommentThread
+          targetType={commentTarget.targetType}
+          targetId={commentTarget.targetId}
+          open={commentOpen}
+          onOpenChange={setCommentOpen}
+          bodyOnly
+        />
+      )}
+    </div>
   );
 }
 
 export const ListenSessionSingleStoryCard = memo(function ListenSessionSingleStoryCard({
   activity,
+  viewerUserId,
 }: {
   activity: FeedListenSessionActivity;
+  viewerUserId?: string;
 }) {
   const username = activity.user?.username ?? "Someone";
-  const albumName = sessionAlbumName(activity) ?? sessionTrackLabel(activity);
-  const trackLabel = sessionTrackLabel(activity);
-  const artistLine = sessionArtistLine(activity);
-  const image = albumHeroImage(activity);
+  const artUrl = art(activity);
+  const album = albumName(activity);
+  const artist = artistName(activity);
   const time = formatRelativeTime(activity.created_at);
-  const count = activity.song_count > 1 ? activity.song_count : null;
+  const albumHref = `/album/${activity.album_id}`;
+  const reactionTarget = {
+    targetType: "feed_listen_session",
+    targetId: `${activity.user_id}-${activity.album_id}-${activity.created_at}`,
+  };
+  const commentTarget = {
+    targetType: "feed_item" as const,
+    targetId: `${activity.user_id}-${activity.album_id}-${activity.created_at}`,
+  };
 
   return (
-    <StoryFeedCard className="overflow-hidden">
-      <Link
-        href={`/album/${activity.album_id}`}
-        className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-      >
-        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-zinc-950 sm:h-[112px]">
-          {image ? (
-            <img
-              src={image}
-              alt=""
-              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
-              <CatalogArtworkPlaceholder size="md" className="h-16 w-16 text-2xl" />
-            </div>
+    <StoryFeedCard>
+      <div className="flex items-start gap-3 px-4 py-3">
+        <Avatar user={activity.user} username={username} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug">
+            <Link href={activity.user?.id ? `/profile/${activity.user.id}` : "#"} className="font-semibold text-white hover:underline">
+              {username}
+            </Link>
+            <span className="text-zinc-400"> listened to</span>
+          </p>
+          {album && (
+            <Link href={albumHref} className="mt-1 block text-sm font-medium text-white hover:text-emerald-400 hover:underline">
+              {album}
+            </Link>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-              Listening
-            </p>
-            <h2 className="mt-0.5 line-clamp-2 text-base font-bold leading-snug tracking-tight text-white sm:text-[17px]">
-              <span className="font-semibold text-white">{username}</span>
-              <span className="font-normal text-zinc-200"> is listening to </span>
-              <span className="text-white">{albumName}</span>
-            </h2>
-            {trackLabel !== albumName ? (
-              <p className="mt-0.5 line-clamp-1 text-xs text-zinc-300">{trackLabel}</p>
-            ) : null}
-            {artistLine ? (
-              <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-400">{artistLine}</p>
-            ) : null}
-          </div>
+          {artist && <p className="mt-0.5 text-xs text-zinc-500">{artist}</p>}
+          <p className="mt-0.5 text-xs text-zinc-600 tabular-nums">{time}</p>
         </div>
-      </Link>
-      <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-zinc-500 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <Link
-            href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0"
-          >
-            {activity.user?.avatar_url ? (
-              <img
-                src={activity.user.avatar_url}
-                alt=""
-                className="h-7 w-7 rounded-full border border-zinc-700 object-cover"
-              />
-            ) : (
-              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-[11px] font-medium text-zinc-200">
-                {username[0]?.toUpperCase() ?? "?"}
-              </span>
-            )}
-          </Link>
-          <span className="truncate tabular-nums">{time}</span>
-        </div>
-        {count != null ? (
-          <span className="shrink-0 tabular-nums text-zinc-400">{count} plays</span>
-        ) : null}
+        <AlbumThumb src={artUrl} href={albumHref} />
       </div>
+      <EngagementRow reactionTarget={reactionTarget} commentTarget={commentTarget} />
     </StoryFeedCard>
   );
 });
@@ -125,93 +138,73 @@ export const ListenSessionGroupStoryCard = memo(function ListenSessionGroupStory
   viewerUserId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const first = sessions[0];
+  const first = sessions[0]!;
   const username = first.user?.username ?? "Someone";
   const n = sessions.length;
-  const image = albumHeroImage(first);
+  const artUrl = art(first);
+  const album = albumName(first);
+  const artist = artistName(first);
   const time = formatRelativeTime(first.created_at);
+  const albumHref = `/album/${first.album_id}`;
   const displaySessions = sessions.slice(0, LISTEN_SESSIONS_DISPLAY_CAP);
-  const showPlus = sessions.length > LISTEN_SESSIONS_DISPLAY_CAP;
+  const reactionTarget = {
+    targetType: "feed_listen_session",
+    targetId: `${first.user_id}-${first.album_id}-${first.created_at}`,
+  };
+  const commentTarget = {
+    targetType: "feed_item" as const,
+    targetId: `${first.user_id}-${first.album_id}-${first.created_at}`,
+  };
+
   return (
-    <>
-    <StoryFeedCard className="overflow-hidden">
+    <StoryFeedCard>
+      <div className="flex items-start gap-3 px-4 py-3">
+        <Avatar user={first.user} username={username} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug">
+            <Link href={first.user?.id ? `/profile/${first.user.id}` : "#"} className="font-semibold text-white hover:underline">
+              {username}
+            </Link>
+            <span className="text-zinc-400"> listened to </span>
+            <span className="font-medium text-white">{n} tracks</span>
+          </p>
+          {album && (
+            <Link href={albumHref} className="mt-1 block text-sm font-medium text-white hover:text-emerald-400 hover:underline">
+              {album}
+            </Link>
+          )}
+          {artist && <p className="mt-0.5 text-xs text-zinc-500">{artist}</p>}
+          <p className="mt-0.5 text-xs text-zinc-600 tabular-nums">{time}</p>
+        </div>
+        <AlbumThumb src={artUrl} href={albumHref} />
+      </div>
+
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/80"
+        className="w-full px-4 py-1.5 text-left text-xs text-zinc-500 transition hover:text-zinc-300"
       >
-        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-zinc-950 sm:h-[112px]">
-          {image ? (
-            <img src={image} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
-              <CatalogArtworkPlaceholder size="md" className="h-16 w-16 text-2xl" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-          {n > 1 ? (
-            <div className="absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-              +{n - 1}
-            </div>
-          ) : null}
-          <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-              Session
-            </p>
-            <h2 className="mt-0.5 line-clamp-2 text-base font-bold leading-snug tracking-tight text-white sm:text-[17px]">
-              <span className="font-semibold text-white">{username}</span>
-              <span className="font-normal text-zinc-200"> listened to </span>
-              <span className="text-white">{n} tracks</span>
-            </h2>
-            <p className="mt-0.5 line-clamp-1 text-xs text-zinc-300">
-              Starting with {sessionTrackLabel(first)}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-zinc-500 sm:px-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <Link
-              href={first.user?.id ? `/profile/${first.user.id}` : "#"}
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0"
-            >
-              {first.user?.avatar_url ? (
-                <img
-                  src={first.user.avatar_url}
-                  alt=""
-                  className="h-7 w-7 rounded-full border border-zinc-700 object-cover"
-                />
-              ) : (
-                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-[11px] font-medium text-zinc-200">
-                  {username[0]?.toUpperCase() ?? "?"}
-                </span>
-              )}
-            </Link>
-            <span className="tabular-nums">{time}</span>
-          </div>
-          <span className="shrink-0 text-zinc-500" aria-hidden>
-            {expanded ? "▼" : "▶"}
-          </span>
-        </div>
+        {expanded ? "Hide tracks ▲" : `${n} tracks ▼`}
       </button>
-      {expanded && displaySessions.length > 0 ? (
-        <div className="border-t border-zinc-800/90 px-4 pb-4 pt-1">
-          <ul className="mt-3 space-y-2">
+
+      {expanded && (
+        <div className="border-t border-zinc-800/60 px-4 pb-3 pt-2">
+          <ul className="space-y-1.5">
             {displaySessions.map((sess) => (
               <li key={`${sess.track_id}-${sess.created_at}`}>
                 <ListenSessionRow session={sess as FeedListenSession} />
               </li>
             ))}
           </ul>
-          {showPlus ? (
-            <p className="mt-2 text-center text-[11px] text-zinc-500">
-              + more not shown
+          {sessions.length > LISTEN_SESSIONS_DISPLAY_CAP && (
+            <p className="mt-2 text-center text-[11px] text-zinc-600">
+              + {sessions.length - LISTEN_SESSIONS_DISPLAY_CAP} more
             </p>
-          ) : null}
+          )}
         </div>
-      ) : null}
+      )}
+
+      <EngagementRow reactionTarget={reactionTarget} commentTarget={commentTarget} />
     </StoryFeedCard>
-    <FeedListenGroupEngagement sessions={sessions} viewerUserId={viewerUserId} />
-    </>
   );
 });

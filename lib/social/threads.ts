@@ -742,14 +742,57 @@ export async function getThreadDetail(
   };
 }
 
+/** Resolve the owner of a feed reaction target. Returns null if unresolvable or self. */
+async function resolveReactionTargetOwner(
+  viewerUserId: string,
+  targetType: string,
+  targetId: string,
+): Promise<string | null> {
+  const admin = createSupabaseAdminClient();
+
+  if (targetType === "feed_review") {
+    const { data } = await admin
+      .from("reviews")
+      .select("user_id")
+      .eq("id", targetId)
+      .maybeSingle();
+    return (data?.user_id as string | null) ?? null;
+  }
+
+  if (targetType === "feed_feed_story") {
+    const { data } = await admin
+      .from("feed_events")
+      .select("user_id")
+      .eq("id", targetId)
+      .maybeSingle();
+    return (data?.user_id as string | null) ?? null;
+  }
+
+  // feed_listen_session: targetId = `${userId}-${albumId}-${createdAt}`
+  // feed_listen_sessions_summary: targetId = `summary-${userId}-${createdAt}`
+  // In both cases the owner UUID is 36 chars starting at a known offset.
+  if (targetType === "feed_listen_session") {
+    const ownerId = targetId.slice(0, 36);
+    return ownerId.length === 36 ? ownerId : null;
+  }
+  if (targetType === "feed_listen_sessions_summary") {
+    const ownerId = targetId.slice("summary-".length, "summary-".length + 36);
+    return ownerId.length === 36 ? ownerId : null;
+  }
+
+  return null;
+}
+
 export async function afterReactionHook(
   viewerUserId: string,
   targetType: string,
   targetId: string,
 ): Promise<void> {
   await touchThreadByReactionTarget(targetType, targetId);
+
+  const admin = createSupabaseAdminClient();
+
   if (targetType === "feed_review") {
-    const admin = createSupabaseAdminClient();
     const { data: rev } = await admin
       .from("reviews")
       .select("user_id")
@@ -762,6 +805,23 @@ export async function afterReactionHook(
         actorUserIds: [viewerUserId, rev.user_id as string],
       });
     }
+  }
+
+  // Send a like notification to the content owner (skip self-likes).
+  try {
+    const ownerId = await resolveReactionTargetOwner(viewerUserId, targetType, targetId);
+    if (ownerId && ownerId !== viewerUserId) {
+      await admin.from("notifications").insert({
+        user_id: ownerId,
+        actor_user_id: viewerUserId,
+        type: "like",
+        entity_type: targetType,
+        entity_id: targetId,
+      });
+    }
+  } catch (e) {
+    // Non-fatal — don't fail the reaction if notification insert fails.
+    console.warn("[afterReactionHook] notification insert failed", e);
   }
 }
 

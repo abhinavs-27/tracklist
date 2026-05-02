@@ -2,7 +2,6 @@
 
 import { useState, memo } from 'react';
 import Link from 'next/link';
-import { CatalogArtworkPlaceholder } from '@/components/catalog-artwork-placeholder';
 import {
   ListenSessionRow,
   LISTEN_SESSIONS_DISPLAY_CAP,
@@ -13,9 +12,47 @@ import type { FeedActivity } from '@/types';
 import { StoryFeedCard } from '@/components/feed/story-feed-card';
 import { ListenSessionSingleStoryCard } from '@/components/feed/listen-session-feed-card';
 import type { EnrichedFeedActivity } from '@/components/feed/group-feed-items';
-import { FeedActivityEngagement } from '@/components/feed/feed-activity-engagement';
+import { LikeReactionBar } from '@/components/reactions/like-reaction-bar';
+import { CommentThread, CommentToggleButton } from '@/components/comment-thread';
 import { formatStarDisplay } from '@/lib/ratings';
-import { feedAlbumCoverUrl } from "@/lib/feed-artwork";
+
+function StoryEngagement({ reactionTarget, commentTarget }: {
+  reactionTarget: { targetType: string; targetId: string };
+  commentTarget: { targetType: 'feed_item'; targetId: string };
+}) {
+  const [commentOpen, setCommentOpen] = useState(false);
+  return (
+    <div className="border-t border-zinc-800/50 px-4">
+      <div className="flex items-center gap-4 py-2">
+        <LikeReactionBar target={reactionTarget} noTopBorder compact />
+        <CommentToggleButton open={commentOpen} onToggle={() => setCommentOpen((o) => !o)} count={0} />
+      </div>
+      {commentOpen && (
+        <CommentThread
+          targetType={commentTarget.targetType}
+          targetId={commentTarget.targetId}
+          open={commentOpen}
+          onOpenChange={setCommentOpen}
+          bodyOnly
+        />
+      )}
+    </div>
+  );
+}
+
+function StoryAvatar({ user, username }: { user: { id?: string; avatar_url?: string | null } | null | undefined; username: string }) {
+  return (
+    <Link href={user?.id ? `/profile/${user.id}` : "#"} className="mt-0.5 shrink-0">
+      {user?.avatar_url ? (
+        <img src={user.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover ring-1 ring-white/10" />
+      ) : (
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200 ring-1 ring-white/10">
+          {username[0]?.toUpperCase() ?? "?"}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
   activity,
@@ -24,80 +61,56 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
 }) {
   const [expanded, setExpanded] = useState(false);
   const username = activity.user?.username ?? 'Someone';
-  const songCount = activity.song_count;
-  const displayCount = Math.min(songCount, LISTEN_SESSIONS_DISPLAY_CAP);
-  const showPlus = songCount > LISTEN_SESSIONS_DISPLAY_CAP;
-  const timeAgo = formatRelativeTime(activity.created_at);
+  const n = activity.song_count;
+  const time = formatRelativeTime(activity.created_at);
   const sessions = activity.sessions ?? [];
   const first = sessions[0];
-  const heroUrl = feedAlbumCoverUrl(first?.album ?? undefined);
+  const reactionTarget = {
+    targetType: "feed_listen_sessions_summary",
+    targetId: `summary-${activity.user_id}-${activity.created_at}`,
+  };
 
   return (
-    <StoryFeedCard className="overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
-        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/80"
-      >
-        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-zinc-950 sm:h-[112px]">
-          {heroUrl ? (
-            <img src={heroUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
-              <CatalogArtworkPlaceholder size="lg" className="h-16 w-16 text-2xl" />
+    <StoryFeedCard>
+      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+        <StoryAvatar user={activity.user} username={username} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug">
+            <Link href={activity.user?.id ? `/profile/${activity.user.id}` : "#"} className="font-semibold text-white hover:underline">
+              {username}
+            </Link>
+            <span className="text-zinc-400"> listened to </span>
+            <span className="font-medium text-white">{n} track{n !== 1 ? "s" : ""}</span>
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">{time}</p>
+        </div>
+      </div>
+      {sessions.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="w-full px-4 py-2 text-left text-xs text-zinc-500 transition hover:text-zinc-300"
+          >
+            {expanded ? "Hide tracks ▲" : `Show ${n} track${n !== 1 ? "s" : ""} ▼`}
+          </button>
+          {expanded && (
+            <div className="border-t border-zinc-800/60 px-4 pb-3 pt-2">
+              <ul className="space-y-2">
+                {sessions.slice(0, LISTEN_SESSIONS_DISPLAY_CAP).map((sess) => (
+                  <li key={`${sess.track_id}-${sess.created_at}`}>
+                    <ListenSessionRow session={sess} />
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-              Listening
-            </p>
-            <h2 className="mt-0.5 line-clamp-2 text-base font-bold leading-snug tracking-tight text-white sm:text-[17px]">
-              <span className="font-semibold text-white">{username}</span>
-              <span className="font-normal text-zinc-200"> listened to </span>
-              <span className="text-white">
-                {displayCount}{showPlus ? '+' : ''} song{(displayCount !== 1 || showPlus) ? 's' : ''}
-              </span>
-            </h2>
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-zinc-500 sm:px-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : '#'}
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0"
-            >
-              {activity.user?.avatar_url ? (
-                <img
-                  src={activity.user.avatar_url}
-                  alt=""
-                  className="h-7 w-7 rounded-full border border-zinc-700 object-cover"
-                />
-              ) : (
-                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-[11px] font-medium text-zinc-200">
-                  {username[0]?.toUpperCase() ?? '?'}
-                </span>
-              )}
-            </Link>
-            <span className="tabular-nums">{timeAgo}</span>
-          </div>
-          <span className="shrink-0 text-zinc-500" aria-hidden>
-            {expanded ? '▼' : '▶'}
-          </span>
-        </div>
-      </button>
-      {expanded && sessions.length > 0 && (
-        <div className="border-t border-zinc-800/90 px-4 pb-4 pt-1">
-          <ul className="mt-3 space-y-2">
-            {sessions.map((sess) => (
-              <li key={`${sess.track_id}-${sess.created_at}`}>
-                <ListenSessionRow session={sess} />
-              </li>
-            ))}
-          </ul>
-        </div>
+        </>
       )}
+      <StoryEngagement
+        reactionTarget={reactionTarget}
+        commentTarget={{ targetType: 'feed_item', targetId: `summary-${activity.user_id}-${activity.created_at}` }}
+      />
     </StoryFeedCard>
   );
 });
@@ -115,53 +128,38 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
 }) {
   const username = activity.user?.username ?? "Someone";
   const p = activity.payload;
-  const timeAgo = formatRelativeTime(activity.created_at);
+  const time = formatRelativeTime(activity.created_at);
+  const profileHref = activity.user?.id ? `/profile/${activity.user.id}` : "#";
+  const reactionTarget = { targetType: "feed_feed_story", targetId: activity.id };
 
-  const headline = (() => {
+  const actionLine = (() => {
     switch (activity.story_kind) {
       case "discovery": {
         const name = (p.artist_name as string) ?? "an artist";
         const id = p.artist_id as string | undefined;
         return (
-          <>
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-semibold text-white hover:text-emerald-400 hover:underline"
-            >
-              {username}
-            </Link>
+          <span className="text-zinc-400">
             {" discovered "}
             {id ? (
-              <Link href={`/artist/${id}`} className="text-white hover:text-emerald-400 hover:underline">
-                {name}
-              </Link>
+              <Link href={`/artist/${id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">{name}</Link>
             ) : (
-              <span className="text-zinc-100">{name}</span>
+              <span className="font-medium text-white">{name}</span>
             )}
-          </>
+          </span>
         );
       }
       case "top-artist-shift": {
         const name = (p.artist_name as string) ?? "an artist";
         const id = p.artist_id as string | undefined;
         return (
-          <>
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-semibold text-white hover:text-emerald-400 hover:underline"
-            >
-              {username}
-            </Link>
+          <span className="text-zinc-400">
             {" is really into "}
             {id ? (
-              <Link href={`/artist/${id}`} className="text-white hover:text-emerald-400 hover:underline">
-                {name}
-              </Link>
+              <Link href={`/artist/${id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">{name}</Link>
             ) : (
-              <span className="text-zinc-100">{name}</span>
-            )}
-            {" lately"}
-          </>
+              <span className="font-medium text-white">{name}</span>
+            )}{" lately"}
+          </span>
         );
       }
       case "rating": {
@@ -169,148 +167,62 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
         const et = p.entity_type as string;
         const eid = p.entity_id as string;
         const rating = Number(p.rating) || 0;
-        const href =
-          et === "album" ? `/album/${eid}` : et === "song" ? `/song/${eid}` : "#";
+        const href = et === "album" ? `/album/${eid}` : et === "song" ? `/song/${eid}` : "#";
         return (
-          <>
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-semibold text-white hover:text-emerald-400 hover:underline"
-            >
-              {username}
-            </Link>
+          <span className="text-zinc-400">
             {" rated "}
-            <Link href={href} className="text-white hover:text-emerald-400 hover:underline">
-              {title}
-            </Link>
-            <span className="ml-2 text-amber-400/95" aria-label={`${rating} stars`}>
-              {formatStarDisplay(rating)}
-            </span>
-          </>
+            <Link href={href} className="font-medium text-white hover:text-emerald-400 hover:underline">{title}</Link>
+            <span className="ml-1.5 text-amber-400/90">{formatStarDisplay(rating)}</span>
+          </span>
         );
       }
       case "streak": {
         const days = Number(p.days) || 0;
-        return (
-          <>
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-semibold text-white hover:text-emerald-400 hover:underline"
-            >
-              {username}
-            </Link>
-            {` is on a ${days}-day listening streak`}
-          </>
-        );
+        return <span className="text-zinc-400">{` is on a `}<span className="font-medium text-white">{days}-day</span>{` listening streak 🔥`}</span>;
       }
       case "binge": {
-        return (
-          <>
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-semibold text-white hover:text-emerald-400 hover:underline"
-            >
-              {username}
-            </Link>
-            {" went on a music binge"}
-          </>
-        );
+        const count = Number(p.log_count) || 0;
+        return <span className="text-zinc-400">{` went on a binge`}{count > 0 ? ` · ${count} songs` : ""}</span>;
       }
       case "new-list": {
         const title = (p.title as string) ?? "a list";
         const lid = p.list_id as string | undefined;
         return (
-          <>
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-semibold text-white hover:text-emerald-400 hover:underline"
-            >
-              {username}
-            </Link>
-            {" created a list: "}
+          <span className="text-zinc-400">
+            {" created "}
             {lid ? (
-              <Link href={`/lists/${lid}`} className="text-white hover:text-emerald-400 hover:underline">
-                {title}
-              </Link>
+              <Link href={`/lists/${lid}`} className="font-medium text-white hover:text-emerald-400 hover:underline">{title}</Link>
             ) : (
-              <span className="text-zinc-100">{title}</span>
+              <span className="font-medium text-white">{title}</span>
             )}
-          </>
+          </span>
         );
       }
       case "milestone": {
         const m = p.milestone as number | undefined;
-        return (
-          <>
-            <Link
-              href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-              className="font-semibold text-white hover:text-emerald-400 hover:underline"
-            >
-              {username}
-            </Link>
-            {` hit ${m ?? ""} total listens on Tracklist`}
-          </>
-        );
+        return <span className="text-zinc-400">{` hit `}<span className="font-medium text-white">{m?.toLocaleString() ?? ""}</span>{` total listens`}</span>;
       }
       default:
-        return <span className="text-zinc-400">Activity</span>;
-    }
-  })();
-
-  const kindLabel = (() => {
-    switch (activity.story_kind) {
-      case "discovery":
-        return "Discovery";
-      case "binge":
-        return "Listening";
-      case "top-artist-shift":
-        return "Trending";
-      case "rating":
-        return "Review";
-      case "streak":
-        return "Streak";
-      case "new-list":
-        return "List";
-      case "milestone":
-        return "Milestone";
-      default:
-        return "Update";
+        return null;
     }
   })();
 
   return (
-    <StoryFeedCard className="overflow-hidden">
-      <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 sm:h-[112px]">
-        <div className="absolute inset-0 flex items-center justify-center py-4">
-          <Link
-            href={activity.user?.id ? `/profile/${activity.user.id}` : "#"}
-            className="relative z-10"
-          >
-            {activity.user?.avatar_url ? (
-              <img
-                src={activity.user.avatar_url}
-                alt=""
-                className="h-[72px] w-[72px] rounded-full border-[3px] border-zinc-700/80 object-cover shadow-lg shadow-black/40 sm:h-20 sm:w-20"
-              />
-            ) : (
-              <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[3px] border-zinc-700/80 bg-zinc-800 text-xl font-semibold text-zinc-200 shadow-lg sm:h-20 sm:w-20 sm:text-2xl">
-                {username[0]?.toUpperCase() ?? "?"}
-              </span>
-            )}
-          </Link>
+    <StoryFeedCard>
+      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+        <StoryAvatar user={activity.user} username={username} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug">
+            <Link href={profileHref} className="font-semibold text-white hover:underline">{username}</Link>
+            {actionLine}
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">{time}</p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
       </div>
-      <div className="px-4 pb-3 pt-3 sm:px-5">
-        <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
-          {headline}
-        </h2>
-        <p className="mt-2 text-[11px] text-zinc-500">
-          <span className="text-zinc-500">{kindLabel}</span>
-          <span className="mx-2 text-zinc-600">·</span>
-          <span className="tabular-nums">{timeAgo}</span>
-        </p>
-      </div>
+      <StoryEngagement
+        reactionTarget={reactionTarget}
+        commentTarget={{ targetType: 'feed_item', targetId: activity.id }}
+      />
     </StoryFeedCard>
   );
 });
@@ -318,95 +230,50 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
 function FeedItemInner({ activity, spotifyName, viewerUserId }: FeedItemProps) {
   if (activity.type === 'review') {
     return (
-      <>
-        <StoryFeedCard>
-          <ReviewCard review={activity.review} spotifyName={spotifyName} variant="story" />
-        </StoryFeedCard>
-        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
-      </>
+      <StoryFeedCard>
+        <ReviewCard review={activity.review} spotifyName={spotifyName} variant="story" />
+      </StoryFeedCard>
     );
   }
 
   if (activity.type === 'feed_story') {
-    return (
-      <>
-        <FeedStoryBlock activity={activity} />
-        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
-      </>
-    );
+    return <FeedStoryBlock activity={activity} />;
   }
 
   if (activity.type === 'listen_sessions_summary') {
-    return (
-      <>
-        <ListenSessionsSummaryBlock activity={activity} />
-        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
-      </>
-    );
+    return <ListenSessionsSummaryBlock activity={activity} />;
   }
 
   if (activity.type === 'listen_session') {
-    return (
-      <>
-        <ListenSessionSingleStoryCard activity={activity} />
-        <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
-      </>
-    );
+    return <ListenSessionSingleStoryCard activity={activity} viewerUserId={viewerUserId} />;
   }
 
+  // Follow card
   const follower = activity.follower_username ?? 'Someone';
   const following = activity.following_username ?? 'someone';
 
   return (
-    <>
-      <StoryFeedCard className="overflow-hidden">
-        <div className="relative h-[104px] w-full shrink-0 overflow-hidden bg-gradient-to-br from-emerald-950/40 via-zinc-900 to-zinc-950 sm:h-[112px]">
-          <div className="absolute inset-0 flex items-center justify-center gap-2 px-3 sm:gap-3 sm:px-5">
-            <Link
-              href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
-              className="relative z-10"
-            >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
-                {follower[0]?.toUpperCase() ?? '?'}
-              </span>
-            </Link>
-            <span className="text-lg text-zinc-600 sm:text-xl" aria-hidden>
-              →
-            </span>
-            <Link
-              href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
-              className="relative z-10"
-            >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-700/50 bg-zinc-800 text-lg font-semibold text-zinc-200 shadow-lg sm:h-16 sm:w-16 sm:text-xl">
-                {following[0]?.toUpperCase() ?? '?'}
-              </span>
-            </Link>
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-        </div>
-        <div className="px-4 pb-3 pt-3 sm:px-5">
-          <h2 className="text-base font-bold leading-snug tracking-tight text-white sm:text-lg">
-            <Link
-              href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'}
-              className="hover:text-emerald-400 hover:underline"
-            >
+    <StoryFeedCard>
+      <div className="flex items-start gap-3 px-4 py-4">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200 ring-1 ring-white/10">
+          {follower[0]?.toUpperCase() ?? '?'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug">
+            <Link href={activity.follower_id ? `/profile/${activity.follower_id}` : '#'} className="font-semibold text-white hover:underline">
               {follower}
             </Link>
-            <span className="font-normal text-zinc-400"> followed </span>
-            <Link
-              href={activity.following_id ? `/profile/${activity.following_id}` : '#'}
-              className="hover:text-emerald-400 hover:underline"
-            >
+            <span className="text-zinc-400"> followed </span>
+            <Link href={activity.following_id ? `/profile/${activity.following_id}` : '#'} className="font-semibold text-white hover:underline">
               {following}
             </Link>
-          </h2>
-          <p className="mt-2 text-[11px] text-zinc-500 tabular-nums">
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">
             {formatRelativeTime(activity.created_at)}
           </p>
         </div>
-      </StoryFeedCard>
-      <FeedActivityEngagement activity={activity as EnrichedFeedActivity} viewerUserId={viewerUserId} />
-    </>
+      </div>
+    </StoryFeedCard>
   );
 }
 

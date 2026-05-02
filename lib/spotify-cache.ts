@@ -594,15 +594,21 @@ export async function upsertAlbumFromSpotify(
     (await getAlbumIdByExternalId(supabase, "spotify", album.id)) ??
     (await findAlbumIdByArtistAndName(supabase, artistUuid, album.name));
 
-  const row = {
+  const spotifyImage = firstSpotifyImageUrl(album.images);
+  const insertRow = {
     name: album.name,
     artist_id: artistUuid,
-    image_url: firstSpotifyImageUrl(album.images) ?? null,
+    image_url: spotifyImage ?? null,
     release_date: "release_date" in album ? (album.release_date ?? null) : null,
     total_tracks: "total_tracks" in album ? (album.total_tracks ?? null) : null,
     updated_at: now,
     cached_at: now,
   };
+  // On updates, only overwrite image_url when Spotify actually has one — don't null out
+  // a valid existing image (e.g. from Last.fm) just because this payload lacked images.
+  const updateRow = spotifyImage
+    ? insertRow
+    : { ...insertRow, image_url: undefined };
 
   if (!albumUuid) {
     if (opts?.resolverTrace) {
@@ -610,7 +616,7 @@ export async function upsertAlbumFromSpotify(
     }
     const { data: inserted, error: insErr } = await supabase
       .from("albums")
-      .insert(row)
+      .insert(insertRow)
       .select("id")
       .single();
     if (insErr) {
@@ -624,7 +630,7 @@ export async function upsertAlbumFromSpotify(
     }
     const { error: upErr } = await supabase
       .from("albums")
-      .update(row)
+      .update(updateRow)
       .eq("id", albumUuid);
     if (upErr) {
       console.error(`${LOG_PREFIX} albums update failed`, upErr);

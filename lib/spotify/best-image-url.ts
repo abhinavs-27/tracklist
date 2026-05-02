@@ -7,7 +7,8 @@ export type SpotifyImageObject = {
 
 /**
  * Pick the best cover URL from a Spotify `images[]` payload (client- and server-safe).
- * Spotify often lists multiple sizes ascending by dimension; taking `[0]` alone can be ~64px.
+ * Spotify returns images in descending size order ([0] = largest). When dimensions are
+ * present, pick by area; otherwise fall back to [0] (the largest per Spotify's ordering).
  */
 export function firstSpotifyImageUrl(
   images: SpotifyImageObject[] | undefined | null,
@@ -27,5 +28,6 @@ export function firstSpotifyImageUrl(
     scored.sort((a, b) => b.area - a.area);
     return scored[0]!.im.url!.trim();
   }
-  return valid[valid.length - 1]!.url!.trim();
+  // No dimensions: trust Spotify's documented descending order, [0] is the largest.
+  return valid[0]!.url!.trim();
 }

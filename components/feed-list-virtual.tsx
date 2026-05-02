@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useSession } from 'next-auth/react';
 import { FeedItem } from './feed-item';
 import { ListenSessionGroupStoryCard } from '@/components/feed/listen-session-feed-card';
@@ -14,25 +14,24 @@ import { FeedReactionsProvider } from '@/components/reactions/feed-reactions-con
 
 export type { EnrichedFeedActivity } from '@/components/feed/group-feed-items';
 
-const ROW_ESTIMATE = 280;
-const OVERSCAN = 6;
+const ROW_ESTIMATE = 520;
+const OVERSCAN = 4;
 
 interface FeedListVirtualProps {
   initialItems: EnrichedFeedActivity[];
   initialCursor: string | null;
   className?: string;
-  /** Max height of the scroll container (default 72vh). */
+  /** @deprecated — feed now uses window scroll. Ignored. */
   maxHeight?: string;
   /** Current user (for reactions + engagement). Falls back to session when omitted. */
   viewerUserId?: string | null;
 }
 
-/** Story-style feed: grouped listen sessions; virtualized + infinite scroll. */
+/** Story-style feed: window-scroll virtualizer + infinite scroll. */
 export function FeedListVirtual({
   initialItems,
   initialCursor,
   className = '',
-  maxHeight = '72vh',
   viewerUserId: viewerUserIdProp,
 }: FeedListVirtualProps) {
   const { data: session } = useSession();
@@ -69,8 +68,7 @@ export function FeedListVirtual({
     }
   }, [nextCursor, loading]);
 
-  const parentRef = useRef<HTMLDivElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef(loadMore);
   loadMoreRef.current = loadMore;
 
@@ -79,28 +77,23 @@ export function FeedListVirtual({
     [rows],
   );
 
-  const virtualizer = useVirtualizer({
+  const virtualizer = useWindowVirtualizer({
     count: rows.length,
-    getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_ESTIMATE,
     overscan: OVERSCAN,
     getItemKey,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
   });
 
+  // Infinite scroll: load more when near the bottom of the list
   useEffect(() => {
-    const root = parentRef.current;
-    const target = sentinelRef.current;
-    if (!root || !target || !nextCursor) return;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) void loadMoreRef.current();
-      },
-      { root, rootMargin: '400px', threshold: 0 },
-    );
-    io.observe(target);
-    return () => io.disconnect();
-  }, [nextCursor, rows.length]);
+    const virtualItems = virtualizer.getVirtualItems();
+    if (!nextCursor || loading || virtualItems.length === 0) return;
+    const last = virtualItems[virtualItems.length - 1];
+    if (last && last.index >= rows.length - OVERSCAN - 1) {
+      void loadMoreRef.current();
+    }
+  }, [virtualizer.getVirtualItems(), rows.length, nextCursor, loading]);
 
   const getSpotifyName = useCallback((activity: EnrichedFeedActivity) => {
     return activity.type === 'review'
@@ -115,20 +108,22 @@ export function FeedListVirtual({
   return (
     <FeedReactionsProvider rows={rows}>
       <div
-        ref={parentRef}
-        className={`overflow-auto ${className}`}
-        style={{ maxHeight }}
+        ref={listRef}
+        className={className}
         role="feed"
         aria-busy={loading}
+        style={{ position: 'relative', height: `${virtualizer.getTotalSize()}px` }}
       >
         <div
-          style={{
-            height: `${virtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
           role="list"
           className="m-0 list-none pl-0"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            transform: `translateY(${(virtualItems[0]?.start ?? 0) - virtualizer.options.scrollMargin}px)`,
+          }}
         >
           {virtualItems.map((virtualRow) => {
             const row = rows[virtualRow.index];
@@ -138,14 +133,7 @@ export function FeedListVirtual({
                 key={virtualRow.key}
                 data-index={virtualRow.index}
                 ref={virtualizer.measureElement}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-                className="pb-4 sm:pb-5"
+                className="pb-3 sm:pb-4"
                 role="listitem"
               >
                 {row.kind === 'listen_group' ? (
@@ -164,21 +152,11 @@ export function FeedListVirtual({
             );
           })}
         </div>
-        {nextCursor ? (
-          <div
-            ref={sentinelRef}
-            className="flex min-h-12 items-center justify-center py-4"
-            aria-hidden={!loading}
-          >
-            {loading ? (
-              <span className="text-sm text-zinc-500" role="status">
-                Loading…
-              </span>
-            ) : (
-              <span className="sr-only">Scroll for more activity</span>
-            )}
+        {loading && (
+          <div className="flex justify-center py-6">
+            <span className="text-sm text-zinc-500">Loading…</span>
           </div>
-        ) : null}
+        )}
       </div>
     </FeedReactionsProvider>
   );
