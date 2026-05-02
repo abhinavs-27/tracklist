@@ -4,6 +4,8 @@ import { ChartsClient } from "./charts-client";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 import { contentMax4xl } from "@/lib/ui/layout";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { LastfmConnectPrompt } from "@/components/lastfm/lastfm-connect-prompt";
 
 const TYPES: ChartType[] = ["tracks", "artists", "albums"];
 
@@ -26,6 +28,16 @@ export default async function WeeklyBillboardPage(props: PageProps) {
   const initialType = parseType(sp.type);
   const initialWeekStart = sp.weekStart?.trim() || null;
 
+  const admin = createSupabaseAdminClient();
+  const { data: userRow } = await admin
+    .from("users")
+    .select("lastfm_username")
+    .eq("id", session.user.id)
+    .maybeSingle();
+  const hasLastfm = Boolean(
+    (userRow as { lastfm_username?: string | null } | null)?.lastfm_username?.trim(),
+  );
+
   return (
     <div className={`${contentMax4xl} py-8 ${sectionGap}`}>
       <header>
@@ -35,6 +47,13 @@ export default async function WeeklyBillboardPage(props: PageProps) {
           UTC). Updated every Sunday.
         </p>
       </header>
+      {!hasLastfm && (
+        <LastfmConnectPrompt
+          userId={session.user.id}
+          heading="Your Billboard is empty"
+          body="Connect Last.fm to start logging plays. Your weekly chart will populate after your first sync — usually within minutes."
+        />
+      )}
       <ChartsClient
         initialType={initialType}
         initialWeekStart={initialWeekStart}

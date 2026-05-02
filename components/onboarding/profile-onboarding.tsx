@@ -405,24 +405,46 @@ export function ProfileOnboarding({
           id="profile-onboarding"
           className="rounded-2xl bg-emerald-950/20 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-emerald-500/15 sm:p-10"
         >
-          <div className={stepperRow}>
-            <span className={step === 1 ? "text-emerald-400" : "text-zinc-500"}>
-              1 · Username
-            </span>
-            <span className="text-zinc-600">→</span>
-            <span className={step === 2 ? "text-emerald-400" : "text-zinc-500"}>
-              2 · Albums
-            </span>
-            <span className="text-zinc-600">→</span>
-            <span className={step === 3 ? "text-emerald-400" : "text-zinc-500"}>
-              3 · Your chart
-            </span>
-            <span className="text-zinc-600">→</span>
-            <span
-              className={step === 4 ? "text-emerald-400" : "text-zinc-500"}
-            >
-              {inviteFlow ? "4 · Community" : "4 · People"}
-            </span>
+          {/* Visual step indicator */}
+          <div className="flex items-center">
+            {(["Username", "Albums", "Your chart", inviteFlow ? "Community" : "People"] as const).map(
+              (label, i) => {
+                const num = i + 1;
+                const done = step > num;
+                const active = step === num;
+                return (
+                  <div key={num} className="flex items-center">
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                          active
+                            ? "bg-emerald-500 text-zinc-950"
+                            : done
+                              ? "bg-emerald-950 text-emerald-400 ring-1 ring-emerald-600/40"
+                              : "bg-zinc-800 text-zinc-600"
+                        }`}
+                      >
+                        {done ? "✓" : num}
+                      </div>
+                      <span
+                        className={`hidden text-sm font-medium sm:block ${
+                          active ? "text-white" : "text-zinc-600"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                    {i < 3 && (
+                      <div
+                        className={`mx-2 h-px w-6 shrink-0 sm:mx-3 sm:w-8 ${
+                          step > num ? "bg-emerald-800/80" : "bg-zinc-800"
+                        }`}
+                      />
+                    )}
+                  </div>
+                );
+              },
+            )}
           </div>
 
           {step === 1 ? (
@@ -577,7 +599,7 @@ export function ProfileOnboarding({
           ) : null}
 
           {step === 3 ? (
-            <div className="mt-6 space-y-5 sm:mt-8">
+            <div className="mt-6 space-y-6 sm:mt-8">
               {hasLastfmAlready ? (
                 <>
                   <h2 className={h2}>Your listening is already linked</h2>
@@ -586,68 +608,77 @@ export function ProfileOnboarding({
                       ? "Continue to see people in this community you might follow before we open it."
                       : "You’re set on the listening side. Continue to see who we suggest you follow."}
                   </p>
-                  <button
-                    type="button"
-                    onClick={advanceFromLastfm}
-                    className={primaryBtn}
-                  >
+                  <button type="button" onClick={advanceFromLastfm} className={primaryBtn}>
                     Continue
                   </button>
                   <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className={backSmall}
-                    >
-                      Back
-                    </button>
+                    <button type="button" onClick={() => setStep(2)} className={backSmall}>Back</button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <h2 className={h2}>Get your weekly chart</h2>
-                      <p className={bodyMuted}>
-                        <span className="font-medium text-zinc-100">
-                          Track your music taste:
-                        </span>{" "}
-                        your plays power your billboard, profile, and communities.
-                        Use a free Last.fm account (or sign in),{" "}
-                        <span className="font-medium text-zinc-100">
-                          connect Spotify in Last.fm
-                        </span>{" "}
-                        so listens sync, then add your username in the modal.
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-                      <button
-                        type="button"
-                        onClick={() => setLastfmModalOpen(true)}
-                        className={lastfmActionBtn}
-                      >
-                        Get my chart
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLastfmSkipWarningOpen(true)}
-                        className={lastfmGhostBtn}
-                      >
-                        Skip for now
-                      </button>
-                    </div>
+                  <div>
+                    <h2 className={h2}>Log every listen, automatically</h2>
+                    <p className={bodyMuted}>
+                      Last.fm captures every Spotify play in the background — no
+                      manual logging, ever. Your full listening history powers
+                      everything in Tracklist.
+                    </p>
                   </div>
-                  <div className="mt-2">
-                    <SampleWeeklyChartPreview variant="onboarding" />
+
+                  {/* What they unlock */}
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      {
+                        icon: "📊",
+                        title: "Charts & history",
+                        desc: "Weekly top 10s, all-time stats, and your complete listening archive.",
+                      },
+                      {
+                        icon: "🔥",
+                        title: "Feed & communities",
+                        desc: "Your plays appear in friends' feeds and drive community rankings in real time.",
+                      },
+                      {
+                        icon: "🎭",
+                        title: "Taste identity",
+                        desc: "Genres, listening style, top artists — all built automatically from your real data.",
+                      },
+                    ].map(({ icon, title, desc }) => (
+                      <div
+                        key={title}
+                        className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-3.5"
+                      >
+                        <p className="text-xl">{icon}</p>
+                        <p className="mt-2 text-sm font-semibold text-white">{title}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-zinc-500">{desc}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
+
+                  {/* Sample chart preview */}
+                  <SampleWeeklyChartPreview variant="onboarding" />
+
+                  {/* CTAs */}
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => setStep(2)}
-                      className={backSmall}
+                      onClick={() => setLastfmModalOpen(true)}
+                      className={lastfmActionBtn}
                     >
-                      Back
+                      Connect Last.fm →
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setLastfmSkipWarningOpen(true)}
+                      className={lastfmGhostBtn}
+                    >
+                      Skip for now
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
+                    <button type="button" onClick={() => setStep(2)} className={backSmall}>Back</button>
                   </div>
                 </>
               )}
@@ -665,15 +696,12 @@ export function ProfileOnboarding({
                       <span className="font-medium text-zinc-200">
                         {communityInviteName ?? "this community"}
                       </span>
-                      . Follow anyone you like — you can change this anytime.
-                      When you continue, we&apos;ll add you to the community and
-                      take you there.
+                      . Follow anyone you like — you can always change this later.
                     </>
                   ) : (
                     <>
-                      Suggested from others’ recent listens (last 30 days) that
-                      match your favorite albums or those albums’ artists. Follow
-                      anyone you like — you can change this anytime.
+                      People who love similar music. Follow anyone you like —
+                      you can always change this later.
                     </>
                   )}
                 </p>

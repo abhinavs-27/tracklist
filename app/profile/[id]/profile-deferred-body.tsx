@@ -20,6 +20,7 @@ import { ProfilePulseSection } from "@/components/profile/profile-pulse-section"
 import { ProfileWeeklyTopAlbumsSection } from "@/components/profile/profile-weekly-top-albums";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileTabsContainer } from "@/components/profile/profile-tabs";
+import { LastfmConnectPrompt } from "@/components/lastfm/lastfm-connect-prompt";
 import {
   getCachedListeningInsights,
   getCachedListeningReportPreview,
@@ -158,9 +159,19 @@ export async function ProfileDeferredBody({
     weeklyTop,
   });
 
+  const hasLastfm = Boolean(user.lastfm_username?.trim());
+
   // ── Listening tab ──────────────────────────────────────────────────────────
   const listeningTab = (
     <div className={sectionGap}>
+      {isOwnProfile && !hasLastfm && (
+        <LastfmConnectPrompt
+          userId={profile.id}
+          heading="No listening history yet"
+          body="Connect Last.fm to automatically log every Spotify play. Your charts, recent activity, and taste profile will all fill in from here."
+        />
+      )}
+
       <SectionBlock
         title="Recent activity"
         action={
