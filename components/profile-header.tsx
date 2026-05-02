@@ -19,7 +19,7 @@ interface ProfileHeaderProps {
   viewerUserId?: string | null;
   onProfileUpdated?: () => void;
   /** Larger avatar + typography for profile hub hero */
-  variant?: "default" | "hero";
+  variant?: "default" | "hero" | "banner";
   /** One line, e.g. top artist or streak */
   keyStatLine?: string | null;
 }
@@ -70,12 +70,99 @@ export function ProfileHeader({
   };
 
   const isHero = variant === "hero";
-  const avatarClass = isHero
-    ? "h-24 w-24 sm:h-[7.5rem] sm:w-[7.5rem] border-2 border-zinc-600/80 shadow-[0_16px_48px_-20px_rgba(0,0,0,0.55)]"
-    : "h-24 w-24 border-2 border-zinc-700";
-  const titleClass = isHero
-    ? "text-2xl font-semibold tracking-tight text-white sm:text-3xl"
-    : "text-xl font-bold text-white sm:text-2xl";
+  const isBanner = variant === "banner";
+  const avatarClass = isBanner
+    ? "h-20 w-20 ring-4 ring-zinc-900 shadow-xl sm:h-24 sm:w-24"
+    : isHero
+      ? "h-16 w-16 sm:h-20 sm:w-20 border-2 border-zinc-600/80 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.6)]"
+      : "h-16 w-16 border-2 border-zinc-700";
+  const titleClass = isBanner
+    ? "text-xl font-bold tracking-tight text-white sm:text-2xl"
+    : isHero
+      ? "text-2xl font-semibold tracking-tight text-white sm:text-3xl"
+      : "text-xl font-bold text-white sm:text-2xl";
+
+  const avatarEl = imgSrc ? (
+    <button
+      type="button"
+      onClick={() => setAvatarPreviewOpen(true)}
+      className={`block overflow-hidden rounded-full bg-zinc-800 transition hover:opacity-90 ${avatarClass}`}
+      aria-label={`View larger photo for ${username}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imgSrc} alt="" className="h-full w-full object-cover" />
+    </button>
+  ) : (
+    <div className={`overflow-hidden rounded-full bg-zinc-800 ${avatarClass}`}>
+      <div className={`flex h-full w-full items-center justify-center text-zinc-500 ${isBanner ? "text-2xl sm:text-3xl" : isHero ? "text-4xl sm:text-5xl" : "text-3xl"}`}>
+        {username[0]?.toUpperCase() ?? "?"}
+      </div>
+    </div>
+  );
+
+  if (isBanner) {
+    return (
+      <>
+        {/* Avatar + action row — pulled up over the banner via -mt-10 on this div */}
+        <div className="-mt-10 flex items-end justify-between sm:-mt-12">
+          <div className="shrink-0">{avatarEl}</div>
+          {!isOwnProfile ? (
+            <div className="pb-1">
+              <FollowButton
+                userId={userId}
+                initialFollowing={isFollowing}
+                onFollowChange={handleFollowChange}
+              />
+            </div>
+          ) : null}
+        </div>
+
+        {/* Text content */}
+        <div className="mt-3">
+          <h1 className={titleClass}>{username}</h1>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-zinc-400">
+            <button
+              type="button"
+              onClick={() => { setInitialTab("followers"); setFollowersOpen(true); }}
+              className="inline-flex min-h-8 items-baseline gap-1 rounded px-1 transition hover:text-zinc-200"
+            >
+              <span className="font-semibold tabular-nums text-zinc-200">{optimisticFollowerCount}</span>
+              <span>followers</span>
+            </button>
+            <span className="text-zinc-700" aria-hidden>·</span>
+            <button
+              type="button"
+              onClick={() => { setInitialTab("following"); setFollowersOpen(true); }}
+              className="inline-flex min-h-8 items-baseline gap-1 rounded px-1 transition hover:text-zinc-200"
+            >
+              <span className="font-semibold tabular-nums text-zinc-200">{followingCount}</span>
+              <span>following</span>
+            </button>
+          </div>
+          {bio ? (
+            <p className="mt-2 text-sm leading-relaxed text-zinc-400">{bio}</p>
+          ) : null}
+        </div>
+
+        <FollowersModal
+          userId={userId}
+          username={username}
+          isOpen={followersOpen}
+          initialTab={initialTab}
+          onClose={() => setFollowersOpen(false)}
+          viewerUserId={viewerUserId ?? null}
+        />
+        {imgSrc ? (
+          <ProfileAvatarPreviewDialog
+            open={avatarPreviewOpen}
+            onClose={() => setAvatarPreviewOpen(false)}
+            imageSrc={imgSrc}
+            username={username}
+          />
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <div
@@ -85,29 +172,7 @@ export function ProfileHeader({
           : "flex flex-row items-start gap-4 text-left"
       }
     >
-      <div className="shrink-0">
-        {imgSrc ? (
-          <button
-            type="button"
-            onClick={() => setAvatarPreviewOpen(true)}
-            className={`block h-full w-full overflow-hidden rounded-full bg-zinc-800 ring-offset-2 ring-offset-zinc-900 transition hover:ring-2 hover:ring-emerald-500/50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-emerald-500 ${avatarClass}`}
-            aria-label={`View larger photo for ${username}`}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- blob + presigned display URLs */}
-            <img src={imgSrc} alt="" className="h-full w-full object-cover" />
-          </button>
-        ) : (
-          <div
-            className={`overflow-hidden rounded-full bg-zinc-800 ${avatarClass}`}
-          >
-            <div
-              className={`flex h-full w-full items-center justify-center text-zinc-500 ${isHero ? "text-4xl sm:text-5xl" : "text-3xl"}`}
-            >
-              {username[0]?.toUpperCase() ?? '?'}
-            </div>
-          </div>
-        )}
-      </div>
+      <div className="shrink-0">{avatarEl}</div>
       <div
         className={
           isHero

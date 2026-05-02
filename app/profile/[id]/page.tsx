@@ -11,17 +11,17 @@ import {
 } from "@/lib/queries";
 import { isValidUuid } from "@/lib/validation";
 import type { TasteIdentity } from "@/lib/taste/types";
-import { buildProfileHeroLines } from "@/lib/profile/hero-lines";
 import {
   getCachedTasteIdentity,
   getCachedUserFavoriteAlbums,
 } from "@/lib/profile/cached-profile-data";
-import { ProfileFavoriteAlbumsSection } from "@/components/profile-favorite-albums-section";
-import { cardElevated, sectionGap } from "@/lib/ui/surface";
+import { sectionGap } from "@/lib/ui/surface";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
 import { ProfileAvatarOptimisticProvider } from "@/components/profile/profile-avatar-context";
 import { PrivateLogsToggle } from "@/components/profile/private-logs-toggle";
+import { ProfileHeroBanner } from "@/components/profile/profile-hero-banner";
+import { ProfileBannerEditButton } from "@/components/profile/profile-banner-edit-button";
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -172,42 +172,58 @@ export default async function ProfilePage({
     console.error("[profile] getUserStreak failed:", profileSettled[3].reason);
 
   const heroTaste: TasteIdentity = tasteForHero ?? EMPTY_TASTE;
-  const heroLines = buildProfileHeroLines(heroTaste, streak);
+  const totalListens = heroTaste.totalLogs ?? 0;
 
   const main = (
     <div className={sectionGap}>
-      <div
-        className={`relative overflow-hidden ${cardElevated} bg-gradient-to-br from-zinc-900/90 via-zinc-900/85 to-zinc-900/80 p-6 ring-1 ring-white/[0.06] sm:p-8`}
+      <ProfileHeroBanner
+        albums={favoriteAlbumsHero}
+        editButton={
+          isOwnProfile ? (
+            <ProfileBannerEditButton
+              userId={profile.id}
+              initialAlbums={favoriteAlbumsHero}
+            />
+          ) : undefined
+        }
       >
-        <div
-          className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-emerald-500/[0.08] blur-3xl"
-          aria-hidden
+        <ProfileHeader
+          variant="banner"
+          username={profile.username}
+          avatarUrl={profile.avatar_url}
+          bio={profile.bio}
+          followersCount={profile.followers_count ?? 0}
+          followingCount={profile.following_count ?? 0}
+          isOwnProfile={isOwnProfile}
+          isFollowing={profile.is_following ?? false}
+          userId={profile.id}
+          viewerUserId={session?.user?.id ?? null}
         />
-        <div className="relative min-w-0">
-          <ProfileHeader
-            variant="hero"
-            username={profile.username}
-            avatarUrl={profile.avatar_url}
-            bio={profile.bio}
-            followersCount={profile.followers_count ?? 0}
-            followingCount={profile.following_count ?? 0}
-            isOwnProfile={isOwnProfile}
-            isFollowing={profile.is_following ?? false}
-            userId={profile.id}
-            viewerUserId={session?.user?.id ?? null}
-            keyStatLine={heroLines.keyStatLine}
-          />
-          <ProfileFavoriteAlbumsSection
-            userId={profile.id}
-            favoriteAlbums={favoriteAlbumsHero}
-            isOwnProfile={isOwnProfile}
-            variant="hero"
-            showHeading
-            showEditButton={false}
-          />
-        </div>
-      </div>
 
+        {/* Stats row */}
+        {(totalListens > 0 || (streak?.current_streak ?? 0) > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            {totalListens > 0 && (
+              <span>
+                <span className="font-semibold text-white">
+                  {totalListens.toLocaleString()}
+                </span>{" "}
+                <span className="text-zinc-400">listens</span>
+              </span>
+            )}
+            {(streak?.current_streak ?? 0) > 0 && (
+              <span>
+                <span className="font-semibold text-white">
+                  🔥 {streak!.current_streak}d
+                </span>{" "}
+                <span className="text-zinc-400">streak</span>
+              </span>
+            )}
+          </div>
+        )}
+      </ProfileHeroBanner>
+
+      {/* Quick actions row */}
       <ProfileQuickActions
         profilePath={`/profile/${profile.id}`}
         isOwnProfile={isOwnProfile}
@@ -222,6 +238,7 @@ export default async function ProfilePage({
         <PrivateLogsToggle initialPrivate={user.logs_private ?? false} />
       ) : null}
 
+      {/* Tabs — all content pre-rendered, switching is instant */}
       <Suspense fallback={<ProfileBelowFoldSkeleton />}>
         <ProfileDeferredBody
           user={user}

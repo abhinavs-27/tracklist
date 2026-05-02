@@ -18,12 +18,8 @@ import { buildWeeklyNarrative } from "@/lib/profile/weekly-narrative";
 import { ProfileListeningReportPreview } from "@/components/profile/profile-listening-report-preview";
 import { ProfilePulseSection } from "@/components/profile/profile-pulse-section";
 import { ProfileWeeklyTopAlbumsSection } from "@/components/profile/profile-weekly-top-albums";
-import {
-  layoutMainColumn,
-  layoutMainSidebarGrid,
-  layoutSidebarColumn,
-} from "@/lib/ui/layout";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
+import { ProfileTabsContainer } from "@/components/profile/profile-tabs";
 import {
   getCachedListeningInsights,
   getCachedListeningReportPreview,
@@ -162,8 +158,68 @@ export async function ProfileDeferredBody({
     weeklyTop,
   });
 
-  return (
+  // ── Listening tab ──────────────────────────────────────────────────────────
+  const listeningTab = (
     <div className={sectionGap}>
+      <SectionBlock
+        title="Recent activity"
+        description={
+          isOwnProfile
+            ? "Albums from your logs and recent Spotify plays."
+            : "Latest albums from their listening history."
+        }
+        action={
+          isOwnProfile
+            ? { label: "View all", href: "/recently-played" }
+            : undefined
+        }
+      >
+        <ProfileRecentActivity
+          key={profile.id}
+          userId={profile.id}
+          isOwnProfile={isOwnProfile}
+          showSpotifyControls={isOwnProfile && spotifyProfileControlsVisible}
+          spotifyConnected={spotifyConnected}
+          logsPrivateHidden={!isOwnProfile && logsPrivate}
+        />
+      </SectionBlock>
+
+      <ProfileWeeklyTopAlbumsSection
+        weeklyTop={weeklyTop}
+        isOwnProfile={isOwnProfile}
+      />
+
+      <ProfilePulseSection insights={profilePulse} />
+
+      {weeklyNarrative ? (
+        <SectionBlock
+          title="Weekly narrative"
+          description={
+            isOwnProfile
+              ? "Trends compare the last 7 days to the week before; new discoveries are artists you’re hearing for the first time."
+              : "Trends use the last 7 days vs the week before; new discoveries are first-time listens."
+          }
+        >
+          <div className={`${cardElevated} px-4 py-4 text-sm leading-relaxed text-zinc-300 sm:px-5 sm:py-5`}>
+            {weeklyNarrative}
+          </div>
+        </SectionBlock>
+      ) : null}
+
+      {isOwnProfile ? (
+        <SimilarUsersSection
+          userId={profile.id}
+          variant="strip"
+          prefetchedMatches={userMatchesPrefetched}
+        />
+      ) : null}
+    </div>
+  );
+
+  // ── Taste tab ───────────────────────────────────────────────────────────────
+  const tasteTab = (
+    <div className={sectionGap}>
+      {/* TasteMatch — only shown when viewing someone else’s profile */}
       {!isOwnProfile ? (
         <div id="taste-match" className="scroll-mt-24">
           <TasteMatchSection
@@ -173,273 +229,173 @@ export async function ProfileDeferredBody({
         </div>
       ) : null}
 
-      <div className="space-y-8 sm:space-y-10">
-        {isOwnProfile ? (
-          <section className={`${layoutMainSidebarGrid} min-w-0 max-w-full`}>
-            <div className={layoutMainColumn}>
-              <LastfmSection
-                key={`lastfm-${profile.id}`}
-                userId={profile.id}
-                username={profile.username}
-                initialUsername={user.lastfm_username ?? null}
-                initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
-              />
-            </div>
-            <div className={layoutSidebarColumn}>
-              <SimilarUsersSection
-                userId={profile.id}
-                variant="strip"
-                prefetchedMatches={userMatchesPrefetched}
-              />
-            </div>
-          </section>
-        ) : (
-          <SimilarUsersSection
+      {/* For other profiles: similar users */}
+      {!isOwnProfile ? (
+        <SimilarUsersSection
+          userId={profile.id}
+          variant="strip"
+          prefetchedMatches={userMatchesPrefetched}
+        />
+      ) : null}
+
+      {isSocialInboxAndMusicRecUiEnabled() && isOwnProfile ? (
+        <RecommendedCommunitiesSuspense
+          userId={user.id}
+          title="Communities you’d like"
+        />
+      ) : null}
+
+      <div id="music-identity" className="scroll-mt-24">
+        <SectionBlock
+          title="Music identity"
+          description={
+            isOwnProfile
+              ? "Genres, listening style, and top artists & albums — derived from your listening history."
+              : "Genres, listening style, and top artists & albums — from their listening history."
+          }
+          action={{ label: "View full report", href: "/reports/listening" }}
+        >
+          <TasteIdentitySection
             userId={profile.id}
-            variant="strip"
-            prefetchedMatches={userMatchesPrefetched}
+            hubMode
+            initialData={tasteIdentity}
+            weeklyListening={isOwnProfile ? weeklyTop : null}
+            weeklyListeningHideInIdentity={
+              isOwnProfile &&
+              !!weeklyTop &&
+              (weeklyTop.artists.length > 0 || weeklyTop.albums.length > 0)
+            }
           />
-        )}
-
-        {isSocialInboxAndMusicRecUiEnabled() && isOwnProfile ? (
-          <RecommendedCommunitiesSuspense
-            userId={user.id}
-            title="Communities you'd like"
-          />
-        ) : null}
-
-        <div id="music-identity" className="scroll-mt-24">
-          <SectionBlock
-            title="Music identity"
-            description={
-              isOwnProfile
-                ? "Genres, listening style, and top artists & albums — derived from your listening history."
-                : "Genres, listening style, and top artists & albums — from their listening history."
-            }
-            action={{ label: "View all", href: "/reports/listening" }}
-          >
-            <TasteIdentitySection
-              userId={profile.id}
-              hubMode
-              initialData={tasteIdentity}
-              weeklyListening={isOwnProfile ? weeklyTop : null}
-              weeklyListeningHideInIdentity={
-                isOwnProfile &&
-                !!weeklyTop &&
-                (weeklyTop.artists.length > 0 || weeklyTop.albums.length > 0)
-              }
-            />
-          </SectionBlock>
-        </div>
-
-        {weeklyNarrative ? (
-          <div id="weekly-narrative" className="scroll-mt-24">
-            <SectionBlock
-              title="Weekly narrative"
-              description={
-                isOwnProfile
-                  ? "Your listening identity, recent top artists, and pulse — trends compare the last seven days to the week before; new discoveries are artists you’re hearing for the first time."
-                  : "Their listening style, recent chart, and pulse — trends use the last seven days vs the week before; new discoveries are first-time listens in their chart."
-              }
-              action={
-                profilePulse
-                  ? { label: "Pulse", href: "#profile-pulse" }
-                  : { label: "Music identity", href: "#music-identity" }
-              }
-            >
-              <div
-                className={`${cardElevated} px-4 py-4 text-sm leading-relaxed text-zinc-300 sm:px-5 sm:py-5`}
-              >
-                {weeklyNarrative}
-              </div>
-            </SectionBlock>
-          </div>
-        ) : null}
-
-        <ProfilePulseSection insights={profilePulse} />
-
-        <div id="profile-activity" className="scroll-mt-24 space-y-8 sm:space-y-10">
-          <SectionBlock
-            title="Recent activity"
-            description={
-              isOwnProfile
-                ? "A short preview of albums from your logs and recent Spotify plays."
-                : "Latest albums from their listening history."
-            }
-            action={
-              isOwnProfile
-                ? { label: "View all activity", href: "/recently-played" }
-                : undefined
-            }
-          >
-            <ProfileRecentActivity
-              key={profile.id}
-              userId={profile.id}
-              isOwnProfile={isOwnProfile}
-              showSpotifyControls={
-                isOwnProfile && spotifyProfileControlsVisible
-              }
-              spotifyConnected={spotifyConnected}
-              logsPrivateHidden={!isOwnProfile && logsPrivate}
-            />
-          </SectionBlock>
-
-          <ProfileWeeklyTopAlbumsSection
-            weeklyTop={weeklyTop}
-            isOwnProfile={isOwnProfile}
-          />
-        </div>
-
-        <div id="profile-lists" className="scroll-mt-24">
-          <SectionBlock
-            title={isOwnProfile ? "Your lists" : "Lists"}
-            description={
-              isOwnProfile
-                ? "Collections of albums and tracks — tap a card to open or create a new list."
-                : "Curated albums and tracks they share."
-            }
-            action={
-              isOwnProfile && userLists.length > 0
-                ? {
-                    label:
-                      userLists.length > LISTS_PREVIEW_MAX
-                        ? `View all (${userLists.length})`
-                        : "View all lists",
-                    href: "/lists",
-                  }
-                : undefined
-            }
-            headerRight={isOwnProfile ? <ProfileListsSection /> : undefined}
-          >
-            <div id="lists">
-              {userLists.length === 0 ? (
-                <div
-                  className={`${cardElevated} px-4 py-8 text-center sm:px-6 sm:py-10`}
-                >
-                  <p className="text-zinc-500">
-                    {isOwnProfile
-                      ? "You haven't created any lists yet."
-                      : "No lists yet."}
-                  </p>
-                  {isOwnProfile && (
-                    <div className="mt-4 flex justify-center">
-                      <ProfileListsSection triggerLabel="Create your first list" />
-                    </div>
-                  )}
-                  {!isOwnProfile && (
-                    <Link
-                      href="/search/users"
-                      className="mt-2 inline-block text-sm text-emerald-400 hover:underline"
-                    >
-                      Find people to discover their lists
-                    </Link>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-                    {(isOwnProfile
-                      ? userLists.slice(0, LISTS_PREVIEW_MAX)
-                      : userLists
-                    ).map((list) => (
-                      <li key={list.id}>
-                        <ListCard
-                          id={list.id}
-                          title={list.title}
-                          description={list.description}
-                          created_at={list.created_at}
-                          item_count={list.item_count}
-                          visibility={list.visibility}
-                          emoji={list.emoji}
-                          image_url={list.image_url}
-                          preview_labels={list.preview_labels}
-                          profilePreview
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                  {isOwnProfile && userLists.length > LISTS_PREVIEW_MAX ? (
-                    <p className="mt-4 text-sm text-zinc-500">
-                      Showing {LISTS_PREVIEW_MAX} of {userLists.length} lists.{" "}
-                      <Link
-                        href="/lists"
-                        className="font-medium text-emerald-400 hover:underline"
-                      >
-                        Manage all lists
-                      </Link>
-                    </p>
-                  ) : null}
-                  {isOwnProfile && userLists.length > 0 ? (
-                    <p className="mt-4 text-sm text-zinc-500">
-                      <Link
-                        href="/search/users"
-                        className="text-emerald-400 hover:underline"
-                      >
-                        Find people
-                      </Link>
-                      {" to discover more lists."}
-                    </p>
-                  ) : null}
-                </>
-              )}
-            </div>
-          </SectionBlock>
-        </div>
-
-        <div id="profile-reports" className="scroll-mt-24 space-y-8 sm:space-y-10">
-          <SectionBlock
-            title="Listening report"
-            description="Weekly snapshot: top artist and genre from your listening history."
-            action={{ label: "View full report", href: "/reports/listening" }}
-          >
-            <ProfileListeningReportPreview data={listeningReportPreview} />
-          </SectionBlock>
-
-          {session?.user?.id ? (
-            <SectionBlock
-              title="Listening habits"
-              description="Patterns from your recent listening."
-              action={{ label: "View all", href: "/reports/listening" }}
-            >
-              <ListeningInsightsSection
-                userId={profile.id}
-                maxLines={3}
-                embedded
-                prefetched={listeningInsightsPrefetched ?? undefined}
-              />
-            </SectionBlock>
-          ) : null}
-        </div>
-
-        {achievements.length > 0 ? (
-          <SectionBlock
-            title="Achievements"
-            description="Milestones from your time on Tracklist."
-          >
-            <div className="flex flex-wrap gap-3">
-              {achievements.map(({ achievement, earned_at }) => (
-                <div
-                  key={achievement.id}
-                  className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
-                  title={achievement.description ?? achievement.name}
-                >
-                  <span className="text-xl">{achievement.icon ?? "🏅"}</span>
-                  <div>
-                    <p className="font-medium text-white">{achievement.name}</p>
-                    <p className="text-xs text-zinc-500">
-                      {new Date(earned_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionBlock>
-        ) : null}
+        </SectionBlock>
       </div>
+
+      {session?.user?.id ? (
+        <SectionBlock
+          title="Listening habits"
+          description="Patterns from recent listening history."
+          action={{ label: "Full report", href: "/reports/listening" }}
+        >
+          <ListeningInsightsSection
+            userId={profile.id}
+            maxLines={3}
+            embedded
+            prefetched={listeningInsightsPrefetched ?? undefined}
+          />
+        </SectionBlock>
+      ) : null}
+
+      <SectionBlock
+        title="Listening report"
+        description="Top artist and genre from listening history."
+        action={{ label: "View full report", href: "/reports/listening" }}
+      >
+        <ProfileListeningReportPreview data={listeningReportPreview} />
+      </SectionBlock>
+
+      {achievements.length > 0 ? (
+        <SectionBlock title="Achievements" description="Milestones on Tracklist.">
+          <div className="flex flex-wrap gap-3">
+            {achievements.map(({ achievement, earned_at }) => (
+              <div
+                key={achievement.id}
+                className="flex items-center gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/50 px-3 py-2.5"
+                title={achievement.description ?? achievement.name}
+              >
+                <span className="text-xl">{achievement.icon ?? "🏅"}</span>
+                <div>
+                  <p className="text-sm font-medium text-white">{achievement.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {new Date(earned_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionBlock>
+      ) : null}
+
+      {/* Last.fm integration — own profile only, always preserved here */}
+      {isOwnProfile ? (
+        <LastfmSection
+          key={`lastfm-${profile.id}`}
+          userId={profile.id}
+          username={profile.username}
+          initialUsername={user.lastfm_username ?? null}
+          initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
+        />
+      ) : null}
 
       {isOwnProfile ? (
         <DeleteAccountSection username={profile.username} />
       ) : null}
     </div>
+  );
+
+  // ── Lists tab ───────────────────────────────────────────────────────────────
+  const listsTab = (
+    <div className={sectionGap}>
+      <SectionBlock
+        title={isOwnProfile ? "Your lists" : "Lists"}
+        description={
+          isOwnProfile
+            ? "Collections of albums and tracks."
+            : "Curated albums and tracks they share."
+        }
+        action={
+          isOwnProfile && userLists.length > 0
+            ? {
+                label:
+                  userLists.length > LISTS_PREVIEW_MAX
+                    ? `View all (${userLists.length})`
+                    : "View all lists",
+                href: "/lists",
+              }
+            : undefined
+        }
+        headerRight={isOwnProfile ? <ProfileListsSection /> : undefined}
+      >
+        {userLists.length === 0 ? (
+          <div className={`${cardElevated} px-4 py-8 text-center sm:px-6 sm:py-10`}>
+            <p className="text-zinc-500">
+              {isOwnProfile ? "No lists yet." : "No lists yet."}
+            </p>
+            {isOwnProfile && (
+              <div className="mt-4 flex justify-center">
+                <ProfileListsSection triggerLabel="Create your first list" />
+              </div>
+            )}
+          </div>
+        ) : (
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+            {(isOwnProfile ? userLists.slice(0, LISTS_PREVIEW_MAX) : userLists).map(
+              (list) => (
+                <li key={list.id}>
+                  <ListCard
+                    id={list.id}
+                    title={list.title}
+                    description={list.description}
+                    created_at={list.created_at}
+                    item_count={list.item_count}
+                    visibility={list.visibility}
+                    emoji={list.emoji}
+                    image_url={list.image_url}
+                    preview_labels={list.preview_labels}
+                    profilePreview
+                  />
+                </li>
+              ),
+            )}
+          </ul>
+        )}
+      </SectionBlock>
+    </div>
+  );
+
+  return (
+    <ProfileTabsContainer
+      listeningContent={listeningTab}
+      tasteContent={tasteTab}
+      listsContent={listsTab}
+    />
   );
 }
