@@ -14,8 +14,7 @@ const PREVIEW_CAP = 8;
 const ALBUM_FETCH = 12;
 const TRACK_FETCH = 8;
 
-const strip =
-  "flex gap-3 overflow-x-auto pb-2 pl-0.5 pt-0.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const grid = "grid grid-cols-3 gap-3 sm:grid-cols-4";
 
 type RecentAlbumItem = {
   album_id: string;
@@ -150,7 +149,7 @@ function ActivityCard({ row }: { row: ActivityRow }) {
   return (
     <Link
       href={row.href}
-      className={`${cardElevatedInteractive} flex w-[min(68vw,200px)] shrink-0 snap-start flex-col overflow-hidden sm:w-[188px]`}
+      className={`${cardElevatedInteractive} flex flex-col overflow-hidden`}
     >
       <div className="aspect-square w-full bg-zinc-800">
         {row.image ? (
@@ -258,11 +257,11 @@ export function ProfileRecentActivity({
       ) : null}
 
       {loading ? (
-        <div className={strip}>
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className={grid}>
+          {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className={`${cardElevatedInteractive} flex w-[min(68vw,200px)] shrink-0 snap-start flex-col overflow-hidden animate-pulse sm:w-[188px]`}
+              className="flex animate-pulse flex-col overflow-hidden rounded-2xl bg-zinc-900/62"
             >
               <div className="aspect-square w-full bg-zinc-800/80" />
               <div className="space-y-2 p-3">
@@ -280,19 +279,13 @@ export function ProfileRecentActivity({
             : "No recent activity yet. Log listens, sync Last.fm, or connect Spotify to see albums and plays here."}
         </p>
       ) : (
-        <div className={strip}>
+        <div className={grid}>
           {rows.map((row) => (
             <ActivityCard key={row.key} row={row} />
           ))}
         </div>
       )}
 
-      {isOwnProfile && hasAny ? (
-        <p className="text-xs text-zinc-600">
-          Showing up to {PREVIEW_CAP} items, newest first. Albums come from your
-          logs; plays from Spotify when connected.
-        </p>
-      ) : null}
     </div>
   );
 }

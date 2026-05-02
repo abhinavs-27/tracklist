@@ -163,11 +163,6 @@ export async function ProfileDeferredBody({
     <div className={sectionGap}>
       <SectionBlock
         title="Recent activity"
-        description={
-          isOwnProfile
-            ? "Albums from your logs and recent Spotify plays."
-            : "Latest albums from their listening history."
-        }
         action={
           isOwnProfile
             ? { label: "View all", href: "/recently-played" }
@@ -192,14 +187,7 @@ export async function ProfileDeferredBody({
       <ProfilePulseSection insights={profilePulse} />
 
       {weeklyNarrative ? (
-        <SectionBlock
-          title="Weekly narrative"
-          description={
-            isOwnProfile
-              ? "Trends compare the last 7 days to the week before; new discoveries are artists you’re hearing for the first time."
-              : "Trends use the last 7 days vs the week before; new discoveries are first-time listens."
-          }
-        >
+        <SectionBlock title="Weekly narrative">
           <div className={`${cardElevated} px-4 py-4 text-sm leading-relaxed text-zinc-300 sm:px-5 sm:py-5`}>
             {weeklyNarrative}
           </div>
@@ -248,12 +236,7 @@ export async function ProfileDeferredBody({
       <div id="music-identity" className="scroll-mt-24">
         <SectionBlock
           title="Music identity"
-          description={
-            isOwnProfile
-              ? "Genres, listening style, and top artists & albums — derived from your listening history."
-              : "Genres, listening style, and top artists & albums — from their listening history."
-          }
-          action={{ label: "View full report", href: "/reports/listening" }}
+          action={{ label: "Full report →", href: "/reports/listening" }}
         >
           <TasteIdentitySection
             userId={profile.id}
@@ -270,11 +253,7 @@ export async function ProfileDeferredBody({
       </div>
 
       {session?.user?.id ? (
-        <SectionBlock
-          title="Listening habits"
-          description="Patterns from recent listening history."
-          action={{ label: "Full report", href: "/reports/listening" }}
-        >
+        <SectionBlock title="Listening habits">
           <ListeningInsightsSection
             userId={profile.id}
             maxLines={3}
@@ -286,14 +265,13 @@ export async function ProfileDeferredBody({
 
       <SectionBlock
         title="Listening report"
-        description="Top artist and genre from listening history."
-        action={{ label: "View full report", href: "/reports/listening" }}
+        action={{ label: "Full report →", href: "/reports/listening" }}
       >
         <ProfileListeningReportPreview data={listeningReportPreview} />
       </SectionBlock>
 
       {achievements.length > 0 ? (
-        <SectionBlock title="Achievements" description="Milestones on Tracklist.">
+        <SectionBlock title="Achievements">
           <div className="flex flex-wrap gap-3">
             {achievements.map(({ achievement, earned_at }) => (
               <div
@@ -336,11 +314,6 @@ export async function ProfileDeferredBody({
     <div className={sectionGap}>
       <SectionBlock
         title={isOwnProfile ? "Your lists" : "Lists"}
-        description={
-          isOwnProfile
-            ? "Collections of albums and tracks."
-            : "Curated albums and tracks they share."
-        }
         action={
           isOwnProfile && userLists.length > 0
             ? {
