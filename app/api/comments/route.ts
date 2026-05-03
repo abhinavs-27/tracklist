@@ -2,15 +2,10 @@ import { NextRequest } from 'next/server';
 import { withHandler } from '@/lib/api-handler';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { apiBadRequest, apiInternalError, apiOk } from '@/lib/api-response';
-import { parseBody, handlePostgrestError, validateUuidParam } from '@/lib/api-utils';
+import { parseBody, handlePostgrestError, validateUuidParam, isMissingReviewIdColumn } from '@/lib/api-utils';
 import { CommentCreateBody } from '@/types';
 import { validateCommentContent } from '@/lib/validation';
 import { fetchUserSummary, fetchUserSummaryMap } from '@/lib/queries';
-
-function isMissingReviewIdColumn(err: unknown) {
-  const e = err as { code?: string; message?: string } | null;
-  return e?.code === '42703' && /comments\.?review_id/i.test(e?.message ?? "");
-}
 
 export const POST = withHandler(
   async (request, { user: me }) => {

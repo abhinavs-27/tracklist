@@ -1,17 +1,10 @@
 import { Router } from "express";
-import { badRequest, internalError, ok, unauthorized } from "../lib/http";
+import { badRequest, internalError, ok, unauthorized, isMissingReviewIdColumn } from "../lib/http";
 import { getSessionUserId } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
 import { isValidUuid, validateCommentContent } from "../lib/validation";
 
 export const commentsRouter = Router();
-
-function isMissingReviewIdColumn(err: unknown) {
-  const anyErr = err as { code?: string; message?: string };
-  const code = anyErr?.code;
-  const msg = String(anyErr?.message ?? "");
-  return code === "42703" && /comments\.?review_id/i.test(msg);
-}
 
 commentsRouter.post("/", async (req, res) => {
   try {

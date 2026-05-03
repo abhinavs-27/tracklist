@@ -32,6 +32,14 @@ export function tooManyRequests(res: Response, message = "Too many requests"): v
   apiError(res, message, 429);
 }
 
+/**
+ * Common check for PostgREST errors indicating a missing column (usually review_id vs log_id).
+ */
+export function isMissingReviewIdColumn(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return e?.code === "42703" && /comments\.?review_id/i.test(e?.message ?? "");
+}
+
 export function noContent(res: Response): void {
   res.status(204).end();
 }
