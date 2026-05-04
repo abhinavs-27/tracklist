@@ -43,7 +43,6 @@ export function BottomNav({ unreadCount }: { unreadCount: number }) {
                     : "text-zinc-500 active:text-zinc-300"
                 }`}
                 aria-current={isActive ? "page" : undefined}
-                aria-label={t.iconOnly ? t.label : undefined}
               >
                 <span className="relative">
                   <TabIcon active={isActive} />
@@ -51,9 +50,7 @@ export function BottomNav({ unreadCount }: { unreadCount: number }) {
                     <span className="absolute -right-1 -top-0.5 flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-zinc-950" />
                   ) : null}
                 </span>
-                {!t.iconOnly && (
-                  <span className="truncate">{t.label}</span>
-                )}
+                <span className="truncate">{t.label}</span>
               </Link>
             </li>
           );
