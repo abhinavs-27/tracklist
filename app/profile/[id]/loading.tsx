@@ -1,5 +1,12 @@
-import { PageLoadingSpinner } from "@/components/ui/loading-states";
+import { ProfileHeaderSkeleton } from "@/components/skeletons/profile-header-skeleton";
+import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
+import { sectionGap } from "@/lib/ui/surface";
 
 export default function ProfileLoading() {
-  return <PageLoadingSpinner title="Loading profile…" />;
+  return (
+    <div className={sectionGap}>
+      <ProfileHeaderSkeleton />
+      <ProfileBelowFoldSkeleton />
+    </div>
+  );
 }
