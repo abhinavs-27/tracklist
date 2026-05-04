@@ -10,12 +10,15 @@ import { parseBody, getPaginationParams } from "@/lib/api-utils";
 import { ReviewCreateBody } from "@/types";
 import {
   isValidReviewEntityId,
+  isValidUuid,
+  isValidSpotifyId,
   normalizeReviewEntityId,
   validateReviewContent,
   validateEntityType,
   validateRating,
 } from "@/lib/validation";
 import { getReviewsForEntity, fetchUserSummary } from "@/lib/queries";
+import { getOrCreateEntity } from "@/lib/catalog/getOrCreateEntity";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_or_lfm_id>&limit= optional */
 export const GET = withHandler(async (request: NextRequest) => {
@@ -57,9 +60,24 @@ export const POST = withHandler(
     const typeResult = validateEntityType(entity_type);
     if (!typeResult.ok) return apiBadRequest(typeResult.error);
 
-    const entity_id = normalizeReviewEntityId(String(rawEntityIdBody));
+    let entity_id = normalizeReviewEntityId(String(rawEntityIdBody));
     if (!isValidReviewEntityId(entity_id)) {
       return apiBadRequest("Invalid entity_id");
+    }
+
+    // reviews.entity_id is UUID — resolve Spotify IDs to internal UUIDs.
+    if (!isValidUuid(entity_id) && isValidSpotifyId(entity_id)) {
+      try {
+        const resolved = await getOrCreateEntity({
+          type: typeResult.value === "album" ? "album" : "track",
+          spotifyId: entity_id,
+          allowNetwork: true,
+        });
+        entity_id = resolved.id;
+      } catch (e) {
+        console.error("[reviews] entity resolution failed", e);
+        return apiBadRequest("Could not resolve entity. Try again.");
+      }
     }
 
     const ratingResult = validateRating(rating);
