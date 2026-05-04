@@ -115,6 +115,36 @@ const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN = parsePositiveIntEnv(
   20,
 );
 
+/**
+ * Dedicated limiter for interactive search (`GET /v1/search`).
+ * Runs through its own bucket so it neither starves nor is starved by catalog work.
+ * minTime of 200ms allows ~5 req/s burst; reservoir caps at 30/min total.
+ * Tune via SPOTIFY_SEARCH_MIN_TIME_MS / SPOTIFY_SEARCH_RESERVOIR_PER_MIN.
+ */
+const SPOTIFY_SEARCH_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_SEARCH_MIN_TIME_MS", 200);
+const SPOTIFY_SEARCH_RESERVOIR_PER_MIN = parsePositiveIntEnv("SPOTIFY_SEARCH_RESERVOIR_PER_MIN", 30);
+
+const spotifySearchLimiter = (() => {
+  const connection = getSpotifyBottleneckRedisConnection();
+  const opts = {
+    maxConcurrent: 2,
+    minTime: SPOTIFY_SEARCH_MIN_TIME_MS,
+    reservoir: SPOTIFY_SEARCH_RESERVOIR_PER_MIN,
+    reservoirRefreshAmount: SPOTIFY_SEARCH_RESERVOIR_PER_MIN,
+    reservoirRefreshInterval: 60 * 1000,
+  } as const;
+  if (connection) {
+    return new Bottleneck({
+      datastore: "ioredis",
+      connection,
+      clearDatastore: false,
+      id: "spotify-search-limiter",
+      ...opts,
+    });
+  }
+  return new Bottleneck({ ...opts });
+})();
+
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */
 export const spotifyLimiter = (() => {
   const connection = getSpotifyBottleneckRedisConnection();
@@ -195,9 +225,9 @@ function catalogPathUsesArtistAlbumsLimiter(path: string): boolean {
 }
 
 function selectCatalogLimiter(path: string): Bottleneck {
+  if (path.startsWith("/search")) return spotifySearchLimiter;
   if (catalogPathUsesSingleTrackLimiter(path)) return spotifySingleTrackLimiter;
-  if (catalogPathUsesArtistAlbumsLimiter(path))
-    return spotifyArtistAlbumsLimiter;
+  if (catalogPathUsesArtistAlbumsLimiter(path)) return spotifyArtistAlbumsLimiter;
   return spotifyLimiter;
 }
 
@@ -526,8 +556,9 @@ async function fetchCatalogResponseWithRetry(
    *   time out or never run before RSC gives up; users see metadata but zero tracks.
    * Heavier bulk work stays on other paths (e.g. `/artists/{id}/albums` pagination).
    */
+  // Single-entity GETs bypass the limiter so page navigation is instant.
+  // Search no longer bypasses — it has its own dedicated limiter (spotifySearchLimiter).
   const bypassLimiter =
-    path === "/search" ||
     /^\/albums\/[^/]+$/.test(path) ||
     /^\/albums\/[^/]+\/tracks$/.test(path) ||
     /^\/artists\/[^/]+$/.test(path) ||

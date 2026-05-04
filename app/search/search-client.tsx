@@ -405,6 +405,7 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
   const [people, setPeople] = useState<UserSearchResultType[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Auto-focus on mount
   useEffect(() => {
@@ -427,17 +428,21 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
       setLoading(false);
       return;
     }
+    // Cancel any previous in-flight request before starting a new one
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
     setLoading(true);
     try {
       const musicFetch = fetch(
         `/api/search?q=${encodeURIComponent(trimmed)}&limit=10`,
-        { credentials: "include" },
+        { credentials: "include", signal },
       );
       const peopleFetch =
         trimmed.length >= MIN_PEOPLE_QUERY
           ? fetch(
               `/api/search/users?q=${encodeURIComponent(trimmed)}&limit=6`,
-              { credentials: "include" },
+              { credentials: "include", signal },
             )
           : Promise.resolve(null);
 
@@ -460,10 +465,11 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
       } else {
         setPeople([]);
       }
-    } catch {
-      // silent — show stale results
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      // silent for other errors — show stale results
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   }, []);
 

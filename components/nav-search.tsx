@@ -17,6 +17,7 @@ export function NavSearch() {
   const [tracks, setTracks] = useState<SpotifyApi.TrackObjectFull[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -34,10 +35,14 @@ export function NavSearch() {
   }, [open]);
 
   const doSearch = useCallback(async (q: string) => {
+    // Cancel any previous in-flight request before starting a new one
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
     try {
       const res = await fetch(
         `/api/search?q=${encodeURIComponent(q)}&limit=${MAX_PER_SECTION + 1}`,
-        { credentials: "include" },
+        { credentials: "include", signal },
       );
       if (!res.ok) return;
       const data = (await res.json()) as {
@@ -49,10 +54,11 @@ export function NavSearch() {
       setAlbums((data.albums?.items ?? []).slice(0, MAX_PER_SECTION));
       setTracks((data.tracks?.items ?? []).slice(0, MAX_PER_SECTION));
       setOpen(true);
-    } catch {
-      // silent
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      // silent for other errors
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   }, []);
 
