@@ -3,9 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { AlbumPageClient } from "@/app/album/[id]/album-page-client";
 import { AlbumRecommendationsLoader } from "@/app/album/[id]/album-recommendations-loader";
-import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
-import { getAlbumEngagementStats, getEntityStats, getFriendsAlbumActivity } from "@/lib/queries";
+import { getAlbumEngagementStats, getEntityStats, getFriendsAlbumActivity, getViewerAlbumTrackRatings } from "@/lib/queries";
+import { AlbumFriendLeaderboard } from "@/app/album/[id]/album-friend-leaderboard";
 import { timeAsync } from "@/lib/profiling";
 import { scheduleAlbumCatalogWarmupAfterNavigation } from "@/lib/catalog/album-warmup";
 import { getOrCreateEntity, withTimeout } from "@/lib/catalog/getOrCreateEntity";
@@ -58,6 +58,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     session,
     engagementStats,
     friendActivity,
+    viewerTrackRatings,
     entityId,
   } = await timeAsync(
     "page",
@@ -102,9 +103,11 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         id,
         getAlbumEngagementStats(entityIdInner),
       );
-      const friendActivityInner = viewerId
-        ? await getFriendsAlbumActivity(viewerId, entityIdInner, 10)
-        : [];
+      const trackIds = (tracksInner.items ?? []).map((t) => t.id);
+      const [friendActivityInner, viewerTrackRatingsInner] = await Promise.all([
+        viewerId ? getFriendsAlbumActivity(viewerId, entityIdInner, 10) : Promise.resolve([]),
+        viewerId ? getViewerAlbumTrackRatings(viewerId, trackIds) : Promise.resolve(new Map<string, number>()),
+      ]);
 
       return {
         album: albumInner,
@@ -113,6 +116,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         session: sessionVal,
         engagementStats: engagementInner,
         friendActivity: friendActivityInner,
+        viewerTrackRatings: viewerTrackRatingsInner,
         entityId: entityIdInner,
       };
     },
@@ -124,34 +128,38 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const viewerId = session?.user?.id ?? null;
   const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();
 
+  const recommendationsNode = showAlbumRecUi ? (
+    <Suspense fallback={
+      <div>
+        <div className="mb-4 h-7 w-56 animate-pulse rounded-lg bg-zinc-800/60" />
+        <div className="min-h-[88px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />
+      </div>
+    }>
+      <AlbumRecommendationsLoader albumId={entityId} albumName={album.name} />
+    </Suspense>
+  ) : null;
+
+  const leaderboardNode = viewerId ? (
+    <Suspense fallback={null}>
+      <AlbumFriendLeaderboard viewerId={viewerId} albumId={entityId} />
+    </Suspense>
+  ) : null;
+
   return (
     <AlbumReviewsProvider albumId={entityId}>
-      <div className={sectionGap}>
-        <AlbumPageClient
-          id={entityId}
-          album={album}
-          tracks={tracks}
-          session={!!session}
-          viewerUserId={viewerId}
-          stats={stats}
-          engagementStats={engagementStats}
-          friendActivity={friendActivity}
-        />
-
-        {showAlbumRecUi ? (
-          <Suspense
-            fallback={
-              <div>
-                <div className="mb-4 h-7 w-56 animate-pulse rounded-lg bg-zinc-800/60" />
-                <div className="min-h-[88px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />
-              </div>
-            }
-          >
-            <AlbumRecommendationsLoader albumId={entityId} albumName={album.name} />
-          </Suspense>
-        ) : null}
-        <AlbumReviews albumId={entityId} albumName={album.name} />
-      </div>
+      <AlbumPageClient
+        id={entityId}
+        album={album}
+        tracks={tracks}
+        session={!!session}
+        viewerUserId={viewerId}
+        stats={stats}
+        engagementStats={engagementStats}
+        friendActivity={friendActivity}
+        viewerTrackRatings={viewerTrackRatings}
+        recommendationsNode={recommendationsNode}
+        leaderboardNode={leaderboardNode}
+      />
     </AlbumReviewsProvider>
   );
 }

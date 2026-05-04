@@ -2002,6 +2002,118 @@ export async function getViewerArtistStats(
 }
 
 /** Earliest listen date for a viewer × artist. */
+export type AlbumLeaderboardEntry = {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  playCount: number;
+  isViewer: boolean;
+};
+
+/**
+ * Play count leaderboard for this album among the viewer + people they follow.
+ * Returns null if fewer than 2 people have plays.
+ */
+export async function getAlbumFriendLeaderboard(
+  viewerId: string,
+  albumId: string,
+): Promise<AlbumLeaderboardEntry[] | null> {
+  try {
+    const supabase = createSupabaseAdminClient();
+
+    const { data: trackRows } = await supabase
+      .from("tracks")
+      .select("id")
+      .eq("album_id", albumId)
+      .limit(500);
+
+    const trackIds = (trackRows ?? []).map((t) => t.id as string);
+    if (trackIds.length === 0) return null;
+
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", viewerId)
+      .limit(100);
+
+    const friendIds = (followRows ?? []).map((f) => f.following_id as string);
+    const allUserIds = [viewerId, ...friendIds];
+
+    // Count logs for all users × album tracks
+    const userPlayCounts = new Map<string, number>();
+    const CHUNK = 200;
+    for (let i = 0; i < trackIds.length; i += CHUNK) {
+      const chunk = trackIds.slice(i, i + CHUNK);
+      const { data: logRows } = await supabase
+        .from("logs")
+        .select("user_id")
+        .in("user_id", allUserIds)
+        .in("track_id", chunk)
+        .limit(50000);
+      for (const row of logRows ?? []) {
+        const uid = row.user_id as string;
+        userPlayCounts.set(uid, (userPlayCounts.get(uid) ?? 0) + 1);
+      }
+    }
+
+    const withPlays = allUserIds.filter((id) => (userPlayCounts.get(id) ?? 0) > 0);
+    if (withPlays.length < 2) return null;
+
+    const { data: userRows } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .in("id", withPlays);
+
+    const userMap = new Map(
+      (userRows ?? []).map((u) => [
+        u.id as string,
+        { username: u.username as string, avatarUrl: u.avatar_url as string | null },
+      ]),
+    );
+
+    return withPlays
+      .map((uid) => {
+        const u = userMap.get(uid);
+        if (!u) return null;
+        return {
+          userId: uid,
+          username: u.username,
+          avatarUrl: u.avatarUrl,
+          playCount: userPlayCounts.get(uid) ?? 0,
+          isViewer: uid === viewerId,
+        };
+      })
+      .filter((x): x is AlbumLeaderboardEntry => x !== null)
+      .sort((a, b) => b.playCount - a.playCount)
+      .slice(0, 8);
+  } catch (e) {
+    console.error("[queries] getAlbumFriendLeaderboard failed:", e);
+    return null;
+  }
+}
+
+/** Viewer's existing song ratings for all tracks on an album. Returns map of trackId → rating. */
+export async function getViewerAlbumTrackRatings(
+  viewerId: string,
+  trackIds: string[],
+): Promise<Map<string, number>> {
+  if (!trackIds.length) return new Map();
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data } = await supabase
+      .from("reviews")
+      .select("entity_id, rating")
+      .eq("user_id", viewerId)
+      .eq("entity_type", "song")
+      .in("entity_id", trackIds);
+    return new Map(
+      (data ?? []).map((r) => [r.entity_id as string, r.rating as number]),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
 export async function getArtistFirstListenDate(
   viewerId: string,
   canonicalArtistId: string,
