@@ -58,6 +58,10 @@ export function parseCronJob(body: string): CronJobMessage {
     case "SYNC_ARTIST_DISCOGRAPHY":
       if (typeof o.artistId !== "string") throw new Error("SYNC_ARTIST_DISCOGRAPHY requires artistId");
       return { type: "SYNC_ARTIST_DISCOGRAPHY" as const, artistId: o.artistId };
+    case "SYNC_ALBUM_TRACKS":
+      if (typeof o.albumId !== "string" || typeof o.spotifyAlbumApiId !== "string")
+        throw new Error("SYNC_ALBUM_TRACKS requires albumId and spotifyAlbumApiId");
+      return { type: "SYNC_ALBUM_TRACKS" as const, albumId: o.albumId, spotifyAlbumApiId: o.spotifyAlbumApiId };
     case "REPAIR_LASTFM_AGGREGATES":
       return {
         type: "REPAIR_LASTFM_AGGREGATES",

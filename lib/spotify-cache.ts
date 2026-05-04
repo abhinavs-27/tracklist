@@ -1702,12 +1702,18 @@ async function getOrFetchAlbumInner(
             void enqueueSpotifyEnrich({ name: "enrich_album", albumId: albumUuid });
           }
         } else if (!tracksAreAllSpotifySourced(songs)) {
-          void refreshAlbumFromSpotify(supabase, spotifyAlbumApiId).catch((e) =>
-            console.warn(
-              `${LOG_PREFIX} background album refresh (fresh cache) failed for ${spotifyAlbumApiId}`,
-              e,
-            ),
-          );
+          // Partial tracks — enqueue via SQS so Lambda handles it reliably.
+          void import("@/lib/jobs/enqueue-cron-message")
+            .then(({ sendCronJobMessage }) =>
+              sendCronJobMessage({
+                type: "SYNC_ALBUM_TRACKS",
+                albumId: albumUuid,
+                spotifyAlbumApiId,
+              }),
+            )
+            .catch((e) =>
+              console.warn(`${LOG_PREFIX} SYNC_ALBUM_TRACKS enqueue failed`, e),
+            );
         }
       }
 
@@ -1845,12 +1851,17 @@ async function getOrFetchAlbumInner(
           void enqueueSpotifyEnrich({ name: "enrich_album", albumId: albumUuid });
         }
       } else if (!tracksAreAllSpotifySourced(songsStale)) {
-        void refreshAlbumFromSpotify(supabase, spotifyAlbumApiId).catch((e) =>
-          console.warn(
-            `${LOG_PREFIX} background album refresh (stale cache) failed for ${spotifyAlbumApiId}`,
-            e,
-          ),
-        );
+        void import("@/lib/jobs/enqueue-cron-message")
+          .then(({ sendCronJobMessage }) =>
+            sendCronJobMessage({
+              type: "SYNC_ALBUM_TRACKS",
+              albumId: albumUuid,
+              spotifyAlbumApiId,
+            }),
+          )
+          .catch((e) =>
+            console.warn(`${LOG_PREFIX} SYNC_ALBUM_TRACKS enqueue (stale) failed`, e),
+          );
         ranStaleSyncBackfill = true;
       }
     }

@@ -73,6 +73,12 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         await syncArtistDiscographyForCanonicalArtist(job.artistId);
         break;
       }
+      case "SYNC_ALBUM_TRACKS": {
+        const { refreshAlbumFromSpotify } = await import("@/lib/spotify-cache");
+        const supabase = (await import("@/lib/supabase-admin")).createSupabaseAdminClient();
+        await refreshAlbumFromSpotify(supabase, job.spotifyAlbumApiId);
+        break;
+      }
       default:
         throw new Error(`Unknown cron job: ${JSON.stringify(job)}`);
     }
