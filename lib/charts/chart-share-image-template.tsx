@@ -204,6 +204,13 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
           "inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -80px 120px -40px rgba(0, 0, 0, 0.45)",
       }}
     >
+      {/* Tracklist brand mark — top right */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: "#34d399", letterSpacing: 0.5, opacity: 0.8 }}>
+          Tracklist
+        </span>
+      </div>
+
       <div
         style={{
           flexShrink: 0,
@@ -214,9 +221,9 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
         <div
           style={{
             fontSize: 44,
-            fontWeight: 700,
-            letterSpacing: -1.2,
-            lineHeight: 1.1,
+            fontWeight: 800,
+            letterSpacing: -1.5,
+            lineHeight: 1.05,
           }}
         >
           {title}
@@ -254,18 +261,6 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
             }}
           >
             {chartKindLabel}
-          </div>
-        ) : null}
-        {isCommunity && viewerHelpedShape ? (
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 22,
-              color: "#34d399",
-              fontWeight: 600,
-            }}
-          >
-            You helped shape this chart
           </div>
         ) : null}
       </div>
@@ -378,26 +373,12 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
                     style={{
                       marginTop: 4,
                       fontSize: isFirst ? 17 : 15,
-                      color: "#a1a1aa",
+                      color: "#71717a",
                       fontWeight: 500,
                     }}
                   >
                     {formatNumber(row.play_count)} plays
                   </span>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "row",
-                      alignItems: "baseline",
-                      fontSize: isFirst ? 15 : 14,
-                      fontWeight: 500,
-                    }}
-                  >
-                    <span style={{ color: "#52525b" }}>weeks in top 10 · </span>
-                    <span style={{ color: "#71717a" }}>
-                      {row.weeks_in_top_10} ({row.weeks_at_1})
-                    </span>
-                  </div>
                 </div>
               </div>
               <div
@@ -427,8 +408,8 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
             padding: 24,
             borderRadius: 24,
             background:
-              "radial-gradient(ellipse 80% 120% at 30% 40%, rgba(245, 158, 11, 0.15), transparent 55%), rgba(24, 24, 27, 0.9)",
-            border: "1px solid rgba(63, 63, 70, 0.5)",
+              "radial-gradient(ellipse 80% 120% at 30% 40%, rgba(16, 185, 129, 0.12), transparent 55%), rgba(18, 18, 20, 0.95)",
+            border: "1px solid rgba(16, 185, 129, 0.2)",
           }}
         >
           {numberOneImageUrl ? (
@@ -436,99 +417,41 @@ export function ChartShareImageTemplate(props: ChartShareImageTemplateProps) {
             <img
               src={numberOneImageUrl}
               alt=""
-              width={180}
-              height={180}
+              width={200}
+              height={200}
               style={{
-                width: 180,
-                height: 180,
-                borderRadius: 18,
+                width: 200,
+                height: 200,
+                borderRadius: 20,
                 objectFit: "cover",
                 flexShrink: 0,
-                boxShadow: "0 20px 50px rgba(0,0,0,0.45)",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.55)",
               }}
             />
           ) : (
-            <div
-              style={{
-                width: 180,
-                height: 180,
-                borderRadius: 18,
-                backgroundColor: "#27272a",
-                flexShrink: 0,
-              }}
-            />
+            <div style={{ width: 200, height: 200, borderRadius: 20, backgroundColor: "#27272a", flexShrink: 0 }} />
           )}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              minWidth: 0,
-              flex: 1,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: "#fbbf24",
-                letterSpacing: 2,
-                textTransform: "uppercase",
-              }}
-            >
-              {isCommunity ? "#1" : "#1 this week"}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0, flex: 1 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#34d399", letterSpacing: 2, textTransform: "uppercase" }}>
+              #1 This Week
             </span>
-            <span
-              style={{
-                fontSize: 28,
-                fontWeight: 700,
-                lineHeight: 1.15,
-                maxWidth: 680,
-              }}
-            >
-              {truncate(numberOne.name, 48)}
+            <span style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1, maxWidth: 640, letterSpacing: -0.5 }}>
+              {truncate(numberOne.name, 42)}
             </span>
             {numberOne.artist_name ? (
-              <span style={{ fontSize: 18, color: "#a1a1aa" }}>
-                {truncate(numberOne.artist_name, 44)}
+              <span style={{ fontSize: 20, color: "#a1a1aa", marginTop: 2 }}>
+                {truncate(numberOne.artist_name, 40)}
               </span>
             ) : null}
-            <div
-              style={{
-                marginTop: 10,
-                display: "flex",
-                flexDirection: "row",
-                gap: 10,
-                width: "100%",
-              }}
-            >
-              <StatBlock label="Plays" value={formatNumber(numberOne.play_count)} compact />
-              <StatBlock
-                label="Weeks at #1 (all-time)"
-                value={String(numberOne.weeks_at_1)}
-                compact
-              />
-              <StatBlock
-                label="Top 10 · at #1"
-                value={`${numberOne.weeks_in_top_10} (${numberOne.weeks_at_1})`}
-                compact
-              />
-            </div>
+            <span style={{ fontSize: 18, color: "#52525b", marginTop: 6, fontWeight: 500 }}>
+              {formatNumber(numberOne.play_count)} plays
+            </span>
           </div>
         </div>
       ) : null}
 
-      <div
-        style={{
-          paddingTop: 20,
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-        }}
-      >
-        <span style={{ fontSize: 18, color: "#52525b", fontWeight: 500 }}>
+      <div style={{ paddingTop: 16, display: "flex", justifyContent: "center" }}>
+        <span style={{ fontSize: 15, color: "#3f3f46", fontWeight: 500 }}>
           tracklistsocial.com
         </span>
       </div>

@@ -267,13 +267,20 @@ async function tryReadConsensusCache(
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("community_rankings_cache")
-      .select("payload")
+      .select("payload, computed_at")
       .eq("community_id", communityId)
       .eq("entity_type", entityType)
       .eq("range", range)
       .maybeSingle();
 
     if (error || !data?.payload) return null;
+
+    // Reject stale cache — fall through to live RPC after 6 hours
+    const computedAt = (data as { computed_at?: string }).computed_at;
+    if (computedAt) {
+      const ageMs = Date.now() - new Date(computedAt).getTime();
+      if (ageMs > 6 * 60 * 60 * 1000) return null;
+    }
 
     const payload = data.payload as {
       items?: CommunityConsensusRow[];

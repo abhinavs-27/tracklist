@@ -592,7 +592,51 @@ const MoversGrid = memo(function MoversGrid({
   );
 });
 
-function BillboardHeroStatBlocks({ leader }: { leader: WeeklyChartRankingApiRow }) {
+function BillboardHeroStatBlocks({
+  leader,
+  communityMode = false,
+}: {
+  leader: WeeklyChartRankingApiRow;
+  communityMode?: boolean;
+}) {
+  if (communityMode) {
+    const pct =
+      leader.community_listen_percent != null
+        ? Math.round(leader.community_listen_percent * 100)
+        : null;
+    return (
+      <>
+        <div className="rounded-lg bg-black/20 px-3 py-2 ring-1 ring-white/5">
+          <dt className="text-[11px] uppercase tracking-wide text-zinc-500">
+            Plays
+          </dt>
+          <dd className="mt-0.5 text-lg font-semibold tabular-nums text-white">
+            {leader.play_count.toLocaleString()}
+          </dd>
+        </div>
+        {leader.unique_listeners != null && (
+          <div className="rounded-lg bg-black/20 px-3 py-2 ring-1 ring-white/5">
+            <dt className="text-[11px] uppercase tracking-wide text-zinc-500">
+              Listeners
+            </dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-100">
+              {leader.unique_listeners.toLocaleString()}
+            </dd>
+          </div>
+        )}
+        {pct != null && (
+          <div className="rounded-lg bg-black/20 px-3 py-2 ring-1 ring-white/5">
+            <dt className="text-[11px] uppercase tracking-wide text-zinc-500">
+              Community
+            </dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-100">
+              {pct}% listened
+            </dd>
+          </div>
+        )}
+      </>
+    );
+  }
   return (
     <>
       <div className="rounded-lg bg-black/20 px-3 py-2 ring-1 ring-white/5">
@@ -678,10 +722,10 @@ const BillboardHero = memo(function BillboardHero({
     <img
       src={leader.image}
       alt=""
-      className="h-40 w-40 rounded-xl object-cover shadow-xl ring-1 ring-white/10 sm:h-44 sm:w-44"
+      className="h-44 w-44 rounded-xl object-cover shadow-xl ring-1 ring-white/10 sm:h-52 sm:w-52"
     />
   ) : (
-    <div className="flex h-40 w-40 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5 sm:h-44 sm:w-44">
+    <div className="flex h-44 w-44 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5 sm:h-52 sm:w-52">
       —
     </div>
   );
@@ -690,14 +734,14 @@ const BillboardHero = memo(function BillboardHero({
     communityMode ? (
       <>
         <dl className="mt-6 hidden grid-cols-1 gap-3 text-sm sm:grid-cols-3 md:grid">
-          <BillboardHeroStatBlocks leader={leader} />
+          <BillboardHeroStatBlocks leader={leader} communityMode />
         </dl>
         <details className={`mt-4 ${cardRadius} border border-zinc-800/80 bg-black/15 ring-1 ring-white/[0.04] md:hidden`}>
           <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-medium text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-300">
-            #1 · plays & streaks
+            #1 · stats
           </summary>
           <dl className="grid grid-cols-1 gap-2 border-t border-zinc-800/60 px-3 py-3 text-sm sm:grid-cols-3">
-            <BillboardHeroStatBlocks leader={leader} />
+            <BillboardHeroStatBlocks leader={leader} communityMode />
           </dl>
         </details>
       </>
@@ -801,6 +845,8 @@ export function WeeklyBillboardView(props: {
   communityActiveListeners?: number | null;
   /** Community: viewer had ≥1 play during the chart week. */
   viewerContributed?: boolean;
+  /** Hide the bottom share section (community puts share in the control bar instead). */
+  hideShareSection?: boolean;
 }) {
   const [shareOpen, setShareOpen] = useState(false);
   const canShare =
@@ -841,17 +887,16 @@ export function WeeklyBillboardView(props: {
     <div className="w-full space-y-10 sm:space-y-12">
       {isCommunity &&
       (props.communityActiveListeners != null || props.viewerContributed) ? (
-        <header className="space-y-2">
+        <header className="flex flex-wrap items-center gap-2">
           {props.communityActiveListeners != null ? (
-            <p className="text-sm text-zinc-400">
-              Based on {props.communityActiveListeners.toLocaleString()}{" "}
-              listeners this week
-            </p>
+            <span className="inline-flex items-center rounded-full border border-zinc-700/60 bg-zinc-800/60 px-3 py-1 text-sm text-zinc-300">
+              {props.communityActiveListeners.toLocaleString()} listeners this week
+            </span>
           ) : null}
           {props.viewerContributed ? (
-            <p className="text-sm font-medium text-emerald-400/95">
-              You helped shape this chart
-            </p>
+            <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-950/50 px-3 py-1 text-sm font-medium text-emerald-400/95">
+              You contributed
+            </span>
           ) : null}
         </header>
       ) : null}
@@ -950,41 +995,43 @@ export function WeeklyBillboardView(props: {
         />
       </section>
 
-      <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-950/65 p-6 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-white/[0.06] sm:p-8`}>
-        <h3 className="text-lg font-semibold text-white">
-          {isCommunity ? "Share chart" : "Share this week"}
-        </h3>
-        <p className="mt-2 max-w-xl text-sm text-zinc-500">
-          {isCommunity
-            ? "Export a summary or image. Members need to be signed in to open community chart links."
-            : "Export a summary or link. Anyone with the link needs to be signed in to open your chart."}
-        </p>
-        <div className="mt-6 flex flex-col gap-6">
-          <button
-            type="button"
-            onClick={() => setShareOpen(true)}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 sm:w-auto sm:self-start sm:px-10 sm:py-4"
-          >
-            {isCommunity ? "Share community chart" : "Share your chart"}
-          </button>
-          <div className="border-t border-zinc-800/80 pt-6">
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-              Quick actions
-            </p>
-            <div className="mt-3">
-              <ChartShareActions
-                chartKind={props.chartKind}
-                chart_moment={props.chart_moment}
-                disableFormattedShare={!canShare}
-                layout="inline"
-                chartType={props.chartType}
-                weekStartIso={props.weekStartIso}
-                communityId={props.communityId}
-              />
+      {!props.hideShareSection && (
+        <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-950/65 p-6 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-white/[0.06] sm:p-8`}>
+          <h3 className="text-lg font-semibold text-white">
+            {isCommunity ? "Share chart" : "Share this week"}
+          </h3>
+          <p className="mt-2 max-w-xl text-sm text-zinc-500">
+            {isCommunity
+              ? "Export a summary or image. Members need to be signed in to open community chart links."
+              : "Export a summary or link. Anyone with the link needs to be signed in to open your chart."}
+          </p>
+          <div className="mt-6 flex flex-col gap-6">
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 sm:w-auto sm:self-start sm:px-10 sm:py-4"
+            >
+              {isCommunity ? "Share community chart" : "Share your chart"}
+            </button>
+            <div className="border-t border-zinc-800/80 pt-6">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Quick actions
+              </p>
+              <div className="mt-3">
+                <ChartShareActions
+                  chartKind={props.chartKind}
+                  chart_moment={props.chart_moment}
+                  disableFormattedShare={!canShare}
+                  layout="inline"
+                  chartType={props.chartType}
+                  weekStartIso={props.weekStartIso}
+                  communityId={props.communityId}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <ChartShareModal
         open={shareOpen}

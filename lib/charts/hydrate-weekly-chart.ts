@@ -10,6 +10,7 @@ import {
   getOrFetchArtistsBatch,
   getOrFetchTracksBatch,
 } from "@/lib/spotify-cache";
+import { enqueueSpotifyEnrich } from "@/lib/jobs/spotifyQueue";
 
 import type {
   ChartType,
@@ -50,6 +51,11 @@ export async function hydrateWeeklyChartRankings(
         };
       }
       const t = byId.get(r.entity_id) ?? null;
+      const resolvedName = t?.name?.trim();
+      if (!resolvedName) {
+        // Enqueue enrichment so the next render picks up the real name
+        void enqueueSpotifyEnrich({ name: "enrich_track", trackId: r.entity_id }).catch(() => {});
+      }
       const artistName =
         t?.artists
           ?.map((a) => a.name)
@@ -57,7 +63,7 @@ export async function hydrateWeeklyChartRankings(
           .join(", ") ?? null;
       return {
         ...r,
-        name: t?.name ?? r.entity_id,
+        name: resolvedName ?? "Unknown track",
         image: t?.album?.images?.[0]?.url ?? null,
         artist_name: artistName?.trim() || null,
       };
@@ -78,10 +84,14 @@ export async function hydrateWeeklyChartRankings(
         return { ...r, name: "Unknown album", image: null, artist_name: null };
       }
       const a = byId.get(r.entity_id) ?? null;
+      const resolvedAlbumName = a?.name?.trim();
+      if (!resolvedAlbumName) {
+        void enqueueSpotifyEnrich({ name: "enrich_album", albumId: r.entity_id }).catch(() => {});
+      }
       const artistName = a?.artists?.[0]?.name ?? null;
       return {
         ...r,
-        name: a?.name ?? r.entity_id,
+        name: resolvedAlbumName ?? "Unknown album",
         image: a?.images?.[0]?.url ?? null,
         artist_name: artistName?.trim() || null,
       };

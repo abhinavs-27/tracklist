@@ -149,6 +149,19 @@ Resources:
           RoleArn: !GetAtt EventBridgeRole.Arn
           Input: '{"type":"COMMUNITY_FEATURE_WEEKLY","limit":80}'
 
+  RuleCommunityMemberStats:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-community-member-stats
+      Description: Monday 04:00 UTC — REFRESH_COMMUNITY_MEMBER_STATS (leaderboard + member stats)
+      ScheduleExpression: cron(0 4 ? * MON *)
+      State: ENABLED
+      Targets:
+        - Id: SqsCommunityMemberStats
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"REFRESH_COMMUNITY_MEMBER_STATS"}'
+
   RuleBillboardWeeklyEmail:
     Type: AWS::Events::Rule
     Properties:

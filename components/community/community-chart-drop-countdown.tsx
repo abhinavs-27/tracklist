@@ -35,10 +35,6 @@ export function CommunityChartDropCountdown(props: { dropIso: string }) {
           {formatRemaining(ms)}
         </span>
       </p>
-      <p className="mt-1 text-xs text-amber-200/70">
-        Charts lock after each weekly run (Sunday UTC) — same ritual for every
-        member.
-      </p>
     </div>
   );
 }

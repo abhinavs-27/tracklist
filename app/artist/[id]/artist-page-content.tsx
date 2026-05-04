@@ -84,35 +84,49 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
         />
       ) : null}
 
-      {/* Hero — full-width image with gradient overlay */}
+      {/* Hero — album-page style: blurred bg + full photo at proper size */}
       <div className="relative overflow-hidden rounded-2xl bg-zinc-900">
-        <div className="aspect-square w-full sm:aspect-[3/1]">
-          {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" className="h-full w-full object-cover object-top" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950 text-8xl text-zinc-700">
-              ♪
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            {artist.name}
-          </h1>
-          {artist.genres?.length ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {artist.genres.slice(0, 4).map((g) => (
-                <span
-                  key={g}
-                  className="rounded-full bg-white/[0.12] px-2.5 py-0.5 text-xs font-medium text-zinc-200 backdrop-blur-sm"
-                >
-                  {g}
-                </span>
-              ))}
-            </div>
-          ) : null}
+        {image && (
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={image} alt="" className="h-full w-full scale-150 object-cover opacity-[0.18] blur-3xl" />
+            <div className="absolute inset-0 bg-zinc-950/65" />
+          </div>
+        )}
+        {!image && <div className="absolute inset-0 bg-gradient-to-br from-zinc-900/90 via-zinc-900 to-zinc-950" />}
+
+        <div className="relative flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-start sm:gap-8 sm:p-8">
+          {/* Artist photo — full, uncropped */}
+          <div className="h-52 w-52 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] ring-1 ring-inset ring-white/[0.08] sm:h-60 sm:w-60">
+            {image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={image} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">♪</div>
+            )}
+          </div>
+
+          {/* Metadata */}
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Artist</p>
+            <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              {artist.name}
+            </h1>
+            {artist.genres?.length ? (
+              <div className="mt-2 flex flex-wrap justify-center gap-1.5 sm:justify-start">
+                {artist.genres.slice(0, 4).map((g) => (
+                  <span key={g} className="rounded-full bg-white/[0.10] px-2.5 py-0.5 text-xs font-medium text-zinc-300 ring-1 ring-white/[0.08]">
+                    {g}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {artist.followers?.total ? (
+              <p className="mt-2 text-sm text-zinc-500">
+                {artist.followers.total.toLocaleString()} followers on Spotify
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
 

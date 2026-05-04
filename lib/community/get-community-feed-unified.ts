@@ -511,7 +511,8 @@ async function mergedItemsToV2(
       const et =
         (item.metadata.entity_type as string) === "album" ? "album" : "song";
       const displayName =
-        (nameMap.get(eid) ?? fallbackName.get(eid) ?? "").trim() || null;
+        (nameMap.get(eid) ?? fallbackName.get(eid) ?? "").trim() ||
+        `Unknown ${et}`;
       const rt = item.metadata.review_text as string | null | undefined;
       const snippet = rt?.trim() ? rt.trim().slice(0, 220) : null;
       const payload = {

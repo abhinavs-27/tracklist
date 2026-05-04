@@ -21,6 +21,37 @@ const ROLE_LABEL: Record<string, string> = {
   explorer: "Explorer",
 };
 
+export type CommunityViewerStats = {
+  viewerPlays: number;
+  viewerRank: number | null;
+  communityTotalPlays: number;
+};
+
+/** Viewer's plays this week, their rank, and community total — used in the hero stats strip. */
+export async function getCommunityViewerAndTotalStats(
+  viewerId: string,
+  communityId: string,
+): Promise<CommunityViewerStats> {
+  const admin = createSupabaseAdminClient();
+  const cid = communityId?.trim();
+
+  // All member stats sorted by plays (used for rank + total)
+  const { data: allStats } = await admin
+    .from("community_member_stats")
+    .select("user_id, listen_count_7d")
+    .eq("community_id", cid)
+    .order("listen_count_7d", { ascending: false });
+
+  const rows = (allStats ?? []) as { user_id: string; listen_count_7d: number }[];
+  const communityTotalPlays = rows.reduce((s, r) => s + (r.listen_count_7d ?? 0), 0);
+
+  const viewerIdx = rows.findIndex((r) => r.user_id === viewerId);
+  const viewerPlays = viewerIdx >= 0 ? (rows[viewerIdx]!.listen_count_7d ?? 0) : 0;
+  const viewerRank = viewerIdx >= 0 ? viewerIdx + 1 : null;
+
+  return { viewerPlays, viewerRank, communityTotalPlays };
+}
+
 /**
  * Per-member stats + streaks from `community_member_stats` and `user_streaks` snapshot,
  * plus weekly badges from `community_member_roles`.

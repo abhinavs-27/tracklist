@@ -165,46 +165,6 @@ export function CommunityHero({
           </div>
         </div>
 
-        {topThisWeek.length > 0 ? (
-          <div className="relative z-10 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4 lg:px-8">
-            <div>
-              <p className={communityMetaLabel}>Top this week</p>
-              <ul className="mt-2.5 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] sm:gap-3">
-                {topThisWeek.map((a) => (
-                  <li key={a.id} className="shrink-0">
-                    <Link
-                      href={`/artist/${a.id}`}
-                      className={`flex items-center gap-2.5 rounded-xl py-1 pr-3 pl-1 transition ${communityInset} hover:bg-zinc-900/50 hover:ring-emerald-500/20`}
-                    >
-                      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-zinc-800/80 ring-1 ring-white/10">
-                        {a.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={a.imageUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                            ?
-                          </span>
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block max-w-[10rem] truncate font-medium text-zinc-100 sm:max-w-[12rem]">
-                          {a.name}
-                        </span>
-                        <span className={communityMeta}>
-                          {a.listens.toLocaleString()} listens
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );

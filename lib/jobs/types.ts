@@ -26,6 +26,7 @@ export type CronJobMessage =
   | { type: "REPAIR_LASTFM_AGGREGATES"; batch?: number }
   | { type: "UPGRADE_LASTFM_ALBUM_COVERS"; batch?: number; scan?: number; gapMs?: number }
   | { type: "SYNC_ARTIST_DISCOGRAPHY"; artistId: string }
-  | { type: "SYNC_ALBUM_TRACKS"; albumId: string; spotifyAlbumApiId: string };
+  | { type: "SYNC_ALBUM_TRACKS"; albumId: string; spotifyAlbumApiId: string }
+  | { type: "REFRESH_COMMUNITY_MEMBER_STATS" };
 
 export type JobMessage = BillboardJobMessage | CronJobMessage;

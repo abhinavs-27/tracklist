@@ -49,6 +49,7 @@ export function parseCronJob(body: string): CronJobMessage {
     case "TASTE_IDENTITY_REFRESH":
     case "BILLBOARD_WEEKLY_EMAIL":
     case "LISTENING_AGGREGATES":
+    case "REFRESH_COMMUNITY_MEMBER_STATS":
       return { type: t };
     case "COMMUNITY_FEATURE_WEEKLY":
       return {

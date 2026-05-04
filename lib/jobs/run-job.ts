@@ -56,6 +56,13 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
       case "LISTENING_AGGREGATES":
         await cron.runListeningAggregates();
         break;
+      case "REFRESH_COMMUNITY_MEMBER_STATS": {
+        const { computeAllCommunitiesWeekly } = await import(
+          "@/lib/community/compute-community-weekly"
+        );
+        await computeAllCommunitiesWeekly();
+        break;
+      }
       case "REPAIR_LASTFM_AGGREGATES":
         await cron.runRepairLastfmAggregates(job.batch);
         break;

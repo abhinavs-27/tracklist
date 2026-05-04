@@ -1,11 +1,8 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_LOG_ROWS = 40000;
 
 export type CommunityLeaderboardRow = {
   userId: string;
@@ -15,35 +12,6 @@ export type CommunityLeaderboardRow = {
   uniqueArtists: number;
   streakDays: number;
 };
-
-type LogRow = {
-  user_id: string;
-  listened_at: string;
-  artist_id: string | null;
-  track_id: string | null;
-};
-
-async function fetchSongsArtistIds(
-  admin: SupabaseClient,
-  trackIds: string[],
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  const unique = [...new Set(trackIds)].filter(Boolean);
-  const CHUNK = 400;
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const { data, error } = await admin
-      .from("tracks")
-      .select("id, artist_id")
-      .in("id", chunk);
-    if (error) continue;
-    for (const row of data ?? []) {
-      const r = row as { id: string; artist_id: string };
-      out.set(r.id, r.artist_id);
-    }
-  }
-  return out;
-}
 
 function dayKey(iso: string): string {
   return iso.slice(0, 10);
@@ -72,7 +40,7 @@ export function longestStreakInWindow(
 
 /**
  * Weekly stats for leaderboard: last 7 days of logs, members only.
- * Sorted by totalLogs descending.
+ * Uses DB-level GROUP BY — no 40k row limit, fully accurate counts.
  */
 export async function getWeeklyLeaderboard(
   communityId: string,
@@ -81,94 +49,56 @@ export async function getWeeklyLeaderboard(
   const cid = communityId?.trim();
   if (!cid) return [];
 
-  const { data: members, error: memErr } = await admin
-    .from("community_members")
-    .select("user_id")
-    .eq("community_id", cid);
-  if (memErr || !members?.length) return [];
-
-  const memberIds = [
-    ...new Set(
-      (members as { user_id: string }[]).map((m) => m.user_id).filter(Boolean),
-    ),
-  ];
-  if (memberIds.length === 0) return [];
-
   const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
-
-  const { data: logRows, error: logErr } = await admin
-    .from("logs")
-    .select("user_id, listened_at, artist_id, track_id")
-    .in("user_id", memberIds)
-    .gte("listened_at", since)
-    .order("listened_at", { ascending: true })
-    .limit(MAX_LOG_ROWS);
-
-  if (logErr) {
-    console.error("[community] leaderboard logs failed", logErr);
-    return [];
-  }
-
-  const logs = (logRows ?? []) as LogRow[];
-  const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean))] as string[];
-  const songMap = await fetchSongsArtistIds(admin, trackIds);
-
-  const byUser = new Map<
-    string,
-    {
-      totalLogs: number;
-      artists: Set<string>;
-      days: Set<string>;
-    }
-  >();
-
-  for (const uid of memberIds) {
-    byUser.set(uid, { totalLogs: 0, artists: new Set(), days: new Set() });
-  }
-
-  for (const log of logs) {
-    const uid = log.user_id;
-    const bucket = byUser.get(uid);
-    if (!bucket) continue;
-    bucket.totalLogs += 1;
-    bucket.days.add(dayKey(log.listened_at));
-    const aid =
-      log.artist_id?.trim() ||
-      (log.track_id ? songMap.get(log.track_id) : undefined);
-    if (aid) bucket.artists.add(aid);
-  }
-
   const rangeStart = since.slice(0, 10);
   const rangeEnd = new Date().toISOString().slice(0, 10);
 
+  const { data: agg, error: aggErr } = await admin.rpc(
+    "get_community_weekly_leaderboard",
+    { p_community_id: cid, p_since: since },
+  );
+
+  if (aggErr) {
+    console.error("[community] leaderboard rpc failed", aggErr);
+    return [];
+  }
+
+  const rows = (agg ?? []) as {
+    user_id: string;
+    total_logs: number;
+    unique_artists: number;
+    listen_days: string[] | null;
+  }[];
+
+  if (rows.length === 0) return [];
+
+  const userIds = rows.map((r) => r.user_id);
   const { data: users, error: uErr } = await admin
     .from("users")
     .select("id, username, avatar_url")
-    .in("id", memberIds);
-  if (uErr) {
-    console.error("[community] leaderboard users failed", uErr);
-  }
+    .in("id", userIds);
+  if (uErr) console.error("[community] leaderboard users failed", uErr);
+
   const userMap = new Map(
-    (users ?? []).map((u: { id: string; username: string; avatar_url: string | null }) => [
-      u.id,
-      { username: u.username, avatar_url: u.avatar_url },
-    ]),
+    ((users ?? []) as { id: string; username: string; avatar_url: string | null }[]).map(
+      (u) => [u.id, { username: u.username, avatar_url: u.avatar_url }],
+    ),
   );
 
-  const rows: CommunityLeaderboardRow[] = memberIds.map((userId) => {
-    const b = byUser.get(userId)!;
-    const streakDays = longestStreakInWindow(b.days, rangeStart, rangeEnd);
-    const u = userMap.get(userId);
+  const result: CommunityLeaderboardRow[] = rows.map((r) => {
+    const daySet = new Set((r.listen_days ?? []).map(dayKey));
+    const streakDays = longestStreakInWindow(daySet, rangeStart, rangeEnd);
+    const u = userMap.get(r.user_id);
     return {
-      userId,
+      userId: r.user_id,
       username: u?.username ?? "Unknown",
       avatar_url: u?.avatar_url ?? null,
-      totalLogs: b.totalLogs,
-      uniqueArtists: b.artists.size,
+      totalLogs: Number(r.total_logs),
+      uniqueArtists: Number(r.unique_artists),
       streakDays,
     };
   });
 
-  rows.sort((a, b) => b.totalLogs - a.totalLogs);
-  return rows;
+  result.sort((a, b) => b.totalLogs - a.totalLogs);
+  return result;
 }
