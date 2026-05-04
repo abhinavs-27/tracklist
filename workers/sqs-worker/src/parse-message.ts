@@ -55,6 +55,9 @@ export function parseCronJob(body: string): CronJobMessage {
         type: "COMMUNITY_FEATURE_WEEKLY",
         limit: typeof o.limit === "number" ? o.limit : undefined,
       };
+    case "SYNC_ARTIST_DISCOGRAPHY":
+      if (typeof o.artistId !== "string") throw new Error("SYNC_ARTIST_DISCOGRAPHY requires artistId");
+      return { type: "SYNC_ARTIST_DISCOGRAPHY" as const, artistId: o.artistId };
     case "REPAIR_LASTFM_AGGREGATES":
       return {
         type: "REPAIR_LASTFM_AGGREGATES",

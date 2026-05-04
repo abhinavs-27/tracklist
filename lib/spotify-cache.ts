@@ -1273,6 +1273,26 @@ export async function syncArtistDiscographyForCanonicalArtist(
   canonicalArtistId: string,
 ): Promise<{ spotifyTotal: number; upsertOk: number; upsertErr: number }> {
   const admin = createSupabaseAdminClient();
+
+  // Skip if recently synced (< 7 days ago) — avoids hammering Spotify on every page visit.
+  try {
+    const { data: artistRow } = await admin
+      .from("artists")
+      .select("discography_synced_at")
+      .eq("id", canonicalArtistId)
+      .maybeSingle();
+    const syncedAt = (artistRow as { discography_synced_at?: string | null } | null)
+      ?.discography_synced_at;
+    if (syncedAt) {
+      const ageMs = Date.now() - new Date(syncedAt).getTime();
+      if (ageMs < 7 * 24 * 60 * 60 * 1000) {
+        return { spotifyTotal: 0, upsertOk: 0, upsertErr: 0 };
+      }
+    }
+  } catch {
+    // Non-fatal — proceed with sync
+  }
+
   const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonicalArtistId);
   if (!apiId) {
     console.warn(
@@ -1340,6 +1360,16 @@ export async function syncArtistDiscographyForCanonicalArtist(
     await upsertPage(items);
     if (items.length < SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE) break;
     offset += SPOTIFY_ARTIST_ALBUMS_PAGE_SIZE;
+  }
+
+  // Stamp discography_synced_at so the artist page knows this is fresh.
+  try {
+    await admin
+      .from("artists")
+      .update({ discography_synced_at: new Date().toISOString() })
+      .eq("id", canonicalArtistId);
+  } catch (e) {
+    console.warn(`${LOG_PREFIX} syncArtistDiscography stamp failed`, e);
   }
 
   console.log(`${LOG_PREFIX} syncArtistDiscographyForCanonicalArtist done`, {

@@ -2021,12 +2021,18 @@ function artistAlbumsVerbose(artistEntityId: string): boolean {
   return isArtistPageDebugEnabled(artistEntityId);
 }
 
-/** Non-blocking: full discography sync runs in BullMQ / in-memory queue only (never await on RSC). */
+/** Non-blocking: sends SYNC_ARTIST_DISCOGRAPHY to SQS cron queue (handled by Lambda worker). */
 function scheduleArtistDiscographyBackfill(canonicalArtistId: string): void {
-  void enqueueSpotifyEnrich({
-    name: "sync_artist_discography",
-    artistId: canonicalArtistId,
-  });
+  void import("@/lib/jobs/enqueue-cron-message")
+    .then(({ sendCronJobMessage }) =>
+      sendCronJobMessage({
+        type: "SYNC_ARTIST_DISCOGRAPHY",
+        artistId: canonicalArtistId,
+      }),
+    )
+    .catch((e) => {
+      console.warn("[artist-albums] discography sync enqueue failed", e);
+    });
 }
 
 async function fetchAllCanonicalAlbumRowsForArtist(

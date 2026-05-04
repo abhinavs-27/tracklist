@@ -66,6 +66,13 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
           gapMs: job.gapMs,
         });
         break;
+      case "SYNC_ARTIST_DISCOGRAPHY": {
+        const { syncArtistDiscographyForCanonicalArtist } = await import(
+          "@/lib/spotify-cache"
+        );
+        await syncArtistDiscographyForCanonicalArtist(job.artistId);
+        break;
+      }
       default:
         throw new Error(`Unknown cron job: ${JSON.stringify(job)}`);
     }
