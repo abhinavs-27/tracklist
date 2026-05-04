@@ -11,7 +11,8 @@ const ICONS: Record<
   ComponentType<{ className?: string; active?: boolean }>
 > = {
   home: HomeIcon,
-  explore: ExploreIcon,
+  explore: CompassIcon,
+  search: SearchIcon,
   community: CommunityIcon,
   you: YouIcon,
 };
@@ -42,6 +43,7 @@ export function BottomNav({ unreadCount }: { unreadCount: number }) {
                     : "text-zinc-500 active:text-zinc-300"
                 }`}
                 aria-current={isActive ? "page" : undefined}
+                aria-label={t.iconOnly ? t.label : undefined}
               >
                 <span className="relative">
                   <TabIcon active={isActive} />
@@ -49,7 +51,9 @@ export function BottomNav({ unreadCount }: { unreadCount: number }) {
                     <span className="absolute -right-1 -top-0.5 flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-zinc-950" />
                   ) : null}
                 </span>
-                <span className="truncate">{t.label}</span>
+                {!t.iconOnly && (
+                  <span className="truncate">{t.label}</span>
+                )}
               </Link>
             </li>
           );
@@ -78,7 +82,27 @@ function HomeIcon({ className, active }: { className?: string; active?: boolean 
   );
 }
 
-function ExploreIcon({ className, active }: { className?: string; active?: boolean }) {
+function CompassIcon({ className, active }: { className?: string; active?: boolean }) {
+  return (
+    <svg
+      className={className ?? `h-6 w-6 ${active ? "text-emerald-400" : "text-current"}`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" strokeWidth={active ? 2.25 : 2} />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={active ? 2.25 : 2}
+        d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"
+      />
+    </svg>
+  );
+}
+
+function SearchIcon({ className, active }: { className?: string; active?: boolean }) {
   return (
     <svg
       className={className ?? `h-6 w-6 ${active ? "text-emerald-400" : "text-current"}`}

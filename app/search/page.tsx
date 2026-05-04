@@ -1,6 +1,4 @@
-import Link from 'next/link';
-import { SearchBar } from '@/components/search-bar';
-import { SearchPageContent } from './search-content';
+import { SearchClient } from "./search-client";
 
 export default async function SearchPage({
   searchParams,
@@ -8,25 +6,7 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const params = await searchParams;
-  const q = params.q?.trim() ?? '';
+  const initialQuery = params.q?.trim() ?? "";
 
-  return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-white">Search</h1>
-      {q === '' ? (
-        <>
-          <div className="mb-6 max-w-xl">
-            <SearchBar placeholder="Search artists, albums, or tracks…" />
-          </div>
-          <p className="text-sm text-zinc-500">
-            <Link href="/search/users" className="text-emerald-400 hover:underline">
-              Find people by username →
-            </Link>
-          </p>
-        </>
-      ) : (
-        <SearchPageContent searchParams={params} />
-      )}
-    </div>
-  );
+  return <SearchClient initialQuery={initialQuery} />;
 }

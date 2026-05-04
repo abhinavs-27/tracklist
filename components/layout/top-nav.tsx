@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { NotificationBellLink } from "@/components/notifications/notification-bell-link";
-import { SearchBar } from "@/components/search-bar";
+import { NavSearch } from "@/components/nav-search";
 import { getActiveTab, type PrimaryTab } from "@/lib/navigation";
 import { pageShell } from "@/lib/ui/layout";
 
@@ -82,28 +82,25 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-zinc-950/90 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.04)] backdrop-blur-xl backdrop-saturate-150">
-      {/* Mobile: logo + search + notifications — primary nav is the bottom tab bar only */}
+      {/* Mobile: logo + notifications only — search lives in the bottom tab bar */}
       <div
-        className={`flex min-h-11 ${pageShell} items-center gap-2 py-2.5 sm:gap-3 md:hidden`}
+        className={`flex min-h-11 ${pageShell} items-center justify-between py-2.5 md:hidden`}
       >
         <Link
           href="/"
-          className="shrink-0 text-base font-bold tracking-tight text-white touch-manipulation sm:text-lg"
+          className="text-base font-bold tracking-tight text-white touch-manipulation sm:text-lg"
         >
           Tracklist
         </Link>
-        <div className="flex min-w-0 flex-1 items-center">
-          <SearchBar placeholder="Search…" compact />
-        </div>
         {status === "loading" ? (
-          <span className="w-9 shrink-0 text-center text-sm text-zinc-500">…</span>
+          <span className="w-9 text-center text-sm text-zinc-500">…</span>
         ) : session ? (
           <NotificationBellLink unreadCount={unreadCount} />
         ) : (
           <Link
             prefetch={false}
             href="/auth/signin"
-            className="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-medium text-white touch-manipulation sm:px-3 sm:text-sm"
+            className="rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-medium text-white touch-manipulation sm:px-3 sm:text-sm"
           >
             Sign in
           </Link>
@@ -167,9 +164,12 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
           </div>
         </div>
 
-        <div className="mt-3 w-full">
-          <SearchBar placeholder="Search artists, albums, tracks..." />
-        </div>
+        {/* Hide when already on the search page — SearchClient handles it there */}
+        {!pathname.startsWith("/search") && (
+          <div className="mt-3 w-full">
+            <NavSearch />
+          </div>
+        )}
       </div>
     </header>
   );

@@ -1,18 +1,23 @@
 /**
- * Intent-based primary nav: Home, Explore, Community, You.
+ * Intent-based primary nav: Home, Explore, Search, Community, You.
  * Used by TopNav / BottomNav for active states (client-safe).
  */
 
-export type PrimaryTab = "home" | "explore" | "community" | "you";
+export type PrimaryTab = "home" | "explore" | "search" | "community" | "you";
 
-/** Shared labels + hrefs for Home / Explore / Community / You (desktop, mobile top strip, bottom bar). */
-export const PRIMARY_NAV_LINKS: { id: PrimaryTab; label: string; href: string }[] =
-  [
-    { id: "home", label: "Home", href: "/" },
-    { id: "explore", label: "Explore", href: "/explore" },
-    { id: "community", label: "Community", href: "/communities" },
-    { id: "you", label: "You", href: "/you" },
-  ];
+export const PRIMARY_NAV_LINKS: {
+  id: PrimaryTab;
+  label: string;
+  href: string;
+  /** Bottom nav: render icon only, no label text. */
+  iconOnly?: boolean;
+}[] = [
+  { id: "home", label: "Home", href: "/" },
+  { id: "explore", label: "Explore", href: "/explore" },
+  { id: "search", label: "Search", href: "/search", iconOnly: true },
+  { id: "community", label: "Community", href: "/communities" },
+  { id: "you", label: "You", href: "/you" },
+];
 
 export function getActiveTab(
   pathname: string,
@@ -28,10 +33,13 @@ export function getActiveTab(
 
   if (
     pathname === "/explore" ||
-    pathname.startsWith("/browse") ||
-    pathname.startsWith("/search/users")
+    pathname.startsWith("/browse")
   ) {
     return "explore";
+  }
+
+  if (pathname.startsWith("/search")) {
+    return "search";
   }
 
   if (pathname.startsWith("/communities") || pathname.startsWith("/community/")) {
