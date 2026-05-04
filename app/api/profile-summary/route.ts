@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { getUserFromRequest } from "@/lib/auth";
-import { apiBadRequest, apiInternalError } from "@/lib/api-response";
+import { withHandler } from "@/lib/api-handler";
+import { apiBadRequest } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 import {
   getCachedRecentAlbumsFromLogs,
@@ -28,9 +28,8 @@ export type ProfileSummaryResponse = {
  * `recent_tracks` + Spotify sync only when the viewer is signed in as that user
  * (same contract as separate `/api/spotify/recently-played`).
  */
-export async function GET(request: NextRequest) {
-  try {
-    const viewer = await getUserFromRequest(request);
+export const GET = withHandler(
+  async (request, { user: viewer }) => {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("user_id");
     if (!userId || !isValidUuid(userId)) {
@@ -98,7 +97,6 @@ export async function GET(request: NextRequest) {
       },
       { bypassCache: bust },
     );
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: false }
+);

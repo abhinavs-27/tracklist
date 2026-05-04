@@ -56,9 +56,9 @@ export function getPaginationParams(
 /**
  * Validates a UUID parameter and returns an apiNotFound response if invalid.
  */
-export function validateUuidParam(id: string | null): { ok: true; id: string } | { ok: false; error: NextResponse } {
+export function validateUuidParam(id: string | null, resourceName = 'Resource'): { ok: true; id: string } | { ok: false; error: NextResponse } {
   if (!id || !isValidUuid(id)) {
-    return { ok: false, error: apiNotFound('Invalid ID format') };
+    return { ok: false, error: apiNotFound(`${resourceName} not found`) };
   }
   return { ok: true, id };
 }

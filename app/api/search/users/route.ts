@@ -1,17 +1,19 @@
 import { NextRequest } from "next/server";
-import { getUserFromRequest } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { searchUsers, enrichUsersWithFollowStatus } from "@/lib/queries";
-import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
+import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { sanitizeString } from "@/lib/validation";
 import { getPaginationParams } from "@/lib/api-utils";
+import type { User } from "@/types";
 
 const MIN_QUERY_LENGTH = 2;
 const MAX_QUERY_LENGTH = 50;
 
+export type SearchUsersResponse = (User & { viewer_is_following: boolean })[];
+
 /** Authenticated and logged-out search: guests get the same directory results without follow state beyond false. */
-export async function GET(request: NextRequest) {
-  try {
-    const me = await getUserFromRequest(request);
+export const GET = withHandler(
+  async (request, { user: me }) => {
     const viewerId = me?.id ?? null;
 
     const { searchParams } = request.nextUrl;
@@ -29,10 +31,9 @@ export async function GET(request: NextRequest) {
     const rows = await searchUsers(q, limit, viewerId);
     if (rows.length === 0) return apiOk([]);
 
-    const users = await enrichUsersWithFollowStatus(rows, viewerId);
+    const users = (await enrichUsersWithFollowStatus(rows, viewerId)) as SearchUsersResponse;
 
     return apiOk(users);
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: false }
+);
