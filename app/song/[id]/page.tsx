@@ -2,30 +2,22 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
-import { LogListenButton } from "@/components/logging/log-listen-button";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
-import { AlbumLogButton } from "@/app/album/[id]/album-log-button";
-import { EntityReviewsSection } from "@/components/entity-reviews-section";
-import { SongStatsBar } from "@/app/song/[id]/song-stats-bar";
-import { ListenCard } from "@/components/listen-card";
-import { MediaGrid } from "@/components/media/MediaGrid";
 import { getRelatedMedia } from "@/lib/discovery/getRelatedMedia";
 import {
   getReviewsForEntity,
   getEntityStats,
   getListenLogsForTrack,
+  getSongFriendLeaderboard,
 } from "@/lib/queries";
 import {
   GetOrCreateEntityError,
   getOrCreateEntity,
 } from "@/lib/catalog/getOrCreateEntity";
 import { redirectToCanonicalEntityIfNeeded } from "@/lib/catalog/redirect-to-canonical-entity-route";
-import { pageTitle, sectionGap, sectionTitle } from "@/lib/ui/surface";
-import {
-  isUUID,
-  isValidSpotifyId,
-  normalizeReviewEntityId,
-} from "@/lib/validation";
+import { formatStarDisplay } from "@/lib/ratings";
+import { isUUID, isValidSpotifyId, normalizeReviewEntityId } from "@/lib/validation";
+import { SongPageTabs } from "@/app/song/[id]/song-page-tabs";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -38,34 +30,19 @@ function formatDuration(ms: number | undefined) {
 
 export default async function SongPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
-  /** Route params may arrive as `lfm%3A...`; DB + Spotify paths need `lfm:...`. */
   const id = normalizeReviewEntityId(rawId);
-
-  console.log("[Song Resolve] incoming:", id);
 
   if (!isUUID(id) && isValidSpotifyId(id)) {
     let resolvedId: string;
     try {
-      resolvedId = (
-        await getOrCreateEntity({
-          type: "track",
-          spotifyId: id,
-          allowNetwork: true,
-        })
-      ).id;
+      resolvedId = (await getOrCreateEntity({ type: "track", spotifyId: id, allowNetwork: true })).id;
     } catch (e) {
       if (e instanceof GetOrCreateEntityError) notFound();
       throw e;
     }
-    console.log("[Song Resolve] created/resolved:", resolvedId);
     redirect(`/song/${resolvedId}`);
   }
 
-  /**
-   * Session + track fetch before reviews/stats/related so `resolveCanonicalTrackUuidFromEntityId`
-   * succeeds after catalog upsert (same race as album pages when parallel with getOrFetchTrack).
-   * `allowNetwork: true` allows first-visit Spotify track URLs to hydrate the DB once.
-   */
   const session = await getSession();
   let fetched: Awaited<ReturnType<typeof getOrFetchTrack>>;
   try {
@@ -76,96 +53,64 @@ export default async function SongPage({ params }: { params: PageParams }) {
   redirectToCanonicalEntityIfNeeded("song", id, fetched.canonicalTrackId);
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
+  const viewerId = session?.user?.id ?? null;
 
-  /**
-   * Sequential server Supabase work: parallel `createSupabaseServerClient()` deadlocks RSC
-   * (see `artist-page-content.tsx` / album page).
-   */
-  let reviewsData: Awaited<ReturnType<typeof getReviewsForEntity>>;
-  try {
-    reviewsData = await getReviewsForEntity("song", entityId);
-  } catch (e) {
-    console.error("[song] getReviewsForEntity failed:", e);
-    reviewsData = {
-      reviews: [],
-      average_rating: null,
-      count: 0,
-      my_review: null,
-    };
-  }
-  const stats: Awaited<ReturnType<typeof getEntityStats>> =
-    await getEntityStats("song", entityId);
-  let recentListens: Awaited<ReturnType<typeof getListenLogsForTrack>>;
-  try {
-    recentListens = await getListenLogsForTrack(
-      entityId,
-      10,
-      0,
-      session?.user?.id ?? null,
-    );
-  } catch (e) {
-    console.error("[song] getListenLogsForTrack failed:", e);
-    recentListens = [];
-  }
-  let relatedSongsRaw: Awaited<ReturnType<typeof getRelatedMedia>>;
-  try {
-    relatedSongsRaw = await getRelatedMedia("song", entityId, 12);
-  } catch (e) {
-    console.error("[song] getRelatedMedia failed:", e);
-    relatedSongsRaw = [];
-  }
+  const [reviewsData, stats, recentListens, relatedSongsRaw, leaderboard] =
+    await Promise.all([
+      getReviewsForEntity("song", entityId).catch(() => ({
+        reviews: [], average_rating: null, count: 0, my_review: null,
+      })),
+      getEntityStats("song", entityId),
+      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
+      getRelatedMedia("song", entityId, 12).catch(() => []),
+      viewerId ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null) : Promise.resolve(null),
+    ]);
 
   const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
   const relatedTracks =
     relatedTrackIds.length > 0
-      ? (
-          await getOrFetchTracksBatch(relatedTrackIds, {
-            allowNetwork: false,
-          })
-        ).filter((t): t is SpotifyApi.TrackObjectFull => t != null)
+      ? (await getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false }))
+          .filter((t): t is SpotifyApi.TrackObjectFull => t != null)
       : [];
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
   const duration = formatDuration(track.duration_ms);
-
   const primaryArtist = track.artists?.[0];
+  const myReview = reviewsData?.my_review ?? null;
 
   return (
-    <div className={sectionGap}>
-      {session ? (
+    <div className="space-y-8">
+      {session && (
         <RecordRecentView
-          kind="song"
-          id={entityId}
-          title={track.name}
-          subtitle={primaryArtist?.name ?? ""}
-          artworkUrl={image ?? null}
-          trackId={track.id}
-          albumId={album?.id ?? null}
+          kind="song" id={entityId} title={track.name}
+          subtitle={primaryArtist?.name ?? ""} artworkUrl={image ?? null}
+          trackId={track.id} albumId={album?.id ?? null}
           artistId={primaryArtist?.id ?? null}
         />
-      ) : null}
-      {/* Track header */}
-      <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-end sm:gap-10">
-        <div className="mx-auto h-44 w-44 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.08] sm:mx-0 sm:h-56 sm:w-56">
+      )}
+
+      {/* ── Hero ─────────────────────────────────────────── */}
+      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
+        <div className="h-52 w-52 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_32px_64px_-24px_rgba(0,0,0,0.7)] ring-1 ring-inset ring-white/[0.08] sm:h-60 sm:w-60">
           {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-5xl text-zinc-600 sm:text-6xl">
-              ♪
-            </div>
+            <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">♪</div>
           )}
         </div>
-        <div className="w-full min-w-0 flex-1 text-left">
-          <h1 className={pageTitle}>{track.name}</h1>
-          <p className="mt-1 text-zinc-400">
+
+        <div className="min-w-0 flex-1 text-center sm:text-left">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Song</p>
+          <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            {track.name}
+          </h1>
+          <p className="mt-2 text-base text-zinc-300">
             {track.artists?.map((a, i) => (
               <span key={a.id}>
-                {i > 0 && ", "}
-                <Link
-                  href={`/artist/${a.id}`}
-                  className="hover:text-emerald-400 hover:underline"
-                >
+                {i > 0 && <span className="text-zinc-600"> · </span>}
+                <Link href={`/artist/${a.id}`} className="hover:text-emerald-400 hover:underline">
                   {a.name}
                 </Link>
               </span>
@@ -173,78 +118,68 @@ export default async function SongPage({ params }: { params: PageParams }) {
           </p>
           {album && (
             <p className="mt-1 text-sm text-zinc-500">
-              <Link
-                href={`/album/${album.id}`}
-                className="hover:text-emerald-400 hover:underline"
-              >
+              From{" "}
+              <Link href={`/album/${album.id}`} className="text-zinc-400 hover:text-emerald-400 hover:underline">
                 {album.name}
               </Link>
             </p>
           )}
-          {duration && <p className="mt-1 text-xs text-zinc-600">{duration}</p>}
-
-          <SongStatsBar songId={entityId} serverStats={stats} />
-
-          {session && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <LogListenButton
-                trackId={track.id}
-                albumId={album?.id ?? null}
-                artistId={primaryArtist?.id ?? null}
-                displayName={track.name}
-              />
-              <AlbumLogButton
-                spotifyId={track.id}
-                type="song"
-                spotifyName={track.name}
-              />
-            </div>
+          {(duration || album?.release_date) && (
+            <p className="mt-1.5 text-xs text-zinc-600">
+              {duration}
+              {duration && album?.release_date ? " · " : ""}
+              {album?.release_date && new Date(album.release_date).getFullYear()}
+            </p>
           )}
+
+          {/* Community stats */}
+          <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm sm:justify-start">
+            {stats.average_rating != null && (
+              <span>
+                <span className="text-amber-400">★ {stats.average_rating.toFixed(1)}</span>
+                <span className="ml-1 text-zinc-500">avg</span>
+              </span>
+            )}
+            {stats.listen_count > 0 && (
+              <span>
+                <span className="font-semibold text-white">{stats.listen_count.toLocaleString()}</span>{" "}
+                <span className="text-zinc-400">plays</span>
+              </span>
+            )}
+            {stats.review_count > 0 && (
+              <span>
+                <span className="font-semibold text-white">{stats.review_count}</span>{" "}
+                <span className="text-zinc-400">review{stats.review_count !== 1 ? "s" : ""}</span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Fans also like (co-occurrence) */}
-      {relatedTracks.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-base font-semibold text-white sm:text-lg">
-            Fans also like
-          </h2>
-          <p className="mb-3 text-sm text-zinc-400">
-            Other songs listeners of this track also played
-          </p>
-          <MediaGrid
-            items={relatedTracks.map((t) => ({
-              id: t.id,
-              type: "song",
-              title: t.name,
-              artist: t.artists?.map((a) => a.name).join(", ") ?? "",
-              artworkUrl: t.album?.images?.[0]?.url ?? null,
-            }))}
-          />
-        </section>
+      {/* Your rating */}
+      {myReview && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3 text-sm">
+          <span className="text-zinc-400">
+            Your rating: <span className="text-amber-400">{formatStarDisplay(myReview.rating)}</span>
+          </span>
+          {myReview.review_text && (
+            <><span className="text-zinc-700">·</span>
+              <span className="line-clamp-1 italic text-zinc-300">"{myReview.review_text}"</span></>
+          )}
+        </div>
       )}
 
-      {/* Reviews */}
-      <EntityReviewsSection
-        entityType="song"
+      {/* Tabs */}
+      <SongPageTabs
         entityId={entityId}
-        spotifyName={track.name}
-        initialData={reviewsData}
+        trackName={track.name}
+        reviewsInitialData={reviewsData}
+        recentListens={recentListens}
+        leaderboard={leaderboard}
+        hasSocial={!!viewerId}
+        albumImageUrl={image ?? null}
+        relatedTracks={relatedTracks}
       />
-
-      {/* Recent listens */}
-      {recentListens.length > 0 && (
-        <section>
-          <h2 className={`mb-4 ${sectionTitle}`}>Recent listens</h2>
-          <ul className="space-y-3">
-            {recentListens.map((log) => (
-              <li key={log.id}>
-                <ListenCard log={log} trackName={track.name} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }

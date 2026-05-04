@@ -2002,6 +2002,73 @@ export async function getViewerArtistStats(
 }
 
 /** Earliest listen date for a viewer × artist. */
+/** Play count leaderboard for a single track among the viewer + people they follow. */
+export async function getSongFriendLeaderboard(
+  viewerId: string,
+  canonicalTrackId: string,
+): Promise<AlbumLeaderboardEntry[] | null> {
+  try {
+    const supabase = createSupabaseAdminClient();
+
+    const { data: followRows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", viewerId)
+      .limit(100);
+
+    const friendIds = (followRows ?? []).map((f) => f.following_id as string);
+    const allUserIds = [viewerId, ...friendIds];
+
+    // Single query — one track, no chunking needed
+    const { data: logRows } = await supabase
+      .from("logs")
+      .select("user_id")
+      .in("user_id", allUserIds)
+      .eq("track_id", canonicalTrackId)
+      .limit(50000);
+
+    const userPlayCounts = new Map<string, number>();
+    for (const row of logRows ?? []) {
+      const uid = row.user_id as string;
+      userPlayCounts.set(uid, (userPlayCounts.get(uid) ?? 0) + 1);
+    }
+
+    const withPlays = allUserIds.filter((id) => (userPlayCounts.get(id) ?? 0) > 0);
+    if (withPlays.length < 2) return null;
+
+    const { data: userRows } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .in("id", withPlays);
+
+    const userMap = new Map(
+      (userRows ?? []).map((u) => [
+        u.id as string,
+        { username: u.username as string, avatarUrl: u.avatar_url as string | null },
+      ]),
+    );
+
+    return withPlays
+      .map((uid) => {
+        const u = userMap.get(uid);
+        if (!u) return null;
+        return {
+          userId: uid,
+          username: u.username,
+          avatarUrl: u.avatarUrl,
+          playCount: userPlayCounts.get(uid) ?? 0,
+          isViewer: uid === viewerId,
+        };
+      })
+      .filter((x): x is AlbumLeaderboardEntry => x !== null)
+      .sort((a, b) => b.playCount - a.playCount)
+      .slice(0, 8);
+  } catch (e) {
+    console.error("[queries] getSongFriendLeaderboard failed:", e);
+    return null;
+  }
+}
+
 export type AlbumLeaderboardEntry = {
   userId: string;
   username: string;
