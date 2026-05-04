@@ -96,7 +96,6 @@ vi.mock('@/lib/queries', () => ({
   grantAchievementOnReview: vi.fn(),
   grantAchievementsOnListen: vi.fn(),
   getReviewsForEntity: vi.fn(),
-  fetchUserSummary: vi.fn(async (userId) => ({ id: userId, username: 'testuser', avatar_url: null })),
   getFullUserProfile: vi.fn(async (username) => {
     if (username === 'testuser') {
         return { id: 'test-user-id', username: 'testuser', bio: 'Test bio' };
@@ -113,8 +112,6 @@ vi.mock('@/lib/queries', () => ({
     }
     return null;
   }),
-  grantAchievementOnReview: vi.fn(),
-  grantAchievementsOnListen: vi.fn(),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({

@@ -20,6 +20,14 @@
     "http-proxy-middleware": "^3.0.3",
     "next-auth": "^4.24.13"
   },
+  "overrides": {
+    "uuid": "14.0.0",
+    "fast-xml-parser": "^5.7.0",
+    "basic-ftp": "5.3.1",
+    "follow-redirects": "1.16.0",
+    "postcss": "8.5.12",
+    "next": "16.2.4"
+  },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
