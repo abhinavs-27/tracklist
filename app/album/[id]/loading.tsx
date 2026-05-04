@@ -1,11 +1,18 @@
+import { AlbumHeaderSkeleton } from "@/components/skeletons/album-header-skeleton";
+import { TrackRowSkeleton } from "@/components/skeletons/track-row-skeleton";
+import { sectionGap } from "@/lib/ui/surface";
 import { ScrollToTop } from "./scroll-to-top";
-import { PageLoadingSpinner } from "@/components/ui/loading-states";
 
 export default function AlbumIdLoading() {
   return (
-    <>
+    <div className={sectionGap}>
       <ScrollToTop />
-      <PageLoadingSpinner title="Loading album…" />
-    </>
+      <AlbumHeaderSkeleton />
+      <div className="mt-8 space-y-1">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <TrackRowSkeleton key={i} />
+        ))}
+      </div>
+    </div>
   );
 }
