@@ -62,3 +62,11 @@ export function validateUuidParam(id: string | null): { ok: true; id: string } |
   }
   return { ok: true, id };
 }
+
+/**
+ * Common check for PostgREST errors indicating a missing column (usually review_id vs log_id).
+ */
+export function isMissingReviewIdColumn(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return e?.code === '42703' && /comments\.?review_id/i.test(e?.message ?? "");
+}

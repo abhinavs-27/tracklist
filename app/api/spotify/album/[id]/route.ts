@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getAlbum } from '@/lib/spotify';
 import { apiBadRequest, apiInternalError, apiOk, apiTooManyRequests } from '@/lib/api-response';
 import { isValidSpotifyId } from '@/lib/validation';
