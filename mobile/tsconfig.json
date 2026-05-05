@@ -19,7 +19,7 @@
     "isolatedModules": true,
     "jsx": "react-native",
     "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": [
         "./*"

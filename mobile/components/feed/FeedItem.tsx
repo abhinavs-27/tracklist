@@ -16,7 +16,8 @@ import type {
   FeedListenSession,
 } from "@/lib/types/feed";
 import { Artwork } from "@/components/media/Artwork";
-import { LikeButton } from "@/components/reviews/LikeButton";
+import { FeedEngagementBar } from "./FeedEngagementBar";
+import { feedReactionTarget, feedCommentTarget } from "@/lib/feed-reaction-target";
 
 const DISPLAY_CAP = 10;
 
@@ -250,9 +251,10 @@ function ReviewBlock({
       {review.review_text ? (
         <Text style={styles.reviewBody}>{review.review_text}</Text>
       ) : null}
-      <View style={styles.likeRow}>
-        <LikeButton reviewId={review.id} />
-      </View>
+      <FeedEngagementBar
+        reactionTarget={{ targetType: "feed_review", targetId: review.id }}
+        commentTarget={{ targetType: "review", targetId: review.id }}
+      />
     </View>
   );
 }
@@ -315,6 +317,10 @@ function ListenSessionBlock({ activity }: { activity: Extract<FeedActivity, { ty
           </Text>
         </View>
       </View>
+      <FeedEngagementBar
+        reactionTarget={feedReactionTarget(activity)!}
+        commentTarget={feedCommentTarget(activity)}
+      />
     </View>
   );
 }
@@ -324,6 +330,7 @@ function FollowBlock({ activity }: { activity: Extract<FeedActivity, { type: "fo
   const follower = activity.follower_username ?? "Someone";
   const following = activity.following_username ?? "someone";
 
+  const rt = feedReactionTarget(activity);
   return (
     <View style={styles.card}>
       <Text style={styles.bodyText}>
@@ -356,6 +363,9 @@ function FollowBlock({ activity }: { activity: Extract<FeedActivity, { type: "fo
       <Text style={styles.timeSmall}>
         {formatRelativeTime(activity.created_at)}
       </Text>
+      {rt && (
+        <FeedEngagementBar reactionTarget={rt} commentTarget={feedCommentTarget(activity)} />
+      )}
     </View>
   );
 }
@@ -383,27 +393,23 @@ function FeedStoryBlock({ activity }: { activity: Extract<FeedActivity, { type: 
         return `${u} activity`;
     }
   })();
+  const rt = feedReactionTarget(activity);
   return (
     <View style={styles.card}>
       <Text style={styles.bodyText}>{line}</Text>
       <Text style={styles.timeSmall}>{formatRelativeTime(activity.created_at)}</Text>
+      {rt && (
+        <FeedEngagementBar reactionTarget={rt} commentTarget={feedCommentTarget(activity)} />
+      )}
     </View>
   );
 }
 
 function FeedItemInner({ activity }: { activity: FeedActivity }) {
-  if (activity.type === "review") {
-    return <ReviewBlock activity={activity} />;
-  }
-  if (activity.type === "feed_story") {
-    return <FeedStoryBlock activity={activity} />;
-  }
-  if (activity.type === "listen_sessions_summary") {
-    return <ListenSessionsSummaryBlock activity={activity} />;
-  }
-  if (activity.type === "listen_session") {
-    return <ListenSessionBlock activity={activity} />;
-  }
+  if (activity.type === "review") return <ReviewBlock activity={activity} />;
+  if (activity.type === "listen_session") return <ListenSessionBlock activity={activity} />;
+  if (activity.type === "listen_sessions_summary") return <ListenSessionsSummaryBlock activity={activity} />;
+  if (activity.type === "feed_story") return <FeedStoryBlock activity={activity} />;
   return <FollowBlock activity={activity} />;
 }
 

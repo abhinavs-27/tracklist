@@ -26,7 +26,6 @@ export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
     headers,
   });
 
-  console.log(`[api] ${url} -> ${res.status}`);
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");

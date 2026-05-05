@@ -3,17 +3,13 @@ import { Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 
-/**
- * Primary tabs match web: Home, Explore, Community, You.
- * Leaderboard and search stay in the router for deep links / navigation but are hidden from the tab bar.
- */
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#10b981", // emerald-500
-        tabBarInactiveTintColor: "#a1a1aa", // zinc-400
+        tabBarActiveTintColor: "#10b981",
+        tabBarInactiveTintColor: "#a1a1aa",
         tabBarStyle: {
           position: "absolute",
           borderTopWidth: 0,
@@ -33,11 +29,7 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "home" : "home-outline"}
-              size={24}
-              color={color}
-            />
+            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -46,11 +38,17 @@ export default function TabsLayout() {
         options={{
           title: "Explore",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "compass" : "compass-outline"}
-              size={24}
-              color={color}
-            />
+            <Ionicons name={focused ? "compass" : "compass-outline"} size={24} color={color} />
+          ),
+        }}
+      />
+      {/* Search — icon only, no label (matches web nav) */}
+      <Tabs.Screen
+        name="search"
+        options={{
+          tabBarLabel: () => null,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="search" size={24} color={color} />
           ),
         }}
       />
@@ -59,11 +57,7 @@ export default function TabsLayout() {
         options={{
           title: "Community",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "people" : "people-outline"}
-              size={24}
-              color={color}
-            />
+            <Ionicons name={focused ? "people" : "people-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -72,31 +66,15 @@ export default function TabsLayout() {
         options={{
           title: "You",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "person" : "person-outline"}
-              size={24}
-              color={color}
-            />
+            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="leaderboard"
-        options={{
-          title: "Leaderboard",
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{
-          title: "Search",
-          href: null,
-        }}
-      />
+
+      {/* Hidden routes — accessible via deep link / navigation but not in tab bar */}
+      <Tabs.Screen name="leaderboard" options={{ href: null }} />
       <Tabs.Screen name="discover" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
-      {/* Hoisted dynamic routes: names must match expo-router segments or they become extra visible tabs */}
       <Tabs.Screen name="artist/[id]" options={{ href: null }} />
       <Tabs.Screen name="song/[id]" options={{ href: null }} />
       <Tabs.Screen name="album/[id]" options={{ href: null }} />

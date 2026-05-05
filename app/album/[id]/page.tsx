@@ -27,11 +27,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
 
-  console.log("[Album Resolve] incoming:", id);
-
   if (!isUUID(id) && isValidSpotifyId(id)) {
     let resolvedId: string;
-    console.log("[Album Route] resolving:", id);
     try {
       resolvedId = (
         await withTimeout(
@@ -43,11 +40,9 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
           spotifyResolverRouteTimeoutMs(),
         )
       ).id;
-    } catch (err) {
-      console.error("[Resolver ERROR]", err);
+    } catch {
       notFound();
     }
-    console.log("[Album Route] resolved:", resolvedId);
     redirect(`/album/${resolvedId}`);
   }
 

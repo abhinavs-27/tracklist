@@ -23,8 +23,6 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
 
-  console.log("[Artist Resolve] incoming:", id);
-
   if (!isUUID(id) && isValidSpotifyId(id)) {
     let resolvedId: string;
     try {
@@ -39,7 +37,6 @@ export default async function ArtistPage({ params }: { params: PageParams }) {
       if (e instanceof GetOrCreateEntityError) notFound();
       throw e;
     }
-    console.log("[Artist Resolve] created/resolved:", resolvedId);
     redirect(`/artist/${resolvedId}`);
   }
 

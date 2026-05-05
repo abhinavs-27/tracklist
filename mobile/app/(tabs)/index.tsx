@@ -1,21 +1,37 @@
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { FeedList } from "@/components/feed/FeedList";
+import { BillboardDropBanner } from "@/components/home/BillboardDropBanner";
+import { FeedEmptyState } from "@/components/home/FeedEmptyState";
+import { useBillboardDrop } from "@/lib/hooks/useBillboardDrop";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
 
 export default function FeedScreen() {
+  const router = useRouter();
+  const { data: dropStatus } = useBillboardDrop();
+
+  const showBanner = dropStatus?.showBanner && dropStatus.highlights;
+
+  const listHeader = showBanner ? (
+    <BillboardDropBanner
+      weekLabel={dropStatus!.highlights!.weekLabel}
+      onPress={() => router.push("/(tabs)/profile")}
+    />
+  ) : null;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
+      {/* Header — matches mobile web: logo + notification bell (bell is global overlay) */}
       <View style={styles.header}>
-        <Text style={styles.title}>Your feed</Text>
-        <Text style={styles.subtitle}>
-          Activity from people you follow.
-        </Text>
+        <Text style={styles.logo}>Tracklist</Text>
       </View>
-      <View style={styles.body}>
-        <FeedList />
-      </View>
+
+      <FeedList
+        listHeader={listHeader ?? undefined}
+        emptyComponent={<FeedEmptyState />}
+      />
     </SafeAreaView>
   );
 }
@@ -26,27 +42,17 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.bg,
   },
   header: {
-    backgroundColor: theme.colors.bg,
     paddingLeft: 18,
     paddingRight: 18 + NOTIFICATION_BELL_GUTTER,
-    paddingBottom: 16,
+    paddingBottom: 12,
+    paddingTop: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
   },
-  title: {
-    fontSize: 32,
+  logo: {
+    fontSize: 22,
     fontWeight: "800",
     color: theme.colors.text,
     letterSpacing: -0.5,
-  },
-  subtitle: {
-    marginTop: 6,
-    fontSize: 15,
-    fontWeight: "500",
-    color: theme.colors.muted,
-    lineHeight: 20,
-  },
-  body: {
-    flex: 1,
   },
 });

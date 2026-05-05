@@ -16,6 +16,8 @@ import { FeedItem } from "./FeedItem";
 type FeedListProps = {
   /** Optional content above the feed list. */
   listHeader?: ReactNode;
+  /** Replaces the default "No activity yet" empty state. */
+  emptyComponent?: ReactNode;
 };
 
 function FeedSkeleton() {
@@ -35,7 +37,7 @@ function FeedSkeleton() {
   );
 }
 
-export function FeedList({ listHeader }: FeedListProps) {
+export function FeedList({ listHeader, emptyComponent }: FeedListProps) {
   const {
     data,
     error,
@@ -124,9 +126,13 @@ export function FeedList({ listHeader }: FeedListProps) {
         ) : null
       }
       ListEmptyComponent={
-        <View style={styles.emptyBlock}>
-          <Text style={styles.emptyText}>No activity yet</Text>
-        </View>
+        emptyComponent ? (
+          <>{emptyComponent}</>
+        ) : (
+          <View style={styles.emptyBlock}>
+            <Text style={styles.emptyText}>No activity yet</Text>
+          </View>
+        )
       }
       ListHeaderComponent={
         listHeader ? <View style={styles.listHeader}>{listHeader}</View> : null
