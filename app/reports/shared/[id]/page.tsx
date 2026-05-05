@@ -10,8 +10,9 @@ import type { ReportEntityType, ReportRange } from "@/lib/analytics/listening-re
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { contentMax2xl } from "@/lib/ui/layout";
 import { getSavedReportById, parseListeningReportSnapshot } from "@/lib/reports/saved-report";
-import { SharedReportPublicLink } from "./shared-report-public-link";
+import { FollowButton } from "@/components/follow-button";
 import { SharedReportShareButton } from "./shared-report-share-button";
+import { SharedReportCopyLinkButton } from "./shared-report-copy-link-button";
 import { SharedListeningReportView } from "./shared-listening-report-view";
 import { SharedReportViewerCta } from "./shared-report-viewer-cta";
 
@@ -32,10 +33,9 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const snap = parseListeningReportSnapshot(row.snapshot_json);
   const entityType = row.entity_type as ReportEntityType;
   const ownerHandle = owner?.username ? `@${owner.username}` : "A Tracklist member";
-  const entityPlural = `${entityType}s`;
-  const title = `${ownerHandle}'s top ${entityPlural} · Tracklist`;
+  const title = `${ownerHandle}'s top ${entityType}s · Tracklist`;
 
-  let description = `${ownerHandle} shared their top ${entityPlural} on Tracklist.`;
+  let description = `${ownerHandle} shared their top ${entityType}s on Tracklist.`;
   let ogImageUrl: string | undefined;
 
   if (snap) {
@@ -107,88 +107,155 @@ export default async function SharedListeningReportPage({
     .eq("id", row.user_id)
     .maybeSingle();
 
-  const ownerRow = owner as
-    | { id: string; username: string; avatar_url: string | null }
-    | null;
+  const ownerRow = owner as { id: string; username: string; avatar_url: string | null } | null;
 
-  const viewerIsLoggedIn = !!session?.user?.id;
-  const viewerIsOwner = session?.user?.id === row.user_id;
+  const viewerId = session?.user?.id ?? null;
+  const viewerIsLoggedIn = !!viewerId;
+  const viewerIsOwner = viewerId === row.user_id;
   const callbackPath = `/reports/shared/${id}`;
 
+  // Check follow state for logged-in non-owner viewers
+  let isFollowing = false;
+  if (viewerIsLoggedIn && !viewerIsOwner && ownerRow) {
+    const { data: followRow } = await admin
+      .from("follows")
+      .select("id")
+      .eq("follower_id", viewerId!)
+      .eq("following_id", ownerRow.id)
+      .maybeSingle();
+    isFollowing = !!followRow;
+  }
+
+  const entityType = row.entity_type as ReportEntityType;
+  const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1) + "s";
+  const totalPlays = snap?.totals.totalPlays ?? null;
+
+  // Hero background: #1 item's cover art
+  const heroImage = data.items[0]?.image ?? null;
+
   return (
-    <div className={`${contentMax2xl} space-y-6 py-8`}>
-      <Link href="/reports/listening" className="text-sm text-emerald-400 hover:underline">
+    <div className={`${contentMax2xl} space-y-0 py-6`}>
+      <Link href="/reports/listening" className="mb-5 inline-block text-sm text-emerald-400 hover:underline">
         ← Listening reports
       </Link>
 
-      <SharedReportViewerCta
-        viewerIsLoggedIn={viewerIsLoggedIn}
-        callbackPath={callbackPath}
-      />
+      {/* ── Hero ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-zinc-800/60">
+        {/* Blurred cover art background */}
+        {heroImage ? (
+          <img
+            src={heroImage}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-2xl"
+          />
+        ) : null}
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/60 via-zinc-900/75 to-zinc-950" />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            {ownerRow?.avatar_url ? (
-              <img
-                src={ownerRow.avatar_url}
-                alt=""
-                className="h-11 w-11 shrink-0 rounded-full border border-zinc-700 object-cover"
-              />
-            ) : (
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-sm font-semibold text-zinc-400">
-                {(ownerRow?.username ?? "?").slice(0, 1).toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Listening report
-              </p>
-              <p className="truncate text-sm text-zinc-300">
-                {ownerRow ? (
-                  <>
-                    <span className="text-zinc-500">By </span>
-                    <Link
-                      href={`/profile/${ownerRow.username}`}
-                      className="font-semibold text-emerald-400 hover:underline"
-                    >
-                      @{ownerRow.username}
-                    </Link>
-                  </>
-                ) : (
-                  <span className="text-zinc-500">By a Tracklist member</span>
-                )}
-                {viewerIsOwner ? (
-                  <span className="ml-2 text-xs font-normal text-zinc-600">
-                    (you)
-                  </span>
-                ) : null}
-              </p>
-            </div>
+        {/* Content */}
+        <div className="relative z-10 flex flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
+
+          {/* Owner row */}
+          <div className="flex items-center justify-between gap-3">
+            <Link
+              href={ownerRow ? `/profile/${ownerRow.username}` : "#"}
+              className="flex min-w-0 items-center gap-3 hover:opacity-90"
+            >
+              {ownerRow?.avatar_url ? (
+                <img
+                  src={ownerRow.avatar_url}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded-full border border-zinc-700 object-cover"
+                />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-sm font-semibold text-zinc-400">
+                  {(ownerRow?.username ?? "?").slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <span className="truncate text-sm font-semibold text-zinc-200">
+                @{ownerRow?.username ?? "user"}
+              </span>
+            </Link>
+
+            {/* Follow / Join */}
+            {!viewerIsOwner ? (
+              viewerIsLoggedIn && ownerRow ? (
+                <FollowButton
+                  userId={ownerRow.id}
+                  initialFollowing={isFollowing}
+                />
+              ) : (
+                <Link
+                  href={`/auth/signin?callbackUrl=${encodeURIComponent(callbackPath)}`}
+                  className="inline-flex shrink-0 items-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                >
+                  Follow
+                </Link>
+              )
+            ) : null}
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-white">{row.name}</h1>
-          <p className="text-sm text-zinc-500">
-            {row.entity_type} · {row.range_type} · {data.periodLabel}
-            {row.is_public ? " · Shared" : ""}
-          </p>
+
+          {/* Title */}
+          <div>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
+              {row.name}
+            </h1>
+          </div>
+
+          {/* Stat pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-zinc-700/70 bg-zinc-800/60 px-2.5 py-1 text-xs font-medium text-zinc-300">
+              {entityLabel}
+            </span>
+            <span className="rounded-full border border-zinc-700/70 bg-zinc-800/60 px-2.5 py-1 text-xs font-medium text-zinc-300">
+              {data.periodLabel}
+            </span>
+            {totalPlays != null ? (
+              <span className="rounded-full border border-zinc-700/70 bg-zinc-800/60 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                {totalPlays.toLocaleString()} plays
+              </span>
+            ) : null}
+            {row.is_public ? (
+              <span className="rounded-full border border-emerald-800/50 bg-emerald-950/40 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                Shared
+              </span>
+            ) : null}
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <SharedReportShareButton
+              reportId={row.id}
+              reportTitle={row.name}
+              periodLabel={data.periodLabel}
+              entityType={row.entity_type}
+              ownerHandle={ownerRow?.username ?? null}
+              totalPlays={totalPlays}
+              items={data.items.map((i) => ({
+                rank: i.rank,
+                name: i.name,
+                image: i.image,
+                count: i.count,
+              }))}
+            />
+            <SharedReportCopyLinkButton reportId={row.id} isPublic={row.is_public} />
+          </div>
         </div>
-        <SharedReportShareButton
-          reportId={row.id}
-          reportTitle={row.name}
-          periodLabel={data.periodLabel}
-          entityType={row.entity_type}
-          ownerHandle={ownerRow?.username ?? null}
-          totalPlays={snap?.totals.totalPlays ?? null}
-          items={data.items.map((i) => ({
-            rank: i.rank,
-            name: i.name,
-            image: i.image,
-            count: i.count,
-          }))}
+      </div>
+
+      {/* ── Ranked list ── */}
+      <div className="mt-6">
+        <SharedListeningReportView payload={data} readOnly />
+      </div>
+
+      {/* ── Bottom CTA (logged-out) ── */}
+      <div className="mt-8">
+        <SharedReportViewerCta
+          viewerIsLoggedIn={viewerIsLoggedIn}
+          callbackPath={callbackPath}
         />
       </div>
-      <SharedReportPublicLink reportId={row.id} isPublic={row.is_public} />
-      <SharedListeningReportView payload={data} readOnly />
     </div>
   );
 }

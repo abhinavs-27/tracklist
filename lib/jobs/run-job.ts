@@ -96,11 +96,15 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         await cron.runDrainEnrichBacklog();
         break;
       case "ENRICH_ARTIST": {
+        const { checkCircuitBreaker } = await import("@/lib/spotify/client");
+        await checkCircuitBreaker(); // throws → SQS message returns to queue
         const { processSpotifyEnrichJob } = await import("@/lib/jobs/spotifyQueue");
         await processSpotifyEnrichJob({ name: "enrich_artist", artistId: job.artistId });
         break;
       }
       case "ENRICH_ALBUM": {
+        const { checkCircuitBreaker } = await import("@/lib/spotify/client");
+        await checkCircuitBreaker(); // throws → SQS message returns to queue
         const { processSpotifyEnrichJob } = await import("@/lib/jobs/spotifyQueue");
         await processSpotifyEnrichJob({ name: "enrich_album", albumId: job.albumId });
         break;

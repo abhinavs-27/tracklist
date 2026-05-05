@@ -498,7 +498,18 @@ export async function runDrainEnrichBacklog(): Promise<{
   ok: true;
   drained: number;
   errors: number;
+  skipped?: string;
 }> {
+  // Don't drain while Spotify is rate-limited — flooding SQS with jobs that
+  // will all immediately fail makes recovery slower, not faster.
+  const { checkCircuitBreaker } = await import("@/lib/spotify/client");
+  try {
+    await checkCircuitBreaker();
+  } catch {
+    console.warn("[drain-enrich] Spotify circuit breaker active — skipping drain");
+    return { ok: true, drained: 0, errors: 0, skipped: "spotify-degraded" };
+  }
+
   const { getSpotifyEnrichQueue } = await import("@/lib/jobs/spotifyQueue");
   const { sendCronJobMessage } = await import("@/lib/jobs/enqueue-cron-message");
 
