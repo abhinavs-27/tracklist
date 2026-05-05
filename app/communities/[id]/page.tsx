@@ -32,6 +32,8 @@ import {
   getCachedCommunityMatch,
   getCachedCommunityWeeklySummaryWithTrend,
 } from "@/lib/community/community-page-cache";
+import { getCommunitySignature } from "@/lib/community/community-signature";
+import { CommunitySignatureCard } from "@/components/community/community-signature-card";
 import { isValidUuid } from "@/lib/validation";
 import { communityBody } from "@/lib/ui/surface";
 import { CommunityHero } from "@/components/community/community-hero";
@@ -96,7 +98,7 @@ export default async function CommunityDetailPage({
   const tz = isMember
     ? ((await headers()).get("x-vercel-ip-timezone") ?? undefined)
     : undefined;
-  const [billboardInitial, tasteMatch, weeklySummary] = await Promise.all([
+  const [billboardInitial, tasteMatch, weeklySummary, communitySignature] = await Promise.all([
     isMember && userId
       ? getCachedCommunityBillboardTracksInitial(id, userId).catch(() => null)
       : Promise.resolve(null),
@@ -105,6 +107,9 @@ export default async function CommunityDetailPage({
       : Promise.resolve(null),
     isMember
       ? getCachedCommunityWeeklySummaryWithTrend(id, tz).catch(() => null)
+      : Promise.resolve(null),
+    isMember && userId
+      ? getCommunitySignature(userId, id).catch(() => null)
       : Promise.resolve(null),
   ]);
 
@@ -131,9 +136,13 @@ export default async function CommunityDetailPage({
     />
   );
 
-  // Community tab: consensus (client-fetched) + pre-fetched taste match + weekly summary
+  // Community tab: signature + consensus + taste match + weekly summary
   const communityContent = (
     <div className="space-y-10">
+      {communitySignature?.hasData && (
+        <CommunitySignatureCard data={communitySignature} />
+      )}
+
       <section>
         <h2 className="mb-4 text-lg font-semibold text-white">
           Community Consensus
