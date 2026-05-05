@@ -16,6 +16,8 @@ export function SharedReportShareButton(props: {
   reportTitle: string;
   periodLabel: string;
   entityType: string;
+  ownerHandle?: string | null;
+  totalPlays?: number | null;
   items: Item[];
 }) {
   const [open, setOpen] = useState(false);
@@ -58,6 +60,8 @@ export function SharedReportShareButton(props: {
         entityLabel={entityLabel}
         rows={rows}
         shareUrl={shareUrl}
+        ownerHandle={props.ownerHandle}
+        totalPlays={props.totalPlays}
       />
     </>
   );

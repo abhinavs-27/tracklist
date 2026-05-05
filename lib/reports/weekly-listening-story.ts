@@ -3,8 +3,6 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getArtist } from "@/lib/spotify";
-import { getOrFetchAlbum, getOrFetchTrack } from "@/lib/spotify-cache";
 import type {
   WeeklyListeningStoryComparison,
   WeeklyListeningStoryPayload,
@@ -180,56 +178,40 @@ async function hydrateTop(
   album: WeeklyTopEntity | null;
   track: WeeklyTopEntity | null;
 }> {
-  let artist: WeeklyTopEntity | null = null;
-  let album: WeeklyTopEntity | null = null;
-  let track: WeeklyTopEntity | null = null;
+  const admin = createSupabaseAdminClient();
 
-  if (artistId) {
-    try {
-      const a = await getArtist(artistId);
-      if (a) {
-        artist = {
-          id: a.id,
-          name: a.name,
-          imageUrl: a.images?.[0]?.url ?? null,
-        };
-      }
-    } catch {
-      artist = null;
-    }
-  }
-  if (albumId) {
-    try {
-      const data = await getOrFetchAlbum(albumId, { allowNetwork: true });
-      if (data?.album) {
-        album = {
-          id: data.album.id,
-          name: data.album.name,
-          imageUrl: data.album.images?.[0]?.url ?? null,
-        };
-      }
-    } catch {
-      album = null;
-    }
-  }
-  if (trackId) {
-    try {
-      const { track: t } = await getOrFetchTrack(trackId, {
-        allowNetwork: true,
-      });
-      if (t) {
-        track = {
-          id: t.id,
-          name: t.name,
-          imageUrl: t.album?.images?.[0]?.url ?? null,
-        };
-      }
-    } catch {
-      track = null;
-    }
+  const [artistRow, albumRow, trackRow] = await Promise.all([
+    artistId
+      ? admin.from("artists").select("id, name, image_url").eq("id", artistId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    albumId
+      ? admin.from("albums").select("id, name, image_url").eq("id", albumId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    trackId
+      ? admin.from("tracks").select("id, name, album_id").eq("id", trackId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const aRow = artistRow.data as { id: string; name: string; image_url: string | null } | null;
+  const alRow = albumRow.data as { id: string; name: string; image_url: string | null } | null;
+  const tRow = trackRow.data as { id: string; name: string; album_id: string | null } | null;
+
+  // For tracks, look up the album image separately
+  let trackImageUrl: string | null = null;
+  if (tRow?.album_id) {
+    const { data: tAlbum } = await admin
+      .from("albums")
+      .select("image_url")
+      .eq("id", tRow.album_id)
+      .maybeSingle();
+    trackImageUrl = (tAlbum as { image_url?: string | null } | null)?.image_url ?? null;
   }
 
-  return { artist, album, track };
+  return {
+    artist: aRow ? { id: aRow.id, name: aRow.name, imageUrl: aRow.image_url } : null,
+    album: alRow ? { id: alRow.id, name: alRow.name, imageUrl: alRow.image_url } : null,
+    track: tRow ? { id: tRow.id, name: tRow.name, imageUrl: trackImageUrl } : null,
+  };
 }
 
 /**

@@ -493,3 +493,51 @@ export async function runRefreshBlindSpots(): Promise<{
   console.log(`[blind-spots] done — processed:${processed} skipped:${skipped} errors:${errors}`);
   return { ok: true, processed, skipped, errors };
 }
+
+export async function runDrainEnrichBacklog(): Promise<{
+  ok: true;
+  drained: number;
+  errors: number;
+}> {
+  const { getSpotifyEnrichQueue } = await import("@/lib/jobs/spotifyQueue");
+  const { sendCronJobMessage } = await import("@/lib/jobs/enqueue-cron-message");
+
+  const queue = getSpotifyEnrichQueue();
+  if (!queue) {
+    console.log("[drain-enrich] no BullMQ queue — nothing to drain");
+    return { ok: true, drained: 0, errors: 0 };
+  }
+
+  const [waiting, delayed] = await Promise.all([
+    queue.getWaiting(0, 1000),
+    queue.getDelayed(0, 1000),
+  ]);
+
+  const jobs = [...waiting, ...delayed];
+  console.log(`[drain-enrich] ${jobs.length} jobs to drain to SQS`);
+
+  let drained = 0;
+  let errors = 0;
+
+  for (const j of jobs) {
+    try {
+      const data = j.data as { name: string; artistId?: string; albumId?: string };
+      if (data.name === "enrich_artist" && data.artistId) {
+        await sendCronJobMessage({ type: "ENRICH_ARTIST", artistId: data.artistId });
+      } else if (data.name === "enrich_album" && data.albumId) {
+        await sendCronJobMessage({ type: "ENRICH_ALBUM", albumId: data.albumId });
+      } else {
+        // Unknown job type — leave it for the BullMQ worker
+        continue;
+      }
+      await j.remove();
+      drained++;
+    } catch (e) {
+      errors++;
+      console.error("[drain-enrich] failed", j.id, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  console.log(`[drain-enrich] done — drained:${drained} errors:${errors}`);
+  return { ok: true, drained, errors };
+}

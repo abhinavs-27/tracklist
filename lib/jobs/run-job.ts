@@ -92,6 +92,19 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
       case "REFRESH_BLIND_SPOTS":
         await cron.runRefreshBlindSpots();
         break;
+      case "DRAIN_ENRICH_BACKLOG":
+        await cron.runDrainEnrichBacklog();
+        break;
+      case "ENRICH_ARTIST": {
+        const { processSpotifyEnrichJob } = await import("@/lib/jobs/spotifyQueue");
+        await processSpotifyEnrichJob({ name: "enrich_artist", artistId: job.artistId });
+        break;
+      }
+      case "ENRICH_ALBUM": {
+        const { processSpotifyEnrichJob } = await import("@/lib/jobs/spotifyQueue");
+        await processSpotifyEnrichJob({ name: "enrich_album", albumId: job.albumId });
+        break;
+      }
       default:
         throw new Error(`Unknown cron job: ${JSON.stringify(job)}`);
     }

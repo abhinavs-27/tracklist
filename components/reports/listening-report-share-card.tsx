@@ -16,6 +16,10 @@ export type ListeningReportShareCardProps = {
   rows: ListeningReportShareCardRow[];
   /** Shown in footer when present (e.g. public saved report URL). */
   shareUrl?: string | null;
+  /** @username of the report owner — shown in header when present. */
+  ownerHandle?: string | null;
+  /** Total plays in the period — appended to the period label when present. */
+  totalPlays?: number | null;
 };
 
 const W = 1080;
@@ -37,7 +41,7 @@ export const ListeningReportShareCard = forwardRef<
   HTMLDivElement,
   ListeningReportShareCardProps
 >(function ListeningReportShareCard(props, ref) {
-  const { reportTitle, periodLabel, entityLabel, rows, shareUrl } = props;
+  const { reportTitle, periodLabel, entityLabel, rows, shareUrl, ownerHandle, totalPlays } = props;
 
   return (
     <div
@@ -53,16 +57,35 @@ export const ListeningReportShareCard = forwardRef<
           "linear-gradient(165deg, #09090b 0%, #18181b 42%, #052e2a 100%)",
       }}
     >
-      <div className="flex items-baseline justify-between gap-4">
-        <span
-          className="font-semibold tracking-tight text-emerald-400"
-          style={{ fontSize: 36 }}
-        >
-          Tracklist
-        </span>
-        <span className="text-zinc-500" style={{ fontSize: 22 }}>
-          {entityLabel}
-        </span>
+      <div className="flex items-start justify-between gap-4">
+        {ownerHandle ? (
+          <span
+            className="font-bold tracking-tight text-white"
+            style={{ fontSize: 34, lineHeight: 1.1 }}
+          >
+            @{ownerHandle}
+          </span>
+        ) : (
+          <span
+            className="font-semibold tracking-tight text-emerald-400"
+            style={{ fontSize: 36 }}
+          >
+            Tracklist
+          </span>
+        )}
+        <div className="flex flex-col items-end gap-1">
+          {ownerHandle ? (
+            <span
+              className="font-semibold tracking-tight text-emerald-400"
+              style={{ fontSize: 22 }}
+            >
+              Tracklist
+            </span>
+          ) : null}
+          <span className="text-zinc-500" style={{ fontSize: 22 }}>
+            {entityLabel}
+          </span>
+        </div>
       </div>
 
       <h1
@@ -73,6 +96,9 @@ export const ListeningReportShareCard = forwardRef<
       </h1>
       <p className="mt-3 text-zinc-400" style={{ fontSize: 26 }}>
         {periodLabel}
+        {totalPlays != null ? (
+          <span className="text-zinc-500"> · {totalPlays.toLocaleString()} plays</span>
+        ) : null}
       </p>
 
       <div className="mt-12 flex flex-1 flex-col gap-5">
@@ -122,7 +148,7 @@ export const ListeningReportShareCard = forwardRef<
         {shareUrl ? (
           <p className="break-all text-emerald-500/90">{shareUrl}</p>
         ) : (
-          <p>tracklist.app</p>
+          <p>tracklistsocial.com</p>
         )}
       </div>
     </div>

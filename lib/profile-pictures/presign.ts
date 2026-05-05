@@ -11,12 +11,17 @@ let client: S3Client | null = null;
 function getS3Client(): S3Client {
   if (!client) {
     const region = awsRegionForS3();
+    // Use dedicated S3 credentials when set (allows a separate IAM user for image uploads
+    // vs the main AWS_ACCESS_KEY_ID used for SQS/Lambda).
+    const s3AccessKeyId =
+      process.env.AWS_S3_ACCESS_KEY_ID ?? process.env.AWS_ACCESS_KEY_ID;
+    const s3SecretAccessKey =
+      process.env.AWS_S3_SECRET_ACCESS_KEY ?? process.env.AWS_SECRET_ACCESS_KEY;
     client = new S3Client({
       region,
-      /**
-       * Default is `WHEN_SUPPORTED`, which adds checksum query params to PutObject and breaks
-       * browser CORS. Presigned PUTs from the app must not add those params.
-       */
+      ...(s3AccessKeyId && s3SecretAccessKey
+        ? { credentials: { accessKeyId: s3AccessKeyId, secretAccessKey: s3SecretAccessKey } }
+        : {}),
       requestChecksumCalculation: "WHEN_REQUIRED",
       responseChecksumValidation: "WHEN_REQUIRED",
     });

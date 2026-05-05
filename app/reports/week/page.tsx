@@ -47,8 +47,8 @@ export default async function WeeklyReportPage({
     if (!story) {
       return (
         <div className="space-y-6">
-          <Link href="/" className="text-sm text-emerald-400 hover:underline">
-            ← Home
+          <Link href="/reports/listening" className="text-sm text-emerald-400 hover:underline">
+            ← Reports
           </Link>
           <h1 className="text-2xl font-bold text-white">Listening report</h1>
           <p className="text-zinc-400">Could not load this week's report.</p>
@@ -68,8 +68,8 @@ export default async function WeeklyReportPage({
   if (!report) {
     return (
       <div className="space-y-6">
-        <Link href="/" className="text-sm text-emerald-400 hover:underline">
-          ← Home
+        <Link href="/reports/listening" className="text-sm text-emerald-400 hover:underline">
+          ← Reports
         </Link>
         <h1 className="text-2xl font-bold text-white">Listening report</h1>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
@@ -155,8 +155,8 @@ export default async function WeeklyReportPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <Link href="/" className="text-sm text-emerald-400 hover:underline">
-          ← Home
+        <Link href="/reports/listening" className="text-sm text-emerald-400 hover:underline">
+          ← Reports
         </Link>
         <Link
           href="/reports/listening"
@@ -341,8 +341,8 @@ function WeeklyStoryPage({
 
   return (
     <div className="space-y-8">
-      <Link href="/" className="text-sm text-emerald-400 hover:underline">
-        ← Home
+      <Link href="/reports/listening" className="text-sm text-emerald-400 hover:underline">
+        ← Reports
       </Link>
 
       <div className="flex flex-wrap items-center gap-2">

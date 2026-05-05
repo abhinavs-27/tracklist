@@ -29,6 +29,9 @@ export type CronJobMessage =
   | { type: "SYNC_ALBUM_TRACKS"; albumId: string; spotifyAlbumApiId: string }
   | { type: "REFRESH_COMMUNITY_MEMBER_STATS" }
   | { type: "SNAPSHOT_TASTE_MONTHLY" }
-  | { type: "REFRESH_BLIND_SPOTS" };
+  | { type: "REFRESH_BLIND_SPOTS" }
+  | { type: "ENRICH_ARTIST"; artistId: string }
+  | { type: "ENRICH_ALBUM"; albumId: string }
+  | { type: "DRAIN_ENRICH_BACKLOG" };
 
 export type JobMessage = BillboardJobMessage | CronJobMessage;

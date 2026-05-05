@@ -265,6 +265,27 @@ export async function enqueueSpotifyEnrich(
   job: SpotifyEnrichJobData,
   options?: EnqueueSpotifyEnrichOptions,
 ): Promise<void> {
+  // Route enrich_artist / enrich_album through SQS when available so Lambda
+  // handles them in production (Vercel has no persistent BullMQ worker).
+  if (process.env.CRON_JOBS_QUEUE_URL?.trim()) {
+    if (job.name === "enrich_artist") {
+      void import("@/lib/jobs/enqueue-cron-message")
+        .then(({ sendCronJobMessage }) =>
+          sendCronJobMessage({ type: "ENRICH_ARTIST", artistId: job.artistId }),
+        )
+        .catch((e) => console.error("[spotify-queue] SQS enrich_artist failed", e));
+      return;
+    }
+    if (job.name === "enrich_album") {
+      void import("@/lib/jobs/enqueue-cron-message")
+        .then(({ sendCronJobMessage }) =>
+          sendCronJobMessage({ type: "ENRICH_ALBUM", albumId: job.albumId }),
+        )
+        .catch((e) => console.error("[spotify-queue] SQS enrich_album failed", e));
+      return;
+    }
+  }
+
   const q = getSpotifyEnrichQueue();
   if (!q) {
     await enqueueInMemory(job);

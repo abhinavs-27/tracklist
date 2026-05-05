@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import {
   getListeningReports,
@@ -15,6 +16,52 @@ import { SharedListeningReportView } from "./shared-listening-report-view";
 import { SharedReportViewerCta } from "./shared-report-viewer-cta";
 
 type PageParams = Promise<{ id: string }>;
+
+export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
+  const { id } = await params;
+  const row = await getSavedReportById(id);
+  if (!row?.is_public) return { title: "Listening report · Tracklist" };
+
+  const admin = createSupabaseAdminClient();
+  const { data: owner } = await admin
+    .from("users")
+    .select("username")
+    .eq("id", row.user_id)
+    .maybeSingle();
+
+  const snap = parseListeningReportSnapshot(row.snapshot_json);
+  const entityType = row.entity_type as ReportEntityType;
+  const ownerHandle = owner?.username ? `@${owner.username}` : "A Tracklist member";
+  const entityPlural = `${entityType}s`;
+  const title = `${ownerHandle}'s top ${entityPlural} · Tracklist`;
+
+  let description = `${ownerHandle} shared their top ${entityPlural} on Tracklist.`;
+  let ogImageUrl: string | undefined;
+
+  if (snap) {
+    const items = snap.itemsByType[entityType]?.slice(0, 3) ?? [];
+    if (items.length) {
+      description = items.map((i, idx) => `${idx + 1}. ${i.name} (${i.count} plays)`).join(" · ");
+    }
+    ogImageUrl = snap.itemsByType[entityType]?.[0]?.image ?? undefined;
+  }
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      ...(ogImageUrl ? { images: [{ url: ogImageUrl }] } : {}),
+    },
+    twitter: {
+      card: ogImageUrl ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(ogImageUrl ? { images: [ogImageUrl] } : {}),
+    },
+  };
+}
 
 export default async function SharedListeningReportPage({
   params,
@@ -130,6 +177,8 @@ export default async function SharedListeningReportPage({
           reportTitle={row.name}
           periodLabel={data.periodLabel}
           entityType={row.entity_type}
+          ownerHandle={ownerRow?.username ?? null}
+          totalPlays={snap?.totals.totalPlays ?? null}
           items={data.items.map((i) => ({
             rank: i.rank,
             name: i.name,

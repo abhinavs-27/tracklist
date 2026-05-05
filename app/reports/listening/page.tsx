@@ -30,7 +30,7 @@ export default async function ListeningReportsPage() {
         custom ranges scan your recent logs (up to {LIMITS.REPORTS_CUSTOM_MAX_DAYS}{" "}
         days).
       </p>
-      <ListeningReportsClient userId={session.user.id} />
+      <ListeningReportsClient userId={session.user.id} username={session.user.username} />
     </div>
   );
 }

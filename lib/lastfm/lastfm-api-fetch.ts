@@ -7,7 +7,7 @@ import "server-only";
  */
 const DEFAULT_LASTFM_UA =
   process.env.LASTFM_HTTP_USER_AGENT?.trim() ||
-  "Tracklist/1.0 (+https://tracklist.app)";
+  "Tracklist/1.0 (+https://tracklistsocial.com)";
 
 export function lastfmApiHeaders(): Headers {
   const h = new Headers();
