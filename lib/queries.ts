@@ -2455,8 +2455,15 @@ function artistAlbumsVerbose(artistEntityId: string): boolean {
   return isArtistPageDebugEnabled(artistEntityId);
 }
 
-/** Non-blocking: sends SYNC_ARTIST_DISCOGRAPHY to SQS cron queue (handled by Lambda worker). */
-function scheduleArtistDiscographyBackfill(canonicalArtistId: string): void {
+/** Non-blocking: sends SYNC_ARTIST_DISCOGRAPHY to SQS — skips if synced within 7 days. */
+function scheduleArtistDiscographyBackfill(
+  canonicalArtistId: string,
+  discographySyncedAt?: string | null,
+): void {
+  if (discographySyncedAt) {
+    const ageMs = Date.now() - new Date(discographySyncedAt).getTime();
+    if (ageMs < 7 * 24 * 60 * 60 * 1000) return; // recently synced — skip enqueue
+  }
   void import("@/lib/jobs/enqueue-cron-message")
     .then(({ sendCronJobMessage }) =>
       sendCronJobMessage({
@@ -2639,12 +2646,21 @@ export async function getPopularAlbumsForArtist(
       return { rows: [], hasMoreAlbums: false };
     }
 
-    scheduleArtistDiscographyBackfill(canonicalArtistId);
+    const { data: artistMeta } = await supabase
+      .from("artists")
+      .select("discography_synced_at")
+      .eq("id", canonicalArtistId)
+      .maybeSingle();
+    const discographySyncedAt = (artistMeta as { discography_synced_at?: string | null } | null)
+      ?.discography_synced_at ?? null;
+
+    scheduleArtistDiscographyBackfill(canonicalArtistId, discographySyncedAt);
 
     if (artistAlbumsVerbose(artistId)) {
       console.log(ARTIST_ALBUMS_SYNC_TAG, "scheduled sync_artist_discography (non-blocking)", {
         artistId,
         canonicalArtistId,
+        discographySyncedAt,
       });
     }
 
