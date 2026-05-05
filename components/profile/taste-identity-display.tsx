@@ -205,30 +205,6 @@ export function TasteIdentityDisplay({
         <WeeklyListeningContext data={weeklyListening} />
       ) : null}
 
-      {t.totalLogs > 0 ? (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {t.obscurityScore != null ? (
-            <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">
-                Obscurity
-              </p>
-              <p className="text-lg font-semibold tabular-nums text-amber-400">
-                {t.obscurityScore}
-              </p>
-              <p className="text-[11px] text-zinc-600">0 = mainstream · 100 = niche</p>
-            </div>
-          ) : null}
-          <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
-            <p className="text-xs uppercase tracking-wide text-zinc-500">
-              Diversity
-            </p>
-            <p className="text-lg font-semibold tabular-nums text-emerald-400">
-              {t.diversityScore}
-            </p>
-            <p className="text-[11px] text-zinc-600">Unique genres (vs 10 = max)</p>
-          </div>
-        </div>
-      ) : null}
 
       {t.topArtists.length > 0 ? (
         <div className="mt-5">

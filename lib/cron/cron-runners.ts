@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { snapshotAllUsersLastMonth } from "@/lib/cron/snapshot-taste";
 import {
   hydrateStatsCatalogFromSpotify,
   type HydrateStatsCatalogResult,
@@ -449,4 +450,9 @@ export async function runUpgradeLastfmAlbumCovers(options?: {
     gapMs,
   });
   return { ok: true, ...result };
+}
+
+
+export async function runSnapshotTasteMonthly() {
+  return snapshotAllUsersLastMonth();
 }

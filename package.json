@@ -24,7 +24,9 @@
     "package:lambda:billboard-worker": "node scripts/package-lambda-billboard-worker.mjs",
     "build:lambda:minimal": "node scripts/build-lambda-minimal.mjs",
     "backfill:album-art": "NODE_OPTIONS='-r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-art-spotify.ts",
-    "backfill:album-art-all": "NODE_OPTIONS='-r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-art-all.ts"
+    "backfill:album-art-all": "NODE_OPTIONS='-r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-art-all.ts",
+    "backfill:taste-snapshots": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-taste-snapshots.ts",
+    "build:lambda:taste-snapshot": "node scripts/build-lambda-taste-snapshot.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1025.0",

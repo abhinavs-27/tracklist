@@ -17,8 +17,8 @@ export const LISTENING_STYLE_COPY: Record<
   { title: string; subtitle: string }
 > = {
   "chart-gravity": {
-    title: "Chart pull",
-    subtitle: "Mostly popular tracks and the stuff that’s already everywhere.",
+    title: "Mainstream",
+    subtitle: "You gravitate toward popular music — the stuff that’s already everywhere.",
   },
   "deep-cuts-dept": {
     title: "Deep cuts",
@@ -26,7 +26,7 @@ export const LISTENING_STYLE_COPY: Record<
   },
   "album-gravity-well": {
     title: "On Loop",
-    subtitle: "A few records get most of the plays.",
+    subtitle: "A few records get most of the plays — you go deep on what you love.",
   },
   "omnivore-mode": {
     title: "Omnivore",
@@ -34,19 +34,19 @@ export const LISTENING_STYLE_COPY: Record<
   },
   "mainstay-mode": {
     title: "Mainstay",
-    subtitle: "Most plays go to a small circle of favorites.",
+    subtitle: "Most plays go to a tight circle of long-term favorites.",
   },
   "steady-rhythm": {
-    title: "Steady rhythm",
-    subtitle: "Regular listening — not huge spikes, not wild rotation.",
+    title: "Consistent",
+    subtitle: "You listen regularly without wild spikes or gaps — just steady rotation.",
   },
   "session-maximalist": {
-    title: "Long runs",
-    subtitle: "Some days you stack a lot of plays in one sitting.",
+    title: "Deep sessions",
+    subtitle: "Some days you stack a lot of plays in a single sitting.",
   },
   "plotting-the-plot": {
-    title: "Still early",
-    subtitle: "Not enough history here yet; keep logging and this firms up.",
+    title: "Still building",
+    subtitle: "Not enough history yet — keep logging and this will firm up.",
   },
 };
 

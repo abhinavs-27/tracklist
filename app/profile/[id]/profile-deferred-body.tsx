@@ -5,7 +5,9 @@ import { TasteMatchSection } from "@/components/taste-match";
 import { ProfileRecentActivity } from "@/components/profile/profile-recent-activity";
 import { LastfmSection } from "@/components/lastfm/lastfm-section";
 import { TasteIdentitySection } from "@/components/profile/taste-identity-section";
-import { ListeningInsightsSection } from "@/components/profile/listening-insights-section";
+import { ProfileInsightCards } from "@/components/profile/profile-insight-cards";
+import { TasteTimeline } from "@/components/profile/taste-timeline";
+import { getTasteTimeline } from "@/lib/profile/taste-timeline";
 import { isSpotifyProfileIntegrationVisible } from "@/lib/spotify-integration-enabled";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
@@ -21,8 +23,8 @@ import { ProfileWeeklyTopAlbumsSection } from "@/components/profile/profile-week
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileTabsContainer } from "@/components/profile/profile-tabs";
 import { LastfmConnectPrompt } from "@/components/lastfm/lastfm-connect-prompt";
+import { getTasteInsights } from "@/lib/profile/taste-insights";
 import {
-  getCachedListeningInsights,
   getCachedListeningReportPreview,
   getCachedProfilePulseInsights,
   getCachedTasteIdentity,
@@ -91,7 +93,8 @@ export async function ProfileDeferredBody({
     getCachedProfilePulseInsights(user.id),
     getCachedTopThisWeek(user.id),
     getCachedUserMatches(user.id),
-    session?.user?.id ? getCachedListeningInsights(user.id) : Promise.resolve(null),
+    getTasteInsights(user.id),
+    getTasteTimeline(user.id),
   ]);
 
   const userLists =
@@ -143,13 +146,19 @@ export async function ProfileDeferredBody({
       "[profile] getCachedUserMatches failed:",
       settled[6].reason,
     );
-  const listeningInsightsPrefetched =
-    settled[7].status === "fulfilled" ? settled[7].value : undefined;
+  const tasteInsights =
+    settled[7].status === "fulfilled"
+      ? settled[7].value
+      : { arc: { kind: "insufficient" as const, narrative: "", risingArtists: [], stableArtists: [] }, discovery: { kind: "insufficient" as const, narrative: "", newArtistsCount: 0, revisitRate: 0, recentFinds: [] } };
   if (settled[7].status === "rejected")
-    console.error(
-      "[profile] getCachedListeningInsights failed:",
-      settled[7].reason,
-    );
+    console.error("[profile] getTasteInsights failed:", settled[7].reason);
+
+  const tasteTimeline =
+    settled[8].status === "fulfilled"
+      ? settled[8].value
+      : { months: [], shifts: [], hasData: false };
+  if (settled[8].status === "rejected")
+    console.error("[profile] getTasteTimeline failed:", settled[8].reason);
 
   const weeklyNarrative = buildWeeklyNarrative({
     username: profile.username,
@@ -263,16 +272,19 @@ export async function ProfileDeferredBody({
         </SectionBlock>
       </div>
 
-      {session?.user?.id ? (
-        <SectionBlock title="Listening habits">
-          <ListeningInsightsSection
-            userId={profile.id}
-            maxLines={3}
-            embedded
-            prefetched={listeningInsightsPrefetched ?? undefined}
-          />
+      <SectionBlock title="Listening insights">
+        <ProfileInsightCards
+          arc={tasteInsights.arc}
+          discovery={tasteInsights.discovery}
+          taste={tasteIdentity}
+        />
+      </SectionBlock>
+
+      {tasteTimeline.hasData && (
+        <SectionBlock title="Taste over time">
+          <TasteTimeline data={tasteTimeline} />
         </SectionBlock>
-      ) : null}
+      )}
 
       <SectionBlock
         title="Listening report"

@@ -86,6 +86,9 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         await refreshAlbumFromSpotify(supabase, job.spotifyAlbumApiId);
         break;
       }
+      case "SNAPSHOT_TASTE_MONTHLY":
+        await cron.runSnapshotTasteMonthly();
+        break;
       default:
         throw new Error(`Unknown cron job: ${JSON.stringify(job)}`);
     }
