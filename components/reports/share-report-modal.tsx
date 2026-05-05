@@ -139,14 +139,19 @@ export function ShareReportModal(props: ShareReportModalProps) {
   const { toast } = useToast();
 
   const [name, setName] = useState(defaultName);
+  const [variant, setVariant] = useState<"list" | "spotlight">("list");
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const linkCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Spotlight only useful when #1 item has a cover image
+  const hasSpotlightImage = !!(rows[0]?.image);
+
   useEffect(() => {
     if (open) {
       setName(defaultName);
+      setVariant("list");
       setShareUrl(null);
       setLinkCopied(false);
       setBusy(false);
@@ -199,6 +204,7 @@ export function ShareReportModal(props: ShareReportModalProps) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        variant,
         reportTitle,
         periodLabel,
         entityLabel,
@@ -327,7 +333,31 @@ export function ShareReportModal(props: ShareReportModalProps) {
             )}
 
             {/* Editable name (subtle) */}
-            <div className="mt-4">
+            {/* Card format toggle */}
+            <div className="mt-4 flex gap-1 rounded-xl bg-zinc-800/50 p-1">
+              <button
+                type="button"
+                onClick={() => setVariant("list")}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${
+                  variant === "list" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Top 5 list
+              </button>
+              <button
+                type="button"
+                onClick={() => setVariant("spotlight")}
+                disabled={!hasSpotlightImage}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition disabled:opacity-40 ${
+                  variant === "spotlight" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-zinc-200"
+                }`}
+                title={!hasSpotlightImage ? "Spotlight requires a cover image" : undefined}
+              >
+                Spotlight #1
+              </button>
+            </div>
+
+            <div className="mt-3">
               <input
                 type="text"
                 value={name}

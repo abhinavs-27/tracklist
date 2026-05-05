@@ -7,10 +7,12 @@ import {
   ReportShareImageTemplate,
   type ReportShareImageRow,
 } from "@/lib/reports/report-share-image-template";
+import { ReportSpotlightTemplate } from "@/lib/reports/report-spotlight-image-template";
 
 export const maxDuration = 60;
 
 type RequestBody = {
+  variant?: unknown;
   reportTitle?: unknown;
   periodLabel?: unknown;
   entityLabel?: unknown;
@@ -38,17 +40,43 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => null)) as RequestBody | null;
     if (!body) return apiBadRequest("Invalid JSON");
 
-    const reportTitle = typeof body.reportTitle === "string" ? body.reportTitle.slice(0, 80) : "";
+    const variant = body.variant === "spotlight" ? "spotlight" : "list";
     const periodLabel = typeof body.periodLabel === "string" ? body.periodLabel.slice(0, 80) : "";
     const entityLabel = typeof body.entityLabel === "string" ? body.entityLabel.slice(0, 40) : "";
     const ownerHandle = typeof body.ownerHandle === "string" ? body.ownerHandle.slice(0, 40) : null;
-    const totalPlays = typeof body.totalPlays === "number" ? body.totalPlays : null;
-    const shareUrl = typeof body.shareUrl === "string" ? body.shareUrl.slice(0, 200) : null;
 
     if (!Array.isArray(body.rows)) return apiBadRequest("rows must be an array");
     const rows = (body.rows as unknown[]).filter(isValidRow).slice(0, 5);
 
     const fonts = await loadChartShareImageFonts();
+
+    if (variant === "spotlight") {
+      const top = rows[0];
+      if (!top) return apiBadRequest("No items for spotlight");
+
+      const response = new ImageResponse(
+        <ReportSpotlightTemplate
+          name={top.name}
+          image={top.image}
+          count={top.count}
+          entityLabel={entityLabel}
+          periodLabel={periodLabel}
+          ownerHandle={ownerHandle}
+        />,
+        {
+          width: 1080,
+          height: 1080,
+          ...(fonts.length > 0 ? { fonts } : {}),
+        },
+      );
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+
+    // Default: ranked list card
+    const reportTitle = typeof body.reportTitle === "string" ? body.reportTitle.slice(0, 80) : "";
+    const totalPlays = typeof body.totalPlays === "number" ? body.totalPlays : null;
+    const shareUrl = typeof body.shareUrl === "string" ? body.shareUrl.slice(0, 200) : null;
 
     const response = new ImageResponse(
       <ReportShareImageTemplate
@@ -66,7 +94,6 @@ export async function POST(request: NextRequest) {
         ...(fonts.length > 0 ? { fonts } : {}),
       },
     );
-
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   } catch (e) {

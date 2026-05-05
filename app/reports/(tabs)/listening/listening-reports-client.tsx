@@ -253,9 +253,6 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
       limit?: number;
     }) => {
       const gen = ++fetchGenRef.current;
-      if (!opts.append) {
-        setData(null);
-      }
       setLoading(true);
       setError(null);
       try {
@@ -303,8 +300,10 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
     [props.userId],
   );
 
-  const loadingMore = loading && data !== null;
-  const showInitialSkeleton = loading && data === null;
+  const loadingMore = loading && data !== null && (data?.nextOffset != null);
+  const showInitialSkeleton = data === null && loading;
+  // Keep old list visible but dimmed while reloading a new range/type
+  const reloading = loading && data !== null;
 
   useEffect(() => {
     if (range === "custom") return;
@@ -359,14 +358,15 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
   ]);
 
   function selectRange(next: Range) {
+    setData(null);
     setRange(next);
     if (next === "custom") {
-      setData(null);
       setError(null);
     }
   }
 
   function selectEntity(next: EntityType) {
+    setData(null);
     setEntityType(next);
     if (range === "custom" && startDate && endDate) {
       void load({
@@ -743,7 +743,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
       <div
         aria-busy={loading}
         aria-live="polite"
-        className="min-h-[120px]"
+        className={`min-h-[120px] transition-opacity duration-150 ${reloading ? "opacity-40 pointer-events-none" : "opacity-100"}`}
       >
         {showInitialSkeleton ? (
           <ol className="space-y-2" aria-hidden>
