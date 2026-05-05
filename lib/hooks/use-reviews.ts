@@ -61,7 +61,8 @@ export function useReviews(
     queryKey: reviewsKey,
     queryFn: () => fetchReviews(entityType, normalizedId),
     enabled: !!normalizedId,
-    placeholderData: options?.initialData ?? undefined,
+    initialData: options?.initialData ?? undefined,
+    initialDataUpdatedAt: options?.initialData ? Date.now() : undefined,
     staleTime: 30 * 1000,
   });
 

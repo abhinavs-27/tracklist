@@ -139,6 +139,7 @@ const spotifySearchLimiter = (() => {
       connection,
       clearDatastore: false,
       id: "spotify-search-limiter",
+      clientTimeout: 30 * 60 * 1000,
       ...opts,
     });
   }
@@ -154,6 +155,7 @@ export const spotifyLimiter = (() => {
       connection,
       clearDatastore: false,
       id: "spotify-catalog-limiter",
+      clientTimeout: 30 * 60 * 1000,
       maxConcurrent: 1,
       minTime: SPOTIFY_MIN_TIME_MS,
       reservoir: SPOTIFY_RESERVOIR_PER_MIN,
@@ -186,6 +188,7 @@ const spotifySingleTrackLimiter = (() => {
       connection,
       clearDatastore: false,
       id: "spotify-single-track-limiter",
+      clientTimeout: 30 * 60 * 1000,
       ...opts,
     });
   }
@@ -208,6 +211,7 @@ const spotifyArtistAlbumsLimiter = (() => {
       connection,
       clearDatastore: false,
       id: "spotify-artist-albums-limiter",
+      clientTimeout: 30 * 60 * 1000,
       ...opts,
     });
   }

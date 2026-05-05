@@ -8,6 +8,8 @@ import { TasteIdentitySection } from "@/components/profile/taste-identity-sectio
 import { ProfileInsightCards } from "@/components/profile/profile-insight-cards";
 import { TasteTimeline } from "@/components/profile/taste-timeline";
 import { getTasteTimeline } from "@/lib/profile/taste-timeline";
+import { TasteBlindSpots } from "@/components/profile/taste-blind-spots";
+import { getBlindSpots } from "@/lib/profile/taste-blind-spots";
 import { isSpotifyProfileIntegrationVisible } from "@/lib/spotify-integration-enabled";
 import { ListCard } from "@/components/list-card";
 import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
@@ -95,6 +97,7 @@ export async function ProfileDeferredBody({
     getCachedUserMatches(user.id),
     getTasteInsights(user.id),
     getTasteTimeline(user.id),
+    isOwnProfile ? getBlindSpots(user.id) : Promise.resolve(null),
   ]);
 
   const userLists =
@@ -159,6 +162,13 @@ export async function ProfileDeferredBody({
       : { months: [], shifts: [], hasData: false };
   if (settled[8].status === "rejected")
     console.error("[profile] getTasteTimeline failed:", settled[8].reason);
+
+  const blindSpots =
+    settled[9].status === "fulfilled"
+      ? settled[9].value
+      : null;
+  if (settled[9].status === "rejected")
+    console.error("[profile] getBlindSpots failed:", settled[9].reason);
 
   const weeklyNarrative = buildWeeklyNarrative({
     username: profile.username,
@@ -279,6 +289,12 @@ export async function ProfileDeferredBody({
           taste={tasteIdentity}
         />
       </SectionBlock>
+
+      {blindSpots?.hasData && (
+        <SectionBlock title="Blind spots">
+          <TasteBlindSpots data={blindSpots} />
+        </SectionBlock>
+      )}
 
       {tasteTimeline.hasData && (
         <SectionBlock title="Taste over time">

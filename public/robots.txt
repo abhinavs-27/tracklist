@@ -1,0 +1,12 @@
+User-agent: *
+Disallow: /api/
+Disallow: /onboarding
+Disallow: /auth/
+Disallow: /e2e/
+Crawl-delay: 10
+
+User-agent: Googlebot
+Disallow: /api/
+Disallow: /onboarding
+Disallow: /auth/
+Disallow: /e2e/

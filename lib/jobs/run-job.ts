@@ -89,6 +89,9 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
       case "SNAPSHOT_TASTE_MONTHLY":
         await cron.runSnapshotTasteMonthly();
         break;
+      case "REFRESH_BLIND_SPOTS":
+        await cron.runRefreshBlindSpots();
+        break;
       default:
         throw new Error(`Unknown cron job: ${JSON.stringify(job)}`);
     }

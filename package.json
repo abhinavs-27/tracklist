@@ -26,6 +26,7 @@
     "backfill:album-art": "NODE_OPTIONS='-r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-art-spotify.ts",
     "backfill:album-art-all": "NODE_OPTIONS='-r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-art-all.ts",
     "backfill:taste-snapshots": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-taste-snapshots.ts",
+    "backfill:blind-spots": "REDIS_URL='' NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-blind-spots.ts",
     "build:lambda:taste-snapshot": "node scripts/build-lambda-taste-snapshot.mjs"
   },
   "dependencies": {

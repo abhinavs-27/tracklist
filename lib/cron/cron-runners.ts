@@ -456,3 +456,40 @@ export async function runUpgradeLastfmAlbumCovers(options?: {
 export async function runSnapshotTasteMonthly() {
   return snapshotAllUsersLastMonth();
 }
+
+export async function runRefreshBlindSpots(): Promise<{
+  ok: true;
+  processed: number;
+  skipped: number;
+  errors: number;
+}> {
+  const { refreshBlindSpots } = await import("@/lib/profile/taste-blind-spots");
+  const admin = createSupabaseAdminClient();
+
+  // All users with any listening history
+  const { data: rows, error } = await admin
+    .from("logs")
+    .select("user_id")
+    .limit(100_000);
+
+  if (error) throw new Error(`[blind-spots] user query: ${error.message}`);
+
+  const userIds = [...new Set((rows ?? []).map((r) => r.user_id as string))];
+
+  // Bottleneck in the Spotify client already paces the API calls — no extra delay needed.
+  let processed = 0, skipped = 0, errors = 0;
+
+  for (const userId of userIds) {
+    try {
+      const result = await refreshBlindSpots(userId);
+      if (result.hasData) processed++;
+      else skipped++;
+    } catch (e) {
+      errors++;
+      console.error("[blind-spots] failed for", userId, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  console.log(`[blind-spots] done — processed:${processed} skipped:${skipped} errors:${errors}`);
+  return { ok: true, processed, skipped, errors };
+}
