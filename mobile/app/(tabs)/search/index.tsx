@@ -17,16 +17,22 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { fetcher } from "@/lib/api";
 import { theme } from "@/lib/theme";
+import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { ProfileFollowButton } from "@/components/profile/ProfileFollowButton";
+import type { UserSearchResult } from "@repo/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type FilterTab = "all" | "artists" | "albums" | "tracks";
+type FilterTab = "all" | "artists" | "albums" | "tracks" | "people";
 const FILTERS: { id: FilterTab; label: string }[] = [
   { id: "all", label: "All" },
   { id: "artists", label: "Artists" },
   { id: "albums", label: "Albums" },
   { id: "tracks", label: "Tracks" },
+  { id: "people", label: "People" },
 ];
+
+const MIN_PEOPLE_QUERY = 2;
 
 type SpotifyArtist = { id: string; name: string; images?: { url: string }[] };
 type SpotifyAlbum = {
@@ -186,6 +192,45 @@ function TrackRow({ track, onPress }: { track: SpotifyTrack; onPress: () => void
   );
 }
 
+// ─── People row ──────────────────────────────────────────────────────────────
+
+function PeopleRow({ user, onPress }: { user: UserSearchResult; onPress: () => void }) {
+  return (
+    <View style={styles.peopleRow}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.peopleMain, pressed && { opacity: 0.8 }]}
+      >
+        {user.avatar_url ? (
+          <Image
+            source={{ uri: user.avatar_url }}
+            style={styles.peopleAvatar}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={[styles.peopleAvatar, styles.placeholder]}>
+            <Text style={styles.placeholderInitial}>
+              {user.username[0]?.toUpperCase() ?? "?"}
+            </Text>
+          </View>
+        )}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={styles.peopleUsername}>
+            {user.username}
+          </Text>
+          <Text numberOfLines={1} style={styles.peopleFollowers}>
+            {user.followers_count.toLocaleString()} followers
+          </Text>
+        </View>
+      </Pressable>
+      <ProfileFollowButton
+        targetUserId={user.id}
+        initialFollowing={user.is_following}
+      />
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 const DEBOUNCE_MS = 280;
@@ -200,6 +245,7 @@ export default function SearchScreen() {
   const [artists, setArtists] = useState<SpotifyArtist[]>([]);
   const [albums, setAlbums] = useState<SpotifyAlbum[]>([]);
   const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
+  const [people, setPeople] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   const doSearch = useCallback(async (q: string) => {
@@ -214,6 +260,16 @@ export default function SearchScreen() {
       setArtists(data.artists?.items ?? []);
       setAlbums(data.albums?.items ?? []);
       setTracks(data.tracks?.items ?? []);
+
+      // Fetch people in parallel when query is long enough
+      if (q.length >= MIN_PEOPLE_QUERY) {
+        fetcher<UserSearchResult[]>(
+          `/api/search/users?q=${encodeURIComponent(q)}&limit=6`,
+          { signal: abortRef.current?.signal },
+        )
+          .then((d) => setPeople(Array.isArray(d) ? d : []))
+          .catch(() => {/* silent */});
+      }
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") return;
     } finally {
@@ -227,6 +283,7 @@ export default function SearchScreen() {
       setArtists([]);
       setAlbums([]);
       setTracks([]);
+      setPeople([]);
       setLoading(false);
       return;
     }
@@ -242,7 +299,8 @@ export default function SearchScreen() {
   const showArtists = (filter === "all" || filter === "artists") && artists.length > 0;
   const showAlbums = (filter === "all" || filter === "albums") && albums.length > 0;
   const showTracks = (filter === "all" || filter === "tracks") && tracks.length > 0;
-  const hasResults = artists.length > 0 || albums.length > 0 || tracks.length > 0;
+  const showPeople = (filter === "all" || filter === "people") && people.length > 0;
+  const hasResults = artists.length > 0 || albums.length > 0 || tracks.length > 0 || people.length > 0;
 
   function navArtist(id: string) { router.push(`/artist/${id}` as const); }
   function navAlbum(id: string) { router.push(`/album/${id}` as const); }
@@ -299,6 +357,7 @@ export default function SearchScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.filtersScroll}
             contentContainerStyle={styles.filters}
           >
             {FILTERS.map((f) => (
@@ -377,6 +436,28 @@ export default function SearchScreen() {
             </>
           )}
 
+          {showPeople && (
+            <>
+              <SectionHeader title="People" />
+              {people.map((u) => (
+                <PeopleRow
+                  key={u.id}
+                  user={u}
+                  onPress={() =>
+                    router.push(`/user/${encodeURIComponent(u.username)}` as const)
+                  }
+                />
+              ))}
+              {/* Link to full people search for browse + taste overlap */}
+              <Pressable
+                onPress={() => router.push("/(tabs)/search/users" as const)}
+                style={({ pressed }) => [styles.browsePeopleBtn, pressed && { opacity: 0.8 }]}
+              >
+                <Text style={styles.browsePeopleText}>Browse all people →</Text>
+              </Pressable>
+            </>
+          )}
+
           <View style={{ height: 120 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -388,7 +469,7 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
-  inputRow: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  inputRow: { paddingLeft: 16, paddingRight: 16 + NOTIFICATION_BELL_GUTTER, paddingTop: 8, paddingBottom: 4 },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -410,7 +491,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+  filtersScroll: { flexGrow: 0, flexShrink: 0 },
+  filters: { paddingHorizontal: 16, paddingVertical: 6, gap: 8, alignItems: "center" },
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -422,7 +504,7 @@ const styles = StyleSheet.create({
   pillActive: { backgroundColor: "#059669", borderColor: "#059669" },
   pillText: { fontSize: 13, fontWeight: "600", color: theme.colors.muted },
   pillTextActive: { color: "#fff" },
-  results: { paddingHorizontal: 16, paddingTop: 8 },
+  results: { paddingHorizontal: 16, paddingTop: 4 },
   emptyText: {
     color: theme.colors.muted,
     fontSize: 14,
@@ -435,8 +517,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.5,
     color: theme.colors.muted,
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 6,
   },
   // Top result
   topResult: {
@@ -499,4 +581,32 @@ const styles = StyleSheet.create({
   mediaThumb: { width: 44, height: 44, borderRadius: 6 },
   mediaTitle: { fontSize: 14, fontWeight: "600", color: theme.colors.text },
   mediaSub: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
+  // People rows
+  peopleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  peopleMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+  },
+  peopleAvatar: { width: 40, height: 40, borderRadius: 20 },
+  peopleUsername: { fontSize: 14, fontWeight: "700", color: theme.colors.text },
+  peopleFollowers: { fontSize: 12, color: theme.colors.muted, marginTop: 1 },
+  browsePeopleBtn: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+  },
+  browsePeopleText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.emerald,
+  },
 });
