@@ -198,20 +198,38 @@ test.describe('Critical Flows: Automated Integration', () => {
   });
 
   test('Critical Flow 5: Search Results', async ({ page }) => {
+    // Mock the search API to avoid Supabase env errors in sandbox
+    await page.route('**/api/search?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          artists: { items: [{ id: '1', name: 'Radiohead', images: [] }] },
+          albums: { items: [] },
+          tracks: { items: [] }
+        }),
+      });
+    });
+
+    await page.route('**/api/search/users?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.goto('/search');
-    const searchInput = page.getByRole('searchbox').first();
+    // Using placeholder as confirmed in search-client.tsx
+    const searchInput = page.getByPlaceholder(/Search artists/i);
     await searchInput.fill('radiohead');
-    await searchInput.press('Enter');
 
-    await page.waitForURL(/\/search\?q=radiohead/);
-    await expect(searchInput).toHaveValue('radiohead');
+    // The search is debounced (280ms) and results appear automatically.
+    // We check for the result indicator instead of pressing Enter if it's not a form.
 
-    const mainContent = page.getByRole('main');
-    await expect(mainContent).toBeVisible();
-
-    // Check that we reached a result state (even if empty in mock-less environment)
-    const resultIndicator = page.locator('text=/Artists|Albums|Tracks|Search failed|No results/i').first();
-    await expect(resultIndicator).toBeVisible();
+    await expect(page.locator('text=/Artists/i')).toBeVisible();
+    // Using first() to handle multiple "Radiohead" matches (Spotlight and Section)
+    await expect(page.locator('text=/Radiohead/i').first()).toBeVisible();
   });
 
 });
