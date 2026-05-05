@@ -18,6 +18,8 @@ import {
   useExploreDiscoveryBundle,
   type ExploreRangeParam,
 } from "@/lib/hooks/useExploreDiscoveryBundle";
+import { useRisingArtists } from "@/lib/hooks/useDiscover";
+import type { RisingArtist } from "@repo/types";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
 import type {
@@ -476,6 +478,7 @@ export default function ExploreScreen() {
   const [range, setRange] = useState<ExploreRangeParam>("week");
   const { data, isPending, isError, refetch, isFetching } =
     useExploreDiscoveryBundle(range);
+  const { data: risingArtists = [] } = useRisingArtists(12);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -602,6 +605,35 @@ export default function ExploreScreen() {
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
                     Not enough movement in this window yet.
+                  </Text>
+                </View>
+              )}
+            </DiscoverSection>
+
+            <DiscoverSection
+              title="Rising artists"
+              description="Strong growth in listens over the last week."
+            >
+              {risingArtists.length > 0 ? (
+                <HorizontalCarousel<RisingArtist>
+                  data={risingArtists}
+                  keyExtractor={(a) => a.artist_id}
+                  itemWidth={120}
+                  renderCard={(a) => (
+                    <DiscoverCard
+                      variant="artist"
+                      title={a.name}
+                      imageUrl={a.avatar_url}
+                      onPress={() =>
+                        router.push(`/artist/${a.artist_id}` as const)
+                      }
+                    />
+                  )}
+                />
+              ) : (
+                <View style={styles.inlineEmpty}>
+                  <Text style={styles.inlineEmptyText}>
+                    No rising artists yet.
                   </Text>
                 </View>
               )}
