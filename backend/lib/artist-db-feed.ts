@@ -8,12 +8,15 @@ export type ArtistMobileAlbum = {
   artist: string;
   artwork_url: string | null;
   release_date: string | null;
+  listen_count: number;
+  average_rating: number | null;
 };
 
 /** Track row for mobile (before merging track_stats) — same source as web `getTopTracksForArtist`. */
 export type ArtistMobileTrackRow = {
   id: string;
   name: string;
+  album_id: string | null;
   duration_ms: number | null;
 };
 
@@ -32,58 +35,47 @@ export async function fetchArtistAlbumsFromDb(
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
     if (!canonicalArtistId) return [];
 
-    const { data: statsRows, error: statsError } = await supabase
-      .from("album_stats")
-      .select(`
-        album_id,
-        listen_count,
-        review_count,
-        avg_rating,
-        albums!inner (
-          id,
-          name,
-          image_url,
-          artist_id
-        )
-      `)
-      .eq("albums.artist_id", canonicalArtistId)
-      .order("listen_count", { ascending: false })
+    // Step 1: get albums for this artist
+    const { data: albumRows } = await supabase
+      .from("albums")
+      .select("id, name, image_url")
+      .eq("artist_id", canonicalArtistId)
       .limit(limit);
 
-    if (statsError || !statsRows?.length) {
-      const { data: albumRows } = await supabase
-        .from("albums")
-        .select("id, name, image_url")
-        .eq("artist_id", artistId)
-        .order("name", { ascending: true })
-        .limit(limit);
+    if (!albumRows?.length) return [];
 
-      return (albumRows ?? []).map((a) => ({
+    const albumIds = albumRows.map((a) => a.id as string);
+
+    // Step 2: get stats for those albums
+    const { data: statsRows } = await supabase
+      .from("album_stats")
+      .select("album_id, listen_count, avg_rating")
+      .in("album_id", albumIds);
+
+    const statsMap = new Map(
+      ((statsRows ?? []) as { album_id: string; listen_count: number | null; avg_rating: number | null }[])
+        .map((s) => [s.album_id, s]),
+    );
+
+    // Sort by listen_count descending
+    const sorted = [...albumRows].sort((a, b) => {
+      const cA = statsMap.get(a.id)?.listen_count ?? 0;
+      const cB = statsMap.get(b.id)?.listen_count ?? 0;
+      return cB - cA;
+    });
+
+    return sorted.map((a) => {
+      const stats = statsMap.get(a.id);
+      return {
         id: a.id,
         name: a.name,
         artist: artistName,
-        artwork_url: a.image_url ?? null,
+        artwork_url: (a.image_url as string | null) ?? null,
         release_date: null,
-      }));
-    }
-
-    return (
-      statsRows as unknown as {
-        album_id: string;
-        albums: {
-          id: string;
-          name: string;
-          image_url: string | null;
-          artist_id: string;
-        };
-      }[]
-    ).map((row) => ({
-      id: row.album_id,
-      name: row.albums.name,
-      artist: artistName,
-      artwork_url: row.albums.image_url ?? null,
-      release_date: null,
-    }));
+        listen_count: stats?.listen_count ?? 0,
+        average_rating: stats?.avg_rating ?? null,
+      };
+    });
   } catch (e) {
     console.error("[artist-db-feed] fetchArtistAlbumsFromDb:", e);
     return [];
@@ -141,6 +133,7 @@ export async function fetchArtistTracksFromDb(
         return {
           id: song.id,
           name: song.name,
+          album_id: song.album_id ?? null,
           duration_ms: song.duration_ms ?? null,
         };
       })
@@ -149,4 +142,230 @@ export async function fetchArtistTracksFromDb(
     console.error("[artist-db-feed] fetchArtistTracksFromDb:", e);
     return [];
   }
+}
+
+export type ArtistViewerStats = {
+  playCount: number;
+  topAlbumName: string | null;
+  topAlbumId: string | null;
+  firstListened: string | null;
+};
+
+export type ArtistRecentListen = {
+  id: string;
+  track_id: string;
+  track_name: string | null;
+  album_id: string | null;
+  album_name: string | null;
+  album_image: string | null;
+  listened_at: string;
+  user: { id: string; username: string; avatar_url: string | null } | null;
+};
+
+/** Viewer play count, top album, and first listen date for an artist. */
+export async function fetchArtistViewerStats(
+  supabase: SupabaseClient,
+  viewerId: string,
+  canonicalArtistId: string,
+): Promise<ArtistViewerStats> {
+  const empty: ArtistViewerStats = { playCount: 0, topAlbumName: null, topAlbumId: null, firstListened: null };
+  try {
+    const { data: trackRows } = await supabase
+      .from("tracks").select("id, album_id").eq("artist_id", canonicalArtistId).limit(2000);
+    const tracks = (trackRows ?? []) as { id: string; album_id: string | null }[];
+    if (!tracks.length) return empty;
+
+    const trackToAlbum = new Map(tracks.map((t) => [t.id, t.album_id]));
+    const CHUNK = 200;
+    const trackIds = tracks.map((t) => t.id);
+
+    let totalCount = 0;
+    const albumCounts = new Map<string, number>();
+    let firstListened: string | null = null;
+
+    for (let i = 0; i < trackIds.length; i += CHUNK) {
+      const chunk = trackIds.slice(i, i + CHUNK);
+      const { data: logRows } = await supabase
+        .from("logs").select("track_id, listened_at").eq("user_id", viewerId).in("track_id", chunk).limit(5000);
+      for (const row of (logRows ?? []) as { track_id: string; listened_at: string }[]) {
+        totalCount++;
+        const aid = trackToAlbum.get(row.track_id);
+        if (aid) albumCounts.set(aid, (albumCounts.get(aid) ?? 0) + 1);
+        if (!firstListened || row.listened_at < firstListened) firstListened = row.listened_at;
+      }
+    }
+
+    if (!totalCount) return empty;
+
+    const topAlbumId = [...albumCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    let topAlbumName: string | null = null;
+    if (topAlbumId) {
+      const { data: albumRow } = await supabase.from("albums").select("name").eq("id", topAlbumId).maybeSingle();
+      topAlbumName = (albumRow as { name?: string } | null)?.name ?? null;
+    }
+
+    return { playCount: totalCount, topAlbumName, topAlbumId, firstListened };
+  } catch { return empty; }
+}
+
+/** Recent listens by viewer + people they follow for this artist. */
+export async function fetchArtistRecentListens(
+  supabase: SupabaseClient,
+  canonicalArtistId: string,
+  viewerId: string | null,
+  limit = 8,
+): Promise<ArtistRecentListen[]> {
+  try {
+    const { data: trackRows } = await supabase
+      .from("tracks").select("id, album_id, name").eq("artist_id", canonicalArtistId).limit(500);
+    const tracks = (trackRows ?? []) as { id: string; album_id: string | null; name: string }[];
+    if (!tracks.length) return [];
+
+    const trackIds = tracks.map((t) => t.id);
+    const trackMap = new Map(tracks.map((t) => [t.id, t]));
+
+    // Get follow list for viewer (to show friends)
+    let userIds: string[] | null = null;
+    if (viewerId) {
+      const { data: follows } = await supabase.from("follows").select("following_id").eq("follower_id", viewerId).limit(200);
+      userIds = [viewerId, ...((follows ?? []) as { following_id: string }[]).map((f) => f.following_id)];
+    }
+
+    let logsQuery = supabase
+      .from("logs").select("id, user_id, track_id, listened_at").in("track_id", trackIds.slice(0, 200));
+    if (userIds) logsQuery = logsQuery.in("user_id", userIds);
+    const { data: logRows } = await logsQuery.order("listened_at", { ascending: false }).limit(limit);
+
+    if (!logRows?.length) return [];
+
+    const logUserIds = [...new Set((logRows as { user_id: string }[]).map((l) => l.user_id))];
+    const { data: users } = await supabase.from("users").select("id, username, avatar_url").in("id", logUserIds);
+    const userMap = new Map(((users ?? []) as { id: string; username: string; avatar_url: string | null }[]).map((u) => [u.id, u]));
+
+    // Get album metadata
+    const albumIds = [...new Set((logRows as { track_id: string }[]).map((l) => trackMap.get(l.track_id)?.album_id).filter(Boolean) as string[])];
+    const { data: albums } = albumIds.length
+      ? await supabase.from("albums").select("id, name, image_url").in("id", albumIds)
+      : { data: [] };
+    const albumMap = new Map(((albums ?? []) as { id: string; name: string; image_url: string | null }[]).map((a) => [a.id, a]));
+
+    return (logRows as { id: string; user_id: string; track_id: string; listened_at: string }[]).map((log) => {
+      const track = trackMap.get(log.track_id);
+      const albumId = track?.album_id ?? null;
+      const album = albumId ? albumMap.get(albumId) : null;
+      const user = userMap.get(log.user_id) ?? null;
+      return {
+        id: log.id,
+        track_id: log.track_id,
+        track_name: track?.name ?? null,
+        album_id: albumId,
+        album_name: album?.name ?? null,
+        album_image: album?.image_url ?? null,
+        listened_at: log.listened_at,
+        user: user ? { id: user.id, username: user.username, avatar_url: user.avatar_url } : null,
+      };
+    });
+  } catch { return []; }
+}
+
+/** Lightweight review fetch for the main artist API response. */
+export async function fetchArtistReviewsSimple(
+  supabase: SupabaseClient,
+  canonicalArtistId: string,
+  limit = 6,
+): Promise<object[]> {
+  try {
+    const [{ data: albumRows }, { data: trackRows }] = await Promise.all([
+      supabase.from("albums").select("id, name, image_url").eq("artist_id", canonicalArtistId).limit(100),
+      supabase.from("tracks").select("id, name").eq("artist_id", canonicalArtistId).limit(500),
+    ]);
+
+    const albumMap = new Map(((albumRows ?? []) as { id: string; name: string; image_url: string | null }[]).map((a) => [a.id, a]));
+    const trackMap = new Map(((trackRows ?? []) as { id: string; name: string }[]).map((t) => [t.id, t]));
+    const allIds = [...albumMap.keys(), ...trackMap.keys()];
+    if (!allIds.length) return [];
+
+    const { data: reviews } = await supabase
+      .from("reviews")
+      .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, users(id, username, avatar_url)")
+      .in("entity_id", allIds.slice(0, 200))
+      .not("review_text", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    return (reviews ?? []).map((r: any) => {
+      const album = albumMap.get(r.entity_id);
+      const track = trackMap.get(r.entity_id);
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        username: r.users?.username ?? null,
+        entity_type: r.entity_type,
+        entity_id: r.entity_id,
+        entity_name: album?.name ?? track?.name ?? null,
+        entity_image_url: album?.image_url ?? null,
+        rating: r.rating,
+        review_text: r.review_text,
+        created_at: r.created_at,
+        user: r.users ? { id: r.users.id, username: r.users.username, avatar_url: r.users.avatar_url } : null,
+      };
+    });
+  } catch { return []; }
+}
+
+export type ArtistLeaderboardEntry = {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  playCount: number;
+  isViewer: boolean;
+};
+
+/** Play-count leaderboard among viewer + their follows. Returns [] if < 2 entries. */
+export async function fetchArtistFriendLeaderboard(
+  supabase: SupabaseClient,
+  viewerId: string,
+  canonicalArtistId: string,
+): Promise<ArtistLeaderboardEntry[]> {
+  try {
+    const { data: trackRows } = await supabase
+      .from("tracks").select("id").eq("artist_id", canonicalArtistId).limit(2000);
+    const trackIds = (trackRows ?? []).map((t) => t.id as string);
+    if (!trackIds.length) return [];
+
+    const { data: follows } = await supabase
+      .from("follows").select("following_id").eq("follower_id", viewerId).limit(200);
+    const friendIds = [viewerId, ...((follows ?? []) as { following_id: string }[]).map((f) => f.following_id)];
+
+    const playCounts = new Map<string, number>();
+    const CHUNK = 200;
+    for (let i = 0; i < trackIds.length; i += CHUNK) {
+      const chunk = trackIds.slice(i, i + CHUNK);
+      const { data: logs } = await supabase
+        .from("logs").select("user_id").in("user_id", friendIds).in("track_id", chunk).limit(50000);
+      for (const row of (logs ?? []) as { user_id: string }[]) {
+        playCounts.set(row.user_id, (playCounts.get(row.user_id) ?? 0) + 1);
+      }
+    }
+
+    if (playCounts.size < 2) return [];
+
+    const userIds = [...playCounts.keys()];
+    const { data: users } = await supabase
+      .from("users").select("id, username, avatar_url").in("id", userIds);
+    const userMap = new Map(((users ?? []) as { id: string; username: string; avatar_url: string | null }[]).map((u) => [u.id, u]));
+
+    return [...playCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([uid, count]) => {
+        const u = userMap.get(uid);
+        return {
+          userId: uid,
+          username: u?.username ?? "Unknown",
+          avatarUrl: u?.avatar_url ?? null,
+          playCount: count,
+          isViewer: uid === viewerId,
+        };
+      });
+  } catch { return []; }
 }

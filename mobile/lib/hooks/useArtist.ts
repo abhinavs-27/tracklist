@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
 import { queryKeys } from "../query-keys";
-import type { AlbumStats, AlbumTrack } from "./useAlbum";
+import type { AlbumStats } from "./useAlbum";
 
 export type ArtistSummary = {
   id: string;
@@ -19,50 +19,72 @@ export type ArtistAlbumGridItem = {
   release_date: string | null;
 };
 
+export type ArtistTrackItem = {
+  id: string;
+  name: string;
+  track_number: number;
+  duration_ms: number | null;
+  listen_count: number;
+  review_count: number;
+  average_rating: number | null;
+  artwork_url: string | null;
+};
+
+export type ArtistReviewItem = {
+  id: string;
+  user_id: string;
+  username: string | null;
+  entity_type: "album" | "song";
+  entity_id: string;
+  entity_name: string | null;
+  entity_image_url: string | null;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  user: { id: string; username: string; avatar_url: string | null } | null;
+};
+
+export type ArtistCommunityStats = {
+  totalPlays: number;
+  avgRating: number | null;
+  albumCount: number;
+};
+
+export type ArtistViewerStats = {
+  playCount: number;
+  topAlbumName: string | null;
+  topAlbumId: string | null;
+  firstListened: string | null;
+};
+
 type ArtistApiResponse = {
   artist: ArtistSummary;
   albums: ArtistAlbumGridItem[];
-  topTracks: AlbumTrack[];
+  topTracks: ArtistTrackItem[];
   stats: AlbumStats;
+  communityStats?: ArtistCommunityStats;
+  reviews?: ArtistReviewItem[];
 };
 
-async function loadArtist(artistId: string): Promise<ArtistApiResponse> {
-  return fetcher<ArtistApiResponse>(
-    `/api/artists/${encodeURIComponent(artistId)}`,
-  );
-}
-
 export function useArtist(artistId: string) {
-  const key = queryKeys.artist(artistId);
-
   const { data, isLoading, error } = useQuery({
-    queryKey: key,
-    queryFn: () => loadArtist(artistId),
+    queryKey: queryKeys.artist(artistId),
+    queryFn: () => fetcher<ArtistApiResponse>(`/api/artists/${encodeURIComponent(artistId)}`),
     enabled: !!artistId,
     staleTime: 30 * 1000,
   });
 
-  const stats =
-    data?.stats ??
-    ({
-      average_rating: null,
-      play_count: 0,
-      favorite_count: 0,
-      review_count: 0,
-    } satisfies AlbumStats);
-
-  const artist = data?.artist
-    ? {
-        ...data.artist,
-        genres: data.artist.genres ?? [],
-      }
-    : null;
+  const stats = data?.stats ?? ({
+    average_rating: null, play_count: 0, favorite_count: 0, review_count: 0,
+  } satisfies AlbumStats);
 
   return {
-    artist,
+    artist: data?.artist ? { ...data.artist, genres: data.artist.genres ?? [] } : null,
     albums: data?.albums ?? [],
     topTracks: data?.topTracks ?? [],
+    reviews: data?.reviews ?? [],
     stats,
+    communityStats: data?.communityStats ?? null,
     isLoading,
     error,
   };

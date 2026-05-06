@@ -16,7 +16,7 @@ import { getArtistIdByExternalId } from "@/lib/catalog/entity-resolution";
 import { getTrackStatsForTrackIds } from "@/lib/queries";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { isValidSpotifyId } from "@/lib/validation";
+import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -26,11 +26,21 @@ export async function GET(
 ) {
   try {
     const { id } = await ctx.params;
-    if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify artist id");
+    if (!id || (!isValidSpotifyId(id) && !isValidUuid(id))) {
+      return apiBadRequest("Invalid artist id");
+    }
 
     const supabase = await createSupabaseServerClient();
-    const canon = await getArtistIdByExternalId(supabase, "spotify", id);
-    const { artist } = await getOrFetchArtist(canon ?? id, {
+
+    // If a Spotify ID was passed, resolve to canonical UUID first.
+    // If a UUID was passed (e.g. from mobile feed/discover), use it directly.
+    let lookupId = id;
+    if (isValidSpotifyId(id)) {
+      const canon = await getArtistIdByExternalId(supabase, "spotify", id);
+      lookupId = canon ?? id;
+    }
+
+    const { artist } = await getOrFetchArtist(lookupId, {
       allowNetwork: false,
     });
 

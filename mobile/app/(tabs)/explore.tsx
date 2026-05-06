@@ -564,8 +564,7 @@ export default function ExploreScreen() {
         <View style={styles.stickyHeader}>
           <Text style={styles.heroTitle}>Explore</Text>
           <Text style={styles.heroSub}>
-            Live discovery — rising tracks, reviews, saves, and community picks.
-            Leaderboard is one tap away.
+            Trending tracks, rising artists, hidden gems, and community picks.
           </Text>
         </View>
 

@@ -64,6 +64,12 @@ export const queryKeys = {
   communityInvites: () => ["communityInvites"] as const,
   /** Recommended public communities (`GET /api/communities/recommended`). */
   recommendedCommunities: () => ["recommendedCommunities"] as const,
+  /** Friend play-count leaderboard for an artist (`GET /api/artists/:id/leaderboard`). */
+  artistLeaderboard: (artistId: string) => ["artistLeaderboard", artistId] as const,
+  /** Friend play-count leaderboard for an album (`GET /api/albums/:id/leaderboard`). */
+  albumLeaderboard: (albumId: string) => ["albumLeaderboard", albumId] as const,
+  /** Friend play-count leaderboard for a song (`GET /api/songs/:id/leaderboard`). */
+  songLeaderboard: (songId: string) => ["songLeaderboard", songId] as const,
   /** Weekly summary (`GET /api/communities/:id/weekly-summary?timeZone=`). */
   communityWeeklySummary: (communityId: string, timeZone: string) =>
     ["communityWeeklySummary", communityId, timeZone] as const,

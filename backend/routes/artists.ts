@@ -1,144 +1,174 @@
 import { Router } from "express";
 import { badRequest, internalError, notFound, ok } from "../lib/http";
-import { getArtist, getArtistAlbums } from "../lib/spotify";
 import { getTrackStatsForTrackIds } from "../services/statsService";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
-import { isValidSpotifyId } from "../lib/validation";
+import { getSessionUserId } from "../lib/auth";
+import { isValidSpotifyId, isValidUuid } from "../lib/validation";
+import { resolveCanonicalArtistUuidFromEntityId } from "../lib/catalogEntityResolution";
 import {
   fetchArtistAlbumsFromDb,
   fetchArtistTracksFromDb,
+  fetchArtistViewerStats,
+  fetchArtistRecentListens,
+  fetchArtistReviewsSimple,
+  fetchArtistFriendLeaderboard,
 } from "../lib/artist-db-feed";
 
 export const artistsRouter = Router();
 
-/** GET /api/artists/:id — Spotify artist + discography; top tracks from DB only. */
+/**
+ * GET /api/artists/:id
+ * DB-first — no Spotify API calls. Accepts Spotify IDs and canonical UUIDs.
+ */
 artistsRouter.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    if (!isValidSpotifyId(id)) return badRequest(res, "Invalid Spotify artist id");
-
-    let artist: SpotifyApi.ArtistObjectFull;
-    try {
-      artist = await getArtist(id);
-    } catch {
-      return notFound(res, "Artist not found");
+    if (!id || (!isValidSpotifyId(id) && !isValidUuid(id))) {
+      return badRequest(res, "Invalid artist id");
     }
+    if (!isSupabaseConfigured()) return notFound(res, "Artist not found");
 
-    let albumsPage: SpotifyApi.PagingObject<SpotifyApi.AlbumObjectSimplified> = {
-      items: [],
-      limit: 0,
-      offset: 0,
-      next: null,
-      previous: null,
-      total: 0,
-    };
-    try {
-      albumsPage = await getArtistAlbums(id, 20);
-    } catch {
-      console.warn("[artists] getArtistAlbums failed for", id);
-    }
+    const supabase = getSupabase();
+    const viewerId = await getSessionUserId(req).catch(() => null);
 
-    const image_url = artist.images?.[0]?.url ?? null;
-    const followers = artist.followers?.total ?? null;
-    const artistName = artist.name;
+    const canonicalId = await resolveCanonicalArtistUuidFromEntityId(supabase, id);
+    if (!canonicalId) return notFound(res, "Artist not found");
 
-    /** Same data sources as web `/artist/[id]`: DB (songs / albums) first, then Spotify. */
-    let dbAlbums: Awaited<ReturnType<typeof fetchArtistAlbumsFromDb>> = [];
-    let dbTracks: Awaited<ReturnType<typeof fetchArtistTracksFromDb>> = [];
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = getSupabase();
-        [dbAlbums, dbTracks] = await Promise.all([
-          fetchArtistAlbumsFromDb(supabase, id, artistName, 12),
-          fetchArtistTracksFromDb(supabase, id, 10),
-        ]);
-      } catch (e) {
-        console.warn("[artists] db feed skipped:", e);
-      }
-    }
+    const { data: artistRow } = await supabase
+      .from("artists")
+      .select("id, name, image_url, genres, popularity")
+      .eq("id", canonicalId)
+      .maybeSingle();
+    if (!artistRow) return notFound(res, "Artist not found");
 
-    const seen = new Set<string>();
-    const albumsRaw = (albumsPage.items ?? []).filter((a) => {
-      if (seen.has(a.id)) return false;
-      seen.add(a.id);
-      return true;
-    });
+    const [dbAlbums, dbTracks, dbReviews] = await Promise.all([
+      fetchArtistAlbumsFromDb(supabase, canonicalId, artistRow.name, 12),
+      fetchArtistTracksFromDb(supabase, canonicalId, 10),
+      fetchArtistReviewsSimple(supabase, canonicalId, 6),
+    ]);
 
-    const albums =
-      dbAlbums.length > 0
-        ? dbAlbums
-        : albumsRaw.map((a) => {
-            const artistLabel = (a.artists ?? [])
-              .map((ar) => ar.name)
-              .filter(Boolean)
-              .join(", ");
-            return {
-              id: a.id,
-              name: a.name,
-              artist: artistLabel || artistName,
-              artwork_url: a.images?.[0]?.url ?? null,
-              release_date: a.release_date ?? null,
-            };
-          });
+    // Album artwork map for enriching tracks
+    const albumArtworkMap = new Map(
+      (dbAlbums as { id: string; artwork_url?: string | null }[]).map((a) => [a.id, a.artwork_url ?? null]),
+    );
 
-    let trackStats: Record<
-      string,
-      {
-        listen_count: number;
-        review_count: number;
-        average_rating: number | null;
-      }
-    > = {};
+    // Community stats derived from albums
+    const totalCommunityPlays = (dbAlbums as { listen_count?: number }[]).reduce(
+      (s, a) => s + (a.listen_count ?? 0), 0,
+    );
+    const ratedAlbums = (dbAlbums as { average_rating?: number | null }[]).filter(
+      (a) => a.average_rating != null,
+    );
+    const avgRating =
+      ratedAlbums.length > 0
+        ? ratedAlbums.reduce((s, a) => s + (a.average_rating ?? 0), 0) / ratedAlbums.length
+        : null;
 
     let totalPlays = 0;
     let topTracks: Array<{
-      id: string;
-      name: string;
-      track_number: number;
-      duration_ms: number | null;
-      listen_count: number;
-      review_count: number;
-      average_rating: number | null;
+      id: string; name: string; track_number: number; duration_ms: number | null;
+      listen_count: number; review_count: number; average_rating: number | null;
+      artwork_url: string | null;
     }> = [];
 
     if (dbTracks.length > 0) {
       const topTrackIds = dbTracks.map((t) => t.id);
-      if (isSupabaseConfigured() && topTrackIds.length > 0) {
-        trackStats = await getTrackStatsForTrackIds(topTrackIds);
-      }
+      const trackStats = topTrackIds.length > 0 ? await getTrackStatsForTrackIds(topTrackIds) : {};
       topTracks = dbTracks.map((t, idx) => {
         const s = trackStats[t.id];
         const listen = s?.listen_count ?? 0;
         totalPlays += listen;
         return {
-          id: t.id,
-          name: t.name,
-          track_number: idx + 1,
-          duration_ms: t.duration_ms,
-          listen_count: listen,
-          review_count: s?.review_count ?? 0,
+          id: t.id, name: t.name, track_number: idx + 1, duration_ms: t.duration_ms,
+          listen_count: listen, review_count: s?.review_count ?? 0,
           average_rating: s?.average_rating ?? null,
+          artwork_url: t.album_id ? (albumArtworkMap.get(t.album_id) ?? null) : null,
         };
       });
     }
 
     return ok(res, {
       artist: {
-        id: artist.id,
-        name: artist.name,
-        image_url,
-        followers,
-        genres: (artist.genres ?? []).slice(0, 3),
+        id: artistRow.id,
+        name: artistRow.name,
+        image_url: artistRow.image_url ?? null,
+        followers: null,
+        genres: ((artistRow.genres as string[] | null) ?? []).slice(0, 4),
       },
-      albums,
+      albums: dbAlbums,
       topTracks,
       stats: {
-        average_rating: null,
-        play_count: totalPlays,
+        average_rating: avgRating,
+        play_count: totalCommunityPlays,
         favorite_count: 0,
         review_count: 0,
       },
+      communityStats: {
+        totalPlays: totalCommunityPlays,
+        avgRating,
+        albumCount: dbAlbums.length,
+      },
+      reviews: dbReviews,
     });
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
+/** GET /api/artists/:id/leaderboard — friend play-count leaderboard */
+artistsRouter.get("/:id/leaderboard", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || (!isValidSpotifyId(id) && !isValidUuid(id))) return badRequest(res, "Invalid artist id");
+    const viewerId = await getSessionUserId(req).catch(() => null);
+    if (!viewerId) return ok(res, []);
+    if (!isSupabaseConfigured()) return ok(res, []);
+
+    const supabase = getSupabase();
+    const canonicalId = await resolveCanonicalArtistUuidFromEntityId(supabase, id);
+    if (!canonicalId) return ok(res, []);
+
+    const entries = await fetchArtistFriendLeaderboard(supabase, viewerId, canonicalId);
+    return ok(res, entries);
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
+/** GET /api/artists/:id/viewer-stats — lazy-loaded personal stats */
+artistsRouter.get("/:id/viewer-stats", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || (!isValidSpotifyId(id) && !isValidUuid(id))) return badRequest(res, "Invalid artist id");
+    const viewerId = await getSessionUserId(req).catch(() => null);
+    if (!viewerId) return ok(res, null);
+    if (!isSupabaseConfigured()) return ok(res, null);
+
+    const supabase = getSupabase();
+    const canonicalId = await resolveCanonicalArtistUuidFromEntityId(supabase, id);
+    if (!canonicalId) return ok(res, null);
+
+    const stats = await fetchArtistViewerStats(supabase, viewerId, canonicalId);
+    return ok(res, stats);
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
+/** GET /api/artists/:id/recent-listens */
+artistsRouter.get("/:id/recent-listens", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || (!isValidSpotifyId(id) && !isValidUuid(id))) return badRequest(res, "Invalid artist id");
+    if (!isSupabaseConfigured()) return ok(res, []);
+
+    const supabase = getSupabase();
+    const viewerId = await getSessionUserId(req).catch(() => null);
+    const canonicalId = await resolveCanonicalArtistUuidFromEntityId(supabase, id);
+    if (!canonicalId) return ok(res, []);
+
+    const listens = await fetchArtistRecentListens(supabase, canonicalId, viewerId);
+    return ok(res, listens);
   } catch (e) {
     return internalError(res, e);
   }
