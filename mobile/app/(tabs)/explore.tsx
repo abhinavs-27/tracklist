@@ -35,26 +35,76 @@ function MovementRow({
   rankDelta: number | null;
   badge: "new" | "hot" | null;
 }) {
-  const parts: string[] = [];
-  if (badge === "new") parts.push("NEW");
-  if (badge === "hot") parts.push("HOT");
-  if (rankDelta != null && rankDelta !== 0) {
-    parts.push(rankDelta > 0 ? `↑${rankDelta}` : `↓${Math.abs(rankDelta)}`);
-  }
-  if (parts.length === 0) return null;
+  const hasDelta = rankDelta != null && rankDelta !== 0;
+  if (!badge && !hasDelta) return null;
   return (
-    <Text style={moveStyles.pill} numberOfLines={1}>
-      {parts.join(" · ")}
-    </Text>
+    <View style={moveStyles.row}>
+      {badge === "new" ? (
+        <View style={moveStyles.newChip}>
+          <Text style={moveStyles.newText}>New</Text>
+        </View>
+      ) : null}
+      {badge === "hot" ? (
+        <View style={moveStyles.hotChip}>
+          <Text style={moveStyles.hotText}>Hot</Text>
+        </View>
+      ) : null}
+      {hasDelta ? (
+        <Text style={rankDelta! > 0 ? moveStyles.deltaUp : moveStyles.deltaDown}>
+          {rankDelta! > 0 ? `↑${rankDelta}` : `↓${Math.abs(rankDelta!)}`}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
 const moveStyles = StyleSheet.create({
-  pill: {
+  row: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  newChip: {
+    backgroundColor: "rgba(245,158,11,0.15)",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(245,158,11,0.3)",
+  },
+  newText: {
     fontSize: 10,
     fontWeight: "700",
+    color: "#FCD34D",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  hotChip: {
+    backgroundColor: "rgba(244,63,94,0.15)",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(244,63,94,0.3)",
+  },
+  hotText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FDA4AF",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  deltaUp: {
+    fontSize: 11,
+    fontWeight: "600",
     color: theme.colors.emerald,
-    marginTop: 4,
+  },
+  deltaDown: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: theme.colors.muted,
   },
 });
 
@@ -205,7 +255,7 @@ const rangeStyles = StyleSheet.create({
   wrap: {
     flexDirection: "row",
     width: "100%",
-    backgroundColor: theme.colors.panel,
+    backgroundColor: theme.colors.bg,
     borderRadius: 12,
     padding: 3,
     borderWidth: StyleSheet.hairlineWidth,
@@ -222,7 +272,7 @@ const rangeStyles = StyleSheet.create({
     borderRadius: 10,
   },
   segActive: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.text,
   },
   segText: {
     fontSize: 12,
@@ -230,7 +280,7 @@ const rangeStyles = StyleSheet.create({
     color: theme.colors.muted,
   },
   segTextActive: {
-    color: "#fff",
+    color: theme.colors.panel,
   },
 });
 
@@ -394,18 +444,16 @@ const gemStyles = StyleSheet.create({
 function CommunityCard({
   row,
   onOpenCommunity,
-  onOpenTrack,
 }: {
   row: ExploreCommunityContrastRow;
   onOpenCommunity: () => void;
-  onOpenTrack: () => void;
 }) {
   return (
     <View style={comStyles.card}>
       <Text style={comStyles.name}>{row.community_name}</Text>
-      <Text style={comStyles.hint}>#1 track (month)</Text>
+      <Text style={comStyles.hint}>#1 track this month</Text>
       <Pressable
-        onPress={onOpenTrack}
+        onPress={onOpenCommunity}
         style={({ pressed }) => [
           comStyles.trackRow,
           pressed && { opacity: 0.9 },
@@ -420,9 +468,7 @@ function CommunityCard({
           <Text style={comStyles.trackTitle} numberOfLines={2}>
             {row.top_track_name}
           </Text>
-          <Pressable onPress={onOpenCommunity}>
-            <Text style={comStyles.link}>Community →</Text>
-          </Pressable>
+          <Text style={comStyles.link}>Open community →</Text>
         </View>
       </Pressable>
     </View>
@@ -478,7 +524,7 @@ export default function ExploreScreen() {
   const [range, setRange] = useState<ExploreRangeParam>("week");
   const { data, isPending, isError, refetch, isFetching } =
     useExploreDiscoveryBundle(range);
-  const { data: risingArtists = [] } = useRisingArtists(12);
+  const { data: risingArtists = [] } = useRisingArtists(20);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -488,10 +534,6 @@ export default function ExploreScreen() {
       setRefreshing(false);
     }
   }, [refetch]);
-
-  const goDiscover = useCallback(() => {
-    router.push("/discover" as const);
-  }, [router]);
 
   const goLeaderboard = useCallback(() => {
     router.push({
@@ -516,7 +558,8 @@ export default function ExploreScreen() {
       <DiscoverCard
         variant="song"
         title={item.name}
-        subtitle={item.stat_label}
+        subtitle={item.artist}
+        detail={item.stat_label}
         imageUrl={item.image_url}
         onPress={() => navigateHref(item.href)}
       />
@@ -529,7 +572,8 @@ export default function ExploreScreen() {
       <DiscoverCard
         variant="song"
         title={item.name}
-        subtitle={`${item.stat_label}${item.movement.badge ? ` · ${item.movement.badge}` : ""}`}
+        subtitle={item.artist}
+        detail={item.stat_label}
         imageUrl={item.image_url}
         onPress={() => navigateHref(item.href)}
       />
@@ -589,9 +633,9 @@ export default function ExploreScreen() {
           <>
             <DiscoverSection
               title="Blowing up"
-              description="Fastest-rising tracks vs the last window."
+              description="Fastest-rising tracks"
               actionLabel="Charts →"
-              onActionPress={goDiscover}
+              onActionPress={goLeaderboard}
             >
               {blowing.length > 0 ? (
                 <HorizontalCarousel
@@ -603,7 +647,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough movement in this window yet.
+                    Not enough activity in this window yet — try "This week" or check back soon.
                   </Text>
                 </View>
               )}
@@ -632,7 +676,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    No rising artists yet.
+                    No rising artists this week. More listens over time will surface artists with growing buzz.
                   </Text>
                 </View>
               )}
@@ -640,9 +684,9 @@ export default function ExploreScreen() {
 
             <DiscoverSection
               title="Most talked about"
-              description="Most reviews + top quote."
-              actionLabel="Discover →"
-              onActionPress={goDiscover}
+              description="Albums and songs sparking the most reviews."
+              actionLabel="Browse charts →"
+              onActionPress={goLeaderboard}
             >
               {talked.length > 0 ? (
                 <View style={{ gap: 10 }}>
@@ -656,14 +700,16 @@ export default function ExploreScreen() {
                 </View>
               ) : (
                 <View style={styles.inlineEmpty}>
-                  <Text style={styles.inlineEmptyText}>No review activity yet.</Text>
+                  <Text style={styles.inlineEmptyText}>
+                    Not enough activity in this window yet — try "This week" or check back soon.
+                  </Text>
                 </View>
               )}
             </DiscoverSection>
 
             <DiscoverSection
               title="Most loved"
-              description="Saves, repeats, and plays in this window."
+              description="Saves, repeat listens, and momentum."
             >
               {loved.length > 0 ? (
                 <HorizontalCarousel
@@ -675,7 +721,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    No love scores in this window yet.
+                    Not enough activity in this window yet — try "This week" or check back soon.
                   </Text>
                 </View>
               )}
@@ -683,7 +729,7 @@ export default function ExploreScreen() {
 
             <DiscoverSection
               title="Hidden gems"
-              description="Strong engagement without huge play counts."
+              description="Strong ratings and engagement without huge play counts."
             >
               {gems.length > 0 ? (
                 gems.map((item) => (
@@ -696,7 +742,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    No hidden gems surfaced yet.
+                    Not enough activity in this window yet — try "This week" or check back soon.
                   </Text>
                 </View>
               )}
@@ -704,7 +750,7 @@ export default function ExploreScreen() {
 
             <DiscoverSection
               title="Across communities"
-              description="Each group's #1 track this month."
+              description="Each group's #1 track — see how taste diverges."
               actionLabel="Communities →"
               onActionPress={() => router.push("/communities" as const)}
             >
@@ -716,24 +762,20 @@ export default function ExploreScreen() {
                     onOpenCommunity={() =>
                       router.push(row.href as `/communities/${string}`)
                     }
-                    onOpenTrack={() =>
-                      router.push(`/song/${row.top_track_id}` as const)
-                    }
                   />
                 ))
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    No public community charts yet.
+                    No public community charts yet — open the Communities tab to join one.
                   </Text>
                 </View>
               )}
             </DiscoverSection>
 
             <DiscoverSection
-              title="Classic leaderboard"
-              description="All-time popular songs & albums."
-              actionLabel="Open →"
+              title="Browse"
+              actionLabel="All-time rankings →"
               onActionPress={goLeaderboard}
             >
               <Pressable
@@ -744,35 +786,15 @@ export default function ExploreScreen() {
                 ]}
               >
                 <Text style={styles.ctaBody}>
-                  Prefer ranked lists? Open the global leaderboard anytime.
+                  Most played, highest rated, most favorited — filter by decade or custom year range.
                 </Text>
-                <Text style={styles.findLink}>Go to leaderboard →</Text>
-              </Pressable>
-            </DiscoverSection>
-
-            <DiscoverSection
-              title="More charts"
-              description="Trending strips, rising artists, hidden gems."
-              actionLabel="Discover →"
-              onActionPress={goDiscover}
-            >
-              <Pressable
-                onPress={goDiscover}
-                style={({ pressed }) => [
-                  styles.ctaCard,
-                  pressed && styles.ctaPressed,
-                ]}
-              >
-                <Text style={styles.ctaBody}>
-                  Full Discover page with trending, rising artists, and more.
-                </Text>
-                <Text style={styles.findLink}>Open Discover →</Text>
+                <Text style={styles.findLink}>Browse albums & tracks →</Text>
               </Pressable>
             </DiscoverSection>
 
             <DiscoverSection
               title="Find people"
-              description="Search by username or browse similar taste."
+              description="Search by username or browse members with similar taste."
               actionLabel="Find people →"
               onActionPress={goFindUsers}
             >
@@ -786,7 +808,7 @@ export default function ExploreScreen() {
                 <Text style={styles.ctaBody}>
                   Follow friends, invite collaborators, and grow your network.
                 </Text>
-                <Text style={styles.findLink}>Open search →</Text>
+                <Text style={styles.findLink}>Find people →</Text>
               </Pressable>
             </DiscoverSection>
           </>
@@ -863,9 +885,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 18,
     padding: 20,
     borderRadius: 16,
-    backgroundColor: theme.colors.panel,
+    backgroundColor: "rgba(6,46,37,0.5)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(16,185,129,0.2)",
     gap: 12,
   },
   ctaBody: {

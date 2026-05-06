@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { SectionBlock } from "@/components/layout/section-block";
 import type {
   ExploreCommunityContrastRow,
@@ -215,8 +215,10 @@ function CommunityRow({ row }: { row: ExploreCommunityContrastRow }) {
 
 export function ExploreDiscoveryFeedClient({
   initial,
+  risingArtistsSlot,
 }: {
   initial: ExploreDiscoveryBundle | null;
+  risingArtistsSlot?: ReactNode;
 }) {
   const [range, setRange] = useState<ExploreRangeParam>("week");
   const [data, setData] = useState<ExploreDiscoveryBundle | null>(initial);
@@ -293,7 +295,7 @@ export function ExploreDiscoveryFeedClient({
           <SectionBlock
             title="Blowing up"
             description="Fastest-rising tracks"
-            action={{ label: "Charts →", href: "/discover" }}
+            action={{ label: "Charts →", href: "/browse" }}
           >
             {bundle.blowing_up.length === 0 ? (
               <EmptyHint />
@@ -306,10 +308,12 @@ export function ExploreDiscoveryFeedClient({
             )}
           </SectionBlock>
 
+          {risingArtistsSlot}
+
           <SectionBlock
             title="Most talked about"
             description="Albums and songs sparking the most reviews."
-            action={{ label: "Browse charts →", href: "/discover" }}
+            action={{ label: "Browse charts →", href: "/browse" }}
           >
             {bundle.most_talked_about.length === 0 ? (
               <EmptyHint />

@@ -17,10 +17,7 @@ function eraToYears(era: Era, customFrom: string, customTo: string): { startYear
   if (era === "custom") {
     const from = parseInt(customFrom, 10);
     const to = parseInt(customTo, 10);
-    return {
-      startYear: isNaN(from) ? undefined : from,
-      endYear: isNaN(to) ? undefined : to,
-    };
+    return { startYear: isNaN(from) ? undefined : from, endYear: isNaN(to) ? undefined : to };
   }
   const map: Record<string, { startYear: number; endYear: number }> = {
     "2020s": { startYear: 2020, endYear: 2029 },
@@ -34,14 +31,7 @@ function eraToYears(era: Era, customFrom: string, customTo: string): { startYear
   return map[era] ?? {};
 }
 
-function buildApiUrl(
-  entity: Entity,
-  sort: Sort,
-  era: Era,
-  customFrom: string,
-  customTo: string,
-  cursor: number,
-): string {
+function buildApiUrl(entity: Entity, sort: Sort, era: Era, customFrom: string, customTo: string, cursor: number): string {
   const params = new URLSearchParams({
     type: sort,
     entity: entity === "track" ? "song" : "album",
@@ -82,7 +72,7 @@ function metaLabel(entry: LeaderboardEntry, sort: Sort): string {
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-// ── Card ──────────────────────────────────────────────────────────────────
+// ── BrowseCard ─────────────────────────────────────────────────────────────
 
 function BrowseCard({ entry, sort, rank }: { entry: LeaderboardEntry; sort: Sort; rank: number }) {
   const href = entry.entity_type === "album" ? `/album/${entry.id}` : `/song/${entry.id}`;
@@ -100,11 +90,9 @@ function BrowseCard({ entry, sort, rank }: { entry: LeaderboardEntry; sort: Sort
         ) : (
           <div className="flex h-full w-full items-center justify-center text-zinc-600 text-xl">♪</div>
         )}
-        {/* Rank */}
         <div className="absolute left-1 top-1 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white/75 backdrop-blur-sm">
           {rank}
         </div>
-        {/* Hover info */}
         <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/30 to-transparent p-2 opacity-0 transition duration-200 group-hover:opacity-100">
           <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-white">{entry.name}</p>
           <p className="mt-0.5 line-clamp-1 text-[10px] text-zinc-300">{entry.artist}</p>
@@ -115,45 +103,61 @@ function BrowseCard({ entry, sort, rank }: { entry: LeaderboardEntry; sort: Sort
   );
 }
 
-// ── Select helper ─────────────────────────────────────────────────────────
+// ── Filter sub-components ──────────────────────────────────────────────────
 
-function FilterSelect({
+const ENTITY_OPTIONS = [
+  { value: "album" as Entity, label: "Albums" },
+  { value: "track" as Entity, label: "Tracks" },
+];
+
+const SORT_OPTIONS = [
+  { value: "popular" as Sort, label: "Plays" },
+  { value: "topRated" as Sort, label: "Rating" },
+  { value: "mostFavorited" as Sort, label: "Favorites" },
+];
+
+const ERA_OPTIONS: { label: string; value: Era }[] = [
+  { label: "All time", value: "all" },
+  { label: "2020s", value: "2020s" },
+  { label: "2010s", value: "2010s" },
+  { label: "2000s", value: "2000s" },
+  { label: "1990s", value: "1990s" },
+  { label: "1980s", value: "1980s" },
+  { label: "1970s", value: "1970s" },
+  { label: "Pre-1970", value: "older" },
+  { label: "Custom…", value: "custom" },
+];
+
+function PillGroup<T extends string>({
   value,
-  onChange,
   options,
-  className = "",
+  onChange,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { label: string; value: string }[];
-  className?: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
 }) {
   return (
-    <div className={`relative ${className}`}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-lg bg-zinc-800/70 py-2 pl-3 pr-8 text-sm font-medium text-zinc-200 ring-1 ring-white/[0.08] transition hover:bg-zinc-700/70 focus:outline-none focus:ring-emerald-500/50 cursor-pointer"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-zinc-900">
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
-        viewBox="0 0 16 16"
-        fill="currentColor"
-        aria-hidden
-      >
-        <path d="M4.427 6.427a.75.75 0 011.06 0L8 8.94l2.513-2.513a.75.75 0 111.06 1.06l-3.043 3.044a.75.75 0 01-1.06 0L4.427 7.487a.75.75 0 010-1.06z" />
-      </svg>
+    <div className="flex w-full rounded-lg bg-zinc-950 p-0.5 ring-1 ring-white/[0.07]">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`flex-1 rounded-md py-2 text-center text-xs font-semibold transition ${
+            value === opt.value
+              ? "bg-zinc-100 text-zinc-900 shadow-sm"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────────
 
 type ApiResponse = {
   items: LeaderboardEntry[];
@@ -191,16 +195,18 @@ export function BrowseGrid({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const pushUrl = useCallback((e: Entity, s: Sort, er: Era, cf: string, ct: string) => {
-    router.replace(buildPageUrl(e, s, er, cf, ct), { scroll: false });
-  }, [router]);
+  const pushUrl = useCallback(
+    (e: Entity, s: Sort, er: Era, cf: string, ct: string) => {
+      router.replace(buildPageUrl(e, s, er, cf, ct), { scroll: false });
+    },
+    [router],
+  );
 
   const applyFilters = (e: Entity, s: Sort, er: Era, cf: string, ct: string) => {
     setEntity(e); setSort(s); setEra(er); setCustomFrom(cf); setCustomTo(ct);
     pushUrl(e, s, er, cf, ct);
   };
 
-  // Fetch on filter change
   useEffect(() => {
     abortRef.current?.abort();
     const ac = new AbortController();
@@ -247,66 +253,46 @@ export function BrowseGrid({
     return () => io.disconnect();
   }, [loadMore]);
 
-  const sortOptions = [
-    { label: "Most played", value: "popular" },
-    { label: "Top rated", value: "topRated" },
-    { label: "Most favorited", value: "mostFavorited" },
-  ];
-
-  const eraOptions = [
-    { label: "All time", value: "all" },
-    { label: "2020s", value: "2020s" },
-    { label: "2010s", value: "2010s" },
-    { label: "2000s", value: "2000s" },
-    { label: "1990s", value: "1990s" },
-    { label: "1980s", value: "1980s" },
-    { label: "1970s", value: "1970s" },
-    { label: "Before 1970", value: "older" },
-    { label: "Custom year range…", value: "custom" },
-  ];
+  const eraLabel = era === "all" ? "" : era === "older" ? "Pre-1970" : era === "custom" && customFrom && customTo ? `${customFrom}–${customTo}` : era !== "custom" ? era : "";
 
   return (
     <div className="space-y-5">
-      {/* Filter bar */}
+      {/* ── Filters ── */}
       <div className="space-y-3">
-        {/* Row 1: entity toggle + sort + era in one line on desktop */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Entity toggle */}
-          <div className="flex rounded-lg bg-zinc-800/60 p-0.5 ring-1 ring-white/[0.06]">
-            {(["album", "track"] as Entity[]).map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => applyFilters(e, sort, era, customFrom, customTo)}
-                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition ${
-                  entity === e
-                    ? "bg-zinc-100 text-zinc-900 shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {e === "album" ? "Albums" : "Tracks"}
-              </button>
-            ))}
-          </div>
 
-          {/* Sort select */}
-          <FilterSelect
-            value={sort}
-            onChange={(v) => applyFilters(entity, v as Sort, era, customFrom, customTo)}
-            options={sortOptions}
-            className="w-40"
-          />
+        {/* Row 1: entity toggle */}
+        <PillGroup
+          value={entity}
+          options={ENTITY_OPTIONS}
+          onChange={(e) => applyFilters(e, sort, era, customFrom, customTo)}
+        />
 
-          {/* Era select */}
-          <FilterSelect
-            value={era}
-            onChange={(v) => applyFilters(entity, sort, v as Era, customFrom, customTo)}
-            options={eraOptions}
-            className="w-44"
-          />
+        {/* Row 2: sort toggle */}
+        <PillGroup
+          value={sort}
+          options={SORT_OPTIONS}
+          onChange={(s) => applyFilters(entity, s, era, customFrom, customTo)}
+        />
+
+        {/* Row 2: decade chips (horizontal scroll) */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {ERA_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => applyFilters(entity, sort, opt.value, customFrom, customTo)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
+                era === opt.value
+                  ? "bg-zinc-100 text-zinc-900"
+                  : "bg-zinc-800/70 text-zinc-400 ring-1 ring-white/[0.07] hover:text-zinc-200"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
-        {/* Custom year range — only shown when era === "custom" */}
+        {/* Custom year inputs — shown only when era = "custom" */}
         {era === "custom" && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-zinc-500">From</span>
@@ -318,7 +304,7 @@ export function BrowseGrid({
               placeholder="1990"
               min="1900"
               max={CURRENT_YEAR}
-              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-emerald-500/50"
+              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-1.5 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-emerald-500/50"
             />
             <span className="text-sm text-zinc-500">to</span>
             <input
@@ -329,12 +315,12 @@ export function BrowseGrid({
               placeholder={String(CURRENT_YEAR)}
               min="1900"
               max={CURRENT_YEAR}
-              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-emerald-500/50"
+              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-1.5 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-emerald-500/50"
             />
             <button
               type="button"
               onClick={() => applyFilters(entity, sort, era, customFrom, customTo)}
-              className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+              className="rounded-lg bg-zinc-100 px-3 py-1.5 text-sm font-semibold text-zinc-900 transition hover:bg-white"
             >
               Apply
             </button>
@@ -343,17 +329,16 @@ export function BrowseGrid({
 
         {/* Result count */}
         {!loading && (
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs text-zinc-500">
             {items.length.toLocaleString()}
             {total != null && total > items.length ? ` of ${total.toLocaleString()}` : ""}
             {" "}{entity === "album" ? "albums" : "tracks"}
-            {era !== "all" && era !== "custom" ? ` · ${era}` : ""}
-            {era === "custom" && customFrom && customTo ? ` · ${customFrom}–${customTo}` : ""}
+            {eraLabel ? ` · ${eraLabel}` : ""}
           </p>
         )}
       </div>
 
-      {/* Grid */}
+      {/* ── Grid ── */}
       {loading ? (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
           {Array.from({ length: 24 }).map((_, i) => (
