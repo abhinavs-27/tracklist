@@ -74,64 +74,49 @@ function parsePositiveIntEnv(name: string, fallback: number): number {
 }
 
 /**
- * Self-throttle to stay under Spotify Web API limits. Tune via env without code changes.
- * Defaults are slightly conservative vs historical 200ms / 30·min⁻¹ to reduce 429s under burst load.
+ * Spotify rate limits are enforced on a rolling 30-second window (undocumented exact numbers;
+ * dev-mode quota is lower than extended quota). All reservoirs below are expressed per 30s so
+ * Bottleneck’s fixed refill bucket aligns with Spotify’s measurement window. Tune via env vars.
+ *
+ * Main catalog limiter — bulk/background work: `/tracks?ids=`, `/albums?ids=`, etc.
+ * 300ms minTime (~3/s max burst); 12/30s = ~24/min sustained.
  */
 const SPOTIFY_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_MIN_TIME_MS", 300);
-const SPOTIFY_RESERVOIR_PER_MIN = parsePositiveIntEnv(
-  "SPOTIFY_RESERVOIR_PER_MIN",
-  24,
-);
+const SPOTIFY_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_RESERVOIR_PER_30S", 12);
 
 /**
- * Stricter bucket for `GET /v1/tracks/{id}` only (single-entity fetches).
- * Cron hydration issues many of these in a row; tune via env to avoid Spotify 429s.
+ * Interactive limiter — single-entity page-load GETs: `/albums/{id}`, `/artists/{id}`,
+ * `/tracks/{id}`, `/albums/{id}/tracks`. Low minTime keeps navigation snappy; reservoir
+ * caps burst so a spike of page loads can’t exhaust the app-wide Spotify quota alone.
+ * 20/30s = ~40/min sustained. Tune via SPOTIFY_INTERACTIVE_MIN_TIME_MS / SPOTIFY_INTERACTIVE_RESERVOIR_PER_30S.
  */
-const SPOTIFY_SINGLE_TRACK_MIN_TIME_MS = parsePositiveIntEnv(
-  "SPOTIFY_SINGLE_TRACK_MIN_TIME_MS",
-  900,
-);
-const SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN = parsePositiveIntEnv(
-  "SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN",
-  10,
-);
+const SPOTIFY_INTERACTIVE_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_INTERACTIVE_MIN_TIME_MS", 100);
+const SPOTIFY_INTERACTIVE_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_INTERACTIVE_RESERVOIR_PER_30S", 20);
 
 /**
- * GET /v1/artists/{id}/albums — Spotify does **not** use a separate endpoint quota; it counts
- * toward the same app-wide Web API limit (rolling ~30s window) as every other call.
- *
- * We still use a dedicated Bottleneck (Redis-backed when `REDIS_URL` is set) so:
- * - full discography pagination doesn’t starve the same bucket as search / bulk `/tracks` work, and
- * - sequential pages stay paced (naive multi-artist crawls are the usual 429 source).
- *
- * Tune envs if you see 429s elsewhere — reduce main catalog limits or this bucket together.
+ * Artist albums paginator — GET /v1/artists/{id}/albums.
+ * Counts toward the same app-wide Spotify quota; kept separate so full discography crawls
+ * don’t starve interactive or search buckets. 450ms minTime paces sequential pages.
+ * 10/30s = ~20/min. Tune via SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS / SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_30S.
  */
-const SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS = parsePositiveIntEnv(
-  "SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS",
-  450,
-);
-const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN = parsePositiveIntEnv(
-  "SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN",
-  20,
-);
+const SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS", 450);
+const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_30S", 10);
 
 /**
- * Dedicated limiter for interactive search (`GET /v1/search`).
- * Runs through its own bucket so it neither starves nor is starved by catalog work.
- * minTime of 200ms allows ~5 req/s burst; reservoir caps at 30/min total.
- * Tune via SPOTIFY_SEARCH_MIN_TIME_MS / SPOTIFY_SEARCH_RESERVOIR_PER_MIN.
+ * Search limiter — GET /v1/search. Own bucket so typeahead doesn’t compete with catalog enrichment.
+ * 200ms minTime; 15/30s = ~30/min. Tune via SPOTIFY_SEARCH_MIN_TIME_MS / SPOTIFY_SEARCH_RESERVOIR_PER_30S.
  */
 const SPOTIFY_SEARCH_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_SEARCH_MIN_TIME_MS", 200);
-const SPOTIFY_SEARCH_RESERVOIR_PER_MIN = parsePositiveIntEnv("SPOTIFY_SEARCH_RESERVOIR_PER_MIN", 30);
+const SPOTIFY_SEARCH_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_SEARCH_RESERVOIR_PER_30S", 15);
 
 const spotifySearchLimiter = (() => {
   const connection = getSpotifyBottleneckRedisConnection();
   const opts = {
     maxConcurrent: 2,
     minTime: SPOTIFY_SEARCH_MIN_TIME_MS,
-    reservoir: SPOTIFY_SEARCH_RESERVOIR_PER_MIN,
-    reservoirRefreshAmount: SPOTIFY_SEARCH_RESERVOIR_PER_MIN,
-    reservoirRefreshInterval: 60 * 1000,
+    reservoir: SPOTIFY_SEARCH_RESERVOIR_PER_30S,
+    reservoirRefreshAmount: SPOTIFY_SEARCH_RESERVOIR_PER_30S,
+    reservoirRefreshInterval: 30 * 1000,
   } as const;
   if (connection) {
     return new Bottleneck({
@@ -158,36 +143,36 @@ export const spotifyLimiter = (() => {
       clientTimeout: 30 * 60 * 1000,
       maxConcurrent: 1,
       minTime: SPOTIFY_MIN_TIME_MS,
-      reservoir: SPOTIFY_RESERVOIR_PER_MIN,
-      reservoirRefreshAmount: SPOTIFY_RESERVOIR_PER_MIN,
-      reservoirRefreshInterval: 60 * 1000,
+      reservoir: SPOTIFY_RESERVOIR_PER_30S,
+      reservoirRefreshAmount: SPOTIFY_RESERVOIR_PER_30S,
+      reservoirRefreshInterval: 30 * 1000,
     });
   }
   return new Bottleneck({
     maxConcurrent: 1,
     minTime: SPOTIFY_MIN_TIME_MS,
-    reservoir: SPOTIFY_RESERVOIR_PER_MIN,
-    reservoirRefreshAmount: SPOTIFY_RESERVOIR_PER_MIN,
-    reservoirRefreshInterval: 60 * 1000,
+    reservoir: SPOTIFY_RESERVOIR_PER_30S,
+    reservoirRefreshAmount: SPOTIFY_RESERVOIR_PER_30S,
+    reservoirRefreshInterval: 30 * 1000,
   });
 })();
 
-/** Separate limiter so burst single-track GETs do not compete with albums/artists/search. */
-const spotifySingleTrackLimiter = (() => {
+/** Interactive single-entity GETs — loose but still rate-limited; replaces the old full bypass. */
+const spotifyInteractiveLimiter = (() => {
   const connection = getSpotifyBottleneckRedisConnection();
   const opts = {
-    maxConcurrent: 1,
-    minTime: SPOTIFY_SINGLE_TRACK_MIN_TIME_MS,
-    reservoir: SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN,
-    reservoirRefreshAmount: SPOTIFY_SINGLE_TRACK_RESERVOIR_PER_MIN,
-    reservoirRefreshInterval: 60 * 1000,
+    maxConcurrent: 3,
+    minTime: SPOTIFY_INTERACTIVE_MIN_TIME_MS,
+    reservoir: SPOTIFY_INTERACTIVE_RESERVOIR_PER_30S,
+    reservoirRefreshAmount: SPOTIFY_INTERACTIVE_RESERVOIR_PER_30S,
+    reservoirRefreshInterval: 30 * 1000,
   } as const;
   if (connection) {
     return new Bottleneck({
       datastore: "ioredis",
       connection,
       clearDatastore: false,
-      id: "spotify-single-track-limiter",
+      id: "spotify-interactive-limiter",
       clientTimeout: 30 * 60 * 1000,
       ...opts,
     });
@@ -201,9 +186,9 @@ const spotifyArtistAlbumsLimiter = (() => {
   const opts = {
     maxConcurrent: 1,
     minTime: SPOTIFY_ARTIST_ALBUMS_MIN_TIME_MS,
-    reservoir: SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN,
-    reservoirRefreshAmount: SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_MIN,
-    reservoirRefreshInterval: 60 * 1000,
+    reservoir: SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_30S,
+    reservoirRefreshAmount: SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_30S,
+    reservoirRefreshInterval: 30 * 1000,
   } as const;
   if (connection) {
     return new Bottleneck({
@@ -218,20 +203,16 @@ const spotifyArtistAlbumsLimiter = (() => {
   return new Bottleneck({ ...opts });
 })();
 
-/** True for catalog paths like `/tracks/{id}` (not `/albums/{id}/tracks`). */
-function catalogPathUsesSingleTrackLimiter(path: string): boolean {
-  return /^\/tracks\/[^/]+$/.test(path);
-}
-
-/** True for `GET /v1/artists/{id}/albums` (pathname only, no query). */
-function catalogPathUsesArtistAlbumsLimiter(path: string): boolean {
-  return /^\/artists\/[^/]+\/albums$/.test(path);
-}
-
 function selectCatalogLimiter(path: string): Bottleneck {
   if (path.startsWith("/search")) return spotifySearchLimiter;
-  if (catalogPathUsesSingleTrackLimiter(path)) return spotifySingleTrackLimiter;
-  if (catalogPathUsesArtistAlbumsLimiter(path)) return spotifyArtistAlbumsLimiter;
+  // Single-entity page-load GETs: fast queue, still throttled cross-process.
+  if (
+    /^\/albums\/[^/]+$/.test(path) ||
+    /^\/albums\/[^/]+\/tracks$/.test(path) ||
+    /^\/artists\/[^/]+$/.test(path) ||
+    /^\/tracks\/[^/]+$/.test(path)
+  ) return spotifyInteractiveLimiter;
+  if (/^\/artists\/[^/]+\/albums$/.test(path)) return spotifyArtistAlbumsLimiter;
   return spotifyLimiter;
 }
 
@@ -549,28 +530,7 @@ async function fetchCatalogResponseWithRetry(
       DEFAULT_TIMEOUT_MS,
     );
 
-  /**
-   * Interactive paths: do not queue behind Bottleneck (Redis lock / minTime / reservoir).
-   * - `/search` — user typing; already bypassed.
-   * - Single-entity `GET /albums|artists|tracks/{id}` — same UX as search (click from results → first
-   *   paint). Without this, navigation waits behind the global catalog bucket while the HTTP call
-   *   never starts — looks like "Spotify is slow" but it is queue wait (see getOrCreateEntity).
-   * - `GET /albums/{id}/tracks` — required for album page track list after minimal ensure (GET album
-   *   only). If this stays throttled while `/albums/{id}` bypasses, `refreshAlbumFromSpotify` can
-   *   time out or never run before RSC gives up; users see metadata but zero tracks.
-   * Heavier bulk work stays on other paths (e.g. `/artists/{id}/albums` pagination).
-   */
-  // Single-entity GETs bypass the limiter so page navigation is instant.
-  // Search no longer bypasses — it has its own dedicated limiter (spotifySearchLimiter).
-  const bypassLimiter =
-    /^\/albums\/[^/]+$/.test(path) ||
-    /^\/albums\/[^/]+\/tracks$/.test(path) ||
-    /^\/artists\/[^/]+$/.test(path) ||
-    /^\/tracks\/[^/]+$/.test(path);
-
-  const res = bypassLimiter
-    ? await doFetch()
-    : await selectCatalogLimiter(path).schedule(doFetch);
+  const res = await selectCatalogLimiter(path).schedule(doFetch);
 
   if (res.status === 429) {
     metrics.rate429Hits++;
