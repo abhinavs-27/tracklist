@@ -91,9 +91,7 @@ reviewsRouter.post("/", async (req, res) => {
       .upsert(row, {
         onConflict: "user_id,entity_type,entity_id",
       })
-      .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
-      )
+      .select("id, rating, review_text, created_at, updated_at")
       .single();
 
     if (error) return internalError(res, error);
@@ -112,10 +110,10 @@ reviewsRouter.post("/", async (req, res) => {
 
     const reviewWithUser = {
       id: data.id,
-      user_id: data.user_id,
+      user_id: userId,
       username: userRow?.username ?? null,
-      entity_type: data.entity_type,
-      entity_id: data.entity_id,
+      entity_type,
+      entity_id,
       rating: data.rating,
       review_text: data.review_text ?? null,
       created_at: data.created_at,
@@ -180,6 +178,9 @@ reviewsRouter.patch("/:id", async (req, res) => {
       .single();
 
     if (error) return internalError(res, error);
+
+    // We keep explicit select here for PATCH because we might not know entity_type/id easily without another query
+    // and it's a single row update.
     return ok(res, data);
   } catch (e) {
     return internalError(res, e);

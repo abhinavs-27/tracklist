@@ -2476,6 +2476,8 @@ function scheduleArtistDiscographyBackfill(
     });
 }
 
+const FETCH_ARTIST_ALBUMS_HARD_LIMIT = 5000;
+
 async function fetchAllCanonicalAlbumRowsForArtist(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   canonicalArtistId: string,
@@ -2483,6 +2485,8 @@ async function fetchAllCanonicalAlbumRowsForArtist(
   maxRows?: number,
 ): Promise<{ id: string; name: string; image_url: string | null }[]> {
   const out: { id: string; name: string; image_url: string | null }[] = [];
+  const cap = maxRows ?? FETCH_ARTIST_ALBUMS_HARD_LIMIT;
+
   for (let from = 0; ; from += ALBUMS_DB_PAGE) {
     const { data, error } = await supabase
       .from("albums")
@@ -2496,15 +2500,18 @@ async function fetchAllCanonicalAlbumRowsForArtist(
     }
     const rows =
       (data as { id: string; name: string; image_url: string | null }[]) ?? [];
-    if (maxRows != null) {
-      const need = maxRows - out.length;
-      if (need <= 0) break;
+    if (rows.length === 0) break;
+
+    const need = cap - out.length;
+    if (need <= 0) break;
+
+    if (rows.length > need) {
       out.push(...rows.slice(0, need));
-      if (out.length >= maxRows || rows.length < ALBUMS_DB_PAGE) break;
-      continue;
+      break;
     }
+
     out.push(...rows);
-    if (rows.length < ALBUMS_DB_PAGE) break;
+    if (rows.length < ALBUMS_DB_PAGE || out.length >= cap) break;
   }
   return out;
 }
