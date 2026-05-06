@@ -198,20 +198,48 @@ test.describe('Critical Flows: Automated Integration', () => {
   });
 
   test('Critical Flow 5: Search Results', async ({ page }) => {
-    await page.goto('/search');
-    const searchInput = page.getByRole('searchbox').first();
-    await searchInput.fill('radiohead');
-    await searchInput.press('Enter');
+    // Mock music search
+    await page.route('**/api/search?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          artists: { items: [{ id: 'artist_1', name: 'Radiohead', images: [] }] },
+          albums: { items: [{ id: 'album_1', name: 'OK Computer', images: [], artists: [{ id: 'artist_1', name: 'Radiohead' }] }] },
+          tracks: { items: [{ id: 'track_1', name: 'Paranoid Android', album: { id: 'album_1', name: 'OK Computer', images: [] }, artists: [{ id: 'artist_1', name: 'Radiohead' }] }] },
+        }),
+      });
+    });
 
-    await page.waitForURL(/\/search\?q=radiohead/);
+    // Mock user search
+    await page.route('**/api/search/users?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    // We use a shorter timeout for the initial load and handle errors gracefully
+    // to see if we can at least get the SearchClient to mount.
+    await page.goto('/search', { waitUntil: 'domcontentloaded' });
+
+    // Use a regex to be more flexible with the placeholder
+    const searchInput = page.getByPlaceholder(/Search artists/i);
+
+    // Wait for input to be attached
+    await expect(searchInput).toBeAttached({ timeout: 10000 });
+
+    // Use fill() which is more reliable for triggering React state updates
+    await searchInput.fill('radiohead');
+
+    // Verify value was set
     await expect(searchInput).toHaveValue('radiohead');
 
-    const mainContent = page.getByRole('main');
-    await expect(mainContent).toBeVisible();
-
-    // Check that we reached a result state (even if empty in mock-less environment)
-    const resultIndicator = page.locator('text=/Artists|Albums|Tracks|Search failed|No results/i').first();
-    await expect(resultIndicator).toBeVisible();
+    // Verify results are visible
+    // We use a longer timeout here because of the debounce (280ms) and potential slow rendering
+    await expect(page.getByText('Radiohead').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('OK Computer').first()).toBeVisible({ timeout: 15000 });
   });
 
 });
