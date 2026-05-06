@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   apiBadRequest,
@@ -21,12 +21,11 @@ import { fanOutListenForUserCommunities } from "@/lib/community/community-feed-i
 import { bustRecentActivityCacheForUser } from "@/lib/profile/recent-activity-cache";
 import type { SyncResponse } from "@/types";
 
-export async function POST(request: NextRequest) {
-  if (!checkSpotifyRateLimit(request)) {
-    return apiTooManyRequests();
-  }
-  try {
-    const me = await requireApiAuth(request);
+export const POST = withHandler(
+  async (request, { user: me }) => {
+    if (!checkSpotifyRateLimit(request)) {
+      return apiTooManyRequests();
+    }
 
     if (!isSpotifyIntegrationEnabled()) {
       return apiError("Spotify account linking is not enabled.", 403, {
@@ -38,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     let accessToken: string;
     try {
-      accessToken = await getValidSpotifyAccessToken(me.id);
+      accessToken = await getValidSpotifyAccessToken(me!.id);
     } catch (e) {
       if (e instanceof Error && e.message === "Spotify not connected")
         return apiBadRequest("Spotify not connected");
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
     const { data: existing, error: existingError } = await supabase
       .from("logs")
       .select("track_id")
-      .eq("user_id", me.id)
+      .eq("user_id", me!.id)
       .in("track_id", trackIds);
     if (existingError) return apiInternalError(existingError);
 
@@ -102,7 +101,7 @@ export async function POST(request: NextRequest) {
       .from("logs")
       .insert(
         toInsert.map((u) => ({
-          user_id: me.id,
+          user_id: me!.id,
           track_id: u.track_id,
           listened_at: new Date(u.listened_at).toISOString(),
           source: "spotify",
@@ -113,7 +112,7 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       for (const u of toInsert) {
         console.log("[spotify-ingest] ingest", {
-          userId: me.id,
+          userId: me!.id,
           trackId: u.track_id,
           success: false,
         });
@@ -123,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     for (const u of toInsert) {
       console.log("[spotify-ingest] ingest", {
-        userId: me.id,
+        userId: me!.id,
         trackId: u.track_id,
         success: true,
       });
@@ -138,7 +137,7 @@ export async function POST(request: NextRequest) {
           source: string;
         }[]) {
           await fanOutListenForUserCommunities({
-            userId: me.id,
+            userId: me!.id,
             logId: row.id,
             listenedAt: row.listened_at,
             source: row.source ?? "spotify",
@@ -151,7 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { grantAchievementsOnListen } = await import("@/lib/queries");
-    await grantAchievementsOnListen(me.id);
+    await grantAchievementsOnListen(me!.id);
 
     // Hydrate catalog in background so feed listen-sessions never waits on Spotify in this request.
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
@@ -167,21 +166,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[spotify-ingest] manual-sync-complete", {
-      userId: me.id,
+      userId: me!.id,
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,
     });
 
-    bustRecentActivityCacheForUser(me.id);
+    bustRecentActivityCacheForUser(me!.id);
 
     return apiOk({
       inserted: toInsert.length,
       skipped: unique.length - toInsert.length,
       mode,
     } satisfies SyncResponse);
-  } catch (e) {
-    const u = handleUnauthorized(e);
-    if (u) return u;
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: true }
+);

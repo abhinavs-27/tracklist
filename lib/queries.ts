@@ -4842,6 +4842,130 @@ export async function getListOwnerId(listId: string): Promise<string | null> {
 // Discovery (trending, rising artists, hidden gems)
 // ---------------------------------------------------------------------------
 
+export type CommentWithUser = {
+  id: string;
+  user_id: string;
+  review_id: string;
+  content: string;
+  created_at: string;
+  user: { id: string; username: string; avatar_url: string | null } | null;
+};
+
+/**
+ * Create a new comment on a review, with fallback for the legacy `log_id` column.
+ * Returns { data, error } to preserve specific error codes (e.g. 23503 Review not found).
+ */
+export async function createComment(
+  userId: string,
+  reviewId: string,
+  content: string,
+  supabase:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
+): Promise<{ data: CommentWithUser | null; error: any }> {
+  try {
+    const { isMissingReviewIdColumn } = await import("@/lib/api-utils");
+
+    // Preferred schema: comments(review_id).
+    let { data, error } = await supabase
+      .from("comments")
+      .insert({
+        user_id: userId,
+        review_id: reviewId,
+        content: content,
+      })
+      .select("id, content, created_at")
+      .single();
+
+    // Fallback schema: comments(log_id).
+    if (error && isMissingReviewIdColumn(error)) {
+      const fallback = await supabase
+        .from("comments")
+        .insert({
+          user_id: userId,
+          log_id: reviewId,
+          content: content,
+        })
+        .select("id, content, created_at")
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error || !data) {
+      return { data: null, error };
+    }
+
+    const user = await fetchUserSummary(userId);
+    const comment: CommentWithUser = {
+      id: (data as any).id,
+      user_id: userId,
+      review_id: reviewId,
+      content: (data as any).content,
+      created_at: (data as any).created_at,
+      user,
+    };
+    return { data: comment, error: null };
+  } catch (e) {
+    console.error("[queries] createComment failed:", e);
+    return { data: null, error: e };
+  }
+}
+
+/**
+ * Fetch all comments for a review, with fallback for the legacy `log_id` column.
+ */
+export async function getCommentsForReview(
+  reviewId: string,
+  supabase:
+    | Awaited<ReturnType<typeof createSupabaseServerClient>>
+    | Awaited<ReturnType<typeof createSupabaseAdminClient>>,
+): Promise<CommentWithUser[]> {
+  try {
+    const { isMissingReviewIdColumn } = await import("@/lib/api-utils");
+
+    // Preferred schema: comments(review_id).
+    let { data: comments, error } = await supabase
+      .from("comments")
+      .select("id, user_id, content, created_at")
+      .eq("review_id", reviewId)
+      .order("created_at", { ascending: true });
+
+    // Fallback schema: comments(log_id).
+    if (error && isMissingReviewIdColumn(error)) {
+      const fallback = await supabase
+        .from("comments")
+        .select("id, user_id, content, created_at")
+        .eq("log_id", reviewId)
+        .order("created_at", { ascending: true });
+      comments = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error || !comments) {
+      console.error("[queries] getCommentsForReview error:", error);
+      return [];
+    }
+
+    if (comments.length === 0) return [];
+
+    const userIds = [...new Set(comments.map((c) => (c as any).user_id as string))];
+    const userMap = await fetchUserSummaryMap(userIds);
+
+    return comments.map((c: any) => ({
+      id: c.id,
+      user_id: c.user_id,
+      review_id: reviewId,
+      content: c.content,
+      created_at: c.created_at,
+      user: userMap.get(c.user_id) ?? null,
+    }));
+  } catch (e) {
+    console.error("[queries] getCommentsForReview failed:", e);
+    return [];
+  }
+}
+
 export async function getTrendingEntities(
   limit = 20,
 ): Promise<TrendingEntity[]> {

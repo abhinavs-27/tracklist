@@ -28,7 +28,8 @@
     "../lib/redis-error-handler.ts",
     "../lib/discover-redis.ts",
     "../lib/feed/legacy-feed-bundle.ts",
-    "../types/index.ts"
+    "../types/index.ts",
+    "../types/next-auth.d.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
