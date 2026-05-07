@@ -1,31 +1,29 @@
 import { Router } from "express";
 import { getSession } from "../lib/auth";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
+import {
+  badRequest,
+  conflict,
+  internalError,
+  notFound,
+  ok,
+  unauthorized,
+} from "../lib/http";
 import { isValidUuid } from "../lib/validation";
 
 /** POST / DELETE /api/follow — mirrors Next.js `app/api/follow/route.ts`. */
 export const followRouter = Router();
 
 followRouter.post("/", async (req, res) => {
-  if (!isSupabaseConfigured()) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return;
-  }
+  if (!isSupabaseConfigured()) return internalError(res, "Server misconfigured");
   const me = await getSession(req);
-  if (!me) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!me) return unauthorized(res);
 
   const followingId = req.body?.following_id as string | undefined;
   if (!followingId || !isValidUuid(followingId)) {
-    res.status(400).json({ error: "following_id is required" });
-    return;
+    return badRequest(res, "following_id is required");
   }
-  if (followingId === me.id) {
-    res.status(400).json({ error: "Cannot follow yourself" });
-    return;
-  }
+  if (followingId === me.id) return badRequest(res, "Cannot follow yourself");
 
   const supabase = getSupabase();
   const { error } = await supabase.from("follows").insert({
@@ -34,17 +32,9 @@ followRouter.post("/", async (req, res) => {
   });
 
   if (error) {
-    if (error.code === "23505") {
-      res.status(409).json({ error: "Already following" });
-      return;
-    }
-    if (error.code === "23503") {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-    console.error("[follow] insert", error);
-    res.status(500).json({ error: "Failed to follow" });
-    return;
+    if (error.code === "23505") return conflict(res, "Already following");
+    if (error.code === "23503") return notFound(res, "User not found");
+    return internalError(res, error);
   }
 
   await supabase.from("notifications").insert({
@@ -53,25 +43,18 @@ followRouter.post("/", async (req, res) => {
     type: "follow",
   });
 
-  res.status(200).json({ success: true });
+  return ok(res, { success: true });
 });
 
 followRouter.delete("/", async (req, res) => {
-  if (!isSupabaseConfigured()) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return;
-  }
+  if (!isSupabaseConfigured()) return internalError(res, "Server misconfigured");
   const me = await getSession(req);
-  if (!me) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!me) return unauthorized(res);
 
   const followingId =
     typeof req.query.following_id === "string" ? req.query.following_id : "";
   if (!followingId || !isValidUuid(followingId)) {
-    res.status(400).json({ error: "following_id is required" });
-    return;
+    return badRequest(res, "following_id is required");
   }
 
   const supabase = getSupabase();
@@ -81,11 +64,7 @@ followRouter.delete("/", async (req, res) => {
     .eq("follower_id", me.id)
     .eq("following_id", followingId);
 
-  if (error) {
-    console.error("[follow] delete", error);
-    res.status(500).json({ error: "Failed to unfollow" });
-    return;
-  }
+  if (error) return internalError(res, error);
 
-  res.status(200).json({ success: true });
+  return ok(res, { success: true });
 });

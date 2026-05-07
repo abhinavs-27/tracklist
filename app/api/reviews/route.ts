@@ -17,8 +17,13 @@ import {
   validateEntityType,
   validateRating,
 } from "@/lib/validation";
+import { getSession } from "@/lib/auth";
 import { getReviewsForEntity, fetchUserSummary } from "@/lib/queries";
 import { getOrCreateEntity } from "@/lib/catalog/getOrCreateEntity";
+import { ReviewWithUser, ReviewsResult } from "@/types";
+
+export type GetReviewsResponse = ReviewsResult;
+export type CreateReviewResponse = ReviewWithUser;
 
 /** GET ?entity_type=album|song&entity_id=<spotify_or_lfm_id>&limit= optional */
 export const GET = withHandler(async (request: NextRequest) => {
@@ -39,7 +44,15 @@ export const GET = withHandler(async (request: NextRequest) => {
     return apiBadRequest("Invalid entity_id");
   }
 
-  const result = await getReviewsForEntity(typeResult.value, entityId, limit);
+  const session = await getSession();
+  const result = await getReviewsForEntity(
+    typeResult.value,
+    entityId,
+    limit,
+    null,
+    session?.user?.id ?? null,
+    (session?.user as { username?: string } | undefined)?.username ?? null
+  );
   if (!result) return apiInternalError("Failed to fetch reviews");
 
   return apiOk(result);

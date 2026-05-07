@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiBadRequest, apiConflict, apiInternalError, apiNotFound } from './api-response';
-import { clampLimit, isValidUuid } from './validation';
+import { clampLimit, isValidSpotifyId, isValidUuid } from './validation';
 
 /** True when client requests a trimmed JSON payload (`?lite=true` or `?lite=1`). */
 export function isLiteQueryParam(searchParams: URLSearchParams): boolean {
@@ -59,6 +59,16 @@ export function getPaginationParams(
 export function validateUuidParam(id: string | null): { ok: true; id: string } | { ok: false; error: NextResponse } {
   if (!id || !isValidUuid(id)) {
     return { ok: false, error: apiNotFound('Invalid ID format') };
+  }
+  return { ok: true, id };
+}
+
+/**
+ * Validates a Spotify ID parameter and returns an apiBadRequest response if invalid.
+ */
+export function validateSpotifyIdParam(id: string | null): { ok: true; id: string } | { ok: false; error: NextResponse } {
+  if (!id || !isValidSpotifyId(id)) {
+    return { ok: false, error: apiBadRequest('Invalid Spotify ID format') };
   }
   return { ok: true, id };
 }

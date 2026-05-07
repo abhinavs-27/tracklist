@@ -4,9 +4,15 @@ import { searchSpotify } from '@/lib/spotify';
 import { apiBadRequest, apiOk } from '@/lib/api-response';
 import { validateSearchQuery, clampLimit, LIMITS } from '@/lib/validation';
 
-type SearchType = 'artist' | 'album' | 'track';
+export type SearchType = 'artist' | 'album' | 'track';
 
-const EMPTY_SEARCH = {
+export type SearchSpotifyResponse = {
+  artists: { items: SpotifyApi.ArtistObjectFull[] };
+  albums: { items: SpotifyApi.AlbumObjectSimplified[] };
+  tracks: { items: SpotifyApi.TrackObjectFull[] };
+};
+
+const EMPTY_SEARCH: SearchSpotifyResponse = {
   artists: { items: [] as SpotifyApi.ArtistObjectFull[] },
   albums: { items: [] as SpotifyApi.AlbumObjectSimplified[] },
   tracks: { items: [] as SpotifyApi.TrackObjectFull[] },

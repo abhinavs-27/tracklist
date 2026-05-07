@@ -1,4 +1,5 @@
 import { withHandler } from "@/lib/api-handler";
+import { getSession } from "@/lib/auth";
 import { apiBadRequest, apiNotFound, apiOk } from "@/lib/api-response";
 import {
   albumDisplayMetadataComplete,
@@ -14,7 +15,7 @@ import { isValidSpotifyId } from "@/lib/validation";
 
 export const GET = withHandler(async (_request, { params }) => {
     const { id } = params;
-    if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
+    if (!id || !isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
 
     let albumResp: Awaited<ReturnType<typeof getOrFetchAlbum>>;
     try {
@@ -42,7 +43,15 @@ export const GET = withHandler(async (_request, { params }) => {
 
     const favorite_count = engagement.favorite_count;
 
-    const reviewsResult = await getReviewsForEntity("album", entityId, 5);
+    const session = await getSession();
+    const reviewsResult = await getReviewsForEntity(
+      "album",
+      entityId,
+      5,
+      null,
+      session?.user?.id ?? null,
+      (session?.user as { username?: string } | undefined)?.username ?? null
+    );
     const reviews =
       reviewsResult?.reviews?.map((r) => ({
         id: r.id,

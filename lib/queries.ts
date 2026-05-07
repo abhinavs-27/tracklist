@@ -278,15 +278,18 @@ export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
+  supabase?: any,
+  viewerUserId: string | null = null,
+  viewerUsername: string | null = null,
 ): Promise<ReviewsResult | null> {
   const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
-    const supabase = await createSupabaseServerClient();
+    const effectiveSupabase = supabase ?? (await createSupabaseServerClient());
 
     const canonicalEntityId =
       entityType === "album"
-        ? await resolveCanonicalAlbumUuidFromEntityId(supabase, entityId)
-        : await resolveCanonicalTrackUuidFromEntityId(supabase, entityId);
+        ? await resolveCanonicalAlbumUuidFromEntityId(effectiveSupabase, entityId)
+        : await resolveCanonicalTrackUuidFromEntityId(effectiveSupabase, entityId);
     if (!canonicalEntityId) {
       return {
         reviews: [],
@@ -296,7 +299,7 @@ export async function getReviewsForEntity(
       };
     }
 
-    const reviewsPromise = supabase
+    const reviewsPromise = effectiveSupabase
       .from("reviews")
       .select("id, user_id, rating, review_text, created_at, updated_at")
       .eq("entity_type", entityType)
@@ -304,27 +307,24 @@ export async function getReviewsForEntity(
       .order("created_at", { ascending: false })
       .limit(cappedLimit);
 
-    const sessionPromise = getSession();
-
-    const countPromise = supabase
+    const countPromise = effectiveSupabase
       .from("reviews")
       .select("id", { count: "exact", head: true })
       .eq("entity_type", entityType)
       .eq("entity_id", canonicalEntityId);
 
-    const [reviewsRes, session, countRes] = await Promise.all([
+    const [reviewsRes, countRes] = await Promise.all([
       reviewsPromise,
-      sessionPromise,
       countPromise,
     ]);
 
     if (reviewsRes.error) return null;
 
-    const userId = session?.user?.id ?? null;
+    const userId = viewerUserId;
     const reviewRows = reviewsRes.data ?? [];
 
     const myRowPromise = userId
-      ? supabase
+      ? effectiveSupabase
           .from("reviews")
           .select("id, rating, review_text, created_at, updated_at")
           .eq("entity_type", entityType)
@@ -334,7 +334,7 @@ export async function getReviewsForEntity(
       : Promise.resolve({ data: null });
 
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const userMapPromise = fetchUserMap(supabase, userIds);
+    const userMapPromise = fetchUserMap(effectiveSupabase, userIds);
 
     const [myRowRes, userMap] = await Promise.all([
       myRowPromise,
@@ -351,7 +351,7 @@ export async function getReviewsForEntity(
       ),
     ];
     const likeStatMap = await fetchReviewLikeStatsMap(
-      supabase,
+      effectiveSupabase,
       reviewIdsForLikes,
       userId,
     );
@@ -386,14 +386,11 @@ export async function getReviewsForEntity(
 
     let my_review: ReviewWithUser | null = null;
     if (userId && myRow) {
-      const sessionUsername =
-        (session?.user as { username?: string } | undefined)?.username ??
-        null;
       const ls = likeStatMap.get(myRow.id);
       my_review = {
         id: myRow.id,
         user_id: userId,
-        username: sessionUsername,
+        username: viewerUsername,
         entity_type: entityType,
         entity_id: entityId,
         rating: myRow.rating,
