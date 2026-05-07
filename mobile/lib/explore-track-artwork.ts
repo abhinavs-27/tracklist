@@ -11,6 +11,7 @@ export function exploreTrackArtworkUrl(
   ) {
     return String(track.image_url).trim();
   }
+  if (!("album" in track)) return null;
   const imgs = track.album?.images;
   if (!imgs?.length) return null;
   for (const im of imgs) {

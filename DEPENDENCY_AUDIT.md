@@ -1,48 +1,36 @@
-# Project Dependency Audit Summary
+# Project Dependency Audit Summary (May 2026 Update)
 
 ## Audit Status
-- **Vulnerabilities Fixed:** 0 (Baseline was 0 vulnerabilities).
+- **Vulnerabilities Fixed:** 1 moderate severity vulnerability in `vercel` (addressed by upgrading to `53.2.0`).
+- **Audit Result:** `npm audit` now reports 0 vulnerabilities across root, backend, mobile, and shared packages.
 - **Core Guidelines Followed:**
   - Updated all dependencies to their "Wanted" versions as specified by semantic versioning in `package.json`.
-  - Avoided major version upgrades for core stability (Next.js, Express, React Native).
-  - Maintained Expo-specific versioning constraints (`~`) for `@types/react` and `@types/react-dom` in the mobile project.
+  - Upgraded `vercel` to `53.2.0` to resolve a moderate severity vulnerability.
+  - Fixed a regression in `mobile/lib/explore-track-artwork.ts` where a property existence check was needed for a union type.
+  - Added `@types/spotify-api` to root and mobile to resolve global namespace issues.
+  - Updated `mobile/tsconfig.json` with `ignoreDeprecations: "6.0"` to match backend and suppress `baseUrl` warnings.
 - **Verification:**
   - Successfully ran `npm run build` for the root project.
   - Successfully ran `npm run build` for the backend project.
-  - Successfully ran `npm run test:unit` (30/30 passed).
+  - Successfully ran `npm run test:unit` (54/54 passed).
   - Verified that mobile typecheck and lint issues are pre-existing and not regressions from the upgrades.
 
-## Updated Dependencies
+## Updated Dependencies (Major/Key Changes)
 
 ### Root Project
-| Package | Version Change |
-|---------|----------------|
-| `@tanstack/react-query` | `5.96.0` -> `5.96.2` |
-| `@tanstack/react-query-devtools` | `5.96.0` -> `5.96.2` |
-| `@types/node` | `25.5.0` -> `25.5.2` |
-| `bullmq` | `5.71.1` -> `5.73.0` |
-| `eslint-config-next` | `16.2.0` -> `16.2.2` |
-| `vercel` | `50.37.3` -> `50.39.0` |
+- `vercel`: `50.44.0` -> `53.2.0` (Security Fix)
+- `next`: `16.2.4` -> `16.2.5`
+- `bullmq`: `5.76.5` -> `5.76.6`
+- `next-auth`: `4.24.13` -> `4.24.14`
+- `@types/spotify-api`: Added as devDependency
 
 ### Backend Project
-| Package | Version Change |
-|---------|----------------|
-| `@types/node` | `22.10.7` -> `22.19.17` |
+- `dotenv`: `17.4.1` -> `17.4.2`
+- `@supabase/supabase-js`: `2.105.2` -> `2.105.3`
 
 ### Mobile Project
-| Package | Version Change |
-|---------|----------------|
-| `@react-native-async-storage/async-storage` | `3.0.1` -> `3.0.2` |
-| `@tanstack/react-query` | `5.96.0` -> `5.96.2` |
-| `expo` | `55.0.9` -> `55.0.11` |
-| `expo-auth-session` | `55.0.9` -> `55.0.12` |
-| `expo-blur` | `55.0.10` -> `55.0.12` |
-| `expo-constants` | `55.0.9` -> `55.0.11` |
-| `expo-image` | `55.0.6` -> `55.0.8` |
-| `expo-linking` | `55.0.8` -> `55.0.11` |
-| `expo-notifications` | `55.0.13` -> `55.0.16` |
-| `expo-router` | `55.0.7` -> `55.0.10` |
-| `expo-status-bar` | `55.0.4` -> `55.0.5` |
-| `expo-web-browser` | `55.0.10` -> `55.0.12` |
-| `@types/react` | `~19.2.2` (unchanged) |
-| `@types/react-dom` | `~19.2.3` (unchanged) |
+- `expo`: `55.0.20` -> `55.0.23`
+- `expo-router`: `55.0.12` -> `55.0.14`
+- `expo-notifications`: `55.0.20` -> `55.0.22`
+- `@react-native-async-storage/async-storage`: `3.0.1` -> `3.0.2`
+- `@types/spotify-api`: Added as devDependency
