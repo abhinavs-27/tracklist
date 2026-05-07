@@ -43,6 +43,14 @@ usersRouter.get("/:userId/lists", async (req, res) => {
     res.status(500).json({ error: "Server misconfigured" });
     return;
   }
+
+  const limit = clampLimit(req.query.limit, 50, 20);
+  const offset = Number(req.query.offset) || 0;
+  if (offset < 0) {
+    res.status(400).json({ error: "offset must be >= 0" });
+    return;
+  }
+
   try {
     const supabase = getSupabase();
     const { data: listRows, error: listError } = await supabase
@@ -52,7 +60,7 @@ usersRouter.get("/:userId/lists", async (req, res) => {
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .range(0, 49);
+      .range(offset, offset + limit - 1);
 
     if (listError) {
       console.error("[users] lists", listError);

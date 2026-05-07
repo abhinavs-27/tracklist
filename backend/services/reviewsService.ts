@@ -46,9 +46,10 @@ export async function getReviewsForEntity(
 
     const { data: rows, error } = await supabase
       .from("reviews")
-      .select(
-        "id, user_id, rating, review_text, created_at, updated_at",
-      )
+      .select(`
+        id, user_id, rating, review_text, created_at, updated_at,
+        user:users(id, username, avatar_url)
+      `)
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
       .order("created_at", { ascending: false })
@@ -56,12 +57,12 @@ export async function getReviewsForEntity(
 
     if (error) return null;
 
-    const reviewRows = rows ?? [];
-    const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const userMap = await fetchUserMap(supabase, userIds);
+    const reviewRows = (rows ?? []) as (EntityReviewItem & {
+      user: { id: string; username: string; avatar_url: string | null } | null;
+    })[];
 
     const reviews: EntityReviewItem[] = reviewRows.map((r) => {
-      const u = userMap.get(r.user_id);
+      const u = r.user;
       return {
         id: r.id,
         user_id: r.user_id,

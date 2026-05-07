@@ -76,6 +76,8 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `feed_events` | `(user_id, created_at DESC)` | `150` | Optimized for fetching recent feed stories for followed users. |
+| `reviews` | `(user_id, created_at DESC)` | `150` | Optimized for profile activity and recent reviews fetch. |
 
 ## Recommendations for Future Queries
 

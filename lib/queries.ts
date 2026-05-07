@@ -298,7 +298,10 @@ export async function getReviewsForEntity(
 
     const reviewsPromise = supabase
       .from("reviews")
-      .select("id, user_id, rating, review_text, created_at, updated_at")
+      .select(`
+        id, user_id, rating, review_text, created_at, updated_at,
+        user:users(id, username, avatar_url)
+      `)
       .eq("entity_type", entityType)
       .eq("entity_id", canonicalEntityId)
       .order("created_at", { ascending: false })
@@ -321,7 +324,9 @@ export async function getReviewsForEntity(
     if (reviewsRes.error) return null;
 
     const userId = session?.user?.id ?? null;
-    const reviewRows = reviewsRes.data ?? [];
+    const reviewRows = (reviewsRes.data ?? []) as (ReviewWithUser & {
+      user: { id: string; username: string; avatar_url: string | null } | null;
+    })[];
 
     const myRowPromise = userId
       ? supabase
@@ -333,13 +338,7 @@ export async function getReviewsForEntity(
           .maybeSingle()
       : Promise.resolve({ data: null });
 
-    const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const userMapPromise = fetchUserMap(supabase, userIds);
-
-    const [myRowRes, userMap] = await Promise.all([
-      myRowPromise,
-      userMapPromise,
-    ]);
+    const [myRowRes] = await Promise.all([myRowPromise]);
 
     const myRow = myRowRes.data;
 
@@ -357,7 +356,7 @@ export async function getReviewsForEntity(
     );
 
     const reviews: ReviewWithUser[] = reviewRows.map((r) => {
-      const u = userMap.get(r.user_id);
+      const u = r.user;
       const ls = likeStatMap.get(r.id);
       return {
         id: r.id,
@@ -430,23 +429,17 @@ export async function getReviewsForUser(
 
     const { data: rows, error } = await supabase
       .from("reviews")
-      .select(
-        "id, entity_type, entity_id, rating, review_text, created_at, updated_at",
-      )
+      .select(`
+        id, entity_type, entity_id, rating, review_text, created_at, updated_at,
+        user:users(id, username, avatar_url)
+      `)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .range(from, to);
 
     if (error || !rows?.length) return [];
 
-    const { data: users } = await supabase
-      .from("users")
-      .select("username, avatar_url")
-      .eq("id", userId);
-
-    const user = users?.[0] ? { id: userId, ...users[0] } : null;
-
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       user_id: userId,
       entity_type: r.entity_type as "album" | "song",
@@ -455,7 +448,13 @@ export async function getReviewsForUser(
       review_text: r.review_text ?? null,
       created_at: r.created_at,
       updated_at: r.updated_at,
-      user,
+      user: r.user
+        ? {
+            id: r.user.id,
+            username: r.user.username,
+            avatar_url: r.user.avatar_url ?? null,
+          }
+        : null,
     }));
   } catch (e) {
     console.error("[queries] getReviewsForUser failed:", e);
@@ -1753,15 +1752,17 @@ export async function getReviewsForArtist(
 
     const { data: rows, error } = await supabase
       .from("reviews")
-      .select("id, user_id, entity_type, entity_id, rating, review_text, created_at")
+      .select(`
+        id, user_id, entity_type, entity_id, rating, review_text, created_at,
+        user:users(id, username, avatar_url)
+      `)
       .in("entity_id", entityIds)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error || !rows?.length) return [];
 
-    // Fetch users (with avatar), album names/images, track names
-    const userIds = [...new Set(rows.map((r) => r.user_id as string))];
+    // Fetch album names/images, track names
     const reviewAlbumIds = rows
       .filter((r) => r.entity_type === "album")
       .map((r) => r.entity_id as string);
@@ -1769,10 +1770,7 @@ export async function getReviewsForArtist(
       .filter((r) => r.entity_type === "song")
       .map((r) => r.entity_id as string);
 
-    const [userMap, albumMeta, trackMeta] = await Promise.all([
-      fetchUserMap<{ id: string; username: string; avatar_url: string | null }>(
-        supabase, userIds, "id, username, avatar_url",
-      ),
+    const [albumMeta, trackMeta] = await Promise.all([
       reviewAlbumIds.length > 0
         ? supabase.from("albums").select("id, name, image_url").in("id", reviewAlbumIds)
         : Promise.resolve({ data: [] }),
@@ -1795,8 +1793,8 @@ export async function getReviewsForArtist(
       ),
     );
 
-    return rows.map((r) => {
-      const u = userMap.get(r.user_id as string);
+    return rows.map((r: any) => {
+      const u = r.user;
       let entityName: string | null = null;
       let entityImage: string | null = null;
       if (r.entity_type === "album") {
@@ -2351,7 +2349,10 @@ export async function getListenLogsForArtist(
 
     let query = supabase
       .from("logs")
-      .select("id, user_id, track_id, listened_at, source, created_at")
+      .select(`
+        id, user_id, track_id, listened_at, source, created_at,
+        user:users(id, username, avatar_url)
+      `)
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
       .range(from, to);
@@ -2363,17 +2364,14 @@ export async function getListenLogsForArtist(
     const { data: logs, error } = await query;
     if (error || !logs?.length) return [];
 
-    const userIds = [...new Set(logs.map((l) => l.user_id))];
-    const userMap = await fetchUserMap(supabase, userIds);
-
-    return logs.map((log) => ({
+    return (logs as any[]).map((log) => ({
       id: log.id,
       user_id: log.user_id,
       track_id: log.track_id,
       listened_at: log.listened_at,
       source: log.source ?? null,
       created_at: log.created_at,
-      user: userMap.get(log.user_id) ?? null,
+      user: log.user ?? null,
     }));
   } catch (e) {
     console.error("[queries] getListenLogsForArtist failed:", e);
@@ -2408,24 +2406,24 @@ export async function getListenLogsForAlbum(
 
     const { data: logs, error } = await supabase
       .from("logs")
-      .select("id, user_id, track_id, listened_at, source, created_at")
+      .select(`
+        id, user_id, track_id, listened_at, source, created_at,
+        user:users(id, username, avatar_url)
+      `)
       .in("track_id", trackIds)
       .order("listened_at", { ascending: false })
       .range(from, to);
 
     if (error || !logs?.length) return [];
 
-    const userIds = [...new Set(logs.map((l) => l.user_id))];
-    const userMap = await fetchUserMap(supabase, userIds);
-
-    return logs.map((log) => ({
+    return (logs as any[]).map((log) => ({
       id: log.id,
       user_id: log.user_id,
       track_id: log.track_id,
       listened_at: log.listened_at,
       source: log.source ?? null,
       created_at: log.created_at,
-      user: userMap.get(log.user_id) ?? null,
+      user: log.user ?? null,
     }));
   } catch (e) {
     console.error("[queries] getListenLogsForAlbum failed:", e);

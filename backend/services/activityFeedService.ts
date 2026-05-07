@@ -121,9 +121,10 @@ async function getActivityFeedFallback(
 
     let reviewsQuery = supabase
       .from("reviews")
-      .select(
-        "id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at",
-      )
+      .select(`
+        id, user_id, entity_type, entity_id, rating, review_text, created_at, updated_at,
+        user:users(id, username, avatar_url)
+      `)
       .in("user_id", followingIds)
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
@@ -131,7 +132,11 @@ async function getActivityFeedFallback(
 
     let followsQuery = supabase
       .from("follows")
-      .select("id, follower_id, following_id, created_at")
+      .select(`
+        id, follower_id, following_id, created_at,
+        follower:users!follower_id(id, username),
+        following:users!following_id(id, username)
+      `)
       .in("follower_id", followingIds)
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
@@ -145,48 +150,26 @@ async function getActivityFeedFallback(
     if (reviewsRes.error) throw reviewsRes.error;
     if (followsRes.error) throw followsRes.error;
 
-    const reviewRows = reviewsRes.data ?? [];
-    const followRows = (followsRes.data ?? []) as {
-      id: string;
-      follower_id: string;
-      following_id: string;
-      created_at: string;
-    }[];
+    const reviewRows = (reviewsRes.data ?? []) as (FeedReviewRpcRow & {
+      user: { id: string; username: string; avatar_url: string | null } | null;
+    })[];
+    const followRows = (followsRes.data ?? []) as any[];
 
-    const userIds = new Set<string>();
-    reviewRows.forEach((r: { user_id: string }) => userIds.add(r.user_id));
-    followRows.forEach((f) => {
-      userIds.add(f.follower_id);
-      userIds.add(f.following_id);
-    });
-    const userMap = await fetchUserMap(supabase, [...userIds]);
-
-    const reviewActivities: FeedActivity[] = reviewRows.map(
-      (r: {
-        id: string;
-        user_id: string;
-        entity_type: string;
-        entity_id: string;
-        rating: number;
-        review_text: string | null;
-        created_at: string;
-        updated_at: string;
-      }) => ({
-        type: "review" as const,
+    const reviewActivities: FeedActivity[] = reviewRows.map((r) => ({
+      type: "review" as const,
+      created_at: r.created_at,
+      review: {
+        id: r.id,
+        user_id: r.user_id,
+        entity_type: r.entity_type as "album" | "song",
+        entity_id: r.entity_id,
+        rating: r.rating,
+        review_text: r.review_text ?? null,
         created_at: r.created_at,
-        review: {
-          id: r.id,
-          user_id: r.user_id,
-          entity_type: r.entity_type as "album" | "song",
-          entity_id: r.entity_id,
-          rating: r.rating,
-          review_text: r.review_text ?? null,
-          created_at: r.created_at,
-          updated_at: r.updated_at,
-          user: userMap.get(r.user_id) ?? null,
-        },
-      }),
-    );
+        updated_at: r.updated_at,
+        user: r.user ?? null,
+      },
+    }));
 
     const followActivities: FeedActivity[] = followRows.map((f) => ({
       type: "follow" as const,
@@ -194,8 +177,8 @@ async function getActivityFeedFallback(
       created_at: f.created_at,
       follower_id: f.follower_id,
       following_id: f.following_id,
-      follower_username: userMap.get(f.follower_id)?.username ?? null,
-      following_username: userMap.get(f.following_id)?.username ?? null,
+      follower_username: f.follower?.username ?? null,
+      following_username: f.following?.username ?? null,
     }));
 
     const merged = [...reviewActivities, ...followActivities].sort(

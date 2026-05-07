@@ -160,7 +160,10 @@ async function fetchFeedStoriesForFollower(
 
   let q = admin
     .from("feed_events")
-    .select("id, user_id, type, payload, created_at")
+    .select(`
+      id, user_id, type, payload, created_at,
+      user:users(id, username, avatar_url, logs_private)
+    `)
     .in("user_id", ids)
     .order("created_at", { ascending: false })
     .limit(Math.min(limit + 20, 120));
@@ -175,20 +178,17 @@ async function fetchFeedStoriesForFollower(
     return [];
   }
 
-  const rows = (data ?? []) as FeedEventRow[];
+  const rows = (data ?? []) as (FeedEventRow & {
+    user: {
+      id: string;
+      username: string;
+      avatar_url: string | null;
+      logs_private: boolean | null;
+    } | null;
+  })[];
   const filtered = rows.filter((r) => isFeedStoryKind(r.type));
   if (filtered.length === 0) return [];
 
-  const userIdsForPrivacy = [...new Set(filtered.map((r) => r.user_id))];
-  const { data: privacyRows } = await admin
-    .from("users")
-    .select("id, logs_private")
-    .in("id", userIdsForPrivacy);
-  const logsPrivateUserIds = new Set(
-    (privacyRows ?? [])
-      .filter((u) => (u as { logs_private?: boolean }).logs_private)
-      .map((u) => (u as { id: string }).id),
-  );
   /** Hide listen-derived insight cards for users with private logs; keep ratings / list stories. */
   const LISTEN_DERIVED_STORY = new Set([
     "discovery",
@@ -198,21 +198,24 @@ async function fetchFeedStoriesForFollower(
     "milestone",
   ]);
   const filteredPrivacy = filtered.filter((r) => {
-    if (!logsPrivateUserIds.has(r.user_id)) return true;
+    if (!r.user?.logs_private) return true;
     return !LISTEN_DERIVED_STORY.has(r.type);
   });
 
   const payloadMap = await enrichPayloadsFromDb(admin, filteredPrivacy);
-
-  const userIds = [...new Set(filteredPrivacy.map((r) => r.user_id))];
-  const userMap = await fetchUserMap(admin, userIds);
 
   return filteredPrivacy.map((row) => ({
     type: "feed_story" as const,
     story_kind: row.type as FeedStoryKind,
     id: row.id,
     created_at: row.created_at,
-    user: userMap.get(row.user_id) ?? null,
+    user: row.user
+      ? {
+          id: row.user.id,
+          username: row.user.username,
+          avatar_url: row.user.avatar_url,
+        }
+      : null,
     payload: payloadMap.get(row.id) ?? row.payload ?? {},
   }));
 }
