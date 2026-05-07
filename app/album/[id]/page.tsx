@@ -60,49 +60,54 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     "albumPage",
     async () => {
       /**
-       * Phase 1: session + catalog fetch must finish before stats / friends / engagement.
-       * Those paths resolve canonical album UUID via `album_external_ids`; parallel runs
-       * raced `getOrFetchAlbum` upserts and returned empty / `no_canonical_album`.
+       * Phase 1: session + catalog fetch parallelized.
+       * Catalog fetch is awaited before dependent stats/friends calls to ensure
+       * canonical UUID resolution and potential upserts are complete.
        */
-      const sessionVal = await withAlbumPagePhaseLog("getSession", id, getSession());
-
-      let albumInner: Awaited<ReturnType<typeof getOrFetchAlbum>>["album"];
-      let tracksInner: Awaited<ReturnType<typeof getOrFetchAlbum>>["tracks"];
-      let fetched: Awaited<ReturnType<typeof getOrFetchAlbum>>;
-      try {
-        fetched = await withAlbumPagePhaseLog(
+      const [sessionVal, fetched] = await Promise.all([
+        withAlbumPagePhaseLog("getSession", id, getSession()),
+        withAlbumPagePhaseLog(
           "getOrFetchAlbum",
           id,
           getOrFetchAlbum(id, { allowNetwork: true }),
-        );
-        albumInner = fetched.album;
-        tracksInner = fetched.tracks;
-      } catch {
+        ).catch(() => null),
+      ]);
+
+      if (!fetched) {
         notFound();
       }
-      redirectToCanonicalEntityIfNeeded("album", id, fetched!.canonicalAlbumId);
-      const entityIdInner = fetched!.canonicalAlbumId ?? id;
+
+      const albumInner = fetched.album;
+      const tracksInner = fetched.tracks;
+      redirectToCanonicalEntityIfNeeded("album", id, fetched.canonicalAlbumId);
+      const entityIdInner = fetched.canonicalAlbumId ?? id;
 
       /**
-       * Sequential Supabase server work: parallel `createSupabaseServerClient()` (each awaits
-       * `cookies()`) has deadlocked RSC — same pattern as `artist-page-content.tsx`.
+       * Phase 2: Parallelize independent secondary data fetching using a shared Supabase client
+       * where possible to prevent RSC deadlocks and sequential waterfalls.
        */
       const viewerId = sessionVal?.user?.id ?? null;
-      const statsInner = await withAlbumPagePhaseLog(
-        "getEntityStats(album)",
-        id,
-        getEntityStats("album", entityIdInner),
-      );
-      const engagementInner = await withAlbumPagePhaseLog(
-        "getAlbumEngagementStats",
-        id,
-        getAlbumEngagementStats(entityIdInner),
-      );
       const trackIds = (tracksInner.items ?? []).map((t) => t.id);
-      const [friendActivityInner, viewerTrackRatingsInner] = await Promise.all([
-        viewerId ? getFriendsAlbumActivity(viewerId, entityIdInner, 10) : Promise.resolve([]),
-        viewerId ? getViewerAlbumTrackRatings(viewerId, trackIds) : Promise.resolve(new Map<string, number>()),
-      ]);
+
+      const [statsInner, engagementInner, friendActivityInner, viewerTrackRatingsInner] =
+        await Promise.all([
+          withAlbumPagePhaseLog(
+            "getEntityStats(album)",
+            id,
+            getEntityStats("album", entityIdInner),
+          ),
+          withAlbumPagePhaseLog(
+            "getAlbumEngagementStats",
+            id,
+            getAlbumEngagementStats(entityIdInner),
+          ),
+          viewerId
+            ? getFriendsAlbumActivity(viewerId, entityIdInner, 10)
+            : Promise.resolve([]),
+          viewerId
+            ? getViewerAlbumTrackRatings(viewerId, trackIds)
+            : Promise.resolve(new Map<string, number>()),
+        ]);
 
       return {
         album: albumInner,

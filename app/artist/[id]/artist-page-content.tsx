@@ -32,14 +32,15 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
 
-  const session = await withArtistPagePhaseLog("getSession", id, getSession());
-
-  const artistFetched = await withArtistPagePhaseLog(
-    "getOrFetchArtist",
-    id,
-    getOrFetchArtist(id, { allowNetwork: true }),
-    (v) => ({ name: v.artist.name, hasImage: Boolean(v.artist.images?.[0]?.url) }),
-  ).catch(() => null);
+  const [session, artistFetched] = await Promise.all([
+    withArtistPagePhaseLog("getSession", id, getSession()),
+    withArtistPagePhaseLog(
+      "getOrFetchArtist",
+      id,
+      getOrFetchArtist(id, { allowNetwork: true }),
+      (v) => ({ name: v.artist.name, hasImage: Boolean(v.artist.images?.[0]?.url) }),
+    ).catch(() => null),
+  ]);
 
   if (!artistFetched) notFound();
   redirectToCanonicalEntityIfNeeded("artist", id, artistFetched.canonicalArtistId);

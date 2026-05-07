@@ -60,16 +60,32 @@ function spotifyArtistNetworkTimeoutMs(): number {
 /** Resolve canonical id → Spotify API id, then GET /artists/{id}. Used under a single timeout. */
 async function resolveAndFetchSpotifyArtistObject(
   canonicalArtistId: string,
+  preResolvedApiId?: string | null,
 ): Promise<SpotifyApi.ArtistObjectFull | null> {
-  logArtistFetchInner(canonicalArtistId, "before resolveCanonicalArtistIdToSpotifyApiId");
-  const apiId = await resolveCanonicalArtistIdToSpotifyApiId(canonicalArtistId);
-  logArtistFetchInner(canonicalArtistId, "after resolveCanonicalArtistIdToSpotifyApiId", {
-    hasApiId: Boolean(apiId),
-  });
+  const apiId =
+    preResolvedApiId ??
+    (await (async () => {
+      logArtistFetchInner(
+        canonicalArtistId,
+        "before resolveCanonicalArtistIdToSpotifyApiId",
+      );
+      const res = await resolveCanonicalArtistIdToSpotifyApiId(canonicalArtistId);
+      logArtistFetchInner(
+        canonicalArtistId,
+        "after resolveCanonicalArtistIdToSpotifyApiId",
+        {
+          hasApiId: Boolean(res),
+        },
+      );
+      return res;
+    })());
+
   if (!apiId) return null;
   logArtistFetchInner(canonicalArtistId, "before getArtist", { apiId });
   const artist = await getArtist(apiId);
-  logArtistFetchInner(canonicalArtistId, "after getArtist", { name: artist?.name });
+  logArtistFetchInner(canonicalArtistId, "after getArtist", {
+    name: artist?.name,
+  });
   return artist;
 }
 
@@ -1041,15 +1057,32 @@ async function getOrFetchArtistInnerBody(
   const db = createSupabaseAdminClient();
   logArtistFetchInner(id, "loaded admin client for artists read");
 
-  const { data: row, error } = await db
-    .from("artists")
-    .select("name, image_url, genres, popularity, cached_at, updated_at")
-    .eq("id", id)
-    .maybeSingle();
+  const [artistResult, extResult] = await Promise.all([
+    db
+      .from("artists")
+      .select("name, image_url, genres, popularity, cached_at, updated_at")
+      .eq("id", id)
+      .maybeSingle(),
+    !isValidSpotifyId(id)
+      ? db
+          .from("artist_external_ids")
+          .select("external_id")
+          .eq("artist_id", id)
+          .eq("source", "spotify")
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  const row = artistResult.data;
+  const error = artistResult.error;
 
   if (error) {
     console.error(`${LOG_PREFIX} artists select failed`, error);
   }
+
+  const preResolvedSpotifyApiId = (extResult.data as { external_id?: string })
+    ?.external_id;
 
   if (row) {
     const a = { ...row, id } as unknown as ArtistRow;
@@ -1091,7 +1124,7 @@ async function getOrFetchArtistInnerBody(
       let artist: SpotifyApi.ArtistObjectFull | null;
       try {
         artist = await promiseWithTimeout(
-          resolveAndFetchSpotifyArtistObject(id),
+          resolveAndFetchSpotifyArtistObject(id, preResolvedSpotifyApiId),
           timeoutMs,
           `resolveAndFetchSpotifyArtist(${id})`,
         );
@@ -1155,7 +1188,7 @@ async function getOrFetchArtistInnerBody(
     let artist: SpotifyApi.ArtistObjectFull | null;
     try {
       artist = await promiseWithTimeout(
-        resolveAndFetchSpotifyArtistObject(id),
+        resolveAndFetchSpotifyArtistObject(id, preResolvedSpotifyApiId),
         timeoutMs,
         `resolveAndFetchSpotifyArtist(${id})`,
       );
@@ -1581,43 +1614,44 @@ async function getOrFetchAlbumInner(
   const net = catalogReadsAllowSpotifyNetwork(opts);
   const normalized = normalizeReviewEntityId(id);
 
-  let dbAlbumId = normalized;
-  if (isValidSpotifyId(normalized)) {
-    const c = await getAlbumIdByExternalId(supabase, "spotify", normalized);
-    if (c) dbAlbumId = c;
-  } else if (isValidLfmCatalogId(normalized)) {
-    const c = await getAlbumIdByExternalId(supabase, "lastfm", normalized);
-    if (c) dbAlbumId = c;
+  let albumUuid: string | null = isValidUuid(normalized) ? normalized : null;
+  let spotifyAlbumApiId: string | null = isValidSpotifyId(normalized) ? normalized : null;
+
+  if (!albumUuid) {
+    const source = isValidSpotifyId(normalized) ? "spotify" : isValidLfmCatalogId(normalized) ? "lastfm" : null;
+    if (source) {
+      albumUuid = await getAlbumIdByExternalId(supabase, source, normalized);
+    }
   }
 
-  /** `albums.id` and FK `album_id` are UUID; never pass a bare Spotify/Last.fm id into `.eq("id", ...)`. */
-  const albumUuid = isValidUuid(dbAlbumId) ? dbAlbumId : null;
-
-  let spotifyAlbumApiId: string | null = isValidSpotifyId(normalized)
-    ? normalized
-    : null;
-  if (!spotifyAlbumApiId && albumUuid) {
-    const { data: extAl } = await supabase
-      .from("album_external_ids")
-      .select("external_id")
-      .eq("album_id", albumUuid)
-      .eq("source", "spotify")
-      .limit(1)
-      .maybeSingle();
-    const ex = (extAl as { external_id?: string } | null)?.external_id;
-    if (ex && isValidSpotifyId(ex)) spotifyAlbumApiId = ex;
-  }
-
-  const { data: albumRow, error: albumErr } =
-    albumUuid != null
-      ? await supabase
+  const [extResult, albumResult] = await Promise.all([
+    albumUuid && !spotifyAlbumApiId
+      ? supabase
+          .from("album_external_ids")
+          .select("external_id")
+          .eq("album_id", albumUuid)
+          .eq("source", "spotify")
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    albumUuid
+      ? supabase
           .from("albums")
           .select(
             "name, artist_id, image_url, release_date, total_tracks, cached_at, updated_at",
           )
           .eq("id", albumUuid)
           .maybeSingle()
-      : { data: null, error: null };
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  if (!spotifyAlbumApiId && extResult.data) {
+    const ex = (extResult.data as { external_id?: string }).external_id;
+    if (ex && isValidSpotifyId(ex)) spotifyAlbumApiId = ex;
+  }
+
+  const albumRow = albumResult.data as unknown as AlbumRow | null;
+  const albumErr = albumResult.error;
 
   if (albumErr) {
     console.error(`${LOG_PREFIX} albums select failed`, albumErr);
@@ -1635,22 +1669,28 @@ async function getOrFetchAlbumInner(
     });
 
     if (!stale) {
-      const { data: artistRow } = await supabase
-        .from("artists")
-        .select("name, image_url, genres")
-        .eq("id", album.artist_id)
-        .maybeSingle();
+      const [artistResult, songsResult] = await Promise.all([
+        supabase
+          .from("artists")
+          .select("name, image_url, genres")
+          .eq("id", album.artist_id)
+          .maybeSingle(),
+        supabase
+          .from("tracks")
+          .select(
+            "id, name, album_id, artist_id, duration_ms, track_number, data_source",
+          )
+          .eq("album_id", albumUuid)
+          .order("track_number", { ascending: true }),
+      ]);
+
+      const artistRow = artistResult.data;
       const artist = artistRow
         ? ({ ...artistRow, id: album.artist_id } as unknown as ArtistRow)
         : null;
 
-      const { data: songRows, error: songsErr } = await supabase
-        .from("tracks")
-        .select(
-          "id, name, album_id, artist_id, duration_ms, track_number, data_source",
-        )
-        .eq("album_id", albumUuid)
-        .order("track_number", { ascending: true });
+      const songRows = songsResult.data;
+      const songsErr = songsResult.error;
 
       if (songsErr) {
         console.error(`${LOG_PREFIX} songs select failed`, songsErr);
@@ -1796,19 +1836,24 @@ async function getOrFetchAlbumInner(
     }
 
     // Stale cache: return cached data immediately and refresh in background so the page loads fast
-    const { data: artistRowStale } = await supabase
-      .from("artists")
-      .select("id, name, image_url, genres")
-      .eq("id", album.artist_id)
-      .maybeSingle();
+    const [artistResultStale, songsResultStale] = await Promise.all([
+      supabase
+        .from("artists")
+        .select("id, name, image_url, genres")
+        .eq("id", album.artist_id)
+        .maybeSingle(),
+      supabase
+        .from("tracks")
+        .select(
+          "id, name, album_id, artist_id, duration_ms, track_number, data_source",
+        )
+        .eq("album_id", albumUuid)
+        .order("track_number", { ascending: true }),
+    ]);
+
+    const artistRowStale = artistResultStale.data;
     const artistStale = artistRowStale as unknown as ArtistRow | null;
-    const { data: songRowsStale } = await supabase
-      .from("tracks")
-      .select(
-        "id, name, album_id, artist_id, duration_ms, track_number, data_source",
-      )
-      .eq("album_id", albumUuid)
-      .order("track_number", { ascending: true });
+    const songRowsStale = songsResultStale.data;
     let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
 
     let ranStaleSyncBackfill = false;
@@ -2113,6 +2158,36 @@ async function getOrFetchTrackInner(
 
   const canon = await resolveTrackCanonicalId(supabase, normalized);
 
+  const [songResult, lfmExtResult, spotifyExtResult] = await Promise.all([
+    canon
+      ? supabase
+          .from("tracks")
+          .select(
+            "name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, lastfm_name, lastfm_artist_name",
+          )
+          .eq("id", canon)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    canon
+      ? supabase
+          .from("track_external_ids")
+          .select("external_id")
+          .eq("track_id", canon)
+          .eq("source", "lastfm")
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    canon
+      ? supabase
+          .from("track_external_ids")
+          .select("external_id")
+          .eq("track_id", canon)
+          .eq("source", "spotify")
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
   if (!canon && isValidSpotifyId(normalized) && net) {
     logCacheMiss("song", normalized);
     const missStart = performance.now();
@@ -2156,13 +2231,8 @@ async function getOrFetchTrackInner(
     throw new Error(`Unknown track id ${normalized}`);
   }
 
-  const { data: songRow, error } = await supabase
-    .from("tracks")
-    .select(
-      "name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, lastfm_name, lastfm_artist_name",
-    )
-    .eq("id", canon)
-    .maybeSingle();
+  const songRow = songResult.data;
+  const error = songResult.error;
 
   if (error) {
     console.error(`${LOG_PREFIX} tracks select failed`, error);
@@ -2170,8 +2240,18 @@ async function getOrFetchTrackInner(
 
   if (songRow) {
     const song = { ...songRow, id: canon } as unknown as SongRow;
-    const lfmKey = await getLastfmExternalForTrack(supabase, song.id);
-    const spotifyExt = await getSpotifyExternalForTrack(supabase, song.id);
+
+    const lfmExtData = lfmExtResult.data as { external_id?: string } | null;
+    const lfmKey =
+      lfmExtData?.external_id && isValidLfmCatalogId(lfmExtData.external_id)
+        ? lfmExtData.external_id
+        : null;
+
+    const spExtData = spotifyExtResult.data as { external_id?: string } | null;
+    const spotifyExt =
+      spExtData?.external_id && isValidSpotifyId(spExtData.external_id)
+        ? spExtData.external_id
+        : null;
 
     if (lfmKey && (!song.album_id || !song.artist_id)) {
       return buildSyntheticLfmTrack(song);

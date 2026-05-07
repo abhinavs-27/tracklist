@@ -43,13 +43,15 @@ export default async function SongPage({ params }: { params: PageParams }) {
     redirect(`/song/${resolvedId}`);
   }
 
-  const session = await getSession();
-  let fetched: Awaited<ReturnType<typeof getOrFetchTrack>>;
-  try {
-    fetched = await getOrFetchTrack(id, { allowNetwork: true });
-  } catch {
+  const [session, fetched] = await Promise.all([
+    getSession(),
+    getOrFetchTrack(id, { allowNetwork: true }).catch(() => null),
+  ]);
+
+  if (!fetched) {
     notFound();
   }
+
   redirectToCanonicalEntityIfNeeded("song", id, fetched.canonicalTrackId);
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
