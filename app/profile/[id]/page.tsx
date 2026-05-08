@@ -16,6 +16,7 @@ import {
   getCachedUserFavoriteAlbums,
 } from "@/lib/profile/cached-profile-data";
 import { sectionGap } from "@/lib/ui/surface";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
 import { ProfileAvatarOptimisticProvider } from "@/components/profile/profile-avatar-context";
@@ -35,9 +36,12 @@ const EMPTY_TASTE: TasteIdentity = {
   summary: "",
 };
 
-async function hasSpotifyToken(userId: string): Promise<boolean> {
+async function hasSpotifyToken(
+  userId: string,
+  supabaseClient?: ReturnType<typeof createSupabaseAdminClient>,
+): Promise<boolean> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = supabaseClient ?? createSupabaseAdminClient();
     const { data, error } = await supabase
       .from("spotify_tokens")
       .select("user_id")
@@ -113,16 +117,17 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
+  const supabaseServer = await createSupabaseServerClient();
   const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
-      getFollowCounts(user.id),
+      getFollowCounts(user.id, supabaseServer),
       session?.user?.id && session.user.id !== user.id
-        ? isFollowing(session.user.id, user.id)
+        ? isFollowing(session.user.id, user.id, supabaseServer)
         : Promise.resolve(false),
       session?.user?.id === user.id
-        ? hasSpotifyToken(user.id)
+        ? hasSpotifyToken(user.id, supabase)
         : Promise.resolve(false),
-      getUserStreak(user.id),
+      getUserStreak(user.id, supabaseServer),
     ]),
     getCachedTasteIdentity(user.id),
     getCachedUserFavoriteAlbums(user.id).catch((e) => {

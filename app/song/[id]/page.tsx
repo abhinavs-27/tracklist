@@ -18,6 +18,7 @@ import { redirectToCanonicalEntityIfNeeded } from "@/lib/catalog/redirect-to-can
 import { formatStarDisplay } from "@/lib/ratings";
 import { isUUID, isValidSpotifyId, normalizeReviewEntityId } from "@/lib/validation";
 import { SongPageTabs } from "@/app/song/[id]/song-page-tabs";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -43,26 +44,30 @@ export default async function SongPage({ params }: { params: PageParams }) {
     redirect(`/song/${resolvedId}`);
   }
 
-  const session = await getSession();
-  let fetched: Awaited<ReturnType<typeof getOrFetchTrack>>;
-  try {
-    fetched = await getOrFetchTrack(id, { allowNetwork: true });
-  } catch {
+  const [session, fetched] = await Promise.all([
+    getSession(),
+    getOrFetchTrack(id, { allowNetwork: true }).catch(() => null),
+  ]);
+
+  if (!fetched) {
     notFound();
   }
+
   redirectToCanonicalEntityIfNeeded("song", id, fetched.canonicalTrackId);
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
 
+  const supabase = await createSupabaseServerClient();
+
   const [reviewsData, stats, recentListens, relatedSongsRaw, leaderboard] =
     await Promise.all([
-      getReviewsForEntity("song", entityId).catch(() => ({
+      getReviewsForEntity("song", entityId, 20, supabase).catch(() => ({
         reviews: [], average_rating: null, count: 0, my_review: null,
       })),
-      getEntityStats("song", entityId),
-      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
-      getRelatedMedia("song", entityId, 12).catch(() => []),
+      getEntityStats("song", entityId, supabase),
+      getListenLogsForTrack(entityId, 8, 0, viewerId, supabase).catch(() => []),
+      getRelatedMedia("song", entityId, 12, supabase).catch(() => []),
       viewerId ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null) : Promise.resolve(null),
     ]);
 

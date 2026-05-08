@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
       STALE_FIRST_STALE_AFTER_SEC.profileSummary,
       async () => {
         const isOwnProfile = !!viewer && viewer.id === userId;
-
         const admin = createSupabaseAdminClient();
+
         const { data: privacyRow } = await admin
           .from("users")
           .select("logs_private")

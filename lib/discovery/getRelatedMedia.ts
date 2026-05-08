@@ -17,8 +17,9 @@ export async function getRelatedMedia(
   contentType: "song" | "album",
   contentId: string,
   limit = 20,
+  supabaseClient?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<RelatedMediaItem[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = supabaseClient ?? (await createSupabaseServerClient());
 
   const { data, error } = await supabase
     .from("media_cooccurrence")

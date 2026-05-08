@@ -5,6 +5,7 @@ import { AlbumPageClient } from "@/app/album/[id]/album-page-client";
 import { AlbumRecommendationsLoader } from "@/app/album/[id]/album-recommendations-loader";
 import { AlbumReviewsProvider } from "@/app/album/[id]/album-reviews-context";
 import { getAlbumEngagementStats, getEntityStats, getFriendsAlbumActivity, getViewerAlbumTrackRatings } from "@/lib/queries";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { AlbumFriendLeaderboard } from "@/app/album/[id]/album-friend-leaderboard";
 import { timeAsync } from "@/lib/profiling";
 import { scheduleAlbumCatalogWarmupAfterNavigation } from "@/lib/catalog/album-warmup";
@@ -64,43 +65,42 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
        * Those paths resolve canonical album UUID via `album_external_ids`; parallel runs
        * raced `getOrFetchAlbum` upserts and returned empty / `no_canonical_album`.
        */
-      const sessionVal = await withAlbumPagePhaseLog("getSession", id, getSession());
-
-      let albumInner: Awaited<ReturnType<typeof getOrFetchAlbum>>["album"];
-      let tracksInner: Awaited<ReturnType<typeof getOrFetchAlbum>>["tracks"];
-      let fetched: Awaited<ReturnType<typeof getOrFetchAlbum>>;
-      try {
-        fetched = await withAlbumPagePhaseLog(
+      const [sessionVal, fetched] = await Promise.all([
+        withAlbumPagePhaseLog("getSession", id, getSession()),
+        withAlbumPagePhaseLog(
           "getOrFetchAlbum",
           id,
           getOrFetchAlbum(id, { allowNetwork: true }),
-        );
-        albumInner = fetched.album;
-        tracksInner = fetched.tracks;
-      } catch {
-        notFound();
-      }
-      redirectToCanonicalEntityIfNeeded("album", id, fetched!.canonicalAlbumId);
-      const entityIdInner = fetched!.canonicalAlbumId ?? id;
+        ).catch(() => null),
+      ]);
+
+      if (!fetched) notFound();
+
+      const albumInner = fetched.album;
+      const tracksInner = fetched.tracks;
+      redirectToCanonicalEntityIfNeeded("album", id, fetched.canonicalAlbumId);
+      const entityIdInner = fetched.canonicalAlbumId ?? id;
 
       /**
        * Sequential Supabase server work: parallel `createSupabaseServerClient()` (each awaits
        * `cookies()`) has deadlocked RSC — same pattern as `artist-page-content.tsx`.
        */
+      const supabase = await createSupabaseServerClient();
       const viewerId = sessionVal?.user?.id ?? null;
-      const statsInner = await withAlbumPagePhaseLog(
-        "getEntityStats(album)",
-        id,
-        getEntityStats("album", entityIdInner),
-      );
-      const engagementInner = await withAlbumPagePhaseLog(
-        "getAlbumEngagementStats",
-        id,
-        getAlbumEngagementStats(entityIdInner),
-      );
       const trackIds = (tracksInner.items ?? []).map((t) => t.id);
-      const [friendActivityInner, viewerTrackRatingsInner] = await Promise.all([
-        viewerId ? getFriendsAlbumActivity(viewerId, entityIdInner, 10) : Promise.resolve([]),
+
+      const [statsInner, engagementInner, friendActivityInner, viewerTrackRatingsInner] = await Promise.all([
+        withAlbumPagePhaseLog(
+          "getEntityStats(album)",
+          id,
+          getEntityStats("album", entityIdInner, supabase),
+        ),
+        withAlbumPagePhaseLog(
+          "getAlbumEngagementStats",
+          id,
+          getAlbumEngagementStats(entityIdInner, supabase),
+        ),
+        viewerId ? getFriendsAlbumActivity(viewerId, entityIdInner, 10, supabase) : Promise.resolve([]),
         viewerId ? getViewerAlbumTrackRatings(viewerId, trackIds) : Promise.resolve(new Map<string, number>()),
       ]);
 
