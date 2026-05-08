@@ -20,31 +20,18 @@ type Props = {
   scrollEnabled?: boolean;
 };
 
-export function MediaGrid({
-  data,
-  numColumns = 2,
-  onPressItem,
-  scrollEnabled = true,
-}: Props) {
+const GAP = 8;
+
+export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = true }: Props) {
   const renderItem = useCallback(
-    (item: MediaItem) => (
-      <TouchableOpacity
-        key={item.id}
-        style={[
-          styles.tile,
-          { width: scrollEnabled ? undefined : `${100 / numColumns}%` as unknown as number },
-          scrollEnabled && { flex: 1 },
-        ]}
-        activeOpacity={0.8}
-        onPress={() => onPressItem?.(item)}
-      >
-        {/* Full-width square artwork — matches web tile */}
+    ({ item }: { item: MediaItem }) => (
+      <TouchableOpacity style={styles.tile} activeOpacity={0.8} onPress={() => onPressItem?.(item)}>
         <View style={styles.artWrap}>
           {item.artworkUrl ? (
             <Image source={{ uri: item.artworkUrl }} style={styles.art} contentFit="cover" />
           ) : (
             <View style={[styles.art, styles.artPlaceholder]}>
-              <Text style={{ fontSize: 20, color: theme.colors.muted }}>♪</Text>
+              <Text style={styles.artGlyph}>♪</Text>
             </View>
           )}
           {item.rank != null && (
@@ -53,7 +40,6 @@ export function MediaGrid({
             </View>
           )}
         </View>
-
         <View style={styles.meta}>
           <Text numberOfLines={1} style={styles.title}>{item.title}</Text>
           <Text numberOfLines={1} style={styles.artist}>{item.artist}</Text>
@@ -70,44 +56,44 @@ export function MediaGrid({
         </View>
       </TouchableOpacity>
     ),
-    [scrollEnabled, numColumns, onPressItem],
+    [onPressItem],
   );
-
-  if (!scrollEnabled) {
-    return (
-      <View style={styles.grid}>
-        {data.map(renderItem)}
-      </View>
-    );
-  }
 
   return (
     <FlatList
       data={data}
-      keyExtractor={(item: MediaItem) => item.id}
+      keyExtractor={(item) => item.id}
       numColumns={numColumns}
-      contentContainerStyle={{ padding: 16, gap: 12 }}
-      columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
-      renderItem={({ item }) => renderItem(item)}
+      renderItem={renderItem}
+      scrollEnabled={scrollEnabled}
+      nestedScrollEnabled
+      columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
+      ItemSeparatorComponent={() => <View style={{ height: GAP }} />}
+      contentContainerStyle={scrollEnabled ? styles.scrollPad : undefined}
+      removeClippedSubviews
+      initialNumToRender={12}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 0,
+  row: {
+    gap: GAP,
+  },
+  scrollPad: {
+    padding: 16,
   },
   tile: {
-    padding: 6,
+    flex: 1,
   },
   artWrap: {
     width: "100%",
     aspectRatio: 1,
     overflow: "hidden",
-    borderRadius: 6,
-    backgroundColor: theme.colors.active,
+    borderRadius: 10,
+    backgroundColor: theme.colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.06)",
   },
   art: {
     width: "100%",
@@ -117,20 +103,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  artGlyph: {
+    fontSize: 20,
+    color: theme.colors.muted,
+  },
   rankBadge: {
     position: "absolute",
     top: 4,
     left: 4,
-    backgroundColor: "rgba(9,9,11,0.85)",
+    backgroundColor: "rgba(0,0,0,0.65)",
     borderRadius: 4,
     paddingHorizontal: 5,
     paddingVertical: 2,
   },
-  rankText: { fontSize: 11, fontWeight: "600", color: "#d4d4d8" },
-  meta: { marginTop: 6, paddingHorizontal: 2 },
-  title: { fontSize: 12, fontWeight: "600", color: theme.colors.text },
-  artist: { fontSize: 11, color: theme.colors.muted, marginTop: 1 },
-  statsRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
-  rating: { fontSize: 11, color: "#fbbf24" },
-  plays: { fontSize: 11, color: theme.colors.muted },
+  rankText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.85)",
+  },
+  meta: {
+    marginTop: 7,
+    paddingHorizontal: 1,
+  },
+  title: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.text,
+    lineHeight: 16,
+  },
+  artist: {
+    fontSize: 11,
+    color: theme.colors.muted,
+    marginTop: 1,
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
+  },
+  rating: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#fbbf24",
+  },
+  plays: {
+    fontSize: 11,
+    color: theme.colors.muted,
+  },
 });

@@ -23,7 +23,8 @@ export function StatRow({ averageRating, totalPlays, favoriteCount, reviewCount 
     <View style={styles.wrap}>
       {averageRating != null && (
         <Text style={styles.amber}>
-          ★ {averageRating.toFixed(1)}
+          ★ {averageRating.toFixed(1)}{" "}
+          <Text style={styles.muted}>avg</Text>
         </Text>
       )}
 
@@ -35,7 +36,7 @@ export function StatRow({ averageRating, totalPlays, favoriteCount, reviewCount 
 
       {favoriteCount > 0 && (
         <Text style={styles.muted}>
-          {favoriteCount.toLocaleString()} favorite{favoriteCount !== 1 ? "s" : ""}
+          {favoriteCount.toLocaleString()} favorited
         </Text>
       )}
 

@@ -17,6 +17,14 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      // Emulate iPhone 14 (390×844) — same viewport the native dev targets.
+      // Tests in mobile-viewport.spec.ts catch regressions between mobile web
+      // and the native app before they reach users.
+      name: "mobile-web",
+      use: { ...devices["iPhone 14"] },
+      testMatch: "**/mobile-viewport.spec.ts",
+    },
   ],
   webServer: process.env.CI
     ? undefined

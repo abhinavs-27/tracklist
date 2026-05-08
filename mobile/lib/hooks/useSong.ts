@@ -144,7 +144,7 @@ export function useSong(songId: string) {
     queryKey: key,
     queryFn: () => loadSongPage(songId),
     enabled: !!songId,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
   return {

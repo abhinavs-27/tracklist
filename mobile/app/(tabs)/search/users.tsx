@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { fetcher } from "@/lib/api";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -27,6 +27,7 @@ const BROWSE_PAGE_SIZE = 10;
 
 export default function UserSearchScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { session, isLoading: authLoading } = useAuth();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserSearchResult[]>([]);
@@ -39,12 +40,14 @@ export default function UserSearchScreen() {
   const [browseOffset, setBrowseOffset] = useState(0);
 
   const onBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
+    // Use the local stack navigator so we pop to search/index rather than
+    // following global history back to wherever we were pushed from (e.g. Explore).
+    if (navigation.canGoBack()) {
+      navigation.goBack();
     } else {
-      router.replace("/(tabs)/explore");
+      router.replace("/(tabs)/search");
     }
-  }, [router]);
+  }, [navigation, router]);
 
   const loadBrowse = useCallback(async (offset: number) => {
     setBrowseLoading(true);

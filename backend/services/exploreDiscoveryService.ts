@@ -302,23 +302,26 @@ async function getAcrossCommunities(supabase: SupabaseClient, limit: number): Pr
 
   if (error || !comms?.length) return [];
 
+  // Fetch all community ranking caches in one batched query instead of N sequential queries.
+  const communityIds = comms.map((c) => c.id as string);
+  const { data: caches } = await supabase
+    .from("community_rankings_cache")
+    .select("community_id, payload")
+    .in("community_id", communityIds)
+    .eq("entity_type", "track")
+    .eq("range", "month");
+
+  const cacheMap = new Map(
+    (caches ?? []).map((r: { community_id: string; payload: unknown }) => [r.community_id, r.payload]),
+  );
+
   const out: ExploreCommunityContrastRow[] = [];
   for (const c of comms) {
     if (out.length >= limit) break;
     const communityId = c.id as string;
-
-    const { data: cache } = await supabase
-      .from("community_rankings_cache")
-      .select("payload")
-      .eq("community_id", communityId)
-      .eq("entity_type", "track")
-      .eq("range", "month")
-      .maybeSingle();
-
-    const payload = cache?.payload as { items?: Array<Record<string, unknown>> } | undefined;
+    const payload = cacheMap.get(communityId) as { items?: Array<Record<string, unknown>> } | undefined;
     const top = (payload?.items ?? [])[0] as { entityId?: string; name?: string; image?: string | null } | undefined;
     if (!top?.entityId) continue;
-
     out.push({
       community_id: communityId,
       community_name: (c.name as string) || "Community",
@@ -331,7 +334,15 @@ async function getAcrossCommunities(supabase: SupabaseClient, limit: number): Pr
   return out;
 }
 
+type BundleCache = { data: ExploreDiscoveryBundle; expiresAt: number };
+const bundleCache = new Map<string, BundleCache>();
+const BUNDLE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export async function getExploreDiscoveryBundle(range: ExploreRangeParam): Promise<ExploreDiscoveryBundle> {
+  const cacheKey = `bundle:${range}`;
+  const cached = bundleCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
   const supabase = getSupabase();
   const cap = 20;
   const [blowing_up, most_talked_about, most_loved, hidden_gems, across_communities] = await Promise.all([
@@ -341,5 +352,7 @@ export async function getExploreDiscoveryBundle(range: ExploreRangeParam): Promi
     getHiddenGems(supabase, 12),
     getAcrossCommunities(supabase, 4),
   ]);
-  return { range, blowing_up, most_talked_about, most_loved, hidden_gems, across_communities };
+  const bundle: ExploreDiscoveryBundle = { range, blowing_up, most_talked_about, most_loved, hidden_gems, across_communities };
+  bundleCache.set(cacheKey, { data: bundle, expiresAt: Date.now() + BUNDLE_TTL_MS });
+  return bundle;
 }

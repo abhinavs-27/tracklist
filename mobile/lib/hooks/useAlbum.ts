@@ -27,6 +27,7 @@ export type AlbumStats = {
   play_count: number;
   favorite_count: number;
   review_count: number;
+  rating_distribution: Record<string, number> | null;
 };
 
 export type ReviewItem = {
@@ -53,7 +54,7 @@ export function useAlbum(albumId: string) {
     queryFn: () =>
       fetcher<AlbumApiResponse>(`/api/albums/${encodeURIComponent(albumId)}`),
     enabled: !!albumId,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
   const raw = data?.album ?? null;
@@ -70,6 +71,7 @@ export function useAlbum(albumId: string) {
       play_count: 0,
       favorite_count: 0,
       review_count: 0,
+      rating_distribution: null,
     } satisfies AlbumStats);
   const reviews = data?.reviews?.items ?? [];
 

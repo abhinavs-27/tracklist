@@ -107,23 +107,27 @@ const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_ART
  * 200ms minTime; 15/30s = ~30/min. Tune via SPOTIFY_SEARCH_MIN_TIME_MS / SPOTIFY_SEARCH_RESERVOIR_PER_30S.
  */
 const SPOTIFY_SEARCH_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_SEARCH_MIN_TIME_MS", 200);
-const SPOTIFY_SEARCH_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_SEARCH_RESERVOIR_PER_30S", 15);
+const SPOTIFY_SEARCH_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_SEARCH_RESERVOIR_PER_30S", 60);
 
 const spotifySearchLimiter = (() => {
   const connection = getSpotifyBottleneckRedisConnection();
+  // No reservoir — reservoir-based throttling causes queue buildup: when the
+  // reservoir empties, searches queue indefinitely. The mobile app times out
+  // after 8s but the server queue keeps growing until restart.
+  // minTime alone rate-limits to 5 req/s without any queue accumulation.
+  // highWater=1 + OVERFLOW means at most 1 search waits; extras are dropped fast.
   const opts = {
     maxConcurrent: 2,
     minTime: SPOTIFY_SEARCH_MIN_TIME_MS,
-    reservoir: SPOTIFY_SEARCH_RESERVOIR_PER_30S,
-    reservoirRefreshAmount: SPOTIFY_SEARCH_RESERVOIR_PER_30S,
-    reservoirRefreshInterval: 30 * 1000,
+    highWater: 1,
+    strategy: Bottleneck.strategy.OVERFLOW,
   } as const;
   if (connection) {
     return new Bottleneck({
       datastore: "ioredis",
       connection,
       clearDatastore: false,
-      id: "spotify-search-limiter",
+      id: "spotify-search-limiter-v2",
       clientTimeout: 30 * 60 * 1000,
       ...opts,
     });

@@ -47,10 +47,25 @@ artistsRouter.get("/:id", async (req, res) => {
       fetchArtistReviewsSimple(supabase, canonicalId, 6),
     ]);
 
-    // Album artwork map for enriching tracks
-    const albumArtworkMap = new Map(
+    // Build artwork map from fetched albums
+    const albumArtworkMap = new Map<string, string | null>(
       (dbAlbums as { id: string; artwork_url?: string | null }[]).map((a) => [a.id, a.artwork_url ?? null]),
     );
+
+    // Ensure every track's album is in the artwork map — fetch any missing ones.
+    // Mirrors getTopTracksForArtist on web which fetches all track album artwork independently.
+    const missingAlbumIds = (dbTracks as { album_id: string | null }[])
+      .map((t) => t.album_id)
+      .filter((id): id is string => !!id && !albumArtworkMap.has(id));
+    if (missingAlbumIds.length > 0) {
+      const { data: extraAlbums } = await supabase
+        .from("albums")
+        .select("id, image_url")
+        .in("id", [...new Set(missingAlbumIds)]);
+      for (const a of (extraAlbums ?? []) as { id: string; image_url: string | null }[]) {
+        albumArtworkMap.set(a.id, a.image_url ?? null);
+      }
+    }
 
     // Community stats derived from albums
     const totalCommunityPlays = (dbAlbums as { listen_count?: number }[]).reduce(

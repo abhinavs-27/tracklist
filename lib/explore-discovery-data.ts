@@ -441,37 +441,33 @@ export async function getExploreAcrossCommunities(
 
   if (error || !comms?.length) return [];
 
-  const out: ExploreCommunityContrastRow[] = [];
+  // Fetch all community ranking caches in one batched query instead of N sequential queries.
+  const communityIds = comms.map((c) => c.id as string);
+  const { data: caches } = await admin
+    .from("community_rankings_cache")
+    .select("community_id, payload")
+    .in("community_id", communityIds)
+    .eq("entity_type", "track")
+    .eq("range", "month");
 
+  const cacheMap = new Map(
+    (caches ?? []).map((r) => [r.community_id as string, r.payload]),
+  );
+
+  const out: ExploreCommunityContrastRow[] = [];
   for (const c of comms) {
     if (out.length >= limit) break;
     const communityId = c.id as string;
-    const communityName = (c.name as string) || "Community";
-
-    const { data: cache } = await admin
-      .from("community_rankings_cache")
-      .select("payload")
-      .eq("community_id", communityId)
-      .eq("entity_type", "track")
-      .eq("range", "month")
-      .maybeSingle();
-
-    const payload = cache?.payload as
+    const payload = cacheMap.get(communityId) as
       | { items?: Array<Record<string, unknown>> }
       | undefined;
-    const items = payload?.items ?? [];
-    const top = items[0] as
-      | {
-          entityId?: string;
-          name?: string;
-          image?: string | null;
-        }
+    const top = (payload?.items ?? [])[0] as
+      | { entityId?: string; name?: string; image?: string | null }
       | undefined;
     if (!top?.entityId) continue;
-
     out.push({
       community_id: communityId,
-      community_name: communityName,
+      community_name: (c.name as string) || "Community",
       top_track_id: top.entityId,
       top_track_name: top.name ?? "Track",
       top_track_image: top.image ?? null,

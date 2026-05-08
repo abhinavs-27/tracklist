@@ -5,6 +5,8 @@ import { theme } from "@/lib/theme";
 export type TrackRowItem = {
   id: string;
   name: string;
+  /** Optional — shown below the track name in muted text, matching web's artist line. */
+  artist?: string | null;
   track_number: number;
   duration_ms: number | null;
   listen_count?: number;
@@ -33,44 +35,32 @@ function TrackRow({ item, onPress }: { item: TrackRowItem; onPress: (id: string)
   const averageRating = item.average_rating ?? null;
 
   const statsParts: string[] = [];
-  if (listenCount > 0) statsParts.push(`${formatCompactPlays(listenCount)} plays`);
-  if (reviewCount > 0) statsParts.push(`${formatCompactPlays(reviewCount)} reviews`);
+  if (listenCount > 0) statsParts.push(`${formatCompactPlays(listenCount)} play${listenCount !== 1 ? "s" : ""}`);
+  if (reviewCount > 0) statsParts.push(`${formatCompactPlays(reviewCount)} review${reviewCount !== 1 ? "s" : ""}`);
+  if (averageRating != null) statsParts.push(`${averageRating.toFixed(1)}★`);
+  // Web shows "—" for zero-stat tracks, not a verbose message
+  const statsLine = statsParts.length > 0 ? statsParts.join(" · ") : "—";
 
   return (
     <Pressable
       onPress={() => onPress(item.id)}
-      style={({ pressed }) => [
-        styles.row,
-        pressed && styles.rowPressed,
-      ]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <View style={styles.topRow}>
         <View style={styles.rowLeft}>
           <Text style={styles.num}>{item.track_number}</Text>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={styles.nameCol}>
+            <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+            {item.artist ? (
+              <Text style={styles.artist} numberOfLines={1}>{item.artist}</Text>
+            ) : null}
+          </View>
         </View>
-        <Text style={styles.duration} numberOfLines={1}>
-          {duration ?? "—"}
-        </Text>
+        <Text style={styles.duration} numberOfLines={1}>{duration ?? "—"}</Text>
       </View>
 
       <View style={styles.statsRow}>
-        {statsParts.length > 0 ? (
-          <Text style={styles.statsMuted} numberOfLines={1}>
-            {statsParts.join(" · ")}
-          </Text>
-        ) : (
-          <Text style={styles.statsMuted} numberOfLines={1}>
-            No listens or reviews yet
-          </Text>
-        )}
-        {averageRating != null && (
-          <Text style={styles.statsAmber} numberOfLines={1}>
-            ★ {averageRating.toFixed(1)}
-          </Text>
-        )}
+        <Text style={styles.statsMuted} numberOfLines={1}>{statsLine}</Text>
       </View>
     </Pressable>
   );
@@ -125,13 +115,12 @@ export function Tracklist({
 const styles = StyleSheet.create({
   row: {
     flexDirection: "column",
-    justifyContent: "flex-start",
-    alignItems: "stretch",
-    paddingVertical: 12,
-    paddingHorizontal: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
   },
   rowPressed: {
-    opacity: 0.85,
+    backgroundColor: theme.colors.panel,
   },
   topRow: {
     flexDirection: "row",
@@ -140,53 +129,56 @@ const styles = StyleSheet.create({
   },
   rowLeft: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     alignItems: "center",
     flex: 1,
     minWidth: 0,
   },
+  // Track number — matches web's "text-xs text-zinc-600 tabular-nums"
   num: {
-    width: 28,
+    width: 22,
     textAlign: "right",
     fontSize: 12,
-    fontWeight: "800",
-    color: theme.colors.muted,
+    fontWeight: "400",
+    color: "#52525b", // zinc-600
   },
-  name: {
+  nameCol: {
     flex: 1,
+    minWidth: 0,
+  },
+  // Track name — matches web's "text-sm font-medium text-white"
+  name: {
     color: theme.colors.text,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "500",
   },
-  duration: {
-    width: 64,
-    textAlign: "right",
-    color: theme.colors.muted,
+  // Artist line — matches web's TrackCard "text-xs text-zinc-500"
+  artist: {
     fontSize: 12,
-    fontWeight: "700",
+    color: theme.colors.muted,
+    marginTop: 1,
   },
+  // Duration — matches web's "text-xs text-zinc-600"
+  duration: {
+    textAlign: "right",
+    color: "#52525b", // zinc-600
+    fontSize: 12,
+    fontWeight: "400",
+  },
+  // Stats row — matches web's pl-8 indented stats line
   statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
-    gap: 12,
+    marginTop: 2,
+    paddingLeft: 32, // indent to align with track name (num width + gap)
   },
+  // Stats text — matches web's "text-xs text-zinc-500"
   statsMuted: {
     color: theme.colors.muted,
-    fontSize: 12,
-    fontWeight: "700",
-    flex: 1,
-  },
-  statsAmber: {
-    color: theme.colors.amber,
-    fontSize: 12,
-    fontWeight: "900",
+    fontSize: 11,
   },
   sep: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: theme.colors.border,
-    marginVertical: 2,
+    marginVertical: 1,
   },
   empty: {
     color: theme.colors.muted,

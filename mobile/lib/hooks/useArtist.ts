@@ -71,7 +71,7 @@ export function useArtist(artistId: string) {
     queryKey: queryKeys.artist(artistId),
     queryFn: () => fetcher<ArtistApiResponse>(`/api/artists/${encodeURIComponent(artistId)}`),
     enabled: !!artistId,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
   const stats = data?.stats ?? ({

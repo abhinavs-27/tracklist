@@ -117,6 +117,7 @@ export default function SongDetailScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 24, paddingBottom: 100 }}>
         <MediaHeader
+          label="Song"
           artworkUrl={song.image_url}
           title={song.name}
           subtitle={song.artist}

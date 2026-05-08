@@ -234,6 +234,7 @@ function PeopleRow({ user, onPress }: { user: UserSearchResult; onPress: () => v
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 const DEBOUNCE_MS = 280;
+const SEARCH_TIMEOUT_MS = 8000;
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -247,33 +248,43 @@ export default function SearchScreen() {
   const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
   const [people, setPeople] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const doSearch = useCallback(async (q: string) => {
     abortRef.current?.abort();
-    abortRef.current = new AbortController();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    // Hard timeout so a stalled Bottleneck queue doesn't leave loading state forever
+    const timeoutId = setTimeout(() => ac.abort(), SEARCH_TIMEOUT_MS);
+
     setLoading(true);
+    setSearchError(null);
     try {
       const data = await fetcher<SearchPayload>(
         `/api/search?q=${encodeURIComponent(q)}&limit=10`,
-        { signal: abortRef.current.signal },
+        { signal: ac.signal },
       );
+      if (ac.signal.aborted) return;
       setArtists(data.artists?.items ?? []);
       setAlbums(data.albums?.items ?? []);
       setTracks(data.tracks?.items ?? []);
 
-      // Fetch people in parallel when query is long enough
       if (q.length >= MIN_PEOPLE_QUERY) {
         fetcher<UserSearchResult[]>(
           `/api/search/users?q=${encodeURIComponent(q)}&limit=6`,
-          { signal: abortRef.current?.signal },
+          { signal: ac.signal },
         )
-          .then((d) => setPeople(Array.isArray(d) ? d : []))
-          .catch(() => {/* silent */});
+          .then((d) => { if (!ac.signal.aborted) setPeople(Array.isArray(d) ? d : []); })
+          .catch(() => {});
       }
     } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") return;
+      if (ac.signal.aborted) return;
+      console.warn("[search] error:", e);
+      setSearchError("Search unavailable. Try again.");
     } finally {
-      setLoading(false);
+      clearTimeout(timeoutId);
+      if (!ac.signal.aborted) setLoading(false);
     }
   }, []);
 
@@ -387,8 +398,13 @@ export default function SearchScreen() {
             </Text>
           )}
 
+          {/* Search error */}
+          {searchError && !loading && (
+            <Text style={styles.errorText}>{searchError}</Text>
+          )}
+
           {/* No results */}
-          {query.trim() && !loading && !hasResults && (
+          {query.trim() && !loading && !hasResults && !searchError && (
             <Text style={styles.emptyText}>No results for "{query}"</Text>
           )}
 
@@ -507,6 +523,13 @@ const styles = StyleSheet.create({
   results: { paddingHorizontal: 16, paddingTop: 4 },
   emptyText: {
     color: theme.colors.muted,
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    marginTop: 40,
+  },
+  errorText: {
+    color: theme.colors.danger,
     fontSize: 14,
     fontWeight: "500",
     textAlign: "center",

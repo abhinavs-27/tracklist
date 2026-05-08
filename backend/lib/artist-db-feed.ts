@@ -35,11 +35,12 @@ export async function fetchArtistAlbumsFromDb(
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
     if (!canonicalArtistId) return [];
 
-    // Step 1: get albums for this artist
+    // Step 1: get albums for this artist — ordered newest-first to match web
     const { data: albumRows } = await supabase
       .from("albums")
       .select("id, name, image_url")
       .eq("artist_id", canonicalArtistId)
+      .order("release_date", { ascending: false, nullsFirst: false })
       .limit(limit);
 
     if (!albumRows?.length) return [];
@@ -268,7 +269,7 @@ export async function fetchArtistRecentListens(
   } catch { return []; }
 }
 
-/** Lightweight review fetch for the main artist API response. */
+/** Lightweight review fetch for the main artist API response. Mirrors getReviewsForArtist in queries.ts. */
 export async function fetchArtistReviewsSimple(
   supabase: SupabaseClient,
   canonicalArtistId: string,
@@ -276,36 +277,58 @@ export async function fetchArtistReviewsSimple(
 ): Promise<object[]> {
   try {
     const [{ data: albumRows }, { data: trackRows }] = await Promise.all([
-      supabase.from("albums").select("id, name, image_url").eq("artist_id", canonicalArtistId).limit(100),
-      supabase.from("tracks").select("id, name").eq("artist_id", canonicalArtistId).limit(500),
+      supabase.from("albums").select("id, name, image_url").eq("artist_id", canonicalArtistId).limit(1000),
+      supabase.from("tracks").select("id, name").eq("artist_id", canonicalArtistId).limit(1000),
     ]);
 
     const albumMap = new Map(((albumRows ?? []) as { id: string; name: string; image_url: string | null }[]).map((a) => [a.id, a]));
-    const trackMap = new Map(((trackRows ?? []) as { id: string; name: string }[]).map((t) => [t.id, t]));
-    const allIds = [...albumMap.keys(), ...trackMap.keys()];
-    if (!allIds.length) return [];
+    const trackNameMap = new Map(((trackRows ?? []) as { id: string; name: string }[]).map((t) => [t.id, t.name]));
+    const entityIds = [...albumMap.keys(), ...trackNameMap.keys()];
+    if (!entityIds.length) return [];
 
+    // No review_text filter — matches web which shows rating-only reviews too
     const { data: reviews } = await supabase
       .from("reviews")
       .select("id, user_id, entity_type, entity_id, rating, review_text, created_at, users(id, username, avatar_url)")
-      .in("entity_id", allIds.slice(0, 200))
-      .not("review_text", "is", null)
+      .in("entity_id", entityIds)
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    return (reviews ?? []).map((r: any) => {
+    if (!reviews?.length) return [];
+
+    // For song reviews, we need the album image — join tracks→albums like the web does
+    const songReviewTrackIds = (reviews as any[])
+      .filter((r) => r.entity_type === "song")
+      .map((r) => r.entity_id as string);
+
+    const trackAlbumImageMap = new Map<string, string | null>();
+    if (songReviewTrackIds.length > 0) {
+      const { data: trackAlbumRows } = await supabase
+        .from("tracks")
+        .select("id, album_id, albums(image_url)")
+        .in("id", songReviewTrackIds);
+      for (const t of (trackAlbumRows ?? []) as unknown as { id: string; album_id: string | null; albums: { image_url: string | null } | { image_url: string | null }[] | null }[]) {
+        const img = Array.isArray(t.albums) ? t.albums[0]?.image_url : t.albums?.image_url;
+        trackAlbumImageMap.set(t.id, img ?? null);
+      }
+    }
+
+    return (reviews as any[]).map((r) => {
       const album = albumMap.get(r.entity_id);
-      const track = trackMap.get(r.entity_id);
+      const entityName = album?.name ?? trackNameMap.get(r.entity_id) ?? null;
+      const entityImage = r.entity_type === "album"
+        ? (album?.image_url ?? null)
+        : (trackAlbumImageMap.get(r.entity_id) ?? null);
       return {
         id: r.id,
         user_id: r.user_id,
         username: r.users?.username ?? null,
         entity_type: r.entity_type,
         entity_id: r.entity_id,
-        entity_name: album?.name ?? track?.name ?? null,
-        entity_image_url: album?.image_url ?? null,
+        entity_name: entityName,
+        entity_image_url: entityImage,
         rating: r.rating,
-        review_text: r.review_text,
+        review_text: r.review_text ?? null,
         created_at: r.created_at,
         user: r.users ? { id: r.users.id, username: r.users.username, avatar_url: r.users.avatar_url } : null,
       };

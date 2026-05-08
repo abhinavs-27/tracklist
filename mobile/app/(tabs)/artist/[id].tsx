@@ -48,7 +48,7 @@ function CommunityStats({ totalPlays, avgRating, albumCount }: { totalPlays: num
     <View style={s.statsRow}>
       {totalPlays > 0 && <Text style={s.chunk}><Text style={s.bold}>{totalPlays.toLocaleString()}</Text><Text style={s.muted}> plays on Tracklist</Text></Text>}
       {avgRating != null && <Text style={s.dot}>·</Text>}
-      {avgRating != null && <Text style={s.chunk}><Text style={s.amber}>{"★".repeat(Math.round(avgRating))}</Text><Text style={s.muted}> avg</Text></Text>}
+      {avgRating != null && <Text style={s.chunk}><Text style={s.amber}>★ {avgRating.toFixed(1)}</Text><Text style={s.muted}> avg rating</Text></Text>}
       {albumCount > 0 && <Text style={s.dot}>·</Text>}
       {albumCount > 0 && <Text style={s.chunk}><Text style={s.bold}>{albumCount}</Text><Text style={s.muted}> albums</Text></Text>}
     </View>
@@ -71,7 +71,7 @@ function ViewerStrip({ playCount, topAlbumName, topAlbumId, firstListened, onAlb
 
 function TrackRow({ track, onPress }: { track: ArtistTrackItem; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.trackRow, pressed && { opacity: 0.8 }]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [s.trackCard, pressed && { opacity: 0.8 }]}>
       {track.artwork_url
         ? <Image source={{ uri: track.artwork_url }} style={s.thumb44} contentFit="cover" />
         : <View style={[s.thumb44, s.ph]}><Ionicons name="musical-notes" size={14} color={theme.colors.muted} /></View>}
@@ -90,17 +90,23 @@ function TrackRow({ track, onPress }: { track: ArtistTrackItem; onPress: () => v
 function ReviewCard({ review, onPress }: { review: ArtistReviewItem; onPress: () => void }) {
   return (
     <View style={s.reviewCard}>
-      <Pressable onPress={onPress} style={({ pressed }) => [s.row, { gap: 12 }, pressed && { opacity: 0.8 }]}>
-        {review.entity_image_url
-          ? <Image source={{ uri: review.entity_image_url }} style={s.thumb48} contentFit="cover" />
-          : <View style={[s.thumb48, s.ph]}><Ionicons name="musical-notes" size={14} color={theme.colors.muted} /></View>}
+      <Pressable onPress={onPress} style={({ pressed }) => [s.reviewHeader, pressed && { opacity: 0.8 }]}>
+        <View style={s.entityImg}>
+          {review.entity_image_url
+            ? <Image source={{ uri: review.entity_image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            : <Ionicons name="musical-notes" size={14} color={theme.colors.muted} />}
+        </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} style={s.trackName}>{review.entity_name ?? (review.entity_type === "album" ? "Album" : "Track")}</Text>
-          <Text style={s.amber}>{"★".repeat(Math.round(review.rating))}</Text>
+          <Text numberOfLines={1} style={s.reviewEntityName}>
+            {review.entity_name ?? (review.entity_type === "album" ? "Album" : "Track")}
+          </Text>
+          <Text style={s.reviewStars}>{"★".repeat(Math.max(0, Math.min(5, Math.round(review.rating))))}</Text>
         </View>
       </Pressable>
-      {review.review_text ? <Text style={s.reviewTxt} numberOfLines={4}>{review.review_text}</Text> : null}
-      <View style={[s.row, s.reviewMeta]}>
+      {review.review_text ? (
+        <Text style={s.reviewTxt} numberOfLines={4}>{review.review_text}</Text>
+      ) : null}
+      <View style={s.reviewMeta}>
         {review.user?.avatar_url
           ? <Image source={{ uri: review.user.avatar_url }} style={s.av22} contentFit="cover" />
           : <View style={[s.av22, s.ph]}><Text style={{ fontSize: 9, color: theme.colors.muted, fontWeight: "700" }}>{(review.user?.username ?? "?")[0]?.toUpperCase()}</Text></View>}
@@ -118,22 +124,36 @@ function Leaderboard({ artistId }: { artistId: string }) {
   if (entries.length < 2) return <Text style={[s.muted, { paddingTop: 8 }]}>No friend data yet.</Text>;
   const max = entries[0]?.playCount ?? 1;
   return (
-    <>
+    <View style={{ gap: 10 }}>
       {entries.map((e, i) => {
         const pct = Math.max(4, Math.round((e.playCount / max) * 100));
+        const isFirst = i === 0;
         return (
           <View key={e.userId} style={[s.leaderRow, e.isViewer && s.leaderViewer]}>
-            <Text style={s.leaderRank}>{i + 1}</Text>
-            {e.avatarUrl ? <Image source={{ uri: e.avatarUrl }} style={s.av32} contentFit="cover" /> : <View style={[s.av32, s.ph]}><Text style={{ fontSize: 11, color: theme.colors.muted, fontWeight: "700" }}>{(e.username[0] ?? "?").toUpperCase()}</Text></View>}
-            <View style={{ flex: 1 }}>
-              <Text numberOfLines={1} style={[s.trackName, e.isViewer && { color: "#6ee7b7" }]}>{e.isViewer ? "You" : e.username}</Text>
-              <View style={s.barWrap}><View style={[s.barFill, { width: `${pct}%` as unknown as number }, e.isViewer && { backgroundColor: theme.colors.emerald }]} /></View>
+            {/* Rank — amber for #1, muted otherwise */}
+            <Text style={[s.leaderRank, isFirst && s.leaderRankFirst]}>{i + 1}</Text>
+            {/* Avatar */}
+            {e.avatarUrl
+              ? <Image source={{ uri: e.avatarUrl }} style={s.av32} contentFit="cover" />
+              : <View style={[s.av32, s.ph]}><Text style={{ fontSize: 11, color: theme.colors.muted, fontWeight: "700" }}>{(e.username[0] ?? "?").toUpperCase()}</Text></View>}
+            {/* Name + play count + bar */}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={s.leaderNameRow}>
+                <Text numberOfLines={1} style={[s.leaderName, e.isViewer && s.leaderNameViewer]}>
+                  {e.isViewer ? "You" : e.username}
+                </Text>
+                <Text style={[s.leaderPlays, e.isViewer && s.leaderPlaysViewer]}>
+                  {e.playCount.toLocaleString()} {e.playCount === 1 ? "play" : "plays"}
+                </Text>
+              </View>
+              <View style={s.barWrap}>
+                <View style={[s.barFill, { width: `${pct}%` as unknown as number }, e.isViewer && s.barFillViewer]} />
+              </View>
             </View>
-            <Text style={[s.muted, e.isViewer && { color: theme.colors.emerald }]}>{e.playCount.toLocaleString()}</Text>
           </View>
         );
       })}
-    </>
+    </View>
   );
 }
 
@@ -142,26 +162,35 @@ function RecentListens({ artistId, onAlbum, onSong }: { artistId: string; onAlbu
   if (isPending) return <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />;
   if (!listens.length) return null;
   return (
-    <>
+    <View style={{ gap: 8 }}>
       {listens.map((l) => (
-        <Pressable key={l.id} onPress={() => l.album_id ? onAlbum(l.album_id) : onSong(l.track_id)} style={({ pressed }) => [s.trackRow, pressed && { opacity: 0.8 }]}>
-          {l.album_image ? <Image source={{ uri: l.album_image }} style={s.thumb44} contentFit="cover" /> : <View style={[s.thumb44, s.ph]}><Ionicons name="musical-notes" size={14} color={theme.colors.muted} /></View>}
+        <Pressable key={l.id} onPress={() => l.album_id ? onAlbum(l.album_id) : onSong(l.track_id)} style={({ pressed }) => [s.listenCard, pressed && { opacity: 0.8 }]}>
+          {l.album_image
+            ? <Image source={{ uri: l.album_image }} style={s.thumb44} contentFit="cover" />
+            : <View style={[s.thumb44, s.ph]}><Ionicons name="musical-notes" size={14} color={theme.colors.muted} /></View>}
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text numberOfLines={1} style={s.trackName}>{l.track_name ?? "Track"}</Text>
             {l.album_name ? <Text numberOfLines={1} style={s.muted}>{l.album_name}</Text> : null}
-            <Text style={s.muted}>{l.user?.username ?? "Someone"} · {formatRelativeTime(l.listened_at)}</Text>
+            <Text style={[s.muted, { marginTop: 2 }]}>{l.user?.username ?? "Someone"} · {formatRelativeTime(l.listened_at)}</Text>
           </View>
-          {l.user?.avatar_url && <Image source={{ uri: l.user.avatar_url }} style={s.av28} contentFit="cover" />}
+          {l.user?.avatar_url
+            ? <Image source={{ uri: l.user.avatar_url }} style={s.av28} contentFit="cover" />
+            : <View style={[s.av28, s.ph]}><Text style={{ fontSize: 10, color: theme.colors.muted, fontWeight: "700" }}>{(l.user?.username ?? "?")[0]?.toUpperCase()}</Text></View>}
         </Pressable>
       ))}
-    </>
+    </View>
   );
 }
+
+const TRACKS_INITIAL = 5;
+const ALBUMS_INITIAL = 8;
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [tab, setTab] = useState<"general" | "social">("general");
+  const [tracksExpanded, setTracksExpanded] = useState(false);
+  const [albumsExpanded, setAlbumsExpanded] = useState(false);
   const artistId = useMemo(() => (Array.isArray(id) ? id[0] : id) ?? "", [id]);
 
   const { artist, albums, topTracks, reviews, communityStats, isLoading, error } = useArtist(artistId);
@@ -200,36 +229,55 @@ export default function ArtistDetailScreen() {
         </View>
 
         <View style={s.tabContent}>
-          {tab === "general" && (
-            <>
-              {topTracks.length > 0 && (
-                <View style={s.section}>
-                  <Text style={s.h2}>Popular tracks</Text>
-                  {topTracks.map((t) => <TrackRow key={t.id} track={t} onPress={() => navSong(t.id)} />)}
-                </View>
-              )}
-              {albums.length > 0 && (
-                <View style={s.section}>
+          {/* Always mount both panes — mirrors web's display:none approach so hooks
+              for social data fire immediately rather than waiting for tab switch. */}
+          <View style={tab !== "general" ? s.hidden : undefined}>
+            {topTracks.length > 0 && (
+              <View style={s.section}>
+                <Text style={s.h2}>Popular tracks</Text>
+                {topTracks.slice(0, tracksExpanded ? 10 : TRACKS_INITIAL).map((t) => (
+                  <TrackRow key={t.id} track={t} onPress={() => navSong(t.id)} />
+                ))}
+                {!tracksExpanded && topTracks.length > TRACKS_INITIAL && (
+                  <Pressable onPress={() => setTracksExpanded(true)} style={s.loadMoreBtn}>
+                    <Text style={s.loadMoreText}>Load more</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+            {albums.length > 0 && (
+              <View style={s.section}>
+                <View style={s.sectionHeader}>
                   <Text style={s.h2}>Albums</Text>
-                  <MediaGrid data={grid} numColumns={2} scrollEnabled={false} onPressItem={(item) => navAlbum(item.id)} />
+                  {albums.length > ALBUMS_INITIAL && (
+                    <Pressable onPress={() => setAlbumsExpanded((v) => !v)}>
+                      <Text style={s.viewAllText}>
+                        {albumsExpanded ? "Show less" : "View all"}
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
-              )}
-              {reviews.length > 0 && (
-                <View style={s.section}>
-                  <Text style={s.h2}>Reviews</Text>
-                  {reviews.map((r) => (
-                    <ReviewCard key={r.id} review={r} onPress={() => router.push((r.entity_type === "album" ? `/album/${r.entity_id}` : `/song/${r.entity_id}`) as `/album/${string}`)} />
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-          {tab === "social" && (
-            <>
-              <View style={s.section}><Text style={s.h2}>Among your friends</Text><Leaderboard artistId={artistId} /></View>
-              <View style={s.section}><Text style={s.h2}>Recently played</Text><RecentListens artistId={artistId} onAlbum={navAlbum} onSong={navSong} /></View>
-            </>
-          )}
+                <MediaGrid
+                  data={albumsExpanded ? grid : grid.slice(0, ALBUMS_INITIAL)}
+                  numColumns={3}
+                  scrollEnabled={false}
+                  onPressItem={(item) => navAlbum(item.id)}
+                />
+              </View>
+            )}
+            {reviews.length > 0 && (
+              <View style={s.section}>
+                <Text style={s.h2}>Reviews</Text>
+                {reviews.map((r) => (
+                  <ReviewCard key={r.id} review={r} onPress={() => router.push((r.entity_type === "album" ? `/album/${r.entity_id}` : `/song/${r.entity_id}`) as `/album/${string}`)} />
+                ))}
+              </View>
+            )}
+          </View>
+          <View style={tab !== "social" ? s.hidden : undefined}>
+            <View style={s.section}><Text style={s.h2}>Among your friends</Text><Leaderboard artistId={artistId} /></View>
+            <View style={s.section}><Text style={s.h2}>Friends listening</Text><RecentListens artistId={artistId} onAlbum={navAlbum} onSong={navSong} /></View>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -261,22 +309,40 @@ const s = StyleSheet.create({
   tabActive: { color: theme.colors.text },
   tabLine: { position: "absolute", bottom: 0, left: "15%", right: "15%", height: 2, borderRadius: 1, backgroundColor: theme.colors.emerald },
   tabContent: { paddingHorizontal: 16, paddingTop: 4 },
+  hidden: { display: "none" },
   section: { paddingTop: 24, gap: 12 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   h2: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
+  loadMoreBtn: { paddingTop: 8 },
+  loadMoreText: { fontSize: 13, fontWeight: "600", color: theme.colors.emerald },
+  viewAllText: { fontSize: 13, fontWeight: "600", color: theme.colors.emerald },
   ph: { backgroundColor: theme.colors.active, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
-  trackRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
+  trackCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.panel, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, padding: 12 },
+  listenCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.panel, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, paddingHorizontal: 12, paddingVertical: 10 },
   trackName: { fontSize: 14, fontWeight: "600", color: theme.colors.text, marginBottom: 2 },
-  thumb44: { width: 44, height: 44, borderRadius: 6, overflow: "hidden" },
-  thumb48: { width: 48, height: 48, borderRadius: 8, overflow: "hidden" },
-  reviewCard: { backgroundColor: theme.colors.panel, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, padding: 14, gap: 10, marginBottom: 8 },
-  reviewTxt: { fontSize: 13, color: theme.colors.text, lineHeight: 19 },
-  reviewMeta: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border, paddingTop: 10 },
-  leaderRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.colors.panel, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border },
-  leaderViewer: { borderColor: "rgba(16,185,129,0.3)", backgroundColor: "rgba(16,185,129,0.05)" },
+  thumb44: { width: 44, height: 44, borderRadius: 8, overflow: "hidden" },
+  // Review card
+  reviewCard: { backgroundColor: theme.colors.panel, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, padding: 14, gap: 12, marginBottom: 8 },
+  reviewHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  entityImg: { width: 48, height: 48, borderRadius: 10, overflow: "hidden", backgroundColor: theme.colors.active, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.07)", alignItems: "center", justifyContent: "center" },
+  reviewEntityName: { fontSize: 14, fontWeight: "600", color: theme.colors.text, marginBottom: 2 },
+  reviewStars: { fontSize: 16, color: "#fbbf24", lineHeight: 20 },
+  reviewTxt: { fontSize: 13, color: "#d4d4d8", lineHeight: 20 },
+  reviewMeta: { flexDirection: "row", alignItems: "center", gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border, paddingTop: 10 },
+  // Leaderboard
+  leaderRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.colors.panel, borderRadius: 14, padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border },
+  leaderViewer: { borderColor: "rgba(16,185,129,0.25)", backgroundColor: "rgba(6,46,37,0.4)" },
   leaderRank: { width: 20, fontSize: 13, fontWeight: "700", color: theme.colors.muted, textAlign: "center" },
-  barWrap: { height: 4, borderRadius: 2, backgroundColor: theme.colors.border, overflow: "hidden", marginTop: 4 },
+  leaderRankFirst: { color: "#fbbf24" },
+  leaderNameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 5 },
+  leaderName: { fontSize: 13, fontWeight: "600", color: "#e4e4e7", flexShrink: 1 },
+  leaderNameViewer: { color: "#6ee7b7" },
+  leaderPlays: { fontSize: 12, color: theme.colors.muted, flexShrink: 0 },
+  leaderPlaysViewer: { color: theme.colors.emerald },
+  barWrap: { height: 4, borderRadius: 2, backgroundColor: theme.colors.border, overflow: "hidden" },
   barFill: { height: "100%" as unknown as number, borderRadius: 2, backgroundColor: theme.colors.muted },
+  barFillViewer: { backgroundColor: theme.colors.emerald },
   av22: { width: 22, height: 22, borderRadius: 11, overflow: "hidden" },
   av28: { width: 28, height: 28, borderRadius: 14, overflow: "hidden" },
   av32: { width: 32, height: 32, borderRadius: 16, overflow: "hidden" },
