@@ -208,6 +208,9 @@ listsRouter.get("/:listId", async (req, res) => {
     return;
   }
 
+  const limit = Math.min(Math.max(1, Number(req.query.limit) || 50), 200);
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+
   try {
     const supabase = getSupabase();
 
@@ -241,7 +244,7 @@ listsRouter.get("/:listId", async (req, res) => {
       .select("id, list_id, entity_type, entity_id, position, added_at")
       .eq("list_id", listId)
       .order("position", { ascending: true })
-      .range(0, 99);
+      .range(offset, offset + limit - 1);
 
     itemRows = (itemsResult.data ?? []).map((r: { id: string, entity_type: string, entity_id: string, position: number, added_at?: string }) => ({ ...r, list_id: listId }));
     itemsError = itemsResult.error;
@@ -252,7 +255,7 @@ listsRouter.get("/:listId", async (req, res) => {
         .select("id, list_id, entity_type, entity_id, position")
         .eq("list_id", listId)
         .order("position", { ascending: true })
-        .range(0, 99);
+        .range(offset, offset + limit - 1);
       if (!fallback.error) {
         itemRows = (fallback.data ?? []).map((r) => ({
           ...r,

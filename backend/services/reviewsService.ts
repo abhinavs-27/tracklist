@@ -39,8 +39,11 @@ export async function getReviewsForEntity(
   limit = 20,
   viewerUserId: string | null,
   sessionUsername: string | null = null,
+  offset = 0,
 ): Promise<ReviewsResult | null> {
   const cappedLimit = Math.min(Math.max(1, limit), 20);
+  const safeOffset = Math.max(0, offset);
+
   try {
     const supabase = getSupabase();
 
@@ -52,7 +55,7 @@ export async function getReviewsForEntity(
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
       .order("created_at", { ascending: false })
-      .limit(cappedLimit);
+      .range(safeOffset, safeOffset + cappedLimit - 1);
 
     if (error) return null;
 

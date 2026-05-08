@@ -72,6 +72,9 @@ commentsRouter.get("/", async (req, res) => {
     if (!reviewId) return badRequest(res, "review_id is required");
     if (!isValidUuid(reviewId)) return badRequest(res, "Invalid review_id");
 
+    const limit = Math.min(Math.max(1, Number(req.query.limit) || 20), 50);
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+
     const supabase = getSupabase();
     let comments: Record<string, unknown>[] | null = null;
     let error: unknown = null;
@@ -80,14 +83,16 @@ commentsRouter.get("/", async (req, res) => {
       .from("comments")
       .select("id, user_id, review_id, content, created_at")
       .eq("review_id", reviewId)
-      .order("created_at", { ascending: true }));
+      .order("created_at", { ascending: true })
+      .range(offset, offset + limit - 1));
 
     if (error && isMissingReviewIdColumn(error)) {
       ({ data: comments, error } = await supabase
         .from("comments")
         .select("id, user_id, log_id, content, created_at")
         .eq("log_id", reviewId)
-        .order("created_at", { ascending: true }));
+        .order("created_at", { ascending: true })
+        .range(offset, offset + limit - 1));
       if (error) return internalError(res, error);
       comments = (comments ?? []).map((c) => ({ ...c, review_id: reviewId }));
     }

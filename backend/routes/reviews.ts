@@ -26,6 +26,7 @@ reviewsRouter.get("/", async (req, res) => {
     const entityType = req.query.entity_type as string | undefined;
     const entityId = req.query.entity_id as string | undefined;
     const limit = clampLimit(req.query.limit, 20, 10);
+    const offset = Math.max(0, Number(req.query.offset) || 0);
 
     if (!entityType || !entityId) {
       return badRequest(res, "entity_type and entity_id required");
@@ -44,6 +45,7 @@ reviewsRouter.get("/", async (req, res) => {
       limit,
       session?.id ?? null,
       session?.username ?? null,
+      offset,
     );
     if (!result) return internalError(res, "Failed to fetch reviews");
 
