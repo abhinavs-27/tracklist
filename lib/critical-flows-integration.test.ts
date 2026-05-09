@@ -184,7 +184,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     it('should return 400 for invalid rating', async () => {
         const req = new NextRequest('http://localhost/api/reviews', {
           method: 'POST',
-          body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 }),
+          body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 6 }),
         });
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
@@ -260,7 +260,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           .mockReturnValueOnce(secondChain); // insert result fetch
 
         firstChain.in.mockResolvedValue({ data: [], error: null });
-        secondChain.select.mockResolvedValue({ data: [{ id: 'l1' }], error: null });
+        secondChain.select.mockResolvedValue({ data: [{ id: '2nLhD10Z7Sb4RFyCX2ZCyx' }], error: null });
 
         const req = new NextRequest('http://localhost/api/spotify/sync', { method: 'POST' });
         const res = await syncPOST(req);

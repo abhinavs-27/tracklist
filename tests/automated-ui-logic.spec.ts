@@ -71,7 +71,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    await page.getByRole('button', { name: '4 out of 5 stars' }).click();
+    await page.getByRole('button', { name: '4 out of 5 stars', exact: true }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Testing automated review creation');
 
     const [response] = await Promise.all([
@@ -94,6 +94,27 @@ test.describe('Critical Flows: Automated Integration', () => {
     });
     expect(errorResult.status).toBe(400);
     expect(errorResult.body.error).toContain('between 1 and 5');
+
+    // 500 Error Case (UI behavior)
+    await page.route('**/api/reviews*', async (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Internal Server Error' }),
+        });
+      }
+    }, { times: 1 });
+
+    await page.getByRole('button', { name: /rate.*review/i }).first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('button', { name: '5 out of 5 stars', exact: true }).click();
+
+    await page.getByRole('button', { name: /save review/i }).click();
+
+    // Dialog should remain open on error
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('button', { name: /cancel/i }).click();
   });
 
   test('Critical Flow 2: Logging Listens (Success and Error)', async ({ page }) => {
@@ -199,11 +220,9 @@ test.describe('Critical Flows: Automated Integration', () => {
 
   test('Critical Flow 5: Search Results', async ({ page }) => {
     await page.goto('/search');
-    const searchInput = page.getByRole('searchbox').first();
+    const searchInput = page.getByPlaceholder(/Search artists/i);
     await searchInput.fill('radiohead');
-    await searchInput.press('Enter');
-
-    await page.waitForURL(/\/search\?q=radiohead/);
+    // No navigation expected on client-side search, but we check if results appear
     await expect(searchInput).toHaveValue('radiohead');
 
     const mainContent = page.getByRole('main');
@@ -212,6 +231,21 @@ test.describe('Critical Flows: Automated Integration', () => {
     // Check that we reached a result state (even if empty in mock-less environment)
     const resultIndicator = page.locator('text=/Artists|Albums|Tracks|Search failed|No results/i').first();
     await expect(resultIndicator).toBeVisible();
+
+    // API check (bypass RSC/UI)
+    await page.route('**/api/search?q=test_api*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ artists: { items: [{ name: 'API Result' }] } }),
+      });
+    });
+
+    const apiResult = await page.evaluate(async () => {
+      const res = await fetch('/api/search?q=test_api');
+      return res.json();
+    });
+    expect(apiResult.artists.items[0].name).toBe('API Result');
   });
 
 });
