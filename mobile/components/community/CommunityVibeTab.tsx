@@ -231,7 +231,7 @@ export function CommunityVibeTab({
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Albums in rotation"
+        title="Albums everyone's playing"
         subtitle="Shared favorites · swipe sideways"
         defaultOpen
       >

@@ -46,7 +46,7 @@ export const LISTENING_STYLE_COPY: Record<
   },
   "plotting-the-plot": {
     title: "Still building",
-    subtitle: "Not enough history yet — keep logging and this will firm up.",
+    subtitle: "Keep logging listens and your style will start to take shape.",
   },
 };
 

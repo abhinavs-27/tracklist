@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { countUnreadNotifications } from "@/lib/queries";
 import { BillboardDropSection } from "@/components/billboard-drop/billboard-drop-section";
 import { HomeWelcomeOverlay } from "@/components/home-welcome-overlay";
 import { VisitorFeed } from "@/components/home/visitor-feed";
@@ -78,6 +80,9 @@ export default async function HomePage({
   const userId = session.user.id;
   const username = session.user.username ?? session.user.name ?? "you";
 
+  const supabase = await createSupabaseServerClient();
+  const unreadCount = await countUnreadNotifications(userId, supabase).catch(() => 0);
+
   const settled = await Promise.allSettled([
     getCachedTasteIdentity(userId),         // 0
     getCachedTopThisWeek(userId),            // 1
@@ -140,7 +145,7 @@ export default async function HomePage({
 
   // ── Billboard tab — the real weekly ranked chart ─────────────────────────────
   const billboardTab = (
-    <ChartsClient initialType="tracks" initialWeekStart={sp.weekStart?.trim() || null} />
+    <ChartsClient initialType="tracks" initialWeekStart={sp.weekStart?.trim() || null} hideBackLink />
   );
 
   // ── Pulse tab — rolling 7-day top + pulse stats + narrative ──────────────────
@@ -224,6 +229,7 @@ export default async function HomePage({
         pulseContent={pulseTab}
         historyContent={historyTab}
         activityContent={activityTab}
+        unreadCount={unreadCount}
       />
     </div>
   );

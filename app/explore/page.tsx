@@ -11,6 +11,9 @@ import { ExploreTastePreviewSkeleton } from "@/components/explore/explore-sectio
 import { exploreLogLine } from "@/lib/explore-perf";
 import { pageTitle, sectionGap } from "@/lib/ui/surface";
 import { RisingArtistsLoader } from "@/components/explore/rising-artists-loader";
+import { NotificationBellLink } from "@/components/notifications/notification-bell-link";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { countUnreadNotifications } from "@/lib/queries";
 
 function SectionSkeleton() {
   return <div className="min-h-[160px] animate-pulse rounded-2xl bg-zinc-900/50 ring-1 ring-inset ring-white/[0.06]" />;
@@ -24,15 +27,30 @@ export default async function ExploreHubPage() {
   const userId = session?.user?.id ?? null;
   const socialMusicUi = isSocialInboxAndMusicRecUiEnabled();
 
+  const unreadCount = userId
+    ? await createSupabaseServerClient()
+        .then((s) => countUnreadNotifications(userId, s))
+        .catch(() => 0)
+    : 0;
+
   exploreLogLine(`explore: page shell ready: ${Date.now() - start} ms`);
 
   return (
     <div className={sectionGap}>
-      <header>
-        <h1 className={pageTitle}>Explore</h1>
-        <p className="mt-3 max-w-2xl text-base text-zinc-400 sm:text-lg">
-          Trending tracks, rising artists, hidden gems, and community picks.
-        </p>
+      <header className="sticky top-0 z-40 -mx-4 bg-zinc-950/95 px-4 pb-5 pt-6 backdrop-blur-xl sm:-mx-6 sm:px-6 md:static md:mx-0 md:bg-transparent md:px-0 md:pt-0 md:backdrop-blur-none">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className={pageTitle}>Explore</h1>
+            <p className="mt-2 text-[15px] text-zinc-400 md:mt-3 md:text-lg">
+              Trending tracks, rising artists, hidden gems, and community picks.
+            </p>
+          </div>
+          {userId && (
+            <div className="shrink-0 md:hidden">
+              <NotificationBellLink unreadCount={unreadCount} />
+            </div>
+          )}
+        </div>
       </header>
 
       {socialMusicUi && userId ? (

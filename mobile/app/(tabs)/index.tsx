@@ -5,6 +5,7 @@ import {
   Image,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -14,9 +15,13 @@ import { useRouter } from "expo-router";
 import {
   useHomeBillboard,
   useHomePulse,
+  useWeeklyChart,
   type TopArtistItem,
   type TopAlbumItem,
   type TopTrackItem,
+  type ChartRankingRow,
+  type ChartMoverEntry,
+  isDropout,
 } from "@/lib/hooks/useHomeDashboard";
 import {
   useHomeBlindSpots,
@@ -62,10 +67,125 @@ export default function HomeScreen() {
 
 // ─── Billboard Tab — the real weekly chart ─────────────────────────────────────
 
-function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
-  const { data: billboard, isLoading: billboardLoading } = useHomeBillboard();
+const NARRATIVE_ICONS = ["✦", "↗", "↑"];
 
-  if (billboardLoading) {
+function MovementBadge({ row }: { row: ChartRankingRow }) {
+  if (row.is_new || row.is_reentry) {
+    return <View style={styles.newBadge}><Text style={styles.newBadgeText}>NEW</Text></View>;
+  }
+  if (row.has_positive_movement && row.movement != null && row.movement > 0) {
+    return (
+      <View style={styles.moveBadgeUp}>
+        <Text style={styles.moveBadgeUpText}>▲ {row.movement}</Text>
+      </View>
+    );
+  }
+  if (row.has_negative_movement && row.movement != null && row.movement < 0) {
+    return (
+      <View style={styles.moveBadgeDown}>
+        <Text style={styles.moveBadgeDownText}>▼ {Math.abs(row.movement)}</Text>
+      </View>
+    );
+  }
+  return <Text style={styles.moveSame}>—</Text>;
+}
+
+function ChartRowCard({
+  row,
+  onPress,
+}: {
+  row: ChartRankingRow;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }: { pressed: boolean }) => [
+        styles.chartCard,
+        pressed && { opacity: 0.78 },
+      ]}
+    >
+      <Text style={[styles.chartCardRank, row.is_number_one && styles.chartCardRankGold]}>
+        {row.rank}
+      </Text>
+      {row.image ? (
+        <Image source={{ uri: row.image }} style={styles.chartCardArt} />
+      ) : (
+        <View style={[styles.chartCardArt, styles.chartCardArtPlaceholder]}>
+          <Text style={styles.albumPlaceholderIcon}>♪</Text>
+        </View>
+      )}
+      <View style={styles.chartCardMeta}>
+        <Text style={styles.chartCardTitle} numberOfLines={1}>{row.name}</Text>
+        {row.artist_name ? (
+          <Text style={styles.chartCardArtist} numberOfLines={1}>{row.artist_name}</Text>
+        ) : null}
+      </View>
+      <View style={styles.chartCardRight}>
+        <MovementBadge row={row} />
+        <Text style={styles.chartCardPlays}>{row.play_count} plays</Text>
+        <Text style={styles.chartCardStreak}>
+          streak {row.weeks_in_top_10}
+          {row.weeks_at_1 > 0 ? ` (${row.weeks_at_1})` : " (0)"}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function MoverCard({
+  label,
+  mover,
+  onPress,
+}: {
+  label: string;
+  mover: ChartMoverEntry;
+  onPress?: () => void;
+}) {
+  if (!mover) return null;
+
+  const isOut = isDropout(mover);
+  const movement = isOut ? mover.movement : mover.movement;
+  const movAbs = movement != null ? Math.abs(movement) : null;
+  const movStr = movAbs != null && movAbs > 0
+    ? (isOut || (movement != null && movement < 0) ? `↓ ${movAbs}` : `↑ ${movAbs}`)
+    : null;
+  const isNew = !isOut && (mover as ChartRankingRow).is_new;
+  const subtitle = isOut
+    ? `Was #${mover.prev_rank} · left the chart`
+    : isNew
+    ? "New"
+    : movStr ?? "—";
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }: { pressed: boolean }) => [
+        styles.moverCard,
+        pressed && { opacity: 0.78 },
+      ]}
+    >
+      <Text style={styles.moverLabel}>{label}</Text>
+      <Text style={styles.moverName} numberOfLines={2}>{mover.name}</Text>
+      <Text style={styles.moverSubtitle}>{subtitle}</Text>
+      {isNew ? (
+        <View style={[styles.newBadge, { marginTop: 8 }]}>
+          <Text style={styles.newBadgeText}>NEW</Text>
+        </View>
+      ) : movStr ? (
+        <View style={[styles.moveBadgeDown, { marginTop: 8 }]}>
+          <Text style={styles.moveBadgeDownText}>{movStr}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
+  const { data: chart, isLoading } = useWeeklyChart("tracks");
+  const [showMore, setShowMore] = useState(false);
+
+  if (isLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="small" color={theme.colors.emerald} />
@@ -73,112 +193,186 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
     );
   }
 
-  const weeklyTop = billboard?.weeklyTop;
-  const tracks = weeklyTop?.tracks.slice(0, 5) ?? [];
-  const artists = weeklyTop?.artists.slice(0, 5) ?? [];
-  const albums = weeklyTop?.albums.slice(0, 5) ?? [];
-  const rangeLabel = weeklyTop?.rangeLabel;
-
-  const hasData = tracks.length > 0 || artists.length > 0 || albums.length > 0;
-
-  if (!hasData) {
+  if (!chart || chart.rankings.length === 0) {
     return (
       <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
+        <View style={styles.emptySection}>
           <Text style={styles.emptyText}>
-            No weekly chart yet. Billboard updates every Sunday after you&apos;ve logged listens.
+            No weekly chart yet. Billboard updates every Sunday after you've logged listens.
           </Text>
         </View>
       </ScrollView>
     );
   }
 
+  const sorted = [...chart.rankings].sort((a, b) => a.rank - b.rank);
+  const hero = sorted[0] ?? null;
+  const spots2to5 = sorted.filter((r) => r.rank >= 2 && r.rank <= 5);
+  const spots6to10 = sorted.filter((r) => r.rank >= 6);
+  const weekLabel = chart.share?.weekLabel ?? chart.chart_moment?.week_label ?? "";
+  const { biggest_jump, biggest_drop, best_new_entry } = chart.movers;
+
+  const navigateToEntity = (row: ChartRankingRow | null) => {
+    if (!row) return;
+    router.push(`/song/${row.entity_id}` as const);
+  };
+
+  const handleShare = () => {
+    void Share.share({
+      message: `My #1 this week: ${hero?.name ?? ""}${hero?.artist_name ? ` by ${hero.artist_name}` : ""} — ${weekLabel}`,
+    });
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {rangeLabel ? (
-        <Text style={styles.rangeLabel}>{rangeLabel}</Text>
+      {/* #1 Hero */}
+      {hero ? (
+        <Pressable
+          onPress={() => navigateToEntity(hero)}
+          style={({ pressed }: { pressed: boolean }) => [
+            styles.heroCard,
+            pressed && { opacity: 0.82 },
+          ]}
+        >
+          <View style={styles.heroInner}>
+            {hero.image ? (
+              <Image source={{ uri: hero.image }} style={styles.heroArt} />
+            ) : (
+              <View style={[styles.heroArt, styles.chartCardArtPlaceholder]}>
+                <Text style={{ fontSize: 28, color: theme.colors.muted }}>♪</Text>
+              </View>
+            )}
+            <View style={styles.heroMeta}>
+              <Text style={styles.heroRank}>#1</Text>
+              <Text style={styles.heroTitle} numberOfLines={2}>{hero.name}</Text>
+              {hero.artist_name ? (
+                <Text style={styles.heroArtist} numberOfLines={1}>{hero.artist_name}</Text>
+              ) : null}
+              <Text style={styles.heroPlays}>{hero.play_count} plays</Text>
+            </View>
+            {hero.is_new || hero.is_reentry ? (
+              <View style={[styles.newBadge, { alignSelf: "flex-start" }]}>
+                <Text style={styles.newBadgeText}>NEW</Text>
+              </View>
+            ) : hero.weeks_at_1 > 1 ? (
+              <View style={[styles.newBadge, { alignSelf: "flex-start", backgroundColor: "#854d0e" }]}>
+                <Text style={styles.newBadgeText}>{hero.weeks_at_1}w at #1</Text>
+              </View>
+            ) : null}
+          </View>
+        </Pressable>
       ) : null}
 
-      {/* Tracks */}
-      {tracks.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Tracks</Text>
-          {tracks.map((t: TopTrackItem, i: number) => (
-            <Pressable
-              key={t.trackId}
-              style={({ pressed }: { pressed: boolean }) => [styles.chartRow, pressed && { opacity: 0.75 }]}
-              onPress={() => router.push(`/song/${t.trackId}` as const)}
-            >
-              <Text style={styles.chartRank}>{i + 1}</Text>
-              {t.albumImageUrl ? (
-                <Image source={{ uri: t.albumImageUrl }} style={styles.chartArt} />
-              ) : (
-                <View style={[styles.chartArt, styles.chartArtPlaceholder]}>
-                  <Text style={styles.albumPlaceholderIcon}>♪</Text>
-                </View>
-              )}
-              <View style={styles.chartMeta}>
-                <Text style={styles.chartTitle} numberOfLines={1}>{t.name}</Text>
-                <Text style={styles.chartSub} numberOfLines={1}>{t.artistName}</Text>
-              </View>
-              <Text style={styles.chartPlays}>{t.playCount}</Text>
-            </Pressable>
+      {/* THIS WEEK narrative */}
+      {chart.narrative.length > 0 ? (
+        <View style={styles.narrativeCard}>
+          <Text style={styles.narrativeSectionLabel}>THIS WEEK</Text>
+          {chart.narrative.map((line, i) => (
+            <View key={i} style={styles.narrativeRow}>
+              <Text style={styles.narrativeIcon}>{NARRATIVE_ICONS[i] ?? "·"}</Text>
+              <Text style={styles.narrativeText}>{line}</Text>
+            </View>
           ))}
         </View>
       ) : null}
 
-      {/* Artists */}
-      {artists.length > 0 ? (
+      {/* SPOTS 2–5 */}
+      {spots2to5.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Artists</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip}>
-            {artists.map((a: TopArtistItem) => (
-              <Pressable
-                key={a.artistId}
-                style={({ pressed }: { pressed: boolean }) => [styles.artistCard, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push(`/artist/${a.artistId}` as const)}
-              >
-                {a.imageUrl ? (
-                  <Image source={{ uri: a.imageUrl }} style={styles.artistImage} />
-                ) : (
-                  <View style={[styles.artistImage, styles.artistImagePlaceholder]}>
-                    <Text style={styles.artistInitial}>{(a.name[0] ?? "?").toUpperCase()}</Text>
-                  </View>
-                )}
-                <Text style={styles.artistName} numberOfLines={2}>{a.name}</Text>
-                <Text style={styles.playCount}>{a.playCount} plays</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <Text style={styles.chartSectionLabel}>SPOTS 2–5</Text>
+          {spots2to5.map((row) => (
+            <ChartRowCard
+              key={row.entity_id}
+              row={row}
+              onPress={() => navigateToEntity(row)}
+            />
+          ))}
         </View>
       ) : null}
 
-      {/* Albums */}
-      {albums.length > 0 ? (
+      {/* Show spots 6-10 */}
+      {spots6to10.length > 0 ? (
+        <>
+          <Pressable
+            onPress={() => setShowMore((v) => !v)}
+            style={styles.showMoreBtn}
+          >
+            <Text style={styles.showMoreText}>
+              {showMore ? "Hide spots 6–10" : "Show spots 6–10"}
+            </Text>
+          </Pressable>
+          {showMore ? (
+            <View style={styles.section}>
+              {spots6to10.map((row) => (
+                <ChartRowCard
+                  key={row.entity_id}
+                  row={row}
+                  onPress={() => navigateToEntity(row)}
+                />
+              ))}
+            </View>
+          ) : null}
+        </>
+      ) : null}
+
+      {/* BIGGEST MOVERS */}
+      {(biggest_jump ?? biggest_drop ?? best_new_entry) ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Albums</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip}>
-            {albums.map((al: TopAlbumItem) => (
-              <Pressable
-                key={al.albumId}
-                style={({ pressed }: { pressed: boolean }) => [styles.albumCard, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push(`/album/${al.albumId}` as const)}
-              >
-                {al.imageUrl ? (
-                  <Image source={{ uri: al.imageUrl }} style={styles.albumArt} />
-                ) : (
-                  <View style={[styles.albumArt, styles.albumArtPlaceholder]}>
-                    <Text style={styles.albumPlaceholderIcon}>♪</Text>
-                  </View>
-                )}
-                <Text style={styles.albumName} numberOfLines={2}>{al.name}</Text>
-                <Text style={styles.albumArtist} numberOfLines={1}>{al.artistName}</Text>
-                <Text style={styles.playCount}>{al.playCount} plays</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <Text style={styles.chartSectionLabel}>BIGGEST MOVERS</Text>
+          <MoverCard
+            label="BIGGEST JUMP"
+            mover={biggest_jump}
+            onPress={() => navigateToEntity(biggest_jump as ChartRankingRow | null)}
+          />
+          <MoverCard
+            label="BIGGEST DROP"
+            mover={biggest_drop}
+            onPress={() =>
+              !isDropout(biggest_drop) ? navigateToEntity(biggest_drop as ChartRankingRow | null) : undefined
+            }
+          />
+          <MoverCard
+            label="BEST NEW ENTRY"
+            mover={best_new_entry}
+            onPress={() => navigateToEntity(best_new_entry)}
+          />
         </View>
       ) : null}
+
+      {/* Share */}
+      <View style={styles.shareCard}>
+        <Text style={styles.shareTitle}>Share this week</Text>
+        <Text style={styles.shareDesc}>
+          Export a summary or link. Anyone with the link needs to be signed in.
+        </Text>
+        <Pressable
+          onPress={handleShare}
+          style={({ pressed }: { pressed: boolean }) => [
+            styles.shareBtn,
+            pressed && { opacity: 0.88 },
+          ]}
+        >
+          <Text style={styles.shareBtnText}>Share your chart</Text>
+        </Pressable>
+        <Text style={styles.quickActionsLabel}>QUICK ACTIONS</Text>
+        <View style={styles.quickActionsRow}>
+          <Pressable onPress={handleShare} style={styles.quickBtn}>
+            <Text style={styles.quickBtnText}>⇡ Share</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              const summary = sorted
+                .slice(0, 5)
+                .map((r, i) => `${i + 1}. ${r.name}${r.artist_name ? ` – ${r.artist_name}` : ""}`)
+                .join("\n");
+              void Share.share({ message: `My Billboard ${weekLabel}\n\n${summary}` });
+            }}
+            style={styles.quickBtn}
+          >
+            <Text style={styles.quickBtnText}>⧉ Copy summary</Text>
+          </Pressable>
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -281,7 +475,7 @@ function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
                 <View style={styles.pulseRowText}>
                   <Text style={styles.pulseLabel}>Play volume</Text>
                   <Text style={styles.pulseMeta}>
-                    {pulse.playVolume.percentChange > 0 ? "+" : ""}{Math.round(pulse.playVolume.percentChange)}% vs prior 7 days · {pulse.playVolume.currentPlays.toLocaleString()} plays
+                    {pulse.playVolume.percentChange > 0 ? "+" : ""}{Math.round(pulse.playVolume.percentChange)}% vs last week · {pulse.playVolume.currentPlays.toLocaleString()} plays
                   </Text>
                 </View>
               </View>
@@ -443,10 +637,8 @@ const styles = StyleSheet.create({
   header: {
     paddingLeft: 18,
     paddingRight: 18 + NOTIFICATION_BELL_GUTTER,
-    paddingBottom: 10,
+    paddingBottom: 6,
     paddingTop: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
   },
   logo: {
     fontSize: 22,
@@ -458,7 +650,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 6,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
   },
   chip: {
     flex: 1,
@@ -680,12 +875,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
+  emptySection: {
+    paddingVertical: 32,
+    alignItems: "center",
+  },
   rangeLabel: {
     fontSize: 12,
     color: theme.colors.muted,
     fontWeight: "600",
     marginBottom: 4,
   },
+  // Legacy chart row styles (kept for PulseTab top tracks)
   chartRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -729,6 +929,300 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: theme.colors.muted,
-    tabularNums: true,
-  } as any,
+  },
+  // ─── Billboard redesign styles ───────────────────────────────────────────────
+  chartSectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+    marginBottom: 12,
+  },
+  // Hero (#1) card
+  heroCard: {
+    backgroundColor: theme.colors.panel,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  heroInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+  },
+  heroArt: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: theme.colors.border,
+    flexShrink: 0,
+  },
+  heroMeta: {
+    flex: 1,
+    gap: 3,
+  },
+  heroRank: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#f59e0b",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  heroTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: theme.colors.text,
+    lineHeight: 22,
+  },
+  heroArtist: {
+    fontSize: 13,
+    color: "#d4d4d8",
+  },
+  heroPlays: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  // Narrative card
+  narrativeCard: {
+    backgroundColor: theme.colors.panel,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    padding: 16,
+    gap: 12,
+    marginBottom: 20,
+  },
+  narrativeSectionLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.6,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  narrativeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  narrativeIcon: {
+    fontSize: 15,
+    color: theme.colors.muted,
+    width: 18,
+    textAlign: "center",
+    marginTop: 1,
+  },
+  narrativeText: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    lineHeight: 20,
+  },
+  // Chart row card (spots 2-10)
+  chartCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: theme.colors.panel,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    padding: 14,
+    marginBottom: 10,
+  },
+  chartCardRank: {
+    width: 28,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "800",
+    color: theme.colors.muted,
+    flexShrink: 0,
+  },
+  chartCardRankGold: {
+    color: "#f59e0b",
+  },
+  chartCardArt: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+    backgroundColor: theme.colors.border,
+    flexShrink: 0,
+  },
+  chartCardArtPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chartCardMeta: {
+    flex: 1,
+    gap: 3,
+    minWidth: 0,
+  },
+  chartCardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.colors.text,
+  },
+  chartCardArtist: {
+    fontSize: 13,
+    color: "#d4d4d8",
+  },
+  chartCardRight: {
+    alignItems: "flex-end",
+    gap: 4,
+    flexShrink: 0,
+  },
+  chartCardPlays: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    textAlign: "right",
+  },
+  chartCardStreak: {
+    fontSize: 11,
+    color: theme.colors.muted,
+    textAlign: "right",
+  },
+  // Movement badges
+  newBadge: {
+    backgroundColor: "rgba(30, 58, 138, 0.85)",
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: "rgba(96, 165, 250, 0.3)",
+  },
+  newBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#93c5fd",
+    letterSpacing: 0.5,
+  },
+  moveBadgeUp: {
+    backgroundColor: "rgba(6, 78, 59, 0.7)",
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  moveBadgeUpText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.colors.emerald,
+  },
+  moveBadgeDown: {
+    backgroundColor: "rgba(127, 29, 29, 0.5)",
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  moveBadgeDownText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#f87171",
+  },
+  moveSame: {
+    fontSize: 14,
+    color: theme.colors.muted,
+  },
+  // Show more button
+  showMoreBtn: {
+    alignItems: "center",
+    paddingVertical: 14,
+    marginBottom: 4,
+  },
+  showMoreText: {
+    fontSize: 14,
+    color: theme.colors.muted,
+    fontWeight: "500",
+  },
+  // Mover cards
+  moverCard: {
+    backgroundColor: theme.colors.panel,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    padding: 16,
+    marginBottom: 10,
+  },
+  moverLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  moverName: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: theme.colors.text,
+    lineHeight: 24,
+  },
+  moverSubtitle: {
+    fontSize: 13,
+    color: theme.colors.muted,
+    marginTop: 4,
+  },
+  // Share card
+  shareCard: {
+    backgroundColor: theme.colors.panel,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    padding: 20,
+    marginTop: 8,
+  },
+  shareTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: theme.colors.text,
+    marginBottom: 6,
+  },
+  shareDesc: {
+    fontSize: 13,
+    color: theme.colors.muted,
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  shareBtn: {
+    backgroundColor: theme.colors.emerald,
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  shareBtnText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#000",
+  },
+  quickActionsLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
+  quickActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  quickBtn: {
+    flex: 1,
+    backgroundColor: theme.colors.active,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  quickBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.text,
+  },
 });

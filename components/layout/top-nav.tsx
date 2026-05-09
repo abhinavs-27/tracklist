@@ -80,32 +80,36 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
     );
   }
 
+  const isHome = pathname === "/";
+
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-zinc-950/90 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.04)] backdrop-blur-xl backdrop-saturate-150">
-      {/* Mobile: logo + notifications only — search lives in the bottom tab bar */}
-      <div
-        className={`flex min-h-11 ${pageShell} items-center justify-between py-2.5 md:hidden`}
-      >
-        <Link
-          href="/"
-          className="text-base font-bold tracking-tight text-white touch-manipulation sm:text-lg"
+      {/* Mobile: non-home pages only — home renders its own header inside the page content */}
+      {!isHome && (
+        <div
+          className={`flex min-h-11 ${pageShell} items-center justify-between py-2.5 md:hidden`}
         >
-          Tracklist
-        </Link>
-        {status === "loading" ? (
-          <span className="w-9 text-center text-sm text-zinc-500">…</span>
-        ) : session ? (
-          <NotificationBellLink unreadCount={unreadCount} />
-        ) : (
           <Link
-            prefetch={false}
-            href="/auth/signin"
-            className="rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-medium text-white touch-manipulation sm:px-3 sm:text-sm"
+            href="/"
+            className="text-base font-bold tracking-tight text-white touch-manipulation sm:text-lg"
           >
-            Sign in
+            Tracklist
           </Link>
-        )}
-      </div>
+          {status === "loading" ? (
+            <span className="w-9 text-center text-sm text-zinc-500">…</span>
+          ) : session ? (
+            <NotificationBellLink unreadCount={unreadCount} />
+          ) : (
+            <Link
+              prefetch={false}
+              href="/auth/signin"
+              className="rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-medium text-white touch-manipulation sm:px-3 sm:text-sm"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Desktop */}
       <div className={`hidden ${pageShell} py-3 md:block`}>

@@ -266,7 +266,7 @@ export function TasteCard(props: TasteCardProps) {
           <CompareSectionHeading
             id="tm-shared-heading"
             title="Shared taste"
-            subtitle="Where your listening overlaps — artists you both spin and genres you agree on."
+            subtitle="Artists you both love and genres you have in common."
           />
           {hasSharedTaste ? (
             <div className="space-y-8">
@@ -295,7 +295,7 @@ export function TasteCard(props: TasteCardProps) {
             <CompareSectionHeading
               id="tm-diff-heading"
               title="Differences"
-              subtitle="Genre leanings that show up on one side more than the other."
+              subtitle="Genres where your tastes go in different directions."
             />
             <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
               {uniqueAPills.length > 0 ? (
@@ -313,7 +313,7 @@ export function TasteCard(props: TasteCardProps) {
           <CompareSectionHeading
             id="tm-discovery-heading"
             title="Discovery"
-            subtitle="How your charts line up — and what from their rotation is still new to you."
+            subtitle="How similar your listening is — and what you could discover from them."
           />
 
           <div className="overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ring-1 ring-white/[0.03]">
@@ -348,8 +348,7 @@ export function TasteCard(props: TasteCardProps) {
                   </span>
                 </p>
                 <p className="mt-2 text-[10px] leading-snug text-zinc-500">
-                  Higher means more of their top-chart plays sit outside your top
-                  artists — more room to explore.
+                  Higher means you&apos;d discover more new artists by exploring their favorites.
                 </p>
               </div>
             </div>
@@ -375,8 +374,8 @@ function StartHereBlock({
 }) {
   const sub =
     themLabel === "Them"
-      ? "Quick entry points from their history — tap to explore."
-      : `Quick entry points from ${themLabel} — tap to explore.`;
+      ? "Good places to start exploring their music."
+      : `Good places to start exploring ${themLabel}'s music.`;
 
   return (
     <div className="rounded-2xl border border-zinc-800/70 bg-gradient-to-br from-emerald-950/25 via-zinc-950/80 to-zinc-950 p-5 sm:p-6">
@@ -388,7 +387,7 @@ function StartHereBlock({
       {startHere.artistsToExplore.length > 0 ? (
         <div className="mt-4">
           <p className="text-[11px] font-medium text-zinc-500">
-            Artists they repeat — new to your rotation
+            Artists they love that you haven&apos;t tried yet
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {startHere.artistsToExplore.map((a) => (

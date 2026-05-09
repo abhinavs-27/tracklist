@@ -16,16 +16,16 @@ function deriveSignature(taste: TasteIdentity): Signature {
 
   if (obs >= 70) {
     traits.push("underground");
-    parts.push("You go deep into catalog and niche artists most people haven't heard of");
+    parts.push("You love discovering artists most people have never heard of");
   } else if (obs >= 50) {
     traits.push("indie-leaning");
-    parts.push("Your taste leans away from the mainstream without being completely off the radar");
+    parts.push("You mix some popular music with lesser-known artists");
   } else if (obs <= 25) {
     traits.push("mainstream");
-    parts.push("You're comfortable with popular music — you pick quality over obscurity");
+    parts.push("You're into popular music — you love what people are talking about");
   } else {
     traits.push("balanced");
-    parts.push("You sit between mainstream and underground");
+    parts.push("You enjoy both popular hits and more underground finds");
   }
 
   if (div >= 8) {
@@ -40,7 +40,7 @@ function deriveSignature(taste: TasteIdentity): Signature {
   }
 
   const topGenre = taste.topGenres?.[0]?.name;
-  if (topGenre) parts.push(`with ${topGenre} as your anchor`);
+  if (topGenre) parts.push(`with ${topGenre} as your go-to`);
 
   const raw = parts.join(" ") + ".";
   return { traits, narrative: raw.charAt(0).toUpperCase() + raw.slice(1) };

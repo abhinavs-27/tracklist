@@ -179,7 +179,7 @@ export function CommunityWeeklySummary(props: {
             </p>
           </div>
           <p className={`mt-2 ${communityMeta} text-zinc-600`}>
-            Share of this community's listens in the last 7 days, by local time of day.
+            When this community listens most, based on local time.
           </p>
 
           {maxShare <= 0 ? (

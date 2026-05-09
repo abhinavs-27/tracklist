@@ -8,15 +8,15 @@ export function TasteBlindSpots({ data }: { data: TasteBlindSpotsResult }) {
     <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 p-4 ring-1 ring-white/[0.04]">
       <div className="mb-1 flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-          Blind spots
+          Artists you might like
         </p>
         <span className="rounded-full bg-zinc-800/50 px-2 py-0.5 text-[10px] text-zinc-500 ring-1 ring-white/[0.05]">
-          Based on your top artists
+          Similar to your favorites
         </span>
       </div>
 
       <p className="mt-1 mb-4 text-sm text-zinc-400">
-        These artists share DNA with what you love — but you&apos;ve never played them.
+        Similar to artists you love, but you haven&apos;t listened to them yet.
       </p>
 
       <ul className="space-y-3">
@@ -48,7 +48,7 @@ export function TasteBlindSpots({ data }: { data: TasteBlindSpotsResult }) {
                   {artist.name}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-zinc-500">
-                  Because you play{" "}
+                  Similar to{" "}
                   <span className="text-zinc-400">
                     {artist.becauseOf.join(" · ")}
                   </span>

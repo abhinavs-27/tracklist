@@ -125,7 +125,7 @@ export function CommunityLeaderboardList({
         </ol>
       ) : leaderboard.length === 0 ? (
         <p className={`${communityBody} text-zinc-500`}>
-          No listens logged in the last 7 days yet.
+          No listens logged this week yet.
         </p>
       ) : (
         <ol className={listGap}>

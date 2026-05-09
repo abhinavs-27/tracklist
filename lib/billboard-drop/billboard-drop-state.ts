@@ -11,6 +11,11 @@ export type {
   BillboardDropStatus,
 } from "@/lib/billboard-drop/billboard-drop-types";
 
+/** Cache tag scoped to one user — invalidate this after any ack/dismiss action. */
+export function billboardDropCacheTag(userId: string) {
+  return `billboard-drop-${userId}`;
+}
+
 function pickBiggestMoverDelta(
   movement: number | null | undefined,
 ): number | null {
@@ -88,14 +93,20 @@ async function getBillboardDropStatusUncached(
   };
 }
 
-const getBillboardDropStatusCached = unstable_cache(
-  async (userId: string) => getBillboardDropStatusUncached(userId),
-  ["billboard-drop-status"],
-  { revalidate: 60 },
-);
-
+/**
+ * Per-user cached status. Uses a user-scoped tag so the POST handler can
+ * immediately invalidate after any ack/dismiss action.
+ */
 export async function getBillboardDropStatus(
   userId: string,
 ): Promise<BillboardDropStatus> {
-  return getBillboardDropStatusCached(userId);
+  const uid = userId.trim();
+  if (!uid) {
+    return { hasChart: false, shouldShowModal: false, showBanner: false, highlights: null, communityCount: 0 };
+  }
+  return unstable_cache(
+    () => getBillboardDropStatusUncached(uid),
+    ["billboard-drop-status", uid],
+    { revalidate: 300, tags: [billboardDropCacheTag(uid)] },
+  )();
 }

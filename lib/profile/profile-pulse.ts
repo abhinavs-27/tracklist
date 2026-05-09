@@ -174,7 +174,7 @@ function pickChartMover(
     return {
       name,
       trend: "up",
-      caption: `${entityLabel} with the largest rank climb vs prior 7 days`,
+      caption: `${entityLabel} that climbed the most in your chart this week`,
     };
   }
   if (cmp.topDropper) {
@@ -185,7 +185,7 @@ function pickChartMover(
     return {
       name,
       trend: "down",
-      caption: `${entityLabel} with the largest rank slide vs prior 7 days`,
+      caption: `${entityLabel} that dropped the most in your chart this week`,
     };
   }
   return null;
@@ -229,14 +229,14 @@ function buildSoundShift(
       if (delta > 0) {
         return {
           trend: "up",
-          headline: "More chart-oriented",
-          detail: `Avg track popularity up ~${rounded} pts vs prior 7 days (Spotify 0–100) — more plays leaning mainstream.`,
+          headline: "More mainstream",
+          detail: `You've been playing more well-known songs this week.`,
         };
       }
       return {
         trend: "down",
-        headline: "Deeper catalog",
-        detail: `Avg track popularity down ~${rounded} pts vs prior 7 days — more deep cuts in the mix.`,
+        headline: "More hidden gems",
+        detail: `You've been playing more under-the-radar music this week.`,
       };
     }
   }
@@ -246,15 +246,15 @@ function buildSoundShift(
     if (ratio >= 1.2) {
       return {
         trend: "up",
-        headline: "Broader rotation",
-        detail: `You hit ${cur.uniqueArtists} distinct artists vs ${prev.uniqueArtists} in the prior 7 days.`,
+        headline: "More variety",
+        detail: `You listened to ${cur.uniqueArtists} different artists this week, up from ${prev.uniqueArtists} last week.`,
       };
     }
     if (ratio <= 0.82) {
       return {
         trend: "down",
-        headline: "Narrower rotation",
-        detail: `You hit ${cur.uniqueArtists} distinct artists vs ${prev.uniqueArtists} in the prior 7 days.`,
+        headline: "Sticking to your favorites",
+        detail: `You listened to ${cur.uniqueArtists} different artists this week, down from ${prev.uniqueArtists} last week.`,
       };
     }
   }

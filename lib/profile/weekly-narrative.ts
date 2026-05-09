@@ -28,21 +28,21 @@ function genrePhrase(taste: TasteIdentity): string | null {
 function pulseClause(pulse: ProfilePulseInsights): string | null {
   if (pulse.playVolume && pulse.playVolume.trend !== "flat") {
     const { trend, percentChange } = pulse.playVolume;
-    const dir = trend === "up" ? "up" : "down";
-    return `Vs the prior 7 days, total plays are ${dir} about ${Math.round(Math.abs(percentChange))}%.`;
+    const dir = trend === "up" ? "more" : "less";
+    return `You've been listening about ${Math.round(Math.abs(percentChange))}% ${dir} this week than last.`;
   }
   if (pulse.soundShift) {
     return pulse.soundShift.headline + ".";
   }
   if (pulse.genreChange) {
-    return `${pulse.genreChange.name} shifted most on your genre chart vs the prior 7 days.`;
+    return `${pulse.genreChange.name} is climbing your genre chart this week.`;
   }
   if (pulse.artistChange) {
-    return `${pulse.artistChange.name} shifted most on your artist chart vs the prior 7 days.`;
+    return `${pulse.artistChange.name} is climbing your artist chart this week.`;
   }
   if (pulse.discoveries?.names.length) {
     const n = pulse.discoveries.names.slice(0, 2).join(" · ");
-    return `First-time listens now in your chart: ${n}${
+    return `New artists in your top plays: ${n}${
       pulse.discoveries.names.length > 2 ? "…" : ""
     }.`;
   }
@@ -90,12 +90,12 @@ export function buildWeeklyNarrative(args: {
   const parts: string[] = [];
 
   if (genres) {
-    parts.push(
-      `${possessive} taste reads as “${styleTitle}” with ${genres} leading the recent genre mix.`,
-    );
+    const isPlural = genres.includes(" and ");
+    const verb = isPlural ? "are" : "is";
+    parts.push(`${possessive} taste leans "${styleTitle}" — ${genres} ${verb} leading the mix lately.`);
   } else {
     parts.push(
-      `${possessive} taste reads as “${styleTitle}”—genres will firm up as more listens come in.`,
+      `${possessive} listening style is still taking shape — keep logging and the picture will get clearer.`,
     );
   }
 

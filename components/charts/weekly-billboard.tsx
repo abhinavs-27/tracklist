@@ -52,7 +52,7 @@ function CommunityRankMovementIndicator({
   if (rm != null) {
     if (rm === "NEW") {
       return (
-        <span className="inline-flex items-center rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-sky-500/30">
+        <span className="inline-flex items-center rounded-md bg-blue-950 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-blue-300 ring-1 ring-blue-500/30">
           NEW
         </span>
       );
@@ -227,40 +227,33 @@ function CommunityMobileRowDetails({ row }: { row: WeeklyChartRankingApiRow }) {
 function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
   if (row.is_new) {
     return (
-      <span className="inline-flex items-center rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-sky-500/30">
-        New
+      <span className="inline-flex items-center rounded-md bg-blue-950 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-blue-300 ring-1 ring-blue-500/30">
+        NEW
       </span>
     );
   }
   if (row.is_reentry) {
     return (
-      <span className="inline-flex items-center rounded-md bg-violet-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
-        Re
+      <span className="inline-flex items-center rounded-md bg-violet-950 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-violet-300 ring-1 ring-violet-500/30">
+        RE
       </span>
     );
   }
   if (row.movement == null || row.movement === 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-sm text-zinc-500">
-        <span className="text-zinc-600" aria-hidden>
-          —
-        </span>
-        <span className="sr-only">No change</span>
-      </span>
+      <span className="text-sm text-zinc-600" aria-hidden>—</span>
     );
   }
   if (row.movement > 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-400">
-        <span aria-hidden>▲</span>
-        {row.movement}
+      <span className="inline-flex items-center gap-0.5 text-sm font-bold text-emerald-400">
+        <span aria-hidden>▲</span>{row.movement}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-semibold text-rose-400">
-      <span aria-hidden>▼</span>
-      {Math.abs(row.movement)}
+    <span className="inline-flex items-center gap-0.5 text-sm font-bold text-rose-400">
+      <span aria-hidden>▼</span>{Math.abs(row.movement)}
     </span>
   );
 }
@@ -308,147 +301,64 @@ const ChartRow = memo(function ChartRow({
           {row.weeks_in_top_10} ({row.weeks_at_1})
         </span>
       </span>
-      {communityMode && !row.community_breakdown ? (
-        <>
-          {row.community_listen_percent != null &&
-          row.unique_listeners != null ? (
-            <span className="text-xs text-zinc-500">
-              {Math.round(row.community_listen_percent * 100)}% of community
-              listened
-            </span>
-          ) : null}
-          {row.top_contributors?.length ? (
-            <span className="max-w-[14rem] text-right text-xs leading-snug text-zinc-500">
-              Led by{" "}
-              {row.top_contributors
-                .map((c) => c.username?.trim() || "Member")
-                .join(", ")}
-            </span>
-          ) : null}
-        </>
+      {communityMode && !row.community_breakdown && row.community_listen_percent != null && row.unique_listeners != null ? (
+        <span className="text-xs tabular-nums text-zinc-500">
+          {Math.round(row.community_listen_percent * 100)}% listened
+        </span>
       ) : null}
     </>
   );
 
+  const imageEl = row.image ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={row.image}
+      alt=""
+      loading="lazy"
+      className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-white/10"
+    />
+  ) : (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-xs text-zinc-600">
+      —
+    </div>
+  );
+
   return (
     <li>
-      <div
-        className={`${chartRankingRowShell} ${
-          row.has_positive_movement
-            ? "border-l-2 border-l-emerald-500/35"
-            : ""
-        } ${
-          row.has_negative_movement ? "border-l-2 border-l-rose-500/30" : ""
-        } ${rowAnim} ${leaderShell}`}
-      >
-        <div
-          className={`flex ${cardPaddingCompact} ${
-            communityMode
-              ? "max-md:min-h-16 max-md:flex-row max-md:items-center max-md:gap-3 max-md:py-2.5 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
-              : "flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
-          }`}
-        >
-          <div
-            className={`shrink-0 tabular-nums font-bold leading-none tracking-tight sm:w-14 sm:text-center ${
-              communityMode
-                ? "max-md:w-9 max-md:text-center max-md:text-2xl text-3xl"
-                : "text-3xl"
-            } ${rankMuted ? "text-zinc-600" : "text-white"}`}
-          >
+      <div className={`${chartRankingRowShell} ${rowAnim} ${leaderShell}`}>
+        <div className={`flex items-center gap-3 ${cardPaddingCompact}`}>
+          {/* Rank */}
+          <div className={`w-10 shrink-0 text-center text-4xl font-bold tabular-nums leading-none tracking-tight ${rankMuted ? "text-zinc-600" : "text-white"}`}>
             {row.rank}
           </div>
+
+          {/* Art + name */}
           {catalogHref ? (
-            <Link
-              href={catalogHref}
-              prefetch={false}
-              className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none ring-offset-2 ring-offset-zinc-950 transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-emerald-500/45"
-            >
-              {row.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={row.image}
-                  alt=""
-                  loading="lazy"
-                  className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
-                />
-              ) : (
-                <div
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14"
-                >
-                  —
-                </div>
-              )}
+            <Link href={catalogHref} prefetch={false} className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-emerald-500/45">
+              {imageEl}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-medium text-white group-hover:text-emerald-200/95 group-hover:underline">
-                  {row.name}
-                </p>
-                {row.artist_name ? (
-                  <p className="truncate text-sm text-zinc-500">{row.artist_name}</p>
-                ) : null}
+                <p className="truncate text-base font-semibold text-white group-hover:text-emerald-200/95 group-hover:underline">{row.name}</p>
+                {row.artist_name ? <p className="truncate text-sm text-zinc-400">{row.artist_name}</p> : null}
               </div>
             </Link>
           ) : (
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              {row.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={row.image}
-                  alt=""
-                  loading="lazy"
-                  className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
-                />
-              ) : (
-                <div
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs text-zinc-600 sm:h-14 sm:w-14"
-                >
-                  —
-                </div>
-              )}
+              {imageEl}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-medium text-white">
-                  {row.name}
-                </p>
-                {row.artist_name ? (
-                  <p className="truncate text-sm text-zinc-500">
-                    {row.artist_name}
-                  </p>
-                ) : null}
+                <p className="truncate text-base font-semibold text-white">{row.name}</p>
+                {row.artist_name ? <p className="truncate text-sm text-zinc-400">{row.artist_name}</p> : null}
               </div>
             </div>
           )}
-          <div
-            className={
-              communityMode
-                ? "flex shrink-0 items-center justify-end max-md:min-h-0 max-md:border-t-0 max-md:pt-0 min-h-[4.5rem] flex-row border-t border-zinc-800/80 pt-3 sm:w-[5.5rem] sm:flex-col sm:items-end sm:justify-center sm:border-t-0 sm:pt-0"
-                : "flex min-h-[4.5rem] shrink-0 flex-row items-center justify-between gap-4 border-t border-zinc-800/80 pt-3 sm:w-[5.5rem] sm:flex-col sm:items-end sm:justify-center sm:border-t-0 sm:pt-0"
-            }
-          >
-            <div
-              className={
-                communityMode
-                  ? "flex w-full max-md:w-auto flex-col items-stretch gap-1 max-md:items-end max-md:gap-0 sm:w-auto sm:items-end sm:text-right"
-                  : "flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end sm:text-right"
-              }
-            >
-              <div className="flex min-h-[1.25rem] items-center max-md:min-h-[1.5rem] justify-end">
-                {movementNode}
-              </div>
-              <div
-                className={
-                  communityMode
-                    ? "hidden flex-col items-end gap-1 text-right md:flex"
-                    : "flex flex-col items-end gap-1 text-right"
-                }
-              >
-                {metaSecondary}
-              </div>
-            </div>
+
+          {/* Movement + stats */}
+          <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+            <div className="flex min-h-5 items-center justify-end">{movementNode}</div>
+            {metaSecondary}
           </div>
         </div>
         {communityMode ? <CommunityMobileRowDetails row={row} /> : null}
-        {communityMode && row.community_breakdown ? (
-          <CommunityBreakdownPanel row={row} />
-        ) : null}
+        {communityMode && row.community_breakdown ? <CommunityBreakdownPanel row={row} /> : null}
       </div>
     </li>
   );
@@ -472,7 +382,7 @@ function moverMovementNode(row: MoverStripRow) {
   const r = row as WeeklyChartRankingApiRow;
   if (r.rank_movement === "NEW") {
     return (
-      <span className="mt-2 inline-flex rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-sky-500/30">
+      <span className="mt-2 inline-flex rounded-md bg-blue-950 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-blue-300 ring-1 ring-blue-500/30">
         NEW
       </span>
     );
@@ -498,8 +408,8 @@ function moverMovementNode(row: MoverStripRow) {
   }
   if (r.rank_movement == null && r.is_new) {
     return (
-      <span className="mt-2 inline-flex rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-300">
-        New
+      <span className="mt-2 inline-flex rounded-md bg-blue-950 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-blue-300 ring-1 ring-blue-500/30">
+        NEW
       </span>
     );
   }
@@ -552,39 +462,38 @@ const MoversGrid = memo(function MoversGrid({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="space-y-4">
       {items.map(({ label, row }) => {
         const href = row ? moverHref(row) : null;
+        if (!row) return null;
         return (
           <div key={label} className={`${chartMoverCard} shadow-lg shadow-black/25`}>
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
               {label}
             </p>
-            {row ? (
-              <>
-                {href ? (
-                  <Link
-                    href={href}
-                    prefetch={false}
-                    className="mt-2 block line-clamp-2 text-base font-semibold text-white transition hover:text-emerald-200/95 hover:underline"
-                  >
-                    {row.name}
-                  </Link>
-                ) : (
-                  <p className="mt-2 line-clamp-2 text-base font-semibold text-white">
-                    {row.name}
-                  </p>
-                )}
-                {"kind" in row && row.kind === "dropout" ? (
-                  <p className="mt-1 text-xs text-zinc-500">
-                    Was #{row.prev_rank} · left the chart
-                  </p>
-                ) : null}
-                {moverMovementNode(row)}
-              </>
-            ) : (
-              <p className="mt-2 text-sm text-zinc-600">—</p>
-            )}
+            <div className="mt-2">
+              {href ? (
+                <Link
+                  href={href}
+                  prefetch={false}
+                  className="block text-xl font-bold leading-tight text-white transition hover:text-emerald-200/95 hover:underline"
+                >
+                  {row.name}
+                </Link>
+              ) : (
+                <p className="text-xl font-bold leading-tight text-white">
+                  {row.name}
+                </p>
+              )}
+              {"kind" in row && row.kind === "dropout" ? (
+                <p className="mt-1 text-sm text-zinc-500">
+                  Was #{row.prev_rank} · left the chart
+                </p>
+              ) : (row as WeeklyChartRankingApiRow).is_new ? (
+                <p className="mt-1 text-sm text-zinc-500">New</p>
+              ) : null}
+            </div>
+            {moverMovementNode(row)}
           </div>
         );
       })}
@@ -697,18 +606,18 @@ const BillboardHero = memo(function BillboardHero({
 
   const heroHeadline = (
     <>
-      <p className="inline-flex rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-200/90 ring-1 ring-amber-500/25">
+      <p className="inline-flex rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300 ring-1 ring-amber-500/30">
         {communityMode ? "#1" : "#1 this week"}
       </p>
       <h2
-        className={`mt-4 text-2xl font-bold leading-tight tracking-tight sm:text-3xl ${heroCatalogHref ? "text-white transition group-hover:text-emerald-200/95 group-hover:underline" : "text-white"}`}
+        className={`mt-2 text-xl font-bold leading-tight tracking-tight sm:text-2xl ${heroCatalogHref ? "text-white transition group-hover:text-emerald-200/95 group-hover:underline" : "text-white"}`}
       >
         {leader.name}
       </h2>
       {leader.artist_name ? (
-        <p className="mt-2 text-sm text-zinc-400 sm:text-base">{leader.artist_name}</p>
+        <p className="mt-1 text-sm text-zinc-400">{leader.artist_name}</p>
       ) : chartKind === "Artists" ? (
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-500">
           {communityMode ? "Top artist" : "Top artist this week"}
         </p>
       ) : (
@@ -722,50 +631,33 @@ const BillboardHero = memo(function BillboardHero({
     <img
       src={leader.image}
       alt=""
-      className="h-44 w-44 rounded-xl object-cover shadow-xl ring-1 ring-white/10 sm:h-52 sm:w-52"
+      className="size-[72px] shrink-0 rounded-xl object-cover shadow-lg ring-1 ring-white/10"
     />
   ) : (
-    <div className="flex h-44 w-44 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5 sm:h-52 sm:w-52">
+    <div className="flex size-[72px] shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5">
       —
     </div>
   );
 
-  const heroStats =
-    communityMode ? (
-      <>
-        <dl className="mt-6 hidden grid-cols-1 gap-3 text-sm sm:grid-cols-3 md:grid">
-          <BillboardHeroStatBlocks leader={leader} communityMode />
-        </dl>
-        <details className={`mt-4 ${cardRadius} border border-zinc-800/80 bg-black/15 ring-1 ring-white/[0.04] md:hidden`}>
-          <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-medium text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-300">
-            #1 · stats
-          </summary>
-          <dl className="grid grid-cols-1 gap-2 border-t border-zinc-800/60 px-3 py-3 text-sm sm:grid-cols-3">
-            <BillboardHeroStatBlocks leader={leader} communityMode />
-          </dl>
-        </details>
-      </>
-    ) : (
-      <dl className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-        <BillboardHeroStatBlocks leader={leader} />
-      </dl>
-    );
+  const heroStats = (
+    <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+      <BillboardHeroStatBlocks leader={leader} communityMode={communityMode} />
+    </dl>
+  );
 
   const heroBody = (
-    <div className="relative mt-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-10">
-      <div className="flex items-center justify-center sm:scale-105">
-        {heroCatalogHref ? (
-          <Link
-            href={heroCatalogHref}
-            prefetch={false}
-            className="group block rounded-xl outline-none ring-offset-2 ring-offset-zinc-950 transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-emerald-500/45"
-          >
-            {heroImage}
-          </Link>
-        ) : (
-          heroImage
-        )}
-      </div>
+    <div className="relative mt-4 flex items-center gap-4">
+      {heroCatalogHref ? (
+        <Link
+          href={heroCatalogHref}
+          prefetch={false}
+          className="group shrink-0 rounded-xl outline-none ring-offset-2 ring-offset-zinc-950 transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-emerald-500/45"
+        >
+          {heroImage}
+        </Link>
+      ) : (
+        heroImage
+      )}
       <div className="min-w-0 flex-1">
         {heroCatalogHref ? (
           <Link
@@ -785,11 +677,10 @@ const BillboardHero = memo(function BillboardHero({
 
   return (
     <section
-      className={`relative overflow-hidden ${cardRadius} border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-6 shadow-2xl shadow-black/50 ring-1 ring-white/5 sm:p-8`}
+      className={`relative overflow-hidden ${cardRadius} border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-4 shadow-xl shadow-black/40 ring-1 ring-white/5 sm:p-5`}
     >
-      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-amber-500/5 blur-3xl" />
-      <p className="relative text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/5 blur-3xl" />
+      <p className="relative text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
         {weekLabel}
       </p>
       {heroBody}
@@ -804,7 +695,7 @@ const NarrativeCard = memo(function NarrativeCard({
   eyebrow = "This week",
 }: NarrativeProps) {
   if (lines.length === 0) return null;
-  const icons = ["✦", "◆", "◇", "✧"];
+  const icons = ["✦", "↗", "↑", "·"];
   return (
     <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-900/30 p-5 shadow-inner shadow-black/25 ring-1 ring-inset ring-white/[0.05] sm:p-6`}>
       <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
@@ -849,6 +740,7 @@ export function WeeklyBillboardView(props: {
   hideShareSection?: boolean;
 }) {
   const [shareOpen, setShareOpen] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const canShare =
     props.chart_moment.top_5.length > 0 || props.chart_moment.number_one != null;
   const isCommunity = Boolean(props.communityId?.trim());
@@ -935,26 +827,32 @@ export function WeeklyBillboardView(props: {
           ))}
         </ol>
         {chartRowsMobileRest.length > 0 ? (
-          <details className={`mt-3 ${cardRadius} border border-zinc-800/80 bg-zinc-950/30 ring-1 ring-white/[0.05]`}>
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-zinc-400 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-200">
-              Show spots 6–10
-            </summary>
-            <ol className="space-y-3 border-t border-zinc-800/60 p-3 pt-4">
-              {chartRowsMobileRest.map((row) => (
-                <ChartRow
-                  key={`${props.weekStartIso}-${row.entity_id}-more`}
-                  row={row}
-                  communityMode={isCommunity}
-                  chartType={props.chartType}
-                />
-              ))}
-            </ol>
-          </details>
+          <>
+            <button
+              type="button"
+              onClick={() => setShowMore((v) => !v)}
+              className="mt-4 w-full py-3 text-sm text-zinc-500 transition hover:text-zinc-300"
+            >
+              {showMore ? "Hide spots 6–10" : "Show spots 6–10"}
+            </button>
+            {showMore ? (
+              <ol className="mt-1 space-y-3">
+                {chartRowsMobileRest.map((row) => (
+                  <ChartRow
+                    key={`${props.weekStartIso}-${row.entity_id}-more`}
+                    row={row}
+                    communityMode={isCommunity}
+                    chartType={props.chartType}
+                  />
+                ))}
+              </ol>
+            ) : null}
+          </>
         ) : null}
       </section>
 
       <section className="space-y-4">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
           Biggest movers
         </h3>
         <MoversGrid
@@ -978,12 +876,12 @@ export function WeeklyBillboardView(props: {
             <button
               type="button"
               onClick={() => setShareOpen(true)}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 sm:w-auto sm:self-start sm:px-10 sm:py-4"
+              className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-6 py-3.5 text-base font-bold text-black shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
             >
               {isCommunity ? "Share community chart" : "Share your chart"}
             </button>
             <div className="border-t border-zinc-800/80 pt-6">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
                 Quick actions
               </p>
               <div className="mt-3">

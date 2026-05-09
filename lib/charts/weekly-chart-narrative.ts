@@ -53,7 +53,7 @@ export function generateWeeklyNarrative(args: {
     candidates.sort((a, b) => b.n - a.n);
     const top = candidates[0];
     if (top) {
-      insights.push(`Your week was dominated by ${top.label}.`);
+      insights.push(`${top.label} took over your week.`);
     }
   }
 
@@ -66,7 +66,7 @@ export function generateWeeklyNarrative(args: {
     }
   }
   if (bestName != null && bestMove > 0) {
-    insights.push(`Biggest jump: ${bestName} climbed ${bestMove} spots.`);
+    insights.push(`Biggest mover: ${bestName} jumped up ${bestMove} spots.`);
   }
 
   return insights.slice(0, 4);
@@ -107,7 +107,7 @@ export function generateCommunityWeeklyNarrative(args: {
     candidates.sort((a, b) => b.n - a.n);
     const top = candidates[0];
     if (top) {
-      insights.push(`The week leaned heavily on ${top.label}.`);
+      insights.push(`${top.label} dominated the community this week.`);
     }
   }
 
@@ -127,7 +127,7 @@ export function generateCommunityWeeklyNarrative(args: {
     }
   }
   if (bestName != null && bestMove > 0) {
-    insights.push(`Biggest jump: ${bestName} climbed ${bestMove} spots.`);
+    insights.push(`Biggest mover: ${bestName} jumped up ${bestMove} spots.`);
   }
 
   return insights.slice(0, 4);

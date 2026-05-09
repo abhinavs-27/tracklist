@@ -24,7 +24,7 @@ function TasteNeighborsBody({
   return (
     <>
       <p className="text-xs text-zinc-500">
-        Cosine similarity from last 7 days of listening (updated weekly).
+        Based on what everyone's been listening to this week, updated weekly.
       </p>
       {similar.length > 0 ? (
         <div className="mt-3">

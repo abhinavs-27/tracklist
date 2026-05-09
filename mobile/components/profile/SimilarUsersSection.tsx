@@ -38,7 +38,7 @@ export function SimilarUsersSection() {
   return (
     <View style={styles.box}>
       <Text style={styles.title}>Similar users</Text>
-      <Text style={styles.sub}>Last 30 days · cosine on artist vectors</Text>
+      <Text style={styles.sub}>Based on your listening over the past month</Text>
       <View style={{ marginTop: 10, gap: 8 }}>
         {top.map((m) => {
           const pct = Math.round(m.similarityScore * 100);

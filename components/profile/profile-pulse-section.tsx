@@ -68,9 +68,9 @@ function VolumeBlock({ v }: { v: PulsePlayVolume }) {
     <div className="flex gap-3">
       <PulseArrow trend={v.trend} className="mt-0.5" />
       <div className="min-w-0">
-        <p className="font-medium text-white">Play volume</p>
+        <p className="font-medium text-white">How much you&apos;re listening</p>
         <p className="mt-0.5 text-sm text-zinc-400">
-          {fmtPct(v.percentChange)} vs prior 7 days ·{" "}
+          {fmtPct(v.percentChange)} vs last week ·{" "}
           <span className="tabular-nums text-zinc-300">
             {v.currentPlays.toLocaleString()} plays
           </span>{" "}
@@ -122,10 +122,9 @@ function DiscoveriesBlock({ names }: { names: string[] }) {
         </svg>
       </span>
       <div className="min-w-0">
-        <p className="font-medium text-white">New discoveries</p>
+        <p className="font-medium text-white">Artists you just found</p>
         <p className="mt-0.5 text-sm text-zinc-400">
-          Artists in your last-7-day top chart you hadn't played before this period
-          (first listen on Tracklist).
+          New artists you&apos;ve added to your rotation this week.
         </p>
         <p className="mt-2 text-sm leading-snug text-zinc-300">
           {shown.join(" · ")}
@@ -187,17 +186,17 @@ export function ProfilePulseSection({
         {hasWeekly ? (
           <div className="space-y-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              Last 7 days vs prior 7 days
+              This week vs last week
             </p>
             <div className="space-y-4 border-b border-zinc-800/80 pb-5">
               {insights.playVolume ? (
                 <VolumeBlock v={insights.playVolume} />
               ) : null}
               {insights.genreChange ? (
-                <MoverBlock label="Genre momentum" mover={insights.genreChange} />
+                <MoverBlock label="Top genre this week" mover={insights.genreChange} />
               ) : null}
               {insights.artistChange ? (
-                <MoverBlock label="Artist momentum" mover={insights.artistChange} />
+                <MoverBlock label="Top artist this week" mover={insights.artistChange} />
               ) : null}
             </div>
           </div>
@@ -206,7 +205,7 @@ export function ProfilePulseSection({
         {insights.discoveries ? (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              Rotation
+              New additions
             </p>
             <DiscoveriesBlock names={insights.discoveries.names} />
           </div>
@@ -221,7 +220,7 @@ export function ProfilePulseSection({
             }
           >
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              Listening direction
+              What&apos;s changing
             </p>
             <SoundShiftBlock s={insights.soundShift} />
           </div>

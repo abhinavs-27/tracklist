@@ -43,12 +43,12 @@ export function getRolling7dVsPrior7dBounds(now: Date = new Date()): Rolling7dVs
     });
   const curStart = new Date(current.startIso);
   const curEnd = new Date(current.endExclusiveIso);
-  const rangeLabel = `${fmt(curStart)}–${fmt(curEnd)} · UTC`;
+  const rangeLabel = `${fmt(curStart)}–${fmt(curEnd)}`;
 
   return {
     current,
     previous,
-    rangeCaption: "Last 7 days · vs prior 7 days (UTC)",
+    rangeCaption: "Last 7 days · vs the 7 days before that",
     rangeLabel,
   };
 }

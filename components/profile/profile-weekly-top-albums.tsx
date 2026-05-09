@@ -24,8 +24,8 @@ export function ProfileWeeklyTopAlbumsSection({
 
   const range = weeklyTop.rangeLabel;
   const desc = isOwnProfile
-    ? `${range} · your most-played artists and albums over the rolling last 7 days.`
-    : `${range} · their most-played artists and albums over the rolling last 7 days.`;
+    ? `${range} · your most-played artists and albums this week.`
+    : `${range} · their most-played artists and albums this week.`;
 
   return (
     <div id="top-week" className="scroll-mt-24">

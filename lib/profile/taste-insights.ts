@@ -189,34 +189,34 @@ async function computeTasteInsights(userId: string): Promise<TasteInsightsResult
 
   if (olderArtistPlays.size < 3) {
     arcKind = "insufficient";
-    arcNarrative = "Not enough history yet to track your taste arc.";
+    arcNarrative = "Log more music to see how your taste is changing over time.";
   } else if (overlapRate < 0.2) {
     arcKind = "exploring";
     const names = join2(risingArtists.slice(0, 2).map((a) => a.name));
     arcNarrative = names
-      ? `Your rotation has changed dramatically over the past two months — ${names} ${risingArtists.length === 1 ? "is" : "are"} leading a big shift.`
-      : "Your listening has changed dramatically from two months ago — you're in full exploration mode.";
+      ? `Your taste has shifted a lot recently — ${names} ${risingArtists.length === 1 ? "is" : "are"} dominating your listening now.`
+      : "Your taste has changed a lot over the past couple months — you're exploring new territory.";
   } else if (overlapRate < 0.5) {
     arcKind = "shifting";
     const rising = join2(risingArtists.slice(0, 2).map((a) => a.name));
     const anchor = stableArtists[0]?.name ?? "";
     arcNarrative = rising
       ? anchor
-        ? `Your taste is shifting. ${rising} ${risingArtists.length === 1 ? "has entered" : "have entered"} your heavy rotation while ${anchor} remains a constant.`
-        : `Your taste is shifting. ${rising} ${risingArtists.length === 1 ? "has" : "have"} entered your heavy rotation this month.`
-      : "Your listening has shifted noticeably over the past two months.";
+        ? `Your taste is evolving. You're playing ${rising} a lot more now while still keeping ${anchor} in the mix.`
+        : `Your taste is evolving. You've been playing ${rising} a lot more this month.`
+      : "Your listening has shifted a bit over the past couple months.";
   } else if (overlapRate >= 0.75) {
     arcKind = "deepening";
     const names = join2(stableArtists.map((a) => a.name));
     arcNarrative = names
-      ? `Going deep. ${names} ${stableArtists.length === 1 ? "has" : "have"} been anchoring your rotation for months straight.`
-      : "Your taste is consistent — you know what you like and you're going deep on it.";
+      ? `You're really into ${names} — ${stableArtists.length === 1 ? "they've" : "they've"} been at the top of your listening for months.`
+      : "Your taste is consistent — you know what you love and you keep coming back to it.";
   } else {
     arcKind = "stable";
     const names = join2(stableArtists.map((a) => a.name));
     arcNarrative = names
-      ? `Mostly steady. ${names} ${stableArtists.length === 1 ? "is" : "are"} still leading your rotation with some new additions.`
-      : "Your rotation is largely consistent with some fresh additions this month.";
+      ? `Pretty steady — ${names} ${stableArtists.length === 1 ? "is" : "are"} still at the top, with some new music mixed in.`
+      : "Your taste is pretty consistent with a few new things added this month.";
   }
 
   let discKind: DiscoveryStyleResult["kind"];
@@ -224,25 +224,25 @@ async function computeTasteInsights(userId: string): Promise<TasteInsightsResult
 
   if (recentArtistIds.length < 4) {
     discKind = "insufficient";
-    discNarrative = "Not enough data yet to classify your discovery style.";
+    discNarrative = "Log more music so we can see how you discover new artists.";
   } else if (discoveryRate < 0.15) {
     discKind = "loyal";
-    discNarrative = `Sticking close to what you know — only ${pct(discoveryRate)}% of your recent plays were artists you hadn't played before.`;
+    discNarrative = `You mostly stick with artists you already love — only ${pct(discoveryRate)}% of your recent plays were artists you hadn't heard before.`;
   } else if (revisitRate > 0.6 && newArtistIds.length >= 3) {
     discKind = "deep-diver";
     const finds = join2(recentFinds.slice(0, 2).map((f) => f.name));
     discNarrative = finds
-      ? `When you find something new, you go all in. ${pct(revisitRate)}% of your recent discoveries — including ${finds} — got multiple plays within the month.`
-      : `When you find something new, you go all in. ${pct(revisitRate)}% of your recent finds got multiple plays within the month.`;
+      ? `When you discover something new, you really commit. ${pct(revisitRate)}% of your recent finds — including ${finds} — got played multiple times this month.`
+      : `When you discover something new, you really commit. You replayed ${pct(revisitRate)}% of your recent finds multiple times.`;
   } else if (discoveryRate > 0.45) {
     discKind = "skimmer";
-    discNarrative = `You're in active discovery mode — ${newArtistIds.length} new artists this month. You tend to take one listen and move on rather than going deep.`;
+    discNarrative = `You're exploring a lot — ${newArtistIds.length} new artists this month. You tend to listen once and move on rather than going back repeatedly.`;
   } else {
     discKind = "steady-explorer";
     const finds = join2(recentFinds.slice(0, 2).map((f) => f.name));
     discNarrative = finds
-      ? `A steady mix — ${newArtistIds.length} new artists alongside your regulars this month. ${finds} ${recentFinds.length === 1 ? "stands" : "stand"} out as recent finds.`
-      : `A steady mix of familiar and new — ${newArtistIds.length} new artists this month.`;
+      ? `Good balance — ${newArtistIds.length} new artists this month alongside your regulars. ${finds} ${recentFinds.length === 1 ? "is" : "are"} a recent highlight.`
+      : `Good balance of old and new — you've added ${newArtistIds.length} new artists this month.`;
   }
 
   return {

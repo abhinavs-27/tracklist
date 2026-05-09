@@ -18,7 +18,6 @@ export function AppLayout({ children, unreadCount, hideQuickLogFab }: Props) {
   const pathname = usePathname();
   const minimalChrome =
     pathname === "/onboarding" || pathname.startsWith("/auth");
-
   const mainPaddingBottom = minimalChrome
     ? "pb-6 sm:pb-8"
     : hideQuickLogFab

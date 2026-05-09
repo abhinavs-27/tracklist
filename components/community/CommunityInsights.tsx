@@ -30,7 +30,7 @@ export function CommunityInsights({
   hideTopArtists = false,
   embedded = false,
   headline = "Group insights",
-  description = "Based on everyone's listens from the last seven days, by time of day.",
+  description = "When your community listens most, based on this week's activity.",
 }: Props) {
   const {
     summary,

@@ -31,13 +31,13 @@ function WeeklyListeningContext({ data }: { data: TopThisWeekResult }) {
         Driven by your recent listening
       </p>
       <p className="mt-1 text-xs text-zinc-500">
-        {data.rangeLabel} · last seven days · same period as Pulse and top charts
+        {data.rangeLabel} · your recent listening
       </p>
 
       {artists.length > 0 ? (
         <div className="mt-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Top artists · last 7 days
+            Top artists this week
           </p>
           <ul className={`mt-3 ${weeklyStrip}`}>
             {artists.map((a) => (
@@ -77,7 +77,7 @@ function WeeklyListeningContext({ data }: { data: TopThisWeekResult }) {
       {albums.length > 0 ? (
         <div className={artists.length > 0 ? "mt-6" : "mt-4"}>
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Top albums · last 7 days
+            Top albums this week
           </p>
           <ul className={`mt-3 ${weeklyStrip}`}>
             {albums.map((al) => (

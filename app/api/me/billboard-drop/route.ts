@@ -1,7 +1,8 @@
+import { revalidateTag } from "next/cache";
 import { withHandler } from "@/lib/api-handler";
 import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
-import { getBillboardDropStatus } from "@/lib/billboard-drop/billboard-drop-state";
+import { getBillboardDropStatus, billboardDropCacheTag } from "@/lib/billboard-drop/billboard-drop-state";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getLatestWeeklyChartMetaForUser } from "@/lib/charts/get-user-weekly-chart";
 import { BillboardDropBody } from "@/types";
@@ -42,16 +43,20 @@ export const POST = withHandler(
     const latestWeek = latest.week_start;
 
     if (action === "dismiss_modal") {
+      // Treat dismiss as full acknowledgment — user has seen the notification once,
+      // it should not reappear on next open.
       const { error } = await admin
         .from("users")
         .update({
-          billboard_drop_dismissed_week: latestWeek,
+          billboard_drop_ack_week: latestWeek,
+          billboard_drop_dismissed_week: null,
         })
         .eq("id", uid);
       if (error) {
         console.error("[billboard-drop] dismiss", error);
         return apiBadRequest("Could not save");
       }
+      revalidateTag(billboardDropCacheTag(uid), "max");
       return apiOk({ ok: true });
     }
 
@@ -67,6 +72,7 @@ export const POST = withHandler(
         console.error("[billboard-drop] complete", error);
         return apiBadRequest("Could not save");
       }
+      revalidateTag(billboardDropCacheTag(uid), "max");
       return apiOk({ ok: true });
     }
 
@@ -87,6 +93,7 @@ export const POST = withHandler(
         console.error("[billboard-drop] ack chart", error);
         return apiBadRequest("Could not save");
       }
+      revalidateTag(billboardDropCacheTag(uid), "max");
       return apiOk({ ok: true });
     }
 
