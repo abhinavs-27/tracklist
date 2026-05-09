@@ -7,10 +7,10 @@ type HandlerContext = {
   user?: User;
 };
 
-type APIHandler = (
+export type APIHandler<T = unknown> = (
   request: NextRequest,
   context: HandlerContext
-) => Promise<NextResponse>;
+) => Promise<NextResponse<T> | NextResponse>;
 
 type HandlerOptions = {
   requireAuth?: boolean;

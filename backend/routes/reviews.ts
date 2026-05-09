@@ -14,6 +14,7 @@ import {
   clampLimit,
   isValidSpotifyId,
   isValidUuid,
+  validateEntityType,
   validateRating,
   validateReviewContent,
 } from "../lib/validation";
@@ -30,16 +31,16 @@ reviewsRouter.get("/", async (req, res) => {
     if (!entityType || !entityId) {
       return badRequest(res, "entity_type and entity_id required");
     }
-    if (entityType !== "album" && entityType !== "song") {
-      return badRequest(res, "entity_type must be album or song");
-    }
+    const typeRes = validateEntityType(entityType);
+    if (!typeRes.ok) return badRequest(res, typeRes.error);
+
     if (!isValidSpotifyId(entityId)) {
       return badRequest(res, "Invalid entity_id (Spotify ID)");
     }
 
     const session = await getSession(req);
     const result = await getReviewsForEntity(
-      entityType,
+      typeRes.value,
       entityId,
       limit,
       session?.id ?? null,
@@ -64,9 +65,9 @@ reviewsRouter.post("/", async (req, res) => {
     if (!entity_type || !entity_id || rating == null) {
       return badRequest(res, "entity_type, entity_id, and rating required");
     }
-    if (entity_type !== "album" && entity_type !== "song") {
-      return badRequest(res, "entity_type must be album or song");
-    }
+    const typeRes = validateEntityType(entity_type);
+    if (!typeRes.ok) return badRequest(res, typeRes.error);
+
     if (!isValidSpotifyId(entity_id)) {
       return badRequest(res, "Invalid entity_id (Spotify ID)");
     }
@@ -79,7 +80,7 @@ reviewsRouter.post("/", async (req, res) => {
     const supabase = getSupabase();
     const row = {
       user_id: userId,
-      entity_type: entity_type as string,
+      entity_type: typeRes.value,
       entity_id: entity_id as string,
       rating: ratingResult.value,
       review_text: reviewText,
