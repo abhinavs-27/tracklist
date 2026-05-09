@@ -9,6 +9,7 @@ import { HomeWelcomeOverlay } from "@/components/home-welcome-overlay";
 import { VisitorFeed } from "@/components/home/visitor-feed";
 import { VisitorSignupTriggers } from "@/components/home/visitor-signup-triggers";
 import { HomeTabsContainer } from "@/components/home/home-tabs-container";
+import { RecentlyPlayedFeed } from "@/components/home/recently-played-feed";
 import { ChartsClient } from "@/app/charts/charts-client";
 import { TasteTimeline } from "@/components/profile/taste-timeline";
 import { ProfileWeeklyTopAlbumsSection } from "@/components/profile/profile-weekly-top-albums";
@@ -198,23 +199,7 @@ export default async function HomePage({
   );
 
   // ── Activity tab ──────────────────────────────────────────────────────────────
-  const activityTab = (
-    <div className={sectionGap}>
-      <SectionBlock
-        title="Recent activity"
-        action={{ label: "View all", href: "/recently-played" }}
-      >
-        <ProfileRecentActivity
-          key={userId}
-          userId={userId}
-          isOwnProfile
-          showSpotifyControls={false}
-          spotifyConnected={false}
-          logsPrivateHidden={false}
-        />
-      </SectionBlock>
-    </div>
-  );
+  const activityTab = <RecentlyPlayedFeed />;
 
   return (
     <div className={sectionGap}>

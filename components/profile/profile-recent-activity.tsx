@@ -9,7 +9,6 @@ import {
 } from "@/lib/client/stale-session-cache";
 import { cardElevatedInteractive } from "@/lib/ui/surface";
 
-/** Preview length — keep the strip scannable (5–10). */
 const PREVIEW_CAP = 8;
 const ALBUM_FETCH = 12;
 const TRACK_FETCH = 8;

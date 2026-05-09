@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -27,12 +27,6 @@ import {
   useHomeBlindSpots,
   useHomeListeningReport,
 } from "@/lib/hooks/useHomeHistory";
-import { useProfile, type ProfileActivityItem } from "@/lib/hooks/useProfile";
-import {
-  ProfileActivityRow,
-  ActivityEmpty,
-  ActivitySeparator,
-} from "@/components/profile/ActivityList";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
 
@@ -60,7 +54,7 @@ export default function HomeScreen() {
       {tab === "billboard" && <BillboardTab router={router} />}
       {tab === "pulse" && <PulseTab router={router} />}
       {tab === "history" && <HistoryTab />}
-      {tab === "activity" && <ActivityTab router={router} />}
+      {tab === "activity" && <ActivityTab />}
     </SafeAreaView>
   );
 }
@@ -571,10 +565,54 @@ function HistoryTab() {
 
 // ─── Activity Tab ──────────────────────────────────────────────────────────────
 
-function ActivityTab({ router }: { router: ReturnType<typeof useRouter> }) {
-  const { recentActivity, isLoading } = useProfile();
+const ACTIVITY_PAGE_SIZE = 20;
 
-  if (isLoading) {
+type RecentTrack = {
+  track_id: string;
+  track_name: string;
+  artist_name: string;
+  album_name: string | null;
+  album_image: string | null;
+  played_at: string;
+};
+
+function ActivityTab() {
+  const [items, setItems] = useState<RecentTrack[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const stateRef = useRef({ hasMore: true, loadingMore: false, count: 0 });
+  stateRef.current = { hasMore, loadingMore, count: items.length };
+
+  const fetchPage = useCallback(async (offset: number, append: boolean) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/spotify/recently-played?limit=${ACTIVITY_PAGE_SIZE}&offset=${offset}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json() as { items: RecentTrack[]; hasMore: boolean };
+      setItems((prev) => append ? [...prev, ...(data.items ?? [])] : (data.items ?? []));
+      setHasMore(data.hasMore ?? false);
+    } catch {
+      if (!append) setItems([]);
+    } finally {
+      if (append) setLoadingMore(false);
+      else setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void fetchPage(0, false); }, [fetchPage]);
+
+  const onEndReached = useCallback(() => {
+    if (stateRef.current.hasMore && !stateRef.current.loadingMore) {
+      void fetchPage(stateRef.current.count, true);
+    }
+  }, [fetchPage]);
+
+  if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="small" color={theme.colors.emerald} />
@@ -583,17 +621,42 @@ function ActivityTab({ router }: { router: ReturnType<typeof useRouter> }) {
   }
 
   return (
-    <FlatList<ProfileActivityItem>
-      data={recentActivity}
-      keyExtractor={(i) => i.id}
-      renderItem={({ item }) => (
-        <ProfileActivityRow
-          item={item}
-          onPressAlbum={(albumId: string) => router.push(`/album/${albumId}` as const)}
-        />
+    <FlatList<RecentTrack>
+      data={items}
+      keyExtractor={(t) => `${t.track_id}-${t.played_at}`}
+      renderItem={({ item: t }) => (
+        <View style={styles.activityRow}>
+          {t.album_image ? (
+            <Image source={{ uri: t.album_image }} style={styles.activityArt} />
+          ) : (
+            <View style={[styles.activityArt, styles.activityArtPlaceholder]}>
+              <Text style={styles.activityArtIcon}>♪</Text>
+            </View>
+          )}
+          <View style={styles.activityMeta}>
+            <Text style={styles.activityTitle} numberOfLines={1}>{t.track_name}</Text>
+            <Text style={styles.activitySub} numberOfLines={1}>
+              {t.artist_name}{t.album_name ? ` · ${t.album_name}` : ""}
+            </Text>
+          </View>
+          <Text style={styles.activityDate}>
+            {new Date(t.played_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </Text>
+        </View>
       )}
-      ItemSeparatorComponent={ActivitySeparator}
-      ListEmptyComponent={<ActivityEmpty />}
+      ItemSeparatorComponent={() => <View style={styles.activitySep} />}
+      ListEmptyComponent={
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>No recent listens yet.</Text>
+        </View>
+      }
+      ListFooterComponent={loadingMore ? (
+        <View style={styles.activityFooter}>
+          <ActivityIndicator size="small" color={theme.colors.muted} />
+        </View>
+      ) : null}
+      onEndReached={onEndReached}
+      onEndReachedThreshold={0.4}
       contentContainerStyle={styles.tabContent}
       showsVerticalScrollIndicator={false}
     />
@@ -1224,5 +1287,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: theme.colors.text,
+  },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  activityArt: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: theme.colors.panel,
+    flexShrink: 0,
+  },
+  activityArtPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityArtIcon: {
+    fontSize: 18,
+    color: theme.colors.muted,
+  },
+  activityMeta: {
+    flex: 1,
+    gap: 3,
+    minWidth: 0,
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.colors.text,
+  },
+  activitySub: {
+    fontSize: 12,
+    color: theme.colors.muted,
+  },
+  activityDate: {
+    fontSize: 11,
+    color: theme.colors.muted,
+    flexShrink: 0,
+  },
+  activitySep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.border,
+    marginLeft: 72,
+  },
+  activityFooter: {
+    paddingVertical: 16,
+    alignItems: "center",
   },
 });

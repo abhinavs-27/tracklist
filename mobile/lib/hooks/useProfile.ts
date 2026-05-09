@@ -159,7 +159,7 @@ async function loadProfile(userIdentifier?: string): Promise<{
     );
     const [recentRes, favorites, lists] = await Promise.all([
       fetcher<RecentAlbumsResponse>(
-        `/api/recent-albums?user_id=${encodeURIComponent(user.id)}`,
+        `/api/recent-albums?user_id=${encodeURIComponent(user.id)}&limit=48`,
       ).catch(() => ({ albums: [] })),
       fetchFavoriteAlbums(user.id),
       fetchUserLists(user.id),
@@ -222,7 +222,7 @@ async function loadProfile(userIdentifier?: string): Promise<{
 
   const [recentRes, favorites, lists] = await Promise.all([
     fetcher<RecentAlbumsResponse>(
-      `/api/recent-albums?user_id=${encodeURIComponent(userIdForRecent)}`,
+      `/api/recent-albums?user_id=${encodeURIComponent(userIdForRecent)}&limit=48`,
     ).catch(() => ({ albums: [] })),
     fetchFavoriteAlbums(userIdForRecent),
     fetchUserLists(userIdForRecent),

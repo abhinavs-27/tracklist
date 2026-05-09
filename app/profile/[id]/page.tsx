@@ -19,9 +19,7 @@ import { sectionGap } from "@/lib/ui/surface";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
 import { ProfileBelowFoldSkeleton } from "@/app/profile/[id]/profile-below-fold-skeleton";
 import { ProfileAvatarOptimisticProvider } from "@/components/profile/profile-avatar-context";
-import { PrivateLogsToggle } from "@/components/profile/private-logs-toggle";
 import { ProfileHeroBanner } from "@/components/profile/profile-hero-banner";
-import { ProfileBannerEditButton } from "@/components/profile/profile-banner-edit-button";
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -178,14 +176,6 @@ export default async function ProfilePage({
     <div className={sectionGap}>
       <ProfileHeroBanner
         albums={favoriteAlbumsHero}
-        editButton={
-          isOwnProfile ? (
-            <ProfileBannerEditButton
-              userId={profile.id}
-              initialAlbums={favoriteAlbumsHero}
-            />
-          ) : undefined
-        }
       >
         <ProfileHeader
           variant="banner"
@@ -233,10 +223,6 @@ export default async function ProfilePage({
         avatarUrl={profile.avatar_url}
         viewerUserId={session?.user?.id ?? null}
       />
-
-      {isOwnProfile ? (
-        <PrivateLogsToggle initialPrivate={user.logs_private ?? false} />
-      ) : null}
 
       {/* Tabs — all content pre-rendered, switching is instant */}
       <Suspense fallback={<ProfileBelowFoldSkeleton />}>

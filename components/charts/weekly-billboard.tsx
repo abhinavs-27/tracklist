@@ -591,12 +591,6 @@ const BillboardHero = memo(function BillboardHero({
   communityMode = false,
   chartType,
 }: HeroProps) {
-  const entityLabel =
-    chartKind === "Artists"
-      ? "Artist"
-      : chartKind === "Albums"
-        ? "Album"
-        : "Track";
   const heroCatalogHref =
     communityMode &&
     chartType &&
@@ -604,86 +598,64 @@ const BillboardHero = memo(function BillboardHero({
       ? catalogHrefForChartEntity(chartType, leader.entity_id)
       : null;
 
-  const heroHeadline = (
-    <>
-      <p className="inline-flex rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300 ring-1 ring-amber-500/30">
-        {communityMode ? "#1" : "#1 this week"}
-      </p>
-      <h2
-        className={`mt-2 text-xl font-bold leading-tight tracking-tight sm:text-2xl ${heroCatalogHref ? "text-white transition group-hover:text-emerald-200/95 group-hover:underline" : "text-white"}`}
-      >
-        {leader.name}
-      </h2>
-      {leader.artist_name ? (
-        <p className="mt-1 text-sm text-zinc-400">{leader.artist_name}</p>
-      ) : chartKind === "Artists" ? (
-        <p className="mt-1 text-sm text-zinc-500">
-          {communityMode ? "Top artist" : "Top artist this week"}
-        </p>
-      ) : (
-        <p className="mt-1 text-xs text-zinc-600">{entityLabel}</p>
-      )}
-    </>
-  );
-
-  const heroImage = leader.image ? (
+  const artEl = leader.image ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={leader.image}
       alt=""
-      className="size-[72px] shrink-0 rounded-xl object-cover shadow-lg ring-1 ring-white/10"
+      className="h-[108px] w-[108px] shrink-0 rounded-xl object-cover ring-1 ring-white/10"
     />
   ) : (
-    <div className="flex size-[72px] shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-sm text-zinc-600 ring-1 ring-white/5">
-      —
+    <div className="flex h-[108px] w-[108px] shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-zinc-600">
+      ♪
     </div>
   );
 
-  const heroStats = (
-    <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
-      <BillboardHeroStatBlocks leader={leader} communityMode={communityMode} />
-    </dl>
+  const statsLine = communityMode ? (
+    <p className="mt-2 text-xs text-zinc-500 tabular-nums">
+      {leader.play_count.toLocaleString()} plays
+      {leader.unique_listeners != null ? ` · ${leader.unique_listeners} listeners` : ""}
+    </p>
+  ) : (
+    <p className="mt-2 text-xs text-zinc-500 tabular-nums">
+      {leader.play_count.toLocaleString()} plays
+      {" · "}
+      {leader.weeks_at_1} week{leader.weeks_at_1 === 1 ? "" : "s"} at #1
+      {" · "}
+      {leader.weeks_in_top_10} week{leader.weeks_in_top_10 === 1 ? "" : "s"} in top 10
+    </p>
   );
 
-  const heroBody = (
-    <div className="relative mt-4 flex items-center gap-4">
-      {heroCatalogHref ? (
-        <Link
-          href={heroCatalogHref}
-          prefetch={false}
-          className="group shrink-0 rounded-xl outline-none ring-offset-2 ring-offset-zinc-950 transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-emerald-500/45"
-        >
-          {heroImage}
-        </Link>
-      ) : (
-        heroImage
-      )}
+  const content = (
+    <div className="flex items-center gap-4">
+      {artEl}
       <div className="min-w-0 flex-1">
-        {heroCatalogHref ? (
-          <Link
-            href={heroCatalogHref}
-            prefetch={false}
-            className="group block rounded-lg outline-none ring-offset-2 ring-offset-zinc-950 transition hover:bg-white/[0.02] focus-visible:ring-2 focus-visible:ring-emerald-500/45"
-          >
-            {heroHeadline}
-          </Link>
-        ) : (
-          heroHeadline
-        )}
-        {heroStats}
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/90">
+          {communityMode ? "#1" : "#1 this week"}
+        </p>
+        <h2 className="mt-1.5 text-lg font-bold leading-tight tracking-tight text-white line-clamp-2">
+          {leader.name}
+        </h2>
+        {leader.artist_name ? (
+          <p className="mt-0.5 truncate text-sm text-zinc-400">{leader.artist_name}</p>
+        ) : null}
+        {statsLine}
       </div>
     </div>
   );
 
   return (
-    <section
-      className={`relative overflow-hidden ${cardRadius} border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black p-4 shadow-xl shadow-black/40 ring-1 ring-white/5 sm:p-5`}
-    >
-      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/5 blur-3xl" />
-      <p className="relative text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+    <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-900/50 p-4 ring-1 ring-inset ring-white/[0.06]`}>
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
         {weekLabel}
       </p>
-      {heroBody}
+      {heroCatalogHref ? (
+        <Link href={heroCatalogHref} prefetch={false} className="group block rounded-xl transition hover:bg-white/[0.03]">
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
     </section>
   );
 });
