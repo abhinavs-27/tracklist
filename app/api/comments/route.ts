@@ -99,7 +99,8 @@ export const GET = withHandler(async (request: NextRequest) => {
     .from('comments')
     .select('id, user_id, content, created_at')
     .eq('review_id', validReviewId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .limit(100);
   comments = (prefGetRes.data as Record<string, unknown>[] | null)?.map(c => ({ ...c, review_id: validReviewId })) ?? null;
   error = prefGetRes.error;
 
@@ -109,7 +110,8 @@ export const GET = withHandler(async (request: NextRequest) => {
       .from('comments')
       .select('id, user_id, content, created_at')
       .eq('log_id', validReviewId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(100);
     comments = (fallGetRes.data as Record<string, unknown>[] | null);
     error = fallGetRes.error;
     if (error) {

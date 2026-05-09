@@ -1741,14 +1741,22 @@ export async function getReviewsForArtist(
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
     if (!canonicalArtistId) return [];
 
+    /**
+     * Efficiently fetch reviews for an artist by using entity_id IN (...)
+     * where the list of entity IDs is derived from the artist's albums and tracks.
+     * To handle massive artists, we use the pre-filtered entity_id list.
+     * Optimization: If we had an 'artist_id' column on the 'reviews' table,
+     * we could query it directly. Without it, we must resolve the entity IDs first.
+     */
     const [{ data: albumRows }, { data: songRows }] = await Promise.all([
       supabase.from("albums").select("id").eq("artist_id", canonicalArtistId).limit(1000),
       supabase.from("tracks").select("id").eq("artist_id", canonicalArtistId).limit(1000),
     ]);
 
-    const albumIds = new Set((albumRows ?? []).map((a) => a.id as string));
-    const songIds = new Set((songRows ?? []).map((s) => s.id as string));
+    const albumIds = (albumRows ?? []).map((a) => a.id as string);
+    const songIds = (songRows ?? []).map((s) => s.id as string);
     const entityIds = [...albumIds, ...songIds];
+
     if (entityIds.length === 0) return [];
 
     const { data: rows, error } = await supabase
@@ -1847,86 +1855,73 @@ export async function getTopTracksForArtist(
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
     if (!canonicalArtistId) return [];
 
-    const { data: songRowsRaw } = await supabase
+    /**
+     * Join with track_stats to allow database-level sorting by listen_count.
+     * This avoids fetching all tracks for large discographies (e.g. 1000+ tracks)
+     * and performs the sort at the database level.
+     */
+    const { data: joinedRows, error: joinedError } = await supabase
       .from("tracks")
-      .select("id, name, album_id, duration_ms")
+      .select(`
+        id,
+        name,
+        album_id,
+        duration_ms,
+        track_stats!inner(listen_count, avg_rating, review_count)
+      `)
       .eq("artist_id", canonicalArtistId)
-      .limit(1000);
-    if (!songRowsRaw?.length) return [];
+      .order("listen_count", { referencedTable: "track_stats", ascending: false })
+      .order("name", { ascending: true })
+      .limit(limit);
 
-    const songRows = songRowsRaw.map((s: any) => ({
-      ...s,
-      artist_id: canonicalArtistId,
-    })) as {
-      id: string;
-      name: string;
-      album_id: string;
-      duration_ms: number | null;
-      artist_id: string;
-    }[];
+    if (joinedError || !joinedRows?.length) return [];
 
-    const trackIds = songRows.map((s) => s.id);
-    const statsMap = await getTrackStatsForTrackIds(trackIds);
+    const albumIds = [...new Set(joinedRows.map((s) => s.album_id))];
 
-    const sortedIds = [...trackIds]
-      .sort((a, b) => {
-        const countA = statsMap[a]?.listen_count ?? 0;
-        const countB = statsMap[b]?.listen_count ?? 0;
-        if (countB !== countA) return countB - countA;
-        const nameA = songRows.find((s) => s.id === a)?.name ?? "";
-        const nameB = songRows.find((s) => s.id === b)?.name ?? "";
-        return nameA.localeCompare(nameB);
-      })
-      .slice(0, limit);
+    const { data: artistRow } = await supabase
+      .from("artists")
+      .select("id, name")
+      .eq("id", canonicalArtistId)
+      .single();
 
-    const songMap = new Map(songRows.map((s) => [s.id, s]));
-    const albumIds = [...new Set(songRows.map((s) => s.album_id))];
-    const artistIds = [...new Set(songRows.map((s) => s.artist_id))];
+    const { data: albumRows } = await supabase
+      .from("albums")
+      .select("id, name, image_url")
+      .in("id", albumIds);
 
-    const [{ data: albumRows }, { data: artistRows }] = await Promise.all([
-      supabase.from("albums").select("id, name, image_url").in("id", albumIds),
-      supabase
-        .from("artists")
-        .select("id, name")
-        .in("id", artistIds.filter(Boolean) as string[]),
-    ]);
     const albumMap = new Map((albumRows ?? []).map((a) => [a.id, a]));
-    const artistMap = new Map((artistRows ?? []).map((a) => [a.id, a]));
+    const artistName = artistRow?.name ?? "";
 
-    return sortedIds
-      .map((id) => {
-        const song = songMap.get(id);
-        if (!song || song.artist_id !== canonicalArtistId) return null;
-        const album = albumMap.get(song.album_id);
-        const st = statsMap[id];
-        const track = {
-          id: song.id,
-          name: song.name,
-          artists: [
-            {
-              id: song.artist_id,
-              name: artistMap.get(song.artist_id)?.name ?? "",
-            },
-          ],
-          duration_ms: song.duration_ms ?? undefined,
-          album: album
-            ? {
-                id: album.id,
-                name: album.name,
-                images: album.image_url
-                  ? [{ url: album.image_url }]
-                  : undefined,
-              }
-            : undefined,
-        } as SpotifyApi.TrackObjectFull;
-        return {
-          track,
-          playCount: st?.listen_count ?? 0,
-          avgRating: st?.average_rating ?? null,
-          ratingCount: st?.review_count ?? 0,
-        };
-      })
-      .filter((x): x is ArtistPopularTrack => x !== null);
+    return joinedRows.map((row: any) => {
+      const album = albumMap.get(row.album_id);
+      const st = row.track_stats;
+      const track = {
+        id: row.id,
+        name: row.name,
+        artists: [
+          {
+            id: canonicalArtistId,
+            name: artistName,
+          },
+        ],
+        duration_ms: row.duration_ms ?? undefined,
+        album: album
+          ? {
+              id: album.id,
+              name: album.name,
+              images: album.image_url
+                ? [{ url: album.image_url }]
+                : undefined,
+            }
+          : undefined,
+      } as SpotifyApi.TrackObjectFull;
+      return {
+        track,
+        playCount: st?.listen_count ?? 0,
+        avgRating: st?.avg_rating ?? null,
+        ratingCount: st?.review_count ?? 0,
+      };
+    });
   } catch (e) {
     console.error("[queries] getTopTracksForArtist failed:", e);
     return [];
@@ -1941,43 +1936,25 @@ export async function getViewerArtistStats(
   try {
     const supabase = createSupabaseAdminClient();
 
-    // Step 1: get all track IDs + album IDs for this artist
-    const { data: trackRows } = await supabase
-      .from("tracks")
-      .select("id, album_id")
-      .eq("artist_id", canonicalArtistId)
-      .limit(2000);
+    // Use a join to find all logs for this user where the track belongs to this artist.
+    const { data: logRows, error } = await supabase
+      .from("logs")
+      .select("track_id, tracks!inner(album_id)")
+      .eq("user_id", viewerId)
+      .eq("tracks.artist_id", canonicalArtistId)
+      .limit(10000);
 
-    const trackRows_ = (trackRows ?? []) as { id: string; album_id: string | null }[];
-    if (trackRows_.length === 0) {
+    if (error || !logRows?.length) {
       return { playCount: 0, topAlbumName: null, topAlbumId: null };
     }
 
-    const artistTrackIds = trackRows_.map((t) => t.id);
-    const trackToAlbum = new Map(trackRows_.map((t) => [t.id, t.album_id]));
-
-    // Step 2 & 3: fetch viewer logs in chunks of 200 track IDs to avoid URL limits
-    const CHUNK = 200;
-    let totalCount = 0;
+    const totalCount = logRows.length;
     const albumCounts = new Map<string, number>();
 
-    for (let i = 0; i < artistTrackIds.length; i += CHUNK) {
-      const chunk = artistTrackIds.slice(i, i + CHUNK);
-      const { data: logRows } = await supabase
-        .from("logs")
-        .select("track_id")
-        .eq("user_id", viewerId)
-        .in("track_id", chunk)
-        .limit(5000);
-
-      for (const row of logRows ?? []) {
-        totalCount++;
-        const aid = trackToAlbum.get(row.track_id as string);
-        if (aid) albumCounts.set(aid, (albumCounts.get(aid) ?? 0) + 1);
-      }
+    for (const row of logRows as any[]) {
+      const aid = row.tracks?.album_id;
+      if (aid) albumCounts.set(aid, (albumCounts.get(aid) ?? 0) + 1);
     }
-
-    if (totalCount === 0) return { playCount: 0, topAlbumName: null, topAlbumId: null };
 
     const topAlbumId =
       [...albumCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
@@ -2187,29 +2164,17 @@ export async function getArtistFirstListenDate(
 ): Promise<string | null> {
   try {
     const supabase = createSupabaseAdminClient();
-    const { data: trackRows } = await supabase
-      .from("tracks")
-      .select("id")
-      .eq("artist_id", canonicalArtistId)
-      .limit(2000);
-    const trackIds = (trackRows ?? []).map((t) => t.id as string);
-    if (trackIds.length === 0) return null;
+    const { data, error } = await supabase
+      .from("logs")
+      .select("listened_at, tracks!inner(id)")
+      .eq("user_id", viewerId)
+      .eq("tracks.artist_id", canonicalArtistId)
+      .order("listened_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-    let earliest: string | null = null;
-    const CHUNK = 200;
-    for (let i = 0; i < trackIds.length; i += CHUNK) {
-      const chunk = trackIds.slice(i, i + CHUNK);
-      const { data } = await supabase
-        .from("logs")
-        .select("listened_at")
-        .eq("user_id", viewerId)
-        .in("track_id", chunk)
-        .order("listened_at", { ascending: true })
-        .limit(1);
-      const date = (data?.[0] as { listened_at?: string } | undefined)?.listened_at;
-      if (date && (!earliest || date < earliest)) earliest = date;
-    }
-    return earliest;
+    if (error || !data) return null;
+    return (data as any).listened_at;
   } catch {
     return null;
   }
@@ -2234,16 +2199,6 @@ export async function getArtistFriendLeaderboard(
   try {
     const supabase = createSupabaseAdminClient();
 
-    // Get artist track IDs
-    const { data: trackRows } = await supabase
-      .from("tracks")
-      .select("id")
-      .eq("artist_id", canonicalArtistId)
-      .limit(2000);
-
-    const trackIds = (trackRows ?? []).map((t) => t.id as string);
-    if (trackIds.length === 0) return null;
-
     // Get following IDs (cap at 100 to avoid huge queries)
     const { data: followRows } = await supabase
       .from("follows")
@@ -2254,23 +2209,20 @@ export async function getArtistFriendLeaderboard(
     const friendIds = (followRows ?? []).map((f) => f.following_id as string);
     const allUserIds = [viewerId, ...friendIds];
 
-    // Batch query logs for all users × artist tracks (chunk track IDs to avoid URL limits)
-    const CHUNK = 200;
+    // Query logs using a join with tracks to filter by artist_id
+    const { data: logRows, error } = await supabase
+      .from("logs")
+      .select("user_id, tracks!inner(id)")
+      .in("user_id", allUserIds)
+      .eq("tracks.artist_id", canonicalArtistId)
+      .limit(50000);
+
+    if (error || !logRows?.length) return null;
+
     const userPlayCounts = new Map<string, number>();
-
-    for (let i = 0; i < trackIds.length; i += CHUNK) {
-      const chunk = trackIds.slice(i, i + CHUNK);
-      const { data: logRows } = await supabase
-        .from("logs")
-        .select("user_id")
-        .in("user_id", allUserIds)
-        .in("track_id", chunk)
-        .limit(50000);
-
-      for (const row of logRows ?? []) {
-        const uid = row.user_id as string;
-        userPlayCounts.set(uid, (userPlayCounts.get(uid) ?? 0) + 1);
-      }
+    for (const row of logRows as any[]) {
+      const uid = row.user_id;
+      userPlayCounts.set(uid, (userPlayCounts.get(uid) ?? 0) + 1);
     }
 
     // Filter to users with at least 1 play, require 2+ people for a comparison
