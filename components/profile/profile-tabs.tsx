@@ -2,33 +2,37 @@
 
 import { type ReactNode, useState } from "react";
 
-export type ProfileTab = "listening" | "taste" | "lists";
+export type ProfileTab = "overview" | "lists" | "settings";
 
-const TABS: { id: ProfileTab; label: string }[] = [
-  { id: "listening", label: "Listening" },
-  { id: "taste", label: "Taste" },
+const BASE_TABS: { id: ProfileTab; label: string }[] = [
+  { id: "overview", label: "Overview" },
   { id: "lists", label: "Lists" },
 ];
 
-/** Renders all three tab panes upfront (server-rendered) and switches instantly via CSS. */
+/** Renders all tab panes upfront (server-rendered) and switches instantly via CSS. */
 export function ProfileTabsContainer({
-  listeningContent,
-  tasteContent,
+  overviewContent,
   listsContent,
-  defaultTab = "listening",
+  settingsContent,
+  defaultTab = "overview",
 }: {
-  listeningContent: ReactNode;
-  tasteContent: ReactNode;
+  overviewContent: ReactNode;
   listsContent: ReactNode;
+  /** Only rendered when provided — settings tab is omitted for other-user profiles. */
+  settingsContent?: ReactNode;
   defaultTab?: ProfileTab;
 }) {
+  const tabs = settingsContent
+    ? [...BASE_TABS, { id: "settings" as ProfileTab, label: "Settings" }]
+    : BASE_TABS;
+
   const [active, setActive] = useState<ProfileTab>(defaultTab);
 
   return (
     <div>
       {/* Tab nav */}
       <div className="mb-6 flex gap-0 border-b border-zinc-800/80">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -48,15 +52,17 @@ export function ProfileTabsContainer({
       </div>
 
       {/* Tab panes — all pre-rendered, hidden with CSS for instant switching */}
-      <div className={active === "listening" ? undefined : "hidden"}>
-        {listeningContent}
-      </div>
-      <div className={active === "taste" ? undefined : "hidden"}>
-        {tasteContent}
+      <div className={active === "overview" ? undefined : "hidden"}>
+        {overviewContent}
       </div>
       <div className={active === "lists" ? undefined : "hidden"}>
         {listsContent}
       </div>
+      {settingsContent ? (
+        <div className={active === "settings" ? undefined : "hidden"}>
+          {settingsContent}
+        </div>
+      ) : null}
     </div>
   );
 }

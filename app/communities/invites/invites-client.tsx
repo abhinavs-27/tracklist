@@ -51,9 +51,7 @@ export function CommunityInvitesClient({
 
   if (invites.length === 0) {
     return (
-      <p className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-4 py-3 text-sm text-zinc-500">
-        No pending invites.
-      </p>
+      <p className="text-sm italic text-zinc-500">No pending invites.</p>
     );
   }
 

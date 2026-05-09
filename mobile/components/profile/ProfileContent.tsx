@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -10,24 +11,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
+import { fetcher } from "@/lib/api";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { ProfileHeader } from "./ProfileHeader";
 import { FavoritesSection } from "./FavoritesSection";
 import { ProfileFollowButton } from "./ProfileFollowButton";
 import { ProfileListsSection } from "./ProfileListsSection";
-import {
-  ProfileActivityRow,
-  ActivityEmpty,
-  ActivitySeparator,
-} from "./ActivityList";
 import { FollowNetworkModal } from "./FollowNetworkModal";
 import { CreateListModal } from "@/components/list/CreateListModal";
 import { LastfmSection } from "./LastfmSection";
 import { TasteIdentity } from "./TasteIdentity";
 import { SimilarUsersSection } from "./SimilarUsersSection";
 
-type Tab = "favorites" | "activity";
+type Tab = "overview" | "lists" | "settings";
 
 type Props = {
   /** When set, loads that user's profile; when omitted, loads the signed-in user. */
@@ -39,7 +36,7 @@ type Props = {
 export function ProfileContent({ userIdentifier, showBack }: Props) {
   const router = useRouter();
   const { signOut, user: authUser } = useAuth();
-  const [tab, setTab] = useState<Tab>("favorites");
+  const [tab, setTab] = useState<Tab>("overview");
   const [signingOut, setSigningOut] = useState(false);
   const [followModalOpen, setFollowModalOpen] = useState(false);
   const [followModalTab, setFollowModalTab] = useState<"followers" | "following">(
@@ -51,7 +48,6 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     user,
     favorites,
     lists,
-    recentActivity,
     stats,
     isLoading,
     error,
@@ -91,6 +87,18 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
 
   const isOwn = user.is_own_profile;
   const viewerId = authUser?.id ?? null;
+
+  // Only show settings tab for own profile
+  const tabs: { id: Tab; label: string }[] = isOwn
+    ? [
+        { id: "overview", label: "Overview" },
+        { id: "lists", label: "Lists" },
+        { id: "settings", label: "Settings" },
+      ]
+    : [
+        { id: "overview", label: "Overview" },
+        { id: "lists", label: "Lists" },
+      ];
 
   const listHeader = (
     <View
@@ -157,90 +165,111 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         />
       ) : null}
 
-      {isOwn ? (
-        <LastfmSection
-          userId={user.id}
-          username={user.username}
-          initialUsername={user.lastfm_username ?? null}
-          initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
-        />
-      ) : null}
-
-      <TasteIdentity userId={user.id} />
-
-      {isOwn ? <SimilarUsersSection /> : null}
-
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        <TabChip
-          label="Favorites"
-          active={tab === "favorites"}
-          onPress={() => setTab("favorites")}
-        />
-        <TabChip
-          label="Activity"
-          active={tab === "activity"}
-          onPress={() => setTab("activity")}
-        />
+      {/* Tab chips */}
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {tabs.map((t) => (
+          <TabChip
+            key={t.id}
+            label={t.label}
+            active={tab === t.id}
+            onPress={() => setTab(t.id)}
+          />
+        ))}
       </View>
+    </View>
+  );
 
-      {tab === "favorites" ? (
-        <View style={{ gap: 20 }}>
+  // ─── Overview tab ─────────────────────────────────────────────────────────────
+  if (tab === "overview") {
+    const overviewHeader = (
+      <View style={{ gap: 16 }}>
+        {listHeader}
+        <View style={{ paddingHorizontal: 16, gap: 20 }}>
           <FavoritesSection
             items={favorites}
-            onPressAlbum={(albumId) =>
-              router.push(`/album/${albumId}` as const)
-            }
+            onPressAlbum={(albumId) => router.push(`/album/${albumId}` as const)}
           />
+          <TasteIdentity userId={user.id} />
+          {isOwn ? <SimilarUsersSection /> : null}
+        </View>
+      </View>
+    );
+
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+        <FlatList
+          data={[]}
+          keyExtractor={() => ""}
+          renderItem={null}
+          ListHeaderComponent={overviewHeader}
+          contentContainerStyle={{ paddingBottom: 120 }}
+        />
+        <CreateListModal
+          visible={createListOpen}
+          onClose={() => setCreateListOpen(false)}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // ─── Lists tab ────────────────────────────────────────────────────────────────
+  if (tab === "lists") {
+    const listsHeader = (
+      <View style={{ gap: 16 }}>
+        {listHeader}
+        <View style={{ paddingHorizontal: 16 }}>
           <ProfileListsSection
             lists={lists}
             isOwnProfile={isOwn}
             username={user.username}
-            onPressCreate={
-              isOwn ? () => setCreateListOpen(true) : undefined
-            }
+            onPressCreate={isOwn ? () => setCreateListOpen(true) : undefined}
           />
         </View>
-      ) : (
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: "800",
-            color: theme.colors.text,
-          }}
-        >
-          Recent plays
-        </Text>
-      )}
-    </View>
-  );
+      </View>
+    );
 
-  const showActivityEmpty =
-    tab === "activity" && recentActivity.length === 0;
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+        <FlatList
+          data={[]}
+          keyExtractor={() => ""}
+          renderItem={null}
+          ListHeaderComponent={listsHeader}
+          contentContainerStyle={{ paddingBottom: 120 }}
+        />
+        <CreateListModal
+          visible={createListOpen}
+          onClose={() => setCreateListOpen(false)}
+        />
+      </SafeAreaView>
+    );
+  }
 
-  const showLogoutFooter = !userIdentifier && isOwn;
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
-      <FlatList
-        data={tab === "activity" ? recentActivity : []}
-        keyExtractor={(i) => i.id}
-        ListHeaderComponent={listHeader}
-        renderItem={({ item }) => (
-          <ProfileActivityRow
-            item={item}
-            onPressAlbum={(albumId) =>
-              router.push(`/album/${albumId}` as const)
-            }
+  // ─── Settings tab (own profile only) ─────────────────────────────────────────
+  if (tab === "settings" && isOwn) {
+    const settingsHeader = (
+      <View style={{ gap: 16 }}>
+        {listHeader}
+        <View style={{ paddingHorizontal: 16, gap: 20 }}>
+          <LastfmSection
+            userId={user.id}
+            username={user.username}
+            initialUsername={user.lastfm_username ?? null}
+            initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
           />
-        )}
-        ItemSeparatorComponent={
-          tab === "activity" ? ActivitySeparator : undefined
-        }
-        ListEmptyComponent={
-          showActivityEmpty ? <ActivityEmpty /> : null
-        }
-        ListFooterComponent={
-          showLogoutFooter ? (
+          <PrivateLogsToggleNative userId={user.id} />
+        </View>
+      </View>
+    );
+
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+        <FlatList
+          data={[]}
+          keyExtractor={() => ""}
+          renderItem={null}
+          ListHeaderComponent={settingsHeader}
+          ListFooterComponent={
             <View
               style={{
                 paddingHorizontal: 16,
@@ -281,17 +310,20 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
                 </Text>
               </Pressable>
             </View>
-          ) : null
-        }
-        contentContainerStyle={{ paddingBottom: 120 }}
-      />
-      <CreateListModal
-        visible={createListOpen}
-        onClose={() => setCreateListOpen(false)}
-      />
-    </SafeAreaView>
+          }
+          contentContainerStyle={{ paddingBottom: 120 }}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Fallback (shouldn't happen)
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} />
   );
 }
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function TabChip({
   label,
@@ -328,5 +360,59 @@ function TabChip({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+/** Private logs toggle adapted for React Native. */
+function PrivateLogsToggleNative({ userId }: { userId: string }) {
+  const [value, setValue] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  const onChange = async (next: boolean) => {
+    const prev = value;
+    setValue(next);
+    setPending(true);
+    try {
+      await fetcher("/api/users/me/private-logs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logs_private: next }),
+      });
+    } catch {
+      setValue(prev);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        backgroundColor: theme.colors.panel,
+        borderRadius: 12,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+      }}
+    >
+      <View style={{ flex: 1, marginRight: 12 }}>
+        <Text style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text }}>
+          Private listening logs
+        </Text>
+        <Text style={{ fontSize: 12, color: theme.colors.muted, marginTop: 3 }}>
+          Won&apos;t appear in feeds or on your profile.
+        </Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={(v) => void onChange(v)}
+        disabled={pending}
+        trackColor={{ false: theme.colors.border, true: theme.colors.emerald }}
+        thumbColor={theme.colors.text}
+      />
+    </View>
   );
 }

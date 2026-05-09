@@ -37,6 +37,7 @@ spotifyDataRouter.get("/song/:id", async (req, res) => {
       release_date,
       album_name: album?.name ?? null,
       album_id: album?.id ?? null,
+      duration_ms: track.duration_ms ?? null,
     });
   } catch (e) {
     return internalError(res, e);

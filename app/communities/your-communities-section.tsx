@@ -41,16 +41,22 @@ export async function YourCommunitiesSection({ userId }: { userId: string }) {
             className={`flex items-center justify-between px-4 py-4 ${cardElevatedInteractive}`}
           >
             <div className="min-w-0">
-              <p className="font-medium text-white">{c.name}</p>
+              <p className="font-semibold text-white">{c.name}</p>
               {c.description ? (
                 <p className="truncate text-sm text-zinc-500">{c.description}</p>
               ) : null}
             </div>
-            <div className="shrink-0 text-right text-xs text-zinc-500">
-              <span>{c.member_count} members</span>
+            <div className="ml-4 flex shrink-0 flex-col items-center gap-1 text-xs text-zinc-500">
+              <span>{c.member_count} {c.member_count === 1 ? "member" : "members"}</span>
               {c.is_private ? (
-                <span className="ml-2 rounded bg-zinc-800 px-1.5 py-0.5">Private</span>
-              ) : null}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
+                  <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
+                  <path fillRule="evenodd" d="M14.5 1A4.5 4.5 0 0 0 10 5.5V9H3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1.5V5.5a3 3 0 1 1 6 0v2.75a.75.75 0 0 0 1.5 0V5.5A4.5 4.5 0 0 0 14.5 1Z" clipRule="evenodd" />
+                </svg>
+              )}
             </div>
           </Link>
         </li>

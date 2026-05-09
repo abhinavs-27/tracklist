@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import type { CommunityInvitePending, CommunityWithMeta } from "@repo/types";
 import {
   acceptCommunityInviteApi,
@@ -93,7 +94,7 @@ export default function CommunitiesTabScreen() {
 
   const listHeader = (
     <View style={styles.invitesBlock}>
-      <Text style={styles.sectionLabel}>Pending invites</Text>
+      <Text style={styles.sectionLabel}>Pending Invites</Text>
       {invitesPending ? (
         <View style={styles.invitesLoading}>
           <ActivityIndicator color={theme.colors.emerald} />
@@ -132,7 +133,7 @@ export default function CommunitiesTabScreen() {
         </View>
       )}
       <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
-        Your communities
+        Your Communities
       </Text>
     </View>
   );
@@ -142,7 +143,7 @@ export default function CommunitiesTabScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Communities</Text>
         <Text style={styles.subtitle}>
-          Weekly leaderboards with your crew — not global.
+          Small-group listening challenges — leaderboards reset weekly.
         </Text>
         <Pressable
           style={styles.primaryBtn}
@@ -186,20 +187,26 @@ export default function CommunitiesTabScreen() {
                 router.push(`/communities/${encodeURIComponent(item.id)}`)
               }
             >
-              <View style={styles.cardTop}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                {item.is_private ? (
-                  <Text style={styles.badge}>Private</Text>
-                ) : null}
+              <View style={styles.cardInner}>
+                <View style={styles.cardLeft}>
+                  <Text style={styles.cardTitle}>{item.name}</Text>
+                  {item.description ? (
+                    <Text style={styles.cardDesc} numberOfLines={2}>
+                      {item.description}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.cardRight}>
+                  <Text style={styles.meta}>
+                    {item.member_count} member{item.member_count !== 1 ? "s" : ""}
+                  </Text>
+                  <Ionicons
+                    name={item.is_private ? "lock-closed" : "earth-outline"}
+                    size={16}
+                    color="#71717a"
+                  />
+                </View>
               </View>
-              {item.description ? (
-                <Text style={styles.cardDesc} numberOfLines={2}>
-                  {item.description}
-                </Text>
-              ) : null}
-              <Text style={styles.meta}>
-                {item.member_count} member{item.member_count !== 1 ? "s" : ""}
-              </Text>
             </Pressable>
           )}
         />
@@ -211,55 +218,54 @@ export default function CommunitiesTabScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
   header: {
-    paddingLeft: 18,
-    paddingRight: 18 + NOTIFICATION_BELL_GUTTER,
-    paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
-    gap: 10,
+    paddingHorizontal: 18,
+    paddingBottom: 24,
+    gap: 12,
   },
   title: {
-    fontSize: 32,
+    fontSize: 42,
     fontWeight: "800",
-    color: theme.colors.text,
-    letterSpacing: -0.5,
+    color: "#ffffff",
+    letterSpacing: -1.5,
+    paddingRight: NOTIFICATION_BELL_GUTTER,
   },
   subtitle: {
     fontSize: 15,
-    fontWeight: "500",
-    color: theme.colors.muted,
-    lineHeight: 20,
+    fontWeight: "400",
+    color: "#71717a",
+    lineHeight: 22,
+    marginBottom: 4,
   },
   primaryBtn: {
-    alignSelf: "flex-start",
-    backgroundColor: theme.colors.emerald,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 4,
+    width: "100%",
+    backgroundColor: "#4ade80",
+    paddingVertical: 18,
+    borderRadius: 999,
+    alignItems: "center",
   },
   primaryBtnText: {
-    color: "#fff",
+    color: "#052e16",
     fontWeight: "700",
-    fontSize: 15,
+    fontSize: 16,
   },
   invitesBlock: {
     paddingHorizontal: 18,
+    paddingTop: 8,
     paddingBottom: 4,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: theme.colors.muted,
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#71717a",
+    marginBottom: 8,
   },
-  sectionLabelSpaced: { marginTop: 4, marginBottom: 8 },
+  sectionLabelSpaced: { marginTop: 24, marginBottom: 10 },
   invitesLoading: { paddingVertical: 12, alignItems: "flex-start" },
   invitesEmpty: {
     fontSize: 14,
+    fontStyle: "italic",
     color: theme.colors.muted,
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   inviteCards: { gap: 10, marginBottom: 4 },
   inviteCard: {
@@ -294,7 +300,7 @@ const styles = StyleSheet.create({
   acceptBtnText: { color: "#fff", fontWeight: "700" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   pad: { padding: 18 },
-  listPad: { paddingHorizontal: 0, paddingBottom: 24, gap: 0 },
+  listPad: { paddingHorizontal: 0, paddingBottom: 100, gap: 0 },
   emptyContainer: { flexGrow: 1, padding: 24, justifyContent: "center" },
   err: { color: theme.colors.danger, fontWeight: "600" },
   link: { color: theme.colors.emerald, marginTop: 8, fontWeight: "600" },
@@ -306,35 +312,32 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: theme.colors.panel,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
-    padding: 14,
+    padding: 16,
     marginBottom: 10,
     marginHorizontal: 18,
   },
-  cardTop: {
+  cardInner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    gap: 12,
+  },
+  cardLeft: {
+    flex: 1,
+    gap: 4,
+  },
+  cardRight: {
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
   },
   cardTitle: {
-    flex: 1,
     fontSize: 17,
     fontWeight: "700",
     color: theme.colors.text,
   },
-  badge: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: theme.colors.muted,
-    backgroundColor: theme.colors.active,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    overflow: "hidden",
-  },
-  cardDesc: { marginTop: 6, fontSize: 14, color: theme.colors.muted },
-  meta: { marginTop: 8, fontSize: 12, color: theme.colors.muted },
+  cardDesc: { fontSize: 14, color: theme.colors.muted },
+  meta: { fontSize: 12, color: theme.colors.muted },
 });

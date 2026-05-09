@@ -922,66 +922,35 @@ export function WeeklyBillboardView(props: {
 
       <section>
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-          {isCommunity ? (
-            <>
-              <span className="md:hidden">Spots 2–5</span>
-              <span className="hidden md:inline">Spots 2–10</span>
-            </>
-          ) : (
-            "Spots 2–10"
-          )}
+          Spots 2–5
         </h3>
-        {isCommunity ? (
-          <>
-            <ol className="mt-4 space-y-3 md:hidden">
-              {chartRowsMobileTop.map((row) => (
+        <ol className="mt-4 space-y-3">
+          {chartRowsMobileTop.map((row) => (
+            <ChartRow
+              key={`${props.weekStartIso}-${row.entity_id}`}
+              row={row}
+              communityMode={isCommunity}
+              chartType={props.chartType}
+            />
+          ))}
+        </ol>
+        {chartRowsMobileRest.length > 0 ? (
+          <details className={`mt-3 ${cardRadius} border border-zinc-800/80 bg-zinc-950/30 ring-1 ring-white/[0.05]`}>
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-zinc-400 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-200">
+              Show spots 6–10
+            </summary>
+            <ol className="space-y-3 border-t border-zinc-800/60 p-3 pt-4">
+              {chartRowsMobileRest.map((row) => (
                 <ChartRow
-                  key={`${props.weekStartIso}-${row.entity_id}`}
+                  key={`${props.weekStartIso}-${row.entity_id}-more`}
                   row={row}
-                  communityMode
+                  communityMode={isCommunity}
                   chartType={props.chartType}
                 />
               ))}
             </ol>
-            {chartRowsMobileRest.length > 0 ? (
-              <details className={`mt-3 ${cardRadius} border border-zinc-800/80 bg-zinc-950/30 ring-1 ring-white/[0.05] md:hidden`}>
-                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-zinc-400 marker:hidden [&::-webkit-details-marker]:hidden hover:text-zinc-200">
-                  Show spots 6–10
-                </summary>
-                <ol className="space-y-3 border-t border-zinc-800/60 p-3 pt-4">
-                  {chartRowsMobileRest.map((row) => (
-                    <ChartRow
-                      key={`${props.weekStartIso}-${row.entity_id}-more`}
-                      row={row}
-                      communityMode
-                      chartType={props.chartType}
-                    />
-                  ))}
-                </ol>
-              </details>
-            ) : null}
-            <ol className="mt-4 hidden space-y-3 md:block">
-              {chartRowsRest.map((row) => (
-                <ChartRow
-                  key={`${props.weekStartIso}-${row.entity_id}`}
-                  row={row}
-                  communityMode
-                  chartType={props.chartType}
-                />
-              ))}
-            </ol>
-          </>
-        ) : (
-          <ol className="mt-4 space-y-3">
-            {chartRowsRest.map((row) => (
-              <ChartRow
-                key={`${props.weekStartIso}-${row.entity_id}`}
-                row={row}
-                communityMode={false}
-              />
-            ))}
-          </ol>
-        )}
+          </details>
+        ) : null}
       </section>
 
       <section className="space-y-4">
