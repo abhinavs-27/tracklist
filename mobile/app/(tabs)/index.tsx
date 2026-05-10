@@ -16,11 +16,13 @@ import {
   useHomeBillboard,
   useHomePulse,
   useWeeklyChart,
+  useWeeklyChartWeeks,
   type TopArtistItem,
   type TopAlbumItem,
   type TopTrackItem,
   type ChartRankingRow,
   type ChartMoverEntry,
+  type ChartType,
   isDropout,
 } from "@/lib/hooks/useHomeDashboard";
 import {
@@ -43,17 +45,17 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>Tracklist</Text>
-      </View>
-
-      {/* Tab chips */}
-      <View style={styles.tabRow}>
-        <TabChip label="Billboard" active={tab === "billboard"} onPress={() => setTab("billboard")} />
-        <TabChip label="Pulse" active={tab === "pulse"} onPress={() => setTab("pulse")} />
-        <TabChip label="History" active={tab === "history"} onPress={() => setTab("history")} />
-        <TabChip label="Activity" active={tab === "activity"} onPress={() => setTab("activity")} />
+      {/* Sticky header block — logo + tabs together, matches web's sticky bar */}
+      <View style={styles.stickyHeader}>
+        <View style={styles.header}>
+          <Text style={styles.logo}>Tracklist</Text>
+        </View>
+        <View style={styles.tabRow}>
+          <TabChip label="Billboard" active={tab === "billboard"} onPress={() => setTab("billboard")} />
+          <TabChip label="Pulse" active={tab === "pulse"} onPress={() => setTab("pulse")} />
+          <TabChip label="History" active={tab === "history"} onPress={() => setTab("history")} />
+          <TabChip label="Activity" active={tab === "activity"} onPress={() => setTab("activity")} />
+        </View>
       </View>
 
       {tab === "billboard" && <BillboardTab router={router} />}
@@ -66,27 +68,55 @@ export default function HomeScreen() {
 
 // ─── Billboard Tab — the real weekly chart ─────────────────────────────────────
 
-const NARRATIVE_ICONS = ["✦", "↗", "↑"];
+const NARRATIVE_ICONS = ["✦", "↗", "↑", "·"];
 
-function MovementBadge({ row }: { row: ChartRankingRow }) {
+const CHART_TABS: { value: ChartType; label: string }[] = [
+  { value: "tracks", label: "Tracks" },
+  { value: "artists", label: "Artists" },
+  { value: "albums", label: "Albums" },
+];
+
+function parseIsoDate(s: string): Date {
+  // Handles "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ", "YYYY-MM-DD hh:mm:ss+00", etc.
+  const clean = s.trim().slice(0, 10); // take "YYYY-MM-DD"
+  const [y, m, d] = clean.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function formatWeekRange(weekStart: string, weekEnd: string): string {
+  const fmt = (iso: string) => {
+    const d = parseIsoDate(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  };
+  const year = parseIsoDate(weekEnd).getUTCFullYear();
+  return `${fmt(weekStart)} – ${fmt(weekEnd)}, ${year}`;
+}
+
+function entityRoute(chartType: ChartType, entityId: string): string {
+  if (chartType === "tracks") return `/song/${entityId}`;
+  if (chartType === "artists") return `/artist/${entityId}`;
+  return `/album/${entityId}`;
+}
+
+function MovementIndicator({ row }: { row: ChartRankingRow }) {
   if (row.is_new || row.is_reentry) {
-    return <View style={styles.newBadge}><Text style={styles.newBadgeText}>NEW</Text></View>;
-  }
-  if (row.has_positive_movement && row.movement != null && row.movement > 0) {
     return (
-      <View style={styles.moveBadgeUp}>
-        <Text style={styles.moveBadgeUpText}>▲ {row.movement}</Text>
+      <View style={styles.newBadge}>
+        <Text style={styles.newBadgeText}>{row.is_reentry ? "RE" : "NEW"}</Text>
       </View>
     );
   }
-  if (row.has_negative_movement && row.movement != null && row.movement < 0) {
+  if (row.movement == null || row.movement === 0) {
+    return <Text style={styles.moveSame}>—</Text>;
+  }
+  if (row.movement > 0) {
     return (
-      <View style={styles.moveBadgeDown}>
-        <Text style={styles.moveBadgeDownText}>▼ {Math.abs(row.movement)}</Text>
-      </View>
+      <Text style={styles.moveUp}>▲{row.movement}</Text>
     );
   }
-  return <Text style={styles.moveSame}>—</Text>;
+  return (
+    <Text style={styles.moveDown}>▼{Math.abs(row.movement)}</Text>
+  );
 }
 
 function ChartRowCard({
@@ -101,32 +131,36 @@ function ChartRowCard({
       onPress={onPress}
       style={({ pressed }: { pressed: boolean }) => [
         styles.chartCard,
-        pressed && { opacity: 0.78 },
+        row.is_number_one && styles.chartCardLeader,
+        pressed && { opacity: 0.82 },
       ]}
     >
-      <Text style={[styles.chartCardRank, row.is_number_one && styles.chartCardRankGold]}>
-        {row.rank}
-      </Text>
-      {row.image ? (
-        <Image source={{ uri: row.image }} style={styles.chartCardArt} />
-      ) : (
-        <View style={[styles.chartCardArt, styles.chartCardArtPlaceholder]}>
-          <Text style={styles.albumPlaceholderIcon}>♪</Text>
-        </View>
-      )}
-      <View style={styles.chartCardMeta}>
-        <Text style={styles.chartCardTitle} numberOfLines={1}>{row.name}</Text>
-        {row.artist_name ? (
-          <Text style={styles.chartCardArtist} numberOfLines={1}>{row.artist_name}</Text>
-        ) : null}
-      </View>
-      <View style={styles.chartCardRight}>
-        <MovementBadge row={row} />
-        <Text style={styles.chartCardPlays}>{row.play_count} plays</Text>
-        <Text style={styles.chartCardStreak}>
-          streak {row.weeks_in_top_10}
-          {row.weeks_at_1 > 0 ? ` (${row.weeks_at_1})` : " (0)"}
+      <View style={styles.chartCardInner}>
+        <Text style={[styles.chartCardRank, row.rank <= 3 ? styles.chartCardRankBright : styles.chartCardRankMuted]}>
+          {row.rank}
         </Text>
+        {row.image ? (
+          <Image source={{ uri: row.image }} style={styles.chartCardArt} />
+        ) : (
+          <View style={[styles.chartCardArt, styles.chartCardArtPlaceholder]}>
+            <Text style={{ fontSize: 18, color: theme.colors.muted }}>—</Text>
+          </View>
+        )}
+        <View style={styles.chartCardMeta}>
+          <Text style={styles.chartCardTitle} numberOfLines={1}>{row.name}</Text>
+          {row.artist_name ? (
+            <Text style={styles.chartCardArtist} numberOfLines={1}>{row.artist_name}</Text>
+          ) : null}
+          <Text style={styles.chartCardStats}>
+            {row.play_count.toLocaleString()} plays
+            <Text style={styles.chartCardStatsDim}>
+              {" · streak "}{row.weeks_in_top_10} ({row.weeks_at_1})
+            </Text>
+          </Text>
+        </View>
+        <View style={styles.chartCardRight}>
+          <MovementIndicator row={row} />
+        </View>
       </View>
     </Pressable>
   );
@@ -142,236 +176,276 @@ function MoverCard({
   onPress?: () => void;
 }) {
   if (!mover) return null;
-
   const isOut = isDropout(mover);
-  const movement = isOut ? mover.movement : mover.movement;
-  const movAbs = movement != null ? Math.abs(movement) : null;
-  const movStr = movAbs != null && movAbs > 0
-    ? (isOut || (movement != null && movement < 0) ? `↓ ${movAbs}` : `↑ ${movAbs}`)
-    : null;
+  const movAbs = mover.movement != null ? Math.abs(mover.movement) : null;
   const isNew = !isOut && (mover as ChartRankingRow).is_new;
-  const subtitle = isOut
-    ? `Was #${mover.prev_rank} · left the chart`
-    : isNew
-    ? "New"
-    : movStr ?? "—";
+  const movStr = movAbs != null && movAbs > 0
+    ? (isOut || (mover.movement != null && mover.movement < 0) ? `▼${movAbs}` : `▲${movAbs}`)
+    : null;
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }: { pressed: boolean }) => [
-        styles.moverCard,
-        pressed && { opacity: 0.78 },
-      ]}
+      style={({ pressed }: { pressed: boolean }) => [styles.moverCard, pressed && { opacity: 0.82 }]}
     >
       <Text style={styles.moverLabel}>{label}</Text>
       <Text style={styles.moverName} numberOfLines={2}>{mover.name}</Text>
-      <Text style={styles.moverSubtitle}>{subtitle}</Text>
+      {isOut ? (
+        <Text style={styles.moverSubtitle}>Was #{mover.prev_rank} · left the chart</Text>
+      ) : isNew ? (
+        <Text style={styles.moverSubtitle}>New</Text>
+      ) : null}
       {isNew ? (
-        <View style={[styles.newBadge, { marginTop: 8 }]}>
+        <View style={[styles.newBadge, { marginTop: 10 }]}>
           <Text style={styles.newBadgeText}>NEW</Text>
         </View>
       ) : movStr ? (
-        <View style={[styles.moveBadgeDown, { marginTop: 8 }]}>
-          <Text style={styles.moveBadgeDownText}>{movStr}</Text>
-        </View>
+        <Text style={[{ marginTop: 10, fontSize: 15, fontWeight: "700" }, movStr.startsWith("▲") ? { color: "#34d399" } : { color: "#f87171" }]}>
+          {movStr}
+        </Text>
       ) : null}
     </Pressable>
   );
 }
 
 function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
-  const { data: chart, isLoading } = useWeeklyChart("tracks");
+  const [chartType, setChartType] = useState<ChartType>("tracks");
+  const [weekStart, setWeekStart] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
 
-  if (isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
-      </View>
-    );
-  }
+  const { data: weeks } = useWeeklyChartWeeks(chartType);
+  const { data: chart, isLoading } = useWeeklyChart(chartType, weekStart);
 
-  if (!chart || chart.rankings.length === 0) {
-    return (
-      <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.emptySection}>
-          <Text style={styles.emptyText}>
-            No weekly chart yet. Billboard updates every Sunday after you've logged listens.
-          </Text>
-        </View>
-      </ScrollView>
-    );
-  }
+  // Week navigation helpers
+  const weeksList = weeks ?? [];
+  const currentIndex = weekStart == null ? 0 : weeksList.findIndex(w => w.week_start === weekStart);
+  const effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
+  const currentWeek = weeksList[effectiveIndex];
+  // Prefer the chart's own weekLabel for the current/loaded week (avoids off-by-one from weeks API end dates)
+  const chartWeekLabel = chart?.share?.weekLabel ?? chart?.chart_moment?.week_label ?? "";
+  const weekLabel = currentWeek
+    ? (chartWeekLabel && (weekStart == null || weekStart === currentWeek.week_start)
+        ? chartWeekLabel + (effectiveIndex === 0 ? " · latest" : "")
+        : formatWeekRange(currentWeek.week_start, currentWeek.week_end) + (effectiveIndex === 0 ? " · latest" : ""))
+    : chartWeekLabel;
 
-  const sorted = [...chart.rankings].sort((a, b) => a.rank - b.rank);
-  const hero = sorted[0] ?? null;
-  const spots2to5 = sorted.filter((r) => r.rank >= 2 && r.rank <= 5);
-  const spots6to10 = sorted.filter((r) => r.rank >= 6);
-  const weekLabel = chart.share?.weekLabel ?? chart.chart_moment?.week_label ?? "";
-  const { biggest_jump, biggest_drop, best_new_entry } = chart.movers;
+  function goNewer() {
+    if (effectiveIndex <= 0 || weeksList.length === 0) return;
+    const next = effectiveIndex - 1;
+    setWeekStart(next === 0 ? null : weeksList[next]!.week_start);
+    setShowMore(false);
+  }
+  function goOlder() {
+    if (effectiveIndex >= weeksList.length - 1) return;
+    setWeekStart(weeksList[effectiveIndex + 1]!.week_start);
+    setShowMore(false);
+  }
 
   const navigateToEntity = (row: ChartRankingRow | null) => {
     if (!row) return;
-    router.push(`/song/${row.entity_id}` as const);
+    router.push(entityRoute(chartType, row.entity_id) as never);
   };
 
+  const sorted = chart ? [...chart.rankings].sort((a, b) => a.rank - b.rank) : [];
+  const hero = sorted[0] ?? null;
+  const spots2to5 = sorted.filter((r) => r.rank >= 2 && r.rank <= 5);
+  const spots6to10 = sorted.filter((r) => r.rank >= 6);
+  const movers = chart?.movers;
+
   const handleShare = () => {
+    if (!hero) return;
     void Share.share({
-      message: `My #1 this week: ${hero?.name ?? ""}${hero?.artist_name ? ` by ${hero.artist_name}` : ""} — ${weekLabel}`,
+      message: `My #1 this week: ${hero.name}${hero.artist_name ? ` by ${hero.artist_name}` : ""} — ${weekLabel}`,
     });
   };
 
   return (
     <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* #1 Hero */}
-      {hero ? (
-        <Pressable
-          onPress={() => navigateToEntity(hero)}
-          style={({ pressed }: { pressed: boolean }) => [
-            styles.heroCard,
-            pressed && { opacity: 0.82 },
-          ]}
-        >
-          <View style={styles.heroInner}>
-            {hero.image ? (
-              <Image source={{ uri: hero.image }} style={styles.heroArt} />
-            ) : (
-              <View style={[styles.heroArt, styles.chartCardArtPlaceholder]}>
-                <Text style={{ fontSize: 28, color: theme.colors.muted }}>♪</Text>
-              </View>
-            )}
-            <View style={styles.heroMeta}>
-              <Text style={styles.heroRank}>#1</Text>
-              <Text style={styles.heroTitle} numberOfLines={2}>{hero.name}</Text>
-              {hero.artist_name ? (
-                <Text style={styles.heroArtist} numberOfLines={1}>{hero.artist_name}</Text>
-              ) : null}
-              <Text style={styles.heroPlays}>{hero.play_count} plays</Text>
-            </View>
-            {hero.is_new || hero.is_reentry ? (
-              <View style={[styles.newBadge, { alignSelf: "flex-start" }]}>
-                <Text style={styles.newBadgeText}>NEW</Text>
-              </View>
-            ) : hero.weeks_at_1 > 1 ? (
-              <View style={[styles.newBadge, { alignSelf: "flex-start", backgroundColor: "#854d0e" }]}>
-                <Text style={styles.newBadgeText}>{hero.weeks_at_1}w at #1</Text>
-              </View>
-            ) : null}
-          </View>
-        </Pressable>
-      ) : null}
-
-      {/* THIS WEEK narrative */}
-      {chart.narrative.length > 0 ? (
-        <View style={styles.billboardNarrCard}>
-          <Text style={styles.narrativeSectionLabel}>THIS WEEK</Text>
-          {chart.narrative.map((line, i) => (
-            <View key={i} style={styles.narrativeRow}>
-              <Text style={styles.narrativeIcon}>{NARRATIVE_ICONS[i] ?? "·"}</Text>
-              <Text style={styles.billboardNarrText}>{line}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      {/* SPOTS 2–5 */}
-      {spots2to5.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.chartSectionLabel}>SPOTS 2–5</Text>
-          {spots2to5.map((row) => (
-            <ChartRowCard
-              key={row.entity_id}
-              row={row}
-              onPress={() => navigateToEntity(row)}
-            />
-          ))}
-        </View>
-      ) : null}
-
-      {/* Show spots 6-10 */}
-      {spots6to10.length > 0 ? (
-        <>
+      {/* Chart type pills */}
+      <View style={styles.chartTypePills}>
+        {CHART_TABS.map((t) => (
           <Pressable
-            onPress={() => setShowMore((v) => !v)}
-            style={styles.showMoreBtn}
+            key={t.value}
+            onPress={() => { setChartType(t.value); setWeekStart(null); setShowMore(false); }}
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.chartTypePill,
+              chartType === t.value ? styles.chartTypePillActive : styles.chartTypePillIdle,
+              pressed && { opacity: 0.8 },
+            ]}
           >
-            <Text style={styles.showMoreText}>
-              {showMore ? "Hide spots 6–10" : "Show spots 6–10"}
+            <Text style={[styles.chartTypePillText, chartType === t.value ? styles.chartTypePillTextActive : styles.chartTypePillTextIdle]}>
+              {t.label}
             </Text>
           </Pressable>
-          {showMore ? (
-            <View style={styles.section}>
-              {spots6to10.map((row) => (
-                <ChartRowCard
-                  key={row.entity_id}
-                  row={row}
-                  onPress={() => navigateToEntity(row)}
-                />
-              ))}
+        ))}
+      </View>
+
+      {/* Week picker */}
+      {weeksList.length > 0 ? (
+        <View style={styles.weekPicker}>
+          <Text style={styles.weekPickerLabel}>WEEK</Text>
+          <View style={styles.weekPickerRow}>
+            <Pressable
+              onPress={goNewer}
+              disabled={effectiveIndex <= 0}
+              style={({ pressed }: { pressed: boolean }) => [
+                styles.weekArrow,
+                effectiveIndex <= 0 && { opacity: 0.3 },
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <Text style={styles.weekArrowText}>‹</Text>
+            </Pressable>
+            <Text style={styles.weekLabel} numberOfLines={1}>{weekLabel}</Text>
+            <Pressable
+              onPress={goOlder}
+              disabled={effectiveIndex >= weeksList.length - 1}
+              style={({ pressed }: { pressed: boolean }) => [
+                styles.weekArrow,
+                effectiveIndex >= weeksList.length - 1 && { opacity: 0.3 },
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <Text style={styles.weekArrowText}>›</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {/* Loading */}
+      {isLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="small" color={theme.colors.emerald} />
+        </View>
+      ) : !chart || chart.rankings.length === 0 ? (
+        <View style={styles.emptySection}>
+          <Text style={styles.emptyText}>
+            No chart for this week yet. Billboard updates every Sunday after you've logged listens.
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* #1 Hero */}
+          {hero ? (
+            <Pressable
+              onPress={() => navigateToEntity(hero)}
+              style={({ pressed }: { pressed: boolean }) => [styles.heroCard, pressed && { opacity: 0.82 }]}
+            >
+              <Text style={styles.heroWeekLabel}>{chart.share?.weekLabel ?? ""}</Text>
+              <View style={styles.heroInner}>
+                {hero.image ? (
+                  <Image source={{ uri: hero.image }} style={styles.heroArt} />
+                ) : (
+                  <View style={[styles.heroArt, styles.heroArtPlaceholder]}>
+                    <Text style={{ fontSize: 32, color: theme.colors.muted }}>♪</Text>
+                  </View>
+                )}
+                <View style={styles.heroMeta}>
+                  <Text style={styles.heroRank}>#1 THIS WEEK</Text>
+                  <Text style={styles.heroTitle} numberOfLines={2}>{hero.name}</Text>
+                  {hero.artist_name ? (
+                    <Text style={styles.heroArtist} numberOfLines={1}>{hero.artist_name}</Text>
+                  ) : null}
+                  <Text style={styles.heroPlays}>
+                    {hero.play_count.toLocaleString()} plays
+                    {" · "}{hero.weeks_at_1}w at #1
+                    {" · "}{hero.weeks_in_top_10}w in top 10
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
+
+          {/* THIS WEEK narrative */}
+          {chart.narrative.length > 0 ? (
+            <View style={styles.billboardNarrCard}>
+              <Text style={styles.narrativeSectionLabel}>THIS WEEK</Text>
+              <View style={{ gap: 16, marginTop: 16 }}>
+                {chart.narrative.map((line, i) => (
+                  <View key={i} style={styles.narrativeRow}>
+                    <Text style={styles.narrativeIcon}>{NARRATIVE_ICONS[i % NARRATIVE_ICONS.length]}</Text>
+                    <Text style={styles.billboardNarrText}>{line}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           ) : null}
+
+          {/* SPOTS 2–5 */}
+          {spots2to5.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.chartSectionLabel}>SPOTS 2–5</Text>
+              <View style={{ gap: 10 }}>
+                {spots2to5.map((row) => (
+                  <ChartRowCard key={row.entity_id} row={row} onPress={() => navigateToEntity(row)} />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Show spots 6–10 */}
+          {spots6to10.length > 0 ? (
+            <>
+              <Pressable onPress={() => setShowMore((v) => !v)} style={styles.showMoreBtn}>
+                <Text style={styles.showMoreText}>
+                  {showMore ? "Hide spots 6–10" : "Show spots 6–10"}
+                </Text>
+              </Pressable>
+              {showMore ? (
+                <View style={{ gap: 10 }}>
+                  {spots6to10.map((row) => (
+                    <ChartRowCard key={row.entity_id} row={row} onPress={() => navigateToEntity(row)} />
+                  ))}
+                </View>
+              ) : null}
+            </>
+          ) : null}
+
+          {/* BIGGEST MOVERS */}
+          {movers && (movers.biggest_jump ?? movers.biggest_drop ?? movers.best_new_entry) ? (
+            <View style={styles.section}>
+              <Text style={styles.chartSectionLabel}>BIGGEST MOVERS</Text>
+              <View style={{ gap: 12 }}>
+                <MoverCard label="Biggest jump" mover={movers.biggest_jump} onPress={() => navigateToEntity(movers.biggest_jump as ChartRankingRow | null)} />
+                <MoverCard label="Biggest drop" mover={movers.biggest_drop} onPress={() => !isDropout(movers.biggest_drop) ? navigateToEntity(movers.biggest_drop as ChartRankingRow | null) : undefined} />
+                <MoverCard label="Best new entry" mover={movers.best_new_entry} onPress={() => navigateToEntity(movers.best_new_entry)} />
+              </View>
+            </View>
+          ) : null}
+
+          {/* Share */}
+          <View style={styles.shareCard}>
+            <Text style={styles.shareTitle}>Share this week</Text>
+            <Text style={styles.shareDesc}>Export a summary or link. Anyone with the link needs to be signed in.</Text>
+            <Pressable onPress={handleShare} style={({ pressed }: { pressed: boolean }) => [styles.shareBtn, pressed && { opacity: 0.88 }]}>
+              <Text style={styles.shareBtnText}>Share your chart</Text>
+            </Pressable>
+            <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(63,63,70,0.8)", paddingTop: 20 }}>
+              <Text style={styles.quickActionsLabel}>QUICK ACTIONS</Text>
+              <View style={styles.quickActionsRow}>
+                <Pressable onPress={handleShare} style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}>
+                  <Text style={styles.quickBtnText}>Share</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const summary = sorted.slice(0, 5).map((r, i) => `${i + 1}. ${r.name}${r.artist_name ? ` – ${r.artist_name}` : ""}`).join("\n");
+                    void Share.share({ message: `My Billboard ${weekLabel}\n\n${summary}` });
+                  }}
+                  style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
+                >
+                  <Text style={styles.quickBtnText}>Copy summary</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void Share.share({ message: `https://tracklist.app` })}
+                  style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
+                >
+                  <Text style={styles.quickBtnText}>Copy link</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
         </>
-      ) : null}
-
-      {/* BIGGEST MOVERS */}
-      {(biggest_jump ?? biggest_drop ?? best_new_entry) ? (
-        <View style={styles.section}>
-          <Text style={styles.chartSectionLabel}>BIGGEST MOVERS</Text>
-          <MoverCard
-            label="BIGGEST JUMP"
-            mover={biggest_jump}
-            onPress={() => navigateToEntity(biggest_jump as ChartRankingRow | null)}
-          />
-          <MoverCard
-            label="BIGGEST DROP"
-            mover={biggest_drop}
-            onPress={() =>
-              !isDropout(biggest_drop) ? navigateToEntity(biggest_drop as ChartRankingRow | null) : undefined
-            }
-          />
-          <MoverCard
-            label="BEST NEW ENTRY"
-            mover={best_new_entry}
-            onPress={() => navigateToEntity(best_new_entry)}
-          />
-        </View>
-      ) : null}
-
-      {/* Share */}
-      <View style={styles.shareCard}>
-        <Text style={styles.shareTitle}>Share this week</Text>
-        <Text style={styles.shareDesc}>
-          Export a summary or link. Anyone with the link needs to be signed in.
-        </Text>
-        <Pressable
-          onPress={handleShare}
-          style={({ pressed }: { pressed: boolean }) => [
-            styles.shareBtn,
-            pressed && { opacity: 0.88 },
-          ]}
-        >
-          <Text style={styles.shareBtnText}>Share your chart</Text>
-        </Pressable>
-        <Text style={styles.quickActionsLabel}>QUICK ACTIONS</Text>
-        <View style={styles.quickActionsRow}>
-          <Pressable onPress={handleShare} style={styles.quickBtn}>
-            <Text style={styles.quickBtnText}>⇡ Share</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              const summary = sorted
-                .slice(0, 5)
-                .map((r, i) => `${i + 1}. ${r.name}${r.artist_name ? ` – ${r.artist_name}` : ""}`)
-                .join("\n");
-              void Share.share({ message: `My Billboard ${weekLabel}\n\n${summary}` });
-            }}
-            style={styles.quickBtn}
-          >
-            <Text style={styles.quickBtnText}>⧉ Copy summary</Text>
-          </Pressable>
-        </View>
-      </View>
+      )}
     </ScrollView>
   );
 }
@@ -1081,6 +1155,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.bg,
   },
+  // Sticky header block — combines logo row + tab row with subtle elevation
+  stickyHeader: {
+    backgroundColor: "rgba(9,9,11,0.96)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
   header: {
     paddingLeft: 18,
     paddingRight: 18 + NOTIFICATION_BELL_GUTTER,
@@ -1095,12 +1178,12 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: "row",
-    paddingHorizontal: 4,
+    paddingLeft: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(255,255,255,0.06)",
   },
   tabBtn: {
-    paddingHorizontal: 16,
+    flex: 1,
     paddingVertical: 12,
     position: "relative",
     alignItems: "center",
@@ -1113,15 +1196,15 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   tabBtnLabelIdle: {
-    color: theme.colors.muted,
+    color: "#71717a",
   },
   tabUnderline: {
     position: "absolute",
     bottom: 0,
-    left: 12,
-    right: 12,
+    left: 0,
+    right: 0,
     height: 2,
-    borderRadius: 999,
+    borderRadius: 2,
     backgroundColor: "#34d399",
   },
   tabContent: {
@@ -1760,70 +1843,154 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   // Hero (#1) card
+  // ─── Chart type pills ────────────────────────────────────────────────────────
+  chartTypePills: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  chartTypePill: {
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  chartTypePillActive: {
+    backgroundColor: "#059669",
+  },
+  chartTypePillIdle: {
+    backgroundColor: "#27272a",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  chartTypePillText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  chartTypePillTextActive: {
+    color: "#fff",
+  },
+  chartTypePillTextIdle: {
+    color: "#d4d4d8",
+  },
+  // ─── Week picker ─────────────────────────────────────────────────────────────
+  weekPicker: {
+    gap: 6,
+  },
+  weekPickerLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.8,
+    color: "#71717a",
+    textTransform: "uppercase",
+  },
+  weekPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#18181b",
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(63,63,70,0.8)",
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  weekArrow: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(63,63,70,0.8)",
+    backgroundColor: "#18181b",
+  },
+  weekArrowText: {
+    fontSize: 20,
+    color: "#d4d4d8",
+    lineHeight: 24,
+  },
+  weekLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    textAlign: "center",
+  },
+  // ─── Hero card — matches web BillboardHero ───────────────────────────────────
   heroCard: {
-    backgroundColor: theme.colors.panel,
+    backgroundColor: "rgba(24,24,27,0.5)",
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(63,63,70,0.8)",
     overflow: "hidden",
-    marginBottom: 16,
+    padding: 16,
+  },
+  heroWeekLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1.8,
+    color: "#52525b",
+    textTransform: "uppercase",
+    marginBottom: 12,
   },
   heroInner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    padding: 16,
+    gap: 16,
   },
   heroArt: {
-    width: 72,
-    height: 72,
-    borderRadius: 10,
-    backgroundColor: theme.colors.border,
+    width: 108,
+    height: 108,
+    borderRadius: 12,
     flexShrink: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  heroArtPlaceholder: {
+    backgroundColor: "#27272a",
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroMeta: {
     flex: 1,
-    gap: 3,
+    gap: 4,
+    minWidth: 0,
   },
   heroRank: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
-    color: "#f59e0b",
-    letterSpacing: 0.5,
+    color: "rgba(251,191,36,0.9)",
+    letterSpacing: 1.8,
     textTransform: "uppercase",
   },
   heroTitle: {
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "700",
     color: theme.colors.text,
     lineHeight: 22,
+    letterSpacing: -0.3,
   },
   heroArtist: {
-    fontSize: 13,
-    color: "#d4d4d8",
+    fontSize: 14,
+    color: "#a1a1aa",
   },
   heroPlays: {
     fontSize: 12,
-    color: theme.colors.muted,
+    color: "#71717a",
     marginTop: 2,
   },
-  // Billboard narrative card (structured, with rows + icons)
+  // ─── Billboard narrative card ─────────────────────────────────────────────────
   billboardNarrCard: {
-    backgroundColor: "rgba(24,24,27,0.62)",
+    backgroundColor: "rgba(24,24,27,0.3)",
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.08)",
-    padding: 16,
-    gap: 12,
-    marginBottom: 20,
+    borderColor: "rgba(255,255,255,0.05)",
+    padding: 20,
   },
   narrativeSectionLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.6,
-    color: theme.colors.muted,
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.8,
+    color: "#71717a",
     textTransform: "uppercase",
-    marginBottom: 4,
   },
   narrativeRow: {
     flexDirection: "row",
@@ -1831,49 +1998,62 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   narrativeIcon: {
-    fontSize: 15,
-    color: theme.colors.muted,
-    width: 18,
+    fontSize: 16,
+    color: "#71717a",
+    width: 20,
     textAlign: "center",
-    marginTop: 1,
+    marginTop: 2,
   },
   billboardNarrText: {
     flex: 1,
-    fontSize: 14,
-    color: theme.colors.text,
-    lineHeight: 20,
+    fontSize: 16,
+    color: "#e4e4e7",
+    lineHeight: 24,
+    letterSpacing: -0.2,
   },
-  // Chart row card (spots 2-10)
+  // ─── Chart row card — matches web chartRankingRowShell ───────────────────────
   chartCard: {
+    backgroundColor: "rgba(24,24,27,0.48)",
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(63,63,70,0.85)",
+    overflow: "hidden",
+  },
+  chartCardLeader: {
+    borderColor: "rgba(16,185,129,0.25)",
+  },
+  chartCardInner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: theme.colors.panel,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    padding: 14,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   chartCardRank: {
-    width: 28,
+    width: 40,
     textAlign: "center",
-    fontSize: 22,
-    fontWeight: "800",
-    color: theme.colors.muted,
+    fontSize: 36,
+    fontWeight: "700",
     flexShrink: 0,
+    lineHeight: 40,
+    letterSpacing: -1,
   },
-  chartCardRankGold: {
-    color: "#f59e0b",
+  chartCardRankBright: {
+    color: theme.colors.text,
+  },
+  chartCardRankMuted: {
+    color: "#52525b",
   },
   chartCardArt: {
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
     borderRadius: 8,
-    backgroundColor: theme.colors.border,
     flexShrink: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   chartCardArtPlaceholder: {
+    backgroundColor: "#27272a",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1884,36 +2064,34 @@ const styles = StyleSheet.create({
   },
   chartCardTitle: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "600",
     color: theme.colors.text,
   },
   chartCardArtist: {
-    fontSize: 13,
-    color: "#d4d4d8",
+    fontSize: 14,
+    color: "#a1a1aa",
+  },
+  chartCardStats: {
+    fontSize: 12,
+    color: "#71717a",
+    marginTop: 2,
+  },
+  chartCardStatsDim: {
+    color: "#52525b",
   },
   chartCardRight: {
     alignItems: "flex-end",
-    gap: 4,
     flexShrink: 0,
   },
-  chartCardPlays: {
-    fontSize: 12,
-    color: theme.colors.muted,
-    textAlign: "right",
-  },
-  chartCardStreak: {
-    fontSize: 11,
-    color: theme.colors.muted,
-    textAlign: "right",
-  },
-  // Movement badges
+  // ─── Movement indicators (text, not badges) ───────────────────────────────────
   newBadge: {
-    backgroundColor: "rgba(30, 58, 138, 0.85)",
+    backgroundColor: "#1e3a8a",
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: "rgba(96, 165, 250, 0.3)",
+    borderColor: "rgba(96,165,250,0.3)",
+    alignSelf: "flex-start",
   },
   newBadgeText: {
     fontSize: 11,
@@ -1921,129 +2099,118 @@ const styles = StyleSheet.create({
     color: "#93c5fd",
     letterSpacing: 0.5,
   },
-  moveBadgeUp: {
-    backgroundColor: "rgba(6, 78, 59, 0.7)",
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  moveBadgeUpText: {
-    fontSize: 12,
+  moveUp: {
+    fontSize: 14,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: "#34d399",
   },
-  moveBadgeDown: {
-    backgroundColor: "rgba(127, 29, 29, 0.5)",
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  moveBadgeDownText: {
-    fontSize: 12,
+  moveDown: {
+    fontSize: 14,
     fontWeight: "700",
     color: "#f87171",
   },
   moveSame: {
     fontSize: 14,
-    color: theme.colors.muted,
+    color: "#52525b",
   },
-  // Show more button
+  // ─── Show more button ────────────────────────────────────────────────────────
   showMoreBtn: {
     alignItems: "center",
     paddingVertical: 14,
-    marginBottom: 4,
   },
   showMoreText: {
     fontSize: 14,
     color: theme.colors.muted,
     fontWeight: "500",
   },
-  // Mover cards
+  // ─── Mover cards — matches web chartMoverCard ────────────────────────────────
   moverCard: {
-    backgroundColor: theme.colors.panel,
-    borderRadius: 14,
+    backgroundColor: "rgba(24,24,27,0.5)",
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    padding: 16,
-    marginBottom: 10,
+    borderColor: "rgba(63,63,70,0.85)",
+    padding: 20,
   },
   moverLabel: {
     fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 1.4,
-    color: theme.colors.muted,
+    letterSpacing: 1.8,
+    color: "#71717a",
     textTransform: "uppercase",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   moverName: {
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: "700",
     color: theme.colors.text,
-    lineHeight: 24,
+    lineHeight: 25,
+    letterSpacing: -0.3,
   },
   moverSubtitle: {
-    fontSize: 13,
-    color: theme.colors.muted,
+    fontSize: 14,
+    color: "#71717a",
     marginTop: 4,
   },
   // Share card
+  // Share section — matches web's dark bg-zinc-950/65 card
   shareCard: {
-    backgroundColor: theme.colors.panel,
+    backgroundColor: "rgba(9,9,11,0.65)",
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    padding: 20,
-    marginTop: 8,
+    borderColor: "rgba(63,63,70,0.8)",
+    padding: 24,
   },
   shareTitle: {
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 18,
+    fontWeight: "600",
     color: theme.colors.text,
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   shareDesc: {
-    fontSize: 13,
+    fontSize: 14,
     color: theme.colors.muted,
-    lineHeight: 18,
-    marginBottom: 18,
+    lineHeight: 20,
+    marginBottom: 24,
   },
   shareBtn: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: "#10b981",
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   shareBtnText: {
-    fontSize: 15,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "700",
     color: "#000",
   },
   quickActionsLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 1.4,
-    color: theme.colors.muted,
+    letterSpacing: 1.8,
+    color: "#71717a",
     textTransform: "uppercase",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   quickActionsRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
   },
   quickBtn: {
     flex: 1,
-    backgroundColor: theme.colors.active,
-    borderRadius: 10,
+    backgroundColor: "#27272a",
+    borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    paddingVertical: 12,
+    borderColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 10,
     alignItems: "center",
   },
   quickBtnText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: theme.colors.text,
+    fontWeight: "500",
+    color: "#d4d4d8",
+    textAlign: "center",
   },
   // Each row is a rounded card — matches web's rounded-xl border bg-zinc-900/40
   activityRow: {

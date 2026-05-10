@@ -138,14 +138,35 @@ export function useHomePulse() {
   });
 }
 
-export function useWeeklyChart(chartType: "tracks" | "artists" | "albums" = "tracks") {
+export type ChartType = "tracks" | "artists" | "albums";
+
+export type WeekOption = { week_start: string; week_end: string };
+
+export function useWeeklyChart(chartType: ChartType = "tracks", weekStart: string | null = null) {
   const { session, isLoading: authLoading } = useAuth();
   return useQuery<WeeklyChartResult | null>({
-    queryKey: ["home", "weekly-chart", chartType],
-    queryFn: () =>
-      fetcher<WeeklyChartResult>(`/api/charts?type=${chartType}`).catch(() => null),
+    queryKey: ["home", "weekly-chart", chartType, weekStart ?? "latest"],
+    queryFn: () => {
+      const params = new URLSearchParams({ type: chartType });
+      if (weekStart) params.set("weekStart", weekStart);
+      return fetcher<WeeklyChartResult>(`/api/charts?${params.toString()}`).catch(() => null);
+    },
     enabled: !!session && !authLoading,
     staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
+export function useWeeklyChartWeeks(chartType: ChartType) {
+  const { session, isLoading: authLoading } = useAuth();
+  return useQuery<WeekOption[]>({
+    queryKey: ["home", "weekly-chart-weeks", chartType],
+    queryFn: () =>
+      fetcher<{ weeks: WeekOption[] }>(`/api/charts/weeks?type=${chartType}&limit=52`)
+        .then((r) => r.weeks ?? [])
+        .catch(() => []),
+    enabled: !!session && !authLoading,
+    staleTime: 30 * 60 * 1000,
     retry: false,
   });
 }
