@@ -264,12 +264,12 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
       {/* THIS WEEK narrative */}
       {chart.narrative.length > 0 ? (
-        <View style={styles.narrativeCard}>
+        <View style={styles.billboardNarrCard}>
           <Text style={styles.narrativeSectionLabel}>THIS WEEK</Text>
           {chart.narrative.map((line, i) => (
             <View key={i} style={styles.narrativeRow}>
               <Text style={styles.narrativeIcon}>{NARRATIVE_ICONS[i] ?? "·"}</Text>
-              <Text style={styles.narrativeText}>{line}</Text>
+              <Text style={styles.billboardNarrText}>{line}</Text>
             </View>
           ))}
         </View>
@@ -376,13 +376,23 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
   );
 }
 
-// ─── Pulse Tab — rolling 7-day top + pulse stats + narrative ───────────────────
+// ─── Pulse Tab ─────────────────────────────────────────────────────────────────
+
+function PulseArrow({ trend }: { trend: "up" | "down" | "flat" }) {
+  const color = trend === "up" ? "#34d399" : trend === "down" ? "#f87171" : "#71717a";
+  const symbol = trend === "up" ? "↑" : trend === "down" ? "↓" : "↔";
+  return (
+    <View style={styles.pulseArrowBox}>
+      <Text style={[styles.pulseArrowText, { color }]}>{symbol}</Text>
+    </View>
+  );
+}
 
 function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
   const { data: billboard, isLoading: billboardLoading } = useHomeBillboard();
   const { data: pulse, isLoading: pulseLoading } = useHomePulse();
 
-  if (billboardLoading) {
+  if (billboardLoading || pulseLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="small" color={theme.colors.emerald} />
@@ -392,14 +402,16 @@ function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
   const weeklyTop = billboard?.weeklyTop;
   const narrative = billboard?.narrative;
-  const artists = weeklyTop?.artists.slice(0, 5) ?? [];
-  const albums = weeklyTop?.albums.slice(0, 5) ?? [];
+  const artists = weeklyTop?.artists.slice(0, 12) ?? [];
+  const albums = weeklyTop?.albums.slice(0, 12) ?? [];
+  const hasTopContent = artists.length > 0 || albums.length > 0;
+
+  const hasWeekly = !!(pulse?.playVolume ?? pulse?.genreChange ?? pulse?.artistChange);
+  const hasBody = hasWeekly || !!(pulse?.discoveries) || !!(pulse?.soundShift);
+  const soundNeedsRule = !!(pulse?.soundShift) && (hasWeekly || !!(pulse?.discoveries));
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.tabContent}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
       {/* Narrative lede */}
       {narrative ? (
         <View style={styles.narrativeCard}>
@@ -407,86 +419,161 @@ function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
         </View>
       ) : null}
 
-      {/* Top artists strip */}
-      {artists.length > 0 ? (
+      {/* Top artists & albums */}
+      {hasTopContent ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Artists This Week</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip}>
-            {artists.map((a: TopArtistItem) => (
-              <Pressable
-                key={a.artistId}
-                style={({ pressed }: { pressed: boolean }) => [styles.artistCard, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push(`/artist/${a.artistId}` as const)}
-              >
-                {a.imageUrl ? (
-                  <Image source={{ uri: a.imageUrl }} style={styles.artistImage} />
-                ) : (
-                  <View style={[styles.artistImage, styles.artistImagePlaceholder]}>
-                    <Text style={styles.artistInitial}>{(a.name[0] ?? "?").toUpperCase()}</Text>
-                  </View>
-                )}
-                <Text style={styles.artistName} numberOfLines={2}>{a.name}</Text>
-                <Text style={styles.playCount}>{a.playCount} plays</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
+          <View style={styles.sectionHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>Top artists & albums</Text>
+              {weeklyTop?.rangeLabel ? (
+                <Text style={styles.sectionDesc}>
+                  {weeklyTop.rangeLabel} · your most-played artists and albums this week.
+                </Text>
+              ) : null}
+            </View>
+            <Pressable
+              onPress={() => {}}
+              style={({ pressed }: { pressed: boolean }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Text style={styles.sectionAction}>Weekly report →</Text>
+            </Pressable>
+          </View>
 
-      {/* Top albums strip */}
-      {albums.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Albums This Week</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip}>
-            {albums.map((al: TopAlbumItem) => (
-              <Pressable
-                key={al.albumId}
-                style={({ pressed }: { pressed: boolean }) => [styles.albumCard, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push(`/album/${al.albumId}` as const)}
-              >
-                {al.imageUrl ? (
-                  <Image source={{ uri: al.imageUrl }} style={styles.albumArt} />
-                ) : (
-                  <View style={[styles.albumArt, styles.albumArtPlaceholder]}>
-                    <Text style={styles.albumPlaceholderIcon}>♪</Text>
-                  </View>
-                )}
-                <Text style={styles.albumName} numberOfLines={2}>{al.name}</Text>
-                <Text style={styles.albumArtist} numberOfLines={1}>{al.artistName}</Text>
-                <Text style={styles.playCount}>{al.playCount} plays</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          {artists.length > 0 ? (
+            <View style={{ gap: 12 }}>
+              <Text style={styles.pulseSubLabel}>Top artists</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip}>
+                {artists.map((a: TopArtistItem) => (
+                  <Pressable
+                    key={a.artistId}
+                    style={({ pressed }: { pressed: boolean }) => [styles.pulseArtistCard, pressed && { opacity: 0.75 }]}
+                    onPress={() => router.push(`/artist/${a.artistId}` as const)}
+                  >
+                    <View style={styles.pulseArtistImgWrap}>
+                      {a.imageUrl ? (
+                        <Image source={{ uri: a.imageUrl }} style={styles.pulseArtistImg} />
+                      ) : (
+                        <Text style={styles.pulseArtistInitial}>{(a.name[0] ?? "?").toUpperCase()}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.pulseArtistName} numberOfLines={2}>{a.name}</Text>
+                    <Text style={styles.pulseArtistPlays}>{a.playCount} plays</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {albums.length > 0 ? (
+            <View style={{ gap: 12 }}>
+              <Text style={styles.pulseSubLabel}>Top albums</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip}>
+                {albums.map((al: TopAlbumItem) => (
+                  <Pressable
+                    key={al.albumId}
+                    style={({ pressed }: { pressed: boolean }) => [styles.pulseAlbumCard, pressed && { opacity: 0.75 }]}
+                    onPress={() => router.push(`/album/${al.albumId}` as const)}
+                  >
+                    <View style={styles.pulseAlbumArtWrap}>
+                      {al.imageUrl ? (
+                        <Image source={{ uri: al.imageUrl }} style={styles.pulseAlbumArt} />
+                      ) : (
+                        <Text style={styles.albumPlaceholderIcon}>♪</Text>
+                      )}
+                    </View>
+                    <View style={{ minWidth: 0 }}>
+                      <Text style={styles.pulseAlbumName} numberOfLines={2}>{al.name}</Text>
+                      <Text style={styles.pulseAlbumArtist} numberOfLines={1}>{al.artistName}</Text>
+                      <Text style={styles.pulseArtistPlays}>{al.playCount} plays</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
       {/* Pulse section */}
-      {!pulseLoading && pulse ? (
+      {pulse && hasBody ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pulse</Text>
-          <Text style={styles.pulseCaption}>{pulse.rangeCaption}</Text>
+          <View style={{ gap: 4 }}>
+            <Text style={styles.sectionTitle}>Pulse</Text>
+            <Text style={styles.pulseCaption}>{pulse.rangeCaption}</Text>
+          </View>
           <View style={styles.pulseCard}>
-            {pulse.playVolume ? (
-              <View style={styles.pulseRow}>
-                <Text style={[styles.pulseArrow, pulse.playVolume.trend === "up" ? styles.arrowUp : pulse.playVolume.trend === "down" ? styles.arrowDown : styles.arrowFlat]}>
-                  {pulse.playVolume.trend === "up" ? "↑" : pulse.playVolume.trend === "down" ? "↓" : "↔"}
-                </Text>
-                <View style={styles.pulseRowText}>
-                  <Text style={styles.pulseLabel}>Play volume</Text>
-                  <Text style={styles.pulseMeta}>
-                    {pulse.playVolume.percentChange > 0 ? "+" : ""}{Math.round(pulse.playVolume.percentChange)}% vs last week · {pulse.playVolume.currentPlays.toLocaleString()} plays
-                  </Text>
+            {/* This week vs last week */}
+            {hasWeekly ? (
+              <View style={styles.pulseGroup}>
+                <Text style={styles.pulseGroupLabel}>THIS WEEK VS LAST WEEK</Text>
+                <View style={[styles.pulseGroupItems, { borderBottomWidth: (pulse.discoveries || pulse.soundShift) ? StyleSheet.hairlineWidth : 0, borderBottomColor: "rgba(63,63,70,0.8)", paddingBottom: (pulse.discoveries || pulse.soundShift) ? 20 : 0 }]}>
+                  {pulse.playVolume ? (
+                    <View style={styles.pulseRow}>
+                      <PulseArrow trend={pulse.playVolume.trend} />
+                      <View style={styles.pulseRowText}>
+                        <Text style={styles.pulseLabel}>How much you're listening</Text>
+                        <Text style={styles.pulseMeta}>
+                          {pulse.playVolume.percentChange > 0 ? "+" : ""}{Math.round(pulse.playVolume.percentChange)}% vs last week
+                          {" · "}<Text style={{ color: "#d4d4d8" }}>{pulse.playVolume.currentPlays.toLocaleString()} plays</Text>
+                          {" vs "}<Text style={{ color: "#71717a" }}>{pulse.playVolume.previousPlays.toLocaleString()}</Text>
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
+                  {pulse.genreChange ? (
+                    <View style={styles.pulseRow}>
+                      <PulseArrow trend={pulse.genreChange.trend} />
+                      <View style={styles.pulseRowText}>
+                        <Text style={styles.pulseLabel}>Top genre this week</Text>
+                        <Text style={styles.pulseName}>{pulse.genreChange.name}</Text>
+                        <Text style={styles.pulseMeta}>{pulse.genreChange.caption}</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                  {pulse.artistChange ? (
+                    <View style={styles.pulseRow}>
+                      <PulseArrow trend={pulse.artistChange.trend} />
+                      <View style={styles.pulseRowText}>
+                        <Text style={styles.pulseLabel}>Top artist this week</Text>
+                        <Text style={styles.pulseName}>{pulse.artistChange.name}</Text>
+                        <Text style={styles.pulseMeta}>{pulse.artistChange.caption}</Text>
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ) : null}
-            {pulse.artistChange ? (
-              <View style={styles.pulseRow}>
-                <Text style={[styles.pulseArrow, pulse.artistChange.trend === "up" ? styles.arrowUp : pulse.artistChange.trend === "down" ? styles.arrowDown : styles.arrowFlat]}>
-                  {pulse.artistChange.trend === "up" ? "↑" : pulse.artistChange.trend === "down" ? "↓" : "↔"}
-                </Text>
-                <View style={styles.pulseRowText}>
-                  <Text style={styles.pulseLabel}>Artist momentum</Text>
-                  <Text style={styles.pulseMeta}>{pulse.artistChange.name}</Text>
+
+            {/* New additions */}
+            {pulse.discoveries ? (
+              <View style={styles.pulseGroup}>
+                <Text style={styles.pulseGroupLabel}>NEW ADDITIONS</Text>
+                <View style={styles.pulseRow}>
+                  <View style={[styles.pulseArrowBox, { backgroundColor: "transparent" }]}>
+                    <Text style={{ fontSize: 18, color: "#a78bfa" }}>+</Text>
+                  </View>
+                  <View style={styles.pulseRowText}>
+                    <Text style={styles.pulseLabel}>Artists you just found</Text>
+                    <Text style={styles.pulseMeta}>New artists you've added to your rotation this week.</Text>
+                    <Text style={[styles.pulseName, { marginTop: 8 }]}>
+                      {pulse.discoveries.names.slice(0, 4).join(" · ")}
+                      {pulse.discoveries.names.length > 4 ? ` · +${pulse.discoveries.names.length - 4} more` : ""}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* What's changing */}
+            {pulse.soundShift ? (
+              <View style={[styles.pulseGroup, soundNeedsRule && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(63,63,70,0.8)", paddingTop: 20 }]}>
+                <Text style={styles.pulseGroupLabel}>WHAT'S CHANGING</Text>
+                <View style={styles.pulseRow}>
+                  <PulseArrow trend={pulse.soundShift.trend} />
+                  <View style={styles.pulseRowText}>
+                    <Text style={styles.pulseLabel}>{pulse.soundShift.headline}</Text>
+                    <Text style={styles.pulseMeta}>{pulse.soundShift.detail}</Text>
+                  </View>
                 </View>
               </View>
             ) : null}
@@ -1051,18 +1138,17 @@ const styles = StyleSheet.create({
   },
   // Narrative
   narrativeCard: {
-    backgroundColor: theme.colors.panel,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: "rgba(24,24,27,0.62)",
+    borderRadius: 16,
+    padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    marginTop: 4,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   narrativeText: {
-    fontSize: 13,
+    fontSize: 14,
     fontStyle: "italic",
-    color: theme.colors.muted,
-    lineHeight: 19,
+    color: "#d4d4d8",
+    lineHeight: 23,
   },
   // Sections
   section: {
@@ -1083,111 +1169,167 @@ const styles = StyleSheet.create({
     marginHorizontal: -4,
   },
   // Artist cards
-  artistCard: {
-    width: 100,
+  // ─── Pulse artist cards (web: min(38vw,132px), 88px circle) ────────────────
+  pulseSubLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+    color: "#e4e4e7",
+  },
+  pulseArtistCard: {
+    width: 130,
     alignItems: "center",
-    gap: 6,
-    marginHorizontal: 4,
+    gap: 8,
+    marginRight: 8,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(24,24,27,0.62)",
   },
-  artistImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: theme.colors.panel,
-  },
-  artistImagePlaceholder: {
+  pulseArtistImgWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: "#27272a",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(161,161,170,0.3)",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
-  artistInitial: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: theme.colors.muted,
+  pulseArtistImg: {
+    width: 88,
+    height: 88,
   },
-  artistName: {
-    fontSize: 12,
+  pulseArtistInitial: {
+    fontSize: 28,
     fontWeight: "600",
+    color: "#52525b",
+  },
+  pulseArtistName: {
+    fontSize: 14,
+    fontWeight: "500",
     color: theme.colors.text,
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 18,
   },
-  // Album cards
-  albumCard: {
-    width: 120,
-    gap: 5,
-    marginHorizontal: 4,
+  pulseArtistPlays: {
+    fontSize: 11,
+    color: "#52525b",
   },
-  albumArt: {
-    width: 120,
-    height: 120,
+  // ─── Pulse album cards (web: min(46vw,168px), square art) ───────────────────
+  pulseAlbumCard: {
+    width: 156,
+    gap: 8,
+    marginRight: 8,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(24,24,27,0.62)",
+  },
+  pulseAlbumArtWrap: {
+    width: 132,
+    height: 132,
     borderRadius: 8,
-    backgroundColor: theme.colors.panel,
-  },
-  albumArtPlaceholder: {
+    backgroundColor: "#27272a",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
+  pulseAlbumArt: {
+    width: 132,
+    height: 132,
+  },
+  pulseAlbumName: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.colors.text,
+    lineHeight: 18,
+  },
+  pulseAlbumArtist: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  // keep for billboard placeholder
   albumPlaceholderIcon: {
     fontSize: 28,
-    color: theme.colors.muted,
-  },
-  albumName: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: theme.colors.text,
-    lineHeight: 16,
-  },
-  albumArtist: {
-    fontSize: 11,
     color: theme.colors.muted,
   },
   playCount: {
     fontSize: 11,
     color: "#52525B",
   },
-  // Pulse
+  // ─── Pulse stats card ─────────────────────────────────────────────────────
   pulseCaption: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.muted,
-    marginTop: -4,
   },
   pulseCard: {
-    backgroundColor: theme.colors.panel,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: "rgba(24,24,27,0.62)",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    gap: 14,
+    borderColor: "rgba(255,255,255,0.08)",
+    gap: 20,
+  },
+  pulseGroup: {
+    gap: 12,
+  },
+  pulseGroupLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+    color: "#71717a",
+    textTransform: "uppercase",
+  },
+  pulseGroupItems: {
+    gap: 16,
   },
   pulseRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     alignItems: "flex-start",
   },
-  pulseArrow: {
+  pulseArrowBox: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  pulseArrowText: {
     fontSize: 18,
     fontWeight: "700",
-    width: 22,
-    textAlign: "center",
     lineHeight: 22,
   },
-  arrowUp: { color: "#10B981" },
-  arrowDown: { color: "#F87171" },
-  arrowFlat: { color: theme.colors.muted },
   pulseRowText: {
     flex: 1,
     gap: 2,
   },
   pulseLabel: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "500",
     color: theme.colors.text,
   },
+  pulseName: {
+    fontSize: 14,
+    color: "#e4e4e7",
+  },
   pulseMeta: {
-    fontSize: 12,
+    fontSize: 13,
+    color: "#71717a",
+    lineHeight: 18,
+  },
+  sectionDesc: {
+    fontSize: 13,
     color: theme.colors.muted,
+    marginTop: 3,
+    lineHeight: 18,
   },
   // Report / blind spots
   card: {
@@ -1665,12 +1807,12 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     marginTop: 2,
   },
-  // Narrative card
-  narrativeCard: {
-    backgroundColor: theme.colors.panel,
-    borderRadius: 14,
+  // Billboard narrative card (structured, with rows + icons)
+  billboardNarrCard: {
+    backgroundColor: "rgba(24,24,27,0.62)",
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(255,255,255,0.08)",
     padding: 16,
     gap: 12,
     marginBottom: 20,
@@ -1695,7 +1837,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 1,
   },
-  narrativeText: {
+  billboardNarrText: {
     flex: 1,
     fontSize: 14,
     color: theme.colors.text,
