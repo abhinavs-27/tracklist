@@ -44,45 +44,52 @@ export async function syncListensSpotifyTrackIdsFromSongs(
     ),
   ];
 
-  const { data: lfmMaps, error: lfmErr } = await supabase
-    .from("track_external_ids")
-    .select("track_id, external_id")
-    .eq("source", "lastfm")
-    .in("external_id", lfmKeys);
-
-  if (lfmErr || !lfmMaps?.length) {
+  // Chunk to avoid URL overflow — Supabase .in() serialises IDs into the request URL.
+  const CHUNK = 80;
+  const lfmMapsAll: { track_id: string; external_id: string }[] = [];
+  for (let i = 0; i < lfmKeys.length; i += CHUNK) {
+    const slice = lfmKeys.slice(i, i + CHUNK);
+    const { data, error: lfmErr } = await supabase
+      .from("track_external_ids")
+      .select("track_id, external_id")
+      .eq("source", "lastfm")
+      .in("external_id", slice);
     if (lfmErr) {
       console.warn("[sync-listens-spotify] lfm mappings query failed", lfmErr);
+      return { scanned: list.length, updated: 0 };
     }
+    for (const row of data ?? []) {
+      lfmMapsAll.push(row as { track_id: string; external_id: string });
+    }
+  }
+
+  const lfmMaps = lfmMapsAll;
+  if (!lfmMaps.length) {
     return { scanned: list.length, updated: 0 };
   }
 
-  const lfmKeyToTrackUuid = new Map(
-    lfmMaps.map((m) => [
-      (m as { external_id: string }).external_id,
-      (m as { track_id: string }).track_id,
-    ]),
-  );
+  const lfmKeyToTrackUuid = new Map(lfmMaps.map((m) => [m.external_id, m.track_id]));
+  const trackUuids = [...new Set(lfmMaps.map((m) => m.track_id))];
 
-  const trackUuids = [...new Set(lfmMaps.map((m) => (m as { track_id: string }).track_id))];
-
-  const { data: spotMaps, error: spotErr } = await supabase
-    .from("track_external_ids")
-    .select("track_id, external_id")
-    .eq("source", "spotify")
-    .in("track_id", trackUuids);
-
-  if (spotErr) {
-    console.warn("[sync-listens-spotify] spotify mappings query failed", spotErr);
-    return { scanned: list.length, updated: 0 };
+  const spotMapsAll: { track_id: string; external_id: string }[] = [];
+  for (let i = 0; i < trackUuids.length; i += CHUNK) {
+    const slice = trackUuids.slice(i, i + CHUNK);
+    const { data, error: spotErr } = await supabase
+      .from("track_external_ids")
+      .select("track_id, external_id")
+      .eq("source", "spotify")
+      .in("track_id", slice);
+    if (spotErr) {
+      console.warn("[sync-listens-spotify] spotify mappings query failed", spotErr);
+      return { scanned: list.length, updated: 0 };
+    }
+    for (const row of data ?? []) {
+      spotMapsAll.push(row as { track_id: string; external_id: string });
+    }
   }
+  const spotMaps = spotMapsAll;
 
-  const spotifyByTrackUuid = new Map(
-    (spotMaps ?? []).map((m) => [
-      (m as { track_id: string }).track_id,
-      (m as { external_id: string }).external_id,
-    ]),
-  );
+  const spotifyByTrackUuid = new Map(spotMaps.map((m) => [m.track_id, m.external_id]));
 
   const spotifyByLfmKey = new Map<string, string>();
   for (const [lfmKey, tid] of lfmKeyToTrackUuid) {

@@ -26,18 +26,29 @@ export async function resolveArtistSpotifyJob(data: {
 }): Promise<void> {
   const supabase = createSupabaseAdminClient();
   try {
-    const res = await searchSpotify(data.artistName, ["artist"], 5, {
-      allowLastfmMapping: true,
-    });
-    const items = res.artists?.items ?? [];
-    const pick = pickBestArtistMatch(data.artistName, items);
-    if (!pick) return;
-
     const lfmUuid = await getArtistIdByExternalId(
       supabase,
       "lastfm",
       data.lfmArtistId,
     );
+
+    const res = await searchSpotify(data.artistName, ["artist"], 5, {
+      allowLastfmMapping: true,
+    });
+    const items = res.artists?.items ?? [];
+    const pick = pickBestArtistMatch(data.artistName, items);
+
+    if (!pick) {
+      // No Spotify match — clear the flag so this artist isn't retried forever.
+      if (lfmUuid) {
+        await supabase
+          .from("artists")
+          .update({ needs_spotify_enrichment: false })
+          .eq("id", lfmUuid);
+      }
+      return;
+    }
+
     const spotifyUuid = await upsertArtistFromSpotify(supabase, pick);
 
     if (lfmUuid && lfmUuid !== spotifyUuid) {
@@ -74,7 +85,14 @@ export async function resolveTrackSpotifyJob(data: {
       data.artistName,
       data.albumName,
     );
-    if (!match) return;
+    if (!match) {
+      // No Spotify match found — clear the flag so this track isn't retried forever.
+      await supabase
+        .from("tracks")
+        .update({ needs_spotify_enrichment: false })
+        .eq("id", lfmTrackUuid);
+      return;
+    }
 
     const track = await getTrack(match.trackId, {
       allowLastfmMapping: true,

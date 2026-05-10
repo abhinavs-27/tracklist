@@ -10,8 +10,10 @@ import { apiError, apiOk } from "@/lib/api-response";
 import { lfmArtistId, lfmSongId } from "@/lib/lastfm/lfm-ids";
 import { syncListensSpotifyTrackIdsFromSongs } from "@/lib/lastfm/sync-listens-spotify-from-songs";
 
-const BATCH_SONGS = 30;
-const BATCH_ARTISTS = 20;
+const MAX_BATCH_SONGS = 200;
+const MAX_BATCH_ARTISTS = 100;
+const DEFAULT_BATCH_SONGS = 30;
+const DEFAULT_BATCH_ARTISTS = 20;
 
 /**
  * Re-queues Spotify enrichment for catalog rows still marked pending.
@@ -20,8 +22,23 @@ const BATCH_ARTISTS = 20;
  * **Without Redis**: runs each job inline in this request so local dev / no worker still completes work.
  *
  * First syncs `listens.spotify_track_id` from enriched `songs` rows (no Spotify API).
+ *
+ * Query params:
+ *   `batchSongs`   — max tracks to process per run (default 30, max 200)
+ *   `batchArtists` — max artists to process per run (default 20, max 100)
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  const batchSongs = Math.min(
+    MAX_BATCH_SONGS,
+    Math.max(1, parseInt(searchParams.get("batchSongs") ?? String(DEFAULT_BATCH_SONGS), 10) || DEFAULT_BATCH_SONGS),
+  );
+  const batchArtists = Math.min(
+    MAX_BATCH_ARTISTS,
+    Math.max(1, parseInt(searchParams.get("batchArtists") ?? String(DEFAULT_BATCH_ARTISTS), 10) || DEFAULT_BATCH_ARTISTS),
+  );
+
   const supabase = createSupabaseAdminClient();
 
   const listenSync = await syncListensSpotifyTrackIdsFromSongs(supabase, {
@@ -36,13 +53,15 @@ export async function GET() {
         .eq("needs_spotify_enrichment", true)
         .not("lastfm_name", "is", null)
         .not("lastfm_artist_name", "is", null)
-        .limit(BATCH_SONGS),
+        .order("updated_at", { ascending: true })
+        .limit(batchSongs),
       supabase
         .from("artists")
         .select("id, lastfm_name")
         .eq("needs_spotify_enrichment", true)
         .not("lastfm_name", "is", null)
-        .limit(BATCH_ARTISTS),
+        .order("updated_at", { ascending: true })
+        .limit(batchArtists),
     ]);
 
   if (songErr || artistErr) {
@@ -112,6 +131,8 @@ export async function GET() {
   return apiOk({
     ok: true,
     runMode,
+    batchSongs,
+    batchArtists,
     jobs: jobList.length,
     queuedToRedis: queue ? jobList.length : undefined,
     processedInline: !queue ? inlineCompleted : undefined,

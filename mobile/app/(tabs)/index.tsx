@@ -26,6 +26,10 @@ import {
 import {
   useHomeBlindSpots,
   useHomeListeningReport,
+  useHomeTasteTimeline,
+  useHomeTasteInsights,
+  type TimelineMonth,
+  type TasteInsightsData,
 } from "@/lib/hooks/useHomeHistory";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
@@ -492,13 +496,250 @@ function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
   );
 }
 
+// ─── Taste Timeline (matches web TasteTimeline) ────────────────────────────────
+
+const TL_PREVIEW = 6;
+
+function ArtistAvatarStack({ artists }: { artists: TimelineMonth["topArtists"] }) {
+  return (
+    <View style={styles.avatarStack}>
+      {artists.slice(0, 4).map((a, i) => (
+        <View
+          key={a.id}
+          style={[styles.avatarStackItem, { marginLeft: i === 0 ? 0 : -9, zIndex: 4 - i }]}
+        >
+          {a.imageUrl ? (
+            <Image source={{ uri: a.imageUrl }} style={styles.avatarStackImg} />
+          ) : (
+            <View style={[styles.avatarStackImg, styles.avatarStackFallback]}>
+              <Text style={styles.avatarStackInitial}>{(a.name[0] ?? "?").toUpperCase()}</Text>
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function GenrePillsRow({ genres }: { genres: TimelineMonth["topGenres"] }) {
+  if (genres.length === 0) return <Text style={styles.tlDash}>—</Text>;
+  return (
+    <View style={styles.genrePillRow}>
+      {genres.slice(0, 3).map((g) => (
+        <View key={g.name} style={styles.genrePill}>
+          <Text style={styles.genrePillText}>{g.name}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function TasteTimeline({ months, shifts }: { months: TimelineMonth[]; shifts: Array<"major" | "minor" | null> }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? months : months.slice(0, TL_PREVIEW);
+  const hasMore = months.length > TL_PREVIEW;
+
+  return (
+    <View>
+      {/* Header row */}
+      <View style={[styles.tlRow, styles.tlHeaderRow]}>
+        <Text style={[styles.tlMonthCell, styles.tlHeaderText]}>MONTH</Text>
+        <View style={styles.tlArtistCell}><Text style={styles.tlHeaderText}>ARTISTS</Text></View>
+        <View style={styles.tlGenreCell}><Text style={styles.tlHeaderText}>GENRES</Text></View>
+        <Text style={[styles.tlPlaysCell, styles.tlHeaderText]}>PLAYS</Text>
+      </View>
+      {visible.map((entry, i) => (
+        <View key={entry.month}>
+          <View style={styles.tlRow}>
+            <Text style={styles.tlMonthCell} numberOfLines={2}>{entry.monthLabel}</Text>
+            <View style={styles.tlArtistCell}>
+              <ArtistAvatarStack artists={entry.topArtists} />
+            </View>
+            <View style={styles.tlGenreCell}>
+              <GenrePillsRow genres={entry.topGenres} />
+            </View>
+            <Text style={styles.tlPlaysCell}>{entry.totalLogs.toLocaleString()}</Text>
+          </View>
+          {shifts[i] === "major" ? (
+            <View style={styles.shiftMajorRow}>
+              <View style={styles.shiftLine} />
+              <View style={styles.shiftMajorBadge}>
+                <Text style={styles.shiftMajorText}>GENRE SHIFT</Text>
+              </View>
+              <View style={styles.shiftLine} />
+            </View>
+          ) : shifts[i] === "minor" ? (
+            <View style={styles.shiftMinorRow}>
+              <View style={styles.shiftLineMinor} />
+              <Text style={styles.shiftMinorText}>change</Text>
+              <View style={styles.shiftLineMinor} />
+            </View>
+          ) : null}
+        </View>
+      ))}
+      {hasMore && (
+        <Pressable
+          onPress={() => setShowAll((v) => !v)}
+          style={({ pressed }: { pressed: boolean }) => [styles.tlShowMore, pressed && { opacity: 0.6 }]}
+        >
+          <Text style={styles.tlShowMoreText}>
+            {showAll ? "Show less" : `Show all ${months.length} months`}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+// ─── Insight Cards (matches web ProfileInsightCards) ──────────────────────────
+
+const KIND_LABEL: Record<string, string> = {
+  shifting: "Shifting", exploring: "Exploring", stable: "Stable",
+  deepening: "Going deep", "deep-diver": "Deep diver",
+  "steady-explorer": "Steady explorer", skimmer: "Skimmer",
+  loyal: "Loyal listener", underground: "Underground",
+  "indie-leaning": "Indie-leaning", mainstream: "Mainstream",
+  balanced: "Balanced", "genre-fluid": "Genre-fluid",
+  "genre-curious": "Genre-curious", focused: "Focused",
+};
+
+const KIND_BG: Record<string, string> = {
+  shifting: "rgba(14,165,233,0.15)", exploring: "rgba(139,92,246,0.15)",
+  stable: "rgba(16,185,129,0.15)", deepening: "rgba(16,185,129,0.15)",
+  "deep-diver": "rgba(139,92,246,0.15)", "steady-explorer": "rgba(14,165,233,0.15)",
+  skimmer: "rgba(245,158,11,0.15)", loyal: "rgba(63,63,70,0.4)",
+  underground: "rgba(139,92,246,0.15)", "indie-leaning": "rgba(14,165,233,0.15)",
+  mainstream: "rgba(63,63,70,0.4)", balanced: "rgba(63,63,70,0.4)",
+  "genre-fluid": "rgba(16,185,129,0.15)", "genre-curious": "rgba(14,165,233,0.15)",
+  focused: "rgba(63,63,70,0.4)",
+};
+
+const KIND_TEXT: Record<string, string> = {
+  shifting: "#38bdf8", exploring: "#a78bfa", stable: "#34d399",
+  deepening: "#34d399", "deep-diver": "#a78bfa", "steady-explorer": "#38bdf8",
+  skimmer: "#fbbf24", loyal: "#a1a1aa", underground: "#a78bfa",
+  "indie-leaning": "#38bdf8", mainstream: "#a1a1aa", balanced: "#a1a1aa",
+  "genre-fluid": "#34d399", "genre-curious": "#38bdf8", focused: "#a1a1aa",
+};
+
+function KindBadge({ kind }: { kind: string }) {
+  const bg = KIND_BG[kind] ?? "rgba(63,63,70,0.4)";
+  const color = KIND_TEXT[kind] ?? "#a1a1aa";
+  return (
+    <View style={[styles.kindBadge, { backgroundColor: bg }]}>
+      <Text style={[styles.kindBadgeText, { color }]}>{KIND_LABEL[kind] ?? kind}</Text>
+    </View>
+  );
+}
+
+function InsightCard({
+  label,
+  kind,
+  narrative,
+  chips,
+  chipsLabel,
+}: {
+  label: string;
+  kind: string;
+  narrative: string;
+  chips?: { id: string; name: string }[];
+  chipsLabel?: string;
+}) {
+  if (kind === "insufficient") return null;
+  return (
+    <View style={styles.insightCard}>
+      <View style={styles.insightCardHeader}>
+        <Text style={styles.insightCardLabel}>{label.toUpperCase()}</Text>
+        <KindBadge kind={kind} />
+      </View>
+      <Text style={styles.insightCardNarrative}>{narrative}</Text>
+      {chips && chips.length > 0 ? (
+        <View style={{ marginTop: 12 }}>
+          {chipsLabel ? <Text style={styles.insightChipsLabel}>{chipsLabel}</Text> : null}
+          <View style={styles.insightChipsRow}>
+            {chips.map((a) => (
+              <View key={a.id} style={styles.insightChip}>
+                <Text style={styles.insightChipText}>{a.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function InsightCards({ data }: { data: TasteInsightsData }) {
+  if (!data) return null;
+  const { arc, discovery, taste } = data;
+
+  let signature: { traits: string[]; narrative: string } | null = null;
+  if (taste && taste.totalLogs >= 20) {
+    const obs = taste.obscurityScore ?? 50;
+    const div = taste.diversityScore ?? 5;
+    const traits: string[] = [];
+    const parts: string[] = [];
+    if (obs >= 70) { traits.push("underground"); parts.push("You love discovering artists most people have never heard of"); }
+    else if (obs >= 50) { traits.push("indie-leaning"); parts.push("You mix some popular music with lesser-known artists"); }
+    else if (obs <= 25) { traits.push("mainstream"); parts.push("You're into popular music — you love what people are talking about"); }
+    else { traits.push("balanced"); parts.push("You enjoy both popular hits and more underground finds"); }
+    if (div >= 8) { traits.push("genre-fluid"); parts.push("and cut across a wide range of genres"); }
+    else if (div >= 5) { traits.push("genre-curious"); parts.push("and move comfortably across several genres"); }
+    else { traits.push("focused"); parts.push("and stay in a focused lane"); }
+    const topGenre = taste.topGenres?.[0]?.name;
+    if (topGenre) parts.push(`with ${topGenre} as your go-to`);
+    const raw = parts.join(" ") + ".";
+    signature = { traits, narrative: raw.charAt(0).toUpperCase() + raw.slice(1) };
+  }
+
+  const showArc = arc.kind !== "insufficient";
+  const showDisc = discovery.kind !== "insufficient";
+  if (!showArc && !showDisc && !signature) return null;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Listening insights</Text>
+      <View style={{ gap: 10 }}>
+        {showArc && (
+          <InsightCard
+            label="Taste arc"
+            kind={arc.kind}
+            narrative={arc.narrative}
+            chips={arc.risingArtists}
+            chipsLabel="New in rotation"
+          />
+        )}
+        {showDisc && (
+          <InsightCard
+            label="How you discover"
+            kind={discovery.kind}
+            narrative={discovery.narrative}
+            chips={discovery.recentFinds}
+            chipsLabel="Recent finds"
+          />
+        )}
+        {signature && (
+          <InsightCard
+            label="Your sound"
+            kind={signature.traits[0] ?? "balanced"}
+            narrative={signature.narrative}
+            chips={signature.traits.slice(1).map((t) => ({ id: t, name: KIND_LABEL[t] ?? t }))}
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── History Tab ───────────────────────────────────────────────────────────────
 
 function HistoryTab() {
   const { data: blindSpots, isLoading: bsLoading } = useHomeBlindSpots();
   const { data: report, isLoading: reportLoading } = useHomeListeningReport();
+  const { data: timeline, isLoading: timelineLoading } = useHomeTasteTimeline();
+  const { data: insights, isLoading: insightsLoading } = useHomeTasteInsights();
 
-  if (bsLoading || reportLoading) {
+  if (bsLoading || reportLoading || timelineLoading || insightsLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="small" color={theme.colors.emerald} />
@@ -506,43 +747,57 @@ function HistoryTab() {
     );
   }
 
+  const hasTimeline = timeline?.hasData && (timeline.months?.length ?? 0) > 0;
   const hasBlindSpots = blindSpots?.hasData && (blindSpots.artists?.length ?? 0) > 0;
   const hasReport = report && (report.topArtists?.length ?? 0) > 0;
 
+  if (!hasTimeline && !hasBlindSpots && !hasReport) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyText}>Log more listens to see your history insights here.</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView
-      contentContainerStyle={styles.tabContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Listening report */}
-      {hasReport ? (
+    <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
+      {/* Taste over time */}
+      {hasTimeline ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Listening Report</Text>
-          <Text style={styles.sectionMeta}>{report!.periodLabel}</Text>
-          <View style={styles.card}>
-            {report!.topArtists.slice(0, 3).map((a) => (
-              <View key={a.name} style={styles.reportRow}>
-                <Text style={styles.reportArtistName} numberOfLines={1}>{a.name}</Text>
-                <Text style={styles.reportCount}>{a.count} plays</Text>
-              </View>
-            ))}
-          </View>
+          <Text style={styles.sectionTitle}>Taste over time</Text>
+          <TasteTimeline months={timeline!.months} shifts={timeline!.shifts} />
         </View>
       ) : null}
 
       {/* Blind spots */}
       {hasBlindSpots ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Blind Spots</Text>
-          <Text style={styles.sectionMeta}>Artists you might love but haven&apos;t played yet</Text>
-          <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Blind spots</Text>
+          <View style={styles.blindSpotsCard}>
+            <View style={styles.blindSpotsHeader}>
+              <Text style={styles.blindSpotsLabel}>ARTISTS YOU MIGHT LIKE</Text>
+              <View style={styles.blindSpotsBadge}>
+                <Text style={styles.blindSpotsBadgeText}>Similar to your favorites</Text>
+              </View>
+            </View>
+            <Text style={styles.blindSpotsIntro}>
+              Similar to artists you love, but you haven't listened to them yet.
+            </Text>
             {blindSpots!.artists.slice(0, 5).map((a) => (
-              <View key={a.spotifyId} style={styles.blindSpotRow}>
-                <View style={styles.blindSpotInfo}>
-                  <Text style={styles.reportArtistName} numberOfLines={1}>{a.name}</Text>
+              <View key={a.spotifyId} style={styles.blindSpotItem}>
+                <View style={styles.blindSpotAvatar}>
+                  {a.imageUrl ? (
+                    <Image source={{ uri: a.imageUrl }} style={styles.blindSpotAvatarImg} />
+                  ) : (
+                    <Text style={styles.blindSpotAvatarInitial}>{(a.name[0] ?? "?").toUpperCase()}</Text>
+                  )}
+                </View>
+                <View style={styles.blindSpotItemMeta}>
+                  <Text style={styles.blindSpotName} numberOfLines={1}>{a.name}</Text>
                   {a.becauseOf.length > 0 ? (
-                    <Text style={styles.blindSpotBecause} numberOfLines={1}>
-                      Because you like {a.becauseOf.slice(0, 2).join(", ")}
+                    <Text style={styles.blindSpotSimilar} numberOfLines={1}>
+                      {"Similar to "}
+                      <Text style={{ color: "#a1a1aa" }}>{a.becauseOf.slice(0, 2).join(" · ")}</Text>
                     </Text>
                   ) : null}
                 </View>
@@ -552,13 +807,49 @@ function HistoryTab() {
         </View>
       ) : null}
 
-      {!hasReport && !hasBlindSpots ? (
-        <View style={styles.centered}>
-          <Text style={styles.emptyText}>
-            Log more listens to see your history insights here.
-          </Text>
+      {/* Listening report */}
+      {hasReport ? (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Listening report</Text>
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [pressed && { opacity: 0.6 }]}
+              onPress={() => {/* navigate to /reports/listening when implemented */}}
+            >
+              <Text style={styles.sectionAction}>Full report →</Text>
+            </Pressable>
+          </View>
+          <View style={[styles.card, { paddingVertical: 16 }]}>
+            <Text style={styles.reportPeriod}>{report!.periodLabel}</Text>
+            <View style={{ marginTop: 14, gap: 8 }}>
+              {report!.topArtists.slice(0, 5).map((a, i) => (
+                <View key={a.name} style={styles.reportRow}>
+                  <Text style={styles.reportRank}>{i + 1}</Text>
+                  {a.image ? (
+                    <Image source={{ uri: a.image }} style={styles.reportArtImg} />
+                  ) : (
+                    <View style={[styles.reportArtImg, styles.reportArtPlaceholder]}>
+                      <Text style={styles.reportArtIcon}>♪</Text>
+                    </View>
+                  )}
+                  <Text style={styles.reportArtistName} numberOfLines={1}>{a.name}</Text>
+                  <Text style={styles.reportCount}>{a.count} plays</Text>
+                </View>
+              ))}
+            </View>
+            {report!.topGenre ? (
+              <Text style={styles.reportTopGenre}>
+                {"Top genre: "}
+                <Text style={{ color: "#d4d4d8", textTransform: "capitalize" }}>{report!.topGenre.name}</Text>
+                {` · ${report!.topGenre.count} plays`}
+              </Text>
+            ) : null}
+          </View>
         </View>
       ) : null}
+
+      {/* Listening insights */}
+      <InsightCards data={insights ?? null} />
     </ScrollView>
   );
 }
@@ -614,9 +905,15 @@ function ActivityTab() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.tabContent}
+        showsVerticalScrollIndicator={false}
+        pointerEvents="none"
+      >
+        {Array.from({ length: 10 }).map((_, i) => (
+          <View key={i} style={styles.activitySkeleton} />
+        ))}
+      </ScrollView>
     );
   }
 
@@ -644,10 +941,12 @@ function ActivityTab() {
           </Text>
         </View>
       )}
-      ItemSeparatorComponent={() => <View style={styles.activitySep} />}
+      ItemSeparatorComponent={null}
       ListEmptyComponent={
         <View style={styles.centered}>
-          <Text style={styles.emptyText}>No recent listens yet.</Text>
+          <Text style={styles.emptyText}>
+            No recent listens yet. Log listens, sync Last.fm, or connect Spotify to see tracks here.
+          </Text>
         </View>
       }
       ListFooterComponent={loadingMore ? (
@@ -657,13 +956,13 @@ function ActivityTab() {
       ) : null}
       onEndReached={onEndReached}
       onEndReachedThreshold={0.4}
-      contentContainerStyle={styles.tabContent}
+      contentContainerStyle={[styles.tabContent, { gap: 6 }]}
       showsVerticalScrollIndicator={false}
     />
   );
 }
 
-// ─── TabChip ───────────────────────────────────────────────────────────────────
+// ─── TabButton (underline style, matches web) ──────────────────────────────────
 
 function TabChip({
   label,
@@ -678,14 +977,14 @@ function TabChip({
     <Pressable
       onPress={onPress}
       style={({ pressed }: { pressed: boolean }) => [
-        styles.chip,
-        active ? styles.chipActive : styles.chipIdle,
-        pressed && { opacity: 0.8 },
+        styles.tabBtn,
+        pressed && { opacity: 0.7 },
       ]}
     >
-      <Text style={[styles.chipLabel, active ? styles.chipLabelActive : styles.chipLabelIdle]}>
+      <Text style={[styles.tabBtnLabel, active ? styles.tabBtnLabelActive : styles.tabBtnLabelIdle]}>
         {label}
       </Text>
+      {active && <View style={styles.tabUnderline} />}
     </Pressable>
   );
 }
@@ -711,42 +1010,40 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 12,
+    paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: "rgba(255,255,255,0.06)",
   },
-  chip: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1,
+  tabBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    position: "relative",
     alignItems: "center",
   },
-  chipActive: {
-    backgroundColor: theme.colors.panel,
-    borderColor: theme.colors.emerald,
+  tabBtnLabel: {
+    fontSize: 14,
+    fontWeight: "500",
   },
-  chipIdle: {
-    backgroundColor: "transparent",
-    borderColor: theme.colors.border,
+  tabBtnLabelActive: {
+    color: theme.colors.text,
   },
-  chipLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  chipLabelActive: {
-    color: theme.colors.emerald,
-  },
-  chipLabelIdle: {
+  tabBtnLabelIdle: {
     color: theme.colors.muted,
+  },
+  tabUnderline: {
+    position: "absolute",
+    bottom: 0,
+    left: 12,
+    right: 12,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: "#34d399",
   },
   tabContent: {
     paddingHorizontal: 16,
+    paddingTop: 20,
     paddingBottom: 120,
-    gap: 24,
+    gap: 28,
   },
   centered: {
     flex: 1,
@@ -771,12 +1068,13 @@ const styles = StyleSheet.create({
   },
   // Sections
   section: {
-    gap: 8,
+    gap: 16,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "600",
     color: theme.colors.text,
+    letterSpacing: -0.3,
   },
   sectionMeta: {
     fontSize: 12,
@@ -904,33 +1202,352 @@ const styles = StyleSheet.create({
   reportRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
+    gap: 12,
+    paddingVertical: 6,
   },
   reportArtistName: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     color: theme.colors.text,
     flex: 1,
   },
   reportCount: {
     fontSize: 12,
     color: theme.colors.muted,
-    marginLeft: 8,
+    flexShrink: 0,
   },
-  blindSpotRow: {
+  // ─── Section header with action ─────────────────────────────────────────────
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  sectionAction: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "rgba(52,211,153,0.95)",
+  },
+  // ─── Insight Cards ───────────────────────────────────────────────────────────
+  insightCard: {
+    backgroundColor: "rgba(9,9,11,0.4)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(63,63,70,0.7)",
+    padding: 16,
+  },
+  insightCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  insightCardLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 2,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+    flexShrink: 1,
+  },
+  insightCardNarrative: {
+    fontSize: 14,
+    color: "#e4e4e7",
+    lineHeight: 20,
+    marginTop: 10,
+  },
+  insightChipsLabel: {
+    fontSize: 10,
+    color: "#52525B",
+    marginBottom: 6,
+  },
+  insightChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  insightChip: {
+    backgroundColor: "rgba(39,39,42,0.6)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  insightChipText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#d4d4d8",
+  },
+  kindBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    flexShrink: 0,
+  },
+  kindBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  // ─── Taste Timeline ─────────────────────────────────────────────────────────
+  // No card wrapper — sits directly on page background, like the web
+  tlRow: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
+    gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: "rgba(63,63,70,0.6)",
   },
-  blindSpotInfo: {
-    gap: 2,
+  tlHeaderRow: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(63,63,70,0.6)",
   },
-  blindSpotBecause: {
+  tlHeaderText: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    color: "#52525B",
+    textTransform: "uppercase",
+  },
+  tlMonthCell: {
+    width: 52,
+    fontSize: 11,
+    fontWeight: "600",
+    color: theme.colors.muted,
+    flexShrink: 0,
+  },
+  tlArtistCell: {
+    width: 90,
+    flexShrink: 0,
+  },
+  tlGenreCell: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tlPlaysCell: {
+    width: 42,
+    textAlign: "right",
+    fontSize: 11,
+    color: "#52525B",
+    flexShrink: 0,
+  },
+  tlDash: {
+    fontSize: 11,
+    color: "#52525B",
+  },
+  tlShowMore: {
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  tlShowMoreText: {
+    fontSize: 13,
+    color: theme.colors.muted,
+    fontWeight: "500",
+  },
+  // Avatar stack — 28px circles with 2px zinc-950 ring, matching web
+  avatarStack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatarStackItem: {
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: theme.colors.bg,
+  },
+  avatarStackImg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  avatarStackFallback: {
+    backgroundColor: "#27272a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarStackInitial: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#a1a1aa",
+  },
+  // Genre pills row
+  genrePillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+  },
+  genrePill: {
+    backgroundColor: "rgba(39,39,42,0.6)",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  genrePillText: {
+    fontSize: 11,
+    color: "#a1a1aa",
+  },
+  // Shift dividers
+  shiftMajorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    gap: 8,
+  },
+  shiftMinorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 2,
+    gap: 8,
+  },
+  shiftLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(63,63,70,0.7)",
+  },
+  shiftLineMinor: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(63,63,70,0.5)",
+  },
+  shiftMajorBadge: {
+    backgroundColor: "rgba(245,158,11,0.1)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.2)",
+  },
+  shiftMajorText: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: "rgba(245,158,11,0.8)",
+    textTransform: "uppercase",
+  },
+  shiftMinorText: {
+    fontSize: 10,
+    color: "#52525B",
+  },
+  // ─── Blind Spots (web-matched) ───────────────────────────────────────────────
+  blindSpotsCard: {
+    backgroundColor: "rgba(9,9,11,0.4)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(63,63,70,0.7)",
+    padding: 16,
+  },
+  blindSpotsHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 4,
+  },
+  blindSpotsLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 2,
+    color: theme.colors.muted,
+    textTransform: "uppercase",
+  },
+  blindSpotsBadge: {
+    backgroundColor: "rgba(39,39,42,0.5)",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  blindSpotsBadgeText: {
+    fontSize: 10,
+    color: theme.colors.muted,
+  },
+  blindSpotsIntro: {
+    fontSize: 14,
+    color: "#a1a1aa",
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  blindSpotItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  blindSpotAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.active,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  blindSpotAvatarImg: {
+    width: 44,
+    height: 44,
+  },
+  blindSpotAvatarInitial: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.colors.muted,
+  },
+  blindSpotItemMeta: {
+    flex: 1,
+    gap: 3,
+    minWidth: 0,
+  },
+  blindSpotName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.colors.text,
+  },
+  blindSpotSimilar: {
+    fontSize: 12,
+    color: "#71717A",
+  },
+  // ─── Listening Report (web-matched) ─────────────────────────────────────────
+  reportPeriod: {
     fontSize: 12,
     color: theme.colors.muted,
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  reportRank: {
+    width: 16,
+    textAlign: "center",
+    fontSize: 12,
+    color: "#52525B",
+    flexShrink: 0,
+  },
+  reportArtImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: theme.colors.border,
+    flexShrink: 0,
+  },
+  reportArtPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reportArtIcon: {
+    fontSize: 14,
+    color: theme.colors.muted,
+  },
+  reportTopGenre: {
+    fontSize: 12,
+    color: "#71717A",
+    paddingTop: 12,
+    paddingBottom: 6,
   },
   emptyText: {
     fontSize: 14,
@@ -1288,18 +1905,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.text,
   },
+  // Each row is a rounded card — matches web's rounded-xl border bg-zinc-900/40
   activityRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(39,39,42,0.5)",
+    backgroundColor: "rgba(24,24,27,0.4)",
   },
   activityArt: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 8,
-    backgroundColor: theme.colors.panel,
+    backgroundColor: "#27272a",
     flexShrink: 0,
   },
   activityArtPlaceholder: {
@@ -1307,17 +1929,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   activityArtIcon: {
-    fontSize: 18,
+    fontSize: 16,
     color: theme.colors.muted,
   },
   activityMeta: {
     flex: 1,
-    gap: 3,
+    gap: 2,
     minWidth: 0,
   },
   activityTitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     color: theme.colors.text,
   },
   activitySub: {
@@ -1325,14 +1947,14 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   activityDate: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.muted,
     flexShrink: 0,
   },
-  activitySep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.border,
-    marginLeft: 72,
+  activitySkeleton: {
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: "rgba(24,24,27,0.6)",
   },
   activityFooter: {
     paddingVertical: 16,
