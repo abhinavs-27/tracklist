@@ -540,44 +540,33 @@ async function getEntityStatsLive(
       listen_count = count ?? 0;
     }
   } else {
+    /**
+     * `album_stats` miss: summing per-track log counts via chunked RPCs can take minutes on
+     * huge albums and blocks `/album/[id]`. Cap work for the live path; cron refresh_entity_stats
+     * still fills `album_stats` for accurate totals.
+     */
+    const MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN = 600;
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
       .eq("album_id", canonicalEntityId)
-      .limit(2000);
+      .limit(MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
-      /**
-       * `album_stats` miss: summing per-track log counts via chunked RPCs can take minutes on
-       * huge albums and blocks `/album/[id]`. Cap work for the live path; cron refresh_entity_stats
-       * still fills `album_stats` for accurate totals.
-       */
-      const MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN = 600;
-      if (ids.length > MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN) {
-        console.warn(
-          "[queries] getEntityStatsLive album: capping listen aggregation",
-          {
-            albumId: canonicalEntityId,
-            trackCount: ids.length,
-            cap: MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN,
-          },
-        );
-      }
-      const capped = ids.slice(0, MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN);
-      const playMap = await countLogsByTrackIds(supabase, capped);
+      const playMap = await countLogsByTrackIds(supabase, ids);
       listen_count = Array.from(playMap.values()).reduce((a, b) => a + b, 0);
     }
   }
 
-  const { data: reviewRows } = await supabase
+  const { data: reviewRows, count: totalReviews } = await supabase
     .from("reviews")
-    .select("rating")
+    .select("rating", { count: "exact" })
     .eq("entity_type", entityType)
     .eq("entity_id", canonicalEntityId)
     .limit(5000);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
-  const review_count = ratings.length;
+  const review_count = totalReviews ?? ratings.length;
   const sum = ratings.reduce((a, b) => a + b, 0);
   const average_rating =
     review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;

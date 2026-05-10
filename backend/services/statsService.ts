@@ -114,10 +114,16 @@ async function getEntityStatsLive(
       listen_count = count ?? 0;
     }
   } else {
+    /**
+     * album_stats miss: summing per-track log counts via chunked RPCs can take minutes on
+     * huge albums and blocks the response. Cap work for the live path.
+     */
+    const MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN = 600;
     const { data: tracks } = await supabase
       .from("tracks")
       .select("id")
-      .eq("album_id", canonicalEntityId);
+      .eq("album_id", canonicalEntityId)
+      .limit(MAX_TRACKS_FOR_LIVE_ALBUM_LISTEN);
     if (tracks?.length) {
       const ids = tracks.map((t) => t.id);
       const playMap = await countLogsByTrackIds(supabase, ids);
@@ -125,14 +131,15 @@ async function getEntityStatsLive(
     }
   }
 
-  const { data: reviewRows } = await supabase
+  const { data: reviewRows, count: totalReviews } = await supabase
     .from("reviews")
-    .select("rating")
+    .select("rating", { count: "exact" })
     .eq("entity_type", entityType)
-    .eq("entity_id", canonicalEntityId);
+    .eq("entity_id", canonicalEntityId)
+    .limit(5000);
 
   const ratings = (reviewRows ?? []).map((r) => r.rating);
-  const review_count = ratings.length;
+  const review_count = totalReviews ?? ratings.length;
   const sum = ratings.reduce((a, b) => a + b, 0);
   const average_rating =
     review_count > 0 ? Math.round((sum / review_count) * 10) / 10 : null;
