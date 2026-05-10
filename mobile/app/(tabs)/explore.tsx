@@ -334,9 +334,9 @@ const talkStyles = StyleSheet.create({
     marginHorizontal: 18,
     padding: 12,
     borderRadius: 16,
-    backgroundColor: theme.colors.panel,
+    backgroundColor: "rgba(24,24,27,0.5)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(255,255,255,0.06)",
   },
   art: {
     borderRadius: 10,
@@ -417,9 +417,9 @@ const gemStyles = StyleSheet.create({
     marginBottom: 10,
     padding: 12,
     borderRadius: 16,
-    backgroundColor: theme.colors.panel,
+    backgroundColor: "rgba(24,24,27,0.5)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(255,255,255,0.06)",
   },
   art: {
     borderRadius: 12,
@@ -481,9 +481,9 @@ const comStyles = StyleSheet.create({
     marginBottom: 12,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: theme.colors.panel,
+    backgroundColor: "rgba(24,24,27,0.4)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(255,255,255,0.06)",
     gap: 6,
   },
   name: {
@@ -561,6 +561,8 @@ export default function ExploreScreen() {
         subtitle={item.artist}
         detail={item.stat_label}
         imageUrl={item.image_url}
+        badge={item.movement.badge}
+        rankDelta={item.movement.rank_delta}
         onPress={() => navigateHref(item.href)}
       />
     ),
@@ -575,6 +577,8 @@ export default function ExploreScreen() {
         subtitle={item.artist}
         detail={item.stat_label}
         imageUrl={item.image_url}
+        badge={item.movement.badge}
+        rankDelta={item.movement.rank_delta}
         onPress={() => navigateHref(item.href)}
       />
     ),
@@ -827,12 +831,12 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   stickyHeader: {
-    backgroundColor: theme.colors.bg,
+    backgroundColor: "rgba(9,9,11,0.96)",
     paddingLeft: 18,
     paddingRight: 18 + NOTIFICATION_BELL_GUTTER,
-    paddingBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: "rgba(255,255,255,0.06)",
   },
   rangePad: {
     paddingHorizontal: 18,
@@ -854,17 +858,17 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   heroTitle: {
-    fontSize: 32,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "700",
     color: theme.colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   heroSub: {
-    marginTop: 6,
-    fontSize: 15,
-    fontWeight: "500",
-    color: theme.colors.muted,
-    lineHeight: 20,
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: "400",
+    color: "#71717a",
+    lineHeight: 19,
   },
   inlineEmpty: {
     marginHorizontal: 18,

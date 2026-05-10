@@ -61,10 +61,10 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "700",
     color: theme.colors.text,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   description: {
     marginTop: 6,

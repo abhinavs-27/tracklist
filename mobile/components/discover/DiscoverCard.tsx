@@ -22,6 +22,8 @@ export type DiscoverCardProps = {
   /** Third line — shown below subtitle for song/album variants. */
   detail?: string;
   imageUrl?: string | null;
+  badge?: "new" | "hot" | null;
+  rankDelta?: number | null;
   onPress: () => void;
 };
 
@@ -31,6 +33,8 @@ function DiscoverCardInner({
   subtitle,
   detail,
   imageUrl,
+  badge,
+  rankDelta,
   onPress,
 }: DiscoverCardProps) {
   const uri = resolveUri(imageUrl);
@@ -78,12 +82,23 @@ function DiscoverCardInner({
         />
       </View>
       <View style={styles.textBlock}>
-        <Text
-          style={variant === "artist" ? styles.artistTitle : styles.title}
-          numberOfLines={2}
-        >
-          {title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text
+            style={[variant === "artist" ? styles.artistTitle : styles.title, { flex: 1 }]}
+            numberOfLines={2}
+          >
+            {title}
+          </Text>
+          {badge === "new" ? (
+            <View style={styles.badgeNew}><Text style={styles.badgeNewText}>New</Text></View>
+          ) : badge === "hot" ? (
+            <View style={styles.badgeHot}><Text style={styles.badgeHotText}>Hot</Text></View>
+          ) : rankDelta != null && rankDelta !== 0 ? (
+            <Text style={rankDelta > 0 ? styles.deltaUp : styles.deltaDown}>
+              {rankDelta > 0 ? `↑${rankDelta}` : `↓${Math.abs(rankDelta)}`}
+            </Text>
+          ) : null}
+        </View>
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
@@ -120,6 +135,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: theme.colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.06)",
   },
   fillImage: {
     width: "100%",
@@ -129,6 +146,57 @@ const styles = StyleSheet.create({
     marginTop: 8,
     width: "100%",
     minWidth: 0,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 4,
+  },
+  badgeNew: {
+    backgroundColor: "rgba(245,158,11,0.15)",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(245,158,11,0.25)",
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  badgeNewText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#fcd34d",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  badgeHot: {
+    backgroundColor: "rgba(244,63,94,0.15)",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(244,63,94,0.25)",
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  badgeHotText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#fda4af",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  deltaUp: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#34d399",
+    flexShrink: 0,
+  },
+  deltaDown: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#71717a",
+    flexShrink: 0,
   },
   title: {
     fontSize: 13,

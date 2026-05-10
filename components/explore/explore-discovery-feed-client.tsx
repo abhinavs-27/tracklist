@@ -267,17 +267,12 @@ export function ExploreDiscoveryFeedClient({
   const bundle = data;
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-        <p className="max-w-xl text-sm leading-relaxed text-zinc-400">
-          Live picks from listens, reviews, saves, and communities.
-        </p>
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:items-end">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:text-right">
-            Window
-          </span>
-          <RangeToggle value={range} onChange={onRangeChange} />
-        </div>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+          Window
+        </span>
+        <RangeToggle value={range} onChange={onRangeChange} />
       </div>
 
       {error ? (
