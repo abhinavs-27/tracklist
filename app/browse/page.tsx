@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { BrowseGrid } from "./browse-grid";
-import { pageTitle, sectionGap } from "@/lib/ui/surface";
 
 export const metadata: Metadata = {
   title: "Browse — Tracklist",
@@ -44,14 +43,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   const customTo = sp.to ?? "";
 
   return (
-    <div className={sectionGap}>
-      <header>
-        <h1 className={pageTitle}>Browse</h1>
-        <p className="mt-2 text-base text-zinc-400">
-          The most played, highest rated, and most favorited music on Tracklist.
-        </p>
-      </header>
-
+    <>
       <BrowseGrid
         initialEntity={entity}
         initialSort={sort}
@@ -59,6 +51,6 @@ export default async function BrowsePage({ searchParams }: Props) {
         initialCustomFrom={customFrom}
         initialCustomTo={customTo}
       />
-    </div>
+    </>
   );
 }

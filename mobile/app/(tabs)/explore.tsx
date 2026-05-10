@@ -689,8 +689,6 @@ export default function ExploreScreen() {
             <DiscoverSection
               title="Most talked about"
               description="Albums and songs sparking the most reviews."
-              actionLabel="Browse charts →"
-              onActionPress={goLeaderboard}
             >
               {talked.length > 0 ? (
                 <View style={{ gap: 10 }}>
@@ -779,8 +777,6 @@ export default function ExploreScreen() {
 
             <DiscoverSection
               title="Browse"
-              actionLabel="All-time rankings →"
-              onActionPress={goLeaderboard}
             >
               <Pressable
                 onPress={goLeaderboard}
@@ -799,8 +795,6 @@ export default function ExploreScreen() {
             <DiscoverSection
               title="Find people"
               description="Search by username or browse members with similar taste."
-              actionLabel="Find people →"
-              onActionPress={goFindUsers}
             >
               <Pressable
                 onPress={goFindUsers}

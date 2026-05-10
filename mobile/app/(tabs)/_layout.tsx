@@ -42,13 +42,12 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Search — icon only, no label (matches web nav) */}
       <Tabs.Screen
         name="search"
         options={{
-          tabBarLabel: () => null,
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="search" size={24} color={color} />
+          title: "Search",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "search" : "search-outline"} size={24} color={color} />
           ),
         }}
       />

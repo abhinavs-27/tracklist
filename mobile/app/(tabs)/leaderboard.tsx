@@ -62,7 +62,7 @@ function statLabel(item: LeaderboardItem, metric: LeaderboardMetricInput): strin
 
 const PLACEHOLDER = "https://placehold.co/300x300/111827/9CA3AF?text=Tracklist";
 const GRID_PAD = 12;
-const GRID_GAP = 6;
+const GRID_GAP = 8;
 const NUM_COLS = 3;
 
 const ERA_OPTIONS: { label: string; value: Era }[] = [
@@ -111,9 +111,6 @@ function BrowseCard({
           <Text style={cardStyles.rankText}>{rank}</Text>
         </View>
       </View>
-      <Text style={cardStyles.title} numberOfLines={2}>{item.title}</Text>
-      <Text style={cardStyles.artist} numberOfLines={1}>{item.artist}</Text>
-      {stat ? <Text style={cardStyles.stat} numberOfLines={1}>{stat}</Text> : null}
     </Pressable>
   );
 }
@@ -170,9 +167,9 @@ const cardStyles = StyleSheet.create({
   },
 });
 
-// ── PillToggle ────────────────────────────────────────────────────────────
+// ── FilterChips — same compact pill style as era row ─────────────────────
 
-function PillToggle({
+function FilterChips({
   value,
   options,
   onChange,
@@ -182,51 +179,42 @@ function PillToggle({
   onChange: (v: string) => void;
 }) {
   return (
-    <View style={pillStyles.wrap}>
+    <>
       {options.map((opt) => {
         const active = opt.value === value;
         return (
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
-            style={[pillStyles.pill, active && pillStyles.pillActive]}
+            style={[chipStyles.chip, active && chipStyles.chipActive]}
           >
-            <Text style={[pillStyles.text, active && pillStyles.textActive]}>
+            <Text style={[chipStyles.text, active && chipStyles.textActive]}>
               {opt.label}
             </Text>
           </Pressable>
         );
       })}
-    </View>
+    </>
   );
 }
 
-const pillStyles = StyleSheet.create({
-  wrap: {
-    flexDirection: "row",
-    backgroundColor: theme.colors.bg,
-    borderRadius: 10,
-    padding: 3,
+const chipStyles = StyleSheet.create({
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: theme.colors.panel,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
   },
-  pill: {
-    flex: 1,
-    minHeight: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  pillActive: {
+  chipActive: {
     backgroundColor: theme.colors.text,
+    borderColor: theme.colors.text,
   },
   text: {
     fontSize: 12,
     fontWeight: "600",
     color: theme.colors.muted,
-    textAlign: "center",
   },
   textActive: {
     color: theme.colors.panel,
@@ -307,26 +295,26 @@ export default function LeaderboardScreen() {
       </View>
 
       <View style={s.filters}>
-        <PillToggle
-          value={type}
-          options={[
-            { value: "albums", label: "Albums" },
-            { value: "songs", label: "Tracks" },
-          ]}
-          onChange={handleTypeChange}
-        />
+        {/* Entity + sort on one scrollable row with a separator dot */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+          <FilterChips
+            value={type}
+            options={[
+              { value: "albums", label: "Albums" },
+              { value: "songs", label: "Tracks" },
+            ]}
+            onChange={handleTypeChange}
+          />
+          <Text style={s.filterSep}>·</Text>
+          <FilterChips
+            value={metric}
+            options={sortOptions}
+            onChange={(v) => setMetric(v as LeaderboardMetricInput)}
+          />
+        </ScrollView>
 
-        <PillToggle
-          value={metric}
-          options={sortOptions}
-          onChange={(v) => setMetric(v as LeaderboardMetricInput)}
-        />
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.eraRow}
-        >
+        {/* Era chips */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.eraRow}>
           {ERA_OPTIONS.map((opt) => {
             const active = era === opt.value;
             return (
@@ -348,12 +336,6 @@ export default function LeaderboardScreen() {
         )}
       </View>
 
-      {!isLoading && data.length > 0 && (
-        <Text style={s.count}>
-          {data.length.toLocaleString()} {type === "albums" ? "albums" : "tracks"}
-          {eraLabel ? ` · ${eraLabel}` : ""}
-        </Text>
-      )}
 
       {isLoading ? (
         <View style={s.centered}>
@@ -419,9 +401,20 @@ const s = StyleSheet.create({
   },
   filters: {
     paddingHorizontal: GRID_PAD,
-    paddingTop: 12,
-    paddingBottom: 4,
-    gap: 8,
+    paddingTop: 16,
+    paddingBottom: 16,
+    gap: 10,
+  },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingRight: GRID_PAD,
+  },
+  filterSep: {
+    fontSize: 14,
+    color: "#52525b",
+    paddingHorizontal: 2,
   },
   eraRow: {
     gap: 6,

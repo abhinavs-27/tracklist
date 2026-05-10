@@ -308,7 +308,6 @@ export function ExploreDiscoveryFeedClient({
           <SectionBlock
             title="Most talked about"
             description="Albums and songs sparking the most reviews."
-            action={{ label: "Browse charts →", href: "/browse" }}
           >
             {bundle.most_talked_about.length === 0 ? (
               <EmptyHint />
@@ -411,7 +410,6 @@ export function ExploreDiscoveryFeedClient({
 
       <SectionBlock
         title="Browse"
-        action={{ label: "All-time rankings →", href: "/browse" }}
       >
         <Link
           href="/browse"

@@ -35,7 +35,7 @@ function buildApiUrl(entity: Entity, sort: Sort, era: Era, customFrom: string, c
   const params = new URLSearchParams({
     type: sort,
     entity: entity === "track" ? "song" : "album",
-    limit: "48",
+    limit: "50",
     lite: "true",
   });
   if (cursor > 0) params.set("cursor", String(cursor));
@@ -128,7 +128,7 @@ const ERA_OPTIONS: { label: string; value: Era }[] = [
   { label: "Custom…", value: "custom" },
 ];
 
-function PillGroup<T extends string>({
+function FilterChip<T extends string>({
   value,
   options,
   onChange,
@@ -138,22 +138,22 @@ function PillGroup<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex w-full rounded-lg bg-zinc-950 p-0.5 ring-1 ring-white/[0.07]">
+    <>
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`flex-1 rounded-md py-2 text-center text-xs font-semibold transition ${
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
             value === opt.value
-              ? "bg-zinc-100 text-zinc-900 shadow-sm"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "bg-zinc-100 text-zinc-900"
+              : "bg-zinc-800/70 text-zinc-400 ring-1 ring-white/[0.07] hover:text-zinc-200"
           }`}
         >
           {opt.label}
         </button>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -256,25 +256,34 @@ export function BrowseGrid({
   const eraLabel = era === "all" ? "" : era === "older" ? "Pre-1970" : era === "custom" && customFrom && customTo ? `${customFrom}–${customTo}` : era !== "custom" ? era : "";
 
   return (
-    <div className="space-y-5">
-      {/* ── Filters ── */}
-      <div className="space-y-3">
+    <div>
+      {/* ── Combined fixed header: title (with divider) + filters ── */}
+      <div className="fixed left-0 right-0 top-0 z-[60] bg-zinc-950/95 backdrop-blur-xl md:static md:z-auto md:bg-transparent md:backdrop-blur-none">
+        {/* Title block — has its own bottom divider matching mobile app */}
+        <div className="border-b border-white/[0.06] px-4 pb-3 pt-4 sm:px-6 md:border-none md:px-0 md:pb-6 md:pt-0">
+          <h1 className="text-[1.75rem] font-extrabold tracking-[-0.5px] text-white md:text-3xl">Browse</h1>
+          <p className="mt-1 text-sm text-zinc-500 md:mt-2 md:text-base md:text-zinc-400">Most played, highest rated, and most favorited music on Tracklist.</p>
+        </div>
+        {/* Filter block — has bottom divider separating from grid */}
+        <div className="border-b border-white/[0.06] px-4 pb-3 pt-4 sm:px-6 md:border-none md:px-0 md:pb-0 md:pt-0">
+        <div className="space-y-2.5">
 
-        {/* Row 1: entity toggle */}
-        <PillGroup
-          value={entity}
-          options={ENTITY_OPTIONS}
-          onChange={(e) => applyFilters(e, sort, era, customFrom, customTo)}
-        />
+        {/* Row 1: entity + sort chips on one line */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FilterChip
+            value={entity}
+            options={ENTITY_OPTIONS}
+            onChange={(e) => applyFilters(e, sort, era, customFrom, customTo)}
+          />
+          <span className="shrink-0 self-center text-zinc-700">·</span>
+          <FilterChip
+            value={sort}
+            options={SORT_OPTIONS}
+            onChange={(s) => applyFilters(entity, s, era, customFrom, customTo)}
+          />
+        </div>
 
-        {/* Row 2: sort toggle */}
-        <PillGroup
-          value={sort}
-          options={SORT_OPTIONS}
-          onChange={(s) => applyFilters(entity, s, era, customFrom, customTo)}
-        />
-
-        {/* Row 2: decade chips (horizontal scroll) */}
+        {/* Row 2: era chips (horizontal scroll) */}
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {ERA_OPTIONS.map((opt) => (
             <button
@@ -327,18 +336,15 @@ export function BrowseGrid({
           </div>
         )}
 
-        {/* Result count */}
-        {!loading && (
-          <p className="text-xs text-zinc-500">
-            {items.length.toLocaleString()}
-            {total != null && total > items.length ? ` of ${total.toLocaleString()}` : ""}
-            {" "}{entity === "album" ? "albums" : "tracks"}
-            {eraLabel ? ` · ${eraLabel}` : ""}
-          </p>
-        )}
+        </div>
+        </div>
       </div>
 
+      {/* Spacer: title (~78px) + filter (~94px) minus main pt-6 (24px) = ~148px */}
+      <div className="h-[9.25rem] md:hidden" />
+
       {/* ── Grid ── */}
+      <div>
       {loading ? (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
           {Array.from({ length: 24 }).map((_, i) => (
@@ -368,6 +374,7 @@ export function BrowseGrid({
           )}
         </>
       )}
+      </div>
     </div>
   );
 }
