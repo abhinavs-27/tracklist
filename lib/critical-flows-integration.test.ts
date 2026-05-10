@@ -181,6 +181,22 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       expect(body.rating).toBe(5);
     });
 
+    it('should handle database errors on review creation', async () => {
+      mockSupabase.from.mockReturnValue({
+        upsert: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } }),
+      });
+
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 5 }),
+      });
+
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(500);
+    });
+
     it('should return 400 for invalid rating', async () => {
         const req = new NextRequest('http://localhost/api/reviews', {
           method: 'POST',
@@ -309,6 +325,12 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       const body = await res.json();
       expect(body.artists.items.length).toBeGreaterThan(0);
       expect(body.artists.items[0].name).toBe('Test Artist');
+    });
+
+    it('should return 400 for missing query parameter', async () => {
+      const req = new NextRequest('http://localhost/api/search');
+      const res = await searchGET(req);
+      expect(res.status).toBe(400);
     });
 
     it('should return 400 for empty query', async () => {

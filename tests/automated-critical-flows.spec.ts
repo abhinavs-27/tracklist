@@ -71,7 +71,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    await page.getByRole('button', { name: '4 out of 5 stars' }).click();
+    await page.getByRole('button', { name: '4 out of 5 stars', exact: true }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Testing automated review creation');
 
     const [response] = await Promise.all([
@@ -126,7 +126,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     const result = await response.json();
     expect(result.track_id).toBe('track_demo_1');
 
-    // Error Case
+    // Error Case: Missing track_id
     const errorResult = await page.evaluate(async () => {
       const res = await fetch('/api/logs', {
         method: 'POST',
@@ -136,9 +136,30 @@ test.describe('Critical Flows: Automated Integration', () => {
       return { status: res.status };
     });
     expect(errorResult.status).toBe(400);
+
+    // Error Case: Catalog pending (503)
+    await page.route('**/api/logs', async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'catalog_pending', error: 'Track pending' }),
+      });
+    }, { times: 1 });
+
+    const pendingResult = await page.evaluate(async () => {
+      const res = await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ track_id: 'track_pending_1', source: 'manual' })
+      });
+      return { status: res.status, body: await res.json() };
+    });
+    expect(pendingResult.status).toBe(503);
+    expect(pendingResult.body.code).toBe('catalog_pending');
   });
 
-  test('Critical Flow 3: Spotify Ingestion', async ({ page }) => {
+  test('Critical Flow 3: Spotify Ingestion (Success and Error)', async ({ page }) => {
+    // Success Case
     await page.route('**/api/spotify/sync', async (route) => {
       if (route.request().method() === 'POST') {
         return route.fulfill({
@@ -158,9 +179,24 @@ test.describe('Critical Flows: Automated Integration', () => {
 
     expect(syncResult.status).toBe(200);
     expect(syncResult.body.inserted).toBe(5);
+
+    // Error Case: API Failure (500)
+    await page.route('**/api/spotify/sync', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Failed to sync' }),
+      });
+    }, { times: 1 });
+
+    const errorSync = await page.evaluate(async () => {
+      const res = await fetch('/api/spotify/sync', { method: 'POST' });
+      return { status: res.status };
+    });
+    expect(errorSync.status).toBe(500);
   });
 
-  test('Critical Flow 4: User Profile Fetch (Success and 404)', async ({ page }) => {
+  test('Critical Flow 4: User Profile Fetch (Success, 404, and 500)', async ({ page }) => {
     // Success Mock
     await page.route('**/api/users/target_user', async (route) => {
       await route.fulfill({
@@ -195,23 +231,59 @@ test.describe('Critical Flows: Automated Integration', () => {
       return { status: res.status };
     });
     expect(missingProfile.status).toBe(404);
+
+    // 500 check
+    await page.route('**/api/users/error_user', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'DB failure' }),
+      });
+    });
+
+    const errorProfile = await page.evaluate(async () => {
+      const res = await fetch('/api/users/error_user');
+      return { status: res.status };
+    });
+    expect(errorProfile.status).toBe(500);
   });
 
   test('Critical Flow 5: Search Results', async ({ page }) => {
+    // 1. Mock the music search API
+    await page.route('**/api/search?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          artists: { items: [{ id: '1', name: 'Radiohead', images: [], popularity: 90 }] },
+          albums: { items: [{ id: '2', name: 'In Rainbows', artists: [{ name: 'Radiohead' }], images: [] }] },
+          tracks: { items: [{ id: '3', name: 'Nude', artists: [{ name: 'Radiohead' }], album: { id: '2', name: 'In Rainbows', images: [] } }] },
+        }),
+      });
+    });
+
+    // 2. Mock the user search API
+    await page.route('**/api/search/users?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.goto('/search');
-    const searchInput = page.getByRole('searchbox').first();
+
+    // Use placeholder because the input is type="text", not "search"
+    const searchInput = page.getByPlaceholder(/Search artists/i);
+    await expect(searchInput).toBeVisible();
+
     await searchInput.fill('radiohead');
-    await searchInput.press('Enter');
 
-    await page.waitForURL(/\/search\?q=radiohead/);
-    await expect(searchInput).toHaveValue('radiohead');
-
-    const mainContent = page.getByRole('main');
-    await expect(mainContent).toBeVisible();
-
-    // Check that we reached a result state (even if empty in mock-less environment)
-    const resultIndicator = page.locator('text=/Artists|Albums|Tracks|Search failed|No results/i').first();
-    await expect(resultIndicator).toBeVisible();
+    // Results appear via client-side fetch + debounce, no navigation
+    await expect(page.getByText('Top result')).toBeVisible();
+    await expect(page.getByText('Radiohead', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('In Rainbows').first()).toBeVisible();
+    await expect(page.getByText('Nude').first()).toBeVisible();
   });
 
 });
