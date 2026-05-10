@@ -33,6 +33,7 @@ import {
 } from "@/lib/hooks/useHomeHistory";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
+import { fetcher } from "@/lib/api";
 
 type HomeTab = "billboard" | "pulse" | "history" | "activity";
 
@@ -879,12 +880,9 @@ function ActivityTab() {
     if (append) setLoadingMore(true);
     else setLoading(true);
     try {
-      const res = await fetch(
+      const data = await fetcher<{ items: RecentTrack[]; hasMore: boolean }>(
         `/api/spotify/recently-played?limit=${ACTIVITY_PAGE_SIZE}&offset=${offset}`,
-        { cache: "no-store" },
       );
-      if (!res.ok) throw new Error("failed");
-      const data = await res.json() as { items: RecentTrack[]; hasMore: boolean };
       setItems((prev) => append ? [...prev, ...(data.items ?? [])] : (data.items ?? []));
       setHasMore(data.hasMore ?? false);
     } catch {
