@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "target": "ESNext",
     "lib": [
       "DOM",
@@ -19,7 +20,6 @@
     "isolatedModules": true,
     "jsx": "react-native",
     "baseUrl": ".",
-    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": [
         "./*"
