@@ -32,14 +32,15 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
 
-  const session = await withArtistPagePhaseLog("getSession", id, getSession());
-
-  const artistFetched = await withArtistPagePhaseLog(
-    "getOrFetchArtist",
-    id,
-    getOrFetchArtist(id, { allowNetwork: true }),
-    (v) => ({ name: v.artist.name, hasImage: Boolean(v.artist.images?.[0]?.url) }),
-  ).catch(() => null);
+  const [session, artistFetched] = await Promise.all([
+    withArtistPagePhaseLog("getSession", id, getSession()),
+    withArtistPagePhaseLog(
+      "getOrFetchArtist",
+      id,
+      getOrFetchArtist(id, { allowNetwork: true }),
+      (v) => ({ name: v.artist.name, hasImage: Boolean(v.artist.images?.[0]?.url) }),
+    ).catch(() => null),
+  ]);
 
   if (!artistFetched) notFound();
   redirectToCanonicalEntityIfNeeded("artist", id, artistFetched.canonicalArtistId);
@@ -47,13 +48,16 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const artist = artistFetched.artist;
   const viewerId = session?.user?.id ?? null;
 
+  const { createSupabaseServerClient } = await import("@/lib/supabase-server");
+  const supabase = await createSupabaseServerClient();
+
   const [topTracks, recentReviews, popularAlbumsResult, viewerStats, firstListened] =
     await Promise.all([
-      withArtistPagePhaseLog("getTopTracksForArtist", id, getTopTracksForArtist(entityId, 10)),
-      withArtistPagePhaseLog("getReviewsForArtist", id, getReviewsForArtist(entityId, 6)),
-      withArtistPagePhaseLog("getPopularAlbumsForArtist", id, getPopularAlbumsForArtist(entityId, 8)),
-      viewerId ? getViewerArtistStats(viewerId, entityId).catch(() => null) : Promise.resolve(null),
-      viewerId ? getArtistFirstListenDate(viewerId, entityId).catch(() => null) : Promise.resolve(null),
+      withArtistPagePhaseLog("getTopTracksForArtist", id, getTopTracksForArtist(entityId, 10, supabase)),
+      withArtistPagePhaseLog("getReviewsForArtist", id, getReviewsForArtist(entityId, 6, supabase)),
+      withArtistPagePhaseLog("getPopularAlbumsForArtist", id, getPopularAlbumsForArtist(entityId, 8, supabase)),
+      viewerId ? getViewerArtistStats(viewerId, entityId, supabase).catch(() => null) : Promise.resolve(null),
+      viewerId ? getArtistFirstListenDate(viewerId, entityId, supabase).catch(() => null) : Promise.resolve(null),
     ]);
 
   const popularAlbums = popularAlbumsResult.rows;

@@ -59,7 +59,13 @@ export const POST = withHandler(
     const note = sanitizeString(b.note, LIMITS.COMMENT_CONTENT);
 
     const supabase = await createSupabaseServerClient();
-    const trackIdRes = await resolveAndCheckPending(supabase, trackRaw, 'track');
+
+    const [trackIdRes, albumRes, artistRes] = await Promise.all([
+      resolveAndCheckPending(supabase, trackRaw, 'track'),
+      resolveAndCheckPending(supabase, b.album_id, 'album'),
+      resolveAndCheckPending(supabase, b.artist_id, 'artist'),
+    ]);
+
     if (!trackIdRes) {
       return apiBadRequest('Invalid or unknown track_id / spotify_id');
     }
@@ -76,7 +82,6 @@ export const POST = withHandler(
     }
     const trackId = trackIdRes.id;
 
-    const albumRes = await resolveAndCheckPending(supabase, b.album_id, 'album');
     if (albumRes?.kind === 'pending') {
       return apiServiceUnavailable(
         'Catalog is syncing this album from Spotify. Retry in a few seconds.',
@@ -90,7 +95,6 @@ export const POST = withHandler(
     }
     const albumId = albumRes?.kind === 'resolved' ? albumRes.id : null;
 
-    const artistRes = await resolveAndCheckPending(supabase, b.artist_id, 'artist');
     if (artistRes?.kind === 'pending') {
       return apiServiceUnavailable(
         'Catalog is syncing this artist from Spotify. Retry in a few seconds.',
@@ -124,25 +128,30 @@ export const POST = withHandler(
       console.error('Log create error:', error);
       return apiInternalError(error);
     }
-    await grantAchievementsOnListen(me!.id);
-    await syncManualLogSideEffects(me!.id, trackId, listenedAt);
-    try {
-      const { fanOutListenForUserCommunities } = await import(
-        "@/lib/community/community-feed-insert"
-      );
-      await fanOutListenForUserCommunities({
-        userId: me!.id,
-        logId: data.id as string,
-        listenedAt: listenedAt,
-        source,
-        trackId,
-        albumId: albumId,
-        artistId: artistId,
-        title: null,
-      });
-    } catch (e) {
-      console.warn("[logs] community_feed fan-out", e);
-    }
+
+    await Promise.all([
+      grantAchievementsOnListen(me!.id),
+      syncManualLogSideEffects(me!.id, trackId, listenedAt),
+      (async () => {
+        try {
+          const { fanOutListenForUserCommunities } = await import(
+            "@/lib/community/community-feed-insert"
+          );
+          await fanOutListenForUserCommunities({
+            userId: me!.id,
+            logId: data.id as string,
+            listenedAt: listenedAt,
+            source,
+            trackId,
+            albumId: albumId,
+            artistId: artistId,
+            title: null,
+          });
+        } catch (e) {
+          console.warn("[logs] community_feed fan-out", e);
+        }
+      })(),
+    ]);
     console.log("[logs] manual-log-created", {
       userId: me!.id,
       trackId,

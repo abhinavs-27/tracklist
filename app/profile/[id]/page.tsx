@@ -33,9 +33,12 @@ const EMPTY_TASTE: TasteIdentity = {
   summary: "",
 };
 
-async function hasSpotifyToken(userId: string): Promise<boolean> {
+async function hasSpotifyToken(
+  userId: string,
+  supabaseClient?: any,
+): Promise<boolean> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = supabaseClient ?? createSupabaseAdminClient();
     const { data, error } = await supabase
       .from("spotify_tokens")
       .select("user_id")
@@ -111,16 +114,18 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
+  const adminClient = createSupabaseAdminClient();
+
   const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
-      getFollowCounts(user.id),
+      getFollowCounts(user.id, adminClient),
       session?.user?.id && session.user.id !== user.id
-        ? isFollowing(session.user.id, user.id)
+        ? isFollowing(session.user.id, user.id, adminClient)
         : Promise.resolve(false),
       session?.user?.id === user.id
-        ? hasSpotifyToken(user.id)
+        ? hasSpotifyToken(user.id, adminClient)
         : Promise.resolve(false),
-      getUserStreak(user.id),
+      getUserStreak(user.id, adminClient),
     ]),
     getCachedTasteIdentity(user.id),
     getCachedUserFavoriteAlbums(user.id).catch((e) => {

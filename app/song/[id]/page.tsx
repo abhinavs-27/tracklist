@@ -43,35 +43,38 @@ export default async function SongPage({ params }: { params: PageParams }) {
     redirect(`/song/${resolvedId}`);
   }
 
-  const session = await getSession();
-  let fetched: Awaited<ReturnType<typeof getOrFetchTrack>>;
-  try {
-    fetched = await getOrFetchTrack(id, { allowNetwork: true });
-  } catch {
-    notFound();
-  }
+  const [session, fetched] = await Promise.all([
+    getSession(),
+    getOrFetchTrack(id, { allowNetwork: true }).catch(() => {
+      notFound();
+    }),
+  ]);
+
+  if (!fetched) notFound();
+
   redirectToCanonicalEntityIfNeeded("song", id, fetched.canonicalTrackId);
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
 
-  const [reviewsData, stats, recentListens, relatedSongsRaw, leaderboard] =
+  const { createSupabaseServerClient } = await import("@/lib/supabase-server");
+  const supabase = await createSupabaseServerClient();
+
+  const [reviewsData, stats, recentListens, leaderboard, relatedTracks] =
     await Promise.all([
-      getReviewsForEntity("song", entityId).catch(() => ({
+      getReviewsForEntity("song", entityId, 20, supabase).catch(() => ({
         reviews: [], average_rating: null, count: 0, my_review: null,
       })),
-      getEntityStats("song", entityId),
-      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
-      getRelatedMedia("song", entityId, 12).catch(() => []),
-      viewerId ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null) : Promise.resolve(null),
+      getEntityStats("song", entityId, supabase),
+      getListenLogsForTrack(entityId, 8, 0, viewerId, supabase).catch(() => []),
+      viewerId ? getSongFriendLeaderboard(viewerId, entityId, supabase).catch(() => null) : Promise.resolve(null),
+      getRelatedMedia("song", entityId, 12).then(async (relatedSongsRaw) => {
+        const relatedTrackIds = (relatedSongsRaw ?? []).map((r) => r.contentId);
+        if (relatedTrackIds.length === 0) return [];
+        return (await getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false }))
+          .filter((t): t is SpotifyApi.TrackObjectFull => t != null);
+      }).catch(() => []),
     ]);
-
-  const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
-  const relatedTracks =
-    relatedTrackIds.length > 0
-      ? (await getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false }))
-          .filter((t): t is SpotifyApi.TrackObjectFull => t != null)
-      : [];
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
