@@ -54,7 +54,7 @@ function TabNav({ active, onChange, hasSocial }: { active: Tab; onChange: (t: Ta
     <div className="flex gap-0 border-b border-zinc-800/80">
       {tabs.map((tab) => (
         <button key={tab.id} type="button" onClick={() => onChange(tab.id)}
-          className={`relative px-5 py-3 text-sm font-medium transition-colors duration-150 ${active === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
+          className={`relative flex-1 py-3 text-sm font-medium capitalize transition-colors duration-150 ${active === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
           {tab.label}
           {active === tab.id && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-emerald-400" />}
         </button>
@@ -141,7 +141,20 @@ export function AlbumPageClient({
   const hasSocial = !!viewerUserId;
 
   return (
-    <div className="space-y-8">
+    <>
+    {/* Mobile fixed header — matches app nav bar style */}
+    <header className="fixed left-0 right-0 top-0 z-[60] border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl md:hidden">
+      <div className="flex min-h-[3rem] items-center gap-3 px-4 py-2.5">
+        <button type="button" onClick={() => window.history.back()} className="shrink-0 text-emerald-400 touch-manipulation">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <p className="min-w-0 flex-1 truncate text-center text-base font-bold tracking-tight text-white">{album.name}</p>
+        <div className="w-6 shrink-0" />
+      </div>
+    </header>
+    <div className="h-12 md:hidden" />
+
+    <div className="space-y-10">
       {session && firstTrack && (
         <RecordRecentView kind="album" id={id} title={album.name}
           subtitle={album.artists?.map((a) => a.name).join(", ") ?? ""}
@@ -152,7 +165,7 @@ export function AlbumPageClient({
       {/* ── Hero — clean, no background tricks ───────────── */}
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
         {/* Album art — large square, prominent */}
-        <div className="h-56 w-56 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_32px_64px_-24px_rgba(0,0,0,0.7)] ring-1 ring-inset ring-white/[0.08] sm:h-64 sm:w-64">
+        <div className="h-56 w-56 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.85)] sm:h-64 sm:w-64">
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt="" className="h-full w-full object-cover" />
@@ -163,7 +176,7 @@ export function AlbumPageClient({
 
         {/* Metadata */}
         <div className="min-w-0 flex-1 text-center sm:text-left">
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Album</p>
+          <p className="hidden text-xs font-medium uppercase tracking-widest text-zinc-500 md:block">Album</p>
           <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
             {album.name}
           </h1>
@@ -181,40 +194,39 @@ export function AlbumPageClient({
             {totalDuration ? ` · ${totalDuration}` : ""}
           </p>
 
-          {/* Community stats */}
-          <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm sm:justify-start">
+          {/* Community stats — matches mobile StatRow */}
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm sm:justify-start">
             {engagementStats.avg_rating != null && (
-              <span>
-                <span className="text-amber-400">★ {engagementStats.avg_rating.toFixed(1)}</span>
-                <span className="ml-1 text-zinc-500">avg</span>
-              </span>
+              <span className="text-amber-400 font-medium">★ {engagementStats.avg_rating.toFixed(1)} <span className="text-zinc-500 font-normal">avg</span></span>
             )}
             {engagementStats.listen_count > 0 && (
-              <span>
-                <span className="font-semibold text-white">{engagementStats.listen_count.toLocaleString()}</span>{" "}
-                <span className="text-zinc-400">plays</span>
-              </span>
+              <span><span className="font-semibold text-white">{engagementStats.listen_count.toLocaleString()}</span> <span className="text-zinc-400">plays</span></span>
             )}
             {engagementStats.favorite_count > 0 && (
               <button type="button" onClick={() => setFavoritedByOpen(true)} className="transition hover:text-zinc-300">
-                <span className="font-semibold text-white">{engagementStats.favorite_count.toLocaleString()}</span>{" "}
-                <span className="text-zinc-400 underline-offset-2 hover:underline">favorited</span>
+                <span className="font-semibold text-white">{engagementStats.favorite_count.toLocaleString()}</span> <span className="text-zinc-400 underline-offset-2 hover:underline">favorited</span>
               </button>
+            )}
+            {stats.review_count > 0 && (
+              <span><span className="font-semibold text-white">{stats.review_count.toLocaleString()}</span> <span className="text-zinc-400">{stats.review_count === 1 ? "review" : "reviews"}</span></span>
             )}
           </div>
 
-          {/* Rating distribution */}
+          {/* Rating distribution — 5 whole-star buckets, matching mobile */}
           {stats.rating_distribution && stats.review_count > 0 && (
-            <div className="mt-3 flex items-end gap-0.5">
-              {HALF_STAR_RATINGS.map((star) => {
-                const count = stats.rating_distribution![String(star)] ?? 0;
-                const max = Math.max(...Object.values(stats.rating_distribution!));
+            <div className="mt-3 flex items-end gap-1">
+              {[1, 2, 3, 4, 5].map((star) => {
+                const dist = stats.rating_distribution!;
+                // Sum the half-step and whole-step for each star bucket
+                const count = (dist[String(star - 0.5)] ?? 0) + (dist[String(star)] ?? 0);
+                const max = Math.max(
+                  ...[1,2,3,4,5].map(s => (dist[String(s - 0.5)] ?? 0) + (dist[String(s)] ?? 0)),
+                );
                 return (
-                  <div key={star} className="flex min-w-[1.1rem] flex-1 flex-col items-center gap-0.5">
-                    <div className="w-full rounded-t bg-amber-500/35"
-                      style={{ height: `${Math.max(max > 0 ? (count / max) * 28 : 0, 2)}px` }}
-                      title={`${star}★: ${count}`} />
-                    <span className="text-[8px] text-zinc-600">{star}</span>
+                  <div key={star} className="flex flex-1 flex-col items-center gap-0.5">
+                    <div className="w-full rounded-sm bg-amber-500/40"
+                      style={{ height: `${Math.max(max > 0 ? (count / max) * 28 : 0, 2)}px` }} />
+                    <span className="text-[9px] text-zinc-600">{star}</span>
                   </div>
                 );
               })}
@@ -245,25 +257,28 @@ export function AlbumPageClient({
         {/* Tracks */}
         <div className={`mt-6 space-y-8 ${activeTab !== "tracks" ? "hidden" : ""}`}>
           {tracks.items?.length ? (
-            <div className="space-y-0.5">
+            <div>
               {tracks.items.map((t, i) => {
                 const s = trackStats[t.id] ?? emptyTrackStat;
+                const href = `/song/${t.id}`;
                 return (
-                  <div key={t.id} className="group flex flex-col rounded-xl px-2 py-1.5 transition hover:bg-zinc-900/50">
-                    <div className="flex items-center gap-2 sm:gap-3">
+                  <div key={t.id} className="group border-b border-zinc-800/50 py-2 last:border-b-0">
+                    <div className="flex items-center gap-2">
                       <span className="w-6 shrink-0 text-right text-xs text-zinc-600 tabular-nums">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <TrackCard track={t} showAlbum={false} songPageLink showThumbnail={false} />
-                      </div>
+                      <a href={href} className="min-w-0 flex-1 truncate text-sm font-medium text-white hover:text-emerald-400 transition-colors">
+                        {t.name}
+                      </a>
                       <span className="shrink-0 text-xs tabular-nums text-zinc-600">{formatDuration(t.duration_ms) ?? "—"}</span>
                       {session && viewerTrackRatings !== undefined && (
-                        <TrackRating
-                          trackId={t.id}
-                          initialRating={viewerTrackRatings.get(t.id) ?? null}
-                        />
+                        <span className="hidden sm:block">
+                          <TrackRating
+                            trackId={t.id}
+                            initialRating={viewerTrackRatings.get(t.id) ?? null}
+                          />
+                        </span>
                       )}
                     </div>
-                    <div className="flex min-h-[1.1rem] items-center pl-8 sm:pl-9">
+                    <div className="flex min-h-[1.1rem] items-center pl-8">
                       {trackStatsLoading
                         ? <span className="inline-block h-2.5 w-24 animate-pulse rounded bg-zinc-800/60" />
                         : <TrackStatsLine {...s} />}
@@ -334,5 +349,6 @@ export function AlbumPageClient({
         )}
       </div>
     </div>
+    </>
   );
 }

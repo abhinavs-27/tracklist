@@ -88,7 +88,9 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
     pathname === "/browse" ||
     pathname === "/search" ||
     pathname === "/search/users" ||
-    pathname.startsWith("/artist/");
+    pathname.startsWith("/artist/") ||
+    pathname.startsWith("/album/") ||
+    pathname.startsWith("/song/");
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-zinc-950/90 shadow-[inset_0_-1px_0_0_rgb(255_255_255/0.04)] backdrop-blur-xl backdrop-saturate-150">

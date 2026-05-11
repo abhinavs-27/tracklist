@@ -9,6 +9,7 @@ import { likesRouter } from "./likes";
 import { searchRouter } from "./search";
 import { albumsRouter } from "./albums";
 import { artistsRouter } from "./artists";
+import { songsRouter } from "./songs";
 import { spotifyDataRouter } from "./spotify";
 import { authCompatRouter } from "./authCompat";
 import { usersRouter } from "./users";
@@ -43,6 +44,7 @@ export function createApiRouter(): Router {
   api.use("/search", searchRouter);
   api.use("/albums", albumsRouter);
   api.use("/artists", artistsRouter);
+  api.use("/songs", songsRouter);
   api.use("/spotify", spotifyDataRouter);
   api.use("/auth", authCompatRouter);
   api.use("/follow", followRouter);

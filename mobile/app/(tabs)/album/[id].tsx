@@ -1,33 +1,36 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import { formatRelativeTime } from "@/lib/time";
 import { theme } from "@/lib/theme";
-import { useAlbum } from "@/lib/hooks/useAlbum";
+import { useAlbum, useMyAlbumReview } from "@/lib/hooks/useAlbum";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useAlbumLeaderboard } from "@/lib/hooks/useFriendLeaderboard";
+import { useAlbumLeaderboard, useAlbumFriendActivity, type FriendActivityItem } from "@/lib/hooks/useFriendLeaderboard";
 import { FriendLeaderboard } from "@/components/social/FriendLeaderboard";
 import { AlbumHeader } from "@/components/media/AlbumHeader";
 import { StatRow } from "@/components/media/StatRow";
 import { Tracklist } from "@/components/media/Tracklist";
 import { ReviewList } from "@/components/reviews/ReviewList";
+import { RatingSection } from "@/components/reviews/RatingSection";
 
-// Half-star rating steps — mirrors web's HALF_STAR_RATINGS
-const HALF_STAR_STEPS = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
-const CHART_MAX_H = 28; // px, matches web's 28px max bar height
+const CHART_STEPS = [1, 2, 3, 4, 5];
+const CHART_MAX_H = 28;
 
 function RatingChart({ distribution }: { distribution: Record<string, number> }) {
-  const counts = HALF_STAR_STEPS.map((s) => distribution[String(s)] ?? 0);
+  const counts = CHART_STEPS.map((s) => (distribution[String(s - 0.5)] ?? 0) + (distribution[String(s)] ?? 0));
   const max = Math.max(...counts, 1);
   return (
     <View style={chart.wrap}>
-      {HALF_STAR_STEPS.map((step, i) => {
-        const h = Math.max(max > 0 ? Math.round((counts[i] / max) * CHART_MAX_H) : 0, 2);
+      {CHART_STEPS.map((step, i) => {
+        const h = Math.max(Math.round((counts[i] / max) * CHART_MAX_H), 2);
         return (
           <View key={step} style={chart.col}>
             <View style={[chart.bar, { height: h }]} />
-            <Text style={chart.label}>{step % 1 === 0 ? String(step) : ""}</Text>
+            <Text style={chart.label}>{step}</Text>
           </View>
         );
       })}
@@ -75,7 +78,14 @@ export default function AlbumDetailScreen() {
   }, [id]);
 
   const { album, tracks, stats, reviews, isLoading, error } = useAlbum(albumId);
+  const { data: myReview } = useMyAlbumReview(albumId);
   const { data: leaderboard = [] } = useAlbumLeaderboard(albumId, loggedIn);
+  const queryClient = useQueryClient();
+
+  const invalidateAlbum = () => {
+    queryClient.invalidateQueries({ queryKey: ["my-album-review", albumId] });
+  };
+  const { data: friendActivity = [] } = useAlbumFriendActivity(albumId, loggedIn);
 
   if (isLoading) {
     return (
@@ -128,6 +138,7 @@ export default function AlbumDetailScreen() {
           onPressArtist={(aid) => router.push(`/artist/${aid}` as const)}
           trackCount={tracks.length || undefined}
           totalDurationMs={totalDurationMs || undefined}
+          showLabel={false}
         />
 
         <StatRow
@@ -137,9 +148,18 @@ export default function AlbumDetailScreen() {
           reviewCount={stats.review_count}
         />
 
-        {/* Rating distribution chart — mirrors web bar chart */}
+        {/* Rating distribution chart */}
         {stats.rating_distribution && stats.review_count > 0 && (
           <RatingChart distribution={stats.rating_distribution} />
+        )}
+
+        {/* Your rating strip — shown outside Reviews tab for quick glance */}
+        {myReview && activeTab !== "reviews" && (
+          <View style={s.yourRating}>
+            <Text style={s.yourRatingText}>
+              Your rating: <Text style={s.yourRatingStars}>{"★".repeat(Math.floor(myReview.rating))}{myReview.rating % 1 !== 0 ? "½" : ""}</Text>
+            </Text>
+          </View>
         )}
 
         {/* Tab bar — inside scroll, below hero (same as web) */}
@@ -157,20 +177,58 @@ export default function AlbumDetailScreen() {
         {/* Tab content */}
         {activeTab === "tracks" && (
           <Tracklist
-            tracks={tracks.map((t) => ({ ...t, artist: album.artist }))}
+            tracks={tracks.map((t) => ({ ...t, artist: null }))}
             onPressTrack={(tid) => router.push(`/song/${tid}` as const)}
           />
         )}
 
         {activeTab === "reviews" && (
-          <ReviewList
-            reviews={reviews}
-            onViewAllPress={() => router.push(`/reviews/album/${album.id}` as const)}
-          />
+          <View style={s.reviewsTab}>
+            {loggedIn && album.id && (
+              <RatingSection
+                albumId={album.id}
+                reviewId={myReview?.id}
+                myReview={myReview ?? null}
+                onReviewChange={invalidateAlbum}
+              />
+            )}
+            <ReviewList
+              reviews={reviews}
+              averageRating={stats.average_rating}
+              reviewCount={stats.review_count}
+              onViewAllPress={() => router.push(`/reviews/album/${album.id}` as const)}
+            />
+          </View>
         )}
 
         {activeTab === "social" && loggedIn && (
-          <FriendLeaderboard entries={leaderboard} />
+          <View style={s.socialContent}>
+            <FriendLeaderboard entries={leaderboard} />
+            <View style={s.socialSection}>
+              <Text style={s.sectionTitle}>Recently listened</Text>
+              {friendActivity.length > 0 ? (
+                friendActivity.map((l: FriendActivityItem) => (
+                  <View key={`${l.user_id}-${l.listened_at}`} style={s.activityRow}>
+                    {l.avatar_url
+                      ? <Image source={{ uri: l.avatar_url }} style={s.activityAvatar} contentFit="cover" />
+                      : <View style={[s.activityAvatar, s.activityAvatarFallback]}>
+                          <Text style={s.activityAvatarLetter}>{l.username[0]?.toUpperCase()}</Text>
+                        </View>}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.activityText} numberOfLines={1}>
+                        <Text style={s.activityUsername}>{l.username}</Text>
+                        <Text style={s.activityMuted}> listened</Text>
+                        {l.rating != null && <Text style={s.activityRating}>  {"★".repeat(Math.floor(l.rating))}{l.rating % 1 !== 0 ? "½" : ""}</Text>}
+                      </Text>
+                      <Text style={s.activityTime}>{formatRelativeTime(l.listened_at)}</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={s.activityEmpty}>No friends have listened recently.</Text>
+              )}
+            </View>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -199,7 +257,7 @@ const s = StyleSheet.create({
   },
   scroll: {
     padding: 16,
-    gap: 16,
+    gap: 20,
     paddingBottom: 100,
   },
   tabBar: {
@@ -231,4 +289,50 @@ const s = StyleSheet.create({
     borderRadius: 1,
     backgroundColor: theme.colors.emerald,
   },
+  reviewsTab: { gap: 16 },
+  yourRating: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    backgroundColor: "rgba(24,24,27,0.6)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  yourRatingText: {
+    fontSize: 14,
+    color: "#a1a1aa",
+  },
+  yourRatingStars: {
+    color: "#fbbf24",
+    fontWeight: "600",
+  },
+  yourRatingReview: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#d4d4d8",
+    fontStyle: "italic",
+  },
+  socialContent: { gap: 24 },
+  socialSection: { gap: 10 },
+  sectionTitle: { fontSize: 17, fontWeight: "700", color: theme.colors.text, marginBottom: 4 },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    backgroundColor: "rgba(24,24,27,0.4)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  activityAvatar: { width: 28, height: 28, borderRadius: 14, overflow: "hidden" },
+  activityAvatarFallback: { backgroundColor: theme.colors.active, alignItems: "center", justifyContent: "center" },
+  activityAvatarLetter: { fontSize: 10, fontWeight: "700", color: theme.colors.muted },
+  activityText: { fontSize: 13 },
+  activityUsername: { fontWeight: "700", color: theme.colors.text },
+  activityMuted: { color: theme.colors.muted },
+  activityRating: { color: "#fbbf24" },
+  activityTime: { fontSize: 12, color: theme.colors.muted, marginTop: 1 },
+  activityEmpty: { fontSize: 13, color: theme.colors.muted, textAlign: "center", paddingVertical: 16 },
 });

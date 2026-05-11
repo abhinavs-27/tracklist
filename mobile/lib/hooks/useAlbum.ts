@@ -32,9 +32,12 @@ export type AlbumStats = {
 
 export type ReviewItem = {
   id: string;
+  user_id?: string;
   username: string | null;
   rating: number;
   review_text: string | null;
+  created_at?: string;
+  avatar_url?: string | null;
 };
 
 type AlbumApiResponse = {
@@ -76,5 +79,20 @@ export function useAlbum(albumId: string) {
   const reviews = data?.reviews?.items ?? [];
 
   return { album, tracks, stats, reviews, isLoading, error };
+}
+
+type MyReviewResponse = {
+  my_review: { id: string; rating: number; review_text: string | null } | null;
+};
+
+export function useMyAlbumReview(albumId: string) {
+  return useQuery({
+    queryKey: ["my-album-review", albumId],
+    queryFn: () =>
+      fetcher<MyReviewResponse>(`/api/albums/${encodeURIComponent(albumId)}/my-review`),
+    enabled: !!albumId,
+    staleTime: 60_000,
+    select: (d) => d.my_review ?? null,
+  });
 }
 

@@ -43,3 +43,21 @@ export function useSongLeaderboard(songId: string, loggedIn: boolean) {
     !!songId && loggedIn,
   );
 }
+
+export type FriendActivityItem = {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  listened_at: string;
+  rating: number | null;
+};
+
+export function useAlbumFriendActivity(albumId: string, loggedIn: boolean) {
+  return useQuery<FriendActivityItem[]>({
+    queryKey: ["album-friend-activity", albumId],
+    queryFn: () => fetcher<FriendActivityItem[]>(`/api/albums/${encodeURIComponent(albumId)}/friend-activity`),
+    enabled: !!albumId && loggedIn,
+    staleTime: 2 * 60 * 1000,
+    retry: false,
+  });
+}

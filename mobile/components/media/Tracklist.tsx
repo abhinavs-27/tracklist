@@ -115,8 +115,7 @@ export function Tracklist({
 const styles = StyleSheet.create({
   row: {
     flexDirection: "column",
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   rowPressed: {
@@ -178,7 +177,6 @@ const styles = StyleSheet.create({
   sep: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: theme.colors.border,
-    marginVertical: 1,
   },
   empty: {
     color: theme.colors.muted,

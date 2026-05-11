@@ -9,6 +9,7 @@ type Props = {
   onPressArtist?: (artistId: string) => void;
   trackCount?: number;
   totalDurationMs?: number;
+  showLabel?: boolean;
 };
 
 function getReleaseYear(releaseDate: string | null): number | null {
@@ -26,6 +27,7 @@ function formatDuration(totalMs: number): string {
 export function AlbumHeader({
   artworkUrl, title, artist, releaseDate,
   artistId, onPressArtist, trackCount, totalDurationMs,
+  showLabel = true,
 }: Props) {
   const parts: string[] = [];
   const year = getReleaseYear(releaseDate);
@@ -35,7 +37,7 @@ export function AlbumHeader({
 
   return (
     <MediaHeader
-      label="Album"
+      label={showLabel ? "Album" : undefined}
       artworkUrl={artworkUrl}
       title={title}
       subtitle={artist}

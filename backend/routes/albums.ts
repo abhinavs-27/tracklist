@@ -148,9 +148,13 @@ albumsRouter.get("/:id", async (req, res) => {
     const reviews =
       reviewsResult?.reviews?.map((r) => ({
         id: r.id,
+        user_id: r.user_id,
         username: r.username ?? null,
+        avatar_url: r.user?.avatar_url ?? null,
         rating: r.rating,
         review_text: r.review_text ?? null,
+        created_at: r.created_at,
+        like_count: 0,
       })) ?? [];
     const review_count = reviewsResult?.count ?? engagement.review_count;
 
@@ -191,6 +195,91 @@ albumsRouter.get("/:id", async (req, res) => {
 
     albumCache.set(rawId, { data: payload, expiresAt: Date.now() + ALBUM_TTL_MS });
     return ok(res, payload);
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
+/** GET /api/albums/:id/friend-activity — friends who recently listened (last 30 days). */
+albumsRouter.get("/:id/friend-activity", async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    if (!isValidSpotifyId(rawId) && !isValidUuid(rawId)) return ok(res, []);
+    if (!isSupabaseConfigured()) return ok(res, []);
+    const viewerId = await getSessionUserId(req).catch(() => null);
+    if (!viewerId) return ok(res, []);
+
+    const supabase = getSupabase();
+    const canonicalId = isValidUuid(rawId)
+      ? rawId
+      : await resolveCanonicalAlbumUuidFromEntityId(supabase, rawId);
+    if (!canonicalId) return ok(res, []);
+
+    const { data: trackRows } = await supabase.from("tracks").select("id").eq("album_id", canonicalId).limit(1000);
+    const trackIds = (trackRows ?? []).map((t) => t.id);
+    if (!trackIds.length) return ok(res, []);
+
+    const { data: followRows } = await supabase.from("follows").select("following_id").eq("follower_id", viewerId).limit(500);
+    const followingIds = (followRows ?? []).map((f) => f.following_id);
+    if (!followingIds.length) return ok(res, []);
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: logs } = await supabase
+      .from("logs").select("user_id, listened_at")
+      .in("track_id", trackIds).in("user_id", followingIds)
+      .gte("listened_at", thirtyDaysAgo).order("listened_at", { ascending: false }).limit(100);
+    if (!logs?.length) return ok(res, []);
+
+    const seen = new Set<string>();
+    const onePerUser = (logs as { user_id: string; listened_at: string }[])
+      .filter(l => { if (seen.has(l.user_id)) return false; seen.add(l.user_id); return true; })
+      .slice(0, 10);
+
+    const userIds = onePerUser.map(l => l.user_id);
+    const [usersRes, reviewsRes] = await Promise.all([
+      supabase.from("users").select("id, username, avatar_url").in("id", userIds),
+      supabase.from("reviews").select("user_id, rating").eq("entity_type", "album").eq("entity_id", canonicalId).in("user_id", userIds),
+    ]);
+    const userMap = new Map(((usersRes.data ?? []) as { id: string; username: string; avatar_url: string | null }[]).map(u => [u.id, u]));
+    const ratingMap = new Map(((reviewsRes.data ?? []) as { user_id: string; rating: number }[]).map(r => [r.user_id, r.rating]));
+
+    const rows = onePerUser.map(l => {
+      const user = userMap.get(l.user_id);
+      if (!user) return null;
+      return { user_id: l.user_id, username: user.username, avatar_url: user.avatar_url ?? null, listened_at: l.listened_at, rating: ratingMap.get(l.user_id) ?? null };
+    }).filter(Boolean);
+
+    return ok(res, rows);
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
+/** GET /api/albums/:id/my-review — the logged-in viewer's own review (if any). */
+albumsRouter.get("/:id/my-review", async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    if (!isValidSpotifyId(rawId) && !isValidUuid(rawId)) return ok(res, { my_review: null });
+    if (!isSupabaseConfigured()) return ok(res, { my_review: null });
+
+    const viewerId = await getSessionUserId(req).catch(() => null);
+    if (!viewerId) return ok(res, { my_review: null });
+
+    const supabase = getSupabase();
+    const canonicalId = rawId && isValidUuid(rawId)
+      ? rawId
+      : await resolveCanonicalAlbumUuidFromEntityId(supabase, rawId);
+    if (!canonicalId) return ok(res, { my_review: null });
+
+    const { data: row } = await supabase
+      .from("reviews")
+      .select("id, rating, review_text")
+      .eq("entity_type", "album")
+      .eq("entity_id", canonicalId)
+      .eq("user_id", viewerId)
+      .maybeSingle();
+
+    return ok(res, { my_review: row ? { id: row.id, rating: row.rating, review_text: row.review_text ?? null } : null });
   } catch (e) {
     return internalError(res, e);
   }

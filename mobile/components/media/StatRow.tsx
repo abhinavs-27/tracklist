@@ -6,9 +6,10 @@ type Props = {
   totalPlays: number;
   favoriteCount: number;
   reviewCount: number;
+  centered?: boolean;
 };
 
-export function StatRow({ averageRating, totalPlays, favoriteCount, reviewCount }: Props) {
+export function StatRow({ averageRating, totalPlays, favoriteCount, reviewCount, centered }: Props) {
   const showAny =
     averageRating != null ||
     totalPlays > 0 ||
@@ -20,7 +21,7 @@ export function StatRow({ averageRating, totalPlays, favoriteCount, reviewCount 
   }
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, centered && styles.centered]}>
       {averageRating != null && (
         <Text style={styles.amber}>
           ★ {averageRating.toFixed(1)}{" "}
@@ -56,6 +57,9 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: "center",
     paddingVertical: 2,
+  },
+  centered: {
+    justifyContent: "center",
   },
   empty: {
     color: theme.colors.muted,

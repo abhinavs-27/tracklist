@@ -664,6 +664,13 @@ export async function getEntityStats(
             rating_distribution: unknown;
           },
         );
+        // Stale all-zeros distribution despite having reviews — recompute live
+        if (result.review_count > 0) {
+          const distSum = Object.values(result.rating_distribution ?? {}).reduce((a, b) => a + b, 0);
+          if (distSum === 0) {
+            result = await getEntityStatsLive(entityType, canonicalId);
+          }
+        }
       }
       if (!error && !row) {
         console.warn("[queries] getEntityStats cache miss (album):", entityId);

@@ -10,6 +10,8 @@ interface TrackCardProps {
   songPageLink?: boolean;
   /** When false, hide the album-art thumbnail (e.g. on album page where cover is already shown) */
   showThumbnail?: boolean;
+  /** When false, hide the artist line (e.g. on album page where artist is already known) */
+  showArtist?: boolean;
   /** Plays + optional rating line (artist popular tracks). */
   engagement?: {
     playCount: number;
@@ -24,6 +26,7 @@ function TrackCardInner({
   noLink = false,
   songPageLink = false,
   showThumbnail = true,
+  showArtist = true,
   engagement,
 }: TrackCardProps) {
   const artistNames = track.artists?.map((a) => a.name).join(', ') ?? '';
@@ -49,7 +52,7 @@ function TrackCardInner({
         <p className="truncate text-sm font-medium text-white group-hover:text-emerald-400 sm:text-base">
           {track.name}
         </p>
-        <p className="truncate text-xs text-zinc-500 sm:text-sm">{artistNames}</p>
+        {showArtist && <p className="truncate text-xs text-zinc-500 sm:text-sm">{artistNames}</p>}
         {engagement ? (
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-zinc-400">
             <span>{engagement.playCount.toLocaleString()} plays</span>

@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   artWrap: {
-    width: 200,
-    height: 200,
+    width: 224,
+    height: 224,
     borderRadius: 16,
     overflow: "hidden",
     backgroundColor: theme.colors.border,
