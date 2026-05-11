@@ -61,11 +61,22 @@ export async function GET(request: NextRequest) {
         const isOwnProfile = !!viewer && viewer.id === userId;
 
         const admin = createSupabaseAdminClient();
-        const { data: privacyRow } = await admin
-          .from("users")
-          .select("logs_private")
-          .eq("id", userId)
-          .maybeSingle();
+        const [privacyRes, albumsResult, tracksResult] = await Promise.all([
+          admin
+            .from("users")
+            .select("logs_private")
+            .eq("id", userId)
+            .maybeSingle(),
+          getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust),
+          isOwnProfile
+            ? getCachedRecentTracksFromLogs(userId, tracksLimit, 0, {
+                bust,
+                trySpotifySync: true,
+              })
+            : Promise.resolve({ items: [] as RecentTrackRow[], hasMore: false }),
+        ]);
+
+        const privacyRow = privacyRes.data;
         const logsPrivate = Boolean(
           (privacyRow as { logs_private?: boolean } | null)?.logs_private,
         );
@@ -75,17 +86,10 @@ export async function GET(request: NextRequest) {
           logsPrivate,
         );
 
-        const [albums, tracksBlock] = await Promise.all([
-          canSeeLogDerived
-            ? getCachedRecentAlbumsFromLogs(userId, albumsLimit, bust)
-            : Promise.resolve([] as RecentAlbumItem[]),
-          isOwnProfile
-            ? getCachedRecentTracksFromLogs(userId, tracksLimit, 0, {
-                bust,
-                trySpotifySync: true,
-              })
-            : Promise.resolve({ items: [] as RecentTrackRow[], hasMore: false }),
-        ]);
+        const albums = canSeeLogDerived ? albumsResult : [];
+        const tracksBlock = isOwnProfile
+          ? tracksResult
+          : { items: [] as RecentTrackRow[], hasMore: false };
 
         const payload: ProfileSummaryResponse = {
           user_id: userId,

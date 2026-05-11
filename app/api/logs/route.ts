@@ -59,50 +59,35 @@ export const POST = withHandler(
     const note = sanitizeString(b.note, LIMITS.COMMENT_CONTENT);
 
     const supabase = await createSupabaseServerClient();
-    const trackIdRes = await resolveAndCheckPending(supabase, trackRaw, 'track');
+
+    const [trackIdRes, albumRes, artistRes] = await Promise.all([
+      resolveAndCheckPending(supabase, trackRaw, "track"),
+      b.album_id ? resolveAndCheckPending(supabase, b.album_id, "album") : Promise.resolve(null),
+      b.artist_id ? resolveAndCheckPending(supabase, b.artist_id, "artist") : Promise.resolve(null),
+    ]);
+
     if (!trackIdRes) {
-      return apiBadRequest('Invalid or unknown track_id / spotify_id');
+      return apiBadRequest("Invalid or unknown track_id / spotify_id");
     }
-    if (trackIdRes.kind === 'pending') {
-      return apiServiceUnavailable(
-        'Catalog is syncing this track from Spotify. Retry in a few seconds.',
-        {
-          code: 'catalog_pending',
-          metadata_complete: false,
-          spotify_id: trackIdRes.spotifyId,
-          entity: trackIdRes.entity,
-        }
-      );
-    }
-    const trackId = trackIdRes.id;
 
-    const albumRes = await resolveAndCheckPending(supabase, b.album_id, 'album');
-    if (albumRes?.kind === 'pending') {
+    const pending = [trackIdRes, albumRes, artistRes].find(
+      (r) => r?.kind === "pending",
+    );
+    if (pending && pending.kind === "pending") {
       return apiServiceUnavailable(
-        'Catalog is syncing this album from Spotify. Retry in a few seconds.',
+        `Catalog is syncing this ${pending.entity} from Spotify. Retry in a few seconds.`,
         {
-          code: 'catalog_pending',
+          code: "catalog_pending",
           metadata_complete: false,
-          spotify_id: albumRes.spotifyId,
-          entity: albumRes.entity,
-        }
+          spotify_id: pending.spotifyId,
+          entity: pending.entity,
+        },
       );
     }
-    const albumId = albumRes?.kind === 'resolved' ? albumRes.id : null;
 
-    const artistRes = await resolveAndCheckPending(supabase, b.artist_id, 'artist');
-    if (artistRes?.kind === 'pending') {
-      return apiServiceUnavailable(
-        'Catalog is syncing this artist from Spotify. Retry in a few seconds.',
-        {
-          code: 'catalog_pending',
-          metadata_complete: false,
-          spotify_id: artistRes.spotifyId,
-          entity: artistRes.entity,
-        }
-      );
-    }
-    const artistId = artistRes?.kind === 'resolved' ? artistRes.id : null;
+    const trackId = (trackIdRes as Extract<typeof trackIdRes, { kind: "resolved" }>).id;
+    const albumId = albumRes?.kind === "resolved" ? albumRes.id : null;
+    const artistId = artistRes?.kind === "resolved" ? artistRes.id : null;
 
     const { data, error } = await supabase
       .from('logs')
@@ -121,28 +106,30 @@ export const POST = withHandler(
       .single();
 
     if (error) {
-      console.error('Log create error:', error);
+      console.error("Log create error:", error);
       return apiInternalError(error);
     }
-    await grantAchievementsOnListen(me!.id);
-    await syncManualLogSideEffects(me!.id, trackId, listenedAt);
-    try {
-      const { fanOutListenForUserCommunities } = await import(
-        "@/lib/community/community-feed-insert"
-      );
-      await fanOutListenForUserCommunities({
-        userId: me!.id,
-        logId: data.id as string,
-        listenedAt: listenedAt,
-        source,
-        trackId,
-        albumId: albumId,
-        artistId: artistId,
-        title: null,
-      });
-    } catch (e) {
-      console.warn("[logs] community_feed fan-out", e);
-    }
+
+    await Promise.all([
+      grantAchievementsOnListen(me!.id),
+      syncManualLogSideEffects(me!.id, trackId, listenedAt),
+      import("@/lib/community/community-feed-insert")
+        .then(({ fanOutListenForUserCommunities }) =>
+          fanOutListenForUserCommunities({
+            userId: me!.id,
+            logId: data.id as string,
+            listenedAt: listenedAt,
+            source,
+            trackId,
+            albumId: albumId,
+            artistId: artistId,
+            title: null,
+          }),
+        )
+        .catch((e) => {
+          console.warn("[logs] community_feed fan-out", e);
+        }),
+    ]);
     console.log("[logs] manual-log-created", {
       userId: me!.id,
       trackId,
