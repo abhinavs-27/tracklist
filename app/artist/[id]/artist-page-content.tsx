@@ -70,6 +70,14 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
       : null;
 
   return (
+    <>
+    {/* Mobile fixed header — artist name, covers layout nav on mobile */}
+    <header className="fixed left-0 right-0 top-0 z-[60] border-b border-white/[0.06] bg-zinc-950/95 px-4 pb-3 pt-4 backdrop-blur-xl sm:px-6 md:hidden">
+      <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Artist</p>
+      <h1 className="mt-0.5 text-xl font-bold tracking-tight text-white">{artist.name}</h1>
+    </header>
+    <div className="h-[4.5rem] md:hidden" />
+
     <div className="space-y-8">
       {session && heroTrack ? (
         <RecordRecentView
@@ -230,7 +238,8 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
                       totalPlays: a.listen_count,
                     }),
                   )}
-                  columns={4}
+                  columns={3}
+                  showArtist={false}
                 />
               </section>
             )}
@@ -307,5 +316,6 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
         }
       />
     </div>
+    </>
   );
 }

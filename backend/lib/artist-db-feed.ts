@@ -35,19 +35,18 @@ export async function fetchArtistAlbumsFromDb(
       await resolveCanonicalArtistUuidFromEntityId(supabase, artistId);
     if (!canonicalArtistId) return [];
 
-    // Step 1: get albums for this artist — ordered newest-first to match web
+    // Step 1: fetch all albums for this artist (large pool), then rank by plays — mirrors web's getPopularAlbumsForArtist
     const { data: albumRows } = await supabase
       .from("albums")
       .select("id, name, image_url")
       .eq("artist_id", canonicalArtistId)
-      .order("release_date", { ascending: false, nullsFirst: false })
-      .limit(limit);
+      .limit(500);
 
     if (!albumRows?.length) return [];
 
     const albumIds = albumRows.map((a) => a.id as string);
 
-    // Step 2: get stats for those albums
+    // Step 2: get stats for all albums
     const { data: statsRows } = await supabase
       .from("album_stats")
       .select("album_id, listen_count, avg_rating")
@@ -58,12 +57,14 @@ export async function fetchArtistAlbumsFromDb(
         .map((s) => [s.album_id, s]),
     );
 
-    // Sort by listen_count descending
-    const sorted = [...albumRows].sort((a, b) => {
-      const cA = statsMap.get(a.id)?.listen_count ?? 0;
-      const cB = statsMap.get(b.id)?.listen_count ?? 0;
-      return cB - cA;
-    });
+    // Sort by listen_count descending, then limit to requested count
+    const sorted = [...albumRows]
+      .sort((a, b) => {
+        const cA = statsMap.get(a.id)?.listen_count ?? 0;
+        const cB = statsMap.get(b.id)?.listen_count ?? 0;
+        return cB - cA;
+      })
+      .slice(0, limit);
 
     return sorted.map((a) => {
       const stats = statsMap.get(a.id);

@@ -50,6 +50,13 @@ export default function TabsLayout() {
             <Ionicons name={focused ? "search" : "search-outline"} size={24} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            // Always navigate to the root of the search stack (index.tsx)
+            navigation.navigate("search", { screen: "index" });
+          },
+        })}
       />
       <Tabs.Screen
         name="communities"
@@ -75,6 +82,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="discover" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="artist/[id]" options={{ href: null }} />
+      <Tabs.Screen name="artist/[id]/index" options={{ href: null }} />
+      <Tabs.Screen name="artist/[id]/albums" options={{ href: null }} />
       <Tabs.Screen name="song/[id]" options={{ href: null }} />
       <Tabs.Screen name="album/[id]" options={{ href: null }} />
       <Tabs.Screen name="list/[id]" options={{ href: null }} />

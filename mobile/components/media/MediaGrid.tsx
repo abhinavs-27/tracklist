@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useCallback } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { theme } from "@/lib/theme";
 
 export type MediaItem = {
@@ -18,14 +18,19 @@ type Props = {
   numColumns?: number;
   onPressItem?: (item: MediaItem) => void;
   scrollEnabled?: boolean;
+  showArtist?: boolean;
 };
 
 const GAP = 8;
+const HORIZONTAL_PAD = 32; // 16px on each side from parent container
 
-export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = true }: Props) {
+export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = true, showArtist = true }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
+  const tileWidth = (screenWidth - HORIZONTAL_PAD - GAP * (numColumns - 1)) / numColumns;
+
   const renderItem = useCallback(
     ({ item }: { item: MediaItem }) => (
-      <TouchableOpacity style={styles.tile} activeOpacity={0.8} onPress={() => onPressItem?.(item)}>
+      <TouchableOpacity style={[styles.tile, { width: tileWidth }]} activeOpacity={0.8} onPress={() => onPressItem?.(item)}>
         <View style={styles.artWrap}>
           {item.artworkUrl ? (
             <Image source={{ uri: item.artworkUrl }} style={styles.art} contentFit="cover" />
@@ -42,7 +47,7 @@ export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = t
         </View>
         <View style={styles.meta}>
           <Text numberOfLines={1} style={styles.title}>{item.title}</Text>
-          <Text numberOfLines={1} style={styles.artist}>{item.artist}</Text>
+          {showArtist && <Text numberOfLines={1} style={styles.artist}>{item.artist}</Text>}
           {(item.avgRating != null || item.totalPlays != null) && (
             <View style={styles.statsRow}>
               {item.avgRating != null && (
@@ -56,7 +61,7 @@ export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = t
         </View>
       </TouchableOpacity>
     ),
-    [onPressItem],
+    [onPressItem, tileWidth, showArtist],
   );
 
   return (
@@ -79,21 +84,28 @@ export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = t
 const styles = StyleSheet.create({
   row: {
     gap: GAP,
+    justifyContent: "flex-start",
   },
   scrollPad: {
     padding: 16,
   },
   tile: {
-    flex: 1,
+    borderRadius: 16,
+    backgroundColor: "rgba(24,24,27,0.58)",
+    borderWidth: 1,
+    borderColor: "rgba(39,39,42,0.75)",
+    padding: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.42,
+    shadowRadius: 11,
   },
   artWrap: {
     width: "100%",
     aspectRatio: 1,
     overflow: "hidden",
-    borderRadius: 10,
+    borderRadius: 6,
     backgroundColor: theme.colors.border,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.06)",
   },
   art: {
     width: "100%",
@@ -123,7 +135,6 @@ const styles = StyleSheet.create({
   },
   meta: {
     marginTop: 7,
-    paddingHorizontal: 1,
   },
   title: {
     fontSize: 12,

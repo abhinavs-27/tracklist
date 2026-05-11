@@ -23,21 +23,24 @@ type MediaGridProps = {
   /** Optional override for grid columns (default: responsive 2/4/6). */
   columns?: number;
   /**
-   * Profile favorite albums (max 4): avoid lg/xl 5–6 column grids that leave empty “slots”.
+   * Profile favorite albums (max 4): avoid lg/xl 5–6 column grids that leave empty "slots".
    * Uses 2 cols on small screens, up to 4 from md+.
    */
   layout?: "default" | "favoriteAlbums";
   /** Optional click handler; if provided, can be used instead of Link navigation. */
   onItemClick?: (item: MediaItem) => void;
+  showArtist?: boolean;
 };
 
 /** Single tile — used by MediaGrid and virtualized leaderboard grid rows. */
 export function MediaGridItem({
   item,
   onItemClick,
+  showArtist = true,
 }: {
   item: MediaItem;
   onItemClick?: (item: MediaItem) => void;
+  showArtist?: boolean;
 }) {
   const href = item.type === "album" ? `/album/${item.id}` : `/song/${item.id}`;
   const content = (
@@ -63,7 +66,7 @@ export function MediaGridItem({
       <p className="mt-2 truncate text-xs font-medium text-white sm:text-sm">
         {item.title}
       </p>
-      <p className="truncate text-[11px] text-zinc-500 sm:text-xs">{item.artist}</p>
+      {showArtist && <p className="truncate text-[11px] text-zinc-500 sm:text-xs">{item.artist}</p>}
       {(item.avgRating != null ||
         item.totalPlays != null ||
         item.favoriteCount != null) && (
@@ -114,6 +117,7 @@ export function MediaGrid({
   columns,
   layout = "default",
   onItemClick,
+  showArtist = true,
 }: MediaGridProps) {
   const gridClass =
     layout === "favoriteAlbums"
@@ -135,7 +139,7 @@ export function MediaGrid({
       role="list"
     >
       {items.map((item) => (
-        <MediaGridItem key={`${item.type}-${item.id}`} item={item} onItemClick={onItemClick} />
+        <MediaGridItem key={`${item.type}-${item.id}`} item={item} onItemClick={onItemClick} showArtist={showArtist} />
       ))}
     </ul>
   );

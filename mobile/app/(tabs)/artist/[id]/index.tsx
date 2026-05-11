@@ -19,7 +19,7 @@ import { useArtistRecentListens } from "@/lib/hooks/useArtistRecentListens";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import { formatRelativeTime } from "@/lib/time";
 
-function ArtistHero({ name, imageUrl, genres }: { name: string; imageUrl: string | null; genres: string[] }) {
+function ArtistHero({ name, imageUrl, genres, followers }: { name: string; imageUrl: string | null; genres: string[]; followers: number | null }) {
   return (
     <View style={s.hero}>
       {imageUrl && (
@@ -27,15 +27,20 @@ function ArtistHero({ name, imageUrl, genres }: { name: string; imageUrl: string
       )}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "#09090be6" }]} />
       <View style={s.heroContent}>
-        {imageUrl
-          ? <Image source={{ uri: imageUrl }} style={s.heroPhoto} contentFit="cover" />
-          : <View style={[s.heroPhoto, s.ph]}><Ionicons name="musical-notes" size={40} color={theme.colors.muted} /></View>}
+        <View style={s.heroPhotoWrap}>
+          {imageUrl
+            ? <Image source={{ uri: imageUrl }} style={s.heroPhoto} contentFit="cover" />
+            : <View style={[s.heroPhoto, s.ph]}><Ionicons name="musical-notes" size={40} color={theme.colors.muted} /></View>}
+        </View>
         <Text style={s.heroLabel}>Artist</Text>
         <Text style={s.heroName} numberOfLines={2}>{name}</Text>
         {genres.length > 0 && (
           <View style={s.pills}>
             {genres.map((g) => <View key={g} style={s.pill}><Text style={s.pillTxt}>{g}</Text></View>)}
           </View>
+        )}
+        {followers != null && followers > 0 && (
+          <Text style={s.followers}>{followers.toLocaleString()} followers on Spotify</Text>
         )}
       </View>
     </View>
@@ -190,7 +195,6 @@ export default function ArtistDetailScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<"general" | "social">("general");
   const [tracksExpanded, setTracksExpanded] = useState(false);
-  const [albumsExpanded, setAlbumsExpanded] = useState(false);
   const artistId = useMemo(() => (Array.isArray(id) ? id[0] : id) ?? "", [id]);
 
   const { artist, albums, topTracks, reviews, communityStats, isLoading, error } = useArtist(artistId);
@@ -214,7 +218,7 @@ export default function ArtistDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        <ArtistHero name={artist.name} imageUrl={artist.image_url} genres={artist.genres} />
+        <ArtistHero name={artist.name} imageUrl={artist.image_url} genres={artist.genres} followers={artist.followers ?? null} />
         {communityStats && <CommunityStats {...communityStats} />}
         {viewerStats && <ViewerStrip {...viewerStats} onAlbum={navAlbum} />}
 
@@ -249,18 +253,17 @@ export default function ArtistDetailScreen() {
               <View style={s.section}>
                 <View style={s.sectionHeader}>
                   <Text style={s.h2}>Albums</Text>
-                  {albums.length > ALBUMS_INITIAL && (
-                    <Pressable onPress={() => setAlbumsExpanded((v) => !v)}>
-                      <Text style={s.viewAllText}>
-                        {albumsExpanded ? "Show less" : "View all"}
-                      </Text>
+                  {albums.length >= ALBUMS_INITIAL && (
+                    <Pressable onPress={() => router.push(`/artist/${artistId}/albums` as const)}>
+                      <Text style={s.viewAllText}>View all</Text>
                     </Pressable>
                   )}
                 </View>
                 <MediaGrid
-                  data={albumsExpanded ? grid : grid.slice(0, ALBUMS_INITIAL)}
+                  data={grid.slice(0, ALBUMS_INITIAL)}
                   numColumns={3}
                   scrollEnabled={false}
+                  showArtist={false}
                   onPressItem={(item) => navAlbum(item.id)}
                 />
               </View>
@@ -290,9 +293,11 @@ const s = StyleSheet.create({
   navTitle: { flex: 1, fontSize: 16, fontWeight: "700", color: theme.colors.text },
   hero: { overflow: "hidden", borderRadius: 16, marginHorizontal: 16, marginTop: 4 },
   heroContent: { alignItems: "center", padding: 24, gap: 10 },
-  heroPhoto: { width: 200, height: 200, borderRadius: 16, overflow: "hidden" },
+  heroPhotoWrap: { width: 208, height: 208, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", shadowColor: "#000", shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.8, shadowRadius: 30 },
+  heroPhoto: { width: "100%", height: "100%" } as any,
   heroLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 1.5, textTransform: "uppercase", color: theme.colors.muted },
   heroName: { fontSize: 26, fontWeight: "800", color: theme.colors.text, textAlign: "center", letterSpacing: -0.5 },
+  followers: { fontSize: 13, color: theme.colors.muted, textAlign: "center" },
   pills: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6 },
   pill: { backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)" },
   pillTxt: { fontSize: 12, fontWeight: "500", color: "#d4d4d8" },
@@ -318,7 +323,7 @@ const s = StyleSheet.create({
   viewAllText: { fontSize: 13, fontWeight: "600", color: theme.colors.emerald },
   ph: { backgroundColor: theme.colors.active, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
-  trackCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.panel, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, padding: 12 },
+  trackCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.panel, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, padding: 14 },
   listenCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.panel, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, paddingHorizontal: 12, paddingVertical: 10 },
   trackName: { fontSize: 14, fontWeight: "600", color: theme.colors.text, marginBottom: 2 },
   thumb44: { width: 44, height: 44, borderRadius: 8, overflow: "hidden" },

@@ -170,6 +170,35 @@ artistsRouter.get("/:id/viewer-stats", async (req, res) => {
   }
 });
 
+/** GET /api/artists/:id/albums — full album discography */
+artistsRouter.get("/:id/albums", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || (!isValidSpotifyId(id) && !isValidUuid(id))) return badRequest(res, "Invalid artist id");
+    if (!isSupabaseConfigured()) return ok(res, { artistName: "", artistImageUrl: null, albums: [] });
+
+    const supabase = getSupabase();
+    const canonicalId = await resolveCanonicalArtistUuidFromEntityId(supabase, id);
+    if (!canonicalId) return notFound(res, "Artist not found");
+
+    const { data: artistRow } = await supabase
+      .from("artists")
+      .select("id, name, image_url")
+      .eq("id", canonicalId)
+      .maybeSingle();
+    if (!artistRow) return notFound(res, "Artist not found");
+
+    const albums = await fetchArtistAlbumsFromDb(supabase, canonicalId, artistRow.name, 500);
+    return ok(res, {
+      artistName: artistRow.name as string,
+      artistImageUrl: (artistRow.image_url as string | null) ?? null,
+      albums,
+    });
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
 /** GET /api/artists/:id/recent-listens */
 artistsRouter.get("/:id/recent-listens", async (req, res) => {
   try {

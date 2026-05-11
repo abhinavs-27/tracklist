@@ -73,7 +73,8 @@ export async function ArtistAlbumsPageContent({
               totalPlays: a.listen_count,
             }),
           )}
-          columns={4}
+          columns={3}
+          showArtist={false}
         />
       ) : (
         <p className="text-sm text-zinc-500">

@@ -156,38 +156,18 @@ function ArtistRow({ artist, onPress }: { artist: SpotifyArtist; onPress: () => 
   );
 }
 
-function AlbumRow({ album, onPress }: { album: SpotifyAlbum; onPress: () => void }) {
-  const image = album.images?.[0]?.url;
-  const artistName = album.artists?.[0]?.name ?? "";
+function MediaCard({ image, title, sub, onPress }: { image?: string; title: string; sub: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.mediaRow, pressed && { opacity: 0.8 }]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.mediaCard, pressed && { opacity: 0.8 }]}>
       {image ? (
-        <Image source={{ uri: image }} style={styles.mediaThumb} contentFit="cover" />
+        <Image source={{ uri: image }} style={styles.mediaCardArt} contentFit="cover" />
       ) : (
-        <View style={[styles.mediaThumb, styles.placeholder]} />
+        <View style={[styles.mediaCardArt, styles.placeholder]}>
+          <Ionicons name="musical-notes" size={20} color={theme.colors.muted} />
+        </View>
       )}
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={styles.mediaTitle}>{album.name}</Text>
-        <Text numberOfLines={1} style={styles.mediaSub}>{artistName}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function TrackRow({ track, onPress }: { track: SpotifyTrack; onPress: () => void }) {
-  const image = track.album?.images?.[0]?.url;
-  const artistName = track.artists?.[0]?.name ?? "";
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.mediaRow, pressed && { opacity: 0.8 }]}>
-      {image ? (
-        <Image source={{ uri: image }} style={styles.mediaThumb} contentFit="cover" />
-      ) : (
-        <View style={[styles.mediaThumb, styles.placeholder]} />
-      )}
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={styles.mediaTitle}>{track.name}</Text>
-        <Text numberOfLines={1} style={styles.mediaSub}>{artistName}</Text>
-      </View>
+      <Text numberOfLines={2} style={styles.mediaCardTitle}>{title}</Text>
+      <Text numberOfLines={1} style={styles.mediaCardSub}>{sub}</Text>
     </Pressable>
   );
 }
@@ -436,9 +416,21 @@ export default function SearchScreen() {
           {showAlbums && (
             <>
               <SectionHeader title="Albums" />
-              {albums.map((al) => (
-                <AlbumRow key={al.id} album={al} onPress={() => navAlbum(al.id)} />
-              ))}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.mediaCardRow}
+              >
+                {albums.map((al) => (
+                  <MediaCard
+                    key={al.id}
+                    image={al.images?.[0]?.url}
+                    title={al.name}
+                    sub={al.artists?.[0]?.name ?? ""}
+                    onPress={() => navAlbum(al.id)}
+                  />
+                ))}
+              </ScrollView>
             </>
           )}
 
@@ -446,9 +438,21 @@ export default function SearchScreen() {
           {showTracks && (
             <>
               <SectionHeader title="Tracks" />
-              {tracks.map((t) => (
-                <TrackRow key={t.id} track={t} onPress={() => navTrack(t.id)} />
-              ))}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.mediaCardRow}
+              >
+                {tracks.map((t) => (
+                  <MediaCard
+                    key={t.id}
+                    image={t.album?.images?.[0]?.url}
+                    title={t.name}
+                    sub={t.artists?.[0]?.name ?? ""}
+                    onPress={() => navTrack(t.id)}
+                  />
+                ))}
+              </ScrollView>
             </>
           )}
 
@@ -592,18 +596,19 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: "center",
   },
-  // Album / track rows
-  mediaRow: {
-    flexDirection: "row",
+  // Album / track horizontal cards
+  mediaCardRow: { gap: 12, paddingBottom: 4 },
+  mediaCard: { width: 120, gap: 6 },
+  mediaCardArt: {
+    width: 120,
+    height: 120,
+    borderRadius: 10,
+    backgroundColor: theme.colors.border,
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
+    justifyContent: "center",
   },
-  mediaThumb: { width: 44, height: 44, borderRadius: 6 },
-  mediaTitle: { fontSize: 14, fontWeight: "600", color: theme.colors.text },
-  mediaSub: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
+  mediaCardTitle: { fontSize: 12, fontWeight: "600", color: theme.colors.text, lineHeight: 16 },
+  mediaCardSub: { fontSize: 11, color: theme.colors.muted },
   // People rows
   peopleRow: {
     flexDirection: "row",

@@ -193,27 +193,21 @@ function ArtistsSection({
       <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
         Artists
       </h2>
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+      <div className="flex gap-4 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {artists.map((artist) => {
           const image = artist.images?.[0]?.url;
           return (
             <Link
               key={artist.id}
               href={`/artist/${artist.id}`}
-              className="group flex flex-col items-center gap-2 rounded-xl p-2 transition hover:bg-zinc-800/40"
+              className="group flex w-[72px] shrink-0 flex-col items-center gap-2"
             >
-              <div className="aspect-square w-full overflow-hidden rounded-full bg-zinc-800 shadow-md ring-1 ring-white/10">
+              <div className="h-[72px] w-[72px] overflow-hidden rounded-full bg-zinc-800 ring-1 ring-white/10 transition group-hover:ring-white/20">
                 {image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={image}
-                    alt=""
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                  />
+                  <img src={image} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-2xl text-zinc-600">
-                    ♪
-                  </div>
+                  <div className="flex h-full w-full items-center justify-center text-xl text-zinc-600">♪</div>
                 )}
               </div>
               <p className="w-full truncate text-center text-xs font-medium text-zinc-300 group-hover:text-white">
@@ -239,7 +233,7 @@ function AlbumsSection({
       <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
         Albums
       </h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      <div className="flex gap-3 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {albums.map((album) => {
           const image = album.images?.[0]?.url;
           const artistNames = album.artists?.map((a) => a.name).join(", ");
@@ -247,29 +241,19 @@ function AlbumsSection({
             <Link
               key={album.id}
               href={`/album/${album.id}`}
-              className="group flex flex-col overflow-hidden rounded-xl border border-zinc-800/60 bg-zinc-900/40 ring-1 ring-white/[0.04] transition hover:bg-zinc-800/50"
+              className="group w-[130px] shrink-0"
             >
-              <div className="aspect-square w-full overflow-hidden bg-zinc-800">
+              <div className="aspect-square w-full overflow-hidden rounded-xl bg-zinc-800 ring-1 ring-white/[0.06] transition group-hover:ring-white/[0.12]">
                 {image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={image}
-                    alt=""
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                  />
+                  <img src={image} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl text-zinc-600">
-                    ♪
-                  </div>
+                  <div className="flex h-full w-full items-center justify-center text-3xl text-zinc-600">♪</div>
                 )}
               </div>
-              <div className="p-3">
-                <p className="truncate text-sm font-medium text-white group-hover:text-emerald-400">
-                  {album.name}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-zinc-500">
-                  {artistNames}
-                </p>
+              <div className="mt-2">
+                <p className="truncate text-xs font-semibold text-white group-hover:text-emerald-400">{album.name}</p>
+                <p className="truncate text-[0.65rem] text-zinc-500">{artistNames}</p>
               </div>
             </Link>
           );
@@ -287,7 +271,7 @@ function TracksSection({ tracks }: { tracks: SpotifyApi.TrackObjectFull[] }) {
       <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
         Tracks
       </h2>
-      <div className="space-y-1.5">
+      <div className="flex gap-3 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tracks.map((track) => {
           const image = track.album?.images?.[0]?.url;
           const artistNames = track.artists?.map((a) => a.name).join(", ");
@@ -295,31 +279,20 @@ function TracksSection({ tracks }: { tracks: SpotifyApi.TrackObjectFull[] }) {
             <Link
               key={track.id}
               href={`/song/${track.id}`}
-              className="group flex items-center gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/30 px-3 py-2.5 transition hover:bg-zinc-800/50"
+              className="group w-[130px] shrink-0"
             >
-              {image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={image}
-                  alt=""
-                  className="h-10 w-10 shrink-0 rounded-md object-cover ring-1 ring-white/10"
-                />
-              ) : (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-zinc-600">
-                  ♪
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white group-hover:text-emerald-400">
-                  {track.name}
-                </p>
-                <p className="truncate text-xs text-zinc-500">{artistNames}</p>
+              <div className="aspect-square w-full overflow-hidden rounded-xl bg-zinc-800 ring-1 ring-white/[0.06] transition group-hover:ring-white/[0.12]">
+                {image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={image} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-3xl text-zinc-600">♪</div>
+                )}
               </div>
-              {track.album && (
-                <p className="hidden max-w-[8rem] shrink-0 truncate text-xs text-zinc-600 sm:block">
-                  {track.album.name}
-                </p>
-              )}
+              <div className="mt-2">
+                <p className="truncate text-xs font-semibold text-white group-hover:text-emerald-400">{track.name}</p>
+                <p className="truncate text-[0.65rem] text-zinc-500">{artistNames}</p>
+              </div>
             </Link>
           );
         })}
@@ -505,16 +478,34 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
     (activeTab === "all" || activeTab === "people") && people.length > 0;
 
   return (
-    <div className="space-y-5">
-      <SearchInput
-        ref={inputRef}
-        value={query}
-        onChange={(v) => {
-          setQuery(v);
-          setLoading(v.trim().length > 0);
-        }}
-        loading={loading}
-      />
+    <div>
+      {/* Mobile fixed header — search input only, no title (matches mobile app UX) */}
+      <div className="fixed left-0 right-0 top-0 z-[60] border-b border-white/[0.06] bg-zinc-950/95 px-4 pb-3 pt-4 backdrop-blur-xl sm:px-6 md:hidden">
+        <SearchInput
+          ref={inputRef}
+          value={query}
+          onChange={(v) => {
+            setQuery(v);
+            setLoading(v.trim().length > 0);
+          }}
+          loading={loading}
+        />
+      </div>
+      <div className="h-[4.5rem] md:hidden" />
+
+      <div className="space-y-5">
+        {/* Desktop search input — in normal flow */}
+        <div className="hidden md:block">
+          <SearchInput
+            ref={inputRef}
+            value={query}
+            onChange={(v) => {
+              setQuery(v);
+              setLoading(v.trim().length > 0);
+            }}
+            loading={loading}
+          />
+        </div>
 
       {/* Filter pills — only when query is active */}
       {query.trim() && (
@@ -567,6 +558,7 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
           Search for artists, albums, tracks, or people
         </p>
       )}
+      </div>
     </div>
   );
 }

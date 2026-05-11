@@ -66,6 +66,30 @@ type ArtistApiResponse = {
   reviews?: ArtistReviewItem[];
 };
 
+export type ArtistAlbumItem = {
+  id: string;
+  name: string;
+  artist: string;
+  artwork_url: string | null;
+  listen_count: number;
+  average_rating: number | null;
+};
+
+type ArtistAlbumsApiResponse = {
+  artistName: string;
+  artistImageUrl: string | null;
+  albums: ArtistAlbumItem[];
+};
+
+export function useArtistAllAlbums(artistId: string) {
+  return useQuery({
+    queryKey: [...queryKeys.artist(artistId), "albums"],
+    queryFn: () => fetcher<ArtistAlbumsApiResponse>(`/api/artists/${encodeURIComponent(artistId)}/albums`),
+    enabled: !!artistId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useArtist(artistId: string) {
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.artist(artistId),

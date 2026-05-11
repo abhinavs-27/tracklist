@@ -24,7 +24,7 @@ export function ArtistTabs({
               key={tab}
               type="button"
               onClick={() => setActive(tab)}
-              className={`relative px-5 py-3 text-sm font-medium capitalize transition-colors duration-150 ${
+              className={`relative flex-1 py-3 text-sm font-medium capitalize transition-colors duration-150 ${
                 active === tab ? "text-white" : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
