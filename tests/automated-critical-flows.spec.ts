@@ -71,7 +71,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    await page.getByRole('button', { name: '4 out of 5 stars' }).click();
+    await page.getByRole('button', { name: '4 out of 5 stars', exact: true }).click();
     await page.getByPlaceholder(/what did you think/i).fill('Testing automated review creation');
 
     const [response] = await Promise.all([
@@ -198,20 +198,47 @@ test.describe('Critical Flows: Automated Integration', () => {
   });
 
   test('Critical Flow 5: Search Results', async ({ page }) => {
+    // 1. Mock Search APIs
+    await page.route('**/api/search?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          artists: {
+            items: [{
+              id: '123',
+              name: 'Radiohead',
+              popularity: 95,
+              images: [{ url: 'https://example.com/radiohead.jpg' }]
+            }]
+          },
+          albums: { items: [] },
+          tracks: { items: [] }
+        }),
+      });
+    });
+
+    await page.route('**/api/search/users?q=radiohead*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.goto('/search');
-    const searchInput = page.getByRole('searchbox').first();
+    const searchInput = page.getByPlaceholder(/Search artists/i);
+
+    // Trigger search via fill and evaluate to ensure reactivity
     await searchInput.fill('radiohead');
-    await searchInput.press('Enter');
+    await searchInput.evaluate(el => el.dispatchEvent(new Event('input', { bubbles: true })));
 
-    await page.waitForURL(/\/search\?q=radiohead/);
-    await expect(searchInput).toHaveValue('radiohead');
+    // Verify "Top result" appears (SearchClient renders this when results are found)
+    await expect(page.getByText('Top result')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Radiohead').first()).toBeVisible();
 
-    const mainContent = page.getByRole('main');
-    await expect(mainContent).toBeVisible();
-
-    // Check that we reached a result state (even if empty in mock-less environment)
-    const resultIndicator = page.locator('text=/Artists|Albums|Tracks|Search failed|No results/i').first();
-    await expect(resultIndicator).toBeVisible();
+    // Verify results are visible
+    await expect(page.getByRole('heading', { name: /Artists/i })).toBeVisible();
   });
 
 });
