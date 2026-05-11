@@ -79,32 +79,35 @@ export function ProfileFollowButton({
   }
 
   return (
-    <View style={[{ marginTop: 4 }, containerStyle]}>
+    <View style={containerStyle}>
       <Pressable
         onPress={() => void toggle()}
         disabled={busy}
         style={({ pressed }) => ({
           paddingVertical: 10,
-          paddingHorizontal: 20,
+          paddingHorizontal: 16,
           borderRadius: 999,
-          backgroundColor: following ? theme.colors.panel : theme.colors.emerald,
-          borderWidth: following ? 1 : 0,
-          borderColor: theme.colors.border,
+          backgroundColor: following ? "transparent" : "#059669",
+          borderWidth: 1,
+          borderColor: following ? "#52525b" : "transparent",
           alignSelf: "flex-start",
-          opacity: pressed || busy ? 0.85 : 1,
+          opacity: pressed || busy ? 0.75 : 1,
+          minHeight: 40,
+          alignItems: "center",
+          justifyContent: "center",
         })}
       >
         {busy ? (
           <ActivityIndicator
-            color={following ? theme.colors.text : "#fff"}
+            color={following ? "#d4d4d8" : "#fff"}
             size="small"
           />
         ) : (
           <Text
             style={{
-              fontSize: 15,
-              fontWeight: "800",
-              color: following ? theme.colors.text : "#fff",
+              fontSize: 14,
+              fontWeight: "500",
+              color: following ? "#d4d4d8" : "#fff",
             }}
           >
             {following ? "Following" : "Follow"}

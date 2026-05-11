@@ -318,32 +318,60 @@ function UserRow({
   user: UserSearchResult;
   onPress: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasReasons = user.reasons && user.reasons.length > 0;
+
   return (
     <View style={styles.row}>
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.rowMain, pressed && styles.pressed]}
-      >
-        <Artwork src={user.avatar_url} size="sm" style={styles.avatar} />
-        <View style={styles.rowText}>
-          <Text style={styles.username} numberOfLines={1}>
-            {user.username}
-          </Text>
-          <Text style={styles.followers} numberOfLines={1}>
-            {user.followers_count.toLocaleString()} followers
-          </Text>
-          {user.reasons && user.reasons.length > 0 ? (
-            <Text style={styles.reasons} numberOfLines={2}>
-              {user.reasons.join(" · ")}
+      {/* Compact row — always visible */}
+      <View style={styles.rowCompact}>
+        <Pressable
+          onPress={onPress}
+          style={({ pressed }) => [styles.rowMain, pressed && styles.pressed]}
+        >
+          <Artwork src={user.avatar_url} size="sm" style={styles.avatar} />
+          <View style={styles.rowText}>
+            <Text style={styles.username} numberOfLines={1}>{user.username}</Text>
+            <Text style={styles.followers} numberOfLines={1}>
+              {user.followers_count.toLocaleString()} follower{user.followers_count !== 1 ? "s" : ""}
             </Text>
-          ) : null}
+          </View>
+        </Pressable>
+        <View style={styles.rowActions}>
+          <ProfileFollowButton
+            targetUserId={user.id}
+            initialFollowing={user.is_following}
+            containerStyle={styles.followWrap}
+          />
+          {hasReasons && (
+            <Pressable
+              onPress={() => setExpanded((v) => !v)}
+              style={({ pressed }) => [styles.chevronBtn, pressed && { opacity: 0.6 }]}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={expanded ? "Hide reasons" : "Show reasons"}
+            >
+              <Ionicons
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={theme.colors.muted}
+              />
+            </Pressable>
+          )}
         </View>
-      </Pressable>
-      <ProfileFollowButton
-        targetUserId={user.id}
-        initialFollowing={user.is_following}
-        containerStyle={styles.followWrap}
-      />
+      </View>
+
+      {/* Expanded reasons */}
+      {expanded && hasReasons && (
+        <View style={styles.reasonsList}>
+          {user.reasons!.map((r, i) => (
+            <View key={i} style={styles.reasonRow}>
+              <Text style={styles.reasonDot}>•</Text>
+              <Text style={styles.reasonText}>{r}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -376,15 +404,16 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   title: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: "800",
     color: theme.colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    fontWeight: "500",
-    color: theme.colors.muted,
+    marginTop: 3,
+    fontSize: 14,
+    color: "#71717a",
+    lineHeight: 19,
   },
   headerSpacer: {
     width: 32,
@@ -394,13 +423,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: theme.colors.panel,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(24,24,27,0.7)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(255,255,255,0.08)",
     fontSize: 16,
-    fontWeight: "500",
     color: theme.colors.text,
   },
   scrollPad: {
@@ -413,46 +441,55 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   section: {
-    marginBottom: 28,
+    marginBottom: 40,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "600",
     color: theme.colors.text,
+    letterSpacing: -0.2,
     marginBottom: 6,
   },
   sectionDesc: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: theme.colors.muted,
-    lineHeight: 20,
-    marginBottom: 12,
+    fontSize: 15,
+    color: "#71717a",
+    lineHeight: 22,
+    marginBottom: 16,
   },
   muted: {
     fontSize: 14,
     color: theme.colors.muted,
   },
   row: {
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(24,24,27,0.62)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  rowCompact: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: theme.colors.panel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    gap: 8,
   },
   rowMain: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     minWidth: 0,
   },
+  rowActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+  },
   avatar: {
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   rowText: {
     flex: 1,
@@ -460,20 +497,49 @@ const styles = StyleSheet.create({
   },
   username: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "500",
     color: theme.colors.text,
   },
   followers: {
     marginTop: 2,
     fontSize: 12,
-    fontWeight: "500",
-    color: theme.colors.muted,
+    color: "#71717a",
   },
   reasons: {
     marginTop: 4,
     fontSize: 12,
-    fontWeight: "500",
     color: theme.colors.muted,
+  },
+  chevronBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+  },
+  reasonsList: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.06)",
+    gap: 6,
+  },
+  reasonRow: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "flex-start",
+  },
+  reasonDot: {
+    fontSize: 12,
+    color: "#34d399",
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  reasonText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#a1a1aa",
+    lineHeight: 17,
   },
   followWrap: {
     flexShrink: 0,

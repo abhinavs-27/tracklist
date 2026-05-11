@@ -138,15 +138,32 @@ export function UserSearchContent({
   const showBrowse = !searching;
 
   return (
-    <div className="space-y-10">
-      <UserSearchInput
-        value={query}
-        onChange={setQuery}
-        placeholder="Search by username..."
-        minLength={MIN_QUERY_LENGTH}
-        maxLength={50}
-        autoFocus
-      />
+    <div>
+      {/* ── Fixed header: title + search input (mobile) / static (desktop) ── */}
+      <div className="fixed left-0 right-0 top-0 z-[60] bg-zinc-950/95 backdrop-blur-xl md:static md:z-auto md:bg-transparent md:backdrop-blur-none">
+        {/* Title block */}
+        <div className="border-b border-white/[0.06] px-4 pb-3 pt-4 sm:px-6 md:border-none md:px-0 md:pb-4 md:pt-0">
+          <h1 className="text-[1.75rem] font-extrabold tracking-[-0.5px] text-white md:text-3xl">Find people</h1>
+          <p className="mt-1 text-sm text-zinc-500 md:mt-2 md:text-base md:text-zinc-400">
+            {viewerUserId ? "Browse everyone who joined, or search by username." : "Browse public profiles and search by username."}
+          </p>
+        </div>
+        {/* Search input block */}
+        <div className="border-b border-white/[0.06] px-4 pb-3 pt-3 sm:px-6 md:border-none md:px-0 md:pb-0 md:pt-0">
+          <UserSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by username..."
+            minLength={MIN_QUERY_LENGTH}
+            maxLength={50}
+          />
+        </div>
+      </div>
+
+      {/* Spacer: title (~78px) + search (~66px) minus main pt-6 (24px) = ~120px */}
+      <div className="h-[9rem] md:hidden" />
+
+      <div className="space-y-10">
 
       {showBrowse && viewerUserId ? (
         <section
@@ -266,6 +283,7 @@ export function UserSearchContent({
           )}
         </>
       ) : null}
+      </div>
     </div>
   );
 }
