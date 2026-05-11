@@ -63,36 +63,41 @@ export default async function HomePage({
     );
   }
 
-  const admin = createSupabaseAdminClient();
-  const { data: onboardingRow, error: onboardingErr } = await admin
-    .from("users")
-    .select("onboarding_completed")
-    .eq("id", session.user.id)
-    .maybeSingle();
-  if (onboardingErr) {
-    console.error("[home] onboarding_completed lookup failed", onboardingErr);
-  } else if (
-    onboardingRow &&
-    (onboardingRow as { onboarding_completed: boolean }).onboarding_completed !== true
-  ) {
-    redirect("/onboarding");
-  }
-
   const userId = session.user.id;
   const username = session.user.username ?? session.user.name ?? "you";
 
-  const supabase = await createSupabaseServerClient();
-  const unreadCount = await countUnreadNotifications(userId, supabase).catch(() => 0);
-
   const settled = await Promise.allSettled([
-    getCachedTasteIdentity(userId),         // 0
-    getCachedTopThisWeek(userId),            // 1
-    getCachedProfilePulseInsights(userId),   // 2
-    getBlindSpots(userId),                   // 3
-    getTasteTimeline(userId),                // 4
+    getCachedTasteIdentity(userId), // 0
+    getCachedTopThisWeek(userId), // 1
+    getCachedProfilePulseInsights(userId), // 2
+    getBlindSpots(userId), // 3
+    getTasteTimeline(userId), // 4
     getCachedListeningReportPreview(userId), // 5
-    getTasteInsights(userId),                // 6
+    getTasteInsights(userId), // 6
+    createSupabaseAdminClient()
+      .from("users")
+      .select("onboarding_completed")
+      .eq("id", userId)
+      .maybeSingle(), // 7
+    createSupabaseServerClient().then((s) => countUnreadNotifications(userId, s)), // 8
   ]);
+
+  const onboardingRes = settled[7];
+  if (onboardingRes.status === "fulfilled") {
+    const { data: onboardingRow, error: onboardingErr } = onboardingRes.value;
+    if (onboardingErr) {
+      console.error("[home] onboarding_completed lookup failed", onboardingErr);
+    } else if (
+      onboardingRow &&
+      (onboardingRow as { onboarding_completed: boolean })
+        .onboarding_completed !== true
+    ) {
+      redirect("/onboarding");
+    }
+  }
+
+  const unreadCount =
+    settled[8].status === "fulfilled" ? settled[8].value : 0;
 
   const tasteIdentity: TasteIdentity =
     settled[0].status === "fulfilled" ? settled[0].value : EMPTY_TASTE;

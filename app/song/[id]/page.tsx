@@ -43,35 +43,43 @@ export default async function SongPage({ params }: { params: PageParams }) {
     redirect(`/song/${resolvedId}`);
   }
 
-  const session = await getSession();
-  let fetched: Awaited<ReturnType<typeof getOrFetchTrack>>;
-  try {
-    fetched = await getOrFetchTrack(id, { allowNetwork: true });
-  } catch {
-    notFound();
-  }
+  const [session, fetched] = await Promise.all([
+    getSession(),
+    getOrFetchTrack(id, { allowNetwork: true }).catch(() => {
+      notFound();
+    }),
+  ]);
+
   redirectToCanonicalEntityIfNeeded("song", id, fetched.canonicalTrackId);
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
 
-  const [reviewsData, stats, recentListens, relatedSongsRaw, leaderboard] =
+  const [reviewsData, stats, recentListens, relatedTracks, leaderboard] =
     await Promise.all([
       getReviewsForEntity("song", entityId).catch(() => ({
-        reviews: [], average_rating: null, count: 0, my_review: null,
+        reviews: [],
+        average_rating: null,
+        count: 0,
+        my_review: null,
       })),
       getEntityStats("song", entityId),
       getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
-      getRelatedMedia("song", entityId, 12).catch(() => []),
-      viewerId ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null) : Promise.resolve(null),
+      getRelatedMedia("song", entityId, 12)
+        .then((relatedSongsRaw) => {
+          const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
+          return relatedTrackIds.length > 0
+            ? getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false })
+            : Promise.resolve([]);
+        })
+        .then((res) =>
+          (res ?? []).filter((t): t is SpotifyApi.TrackObjectFull => t != null),
+        )
+        .catch(() => []),
+      viewerId
+        ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
+        : Promise.resolve(null),
     ]);
-
-  const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
-  const relatedTracks =
-    relatedTrackIds.length > 0
-      ? (await getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false }))
-          .filter((t): t is SpotifyApi.TrackObjectFull => t != null)
-      : [];
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
