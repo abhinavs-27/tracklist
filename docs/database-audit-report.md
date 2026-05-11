@@ -76,6 +76,14 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `track_stats` | `(listen_count DESC)` | `141` | Optimized for track charts. |
 | `album_stats` | `(listen_count DESC)` | `141` | Optimized for album charts. |
 | `community_members` | `(user_id, community_id)` | `141` | Optimized for membership checks in RPCs. |
+| `feed_events` | `(user_id, type, created_at DESC)` | `150` | Optimized for type-filtered personal feed events. |
+| `reviews` | `(user_id, created_at DESC)` | `150` | Optimized for user profile review activity. |
+| `logs` | `(user_id, listened_at DESC)` | `150` | Optimized for user-scoped activity history. |
+| `comments` | `(user_id)` | `150` | Optimized for finding comments by a specific user. |
+| `comments` | `(review_id, created_at ASC)` | `150` | Optimized for chronologically ordered comments on reviews. |
+| `comments` | `(log_id) WHERE log_id IS NOT NULL` | `150` | Optimized for comments on logs (legacy fallback). |
+| `likes` | `(user_id)` | `150` | Optimized for tracking user-liked content. |
+| `reviews` | `(entity_type, entity_id, rating)` | `150` | Optimized for entity-scoped rating distributions and top reviews. |
 
 ## Recommendations for Future Queries
 
