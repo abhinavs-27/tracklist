@@ -227,7 +227,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     });
 
     await page.goto('/search');
-    const searchInput = page.getByPlaceholder(/Search artists/i);
+    const searchInput = page.getByPlaceholder(/Search artists/i).filter({ visible: true });
 
     // Trigger search via fill and evaluate to ensure reactivity
     await searchInput.fill('radiohead');

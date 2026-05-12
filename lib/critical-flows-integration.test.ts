@@ -13,11 +13,20 @@ import { GET as searchGET } from '../app/api/search/route';
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('@/lib/auth', () => ({
-  requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
-  getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
-  handleUnauthorized: vi.fn(() => null),
-}));
+vi.mock('@/lib/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/auth')>();
+  return {
+    ...actual,
+    requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
+    getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
+    handleUnauthorized: vi.fn((e) => {
+      if (e?.name === 'UnauthorizedError') {
+        return { status: 401 } as any;
+      }
+      return null;
+    }),
+  };
+});
 
 // Mock Supabase
 function createChain() {
@@ -179,6 +188,34 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       const body = await res.json();
       expect(body.id).toBe('r1');
       expect(body.rating).toBe(5);
+    });
+
+    it('should return 401 if unauthorized', async () => {
+      const { requireApiAuth, UnauthorizedError } = await import('@/lib/auth');
+      vi.mocked(requireApiAuth).mockRejectedValueOnce(new UnauthorizedError());
+
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 5 }),
+      });
+
+      // withHandler handles the error and returns 401
+      const res = await reviewPOST(req, {} as any);
+      expect(res.status).toBe(401);
+    });
+
+    it('should return 500 on database insertion error', async () => {
+      const chain = createChain();
+      mockSupabase.from.mockReturnValue(chain);
+      chain.single.mockResolvedValueOnce({ data: null, error: { message: 'DB Error', code: '500' } });
+
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 5 }),
+      });
+
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(500);
     });
 
     it('should return 400 for invalid rating', async () => {
