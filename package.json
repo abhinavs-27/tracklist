@@ -49,13 +49,13 @@
     "framer-motion": "^12.38.0",
     "html-to-image": "^1.11.13",
     "ioredis": "^5.10.1",
-    "next": "^16.2.2",
-    "next-auth": "^4.24.13",
+    "next": "16.2.6",
+    "next-auth": "^4.24.14",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-easy-crop": "^5.5.7",
     "server-only": "^0.0.1",
-    "vercel": "^50.37.3"
+    "vercel": "53.4.0"
   },
   "overrides": {
     "@tootallnate/once": "3.0.1",
@@ -70,6 +70,8 @@
     "ajv": "8.18.0",
     "uuid": "14.0.0",
     "fast-xml-parser": "^5.7.0",
+    "fast-uri": "3.1.2",
+    "fast-xml-builder": "1.2.0",
     "basic-ftp": "5.3.1",
     "follow-redirects": "1.16.0",
     "postcss": "8.5.12",
@@ -90,7 +92,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.2",
+    "eslint-config-next": "16.2.6",
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
