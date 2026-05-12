@@ -86,21 +86,22 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
        */
       const viewerId = sessionVal?.user?.id ?? null;
       const trackIds = (tracksInner.items ?? []).map((t) => t.id);
+      const supabase = await createSupabaseServerClient();
 
       const [statsInner, engagementInner, friendActivityInner, viewerTrackRatingsInner] =
         await Promise.all([
           withAlbumPagePhaseLog(
             "getEntityStats(album)",
             id,
-            getEntityStats("album", entityIdInner),
+            getEntityStats("album", entityIdInner, supabase),
           ),
           withAlbumPagePhaseLog(
             "getAlbumEngagementStats",
             id,
-            getAlbumEngagementStats(entityIdInner),
+            getAlbumEngagementStats(entityIdInner, supabase),
           ),
           viewerId
-            ? getFriendsAlbumActivity(viewerId, entityIdInner, 10)
+            ? getFriendsAlbumActivity(viewerId, entityIdInner, 10, supabase)
             : Promise.resolve([]),
           viewerId
             ? getViewerAlbumTrackRatings(viewerId, trackIds)

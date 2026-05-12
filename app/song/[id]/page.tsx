@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { getRelatedMedia } from "@/lib/discovery/getRelatedMedia";
 import {
@@ -54,17 +55,21 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
+  const supabase = await createSupabaseServerClient();
 
   const [reviewsData, stats, recentListens, relatedTracks, leaderboard] =
     await Promise.all([
-      getReviewsForEntity("song", entityId).catch(() => ({
+      getReviewsForEntity("song", entityId, 10, {
+        supabaseClient: supabase,
+        viewerUserId: viewerId,
+      }).catch(() => ({
         reviews: [],
         average_rating: null,
         count: 0,
         my_review: null,
       })),
-      getEntityStats("song", entityId),
-      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
+      getEntityStats("song", entityId, supabase),
+      getListenLogsForTrack(entityId, 8, 0, viewerId, supabase).catch(() => []),
       getRelatedMedia("song", entityId, 12)
         .then((relatedSongsRaw) => {
           const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);

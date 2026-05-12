@@ -181,11 +181,19 @@ export async function middleware(request: NextRequest) {
 
   const secret = process.env.NEXTAUTH_SECRET;
   let token: Awaited<ReturnType<typeof getToken>> = null;
-  if (secret && !shouldSkipOnboardingGate(request.nextUrl.pathname)) {
-    const tJwt = performance.now();
-    token = await getToken({ req: request, secret });
-    mwLog(`getToken(${Math.round(performance.now() - tJwt)}ms)`, t0);
-  } else if (!secret && !shouldSkipOnboardingGate(request.nextUrl.pathname)) {
+  const skipGate = shouldSkipOnboardingGate(request.nextUrl.pathname);
+
+  if (secret && !skipGate) {
+    const hasSessionCookie =
+      request.cookies.has("next-auth.session-token") ||
+      request.cookies.has("__Secure-next-auth.session-token");
+
+    if (hasSessionCookie) {
+      const tJwt = performance.now();
+      token = await getToken({ req: request, secret });
+      mwLog(`getToken(${Math.round(performance.now() - tJwt)}ms)`, t0);
+    }
+  } else if (!secret && !skipGate) {
     if (!warnedOnboardingMissingSecret) {
       warnedOnboardingMissingSecret = true;
       console.warn(

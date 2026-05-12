@@ -9,6 +9,7 @@ import {
 } from "@/lib/artist-page-load-log";
 import { redirectToCanonicalEntityIfNeeded } from "@/lib/catalog/redirect-to-canonical-entity-route";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import {
   getTopTracksForArtist,
@@ -50,12 +51,13 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const entityId = artistFetched.canonicalArtistId ?? id;
   const artist = artistFetched.artist;
   const viewerId = session?.user?.id ?? null;
+  const supabase = await createSupabaseServerClient();
 
   const [topTracks, recentReviews, popularAlbumsResult, viewerStats, firstListened] =
     await Promise.all([
-      withArtistPagePhaseLog("getTopTracksForArtist", id, getTopTracksForArtist(entityId, 10)),
-      withArtistPagePhaseLog("getReviewsForArtist", id, getReviewsForArtist(entityId, 6)),
-      withArtistPagePhaseLog("getPopularAlbumsForArtist", id, getPopularAlbumsForArtist(entityId, 8)),
+      withArtistPagePhaseLog("getTopTracksForArtist", id, getTopTracksForArtist(entityId, 10, supabase)),
+      withArtistPagePhaseLog("getReviewsForArtist", id, getReviewsForArtist(entityId, 6, 0, { supabaseClient: supabase })),
+      withArtistPagePhaseLog("getPopularAlbumsForArtist", id, getPopularAlbumsForArtist(entityId, 8, supabase)),
       viewerId ? getViewerArtistStats(viewerId, entityId).catch(() => null) : Promise.resolve(null),
       viewerId ? getArtistFirstListenDate(viewerId, entityId).catch(() => null) : Promise.resolve(null),
     ]);

@@ -66,6 +66,8 @@ export default async function HomePage({
   const userId = session.user.id;
   const username = session.user.username ?? session.user.name ?? "you";
 
+  const supabase = await createSupabaseServerClient();
+
   const settled = await Promise.allSettled([
     getCachedTasteIdentity(userId), // 0
     getCachedTopThisWeek(userId), // 1
@@ -79,7 +81,7 @@ export default async function HomePage({
       .select("onboarding_completed")
       .eq("id", userId)
       .maybeSingle(), // 7
-    createSupabaseServerClient().then((s) => countUnreadNotifications(userId, s)), // 8
+    countUnreadNotifications(userId, supabase), // 8
   ]);
 
   const onboardingRes = settled[7];
