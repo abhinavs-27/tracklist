@@ -8,16 +8,33 @@ import { POST as logPOST } from '../app/api/logs/route';
 import { POST as syncPOST } from '../app/api/spotify/sync/route';
 import { GET as userGET } from '../app/api/users/[username]/route';
 import { GET as searchGET } from '../app/api/search/route';
+import { GET as searchUsersGET } from '../app/api/search/users/route';
+import { GET as reviewsGET } from '../app/api/reviews/route';
 
 // --- Mocks ---
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('@/lib/auth', () => ({
-  requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
-  getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
-  handleUnauthorized: vi.fn(() => null),
-}));
+vi.mock('@/lib/auth', () => {
+  const actual = vi.importActual('@/lib/auth');
+  return {
+    ...actual,
+    requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
+    getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
+    handleUnauthorized: vi.fn((e) => {
+        if (e.message === 'Unauthorized') {
+            return { status: 401 };
+        }
+        return null;
+    }),
+    UnauthorizedError: class UnauthorizedError extends Error {
+        constructor() {
+            super('Unauthorized');
+            this.name = 'UnauthorizedError';
+        }
+    }
+  };
+});
 
 // Mock Supabase
 function createChain() {
@@ -112,6 +129,8 @@ vi.mock('@/lib/queries', () => ({
     }
     return null;
   }),
+  searchUsers: vi.fn(async () => []),
+  enrichUsersWithFollowStatus: vi.fn(async (users) => users),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({
@@ -323,6 +342,52 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.artists.items.length).toBe(0);
+    });
+  });
+
+  describe('GET /api/search/users', () => {
+    it('should return user search results', async () => {
+        const { searchUsers } = await import('@/lib/queries');
+        vi.mocked(searchUsers).mockResolvedValueOnce([{ id: 'u1', username: 'found' }]);
+
+        const req = new NextRequest('http://localhost/api/search/users?q=found');
+        const res = await searchUsersGET(req);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.length).toBe(1);
+    });
+  });
+
+  describe('GET /api/reviews', () => {
+    it('should fetch reviews for an entity', async () => {
+        const { getReviewsForEntity } = await import('@/lib/queries');
+        vi.mocked(getReviewsForEntity).mockResolvedValueOnce([{ id: 'r1', rating: 5 }]);
+
+        const req = new NextRequest('http://localhost/api/reviews?entity_type=album&entity_id=2nLhD10Z7Sb4RFyCX2ZCyx');
+        const res = await reviewsGET(req);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.length).toBe(1);
+    });
+
+    it('should return 400 if params are missing', async () => {
+        const req = new NextRequest('http://localhost/api/reviews?entity_type=album');
+        const res = await reviewsGET(req);
+        expect(res.status).toBe(400);
+    });
+  });
+
+  describe('Authentication Enforcement', () => {
+    it('should return 401 when unauthorized for POST /api/reviews', async () => {
+        const { requireApiAuth } = await import('@/lib/auth');
+        vi.mocked(requireApiAuth).mockRejectedValueOnce(new Error('Unauthorized'));
+
+        const req = new NextRequest('http://localhost/api/reviews', {
+            method: 'POST',
+            body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 5 }),
+        });
+        const res = await reviewPOST(req, {} as any);
+        expect(res.status).toBe(401);
     });
   });
 });

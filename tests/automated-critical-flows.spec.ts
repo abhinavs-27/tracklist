@@ -227,7 +227,7 @@ test.describe('Critical Flows: Automated Integration', () => {
     });
 
     await page.goto('/search');
-    const searchInput = page.getByPlaceholder(/Search artists/i);
+    const searchInput = page.getByPlaceholder(/Search artists/i).filter({ visible: true });
 
     // Trigger search via fill and evaluate to ensure reactivity
     await searchInput.fill('radiohead');
@@ -239,6 +239,30 @@ test.describe('Critical Flows: Automated Integration', () => {
 
     // Verify results are visible
     await expect(page.getByRole('heading', { name: /Artists/i })).toBeVisible();
+  });
+
+  test('Critical Flow 6: Unauthorized Access (401)', async ({ page }) => {
+    // Mock the session to be null (logged out)
+    await page.route('**/api/auth/session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({}),
+      });
+    });
+
+    await page.goto('/');
+
+    const unauthorizedResult = await page.evaluate(async () => {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 5 })
+      });
+      return { status: res.status };
+    });
+
+    expect(unauthorizedResult.status).toBe(401);
   });
 
 });
