@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
@@ -28,6 +29,102 @@ function formatDuration(ms: number | undefined) {
   return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
+async function SongCommunityStats({ entityId }: { entityId: string }) {
+  const stats = await getEntityStats("song", entityId);
+  return (
+    <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm sm:justify-start">
+      {stats.average_rating != null && (
+        <span>
+          <span className="text-amber-400">★ {stats.average_rating.toFixed(1)}</span>
+          <span className="ml-1 text-zinc-500">avg</span>
+        </span>
+      )}
+      {stats.listen_count > 0 && (
+        <span>
+          <span className="font-semibold text-white">{stats.listen_count.toLocaleString()}</span>{" "}
+          <span className="text-zinc-400">plays</span>
+        </span>
+      )}
+      {stats.review_count > 0 && (
+        <span>
+          <span className="font-semibold text-white">{stats.review_count}</span>{" "}
+          <span className="text-zinc-400">review{stats.review_count !== 1 ? "s" : ""}</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+async function SongYourRating({ entityId, viewerId }: { entityId: string; viewerId: string }) {
+  const reviewsData = await getReviewsForEntity("song", entityId).catch(() => null);
+  const myReview = reviewsData?.my_review ?? null;
+  if (!myReview) return null;
+
+  return (
+    <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3 text-sm">
+      <span className="text-zinc-400">
+        Your rating: <span className="text-amber-400">{formatStarDisplay(myReview.rating)}</span>
+      </span>
+      {myReview.review_text && (
+        <><span className="text-zinc-700">·</span>
+          <span className="line-clamp-1 italic text-zinc-300">"{myReview.review_text}"</span></>
+      )}
+    </div>
+  );
+}
+
+async function SongPageTabsFetcher({
+  entityId,
+  trackName,
+  viewerId,
+  image,
+}: {
+  entityId: string;
+  trackName: string;
+  viewerId: string | null;
+  image: string | null;
+}) {
+  const [reviewsData, recentListens, relatedTracks, leaderboard] =
+    await Promise.all([
+      getReviewsForEntity("song", entityId).catch(() => ({
+        reviews: [],
+        average_rating: null,
+        count: 0,
+        my_review: null,
+      })),
+      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
+      getRelatedMedia("song", entityId, 12)
+        .then((relatedSongsRaw) => {
+          const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
+          return relatedTrackIds.length > 0
+            ? getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false })
+            : Promise.resolve([]);
+        })
+        .then((res) =>
+          (res ?? []).filter((t): t is SpotifyApi.TrackObjectFull => t != null),
+        )
+        .catch(() => []),
+      viewerId
+        ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+  return (
+    <div className="mt-8">
+      <SongPageTabs
+        entityId={entityId}
+        trackName={trackName}
+        reviewsInitialData={reviewsData}
+        recentListens={recentListens}
+        leaderboard={leaderboard}
+        hasSocial={!!viewerId}
+        albumImageUrl={image ?? null}
+        relatedTracks={relatedTracks}
+      />
+    </div>
+  );
+}
+
 export default async function SongPage({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
@@ -55,37 +152,10 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
 
-  const [reviewsData, stats, recentListens, relatedTracks, leaderboard] =
-    await Promise.all([
-      getReviewsForEntity("song", entityId).catch(() => ({
-        reviews: [],
-        average_rating: null,
-        count: 0,
-        my_review: null,
-      })),
-      getEntityStats("song", entityId),
-      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
-      getRelatedMedia("song", entityId, 12)
-        .then((relatedSongsRaw) => {
-          const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
-          return relatedTrackIds.length > 0
-            ? getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false })
-            : Promise.resolve([]);
-        })
-        .then((res) =>
-          (res ?? []).filter((t): t is SpotifyApi.TrackObjectFull => t != null),
-        )
-        .catch(() => []),
-      viewerId
-        ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
-        : Promise.resolve(null),
-    ]);
-
   const album = track.album;
   const image = album?.images?.[0]?.url;
   const duration = formatDuration(track.duration_ms);
   const primaryArtist = track.artists?.[0];
-  const myReview = reviewsData?.my_review ?? null;
 
   return (
     <div className="space-y-8">
@@ -141,53 +211,33 @@ export default async function SongPage({ params }: { params: PageParams }) {
           )}
 
           {/* Community stats */}
-          <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm sm:justify-start">
-            {stats.average_rating != null && (
-              <span>
-                <span className="text-amber-400">★ {stats.average_rating.toFixed(1)}</span>
-                <span className="ml-1 text-zinc-500">avg</span>
-              </span>
-            )}
-            {stats.listen_count > 0 && (
-              <span>
-                <span className="font-semibold text-white">{stats.listen_count.toLocaleString()}</span>{" "}
-                <span className="text-zinc-400">plays</span>
-              </span>
-            )}
-            {stats.review_count > 0 && (
-              <span>
-                <span className="font-semibold text-white">{stats.review_count}</span>{" "}
-                <span className="text-zinc-400">review{stats.review_count !== 1 ? "s" : ""}</span>
-              </span>
-            )}
-          </div>
+          <Suspense fallback={<div className="mt-3 h-5 w-48 animate-pulse rounded bg-zinc-800/50" />}>
+            <SongCommunityStats entityId={entityId} />
+          </Suspense>
         </div>
       </div>
 
       {/* Your rating */}
-      {myReview && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3 text-sm">
-          <span className="text-zinc-400">
-            Your rating: <span className="text-amber-400">{formatStarDisplay(myReview.rating)}</span>
-          </span>
-          {myReview.review_text && (
-            <><span className="text-zinc-700">·</span>
-              <span className="line-clamp-1 italic text-zinc-300">"{myReview.review_text}"</span></>
-          )}
-        </div>
+      {viewerId && (
+        <Suspense fallback={null}>
+          <SongYourRating entityId={entityId} viewerId={viewerId} />
+        </Suspense>
       )}
 
       {/* Tabs */}
-      <SongPageTabs
-        entityId={entityId}
-        trackName={track.name}
-        reviewsInitialData={reviewsData}
-        recentListens={recentListens}
-        leaderboard={leaderboard}
-        hasSocial={!!viewerId}
-        albumImageUrl={image ?? null}
-        relatedTracks={relatedTracks}
-      />
+      <Suspense fallback={
+        <div className="mt-8 space-y-4">
+          <div className="h-10 w-full border-b border-zinc-800/80" />
+          <div className="h-64 w-full animate-pulse rounded-2xl bg-zinc-900/50" />
+        </div>
+      }>
+        <SongPageTabsFetcher
+          entityId={entityId}
+          trackName={track.name}
+          viewerId={viewerId}
+          image={image ?? null}
+        />
+      </Suspense>
     </div>
   );
 }

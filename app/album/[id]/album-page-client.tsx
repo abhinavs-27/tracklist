@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState, use } from "react";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { TrackRating } from "@/app/album/[id]/track-rating";
 import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
-import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
 import { AlbumFavoritedByModal } from "@/components/album-favorited-by-modal";
 import { HALF_STAR_RATINGS, formatStarDisplay } from "@/lib/ratings";
 import { formatRelativeTime } from "@/lib/time";
@@ -63,6 +62,83 @@ function TabNav({ active, onChange, hasSocial }: { active: Tab; onChange: (t: Ta
   );
 }
 
+// ── Deferred Sections ─────────────────────────────────────────────────────
+
+export function AlbumEngagementSection({
+  statsPromise,
+  albumId,
+  albumName,
+  viewerUserId,
+}: {
+  statsPromise: Promise<{
+    listen_count: number;
+    review_count: number;
+    avg_rating: number | null;
+    favorite_count: number;
+  }>;
+  albumId: string;
+  albumName: string;
+  viewerUserId: string | null;
+}) {
+  const stats = use(statsPromise);
+  const [favoritedByOpen, setFavoritedByOpen] = useState(false);
+
+  return (
+    <>
+      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm sm:justify-start">
+        {stats.avg_rating != null && (
+          <span>
+            <span className="text-amber-400">★ {stats.avg_rating.toFixed(1)}</span>
+            <span className="ml-1 text-zinc-500">avg</span>
+          </span>
+        )}
+        {stats.listen_count > 0 && (
+          <span>
+            <span className="font-semibold text-white">{stats.listen_count.toLocaleString()}</span>{" "}
+            <span className="text-zinc-400">plays</span>
+          </span>
+        )}
+        {stats.favorite_count > 0 && (
+          <button type="button" onClick={() => setFavoritedByOpen(true)} className="transition hover:text-zinc-300">
+            <span className="font-semibold text-white">{stats.favorite_count.toLocaleString()}</span>{" "}
+            <span className="text-zinc-400 underline-offset-2 hover:underline">favorited</span>
+          </button>
+        )}
+      </div>
+      <AlbumFavoritedByModal albumId={albumId} albumTitle={albumName} isOpen={favoritedByOpen} onClose={() => setFavoritedByOpen(false)} viewerUserId={viewerUserId} />
+    </>
+  );
+}
+
+export function AlbumRatingDistributionSection({
+  statsPromise,
+}: {
+  statsPromise: Promise<{
+    review_count: number;
+    rating_distribution?: Record<string, number>;
+  }>;
+}) {
+  const stats = use(statsPromise);
+  if (!stats.rating_distribution || stats.review_count === 0) return null;
+  const max = Math.max(...Object.values(stats.rating_distribution));
+
+  return (
+    <div className="mt-3 flex items-end gap-0.5">
+      {HALF_STAR_RATINGS.map((star) => {
+        const count = stats.rating_distribution![String(star)] ?? 0;
+        return (
+          <div key={star} className="flex min-w-[1.1rem] flex-1 flex-col items-center gap-0.5">
+            <div className="w-full rounded-t bg-amber-500/35"
+              style={{ height: `${Math.max(max > 0 ? (count / max) * 28 : 0, 2)}px` }}
+              title={`${star}★: ${count}`} />
+            <span className="text-[8px] text-zinc-600">{star}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────
 
 export type AlbumPageClientProps = {
@@ -71,22 +147,12 @@ export type AlbumPageClientProps = {
   tracks: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified>;
   session: boolean;
   viewerUserId: string | null;
-  stats: {
-    listen_count: number;
-    average_rating: number | null;
-    review_count: number;
-    rating_distribution?: Record<string, number>;
-  };
-  engagementStats: {
-    listen_count: number;
-    review_count: number;
-    avg_rating: number | null;
-    favorite_count: number;
-  };
-  friendActivity: FriendActivityItem[];
-  viewerTrackRatings?: Map<string, number>;
+  viewerTrackRatingsPromise: Promise<Map<string, number>>;
   recommendationsNode?: ReactNode;
   leaderboardNode?: ReactNode;
+  engagementStatsNode?: ReactNode;
+  ratingDistributionNode?: ReactNode;
+  friendActivityNode?: ReactNode;
 };
 
 // ── Main component ────────────────────────────────────────────────────────
@@ -97,19 +163,20 @@ export function AlbumPageClient({
   tracks,
   session,
   viewerUserId,
-  stats,
-  engagementStats,
-  friendActivity,
-  viewerTrackRatings,
+  viewerTrackRatingsPromise,
   recommendationsNode,
   leaderboardNode,
+  engagementStatsNode,
+  ratingDistributionNode,
+  friendActivityNode,
 }: AlbumPageClientProps) {
   const image = album.images?.[0]?.url;
   const firstTrack = tracks.items?.[0];
-  const [favoritedByOpen, setFavoritedByOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("tracks");
   const [trackStats, setTrackStats] = useState<Record<string, TrackStatRow>>({});
   const [trackStatsLoading, setTrackStatsLoading] = useState(true);
+
+  const viewerTrackRatings = use(viewerTrackRatingsPromise);
 
   const { data: reviewData } = useReviews("album", id);
   const myReview = reviewData?.my_review ?? null;
@@ -182,48 +249,12 @@ export function AlbumPageClient({
           </p>
 
           {/* Community stats */}
-          <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm sm:justify-start">
-            {engagementStats.avg_rating != null && (
-              <span>
-                <span className="text-amber-400">★ {engagementStats.avg_rating.toFixed(1)}</span>
-                <span className="ml-1 text-zinc-500">avg</span>
-              </span>
-            )}
-            {engagementStats.listen_count > 0 && (
-              <span>
-                <span className="font-semibold text-white">{engagementStats.listen_count.toLocaleString()}</span>{" "}
-                <span className="text-zinc-400">plays</span>
-              </span>
-            )}
-            {engagementStats.favorite_count > 0 && (
-              <button type="button" onClick={() => setFavoritedByOpen(true)} className="transition hover:text-zinc-300">
-                <span className="font-semibold text-white">{engagementStats.favorite_count.toLocaleString()}</span>{" "}
-                <span className="text-zinc-400 underline-offset-2 hover:underline">favorited</span>
-              </button>
-            )}
-          </div>
+          {engagementStatsNode}
 
           {/* Rating distribution */}
-          {stats.rating_distribution && stats.review_count > 0 && (
-            <div className="mt-3 flex items-end gap-0.5">
-              {HALF_STAR_RATINGS.map((star) => {
-                const count = stats.rating_distribution![String(star)] ?? 0;
-                const max = Math.max(...Object.values(stats.rating_distribution!));
-                return (
-                  <div key={star} className="flex min-w-[1.1rem] flex-1 flex-col items-center gap-0.5">
-                    <div className="w-full rounded-t bg-amber-500/35"
-                      style={{ height: `${Math.max(max > 0 ? (count / max) * 28 : 0, 2)}px` }}
-                      title={`${star}★: ${count}`} />
-                    <span className="text-[8px] text-zinc-600">{star}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {ratingDistributionNode}
         </div>
       </div>
-
-      <AlbumFavoritedByModal albumId={id} albumTitle={album.name} isOpen={favoritedByOpen} onClose={() => setFavoritedByOpen(false)} viewerUserId={viewerUserId} />
 
       {/* Your rating strip */}
       {myReview && (
@@ -288,47 +319,7 @@ export function AlbumPageClient({
 
             <section>
               <h2 className="mb-3 text-lg font-semibold text-white">Recently listened</h2>
-              {friendActivity.length > 0 ? (
-                <ul className="space-y-2">
-                  {friendActivity.map((l, i) => (
-                    <li key={`${l.user_id}-${l.listened_at}-${i}`}>
-                      <div className="flex items-center gap-3 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-3 py-2.5 transition hover:bg-zinc-900/60">
-                        {/* Album art thumbnail */}
-                        {album.images?.[0]?.url && (
-                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg ring-1 ring-white/[0.07]">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={album.images[0].url} alt="" className="h-full w-full object-cover" loading="lazy" />
-                          </div>
-                        )}
-                        {/* Text */}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm leading-snug">
-                            <Link href={`/profile/${l.user_id}`} className="font-semibold text-white hover:underline">{l.username}</Link>
-                            <span className="text-zinc-400"> listened</span>
-                            {l.rating != null && (
-                              <span className="ml-1.5 text-amber-400">{formatStarDisplay(l.rating)}</span>
-                            )}
-                          </p>
-                          <p className="mt-0.5 text-xs text-zinc-500 tabular-nums">{formatRelativeTime(l.listened_at)}</p>
-                        </div>
-                        {/* User avatar */}
-                        <Link href={`/profile/${l.user_id}`} className="shrink-0">
-                          {l.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={l.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover ring-1 ring-white/10" />
-                          ) : (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-semibold text-zinc-400 ring-1 ring-white/10">
-                              {l.username[0]?.toUpperCase()}
-                            </span>
-                          )}
-                        </Link>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="py-8 text-center text-sm text-zinc-500">No friends have listened to this album recently.</p>
-              )}
+              {friendActivityNode}
             </section>
           </div>
         )}
