@@ -111,11 +111,6 @@ export function CommunityLeaderboardList({
                     </div>
                     <p className={communityMeta}>
                       {row.listen_count_7d} listens · {row.unique_artists_7d} artists
-                      {row.current_streak > 0 ? (
-                        <span className="ml-2 rounded bg-amber-950/50 px-1.5 py-0.5 text-amber-400">
-                          🔥 {row.current_streak}d (profile streak)
-                        </span>
-                      ) : null}
                     </p>
                   </>
                 )}
@@ -161,11 +156,6 @@ export function CommunityLeaderboardList({
                 {!isSidebar ? (
                   <p className={communityMeta}>
                     {row.totalLogs} listens · {row.uniqueArtists} artists
-                    {row.streakDays > 0 ? (
-                      <span className="ml-2 rounded bg-amber-950/50 px-1.5 py-0.5 text-amber-400">
-                        {row.streakDays}d streak
-                      </span>
-                    ) : null}
                   </p>
                 ) : null}
               </div>

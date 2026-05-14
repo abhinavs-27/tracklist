@@ -8,7 +8,6 @@ import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { CommunityWeeklySidebarTeaser } from "@/components/community/community-weekly-sidebar-teaser";
 import {
   CommunityFeedSkeleton,
-  CommunitySectionSkeleton,
 } from "@/components/community/community-section-skeleton";
 import { getCommunityById } from "@/lib/community/queries";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
@@ -41,8 +40,8 @@ import { CommunityMemberHeroShell } from "@/components/community/community-membe
 import { CommunityActions } from "@/components/community/community-actions";
 import {
   CommunityFeedSlot,
-  CommunityLeaderboardSlot,
 } from "./community-async";
+import { CommunityLeaderboardSection } from "@/components/community/community-leaderboard-section";
 import { CommunityPageTabs } from "./community-page-tabs";
 
 export default async function CommunityDetailPage({
@@ -174,9 +173,7 @@ export default async function CommunityDetailPage({
   );
 
   const peopleContent = (
-    <Suspense fallback={<CommunitySectionSkeleton />}>
-      <CommunityLeaderboardSlot communityId={id} />
-    </Suspense>
+    <CommunityLeaderboardSection communityId={id} />
   );
 
   return (

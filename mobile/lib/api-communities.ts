@@ -128,6 +128,24 @@ export type CommunitySignatureResult = {
   hasData: boolean;
 };
 
+export type CommunityPersonRow = {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  totalLogs: number;
+  uniqueArtists: number;
+  isCreator: boolean;
+  role: "admin" | "member";
+};
+
+export async function fetchCommunityPeople(
+  communityId: string,
+): Promise<{ people: CommunityPersonRow[] }> {
+  return fetcher<{ people: CommunityPersonRow[] }>(
+    `/api/communities/${encodeURIComponent(communityId)}/people`,
+  );
+}
+
 export async function fetchCommunitySignature(
   communityId: string,
 ): Promise<CommunitySignatureResult> {
