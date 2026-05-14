@@ -118,6 +118,24 @@ export async function leaveCommunity(communityId: string): Promise<void> {
   });
 }
 
+export type CommunitySignatureResult = {
+  role: string;
+  roleLabel: string;
+  narrative: string;
+  signatureGenres: string[];
+  uniqueArtists: { id: string; name: string; imageUrl?: string }[];
+  memberCount: number;
+  hasData: boolean;
+};
+
+export async function fetchCommunitySignature(
+  communityId: string,
+): Promise<CommunitySignatureResult> {
+  return fetcher<CommunitySignatureResult>(
+    `/api/communities/${encodeURIComponent(communityId)}/signature`,
+  );
+}
+
 export async function updateCommunitySettings(
   communityId: string,
   patch: { name?: string; description?: string | null; is_private?: boolean },
@@ -238,15 +256,17 @@ export async function fetchCommunityConsensus(
   communityId: string,
   options: {
     type: "track" | "album" | "artist";
-    range?: "month" | "year";
+    range?: "month" | "year" | "all";
     limit?: number;
+    offset?: number;
   },
-): Promise<CommunityConsensusResponse> {
+): Promise<CommunityConsensusResponse & { hasMore?: boolean }> {
   const q = new URLSearchParams();
   q.set("type", options.type);
-  q.set("range", options.range ?? "month");
+  q.set("range", options.range ?? "all");
   q.set("limit", String(options.limit ?? 16));
-  return fetcher<CommunityConsensusResponse>(
+  if (options.offset) q.set("offset", String(options.offset));
+  return fetcher<CommunityConsensusResponse & { hasMore?: boolean }>(
     `/api/communities/${encodeURIComponent(communityId)}/consensus?${q.toString()}`,
   );
 }

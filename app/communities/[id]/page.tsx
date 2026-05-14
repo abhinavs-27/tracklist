@@ -164,10 +164,6 @@ export default async function CommunityDetailPage({
       {tasteMatch && (
         <CommunityTasteMatchCard score={tasteMatch.score} />
       )}
-
-      {weeklySummary && (
-        <CommunityWeeklySidebarTeaser payload={weeklySummary} />
-      )}
     </div>
   );
 

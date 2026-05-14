@@ -56,7 +56,9 @@ export function CommunityPageTabs({
 
   return (
     <div>
-      <TabNav active={active} onChange={setActive} />
+      <div className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur-sm">
+        <TabNav active={active} onChange={setActive} />
+      </div>
 
       <div className={`mt-6 ${active !== "billboard" ? "hidden" : ""}`}>
         <CommunityWeeklyBillboardClient

@@ -18,8 +18,8 @@ import {
 import { normalizeReviewEntityId } from "@/lib/validation";
 
 export type ConsensusEntityType = "track" | "album" | "artist";
-/** Calendar windows in UTC: month = 1st of this month, year = Jan 1 this year. */
-export type ConsensusRange = "month" | "year";
+/** Calendar windows in UTC: month = 1st of this month, year = Jan 1 this year, all = beginning of time. */
+export type ConsensusRange = "month" | "year" | "all";
 
 export type CommunityConsensusRow = {
   entityId: string;
@@ -43,6 +43,7 @@ type RpcRow = {
 };
 
 function consensusSinceIso(range: ConsensusRange): string {
+  if (range === "all") return "2000-01-01T00:00:00.000Z";
   const now = new Date();
   if (range === "month") {
     return new Date(

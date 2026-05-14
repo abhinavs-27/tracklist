@@ -324,7 +324,10 @@ export default function CommunityDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         nestedScrollEnabled
+        stickyHeaderIndices={isMember ? [1] : []}
       >
+        {/* ── Child 0: hero + optional non-member message ── */}
+        <View style={styles.scrollInner}>
         {metaPending && !community ? (
           <View style={styles.centered}>
             <ActivityIndicator color={theme.colors.emerald} />
@@ -442,63 +445,55 @@ export default function CommunityDetailScreen() {
                   </Text>
                 ) : null}
               </View>
-            ) : (
-              <>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBarScroll} contentContainerStyle={styles.tabBar}>
-                  {(["billboard", "community", "people", "feed"] as const).map((t) => (
-                    <Pressable key={t} onPress={() => setMemberTab(t)} style={styles.tabBtn}>
-                      <Text style={[styles.tabLabel, memberTab === t && styles.tabLabelActive]}>
-                        {t === "billboard" ? "Billboard" : t === "community" ? "Community" : t === "people" ? "People" : "Feed"}
-                      </Text>
-                      {memberTab === t && <View style={styles.tabLine} />}
-                    </Pressable>
-                  ))}
-                </ScrollView>
-
-                {memberTab === "billboard" ? (
-                  <CommunityBillboardTab communityId={id} />
-                ) : memberTab === "community" ? (
-                  <CommunityVibeTab
-                    communityId={id}
-                    canInvite={canInvite}
-                    tasteMatch={tasteMatch ?? undefined}
-                    insights={insights}
-                    insightsPending={insightsPending}
-                    albumItems={albumConsensus?.items ?? []}
-                    artistItems={artistConsensus?.items ?? []}
-                    consensusPending={consensusPending}
-                    weekly={weeklyData ?? undefined}
-                    weeklyPending={weeklyPending}
-                    leaderboard={leaderboard}
-                    lbPending={lbPending}
-                  />
-                ) : memberTab === "people" ? (
-                  <CommunityPeopleTab communityId={id} />
-                ) : (
-                  <View style={styles.activityPane}>
-                    <Text style={styles.activityIntro}>
-                      What members are doing — grouped when people log several tracks
-                      in a row.
-                    </Text>
-                    {feedPending ? (
-                      <ActivityIndicator
-                        color={theme.colors.emerald}
-                        style={{ marginVertical: 20 }}
-                      />
-                    ) : (
-                      <CommunityActivityFeed
-                        feed={feed}
-                        feedNextOffset={feedNextOffset}
-                        feedLoadingMore={feedLoadingMore}
-                        onLoadMore={onLoadMoreFeed}
-                      />
-                    )}
-                  </View>
-                )}
-              </>
-            )}
+            ) : null}
           </>
         )}
+        </View>
+
+        {/* ── Child 1: sticky tab bar (members only) ── */}
+        <View style={styles.stickyTabBar}>
+          {isMember && community ? (
+            <View style={styles.tabBarRow}>
+              {(["billboard", "community", "people", "feed"] as const).map((t) => (
+                <Pressable key={t} onPress={() => setMemberTab(t)} style={styles.tabBtn}>
+                  <Text style={[styles.tabLabel, memberTab === t && styles.tabLabelActive]}>
+                    {t === "billboard" ? "Billboard" : t === "community" ? "Community" : t === "people" ? "People" : "Feed"}
+                  </Text>
+                  {memberTab === t && <View style={styles.tabLine} />}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        {/* ── Child 2: tab content ── */}
+        {isMember && community ? (
+          <View style={[styles.tabContent, styles.scrollInner]}>
+            {memberTab === "billboard" ? (
+              <CommunityBillboardTab communityId={id} />
+            ) : memberTab === "community" ? (
+              <CommunityVibeTab communityId={id} />
+            ) : memberTab === "people" ? (
+              <CommunityPeopleTab communityId={id} />
+            ) : (
+              <View style={styles.activityPane}>
+                <Text style={styles.activityIntro}>
+                  What members are doing — grouped when people log several tracks in a row.
+                </Text>
+                {feedPending ? (
+                  <ActivityIndicator color={theme.colors.emerald} style={{ marginVertical: 20 }} />
+                ) : (
+                  <CommunityActivityFeed
+                    feed={feed}
+                    feedNextOffset={feedNextOffset}
+                    feedLoadingMore={feedLoadingMore}
+                    onLoadMore={onLoadMoreFeed}
+                  />
+                )}
+              </View>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
 
       {/* Edit community modal */}
@@ -563,7 +558,8 @@ export default function CommunityDetailScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.bg },
-  scroll: { paddingHorizontal: 16, paddingBottom: 120 },
+  scroll: { paddingBottom: 120 },
+  scrollInner: { paddingHorizontal: 16 },
   centered: { paddingVertical: 24, alignItems: "center" },
   err: { color: theme.colors.danger, padding: 18 },
   errSmall: { color: theme.colors.danger, marginTop: 8, fontSize: 13 },
@@ -684,20 +680,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   declineOutlineText: { color: theme.colors.text, fontWeight: "600", fontSize: 14 },
-  tabBarScroll: {
+  stickyTabBar: {
+    backgroundColor: theme.colors.bg,
+  },
+  tabBarRow: {
+    flexDirection: "row",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border,
-    marginBottom: 16,
-  },
-  tabBar: {
-    flexDirection: "row",
-    gap: 0,
   },
   tabBtn: {
+    flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 20,
     alignItems: "center",
     position: "relative",
+  },
+  tabContent: {
+    paddingTop: 16,
   },
   tabBtnActive: {},
   tabLabel: {

@@ -10,7 +10,6 @@ import {
 } from "@/lib/ui/surface";
 
 type EntityTab = "track" | "album" | "artist";
-type RangeTab = "month" | "year";
 
 export type ConsensusApiItem = {
   entityId: string;
@@ -29,11 +28,6 @@ const ENTITY_TABS: { value: EntityTab; label: string }[] = [
   { value: "artist", label: "Artists" },
 ];
 
-const RANGE_TABS: { value: RangeTab; label: string }[] = [
-  { value: "month", label: "This month" },
-  { value: "year", label: "This year" },
-];
-
 function itemHref(type: EntityTab, row: ConsensusApiItem): string | null {
   if (type === "track") {
     if (row.albumId) return `/album/${row.albumId}`;
@@ -43,7 +37,7 @@ function itemHref(type: EntityTab, row: ConsensusApiItem): string | null {
   return `/artist/${row.entityId}`;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 export function CommunityConsensusSection({
   communityId,
@@ -54,7 +48,6 @@ export function CommunityConsensusSection({
   embedded?: boolean;
 }) {
   const [entity, setEntity] = useState<EntityTab>("track");
-  const [range, setRange] = useState<RangeTab>("month");
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<ConsensusApiItem[]>([]);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -72,7 +65,7 @@ export function CommunityConsensusSection({
       const offset = (page - 1) * PAGE_SIZE;
       const q = new URLSearchParams({
         type: entity,
-        range,
+        range: "all",
         limit: String(PAGE_SIZE),
         offset: String(offset),
       });
@@ -100,7 +93,7 @@ export function CommunityConsensusSection({
     } finally {
       setLoading(false);
     }
-  }, [entity, range, page, communityId]);
+  }, [entity, page, communityId]);
 
   useEffect(() => {
     void fetchPage();
@@ -126,26 +119,6 @@ export function CommunityConsensusSection({
               entity === t.value
                 ? "bg-emerald-600 text-white"
                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-2">
-        {RANGE_TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => {
-              setRange(t.value);
-              setPage(1);
-            }}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
-              range === t.value
-                ? "bg-violet-600 text-white"
-                : "bg-zinc-800/80 text-zinc-500 hover:bg-zinc-800"
             }`}
           >
             {t.label}
