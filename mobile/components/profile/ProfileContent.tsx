@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { queryKeys } from "@/lib/query-keys";
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfileEditModal } from "./ProfileEditModal";
+import { DeleteAccountSection } from "./DeleteAccountSection";
 import { FavoritesSection } from "./FavoritesSection";
 import { ProfileFollowButton } from "./ProfileFollowButton";
 import { ProfileListsSection } from "./ProfileListsSection";
@@ -205,23 +206,33 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     </View>
   ) : tab === "settings" && isOwn ? (
     <View style={{ paddingHorizontal: 16, gap: 20 }}>
+      {/* Privacy — matches web order */}
+      <PrivateLogsToggleNative userId={user.id} />
+      {/* Last.fm */}
       <LastfmSection userId={user.id} username={user.username}
         initialUsername={user.lastfm_username ?? null}
         initialLastSyncedAt={user.lastfm_last_synced_at ?? null} />
-      <PrivateLogsToggleNative userId={user.id} />
-      <Pressable
-        onPress={async () => { setSigningOut(true); try { await signOut(); } finally { setSigningOut(false); } }}
-        disabled={signingOut}
-        style={({ pressed }) => [{
-          paddingVertical: 14, borderRadius: 12, borderWidth: 1,
-          borderColor: theme.colors.border, backgroundColor: theme.colors.panel,
-          alignItems: "center" as const, opacity: pressed || signingOut ? 0.85 : 1,
-        }]}
-      >
-        <Text style={{ fontSize: 15, fontWeight: "700", color: theme.colors.danger }}>
-          {signingOut ? "Signing out…" : "Log out"}
-        </Text>
-      </Pressable>
+      {/* Delete account */}
+      <DeleteAccountSection username={user.username} />
+      {/* Session / Log out */}
+      <View style={sectionCard}>
+        <Text style={sectionCardTitle}>Session</Text>
+        <Text style={sectionCardDesc}>Sign out of Tracklist on this device. You can sign back in anytime.</Text>
+        <Pressable
+          onPress={async () => { setSigningOut(true); try { await signOut(); } finally { setSigningOut(false); } }}
+          disabled={signingOut}
+          style={({ pressed }) => [{
+            marginTop: 14, paddingVertical: 11, borderRadius: 12, borderWidth: 1,
+            borderColor: "rgba(63,63,70,0.8)", backgroundColor: "rgba(39,39,42,0.5)",
+            alignItems: "center" as const, opacity: pressed || signingOut ? 0.75 : 1,
+            alignSelf: "flex-start" as const, paddingHorizontal: 20,
+          }]}
+        >
+          <Text style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text }}>
+            {signingOut ? "Signing out…" : "Sign out"}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   ) : null;
 
@@ -304,7 +315,29 @@ const ph = StyleSheet.create({
   tabLine: { position: "absolute", bottom: 0, left: "15%", right: "15%", height: 2, borderRadius: 1, backgroundColor: theme.colors.emerald },
 });
 
-/** Private logs toggle adapted for React Native. */
+const sectionCard = {
+  borderRadius: 14,
+  borderWidth: StyleSheet.hairlineWidth,
+  borderColor: "rgba(63,63,70,0.7)",
+  backgroundColor: "rgba(24,24,27,0.5)",
+  padding: 18,
+} as const;
+
+const sectionCardTitle = {
+  fontSize: 17,
+  fontWeight: "600" as const,
+  color: theme.colors.text,
+  letterSpacing: -0.2,
+};
+
+const sectionCardDesc = {
+  fontSize: 13,
+  color: theme.colors.muted,
+  lineHeight: 18,
+  marginTop: 6,
+};
+
+/** Private logs toggle adapted for React Native — matches web Privacy card. */
 function PrivateLogsToggleNative({ userId }: { userId: string }) {
   const [value, setValue] = useState(false);
   const [pending, setPending] = useState(false);
@@ -327,33 +360,25 @@ function PrivateLogsToggleNative({ userId }: { userId: string }) {
   };
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: theme.colors.panel,
-        borderRadius: 12,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-      }}
-    >
-      <View style={{ flex: 1, marginRight: 12 }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text }}>
-          Private listening logs
-        </Text>
-        <Text style={{ fontSize: 12, color: theme.colors.muted, marginTop: 3 }}>
-          Won&apos;t appear in feeds or on your profile.
-        </Text>
+    <View style={sectionCard}>
+      <Text style={sectionCardTitle}>Privacy</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+        <View style={{ flex: 1, marginRight: 16 }}>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text }}>
+            Private listening logs
+          </Text>
+          <Text style={{ fontSize: 13, color: theme.colors.muted, marginTop: 4, lineHeight: 18 }}>
+            Private logs won't appear in feeds or on your profile, but stats and taste match are unaffected.
+          </Text>
+        </View>
+        <Switch
+          value={value}
+          onValueChange={(v) => void onChange(v)}
+          disabled={pending}
+          trackColor={{ false: theme.colors.border, true: theme.colors.emerald }}
+          thumbColor={theme.colors.text}
+        />
       </View>
-      <Switch
-        value={value}
-        onValueChange={(v) => void onChange(v)}
-        disabled={pending}
-        trackColor={{ false: theme.colors.border, true: theme.colors.emerald }}
-        thumbColor={theme.colors.text}
-      />
     </View>
   );
 }

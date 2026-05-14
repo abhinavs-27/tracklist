@@ -8,6 +8,7 @@ import { ProfileListsSection } from "@/app/profile/[id]/profile-lists-section";
 import { SimilarUsersSection } from "@/components/similar-users-section";
 import { DeleteAccountSection } from "@/components/profile/delete-account-section";
 import { PrivateLogsToggle } from "@/components/profile/private-logs-toggle";
+import { SignOutSection } from "@/components/profile/sign-out-section";
 import type { TasteIdentity } from "@/lib/taste/types";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileTabsContainer } from "@/components/profile/profile-tabs";
@@ -203,6 +204,8 @@ export async function ProfileDeferredBody({
         initialUsername={user.lastfm_username ?? null}
         initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
       />
+
+      <SignOutSection />
 
       <DeleteAccountSection username={profile.username} />
     </div>
