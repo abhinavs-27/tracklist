@@ -10,6 +10,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { BillboardChartContent } from "@/components/charts/BillboardChartContent";
+import { ChartWeekSelector } from "@/components/charts/ChartWeekSelector";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -211,46 +213,43 @@ function MoverCard({
 function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
   const [chartType, setChartType] = useState<ChartType>("tracks");
   const [weekStart, setWeekStart] = useState<string | null>(null);
-  const [showMore, setShowMore] = useState(false);
 
   const { data: weeks } = useWeeklyChartWeeks(chartType);
   const { data: chart, isLoading } = useWeeklyChart(chartType, weekStart);
 
-  // Week navigation helpers
   const weeksList = weeks ?? [];
-  const currentIndex = weekStart == null ? 0 : weeksList.findIndex(w => w.week_start === weekStart);
-  const effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
-  const currentWeek = weeksList[effectiveIndex];
-  // Prefer the chart's own weekLabel for the current/loaded week (avoids off-by-one from weeks API end dates)
-  const chartWeekLabel = chart?.share?.weekLabel ?? chart?.chart_moment?.week_label ?? "";
+  const effectiveIndex = weekStart == null ? 0 : weeksList.findIndex(w => w.week_start === weekStart);
+  const idx = effectiveIndex >= 0 ? effectiveIndex : 0;
+  const currentWeek = weeksList[idx];
+  const chartWeekLabel = chart?.share?.weekLabel ?? "";
   const weekLabel = currentWeek
     ? (chartWeekLabel && (weekStart == null || weekStart === currentWeek.week_start)
-        ? chartWeekLabel + (effectiveIndex === 0 ? " · latest" : "")
-        : formatWeekRange(currentWeek.week_start, currentWeek.week_end) + (effectiveIndex === 0 ? " · latest" : ""))
+        ? chartWeekLabel + (idx === 0 ? " · latest" : "")
+        : formatWeekRange(currentWeek.week_start, currentWeek.week_end) + (idx === 0 ? " · latest" : ""))
     : chartWeekLabel;
 
   function goNewer() {
-    if (effectiveIndex <= 0 || weeksList.length === 0) return;
-    const next = effectiveIndex - 1;
+    if (idx <= 0 || weeksList.length === 0) return;
+    const next = idx - 1;
     setWeekStart(next === 0 ? null : weeksList[next]!.week_start);
-    setShowMore(false);
   }
   function goOlder() {
-    if (effectiveIndex >= weeksList.length - 1) return;
-    setWeekStart(weeksList[effectiveIndex + 1]!.week_start);
-    setShowMore(false);
+    if (idx >= weeksList.length - 1) return;
+    setWeekStart(weeksList[idx + 1]!.week_start);
   }
 
-  const navigateToEntity = (row: ChartRankingRow | null) => {
-    if (!row) return;
-    router.push(entityRoute(chartType, row.entity_id) as never);
-  };
+  const onNavigate = useCallback((entityId: string) => {
+    router.push(entityRoute(chartType, entityId) as never);
+  }, [router, chartType]);
 
-  const sorted = chart ? [...chart.rankings].sort((a, b) => a.rank - b.rank) : [];
-  const hero = sorted[0] ?? null;
-  const spots2to5 = sorted.filter((r) => r.rank >= 2 && r.rank <= 5);
-  const spots6to10 = sorted.filter((r) => r.rank >= 6);
   const movers = chart?.movers;
+  const billboardMovers = movers ? {
+    biggestMover: movers.biggest_jump ?? null,
+    highestNew: movers.best_new_entry ?? null,
+    dropout: movers.biggest_drop ?? null,
+  } : null;
+
+  const hero = chart ? [...chart.rankings].sort((a, b) => a.rank - b.rank)[0] ?? null : null;
 
   const handleShare = () => {
     if (!hero) return;
@@ -266,7 +265,7 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
         {CHART_TABS.map((t) => (
           <Pressable
             key={t.value}
-            onPress={() => { setChartType(t.value); setWeekStart(null); setShowMore(false); }}
+            onPress={() => { setChartType(t.value); setWeekStart(null); }}
             style={({ pressed }: { pressed: boolean }) => [
               styles.chartTypePill,
               chartType === t.value ? styles.chartTypePillActive : styles.chartTypePillIdle,
@@ -280,39 +279,16 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
         ))}
       </View>
 
-      {/* Week picker */}
-      {weeksList.length > 0 ? (
-        <View style={styles.weekPicker}>
-          <Text style={styles.weekPickerLabel}>WEEK</Text>
-          <View style={styles.weekPickerRow}>
-            <Pressable
-              onPress={goNewer}
-              disabled={effectiveIndex <= 0}
-              style={({ pressed }: { pressed: boolean }) => [
-                styles.weekArrow,
-                effectiveIndex <= 0 && { opacity: 0.3 },
-                pressed && { opacity: 0.6 },
-              ]}
-            >
-              <Text style={styles.weekArrowText}>‹</Text>
-            </Pressable>
-            <Text style={styles.weekLabel} numberOfLines={1}>{weekLabel}</Text>
-            <Pressable
-              onPress={goOlder}
-              disabled={effectiveIndex >= weeksList.length - 1}
-              style={({ pressed }: { pressed: boolean }) => [
-                styles.weekArrow,
-                effectiveIndex >= weeksList.length - 1 && { opacity: 0.3 },
-                pressed && { opacity: 0.6 },
-              ]}
-            >
-              <Text style={styles.weekArrowText}>›</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
+      {/* Week selector — shared component */}
+      <ChartWeekSelector
+        weeks={weeksList}
+        effectiveIndex={idx}
+        disabled={weeksList.length === 0}
+        onNewer={goNewer}
+        onOlder={goOlder}
+        onSelect={(i) => setWeekStart(i === 0 ? null : (weeksList[i]?.week_start ?? null))}
+      />
 
-      {/* Loading */}
       {isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="small" color={theme.colors.emerald} />
@@ -325,93 +301,14 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
         </View>
       ) : (
         <>
-          {/* #1 Hero */}
-          {hero ? (
-            <Pressable
-              onPress={() => navigateToEntity(hero)}
-              style={({ pressed }: { pressed: boolean }) => [styles.heroCard, pressed && { opacity: 0.82 }]}
-            >
-              <Text style={styles.heroWeekLabel}>{chart.share?.weekLabel ?? ""}</Text>
-              <View style={styles.heroInner}>
-                {hero.image ? (
-                  <Image source={{ uri: hero.image }} style={styles.heroArt} />
-                ) : (
-                  <View style={[styles.heroArt, styles.heroArtPlaceholder]}>
-                    <Text style={{ fontSize: 32, color: theme.colors.muted }}>♪</Text>
-                  </View>
-                )}
-                <View style={styles.heroMeta}>
-                  <Text style={styles.heroRank}>#1 THIS WEEK</Text>
-                  <Text style={styles.heroTitle} numberOfLines={2}>{hero.name}</Text>
-                  {hero.artist_name ? (
-                    <Text style={styles.heroArtist} numberOfLines={1}>{hero.artist_name}</Text>
-                  ) : null}
-                  <Text style={styles.heroPlays}>
-                    {hero.play_count.toLocaleString()} plays
-                    {" · "}{hero.weeks_at_1}w at #1
-                    {" · "}{hero.weeks_in_top_10}w in top 10
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          ) : null}
-
-          {/* THIS WEEK narrative */}
-          {chart.narrative.length > 0 ? (
-            <View style={styles.billboardNarrCard}>
-              <Text style={styles.narrativeSectionLabel}>THIS WEEK</Text>
-              <View style={{ gap: 16, marginTop: 16 }}>
-                {chart.narrative.map((line, i) => (
-                  <View key={i} style={styles.narrativeRow}>
-                    <Text style={styles.narrativeIcon}>{NARRATIVE_ICONS[i % NARRATIVE_ICONS.length]}</Text>
-                    <Text style={styles.billboardNarrText}>{line}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* SPOTS 2–5 */}
-          {spots2to5.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={styles.chartSectionLabel}>SPOTS 2–5</Text>
-              <View style={{ gap: 10 }}>
-                {spots2to5.map((row) => (
-                  <ChartRowCard key={row.entity_id} row={row} onPress={() => navigateToEntity(row)} />
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Show spots 6–10 */}
-          {spots6to10.length > 0 ? (
-            <>
-              <Pressable onPress={() => setShowMore((v) => !v)} style={styles.showMoreBtn}>
-                <Text style={styles.showMoreText}>
-                  {showMore ? "Hide spots 6–10" : "Show spots 6–10"}
-                </Text>
-              </Pressable>
-              {showMore ? (
-                <View style={{ gap: 10 }}>
-                  {spots6to10.map((row) => (
-                    <ChartRowCard key={row.entity_id} row={row} onPress={() => navigateToEntity(row)} />
-                  ))}
-                </View>
-              ) : null}
-            </>
-          ) : null}
-
-          {/* BIGGEST MOVERS */}
-          {movers && (movers.biggest_jump ?? movers.biggest_drop ?? movers.best_new_entry) ? (
-            <View style={styles.section}>
-              <Text style={styles.chartSectionLabel}>BIGGEST MOVERS</Text>
-              <View style={{ gap: 12 }}>
-                <MoverCard label="Biggest jump" mover={movers.biggest_jump} onPress={() => navigateToEntity(movers.biggest_jump as ChartRankingRow | null)} />
-                <MoverCard label="Biggest drop" mover={movers.biggest_drop} onPress={() => !isDropout(movers.biggest_drop) ? navigateToEntity(movers.biggest_drop as ChartRankingRow | null) : undefined} />
-                <MoverCard label="Best new entry" mover={movers.best_new_entry} onPress={() => navigateToEntity(movers.best_new_entry)} />
-              </View>
-            </View>
-          ) : null}
+          <BillboardChartContent
+            weekLabel={weekLabel}
+            rankings={chart.rankings}
+            narrative={chart.narrative}
+            narrativeLabel="THIS WEEK"
+            movers={billboardMovers}
+            onNavigate={onNavigate}
+          />
 
           {/* Share */}
           <View style={styles.shareCard}>
@@ -428,7 +325,8 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    const summary = sorted.slice(0, 5).map((r, i) => `${i + 1}. ${r.name}${r.artist_name ? ` – ${r.artist_name}` : ""}`).join("\n");
+                    const top5 = [...chart.rankings].sort((a, b) => a.rank - b.rank).slice(0, 5);
+                    const summary = top5.map((r, i) => `${i + 1}. ${r.name}${r.artist_name ? ` – ${r.artist_name}` : ""}`).join("\n");
                     void Share.share({ message: `My Billboard ${weekLabel}\n\n${summary}` });
                   }}
                   style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}

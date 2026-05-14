@@ -112,6 +112,23 @@ export async function joinCommunity(communityId: string): Promise<void> {
   });
 }
 
+export async function leaveCommunity(communityId: string): Promise<void> {
+  await fetcher(`/api/communities/${encodeURIComponent(communityId)}/leave`, {
+    method: "POST",
+  });
+}
+
+export async function updateCommunitySettings(
+  communityId: string,
+  patch: { name?: string; description?: string | null; is_private?: boolean },
+): Promise<void> {
+  await fetcher(`/api/communities/${encodeURIComponent(communityId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
 export async function fetchCommunityDetail(
   communityId: string,
 ): Promise<CommunityDetailResponse> {

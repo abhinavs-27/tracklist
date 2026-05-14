@@ -1,6 +1,6 @@
 "use client";
 
-import { CommunityHero } from "@/components/community/community-hero";
+import { CommunityHero, type CommunityHeroViewerStats } from "@/components/community/community-hero";
 import { CommunitySettings } from "@/components/community/CommunitySettings";
 import { CommunityActions } from "@/components/community/community-actions";
 import type { CommunityHeroTopArtist } from "@/lib/community/get-community-hero-data";
@@ -16,6 +16,7 @@ export type CommunityHeroStaticProps = {
   backgroundImageUrls: string[];
   avatarUrl?: string | null;
   communityId?: string;
+  viewerStats?: CommunityHeroViewerStats | null;
 };
 
 type Props = {

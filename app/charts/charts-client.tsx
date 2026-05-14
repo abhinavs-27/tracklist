@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WeeklyBillboardView } from "@/components/charts/weekly-billboard";
+import { ChartWeekSelector } from "@/components/charts/chart-week-selector";
+import { ChartTypePills } from "@/components/charts/chart-type-pills";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
-import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 import {
   readStaleSessionCache,
@@ -239,78 +240,17 @@ export function ChartsClient(props: {
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => {
-              setChartType(t.value);
-              setWeekStart(null);
-              syncUrl(t.value, null);
-            }}
-            className={
-              chartType === t.value
-                ? "rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white"
-                : "rounded-full bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 ring-1 ring-white/10 hover:bg-zinc-700"
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <ChartTypePills value={chartType} onChange={(t) => { setChartType(t); setWeekStart(null); syncUrl(t, null); }} />
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-          Week
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={goNewer}
-            disabled={loadingWeeks || weeks.length === 0 || effectiveIndex <= 0}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700/80 bg-zinc-900 text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-30"
-            aria-label="Newer week"
-          >
-            ‹
-          </button>
-          <div className="relative min-w-0 flex-1">
-            <select
-              className="w-full appearance-none rounded-xl border border-zinc-700/80 bg-zinc-900 py-2.5 pl-4 pr-8 text-sm text-white ring-1 ring-white/5 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 disabled:opacity-50"
-              disabled={loadingWeeks || weeks.length === 0}
-              value={weekStart ?? firstWeek ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (!v) return;
-                applyWeek(v === firstWeek ? null : v);
-              }}
-            >
-              {weeks.map((w, i) => (
-                <option key={w.week_start} value={w.week_start}>
-                  {formatWeeklyChartWeekLabel(w.week_start, w.week_end)}
-                  {i === 0 ? " · latest" : ""}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">
-              ▾
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={goOlder}
-            disabled={
-              loadingWeeks ||
-              weeks.length === 0 ||
-              effectiveIndex >= weeks.length - 1
-            }
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700/80 bg-zinc-900 text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-30"
-            aria-label="Older week"
-          >
-            ›
-          </button>
-        </div>
-      </div>
+      <ChartWeekSelector
+        weeks={weeks}
+        weekStart={weekStart}
+        effectiveIndex={effectiveIndex}
+        disabled={loadingWeeks}
+        onSelect={(w) => applyWeek(w)}
+        onNewer={goNewer}
+        onOlder={goOlder}
+      />
 
       {loading ? (
         <p className="text-sm text-zinc-500">Loading chart…</p>

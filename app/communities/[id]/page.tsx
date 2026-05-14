@@ -123,6 +123,14 @@ export default async function CommunityDetailPage({
     backgroundImageUrls: heroListening.backgroundImageUrls,
     avatarUrl: community.avatar_url ?? null,
     communityId: id,
+    viewerStats: viewerStats
+      ? {
+          totalPlays: viewerStats.communityTotalPlays,
+          topArtistName: heroListening.topArtists[0]?.name ?? null,
+          viewerPlays: viewerStats.viewerPlays,
+          viewerRank: viewerStats.viewerRank ?? null,
+        }
+      : null,
   };
 
   const communityActions = (
@@ -177,11 +185,6 @@ export default async function CommunityDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl xl:max-w-7xl space-y-6 py-2">
-      {/* Breadcrumb */}
-      <Link href="/communities" className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 transition hover:text-emerald-400">
-        <span aria-hidden>←</span> Communities
-      </Link>
-
       {/* Hero */}
       {isMember && userId ? (
         <CommunityMemberHeroShell
@@ -208,47 +211,6 @@ export default async function CommunityDetailPage({
             )
           }
         />
-      )}
-
-      {/* Community + personal stats strip */}
-      {isMember && viewerStats && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3 text-sm">
-          {viewerStats.communityTotalPlays > 0 && (
-            <span>
-              <span className="font-semibold text-white">
-                {viewerStats.communityTotalPlays.toLocaleString()}
-              </span>{" "}
-              <span className="text-zinc-400">community plays this week</span>
-            </span>
-          )}
-          {heroListening.topArtists[0] && (
-            <>
-              <span className="text-zinc-700">·</span>
-              <span className="text-zinc-400">
-                Top:{" "}
-                <span className="font-medium text-white">
-                  {heroListening.topArtists[0].name}
-                </span>
-              </span>
-            </>
-          )}
-          {viewerStats.viewerPlays > 0 && (
-            <>
-              <span className="text-zinc-700">·</span>
-              <span className="text-zinc-400">
-                You:{" "}
-                <span className="font-semibold text-white">
-                  {viewerStats.viewerPlays.toLocaleString()} plays
-                </span>
-                {viewerStats.viewerRank && (
-                  <span className="ml-1 text-zinc-500">
-                    · #{viewerStats.viewerRank}
-                  </span>
-                )}
-              </span>
-            </>
-          )}
-        </div>
       )}
 
       {/* Non-member message */}

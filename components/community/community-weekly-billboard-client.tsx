@@ -9,9 +9,10 @@ import {
 } from "react";
 import { WeeklyBillboardView } from "@/components/charts/weekly-billboard";
 import { ChartShareModal } from "@/components/charts/chart-share-modal";
+import { ChartWeekSelector } from "@/components/charts/chart-week-selector";
+import { ChartTypePills } from "@/components/charts/chart-type-pills";
 import { CommunityWeeklyChartSkeleton } from "@/components/community/community-section-skeleton";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
-import { formatWeeklyChartWeekLabel } from "@/lib/charts/week-label";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 import { cardMuted } from "@/lib/ui/surface";
 
@@ -247,140 +248,36 @@ export function CommunityWeeklyBillboardClient(props: {
   const weekControlsDisabled = !weeksReady || weeks.length === 0;
 
   const [shareOpen, setShareOpen] = useState(false);
-  const [weekDropOpen, setWeekDropOpen] = useState(false);
-  const weekDropRef = useRef<HTMLDivElement>(null);
-  const currentWeek = weeks[effectiveIndex];
-  const currentWeekLabel = currentWeek
-    ? formatWeeklyChartWeekLabel(currentWeek.week_start, currentWeek.week_end)
-    : null;
-
-  // Close week dropdown on outside click
-  useEffect(() => {
-    if (!weekDropOpen) return;
-    function handle(e: MouseEvent) {
-      if (weekDropRef.current && !weekDropRef.current.contains(e.target as Node)) {
-        setWeekDropOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [weekDropOpen]);
   const canShare = data
     ? data.chart_moment.top_5.length > 0 || data.chart_moment.number_one != null
     : false;
 
   return (
-    <div className="space-y-8">
-      {/* Controls row: entity tabs + week nav + share */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Entity toggle */}
-        <div className="flex rounded-lg bg-zinc-800/60 p-0.5 ring-1 ring-white/[0.06]">
-          {TABS.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => { setChartType(t.value); setWeekStart(null); }}
-              className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition ${
-                chartType === t.value
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Week navigation — ← older | dropdown | newer → */}
-          <div ref={weekDropRef} className="relative flex items-center gap-1 rounded-xl border border-zinc-800/60 bg-zinc-900/40 px-1 py-1">
-            {/* ← = go back to older week */}
-            <button
-              type="button"
-              onClick={goOlder}
-              disabled={weekControlsDisabled || effectiveIndex >= weeks.length - 1}
-              aria-label="Previous week"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              ←
-            </button>
-
-            {/* Dropdown trigger */}
-            <button
-              type="button"
-              onClick={() => setWeekDropOpen((o) => !o)}
-              disabled={weekControlsDisabled}
-              className="flex min-w-[8.5rem] items-center justify-between gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-white disabled:opacity-40"
-            >
-              <span className="truncate">
-                {currentWeekLabel ?? "—"}
-                {effectiveIndex === 0 && weeks.length > 0 && (
-                  <span className="ml-1 text-zinc-600">· latest</span>
-                )}
-              </span>
-              <svg viewBox="0 0 16 16" className={`h-3 w-3 shrink-0 text-zinc-500 transition-transform duration-150 ${weekDropOpen ? "rotate-180" : ""}`} fill="currentColor" aria-hidden>
-                <path d="M4.427 6.427a.75.75 0 011.06 0L8 8.94l2.513-2.513a.75.75 0 111.06 1.06l-3.043 3.044a.75.75 0 01-1.06 0L4.427 7.487a.75.75 0 010-1.06z" />
-              </svg>
-            </button>
-
-            {/* → = go forward to newer week */}
-            <button
-              type="button"
-              onClick={goNewer}
-              disabled={weekControlsDisabled || effectiveIndex <= 0}
-              aria-label="Next week"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              →
-            </button>
-
-            {/* Week dropdown panel */}
-            {weekDropOpen && weeks.length > 0 && (
-              <div className="absolute left-0 top-full z-20 mt-1.5 max-h-64 w-56 overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 shadow-2xl ring-1 ring-white/[0.06]">
-                <ul className="py-1.5">
-                  {weeks.map((w, i) => {
-                    const label = formatWeeklyChartWeekLabel(w.week_start, w.week_end);
-                    const isSelected = w.week_start === (weekStart ?? firstWeek ?? "");
-                    return (
-                      <li key={w.week_start}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            applyWeek(i === 0 ? null : w.week_start);
-                            setWeekDropOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition hover:bg-zinc-800/60 ${
-                            isSelected ? "text-emerald-400" : "text-zinc-300"
-                          }`}
-                        >
-                          <span>{label}</span>
-                          {i === 0 && <span className="ml-2 shrink-0 rounded-full bg-emerald-600/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">latest</span>}
-                          {isSelected && i !== 0 && <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          {/* Compact share button */}
-          {data && (
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              disabled={!canShare}
-              className="flex h-9 items-center gap-1.5 rounded-xl border border-zinc-700/80 bg-zinc-900/60 px-3 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-white disabled:opacity-40"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.769-.283 1.093m0-2.186l9.566-5.314m-9.566 5.314l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186z" />
-              </svg>
-              Share
-            </button>
-          )}
-        </div>
+    <div className="space-y-6">
+      {/* Entity pills + share — share moves here so week nav gets full width */}
+      <div className="flex items-center justify-between gap-2">
+        <ChartTypePills value={chartType} onChange={(t) => { setChartType(t); setWeekStart(null); }} />
+        {data && (
+          <button type="button" onClick={() => setShareOpen(true)} disabled={!canShare}
+            className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-zinc-500 transition hover:text-zinc-300 disabled:opacity-40">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.769-.283 1.093m0-2.186l9.566-5.314m-9.566 5.314l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186z" />
+            </svg>
+            Share
+          </button>
+        )}
       </div>
+
+      {/* Week selector — full width, identical to home page */}
+      <ChartWeekSelector
+        weeks={weeks}
+        weekStart={weekStart}
+        effectiveIndex={effectiveIndex}
+        disabled={weekControlsDisabled}
+        onSelect={(w) => applyWeek(w)}
+        onNewer={goNewer}
+        onOlder={goOlder}
+      />
 
       {loading ? (
         <CommunityWeeklyChartSkeleton />
