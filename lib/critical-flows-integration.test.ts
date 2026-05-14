@@ -32,6 +32,7 @@ function createChain() {
     order: vi.fn().mockImplementation(() => chain),
     limit: vi.fn().mockImplementation(() => chain),
     range: vi.fn().mockImplementation(() => chain),
+    update: vi.fn().mockImplementation(() => chain),
   };
   return chain;
 }
@@ -79,10 +80,18 @@ vi.mock('@/lib/catalog/entity-resolution', async (importOriginal) => {
     resolveAndCheckPending: vi.fn(async (supabase, rawId, kind) => {
       if (!rawId) return null;
       if (rawId === 'pending-id') return { kind: 'pending', spotifyId: 'pending-id', entity: kind };
+      if (rawId === 'invalid-id') return null;
       return { kind: 'resolved', id: 'resolved-uuid' };
     }),
   };
 });
+
+vi.mock('@/lib/catalog/getOrCreateEntity', () => ({
+  getOrCreateEntity: vi.fn(async ({ spotifyId }) => {
+    if (spotifyId === 'errorid22charslongxxxx') throw new Error('Resolution failed');
+    return { id: 'resolved-uuid' };
+  }),
+}));
 
 vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
   scheduleTrackEnrichment: vi.fn(),
@@ -184,7 +193,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     it('should return 400 for invalid rating', async () => {
         const req = new NextRequest('http://localhost/api/reviews', {
           method: 'POST',
-          body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 }),
+          body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 6 }),
         });
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
@@ -198,17 +207,25 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
     });
+
+    it('should return 400 if entity resolution fails', async () => {
+        const req = new NextRequest('http://localhost/api/reviews', {
+          method: 'POST',
+          body: JSON.stringify({ entity_type: 'album', entity_id: 'errorid22charslongxxxx', rating: 5 }),
+        });
+        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toContain('Could not resolve entity');
+    });
   });
 
   describe('POST /api/logs', () => {
     it('should successfully log a listen', async () => {
-      const { resolveAndCheckPending } = await import('@/lib/catalog/entity-resolution');
-      vi.mocked(resolveAndCheckPending).mockResolvedValueOnce({ kind: 'resolved', id: 'track-uuid' });
-
       const chain = createChain();
       mockSupabase.from.mockReturnValue(chain);
       chain.single.mockResolvedValue({
-        data: { id: 'l1', track_id: 'track-uuid', listened_at: new Date().toISOString() },
+        data: { id: 'l1', track_id: 'resolved-uuid', listened_at: new Date().toISOString() },
         error: null
       });
 
@@ -233,21 +250,25 @@ describe('Critical Flows: API Integration (Vitest)', () => {
     });
 
     it('should return 503 if catalog is pending', async () => {
-        const { resolveAndCheckPending } = await import('@/lib/catalog/entity-resolution');
-        vi.mocked(resolveAndCheckPending).mockResolvedValueOnce({
-          kind: 'pending',
-          spotifyId: '2nLhD10Z7Sb4RFyCX2ZCyx',
-          entity: 'track'
-        });
-
         const req = new NextRequest('http://localhost/api/logs', {
           method: 'POST',
-          body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
+          body: JSON.stringify({ track_id: 'pending-id', source: 'manual' }),
         });
         const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(503);
         const body = await res.json();
         expect(body.code).toBe('catalog_pending');
+    });
+
+    it('should return 400 for invalid or unknown track_id', async () => {
+        const req = new NextRequest('http://localhost/api/logs', {
+          method: 'POST',
+          body: JSON.stringify({ track_id: 'invalid-id', source: 'manual' }),
+        });
+        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toContain('Invalid or unknown track_id');
     });
   });
 
@@ -292,6 +313,12 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         const req = new NextRequest('http://localhost/api/users/missing');
         const res = await userGET(req, { params: { username: 'missing' } } as any);
         expect(res.status).toBe(404);
+    });
+
+    it('should return 400 for invalid username format', async () => {
+        const req = new NextRequest('http://localhost/api/users/invalid@user');
+        const res = await userGET(req, { params: { username: 'invalid@user' } } as any);
+        expect(res.status).toBe(400);
     });
 
     it('should return 500 on database error', async () => {

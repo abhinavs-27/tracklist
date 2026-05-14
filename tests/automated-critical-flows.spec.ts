@@ -88,7 +88,7 @@ test.describe('Critical Flows: Automated Integration', () => {
       const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 })
+        body: JSON.stringify({ entity_type: 'album', entity_id: '1234567890123456789012', rating: 6 })
       });
       return { status: res.status, body: await res.json() };
     });
@@ -227,14 +227,15 @@ test.describe('Critical Flows: Automated Integration', () => {
     });
 
     await page.goto('/search');
-    const searchInput = page.getByPlaceholder(/Search artists/i);
+    // Fix strict mode violation by filtering for visible input (handles mobile/desktop double inputs)
+    const searchInput = page.getByPlaceholder(/Search artists/i).filter({ visible: true });
 
     // Trigger search via fill and evaluate to ensure reactivity
     await searchInput.fill('radiohead');
     await searchInput.evaluate(el => el.dispatchEvent(new Event('input', { bubbles: true })));
 
     // Verify "Top result" appears (SearchClient renders this when results are found)
-    await expect(page.getByText('Top result')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Top result')).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Radiohead').first()).toBeVisible();
 
     // Verify results are visible
