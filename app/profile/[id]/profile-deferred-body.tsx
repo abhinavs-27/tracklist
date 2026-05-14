@@ -135,56 +135,57 @@ export async function ProfileDeferredBody({
 
   // ── Lists tab ─────────────────────────────────────────────────────────────────
   const listsTab = (
-    <div className={sectionGap}>
-      <SectionBlock
-        title={isOwnProfile ? "Your lists" : "Lists"}
-        action={
-          isOwnProfile && userLists.length > 0
-            ? {
-                label:
-                  userLists.length > LISTS_PREVIEW_MAX
-                    ? `View all (${userLists.length})`
-                    : "View all lists",
-                href: "/lists",
-              }
-            : undefined
-        }
-        headerRight={isOwnProfile ? <ProfileListsSection /> : undefined}
-      >
-        {userLists.length === 0 ? (
-          <div className={`${cardElevated} px-4 py-8 text-center sm:px-6 sm:py-10`}>
-            <p className="text-zinc-500">
-              {isOwnProfile ? "No lists yet." : "No lists yet."}
-            </p>
-            {isOwnProfile && (
-              <div className="mt-4 flex justify-center">
-                <ProfileListsSection triggerLabel="Create your first list" />
-              </div>
-            )}
-          </div>
-        ) : (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-            {(isOwnProfile ? userLists.slice(0, LISTS_PREVIEW_MAX) : userLists).map(
-              (list) => (
-                <li key={list.id}>
-                  <ListCard
-                    id={list.id}
-                    title={list.title}
-                    description={list.description}
-                    created_at={list.created_at}
-                    item_count={list.item_count}
-                    visibility={list.visibility}
-                    emoji={list.emoji}
-                    image_url={list.image_url}
-                    preview_labels={list.preview_labels}
-                    profilePreview
-                  />
-                </li>
-              ),
-            )}
-          </ul>
-        )}
-      </SectionBlock>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-white">
+          {isOwnProfile ? "Your lists" : "Lists"}
+        </h2>
+        <div className="flex items-center gap-2">
+          {isOwnProfile ? <ProfileListsSection /> : null}
+          {isOwnProfile && userLists.length > 0 ? (
+            <a
+              href="/lists"
+              className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-1.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800"
+            >
+              View all
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Empty */}
+      {userLists.length === 0 ? (
+        <div className="rounded-xl border border-zinc-800/60 bg-zinc-950/40 px-4 py-8 text-center">
+          <p className="text-sm text-zinc-500">
+            {isOwnProfile ? "No lists yet." : "No lists yet."}
+          </p>
+          {isOwnProfile && (
+            <div className="mt-4 flex justify-center">
+              <ProfileListsSection triggerLabel="Create your first list" />
+            </div>
+          )}
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {(isOwnProfile ? userLists.slice(0, LISTS_PREVIEW_MAX) : userLists).map((list) => (
+            <li key={list.id}>
+              <ListCard
+                id={list.id}
+                title={list.title}
+                description={list.description}
+                created_at={list.created_at}
+                item_count={list.item_count}
+                visibility={list.visibility}
+                emoji={list.emoji}
+                image_url={list.image_url}
+                preview_labels={list.preview_labels}
+                profilePreview
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 
