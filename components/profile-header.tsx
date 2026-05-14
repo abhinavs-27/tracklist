@@ -72,7 +72,7 @@ export function ProfileHeader({
   const isHero = variant === "hero";
   const isBanner = variant === "banner";
   const avatarClass = isBanner
-    ? "h-20 w-20 ring-4 ring-zinc-900 shadow-xl sm:h-24 sm:w-24"
+    ? "h-20 w-20 sm:h-24 sm:w-24"
     : isHero
       ? "h-16 w-16 sm:h-20 sm:w-20 border-2 border-zinc-600/80 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.6)]"
       : "h-16 w-16 border-2 border-zinc-700";
@@ -103,28 +103,19 @@ export function ProfileHeader({
   if (isBanner) {
     return (
       <>
-        {/* Avatar + action row — pulled up over the banner via -mt-10 on this div */}
-        <div className="-mt-10 flex items-end justify-between sm:-mt-12">
+        {/* Avatar — sits just at the banner edge */}
+        <div className="-mt-2">
           <div className="shrink-0">{avatarEl}</div>
-          {!isOwnProfile ? (
-            <div className="pb-1">
-              <FollowButton
-                userId={userId}
-                initialFollowing={isFollowing}
-                onFollowChange={handleFollowChange}
-              />
-            </div>
-          ) : null}
         </div>
 
         {/* Text content */}
-        <div className="mt-3">
-          <h1 className={titleClass}>{username}</h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-zinc-400">
+        <div className="mt-2.5">
+          <h1 className="text-[1.375rem] font-bold tracking-tight text-white sm:text-2xl leading-tight">{username}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-zinc-400">
             <button
               type="button"
               onClick={() => { setInitialTab("followers"); setFollowersOpen(true); }}
-              className="inline-flex min-h-8 items-baseline gap-1 rounded px-1 transition hover:text-zinc-200"
+              className="inline-flex items-baseline gap-1 transition hover:text-zinc-200"
             >
               <span className="font-semibold tabular-nums text-zinc-200">{optimisticFollowerCount}</span>
               <span>followers</span>
@@ -133,14 +124,23 @@ export function ProfileHeader({
             <button
               type="button"
               onClick={() => { setInitialTab("following"); setFollowersOpen(true); }}
-              className="inline-flex min-h-8 items-baseline gap-1 rounded px-1 transition hover:text-zinc-200"
+              className="inline-flex items-baseline gap-1 transition hover:text-zinc-200"
             >
               <span className="font-semibold tabular-nums text-zinc-200">{followingCount}</span>
               <span>following</span>
             </button>
           </div>
           {bio ? (
-            <p className="mt-2 text-sm leading-relaxed text-zinc-400">{bio}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{bio}</p>
+          ) : null}
+          {!isOwnProfile ? (
+            <div className="mt-3">
+              <FollowButton
+                userId={userId}
+                initialFollowing={isFollowing}
+                onFollowChange={handleFollowChange}
+              />
+            </div>
           ) : null}
         </div>
 

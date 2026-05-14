@@ -1,178 +1,164 @@
-import { View, Text, StyleSheet, Image, Pressable } from "react-native";
+import { Image } from "expo-image";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/lib/theme";
 import type { ProfileUser, ProfileStats } from "@/lib/hooks/useProfile";
+
+type BannerAlbum = { artworkUrl: string | null };
 
 type Props = {
   user: ProfileUser;
   stats: ProfileStats;
   streak?: ProfileUser["streak"];
+  totalLogs?: number;
+  bannerAlbums?: BannerAlbum[];
   onPressFollowers?: () => void;
   onPressFollowing?: () => void;
 };
 
-/**
- * Avatar + username + followers / following (below username, beside avatar) + bio + streak.
- */
 export function ProfileHeader({
   user,
   stats,
   streak,
+  totalLogs,
+  bannerAlbums = [],
   onPressFollowers,
   onPressFollowing,
 }: Props) {
+  const bannerImages = bannerAlbums.filter((a) => a.artworkUrl).slice(0, 4);
+  const hasBanner = bannerImages.length > 0;
+
   return (
-    <View style={styles.wrap}>
-      <View style={styles.topRow}>
-        {user.avatar_url ? (
-          <Image
-            source={{ uri: user.avatar_url }}
-            style={styles.avatar}
-          />
+    <View>
+      {/* Banner strip */}
+      <View style={s.banner}>
+        {hasBanner ? (
+          <View style={s.bannerStrip}>
+            {bannerImages.map((a, i) => (
+              <Image
+                key={i}
+                source={{ uri: a.artworkUrl! }}
+                style={s.bannerSlot}
+                contentFit="cover"
+              />
+            ))}
+            {/* fill remaining slots */}
+            {Array.from({ length: Math.max(0, 4 - bannerImages.length) }).map((_, i) => (
+              <View key={`fill-${i}`} style={[s.bannerSlot, s.bannerSlotFill]} />
+            ))}
+          </View>
         ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <Text style={styles.avatarGlyph}>
-              {user.username.slice(0, 1).toUpperCase()}
-            </Text>
-          </View>
+          <View style={s.bannerFallback} />
         )}
-        <View style={styles.titleCol}>
-          <Text style={styles.username} numberOfLines={1}>
-            {user.username}
-          </Text>
-          <View style={styles.followRow}>
-            <Pressable
-              onPress={onPressFollowers}
-              disabled={!onPressFollowers}
-              style={({ pressed }) => [
-                styles.followStat,
-                pressed && onPressFollowers ? styles.followStatPressed : null,
-                !onPressFollowers ? styles.followStatDisabled : null,
-              ]}
-            >
-              <Text style={styles.statValue}>{stats.followers}</Text>
-              <Text style={styles.followLabel}>Followers</Text>
-            </Pressable>
-            <Pressable
-              onPress={onPressFollowing}
-              disabled={!onPressFollowing}
-              style={({ pressed }) => [
-                styles.followStat,
-                pressed && onPressFollowing ? styles.followStatPressed : null,
-                !onPressFollowing ? styles.followStatDisabled : null,
-              ]}
-            >
-              <Text style={styles.statValue}>{stats.following}</Text>
-              <Text style={styles.followLabel}>Following</Text>
-            </Pressable>
-          </View>
-          {user.bio ? (
-            <Text style={styles.bio} numberOfLines={4}>
-              {user.bio}
-            </Text>
-          ) : null}
-        </View>
+        {/* Bottom fade */}
+        <View style={s.bannerFade} pointerEvents="none" />
       </View>
 
-      {streak && streak.current_streak > 0 ? (
-        <Text style={styles.streak}>
-          🔥{" "}
-          <Text style={styles.streakEmphasis}>{streak.current_streak}</Text> day
-          listening streak
-          {streak.longest_streak > streak.current_streak ? (
-            <Text style={styles.streakMuted}>
-              {" "}
-              (best: {streak.longest_streak})
-            </Text>
-          ) : null}
-        </Text>
-      ) : null}
+      {/* Body */}
+      <View style={s.body}>
+        {/* Avatar pulled up over banner */}
+        <View style={s.avatarRow}>
+          {user.avatar_url ? (
+            <Image source={{ uri: user.avatar_url }} style={s.avatar} contentFit="cover" />
+          ) : (
+            <View style={[s.avatar, s.avatarPh]}>
+              <Text style={s.avatarGlyph}>{user.username[0]?.toUpperCase() ?? "?"}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Username */}
+        <Text style={s.username} numberOfLines={1}>{user.username}</Text>
+
+        {/* Followers · Following */}
+        <View style={s.followRow}>
+          <Pressable
+            onPress={onPressFollowers}
+            disabled={!onPressFollowers}
+            style={({ pressed }) => [s.followBtn, pressed && onPressFollowers ? { opacity: 0.75 } : null]}
+          >
+            <Text style={s.followValue}>{stats.followers}</Text>
+            <Text style={s.followLabel}> followers</Text>
+          </Pressable>
+          <Text style={s.followDot}>·</Text>
+          <Pressable
+            onPress={onPressFollowing}
+            disabled={!onPressFollowing}
+            style={({ pressed }) => [s.followBtn, pressed && onPressFollowing ? { opacity: 0.75 } : null]}
+          >
+            <Text style={s.followValue}>{stats.following}</Text>
+            <Text style={s.followLabel}> following</Text>
+          </Pressable>
+        </View>
+
+        {/* Bio */}
+        {user.bio ? (
+          <Text style={s.bio} numberOfLines={4}>{user.bio}</Text>
+        ) : null}
+
+        {/* Stats: listens + streak */}
+        {(totalLogs && totalLogs > 0) || (streak?.current_streak ?? 0) > 0 ? (
+          <View style={s.statsRow}>
+            {totalLogs && totalLogs > 0 ? (
+              <Text style={s.stat}>
+                <Text style={s.statBold}>{totalLogs.toLocaleString()}</Text>
+                <Text style={s.statLabel}> listens</Text>
+              </Text>
+            ) : null}
+            {(streak?.current_streak ?? 0) > 0 && (totalLogs && totalLogs > 0) ? (
+              <Text style={s.statDot}>·</Text>
+            ) : null}
+            {(streak?.current_streak ?? 0) > 0 ? (
+              <Text style={s.stat}>
+                <Text style={s.statBold}>{streak!.current_streak}d</Text>
+                <Text style={s.statLabel}> streak</Text>
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
-const AVATAR = 96;
+const BANNER_H = 120;
+const AVATAR_SIZE = 84;
+const AVATAR_OVERLAP = 4;
 
-const styles = StyleSheet.create({
-  wrap: {
-    gap: 16,
+const s = StyleSheet.create({
+  banner: { height: BANNER_H, position: "relative" },
+  bannerStrip: { flex: 1, flexDirection: "row" },
+  bannerSlot: { flex: 1, height: BANNER_H },
+  bannerSlotFill: { backgroundColor: "#27272a" },
+  bannerFallback: { flex: 1, backgroundColor: "#18181b" },
+  bannerFade: {
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 48,
+    // Simulated gradient — just a semi-transparent overlay at the bottom
+    backgroundColor: "rgba(9,9,11,0.5)",
   },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 16,
-  },
+
+  body: { paddingHorizontal: 16, paddingBottom: 4 },
+
+  avatarRow: { marginTop: -AVATAR_OVERLAP },
   avatar: {
-    width: AVATAR,
-    height: AVATAR,
-    borderRadius: AVATAR / 2,
-    backgroundColor: theme.colors.border,
+    width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: theme.colors.panel,
   },
-  avatarPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarGlyph: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: theme.colors.muted,
-  },
-  titleCol: {
-    flex: 1,
-    gap: 8,
-    paddingTop: 4,
-    minWidth: 0,
-  },
-  username: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: theme.colors.text,
-  },
-  followRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    alignItems: "center",
-  },
-  followStat: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  followStatPressed: {
-    opacity: 0.75,
-  },
-  followStatDisabled: {
-    opacity: 1,
-  },
-  statValue: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: theme.colors.text,
-  },
-  followLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: theme.colors.muted,
-  },
-  bio: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: theme.colors.muted,
-    lineHeight: 20,
-  },
-  streak: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: theme.colors.muted,
-  },
-  streakEmphasis: {
-    fontWeight: "800",
-    color: theme.colors.amber,
-  },
-  streakMuted: {
-    fontSize: 13,
-    color: theme.colors.muted,
-  },
+  avatarPh: { alignItems: "center", justifyContent: "center" },
+  avatarGlyph: { fontSize: 28, fontWeight: "800", color: theme.colors.muted },
+
+  username: { fontSize: 22, fontWeight: "800", color: theme.colors.text, marginTop: 10, letterSpacing: -0.3 },
+
+  followRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 4, gap: 2 },
+  followBtn: { flexDirection: "row", alignItems: "baseline", paddingVertical: 3, paddingHorizontal: 2 },
+  followValue: { fontSize: 14, fontWeight: "700", color: theme.colors.text },
+  followLabel: { fontSize: 14, color: theme.colors.muted },
+  followDot: { fontSize: 14, color: "#52525b", marginHorizontal: 4 },
+
+  bio: { fontSize: 14, color: theme.colors.muted, lineHeight: 20, marginTop: 8 },
+
+  statsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4, marginTop: 8 },
+  stat: { fontSize: 14 },
+  statBold: { fontWeight: "700", color: theme.colors.text },
+  statLabel: { color: theme.colors.muted },
+  statDot: { fontSize: 14, color: "#52525b" },
 });

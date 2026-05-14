@@ -42,53 +42,31 @@ export async function SimilarUsersSection({
       : "mt-4 space-y-3";
 
   return (
-    <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 sm:p-5">
+    <section>
       <h2 className="text-lg font-semibold text-white">Similar users</h2>
-      <p className="mt-1 text-sm text-zinc-500">
+      <p className="mt-1 text-xs text-zinc-500">
         Based on your last 30 days of listens (artist vectors + cosine similarity).
       </p>
-      <ul className={listClass}>
+      <ul className="mt-4 flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {top.map((m) => {
           const u = userMap.get(m.userId);
           const pct = Math.round(m.similarityScore * 100);
           return (
-            <li
-              key={m.userId}
-              className={
-                variant === "strip"
-                  ? "w-60 max-w-[min(16rem,calc(100vw-2.5rem))] shrink-0 snap-start"
-                  : ""
-              }
-            >
-              <Link
-                href={`/profile/${m.userId}`}
-                className="flex h-full min-w-0 items-center gap-2.5 rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-2.5 py-2 transition hover:border-zinc-600 sm:gap-3 sm:px-3"
-              >
+            <li key={m.userId} className="w-[76px] shrink-0">
+              <Link href={`/profile/${m.userId}`} className="group flex flex-col items-center gap-1.5 text-center">
                 {u?.avatar_url ? (
-                  <img
-                    src={u.avatar_url}
-                    alt=""
-                    className="h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10"
-                  />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={u.avatar_url} alt="" className="h-[72px] w-[72px] rounded-full object-cover border border-zinc-700 transition group-hover:border-emerald-500/50" />
                 ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-sm text-zinc-300 sm:h-10 sm:w-10">
+                  <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-zinc-800 text-xl font-semibold text-zinc-300 border border-zinc-700">
                     {(u?.username ?? "?")[0]?.toUpperCase()}
                   </span>
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-white">
-                    {u?.username ?? "Unknown"}
-                  </p>
-                  <p className="truncate text-xs text-zinc-500 sm:hidden">
-                    {tasteSimilarityLabel(m.similarityScore)}
-                  </p>
-                  <p className="hidden truncate text-xs text-zinc-500 sm:block">
-                    {pct}% · {tasteSimilarityLabel(m.similarityScore)}
-                  </p>
-                </div>
-                <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-400">
-                  {pct}%
+                <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight text-zinc-200 group-hover:text-emerald-400">
+                  {u?.username ?? "Unknown"}
                 </span>
+                <span className="text-[11px] font-bold tabular-nums text-emerald-400">{pct}%</span>
+                <span className="text-[10px] text-zinc-500 leading-tight">{tasteSimilarityLabel(m.similarityScore)}</span>
               </Link>
             </li>
           );

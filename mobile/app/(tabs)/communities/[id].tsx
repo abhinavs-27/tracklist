@@ -16,7 +16,6 @@ import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { CommunityActivityFeed } from "@/components/community/CommunityActivityFeed";
 import { CommunityPeopleTab } from "@/components/community/CommunityPeopleTab";
 import { CommunityVibeTab } from "@/components/community/CommunityVibeTab";
 import { CommunityBillboardTab } from "@/components/community/CommunityBillboardTab";
@@ -25,14 +24,12 @@ import {
   declineCommunityInviteApi,
   fetchCommunityConsensus,
   fetchCommunityDetail,
-  fetchCommunityFeed,
   fetchCommunityInsights,
   fetchCommunityLeaderboard,
   fetchCommunityWeeklySummary,
   joinCommunity,
   leaveCommunity,
   updateCommunitySettings,
-  type CommunityFeedItemV2,
 } from "@/lib/api-communities";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { fetchCommunityTasteMatch } from "@/lib/api-taste";
@@ -60,7 +57,7 @@ export default function CommunityDetailScreen() {
   const [editPrivate, setEditPrivate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [memberTab, setMemberTab] = useState<"billboard" | "community" | "people" | "feed">(
+  const [memberTab, setMemberTab] = useState<"billboard" | "community" | "people">(
     "billboard",
   );
   const [tz, setTz] = useState<string | null>(null);
@@ -90,12 +87,6 @@ export default function CommunityDetailScreen() {
     enabled: !!id && isMember,
   });
 
-  const { data: feedData, isPending: feedPending } = useQuery({
-    queryKey: queryKeys.communityFeed(id),
-    queryFn: () => fetchCommunityFeed(id, 20),
-    enabled: !!id && isMember,
-  });
-
   const { data: tasteMatch } = useQuery({
     queryKey: queryKeys.communityTasteMatch(id),
     queryFn: () => fetchCommunityTasteMatch(id),
@@ -120,15 +111,6 @@ export default function CommunityDetailScreen() {
     enabled: !!id && isMember && !!tz,
   });
 
-  const [feedExtra, setFeedExtra] = useState<CommunityFeedItemV2[]>([]);
-  const [feedNextOffset, setFeedNextOffset] = useState<number | null>(null);
-  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
-
-  useEffect(() => {
-    setFeedExtra([]);
-    setFeedNextOffset(feedData?.next_offset ?? null);
-  }, [id, feedData]);
-
   const community = meta?.community;
   const pendingInviteId = meta?.pending_invite_id ?? null;
   const canInvite = useMemo(() => {
@@ -138,8 +120,6 @@ export default function CommunityDetailScreen() {
   }, [isMember, community, meta?.my_role]);
   const canEdit = isMember && meta?.my_role === "admin";
   const leaderboard = lbData?.leaderboard ?? [];
-  const feedBase = feedData?.feed ?? [];
-  const feed = [...feedBase, ...feedExtra];
 
   async function onAcceptInvite() {
     if (!pendingInviteId) return;
@@ -150,9 +130,6 @@ export default function CommunityDetailScreen() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.community(id) });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communityLeaderboard(id),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.communityFeed(id),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communityInsights(id),
@@ -205,17 +182,6 @@ export default function CommunityDetailScreen() {
     }
   }
 
-  async function onLoadMoreFeed() {
-    if (!id || feedNextOffset == null || feedLoadingMore) return;
-    setFeedLoadingMore(true);
-    try {
-      const res = await fetchCommunityFeed(id, 20, { offset: feedNextOffset });
-      setFeedExtra((prev: CommunityFeedItemV2[]) => [...prev, ...res.feed]);
-      setFeedNextOffset(res.next_offset ?? null);
-    } finally {
-      setFeedLoadingMore(false);
-    }
-  }
 
   async function onJoin() {
     if (!id) return;
@@ -226,9 +192,6 @@ export default function CommunityDetailScreen() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.community(id) });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communityLeaderboard(id),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.communityFeed(id),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.communityInsights(id),
@@ -454,10 +417,10 @@ export default function CommunityDetailScreen() {
         <View style={styles.stickyTabBar}>
           {isMember && community ? (
             <View style={styles.tabBarRow}>
-              {(["billboard", "community", "people", "feed"] as const).map((t) => (
+              {(["billboard", "community", "people"] as const).map((t) => (
                 <Pressable key={t} onPress={() => setMemberTab(t)} style={styles.tabBtn}>
                   <Text style={[styles.tabLabel, memberTab === t && styles.tabLabelActive]}>
-                    {t === "billboard" ? "Billboard" : t === "community" ? "Community" : t === "people" ? "People" : "Feed"}
+                    {t === "billboard" ? "Billboard" : t === "community" ? "Community" : "People"}
                   </Text>
                   {memberTab === t && <View style={styles.tabLine} />}
                 </Pressable>
@@ -473,24 +436,8 @@ export default function CommunityDetailScreen() {
               <CommunityBillboardTab communityId={id} />
             ) : memberTab === "community" ? (
               <CommunityVibeTab communityId={id} />
-            ) : memberTab === "people" ? (
-              <CommunityPeopleTab communityId={id} />
             ) : (
-              <View style={styles.activityPane}>
-                <Text style={styles.activityIntro}>
-                  What members are doing — grouped when people log several tracks in a row.
-                </Text>
-                {feedPending ? (
-                  <ActivityIndicator color={theme.colors.emerald} style={{ marginVertical: 20 }} />
-                ) : (
-                  <CommunityActivityFeed
-                    feed={feed}
-                    feedNextOffset={feedNextOffset}
-                    feedLoadingMore={feedLoadingMore}
-                    onLoadMore={onLoadMoreFeed}
-                  />
-                )}
-              </View>
+              <CommunityPeopleTab communityId={id} />
             )}
           </View>
         ) : null}

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fetchTasteMatches } from "@/lib/api-taste";
 import { queryKeys } from "@/lib/query-keys";
@@ -7,115 +8,66 @@ import { theme } from "@/lib/theme";
 
 export function SimilarUsersSection() {
   const router = useRouter();
-  const { data, isPending, error } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: queryKeys.tasteMatches(),
     queryFn: () => fetchTasteMatches().then((r) => r.matches),
+    staleTime: 5 * 60 * 1000,
   });
 
-  if (isPending) {
-    return (
-      <View style={styles.box}>
-        <Text style={styles.title}>Similar users</Text>
-        <Text style={styles.muted}>Loading…</Text>
-      </View>
-    );
-  }
-
-  if (error || !data?.length) {
-    return (
-      <View style={styles.box}>
-        <Text style={styles.title}>Similar users</Text>
-        <Text style={styles.muted}>
-          No close matches yet — keep logging music so we can find listeners with
-          a similar artist mix.
-        </Text>
-      </View>
-    );
-  }
-
-  const top = data.slice(0, 5);
+  const top = data?.slice(0, 8) ?? [];
 
   return (
-    <View style={styles.box}>
-      <Text style={styles.title}>Similar users</Text>
-      <Text style={styles.sub}>Based on your listening over the past month</Text>
-      <View style={{ marginTop: 10, gap: 8 }}>
-        {top.map((m) => {
-          const pct = Math.round(m.similarityScore * 100);
-          return (
-            <Pressable
-              key={m.userId}
-              style={styles.row}
-              onPress={() =>
-                router.push(`/user/${encodeURIComponent(m.username)}` as const)
-              }
-            >
-              {m.avatar_url ? (
-                <Image source={{ uri: m.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarPh}>
-                  <Text style={styles.avatarPhText}>
-                    {m.username[0]?.toUpperCase() ?? "?"}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.nameBlock}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {m.username}
-                </Text>
-                <Text style={styles.meta}>
-                  {pct}% · {m.label}
-                </Text>
-              </View>
-              <Text style={styles.pct} numberOfLines={1}>
-                {pct}%
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+    <View>
+      <Text style={s.heading}>Similar users</Text>
+      <Text style={s.sub}>Based on your last 30 days of listens (artist vectors + cosine similarity).</Text>
+
+      {isPending ? (
+        <Text style={s.muted}>Loading…</Text>
+      ) : top.length === 0 ? (
+        <Text style={s.muted}>No close matches yet — keep logging music.</Text>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.strip}
+        >
+          {top.map((m) => {
+            const pct = Math.round(m.similarityScore * 100);
+            return (
+              <Pressable
+                key={m.userId}
+                style={({ pressed }) => [s.card, pressed && { opacity: 0.75 }]}
+                onPress={() => router.push(`/user/${encodeURIComponent(m.username)}` as const)}
+              >
+                {m.avatar_url ? (
+                  <Image source={{ uri: m.avatar_url }} style={s.avatar} contentFit="cover" />
+                ) : (
+                  <View style={s.avatarPh}>
+                    <Text style={s.avatarPhText}>{m.username[0]?.toUpperCase() ?? "?"}</Text>
+                  </View>
+                )}
+                <Text style={s.name} numberOfLines={1}>{m.username}</Text>
+                <Text style={s.pct}>{pct}%</Text>
+                <Text style={s.label} numberOfLines={1}>{m.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    backgroundColor: theme.colors.panel,
-  },
-  title: { fontSize: 17, fontWeight: "700", color: theme.colors.text },
-  sub: { marginTop: 4, fontSize: 12, color: theme.colors.muted },
-  muted: { marginTop: 6, fontSize: 14, color: theme.colors.muted, lineHeight: 20 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
-    minWidth: 0,
-  },
-  nameBlock: { flex: 1, minWidth: 0 },
-  avatar: { width: 40, height: 40, borderRadius: 20 },
-  avatarPh: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.active,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarPhText: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
-  name: { fontSize: 15, fontWeight: "600", color: theme.colors.text },
-  meta: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
-  pct: {
-    flexShrink: 0,
-    fontSize: 15,
-    fontWeight: "800",
-    color: theme.colors.emerald,
-  },
+const s = StyleSheet.create({
+  heading: { fontSize: 18, fontWeight: "700", color: theme.colors.text, marginBottom: 4 },
+  sub: { fontSize: 12, color: theme.colors.muted, lineHeight: 16, marginBottom: 14 },
+  muted: { fontSize: 14, color: theme.colors.muted },
+  strip: { gap: 12, paddingRight: 8 },
+  card: { width: 80, alignItems: "center", gap: 4 },
+  avatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, borderColor: theme.colors.border },
+  avatarPh: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.panel, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.colors.border },
+  avatarPhText: { fontSize: 24, fontWeight: "700", color: theme.colors.text },
+  name: { fontSize: 11, fontWeight: "600", color: theme.colors.text, textAlign: "center", width: "100%" },
+  pct: { fontSize: 11, fontWeight: "700", color: theme.colors.emerald, textAlign: "center" },
+  label: { fontSize: 10, color: theme.colors.muted, textAlign: "center", width: "100%" },
 });

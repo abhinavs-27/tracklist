@@ -1,20 +1,25 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
   Switch,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/lib/theme";
 import { fetcher } from "@/lib/api";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { queryKeys } from "@/lib/query-keys";
 import { ProfileHeader } from "./ProfileHeader";
+import { ProfileEditModal } from "./ProfileEditModal";
 import { FavoritesSection } from "./FavoritesSection";
 import { ProfileFollowButton } from "./ProfileFollowButton";
 import { ProfileListsSection } from "./ProfileListsSection";
@@ -42,7 +47,9 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
   const [followModalTab, setFollowModalTab] = useState<"followers" | "following">(
     "followers",
   );
+  const queryClient = useQueryClient();
   const [createListOpen, setCreateListOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const {
     user,
@@ -52,6 +59,14 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     isLoading,
     error,
   } = useProfile(userIdentifier);
+
+  // Must be before early returns — hooks can't be conditional
+  const { data: tasteData } = useQuery({
+    queryKey: queryKeys.tasteIdentity(user?.id ?? ""),
+    queryFn: () => fetcher<{ totalLogs?: number }>(`/api/taste-identity?userId=${encodeURIComponent(user?.id ?? "")}`),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
 
   if (isLoading) {
     return (
@@ -100,54 +115,29 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         { id: "lists", label: "Lists" },
       ];
 
+  const totalLogs = (tasteData as { totalLogs?: number } | undefined)?.totalLogs ?? 0;
+
+  const bannerAlbums = favorites.slice(0, 4).map((f) => ({ artworkUrl: f.artworkUrl }));
+
   const listHeader = (
-    <View
-      style={{
-        paddingLeft: 16,
-        paddingRight: 16 + NOTIFICATION_BELL_GUTTER,
-        gap: 16,
-        paddingTop: 8,
-      }}
-    >
+    <View style={ph.wrap}>
       {showBack ? (
         <Pressable
           onPress={() => router.back()}
-          style={({ pressed }) => ({
-            alignSelf: "flex-start",
-            paddingVertical: 6,
-            paddingHorizontal: 4,
-            opacity: pressed ? 0.75 : 1,
-          })}
+          style={({ pressed }) => ({ alignSelf: "flex-start", paddingVertical: 6, paddingHorizontal: 16, opacity: pressed ? 0.75 : 1 })}
         >
-          <Text style={{ fontSize: 16, fontWeight: "700", color: theme.colors.emerald }}>
-            ← Back
-          </Text>
+          <Text style={{ fontSize: 15, fontWeight: "600", color: theme.colors.emerald }}>← Back</Text>
         </Pressable>
       ) : null}
-      {!userIdentifier && authUser?.email ? (
-        <Text
-          style={{
-            fontSize: 13,
-            color: theme.colors.muted,
-            marginBottom: -4,
-          }}
-          numberOfLines={1}
-        >
-          {authUser.email}
-        </Text>
-      ) : null}
+
       <ProfileHeader
         user={user}
         stats={stats}
         streak={user.streak}
-        onPressFollowers={() => {
-          setFollowModalTab("followers");
-          setFollowModalOpen(true);
-        }}
-        onPressFollowing={() => {
-          setFollowModalTab("following");
-          setFollowModalOpen(true);
-        }}
+        totalLogs={totalLogs}
+        bannerAlbums={bannerAlbums}
+        onPressFollowers={() => { setFollowModalTab("followers"); setFollowModalOpen(true); }}
+        onPressFollowing={() => { setFollowModalTab("following"); setFollowModalOpen(true); }}
       />
 
       <FollowNetworkModal
@@ -158,210 +148,161 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         viewerUserId={viewerId}
       />
 
-      {!isOwn ? (
-        <ProfileFollowButton
-          targetUserId={user.id}
-          initialFollowing={user.is_following}
-        />
-      ) : null}
-
-      {/* Tab chips */}
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        {tabs.map((t) => (
-          <TabChip
-            key={t.id}
-            label={t.label}
-            active={tab === t.id}
-            onPress={() => setTab(t.id)}
-          />
-        ))}
+      {/* Action buttons */}
+      <View style={ph.actions}>
+        {isOwn ? (
+          <Pressable
+            style={({ pressed }) => [ph.actionBtn, pressed && { opacity: 0.75 }]}
+            onPress={() => setEditOpen(true)}
+          >
+            <Ionicons name="pencil-outline" size={15} color="#d4d4d8" />
+            <Text style={ph.actionBtnText}>Edit</Text>
+          </Pressable>
+        ) : (
+          <ProfileFollowButton targetUserId={user.id} initialFollowing={user.is_following} />
+        )}
+        <Pressable
+          style={({ pressed }) => [ph.actionBtn, pressed && { opacity: 0.75 }]}
+          onPress={() => void Share.share({ message: `Check out ${user.username} on Tracklist` })}
+        >
+          <Ionicons name="share-outline" size={15} color="#d4d4d8" />
+          <Text style={ph.actionBtnText}>Share</Text>
+        </Pressable>
+        {isOwn ? (
+          <Pressable
+            style={({ pressed }) => [ph.actionBtn, ph.actionBtnEmerald, pressed && { opacity: 0.75 }]}
+            onPress={() => router.push("/reports/listening" as never)}
+          >
+            <Ionicons name="bar-chart-outline" size={15} color={theme.colors.emerald} />
+            <Text style={[ph.actionBtnText, ph.actionBtnEmeraldText]}>Report</Text>
+          </Pressable>
+        ) : null}
       </View>
+
     </View>
   );
 
-  // ─── Overview tab ─────────────────────────────────────────────────────────────
-  if (tab === "overview") {
-    const overviewHeader = (
-      <View style={{ gap: 16 }}>
-        {listHeader}
-        <View style={{ paddingHorizontal: 16, gap: 20 }}>
-          <FavoritesSection
-            items={favorites}
-            onPressAlbum={(albumId) => router.push(`/album/${albumId}` as const)}
-          />
-          <TasteIdentity userId={user.id} />
-          {isOwn ? <SimilarUsersSection /> : null}
+  // Tab content
+  const tabContent = tab === "overview" ? (
+    <View style={{ paddingHorizontal: 16, gap: 20 }}>
+      {isOwn ? <SimilarUsersSection /> : null}
+      <View>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>Music identity</Text>
+          {isOwn ? (
+            <Pressable onPress={() => router.push("/reports/listening" as never)}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.emerald }}>Full report →</Text>
+            </Pressable>
+          ) : null}
         </View>
+        <TasteIdentity userId={user.id} />
       </View>
-    );
+    </View>
+  ) : tab === "lists" ? (
+    <View style={{ paddingHorizontal: 16 }}>
+      <ProfileListsSection lists={lists} isOwnProfile={isOwn} username={user.username}
+        onPressCreate={isOwn ? () => setCreateListOpen(true) : undefined} />
+    </View>
+  ) : tab === "settings" && isOwn ? (
+    <View style={{ paddingHorizontal: 16, gap: 20 }}>
+      <LastfmSection userId={user.id} username={user.username}
+        initialUsername={user.lastfm_username ?? null}
+        initialLastSyncedAt={user.lastfm_last_synced_at ?? null} />
+      <PrivateLogsToggleNative userId={user.id} />
+      <Pressable
+        onPress={async () => { setSigningOut(true); try { await signOut(); } finally { setSigningOut(false); } }}
+        disabled={signingOut}
+        style={({ pressed }) => [{
+          paddingVertical: 14, borderRadius: 12, borderWidth: 1,
+          borderColor: theme.colors.border, backgroundColor: theme.colors.panel,
+          alignItems: "center" as const, opacity: pressed || signingOut ? 0.85 : 1,
+        }]}
+      >
+        <Text style={{ fontSize: 15, fontWeight: "700", color: theme.colors.danger }}>
+          {signingOut ? "Signing out…" : "Log out"}
+        </Text>
+      </Pressable>
+    </View>
+  ) : null;
 
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
-        <FlatList
-          data={[]}
-          keyExtractor={() => ""}
-          renderItem={null}
-          ListHeaderComponent={overviewHeader}
-          contentContainerStyle={{ paddingBottom: 120 }}
-        />
-        <CreateListModal
-          visible={createListOpen}
-          onClose={() => setCreateListOpen(false)}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // ─── Lists tab ────────────────────────────────────────────────────────────────
-  if (tab === "lists") {
-    const listsHeader = (
-      <View style={{ gap: 16 }}>
-        {listHeader}
-        <View style={{ paddingHorizontal: 16 }}>
-          <ProfileListsSection
-            lists={lists}
-            isOwnProfile={isOwn}
-            username={user.username}
-            onPressCreate={isOwn ? () => setCreateListOpen(true) : undefined}
-          />
-        </View>
-      </View>
-    );
-
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
-        <FlatList
-          data={[]}
-          keyExtractor={() => ""}
-          renderItem={null}
-          ListHeaderComponent={listsHeader}
-          contentContainerStyle={{ paddingBottom: 120 }}
-        />
-        <CreateListModal
-          visible={createListOpen}
-          onClose={() => setCreateListOpen(false)}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // ─── Settings tab (own profile only) ─────────────────────────────────────────
-  if (tab === "settings" && isOwn) {
-    const settingsHeader = (
-      <View style={{ gap: 16 }}>
-        {listHeader}
-        <View style={{ paddingHorizontal: 16, gap: 20 }}>
-          <LastfmSection
-            userId={user.id}
-            username={user.username}
-            initialUsername={user.lastfm_username ?? null}
-            initialLastSyncedAt={user.lastfm_last_synced_at ?? null}
-          />
-          <PrivateLogsToggleNative userId={user.id} />
-        </View>
-      </View>
-    );
-
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
-        <FlatList
-          data={[]}
-          keyExtractor={() => ""}
-          renderItem={null}
-          ListHeaderComponent={settingsHeader}
-          ListFooterComponent={
-            <View
-              style={{
-                paddingHorizontal: 16,
-                paddingTop: 24,
-                paddingBottom: 8,
-              }}
-            >
-              <Pressable
-                onPress={async () => {
-                  setSigningOut(true);
-                  try {
-                    await signOut();
-                  } finally {
-                    setSigningOut(false);
-                  }
-                }}
-                disabled={signingOut}
-                style={({ pressed }) => [
-                  {
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.panel,
-                    alignItems: "center",
-                    opacity: pressed || signingOut ? 0.85 : 1,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: "700",
-                    color: theme.colors.danger,
-                  }}
-                >
-                  {signingOut ? "Signing out…" : "Log out"}
-                </Text>
-              </Pressable>
-            </View>
-          }
-          contentContainerStyle={{ paddingBottom: 120 }}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // Fallback (shouldn't happen)
+  // Single ScrollView with sticky tab bar at index 1
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+      <ScrollView stickyHeaderIndices={[1]} contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* [0] Profile header + actions */}
+        <View>{listHeader}</View>
+
+        {/* [1] Sticky tab bar */}
+        <View style={ph.stickyTabWrap}>
+          <View style={ph.tabBar}>
+            {tabs.map((t) => (
+              <Pressable key={t.id} style={ph.tabBtn} onPress={() => setTab(t.id)}>
+                <Text style={[ph.tabLabel, tab === t.id && ph.tabLabelActive]}>{t.label}</Text>
+                {tab === t.id && <View style={ph.tabLine} />}
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* [2] Tab content */}
+        <View style={{ marginTop: 16 }}>{tabContent}</View>
+      </ScrollView>
+
+      <CreateListModal visible={createListOpen} onClose={() => setCreateListOpen(false)} />
+      {isOwn ? (
+        <ProfileEditModal
+          visible={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => { void queryClient.invalidateQueries({ queryKey: queryKeys.profile(user.id) }); }}
+          initialUsername={user.username}
+          initialBio={user.bio}
+        />
+      ) : null}
+    </SafeAreaView>
   );
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function TabChip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          paddingVertical: 10,
-          borderRadius: 12,
-          borderWidth: 1,
-          alignItems: "center",
-          backgroundColor: active ? theme.colors.panel : "transparent",
-          borderColor: active ? theme.colors.emerald : theme.colors.border,
-          opacity: pressed ? 0.9 : 1,
-        },
-      ]}
-    >
-      <Text
-        style={{
-          fontSize: 14,
-          fontWeight: "800",
-          color: active ? theme.colors.emerald : theme.colors.muted,
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+const ph = StyleSheet.create({
+  wrap: { gap: 0 },
+  actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(63,63,70,0.9)",
+    backgroundColor: "rgba(24,24,27,0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 44,
+  },
+  actionBtnEmerald: { borderColor: "rgba(16,185,129,0.3)", backgroundColor: "rgba(6,46,37,0.3)" },
+  actionBtnText: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
+  actionBtnEmeraldText: { color: theme.colors.emerald },
+  stickyTabWrap: { backgroundColor: theme.colors.bg },
+  tabBar: {
+    flexDirection: "row",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+    marginTop: 14,
+  },
+  tabBtn: { flex: 1, paddingVertical: 12, alignItems: "center", position: "relative" },
+  tabLabel: { fontSize: 14, fontWeight: "600", color: theme.colors.muted },
+  tabLabelActive: { color: theme.colors.text },
+  tabLine: { position: "absolute", bottom: 0, left: "15%", right: "15%", height: 2, borderRadius: 1, backgroundColor: theme.colors.emerald },
+});
 
 /** Private logs toggle adapted for React Native. */
 function PrivateLogsToggleNative({ userId }: { userId: string }) {

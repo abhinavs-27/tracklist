@@ -167,47 +167,16 @@ export function TasteIdentityDisplay({
 
   return (
     <Shell className={shellClass}>
-      <TasteCard
-        mode="identity"
-        title="Taste identity"
-        hideTitle={hubMode}
-        subtitle={t.totalLogs > 0 ? `From ${t.totalLogs} logs` : undefined}
-        insight={cardInsight}
-        genres={cardGenres}
-        insightSource={insightSource}
-        genresLabel={genresLabel}
-        className={hubMode ? "mb-4" : "mb-5"}
-      />
-
       {!hasAny ? (
-        <p className="mt-3 text-sm text-zinc-500">
+        <p className="text-sm text-zinc-500">
           No listening history yet. Log tracks or sync Last.fm / Spotify to build
           your taste profile.
         </p>
       ) : null}
 
-      {t.totalLogs > 0 ? (
-        <div className="mt-5 rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-4 py-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/90">
-            Listening style
-          </p>
-          <p className="mt-1 text-2xl font-semibold leading-tight text-white sm:text-3xl">
-            {styleTitle}
-          </p>
-          <p className="mt-1.5 text-sm leading-snug text-zinc-400">{styleSubtitle}</p>
-          <p className="mt-2 text-xs text-zinc-500">
-            ~{t.avgTracksPerSession} tracks / session
-          </p>
-        </div>
-      ) : null}
-
-      {hasWeeklyContext && weeklyListening ? (
-        <WeeklyListeningContext data={weeklyListening} />
-      ) : null}
-
-
+      {/* 1 — Top artists */}
       {t.topArtists.length > 0 ? (
-        <div className="mt-5">
+        <div>
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             {hasWeeklyContext ? "Top artists · all-time" : "Top artists"}
           </p>
@@ -244,8 +213,9 @@ export function TasteIdentityDisplay({
         </div>
       ) : null}
 
+      {/* 2 — Top albums */}
       {t.topAlbums.length > 0 ? (
-        <div className="mt-5">
+        <div>
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             {hasWeeklyContext ? "Top albums · all-time" : "Top albums"}
           </p>
@@ -267,28 +237,49 @@ export function TasteIdentityDisplay({
                 >
                   <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
                     {al.imageUrl ? (
-                      <img
-                        src={al.imageUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
+                      <img src={al.imageUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                        ♪
-                      </div>
+                      <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">♪</div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-white">{al.name}</p>
                     <p className="truncate text-xs text-zinc-500">
-                      {al.artistName}{" "}
-                      <span className="text-zinc-600">· {al.listenCount} plays</span>
+                      {al.artistName}{" "}<span className="text-zinc-600">· {al.listenCount} plays</span>
                     </p>
                   </div>
                 </Link>
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {/* 3 — Music identity (insight + genres) */}
+      {hasAny ? (
+        <TasteCard
+          mode="identity"
+          title="Taste identity"
+          hideTitle={hubMode}
+          subtitle={t.totalLogs > 0 ? `From ${t.totalLogs} logs` : undefined}
+          insight={cardInsight}
+          genres={cardGenres}
+          insightSource={insightSource}
+          genresLabel={genresLabel}
+        />
+      ) : null}
+
+      {hasWeeklyContext && weeklyListening ? (
+        <WeeklyListeningContext data={weeklyListening} />
+      ) : null}
+
+      {/* 4 — Listening style */}
+      {t.totalLogs > 0 ? (
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-4 py-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/90">Listening style</p>
+          <p className="mt-1 text-2xl font-semibold leading-tight text-white sm:text-3xl">{styleTitle}</p>
+          <p className="mt-1.5 text-sm leading-snug text-zinc-400">{styleSubtitle}</p>
+          <p className="mt-2 text-xs text-zinc-500">~{t.avgTracksPerSession} tracks / session</p>
         </div>
       ) : null}
     </Shell>

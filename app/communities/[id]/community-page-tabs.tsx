@@ -4,7 +4,7 @@ import { type ReactNode, useState } from "react";
 import { CommunityWeeklyBillboardClient } from "@/components/community/community-weekly-billboard-client";
 import type { LatestWeeklyChartApiResult } from "@/lib/charts/get-user-weekly-chart";
 
-type Tab = "billboard" | "community" | "feed" | "people";
+type Tab = "billboard" | "community" | "people";
 
 type BillboardInitial = {
   weeks: { week_start: string; week_end: string }[];
@@ -15,7 +15,6 @@ function TabNav({ active, onChange }: { active: Tab; onChange: (t: Tab) => void 
   const tabs: { id: Tab; label: string }[] = [
     { id: "billboard", label: "Billboard" },
     { id: "community", label: "Community" },
-    { id: "feed", label: "Feed" },
     { id: "people", label: "People" },
   ];
   return (
@@ -43,13 +42,11 @@ export function CommunityPageTabs({
   communityId,
   billboardInitial,
   communityContent,
-  feedContent,
   peopleContent,
 }: {
   communityId: string;
   billboardInitial: BillboardInitial;
   communityContent: ReactNode;
-  feedContent: ReactNode;
   peopleContent: ReactNode;
 }) {
   const [active, setActive] = useState<Tab>("billboard");
@@ -70,7 +67,6 @@ export function CommunityPageTabs({
       </div>
 
       <div className={`mt-6 ${active !== "community" ? "hidden" : ""}`}>{communityContent}</div>
-      <div className={`mt-6 ${active !== "feed" ? "hidden" : ""}`}>{feedContent}</div>
       <div className={`mt-6 ${active !== "people" ? "hidden" : ""}`}>{peopleContent}</div>
     </div>
   );

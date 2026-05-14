@@ -93,156 +93,14 @@ export function TasteIdentity({ userId }: Props) {
   const genresLabel = t.recent?.topGenres7d?.length ? "This week" : "Top genres";
 
   return (
-    <View
-      style={{
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        backgroundColor: theme.colors.panelSoft,
-        padding: 16,
-        gap: 12,
-      }}
-    >
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          gap: 8,
-        }}
-      >
-        <Text style={{ fontSize: 16, fontWeight: "700", color: theme.colors.text }}>
-          Taste identity
-        </Text>
-        {t.totalLogs > 0 ? (
-          <Text style={{ fontSize: 11, color: theme.colors.muted }}>
-            From {t.totalLogs} logs
-          </Text>
-        ) : null}
-      </View>
-
-      {hasAny ? (
-        <View
-          style={{
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: "rgba(113, 113, 122, 0.5)",
-            backgroundColor: "rgba(24, 24, 27, 0.85)",
-            padding: 14,
-            gap: 10,
-          }}
-        >
-          <Text
-            style={{ fontSize: 14, color: theme.colors.text, lineHeight: 20 }}
-          >
-            {cardInsight}
-          </Text>
-          <Text style={{ fontSize: 11, color: theme.colors.muted }}>
-            {insightSource}
-          </Text>
-          {cardGenres.length > 0 ? (
-            <>
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: "700",
-                  color: theme.colors.muted,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                }}
-              >
-                {genresLabel}
-              </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
-                {cardGenres.slice(0, 12).map((g) => (
-                  <View
-                    key={g.name}
-                    style={{
-                      borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: "rgba(139, 92, 246, 0.35)",
-                      paddingVertical: 6,
-                      paddingHorizontal: 10,
-                      backgroundColor: "rgba(91, 33, 182, 0.18)",
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, color: theme.colors.text }}>
-                      {g.name}{" "}
-                      <Text style={{ color: theme.colors.muted }}>
-                        {Math.round(g.weight)}%
-                      </Text>
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          ) : (
-            <Text style={{ fontSize: 13, color: theme.colors.muted }}>
-              Genre tags appear as artist metadata fills in — keep logging.
-            </Text>
-          )}
-        </View>
-      ) : (
+    <View style={{ gap: 16 }}>
+      {!hasAny ? (
         <Text style={{ fontSize: 14, color: theme.colors.muted }}>
-          No listening history yet. Log tracks or sync Last.fm / Spotify to build
-          your taste profile.
+          No listening history yet. Log tracks or sync Last.fm / Spotify to build your taste profile.
         </Text>
-      )}
-
-      {t.totalLogs > 0 ? (
-        <View
-          style={{
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: "rgba(16, 185, 129, 0.25)",
-            backgroundColor: "rgba(6, 78, 59, 0.25)",
-            padding: 14,
-            gap: 6,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: "700",
-              color: "rgba(52, 211, 153, 0.95)",
-              textTransform: "uppercase",
-              letterSpacing: 0.6,
-            }}
-          >
-            Listening style
-          </Text>
-          <Text
-            style={{
-              fontSize: 24,
-              fontWeight: "800",
-              color: theme.colors.text,
-              lineHeight: 28,
-            }}
-          >
-            {styleDisplay.title}
-          </Text>
-          <Text
-            style={{
-              fontSize: 14,
-              color: theme.colors.muted,
-              lineHeight: 20,
-            }}
-          >
-            {styleDisplay.subtitle}
-          </Text>
-          <Text style={{ fontSize: 12, color: theme.colors.muted }}>
-            ~{t.avgTracksPerSession} tracks / session
-          </Text>
-        </View>
       ) : null}
 
+      {/* 1 — Top artists */}
       {t.topArtists.length > 0 ? (
         <View style={{ gap: 8 }}>
           <Text
@@ -327,96 +185,77 @@ export function TasteIdentity({ userId }: Props) {
         </View>
       ) : null}
 
-      {t.totalLogs > 0 ? (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-          {t.obscurityScore != null ? (
-            <StatPill
-              label="Obscurity"
-              value={String(t.obscurityScore)}
-              hint="0 mainstream · 100 niche"
-            />
+      {/* 2 — Top albums */}
+      {t.topAlbums.length > 0 && (
+        <View style={{ gap: 10 }}>
+          <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Top albums
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
+            {t.topAlbums.slice(0, 6).map((al) => (
+              <Pressable
+                key={al.id}
+                onPress={() => router.push(`/album/${al.id}` as const)}
+                style={({ pressed }) => ({
+                  flexDirection: "row", alignItems: "center", gap: 10,
+                  borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border,
+                  padding: 8, backgroundColor: "rgba(9,9,11,0.3)", opacity: pressed ? 0.85 : 1, width: 240,
+                })}
+              >
+                <View style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden", backgroundColor: theme.colors.panel, flexShrink: 0 }}>
+                  {al.imageUrl ? (
+                    <Image source={{ uri: al.imageUrl }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+                  ) : (
+                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Text style={{ color: theme.colors.muted }}>♪</Text></View>
+                  )}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "600", color: theme.colors.text }}>{al.name}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 12, color: theme.colors.muted }}>{al.artistName}</Text>
+                  <Text style={{ fontSize: 11, color: "#52525b", marginTop: 2 }}>{al.listenCount} plays</Text>
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* 3 — Music identity (insight + genres) */}
+      {hasAny ? (
+        <View style={{ borderRadius: 16, borderWidth: 1, borderColor: "rgba(113,113,122,0.5)", backgroundColor: "rgba(24,24,27,0.85)", padding: 14, gap: 10 }}>
+          <Text style={{ fontSize: 14, color: theme.colors.text, lineHeight: 20 }}>{cardInsight}</Text>
+          <Text style={{ fontSize: 11, color: theme.colors.muted }}>{insightSource}</Text>
+          {cardGenres.length > 0 ? (
+            <>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{genresLabel}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {cardGenres.slice(0, 12).map((g) => (
+                  <View key={g.name} style={{ borderRadius: 999, borderWidth: 1, borderColor: "rgba(63,63,70,0.8)", paddingVertical: 5, paddingHorizontal: 10, backgroundColor: "rgba(24,24,27,0.8)" }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.text }}>
+                      {g.name}{" "}<Text style={{ color: theme.colors.muted }}>{Math.round(g.weight)}%</Text>
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </>
           ) : null}
-          <StatPill
-            label="Diversity"
-            value={String(t.diversityScore)}
-            hint="unique genres (10 = max)"
-          />
         </View>
       ) : null}
 
-      {t.topAlbums.length > 0 && (
-        <View style={{ gap: 8 }}>
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "600",
-              color: theme.colors.muted,
-              textTransform: "uppercase",
-            }}
-          >
-            Top albums
-          </Text>
-          {t.topAlbums.slice(0, 6).map((al) => (
-            <Pressable
-              key={al.id}
-              onPress={() => router.push(`/album/${al.id}` as const)}
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                padding: 8,
-                backgroundColor: theme.colors.bg,
-                opacity: pressed ? 0.9 : 1,
-              })}
-            >
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 6,
-                  overflow: "hidden",
-                  backgroundColor: theme.colors.panel,
-                }}
-              >
-                {al.imageUrl ? (
-                  <Image
-                    source={{ uri: al.imageUrl }}
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      flex: 1,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.muted }}>♪</Text>
-                  </View>
-                )}
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text
-                  numberOfLines={1}
-                  style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text }}
-                >
-                  {al.name}
-                </Text>
-                <Text numberOfLines={1} style={{ fontSize: 12, color: theme.colors.muted }}>
-                  {al.artistName} · {al.listenCount} plays
-                </Text>
-              </View>
-            </Pressable>
-          ))}
+      {/* 4 — Listening style */}
+      {t.totalLogs > 0 ? (
+        <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "rgba(16,185,129,0.25)", backgroundColor: "rgba(6,78,59,0.25)", padding: 14, gap: 6 }}>
+          <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(52,211,153,0.95)", textTransform: "uppercase", letterSpacing: 0.6 }}>Listening style</Text>
+          <Text style={{ fontSize: 24, fontWeight: "800", color: theme.colors.text, lineHeight: 28 }}>{styleDisplay.title}</Text>
+          <Text style={{ fontSize: 14, color: theme.colors.muted, lineHeight: 20 }}>{styleDisplay.subtitle}</Text>
+          <Text style={{ fontSize: 12, color: theme.colors.muted }}>~{t.avgTracksPerSession} tracks / session</Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
+// StatPill kept for compatibility but no longer used in main component
 function StatPill({
   label,
   value,

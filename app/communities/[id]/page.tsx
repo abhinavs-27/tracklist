@@ -6,9 +6,7 @@ import { getSession } from "@/lib/auth";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
 import { CommunityWeeklySidebarTeaser } from "@/components/community/community-weekly-sidebar-teaser";
-import {
-  CommunityFeedSkeleton,
-} from "@/components/community/community-section-skeleton";
+
 import { getCommunityById } from "@/lib/community/queries";
 import { getPendingInviteForUserToCommunity } from "@/lib/community/invites";
 import {
@@ -38,9 +36,6 @@ import { communityBody } from "@/lib/ui/surface";
 import { CommunityHero } from "@/components/community/community-hero";
 import { CommunityMemberHeroShell } from "@/components/community/community-member-hero-shell";
 import { CommunityActions } from "@/components/community/community-actions";
-import {
-  CommunityFeedSlot,
-} from "./community-async";
 import { CommunityLeaderboardSection } from "@/components/community/community-leaderboard-section";
 import { CommunityPageTabs } from "./community-page-tabs";
 
@@ -166,12 +161,6 @@ export default async function CommunityDetailPage({
     </div>
   );
 
-  const feedContent = (
-    <Suspense fallback={<CommunityFeedSkeleton />}>
-      <CommunityFeedSlot communityId={id} />
-    </Suspense>
-  );
-
   const peopleContent = (
     <CommunityLeaderboardSection communityId={id} />
   );
@@ -225,7 +214,6 @@ export default async function CommunityDetailPage({
           communityId={id}
           billboardInitial={billboardInitial}
           communityContent={communityContent}
-          feedContent={feedContent}
           peopleContent={peopleContent}
         />
       ) : null}

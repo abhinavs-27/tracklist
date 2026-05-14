@@ -7,7 +7,6 @@ export function ProfileHeroBanner({
   children,
 }: {
   albums: FavoriteAlbum[];
-  /** Rendered as an overlay on the banner (own profile only). */
   editButton?: ReactNode;
   children: ReactNode;
 }) {
@@ -20,9 +19,9 @@ export function ProfileHeroBanner({
   ] as (FavoriteAlbum | undefined)[];
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/[0.07]">
-      {/* Album banner strip */}
-      <div className="relative h-32 sm:h-40" aria-hidden={!editButton}>
+    <div>
+      {/* Album banner strip — overflow hidden on the strip itself */}
+      <div className="relative h-36 overflow-hidden rounded-2xl sm:h-44" aria-hidden={!editButton}>
         {hasBanner ? (
           <div className="flex h-full">
             {slots.map((album, i) =>
@@ -46,17 +45,17 @@ export function ProfileHeroBanner({
           </div>
         )}
 
-        {/* Bottom fade so avatar blends naturally into the content */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-zinc-900 to-transparent" />
+        {/* Bottom fade */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-zinc-950 to-transparent" />
 
-        {/* Edit button — bottom right of banner */}
+        {/* Edit banner button */}
         {editButton && (
           <div className="absolute bottom-3 right-3">{editButton}</div>
         )}
       </div>
 
-      {/* Content — z-10 ensures avatar renders on top of the banner */}
-      <div className="relative z-10 px-5 pb-5 sm:px-6 sm:pb-6">{children}</div>
+      {/* Content — no card, just flows on page background */}
+      <div className="px-1 pb-2">{children}</div>
     </div>
   );
 }

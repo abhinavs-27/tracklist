@@ -174,6 +174,7 @@ export default async function ProfilePage({
 
   const main = (
     <div className={sectionGap}>
+      <div className="space-y-4">
       <ProfileHeroBanner
         albums={favoriteAlbumsHero}
       >
@@ -192,22 +193,21 @@ export default async function ProfilePage({
 
         {/* Stats row */}
         {(totalListens > 0 || (streak?.current_streak ?? 0) > 0) && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
             {totalListens > 0 && (
               <span>
-                <span className="font-semibold text-white">
-                  {totalListens.toLocaleString()}
-                </span>{" "}
+                <span className="font-semibold text-white">{totalListens.toLocaleString()}</span>{" "}
                 <span className="text-zinc-400">listens</span>
               </span>
             )}
             {(streak?.current_streak ?? 0) > 0 && (
-              <span>
-                <span className="font-semibold text-white">
-                  🔥 {streak!.current_streak}d
-                </span>{" "}
-                <span className="text-zinc-400">streak</span>
-              </span>
+              <>
+                <span className="text-zinc-700">·</span>
+                <span>
+                  <span className="font-semibold text-white">{streak!.current_streak}d</span>{" "}
+                  <span className="text-zinc-400">streak</span>
+                </span>
+              </>
             )}
           </div>
         )}
@@ -223,6 +223,7 @@ export default async function ProfilePage({
         avatarUrl={profile.avatar_url}
         viewerUserId={session?.user?.id ?? null}
       />
+      </div>
 
       {/* Tabs — all content pre-rendered, switching is instant */}
       <Suspense fallback={<ProfileBelowFoldSkeleton />}>

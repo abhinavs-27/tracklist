@@ -30,8 +30,9 @@ export function ProfileTabsContainer({
 
   return (
     <div>
-      {/* Tab nav */}
-      <div className="mb-6 flex gap-0 border-b border-zinc-800/80">
+      {/* Tab nav — sticky */}
+      <div className="sticky top-0 z-20 mb-6 bg-zinc-950/95 backdrop-blur-sm">
+      <div className="flex gap-0 border-b border-zinc-800/80">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -49,6 +50,7 @@ export function ProfileTabsContainer({
             )}
           </button>
         ))}
+      </div>
       </div>
 
       {/* Tab panes — all pre-rendered, hidden with CSS for instant switching */}
