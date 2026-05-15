@@ -134,3 +134,18 @@ export async function getFollowListWithStatus(
 
   return enrichUsersWithFollowStatus(users, viewerId);
 }
+
+/** Fetches a user's UUID by their username. */
+export async function getUserIdByUsername(
+  username: string,
+): Promise<string | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data.id;
+}

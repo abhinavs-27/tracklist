@@ -3,6 +3,7 @@ import { badRequest, internalError, ok, unauthorized, isMissingReviewIdColumn } 
 import { getSessionUserId } from "../lib/auth";
 import { getSupabase } from "../lib/supabase";
 import { isValidUuid, validateCommentContent } from "../lib/validation";
+import type { CommentCreateBody, CommentWithUser } from "../../types";
 
 export const commentsRouter = Router();
 
@@ -11,7 +12,7 @@ commentsRouter.post("/", async (req, res) => {
     const userId = await getSessionUserId(req);
     if (!userId) return unauthorized(res);
 
-    const body = req.body as Record<string, unknown>;
+    const body = req.body as CommentCreateBody;
     const { review_id, content } = body;
 
     if (!review_id) return badRequest(res, "review_id is required");
@@ -103,10 +104,10 @@ commentsRouter.get("/", async (req, res) => {
       .in("id", userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
-    const result = comments.map((c) => ({
+    const result: CommentWithUser[] = comments.map((c) => ({
       ...c,
-      user: userMap.get(c.user_id as string) ?? null,
-    }));
+      user: userMap.get(c.user_id as string) as any, // Cast for compatibility with User type
+    })) as any;
     return ok(res, result);
   } catch (e) {
     return internalError(res, e);

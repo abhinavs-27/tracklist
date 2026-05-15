@@ -17,6 +17,7 @@ import {
   validateAvatarUrl,
 } from "@/lib/validation";
 import { getFullUserProfile } from "@/lib/queries";
+import type { ProfileUpdateBody } from "@/types";
 
 export const GET = withHandler(async (request, { params }) => {
   const { username } = params;
@@ -48,7 +49,7 @@ export const PATCH = withHandler(
     if (!profileRow || profileRow.id !== me!.id) return apiForbidden();
 
     const { data: body, error: parseErr } =
-      await parseBody<Record<string, unknown>>(request);
+      await parseBody<ProfileUpdateBody>(request);
     if (parseErr) return parseErr;
 
     const b = body!;
