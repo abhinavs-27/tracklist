@@ -31,7 +31,7 @@ commentsRouter.post("/", async (req, res) => {
         review_id,
         content: contentResult.value,
       })
-      .select("id, user_id, review_id, content, created_at")
+      .select("id, content, created_at")
       .single());
 
     if (error && isMissingReviewIdColumn(error)) {
@@ -42,10 +42,13 @@ commentsRouter.post("/", async (req, res) => {
           log_id: review_id,
           content: contentResult.value,
         })
-        .select("id, user_id, log_id, content, created_at")
+        .select("id, content, created_at")
         .single());
       if (error) return internalError(res, error);
-      data = { ...data!, review_id };
+    }
+
+    if (data) {
+      data = { ...data, user_id: userId, review_id };
     }
 
     if (error) {
@@ -78,32 +81,36 @@ commentsRouter.get("/", async (req, res) => {
 
     ({ data: comments, error } = await supabase
       .from("comments")
-      .select("id, user_id, review_id, content, created_at")
+      .select("id, user_id, content, created_at")
       .eq("review_id", reviewId)
       .order("created_at", { ascending: true }));
 
     if (error && isMissingReviewIdColumn(error)) {
       ({ data: comments, error } = await supabase
         .from("comments")
-        .select("id, user_id, log_id, content, created_at")
+        .select("id, user_id, content, created_at")
         .eq("log_id", reviewId)
         .order("created_at", { ascending: true }));
       if (error) return internalError(res, error);
-      comments = (comments ?? []).map((c) => ({ ...c, review_id: reviewId }));
     }
 
     if (error) return internalError(res, error);
 
     if (!comments?.length) return ok(res, []);
 
-    const userIds = [...new Set(comments.map((c) => c.user_id as string))];
+    const resultComments = (comments ?? []).map((c) => ({
+      ...c,
+      review_id: reviewId,
+    }));
+
+    const userIds = [...new Set(resultComments.map((c) => c.user_id as string))];
     const { data: users } = await supabase
       .from("users")
       .select("id, username, avatar_url")
       .in("id", userIds);
     const userMap = new Map((users ?? []).map((u) => [u.id, u]));
 
-    const result = comments.map((c) => ({
+    const result = resultComments.map((c) => ({
       ...c,
       user: userMap.get(c.user_id as string) ?? null,
     }));

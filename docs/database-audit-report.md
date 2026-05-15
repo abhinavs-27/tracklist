@@ -84,6 +84,12 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `comments` | `(log_id) WHERE log_id IS NOT NULL` | `150` | Optimized for comments on logs (legacy fallback). |
 | `likes` | `(user_id)` | `150` | Optimized for tracking user-liked content. |
 | `reviews` | `(entity_type, entity_id, rating)` | `150` | Optimized for entity-scoped rating distributions and top reviews. |
+| `social_thread_participants` | `(user_id)` | `151` | Optimized for fetching user-participated threads. |
+| `social_threads` | `(kind, last_activity_at DESC)` | `151` | Optimized for listing threads by kind and activity. |
+| `social_thread_replies` | `(thread_id, created_at ASC)` | `151` | Optimized for chronologically ordered thread replies. |
+| `comments` | `(review_id, created_at ASC)` | `151` | Optimized for ordered comments on reviews. |
+| `comments` | `(log_id, created_at ASC)` | `151` | Optimized for ordered comments on logs (legacy). |
+| `community_rankings_cache` | `(community_id, range, entity_type)` | `151` | Optimized for community ranking cache lookups. |
 
 ## Recommendations for Future Queries
 
