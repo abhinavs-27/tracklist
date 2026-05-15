@@ -8,16 +8,27 @@ import { POST as logPOST } from '../app/api/logs/route';
 import { POST as syncPOST } from '../app/api/spotify/sync/route';
 import { GET as userGET } from '../app/api/users/[username]/route';
 import { GET as searchGET } from '../app/api/search/route';
+import { UnauthorizedError } from '@/lib/auth';
+import * as apiResponse from '@/lib/api-response';
 
 // --- Mocks ---
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('@/lib/auth', () => ({
-  requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
-  getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
-  handleUnauthorized: vi.fn(() => null),
-}));
+vi.mock('@/lib/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/auth')>();
+  return {
+    ...actual,
+    requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser', email: 'test@example.com' })),
+    getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
+    handleUnauthorized: vi.fn((e) => {
+      if (e instanceof UnauthorizedError) {
+        return apiResponse.apiUnauthorized();
+      }
+      return null;
+    }),
+  };
+});
 
 // Mock Supabase
 function createChain() {
@@ -55,7 +66,7 @@ vi.mock('@/lib/spotify', () => ({
         return { artists: { items: [] }, albums: { items: [] }, tracks: { items: [] } };
     }
     return {
-      artists: { items: [{ id: 'a1', name: 'Test Artist' }] },
+      artists: { items: [{ id: 'a1', name: 'Test Artist', popularity: 80, images: [] }] },
       albums: { items: [] },
       tracks: { items: [] },
     };
@@ -80,6 +91,20 @@ vi.mock('@/lib/catalog/entity-resolution', async (importOriginal) => {
       if (!rawId) return null;
       if (rawId === 'pending-id') return { kind: 'pending', spotifyId: 'pending-id', entity: kind };
       return { kind: 'resolved', id: 'resolved-uuid' };
+    }),
+  };
+});
+
+// Fix mock to properly export GetOrCreateEntityError
+vi.mock('@/lib/catalog/getOrCreateEntity', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/catalog/getOrCreateEntity')>();
+  return {
+    ...actual,
+    getOrCreateEntity: vi.fn(async ({ spotifyId }) => {
+      if (spotifyId === 'failid1234567890123456') {
+         throw new actual.GetOrCreateEntityError('Resolution failed', 'ENSURE_FAILED');
+      }
+      return { id: 'resolved-uuid' };
     }),
   };
 });
@@ -181,13 +206,25 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       expect(body.rating).toBe(5);
     });
 
-    it('should return 400 for invalid rating', async () => {
+    it('should return 400 for invalid rating (out of range)', async () => {
         const req = new NextRequest('http://localhost/api/reviews', {
           method: 'POST',
           body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 }),
         });
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
+    });
+
+    it('should return 400 for invalid rating step (non-half-star)', async () => {
+      // 2nLhD10Z7Sb4RFyCX2ZCyx is a valid spotify id (22 chars)
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 3.7 }),
+      });
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain('half-star steps');
     });
 
     it('should return 400 if required fields are missing', async () => {
@@ -197,6 +234,30 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         });
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
+    });
+
+    it('should return 400 if entity resolution fails', async () => {
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'failid1234567890123456', rating: 5 }),
+      });
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain('Could not resolve entity');
+    });
+
+    it('should return 401 for unauthorized access', async () => {
+      const { requireApiAuth } = await import('@/lib/auth');
+      vi.mocked(requireApiAuth).mockRejectedValueOnce(new UnauthorizedError());
+
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 5 }),
+      });
+      // withHandler will catch the error and call handleUnauthorized
+      const res = await reviewPOST(req, {} as any);
+      expect(res.status).toBe(401);
     });
   });
 
