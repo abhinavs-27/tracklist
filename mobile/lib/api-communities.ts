@@ -244,6 +244,24 @@ export type SearchUserRow = {
   avatar_url: string | null;
 };
 
+export async function fetchCommunityInviteUrl(
+  communityId: string,
+): Promise<{ invite_url: string | null }> {
+  return fetcher<{ invite_url: string | null }>(
+    `/api/community/invite?communityId=${encodeURIComponent(communityId)}`,
+  );
+}
+
+export async function createCommunityInviteUrl(
+  communityId: string,
+): Promise<{ invite_url: string }> {
+  return fetcher<{ invite_url: string }>(`/api/community/invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ communityId }),
+  });
+}
+
 export async function searchUsersForInvite(q: string): Promise<SearchUserRow[]> {
   const t = q.trim();
   if (t.length < 2) return [];

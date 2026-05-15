@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { CommunityConsensusSection } from "@/components/community/community-consensus";
 import { CommunityTasteMatchCard } from "@/components/community-taste-match";
@@ -174,6 +173,7 @@ export default async function CommunityDetailPage({
           community={community}
           memberCount={memberCount}
           canEdit={canEdit}
+          canInvite={canInvite}
           heroProps={heroProps}
         />
       ) : (

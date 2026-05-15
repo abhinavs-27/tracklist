@@ -60,17 +60,20 @@ export async function getCommunityPeople(
     });
   }
 
-  // 4. Merge
-  const result: CommunityPersonRow[] = ((members ?? []) as {
+  type MemberRow = {
     user_id: string;
     role: string;
-    users: { id: string; username: string; avatar_url: string | null };
-  }[]).map((m) => {
+    users: { id: string; username: string; avatar_url: string | null } | { id: string; username: string; avatar_url: string | null }[];
+  };
+
+  // 4. Merge
+  const result: CommunityPersonRow[] = ((members ?? []) as unknown as MemberRow[]).map((m) => {
+    const user = Array.isArray(m.users) ? m.users[0] : m.users;
     const stats = statsMap.get(m.user_id) ?? { totalLogs: 0, uniqueArtists: 0 };
     return {
       userId: m.user_id,
-      username: m.users.username,
-      avatarUrl: m.users.avatar_url,
+      username: user?.username ?? "",
+      avatarUrl: user?.avatar_url ?? null,
       totalLogs: stats.totalLogs,
       uniqueArtists: stats.uniqueArtists,
       isCreator: m.user_id === creatorId,

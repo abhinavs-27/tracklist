@@ -3,6 +3,7 @@
 import { CommunityHero, type CommunityHeroViewerStats } from "@/components/community/community-hero";
 import { CommunitySettings } from "@/components/community/CommunitySettings";
 import { CommunityActions } from "@/components/community/community-actions";
+import { CommunityInviteButton } from "@/components/community/community-invite-button";
 import type { CommunityHeroTopArtist } from "@/lib/community/get-community-hero-data";
 import type { CommunityRow } from "@/types";
 
@@ -24,6 +25,7 @@ type Props = {
   community: CommunityRow;
   memberCount: number;
   canEdit: boolean;
+  canInvite: boolean;
   heroProps: CommunityHeroStaticProps;
 };
 
@@ -37,17 +39,26 @@ export function CommunityMemberHeroShell({
   community,
   memberCount,
   canEdit,
+  canInvite,
   heroProps,
 }: Props) {
   const communityActions = (
-    <CommunityActions
-      variant="hero"
-      communityId={communityId}
-      communityName={community.name}
-      isPrivate={community.is_private}
-      isMember
-      pendingInviteId={null}
-    />
+    <div className="flex flex-wrap items-center gap-2">
+      <CommunityActions
+        variant="hero"
+        communityId={communityId}
+        communityName={community.name}
+        isPrivate={community.is_private}
+        isMember
+        pendingInviteId={null}
+      />
+      {canInvite ? (
+        <CommunityInviteButton
+          communityId={communityId}
+          communityName={community.name}
+        />
+      ) : null}
+    </div>
   );
 
   return (

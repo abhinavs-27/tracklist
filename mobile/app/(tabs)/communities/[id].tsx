@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { CommunityPeopleTab } from "@/components/community/CommunityPeopleTab";
+import { InviteMembersPanel } from "@/components/community/InviteMembersPanel";
 import { CommunityVibeTab } from "@/components/community/CommunityVibeTab";
 import { CommunityBillboardTab } from "@/components/community/CommunityBillboardTab";
 import {
@@ -50,6 +51,7 @@ export default function CommunityDetailScreen() {
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [joinErr, setJoinErr] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -392,6 +394,11 @@ export default function CommunityDetailScreen() {
                       <Text style={styles.memberPillLeaveText}>{leaving ? "…" : "Leave"}</Text>
                     </Pressable>
                   </View>
+                  {canInvite ? (
+                    <Pressable style={styles.inviteHeroBtn} onPress={() => setInviteOpen(true)}>
+                      <Text style={styles.inviteHeroBtnText}>+ Invite</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               )}
             </View>
@@ -442,6 +449,22 @@ export default function CommunityDetailScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      {/* Invite modal */}
+      <Modal visible={inviteOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setInviteOpen(false)}>
+        <SafeAreaView style={[styles.modalWrap, styles.modalSafe]} edges={["top"]}>
+          <View style={styles.modalHeader}>
+            <View style={{ flex: 1 }} />
+            <Text style={styles.modalTitle}>Invite people</Text>
+            <Pressable style={{ flex: 1, alignItems: "flex-end" }} onPress={() => setInviteOpen(false)}>
+              <Text style={styles.modalSave}>Done</Text>
+            </Pressable>
+          </View>
+          <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+            <InviteMembersPanel communityId={id} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       {/* Edit community modal */}
       <Modal visible={editing} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => !saving && setEditing(false)}>
@@ -580,6 +603,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   editBtnText: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
+
+  inviteHeroBtn: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(9,9,11,0.70)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  inviteHeroBtnText: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
 
   /* Joined | Leave pill group — matches web's combined pill */
   memberPillGroup: {

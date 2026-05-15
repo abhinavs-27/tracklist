@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import {
+  createCommunityInviteUrl,
+  fetchCommunityInviteUrl,
   searchUsersForInvite,
   sendCommunityInvite,
   type SearchUserRow,
@@ -21,6 +24,38 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
   const [searching, setSearching] = useState(false);
   const [inviting, setInviting] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [linkLoading, setLinkLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCommunityInviteUrl(communityId)
+      .then((r) => { if (!cancelled) setInviteUrl(r.invite_url); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLinkLoading(false); });
+    return () => { cancelled = true; };
+  }, [communityId]);
+
+  const handleShareLink = useCallback(async () => {
+    let url = inviteUrl;
+    if (!url) {
+      setLinkLoading(true);
+      try {
+        const r = await createCommunityInviteUrl(communityId);
+        url = r.invite_url;
+        setInviteUrl(url);
+      } catch {
+        setLinkLoading(false);
+        return;
+      }
+      setLinkLoading(false);
+    }
+    try {
+      await Share.share({ url, message: url });
+    } catch {
+      // user cancelled share sheet
+    }
+  }, [inviteUrl, communityId]);
 
   const runSearch = useCallback(async (query: string) => {
     const t = query.trim();
@@ -41,9 +76,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void runSearch(q);
-    }, 300);
+    const timer = setTimeout(() => { void runSearch(q); }, 300);
     return () => clearTimeout(timer);
   }, [q, runSearch]);
 
@@ -63,9 +96,29 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
   return (
     <View style={styles.box}>
       <Text style={styles.title}>Invite people</Text>
-      <Text style={styles.hint}>
-        Search by username (min. 2 characters).
-      </Text>
+
+      {/* Share invite link */}
+      <Pressable
+        style={[styles.shareBtn, linkLoading && styles.shareBtnDisabled]}
+        onPress={handleShareLink}
+        disabled={linkLoading}
+      >
+        {linkLoading ? (
+          <ActivityIndicator color={theme.colors.text} size="small" />
+        ) : (
+          <Text style={styles.shareBtnText}>
+            {inviteUrl ? "Share invite link" : "Generate & share link"}
+          </Text>
+        )}
+      </Pressable>
+
+      {/* Divider */}
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerLabel}>or invite by username</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
       <TextInput
         value={q}
         onChangeText={setQ}
@@ -82,7 +135,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
           {results.map((u) => (
             <View key={u.id} style={styles.row}>
               {u.avatar_url ? (
-                <Image source={{ uri: u.avatar_url }} style={styles.avatar} />
+                <Image source={{ uri: u.avatar_url }} style={styles.avatar} contentFit="cover" />
               ) : (
                 <View style={styles.avatarPh}>
                   <Text style={styles.avatarPhText}>
@@ -90,9 +143,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
                   </Text>
                 </View>
               )}
-              <Text style={styles.name} numberOfLines={1}>
-                {u.username}
-              </Text>
+              <Text style={styles.name} numberOfLines={1}>{u.username}</Text>
               <Pressable
                 style={styles.inviteBtn}
                 onPress={() => invite(u.id)}
@@ -122,15 +173,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: theme.colors.panel,
   },
-  title: { fontSize: 15, fontWeight: "700", color: theme.colors.text },
-  hint: {
-    marginTop: 4,
-    fontSize: 12,
-    color: theme.colors.muted,
-    lineHeight: 16,
+  title: { fontSize: 15, fontWeight: "700", color: theme.colors.text, marginBottom: 12 },
+  shareBtn: {
+    backgroundColor: theme.colors.emerald,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 40,
   },
+  shareBtnDisabled: { opacity: 0.5 },
+  shareBtnText: { color: "#052e16", fontWeight: "700", fontSize: 14 },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginVertical: 12,
+  },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border },
+  dividerLabel: { fontSize: 11, color: theme.colors.muted, fontWeight: "500" },
   input: {
-    marginTop: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
     borderRadius: 10,

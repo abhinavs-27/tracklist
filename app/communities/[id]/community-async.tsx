@@ -338,16 +338,7 @@ export async function CommunityLeaderboardSlot({
 }: {
   communityId: string;
 }) {
-  const [leaderboard, memberStats] = await Promise.all([
-    getCachedWeeklyLeaderboard(communityId),
-    getCachedCommunityMemberStatsForLeaderboard(communityId),
-  ]);
-  return (
-    <CommunityLeaderboardSection
-      memberStats={memberStats}
-      leaderboard={leaderboard}
-    />
-  );
+  return <CommunityLeaderboardSection communityId={communityId} />;
 }
 
 export async function CommunityFeedSlot({
