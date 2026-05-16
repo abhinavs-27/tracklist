@@ -86,7 +86,7 @@ async function resolveAlbumNetwork(
   }
   console.log("[Resolver] fetching from Spotify");
   const albumResp = await withTimeout(
-    getAlbum(raw, { skipCache: true }),
+    getAlbum(raw, { skipCache: true, bypassRateLimit: true }),
     spotifyResolverNetworkTimeoutMs(),
   );
   console.log("[Resolver] Spotify response received");
@@ -102,7 +102,7 @@ async function resolveTrackNetwork(
     return existing2;
   }
   console.log("[Resolver] fetching from Spotify");
-  const track = await withTimeout(getTrack(raw), spotifyResolverNetworkTimeoutMs());
+  const track = await withTimeout(getTrack(raw, { bypassRateLimit: true }), spotifyResolverNetworkTimeoutMs());
   console.log("[Resolver] Spotify response received");
   const alb = track.album;
   if (!alb) {
@@ -135,7 +135,7 @@ async function resolveArtistNetwork(
     return existing2;
   }
   console.log("[Resolver] fetching from Spotify");
-  const artist = await withTimeout(getArtist(raw), spotifyResolverNetworkTimeoutMs());
+  const artist = await withTimeout(getArtist(raw, { bypassRateLimit: true }), spotifyResolverNetworkTimeoutMs());
   console.log("[Resolver] Spotify response received");
   return upsertArtistFromSpotify(admin, artist, { resolverTrace: true });
 }

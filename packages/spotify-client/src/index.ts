@@ -520,6 +520,7 @@ async function fetchCatalogResponseWithRetry(
   path: string,
   signal: AbortSignal | undefined,
   retriesLeft: number,
+  bypassRateLimit = false,
 ): Promise<Response> {
   checkSpotifyEnabled();
   await checkCircuitBreakerForPath(path);
@@ -539,7 +540,9 @@ async function fetchCatalogResponseWithRetry(
       DEFAULT_TIMEOUT_MS,
     );
 
-  const res = await selectCatalogLimiter(path).schedule(doFetch);
+  const res = bypassRateLimit
+    ? await doFetch()
+    : await selectCatalogLimiter(path).schedule(doFetch);
 
   if (res.status === 429) {
     metrics.rate429Hits++;
@@ -564,7 +567,7 @@ async function fetchCatalogResponseWithRetry(
       );
     }
     await new Promise((r) => setTimeout(r, waitMs));
-    return fetchCatalogResponseWithRetry(url, path, signal, retriesLeft - 1);
+    return fetchCatalogResponseWithRetry(url, path, signal, retriesLeft - 1, bypassRateLimit);
   }
 
   if (res.status === 401) {
@@ -574,12 +577,12 @@ async function fetchCatalogResponseWithRetry(
       const text = await res.text();
       throw new Error(`Spotify API unauthorized: ${text}`);
     }
-    return fetchCatalogResponseWithRetry(url, path, signal, retriesLeft - 1);
+    return fetchCatalogResponseWithRetry(url, path, signal, retriesLeft - 1, bypassRateLimit);
   }
 
   if (!res.ok && retriesLeft > 0 && res.status >= 500) {
     await new Promise((r) => setTimeout(r, 500));
-    return fetchCatalogResponseWithRetry(url, path, signal, retriesLeft - 1);
+    return fetchCatalogResponseWithRetry(url, path, signal, retriesLeft - 1, bypassRateLimit);
   }
 
   return res;
@@ -626,12 +629,14 @@ async function fetchCatalogJsonNetwork<T>(
   url: URL,
   path: string,
   signal: AbortSignal | undefined,
+  bypassRateLimit = false,
 ): Promise<T> {
   const res = await fetchCatalogResponseWithRetry(
     url.toString(),
     path,
     signal,
     MAX_RETRIES,
+    bypassRateLimit,
   );
   if (!res.ok) {
     await parseCatalogError(res, path);
@@ -670,6 +675,8 @@ export async function catalogSpotifyFetchJson<T>(
   options?: {
     signal?: AbortSignal;
     skipCache?: boolean;
+    /** Skip the Bottleneck rate-limit queue. Use only for low-volume, high-priority calls (e.g. catalog resolver during onboarding saves). */
+    bypassRateLimit?: boolean;
   },
 ): Promise<T> {
   const url = new URL(`${SPOTIFY_API_BASE}${path}`);
@@ -691,7 +698,7 @@ export async function catalogSpotifyFetchJson<T>(
       }
     }
 
-    const data = await fetchCatalogJsonNetwork<T>(url, path, options?.signal);
+    const data = await fetchCatalogJsonNetwork<T>(url, path, options?.signal, options?.bypassRateLimit);
     if (!options?.skipCache) {
       await setCached(cacheKey, data, ttl);
     }

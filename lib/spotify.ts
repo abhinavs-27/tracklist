@@ -22,12 +22,14 @@ async function spotifyFetch<T>(
     allowLastfmMapping?: boolean;
     allowClientCredentials?: boolean;
     skipCache?: boolean;
+    bypassRateLimit?: boolean;
   },
 ): Promise<T> {
   const start = performance.now();
   const data = await catalogSpotifyFetchJson<T>(path, params, {
     signal: options?.signal,
     skipCache: options?.skipCache,
+    bypassRateLimit: options?.bypassRateLimit,
   });
   logPerf("spotify", path, performance.now() - start, {
     path: path.slice(0, 100),
@@ -65,7 +67,7 @@ export async function searchSpotify(
 
 export async function getArtist(
   spotifyId: string,
-  opts?: { allowClientCredentials?: boolean; allowLastfmMapping?: boolean },
+  opts?: { allowClientCredentials?: boolean; allowLastfmMapping?: boolean; bypassRateLimit?: boolean },
 ): Promise<SpotifyApi.ArtistObjectFull> {
   return spotifyFetch<SpotifyApi.ArtistObjectFull>(
     `/artists/${spotifyId}`,
@@ -73,6 +75,7 @@ export async function getArtist(
     {
       allowClientCredentials: opts?.allowClientCredentials,
       allowLastfmMapping: opts?.allowLastfmMapping,
+      bypassRateLimit: opts?.bypassRateLimit,
     },
   );
 }
@@ -92,12 +95,12 @@ export async function getArtistAlbums(
 
 export async function getAlbum(
   spotifyId: string,
-  opts?: { skipCache?: boolean },
+  opts?: { skipCache?: boolean; bypassRateLimit?: boolean },
 ): Promise<SpotifyApi.AlbumObjectFull> {
   return spotifyFetch<SpotifyApi.AlbumObjectFull>(
     `/albums/${spotifyId}`,
     undefined,
-    { skipCache: opts?.skipCache },
+    { skipCache: opts?.skipCache, bypassRateLimit: opts?.bypassRateLimit },
   );
 }
 
@@ -199,13 +202,14 @@ export async function getAllAlbumTracks(
 
 export async function getTrack(
   spotifyId: string,
-  opts?: { allowLastfmMapping?: boolean },
+  opts?: { allowLastfmMapping?: boolean; bypassRateLimit?: boolean },
 ): Promise<SpotifyApi.TrackObjectFull> {
   return spotifyFetch<SpotifyApi.TrackObjectFull>(
     `/tracks/${spotifyId}`,
     undefined,
     {
       allowLastfmMapping: opts?.allowLastfmMapping,
+      bypassRateLimit: opts?.bypassRateLimit,
     },
   );
 }
