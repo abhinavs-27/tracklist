@@ -111,31 +111,17 @@ const SPOTIFY_ARTIST_ALBUMS_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_ART
 const SPOTIFY_SEARCH_MIN_TIME_MS = parsePositiveIntEnv("SPOTIFY_SEARCH_MIN_TIME_MS", 200);
 const SPOTIFY_SEARCH_RESERVOIR_PER_30S = parsePositiveIntEnv("SPOTIFY_SEARCH_RESERVOIR_PER_30S", 60);
 
-const spotifySearchLimiter = (() => {
-  const connection = getSpotifyBottleneckRedisConnection();
-  // No reservoir — reservoir-based throttling causes queue buildup: when the
-  // reservoir empties, searches queue indefinitely. The mobile app times out
-  // after 8s but the server queue keeps growing until restart.
-  // minTime alone rate-limits to 5 req/s without any queue accumulation.
-  // highWater=1 + OVERFLOW means at most 1 search waits; extras are dropped fast.
-  const opts = {
-    maxConcurrent: 2,
-    minTime: SPOTIFY_SEARCH_MIN_TIME_MS,
-    highWater: 1,
-    strategy: Bottleneck.strategy.OVERFLOW,
-  } as const;
-  if (connection) {
-    return new Bottleneck({
-      datastore: "ioredis",
-      connection,
-      clearDatastore: false,
-      id: "spotify-search-limiter-v2",
-      clientTimeout: 30 * 60 * 1000,
-      ...opts,
-    });
-  }
-  return new Bottleneck({ ...opts });
-})();
+// Search limiter is intentionally in-memory only — never Redis-backed.
+// Redis + highWater=1 + OVERFLOW creates a global queue shared across all
+// serverless instances: a second concurrent search finds the queue full and
+// is dropped immediately (Bottleneck OVERFLOW). In-memory means each instance
+// rate-limits independently, so no cross-instance queue contention.
+const spotifySearchLimiter = new Bottleneck({
+  maxConcurrent: 2,
+  minTime: SPOTIFY_SEARCH_MIN_TIME_MS,
+  highWater: 1,
+  strategy: Bottleneck.strategy.OVERFLOW,
+});
 
 /** Cross-process when `REDIS_URL` is set; otherwise per-process. */
 export const spotifyLimiter = (() => {

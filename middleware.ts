@@ -230,13 +230,43 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith("/api/reactions")) return NextResponse.next();
 
   /**
-   * Communities + weekly chart PNGs are implemented only in Next (`app/api/communities/*`,
-   * `app/api/charts/*`, e.g. `@vercel/og` share-image). If proxied to Express, those paths
-   * 404 or mis-handle binary responses — works locally when `API_BACKEND_URL` is unset.
+   * Routes implemented only in Next.js — not present in the Express backend.
+   * Proxying these to Express returns 404 in prod; keep them in Next.
    */
   if (
+    // Community invite + join (singular /community/, distinct from /communities/)
+    pathname.startsWith("/api/community/") ||
+    // All community routes (data, invites, charts, people, etc.)
     pathname.startsWith("/api/communities/") ||
-    pathname.startsWith("/api/charts/")
+    // Vercel OG share-image charts
+    pathname.startsWith("/api/charts/") ||
+    // Onboarding bootstrap + suggestions
+    pathname.startsWith("/api/onboarding/") ||
+    // Authenticated user self-endpoints (billboard, pulse, insights, etc.)
+    pathname.startsWith("/api/me/") ||
+    // Last.fm import / sync / preview
+    pathname.startsWith("/api/lastfm/") ||
+    // Profile pictures (served as image responses)
+    pathname.startsWith("/api/profile-pictures/") ||
+    pathname === "/api/profile-picture" ||
+    // Listening insights
+    pathname === "/api/listening-insights" ||
+    // Social inbox threads
+    pathname.startsWith("/api/social/") ||
+    // Taste / match endpoints
+    pathname === "/api/taste-match" ||
+    pathname.startsWith("/api/taste/") ||
+    pathname === "/api/taste-identity" ||
+    // Reports
+    pathname.startsWith("/api/reports/") ||
+    // Recommendations
+    pathname.startsWith("/api/recommendations/") ||
+    // Track stats batch
+    pathname.startsWith("/api/track-stats/") ||
+    // Upload URL generator
+    pathname === "/api/upload-url" ||
+    // Cron jobs (protected by CRON_SECRET, never called via proxy anyway)
+    pathname.startsWith("/api/cron/")
   ) {
     return NextResponse.next();
   }
