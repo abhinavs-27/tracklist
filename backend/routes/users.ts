@@ -4,6 +4,7 @@ import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
 import { getFavoriteAlbumsForUser } from "../services/favoriteAlbumsService";
 import { getFollowListWithStatus } from "../services/followNetworkService";
 import { clampLimit, isValidUsername, isValidUuid } from "../lib/validation";
+import { badRequest, internalError, notFound, ok } from "../lib/http";
 
 /**
  * GET /api/users/:username — public profile (mirrors Next.js).
@@ -17,31 +18,26 @@ export const usersRouter = Router();
 usersRouter.get("/:userId/favorites", async (req, res) => {
   const userId = req.params.userId;
   if (!isValidUuid(userId)) {
-    res.status(400).json({ error: "Invalid user id" });
-    return;
+    return badRequest(res, "Invalid user id");
   }
   if (!isSupabaseConfigured()) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return;
+    return internalError(res, "Server misconfigured");
   }
   try {
     const items = await getFavoriteAlbumsForUser(userId);
-    res.status(200).json(items);
+    return ok(res, items);
   } catch (e) {
-    console.error("[users] favorites", e);
-    res.status(500).json({ error: "Failed to load favorites" });
+    return internalError(res, e);
   }
 });
 
 usersRouter.get("/:userId/lists", async (req, res) => {
   const userId = req.params.userId;
   if (!isValidUuid(userId)) {
-    res.status(400).json({ error: "Invalid user id" });
-    return;
+    return badRequest(res, "Invalid user id");
   }
   if (!isSupabaseConfigured()) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return;
+    return internalError(res, "Server misconfigured");
   }
   try {
     const supabase = getSupabase();
@@ -55,19 +51,19 @@ usersRouter.get("/:userId/lists", async (req, res) => {
       .range(0, 49);
 
     if (listError) {
-      console.error("[users] lists", listError);
-      res.status(500).json({ error: "Failed to load lists" });
-      return;
+      return internalError(res, listError);
     }
     if (!listRows?.length) {
-      res.status(200).json({ lists: [] });
-      return;
+      return ok(res, { lists: [] });
     }
 
     const listIds = listRows.map((l) => l.id as string);
-    const { data: countData, error: countError } = await supabase.rpc("get_list_item_counts", {
-      p_list_ids: listIds,
-    });
+    const { data: countData, error: countError } = await supabase.rpc(
+      "get_list_item_counts",
+      {
+        p_list_ids: listIds,
+      },
+    );
 
     const countByList = new Map<string, number>();
     if (countError) {
@@ -107,10 +103,9 @@ usersRouter.get("/:userId/lists", async (req, res) => {
       item_count: countByList.get(l.id as string) ?? 0,
     }));
 
-    res.status(200).json({ lists });
+    return ok(res, { lists });
   } catch (e) {
-    console.error("[users] lists", e);
-    res.status(500).json({ error: "Failed to load lists" });
+    return internalError(res, e);
   }
 });
 
@@ -121,12 +116,10 @@ usersRouter.get("/:userId/lists", async (req, res) => {
 usersRouter.get("/:username/followers", async (req, res) => {
   const username = req.params.username;
   if (!username || !isValidUsername(username)) {
-    res.status(400).json({ error: "Invalid username format" });
-    return;
+    return badRequest(res, "Invalid username format");
   }
   if (!isSupabaseConfigured()) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return;
+    return internalError(res, "Server misconfigured");
   }
 
   const supabase = getSupabase();
@@ -137,8 +130,7 @@ usersRouter.get("/:username/followers", async (req, res) => {
     .maybeSingle();
 
   if (userError || !user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+    return notFound(res, "User not found");
   }
 
   const viewer = await getSession(req);
@@ -147,31 +139,32 @@ usersRouter.get("/:username/followers", async (req, res) => {
   const limit = clampLimit(req.query.limit, 50, 20);
   const offset = Number(req.query.offset) || 0;
   if (offset < 0) {
-    res.status(400).json({ error: "offset must be >= 0" });
-    return;
+    return badRequest(res, "offset must be >= 0");
   }
 
   try {
-    const result = await getFollowListWithStatus(user.id, viewerId, "followers", {
-      limit,
-      offset,
-    });
-    res.status(200).json(result);
+    const result = await getFollowListWithStatus(
+      user.id,
+      viewerId,
+      "followers",
+      {
+        limit,
+        offset,
+      },
+    );
+    return ok(res, result);
   } catch (e) {
-    console.error("[users] followers list", e);
-    res.status(500).json({ error: "Failed to load followers" });
+    return internalError(res, e);
   }
 });
 
 usersRouter.get("/:username/following", async (req, res) => {
   const username = req.params.username;
   if (!username || !isValidUsername(username)) {
-    res.status(400).json({ error: "Invalid username format" });
-    return;
+    return badRequest(res, "Invalid username format");
   }
   if (!isSupabaseConfigured()) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return;
+    return internalError(res, "Server misconfigured");
   }
 
   const supabase = getSupabase();
@@ -182,8 +175,7 @@ usersRouter.get("/:username/following", async (req, res) => {
     .maybeSingle();
 
   if (userError || !user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+    return notFound(res, "User not found");
   }
 
   const viewer = await getSession(req);
@@ -192,31 +184,32 @@ usersRouter.get("/:username/following", async (req, res) => {
   const limit = clampLimit(req.query.limit, 50, 20);
   const offset = Number(req.query.offset) || 0;
   if (offset < 0) {
-    res.status(400).json({ error: "offset must be >= 0" });
-    return;
+    return badRequest(res, "offset must be >= 0");
   }
 
   try {
-    const result = await getFollowListWithStatus(user.id, viewerId, "following", {
-      limit,
-      offset,
-    });
-    res.status(200).json(result);
+    const result = await getFollowListWithStatus(
+      user.id,
+      viewerId,
+      "following",
+      {
+        limit,
+        offset,
+      },
+    );
+    return ok(res, result);
   } catch (e) {
-    console.error("[users] following list", e);
-    res.status(500).json({ error: "Failed to load following" });
+    return internalError(res, e);
   }
 });
 
 usersRouter.get("/:username", async (req, res) => {
   const username = req.params.username;
   if (!username || !isValidUsername(username)) {
-    res.status(400).json({ error: "Invalid username format" });
-    return;
+    return badRequest(res, "Invalid username format");
   }
   if (!isSupabaseConfigured()) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return;
+    return internalError(res, "Server misconfigured");
   }
 
   const supabase = getSupabase();
@@ -227,43 +220,35 @@ usersRouter.get("/:username", async (req, res) => {
     .single();
 
   if (error || !user) {
-    res.status(404).json({ error: "User not found" });
-    return;
+    return notFound(res, "User not found");
   }
 
-  const [
-    followersRes,
-    followingRes,
-    reviewsCountRes,
-    streakRes,
-  ] = await Promise.all([
-    supabase
-      .from("follows")
-      .select("id", { count: "exact", head: true })
-      .eq("following_id", user.id),
-    supabase
-      .from("follows")
-      .select("id", { count: "exact", head: true })
-      .eq("follower_id", user.id),
-    supabase
-      .from("reviews")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
-    supabase
-      .from("user_streaks")
-      .select("current_streak, longest_streak, last_listen_date")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-  ]);
+  const [followersRes, followingRes, reviewsCountRes, streakRes] =
+    await Promise.all([
+      supabase
+        .from("follows")
+        .select("id", { count: "exact", head: true })
+        .eq("following_id", user.id),
+      supabase
+        .from("follows")
+        .select("id", { count: "exact", head: true })
+        .eq("follower_id", user.id),
+      supabase
+        .from("reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      supabase
+        .from("user_streaks")
+        .select("current_streak, longest_streak, last_listen_date")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ]);
 
   if (followersRes.error || followingRes.error) {
-    console.error(
-      "[users] followers/following count",
-      followersRes.error,
-      followingRes.error,
+    return internalError(
+      res,
+      `Failed to load counts: ${followersRes.error?.message} ${followingRes.error?.message}`,
     );
-    res.status(500).json({ error: "Failed to load profile" });
-    return;
   }
 
   const viewer = await getSession(req);
@@ -276,9 +261,7 @@ usersRouter.get("/:username", async (req, res) => {
       .eq("following_id", user.id)
       .maybeSingle();
     if (followError && followError.code !== "PGRST116") {
-      console.error("[users] isFollowing", followError);
-      res.status(500).json({ error: "Failed to load profile" });
-      return;
+      return internalError(res, followError);
     }
     isFollowing = !!follow;
   }
@@ -293,7 +276,7 @@ usersRouter.get("/:username", async (req, res) => {
         }
       : null;
 
-  res.status(200).json({
+  return ok(res, {
     ...user,
     followers_count: followersRes.count ?? 0,
     following_count: followingRes.count ?? 0,

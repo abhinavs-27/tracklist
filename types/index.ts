@@ -512,3 +512,54 @@ export interface BillboardDropBody {
   action: "dismiss_modal" | "complete_flow" | "ack_chart_view";
   week_start?: string | null;
 }
+
+// API Responses
+export interface RecentAlbumsResponse {
+  albums: RecentAlbumItem[];
+}
+
+/** RecentActivityItem type from recent-from-logs.ts or similar */
+export interface RecentAlbumItem {
+  album_id: string;
+  album_name: string | null;
+  artist_name: string;
+  album_image: string | null;
+  last_played_at: string;
+  spotify_id?: string | null;
+}
+
+export interface ArtistResponse {
+  metadata_complete: boolean;
+  artist: {
+    id: string;
+    name: string;
+    image_url: string | null;
+    followers: number | null;
+    genres: string[];
+  };
+  albums: ArtistAlbum[];
+  topTracks: ArtistTrack[];
+  stats: {
+    average_rating: number | null;
+    play_count: number;
+    favorite_count: number;
+    review_count: number;
+  };
+}
+
+export interface ArtistAlbum {
+  id: string;
+  name: string;
+  artwork_url: string | null;
+  release_date: string | null;
+}
+
+export interface ArtistTrack {
+  id: string;
+  name: string;
+  track_number: number;
+  duration_ms: number | null;
+  listen_count: number;
+  review_count: number;
+  average_rating: number | null;
+}
