@@ -56,6 +56,12 @@ import type {
  * Helper to fetch a Map of user data from a list of user IDs.
  * Exported for use in API routes that need to manualy enrich data.
  */
+const USER_MAP_CHUNK = 120;
+
+/**
+ * Helper to fetch a Map of user data from a list of user IDs.
+ * Exported for use in API routes that need to manualy enrich data.
+ */
 export async function fetchUserMap<
   T extends { id: string } = { id: string; username: string; avatar_url: string | null },
 >(
@@ -66,16 +72,21 @@ export async function fetchUserMap<
   select = "id, username, avatar_url",
 ): Promise<Map<string, T>> {
   if (userIds.length === 0) return new Map();
-  const { data: users } = await supabase
-    .from("users")
-    .select(select)
-    .in("id", userIds);
-  return new Map(
-    ((users as { id: string }[] | null) ?? []).map((u) => [
-      u.id,
-      u as unknown as T,
-    ]),
-  );
+  const uniqueIds = [...new Set(userIds)];
+  const users: T[] = [];
+
+  for (let i = 0; i < uniqueIds.length; i += USER_MAP_CHUNK) {
+    const chunk = uniqueIds.slice(i, i + USER_MAP_CHUNK);
+    const { data, error } = await supabase
+      .from("users")
+      .select(select)
+      .in("id", chunk);
+    if (!error && data) {
+      users.push(...(data as unknown as T[]));
+    }
+  }
+
+  return new Map(users.map((u) => [u.id, u]));
 }
 
 /**
@@ -1747,14 +1758,25 @@ export async function getReviewsForArtist(
     const entityIds = [...albumIds, ...songIds];
     if (entityIds.length === 0) return [];
 
-    const { data: rows, error } = await supabase
-      .from("reviews")
-      .select("id, user_id, entity_type, entity_id, rating, review_text, created_at")
-      .in("entity_id", entityIds)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+    // Chunk entityIds to avoid Supabase URL/header length limits
+    const CHUNK = 120;
+    const allRows: any[] = [];
+    for (let i = 0; i < entityIds.length; i += CHUNK) {
+      const chunk = entityIds.slice(i, i + CHUNK);
+      const { data, error } = await supabase
+        .from("reviews")
+        .select("id, user_id, entity_type, entity_id, rating, review_text, created_at")
+        .in("entity_id", chunk);
+      if (!error && data) allRows.push(...data);
+    }
 
-    if (error || !rows?.length) return [];
+    if (!allRows.length) return [];
+
+    // Sort and paginate in-memory since we merged chunks
+    const sorted = allRows.sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    const rows = sorted.slice(offset, offset + limit);
 
     // Fetch users (with avatar), album names/images, track names
     const userIds = [...new Set(rows.map((r) => r.user_id as string))];
@@ -2331,13 +2353,14 @@ export async function getListenLogsForArtist(
     const trackIds = (songRows ?? []).map((s) => s.id);
     if (trackIds.length === 0) return [];
 
-    // Resolve following IDs when a viewer is provided
+    // Resolve following IDs when a viewer is provided (cap at 500)
     let followingIds: string[] | null = null;
     if (viewerId) {
       const { data: followRows } = await supabase
         .from("follows")
         .select("following_id")
-        .eq("follower_id", viewerId);
+        .eq("follower_id", viewerId)
+        .limit(500);
       const ids = (followRows ?? []).map((f) => f.following_id as string);
       if (ids.length > 0) followingIds = ids;
     }
@@ -3187,6 +3210,7 @@ export type FavoriteAlbum = {
 
 export async function getUserFavoriteAlbums(
   userId: string,
+  limit = 10,
 ): Promise<FavoriteAlbum[]> {
   try {
     const supabase = createSupabaseAdminClient();
@@ -3195,7 +3219,8 @@ export async function getUserFavoriteAlbums(
       .from("user_favorite_albums")
       .select("album_id, position")
       .eq("user_id", userId)
-      .order("position", { ascending: true });
+      .order("position", { ascending: true })
+      .limit(limit);
 
     if (error || !rows?.length) return [];
 
@@ -3359,13 +3384,16 @@ export type UserAchievementRow = { achievement_id: string; earned_at: string };
 
 export async function getUserAchievements(
   userId: string,
+  limit = 50,
 ): Promise<{ achievement: AchievementRow; earned_at: string }[]> {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: ua, error: uaError } = await supabase
       .from("user_achievements")
       .select("achievement_id, earned_at")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .order("earned_at", { ascending: false })
+      .limit(limit);
     if (uaError || !ua?.length) return [];
     const ids = (ua as UserAchievementRow[]).map((u) => u.achievement_id);
     const { data: achievements, error: aError } = await supabase

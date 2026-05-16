@@ -19,6 +19,8 @@ export type ActivityFeedPage = {
   next_cursor: string | null;
 };
 
+const USER_MAP_CHUNK = 120;
+
 async function fetchUserMap(
   supabase: SupabaseClient,
   userIds: string[],
@@ -29,12 +31,22 @@ async function fetchUserMap(
   >
 > {
   if (userIds.length === 0) return new Map();
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, username, avatar_url")
-    .in("id", userIds);
+  const uniqueIds = [...new Set(userIds)];
+  const users: any[] = [];
+
+  for (let i = 0; i < uniqueIds.length; i += USER_MAP_CHUNK) {
+    const chunk = uniqueIds.slice(i, i + USER_MAP_CHUNK);
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .in("id", chunk);
+    if (!error && data) {
+      users.push(...data);
+    }
+  }
+
   return new Map(
-    (users ?? []).map((u) => [
+    users.map((u) => [
       u.id as string,
       {
         id: u.id as string,
@@ -213,6 +225,8 @@ async function getActivityFeedFallback(
   }
 }
 
+const ENTITY_NAME_CHUNK = 120;
+
 async function getEntityDisplayNames(
   supabase: SupabaseClient,
   items: { entity_type: "album" | "song"; entity_id: string }[],
@@ -220,29 +234,31 @@ async function getEntityDisplayNames(
   const map = new Map<string, string>();
   if (items.length === 0) return map;
 
-  const songIds = items
-    .filter((i) => i.entity_type === "song")
-    .map((i) => i.entity_id);
-  const albumIds = items
-    .filter((i) => i.entity_type === "album")
-    .map((i) => i.entity_id);
+  const songIds = [...new Set(items.filter((i) => i.entity_type === "song").map((i) => i.entity_id))];
+  const albumIds = [...new Set(items.filter((i) => i.entity_type === "album").map((i) => i.entity_id))];
 
   if (songIds.length > 0) {
-    const { data: songs } = await supabase
-      .from("tracks")
-      .select("id, name")
-      .in("id", songIds);
-    for (const s of songs ?? []) {
-      if (s.name) map.set(s.id, s.name);
+    for (let i = 0; i < songIds.length; i += ENTITY_NAME_CHUNK) {
+      const chunk = songIds.slice(i, i + ENTITY_NAME_CHUNK);
+      const { data: songs } = await supabase
+        .from("tracks")
+        .select("id, name")
+        .in("id", chunk);
+      for (const s of songs ?? []) {
+        if (s.name) map.set(s.id, s.name);
+      }
     }
   }
   if (albumIds.length > 0) {
-    const { data: albums } = await supabase
-      .from("albums")
-      .select("id, name")
-      .in("id", albumIds);
-    for (const a of albums ?? []) {
-      if (a.name) map.set(a.id, a.name);
+    for (let i = 0; i < albumIds.length; i += ENTITY_NAME_CHUNK) {
+      const chunk = albumIds.slice(i, i + ENTITY_NAME_CHUNK);
+      const { data: albums } = await supabase
+        .from("albums")
+        .select("id, name")
+        .in("id", chunk);
+      for (const a of albums ?? []) {
+        if (a.name) map.set(a.id, a.name);
+      }
     }
   }
   return map;
@@ -326,33 +342,50 @@ async function enrichListenSessionsWithAlbums(
   };
   type DbTrack = { id: string; name: string; artist_id: string | null };
 
-  const [{ data: albumRows }, { data: trackRows }] = await Promise.all([
-    albumIdList.length > 0
-      ? supabase
-          .from("albums")
-          .select("id, name, artist_id, image_url")
-          .in("id", albumIdList)
-      : Promise.resolve({ data: [] as DbAlbum[] }),
-    trackIdList.length > 0
-      ? supabase
-          .from("tracks")
-          .select("id, name, artist_id")
-          .in("id", trackIdList)
-      : Promise.resolve({ data: [] as DbTrack[] }),
-  ]);
+  const ALBUM_TRACK_CHUNK = 120;
+  const albumRows: DbAlbum[] = [];
+  const trackRows: DbTrack[] = [];
+
+  if (albumIdList.length > 0) {
+    for (let i = 0; i < albumIdList.length; i += ALBUM_TRACK_CHUNK) {
+      const chunk = albumIdList.slice(i, i + ALBUM_TRACK_CHUNK);
+      const { data } = await supabase
+        .from("albums")
+        .select("id, name, artist_id, image_url")
+        .in("id", chunk);
+      if (data) albumRows.push(...(data as DbAlbum[]));
+    }
+  }
+
+  if (trackIdList.length > 0) {
+    for (let i = 0; i < trackIdList.length; i += ALBUM_TRACK_CHUNK) {
+      const chunk = trackIdList.slice(i, i + ALBUM_TRACK_CHUNK);
+      const { data } = await supabase
+        .from("tracks")
+        .select("id, name, artist_id")
+        .in("id", chunk);
+      if (data) trackRows.push(...(data as DbTrack[]));
+    }
+  }
 
   const artistIds = new Set<string>();
-  for (const a of (albumRows ?? []) as DbAlbum[]) artistIds.add(a.artist_id);
-  for (const t of (trackRows ?? []) as DbTrack[]) {
+  for (const a of albumRows) artistIds.add(a.artist_id);
+  for (const t of trackRows) {
     if (t.artist_id) artistIds.add(t.artist_id);
   }
-  const { data: artistRows } =
-    artistIds.size > 0
-      ? await supabase
-          .from("artists")
-          .select("id, name")
-          .in("id", [...artistIds])
-      : { data: [] as DbArtist[] };
+
+  const artistIdList = [...artistIds];
+  const artistRows: DbArtist[] = [];
+  if (artistIdList.length > 0) {
+    for (let i = 0; i < artistIdList.length; i += ALBUM_TRACK_CHUNK) {
+      const chunk = artistIdList.slice(i, i + ALBUM_TRACK_CHUNK);
+      const { data } = await supabase
+        .from("artists")
+        .select("id, name")
+        .in("id", chunk);
+      if (data) artistRows.push(...(data as DbArtist[]));
+    }
+  }
 
   const artistNameById = new Map(
     ((artistRows ?? []) as DbArtist[]).map((r) => [r.id, r.name]),

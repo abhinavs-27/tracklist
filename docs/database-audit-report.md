@@ -84,6 +84,41 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `comments` | `(log_id) WHERE log_id IS NOT NULL` | `150` | Optimized for comments on logs (legacy fallback). |
 | `likes` | `(user_id)` | `150` | Optimized for tracking user-liked content. |
 | `reviews` | `(entity_type, entity_id, rating)` | `150` | Optimized for entity-scoped rating distributions and top reviews. |
+| `reviews` | `(entity_id, created_at DESC)` | `151` | Optimized for entity-agnostic review lookups (e.g. all reviews for an artist's catalog). |
+| `user_achievements` | `(user_id, earned_at DESC)` | `151` | Optimized for ordered achievement fetching. |
+| `tracks` | `(artist_id, name_normalized)` | `151` | Optimized for track lookups by name within an artist. |
+| `tracks` | `(album_id, name_normalized)` | `151` | Optimized for track lookups by name within an album. |
+
+# Database Audit Report - May 2026
+
+This update summarizes additional optimizations performed in May 2026.
+
+## Overview
+
+The May 2026 audit identified further opportunities for query optimization, specifically around:
+- Large `.in()` clauses that could exceed Supabase/PostgREST URL and header length limits.
+- Unbounded loops in leaderboard generation.
+- Missing indexes for entity-agnostic lookups and metadata-based track resolution.
+
+## Optimizations
+
+### 1. Query Chunking
+Large `.in()` clauses in `lib/queries.ts` and `backend/services/activityFeedService.ts` were updated to use chunked fetching (typically 120 items per batch). This prevents performance degradation and ensures requests stay within infrastructure limits.
+
+**Affected functions:**
+- `fetchUserMap`
+- `getReviewsForArtist`
+- `getEntityDisplayNames`
+- `enrichListenSessionsWithAlbums`
+
+### 2. Hard Limits on Background Fetching
+Unbounded loops that collected album IDs for leaderboard filtering in `backend/services/leaderboardService.ts` were capped at 5000 items to prevent memory exhaustion and excessive database load during filter processing.
+
+### 3. Explicit Pagination and Limits
+Added missing limits to `getUserAchievements` and `getUserFavoriteAlbums` to ensure consistent performance as user data grows.
+
+### 4. New Database Indexes (Migration 151)
+Added indexes for entity review lookups, ordered achievements, and track name resolution to support common application flows.
 
 ## Recommendations for Future Queries
 

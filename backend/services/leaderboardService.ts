@@ -321,6 +321,8 @@ export async function getLeaderboard(
 
     let albumIds: string[] | null = null;
 
+    const MAX_ALBUMS_FOR_FILTER = 5000;
+
     // Prefer explicit year range if provided
     if (startYear != null || endYear != null) {
       const from = startYear ?? endYear!;
@@ -338,10 +340,10 @@ export async function getLeaderboard(
         if (error) break;
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
-        if (rows.length < pageSize) break;
+        if (rows.length < pageSize || acc.length >= MAX_ALBUMS_FOR_FILTER) break;
         rangeFrom += pageSize;
       }
-      albumIds = acc;
+      albumIds = acc.slice(0, MAX_ALBUMS_FOR_FILTER);
     } else if (year != null) {
       const acc: string[] = [];
       let rangeFrom = 0;
@@ -355,10 +357,10 @@ export async function getLeaderboard(
         if (error) break;
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
-        if (rows.length < pageSize) break;
+        if (rows.length < pageSize || acc.length >= MAX_ALBUMS_FOR_FILTER) break;
         rangeFrom += pageSize;
       }
-      albumIds = acc;
+      albumIds = acc.slice(0, MAX_ALBUMS_FOR_FILTER);
     } else if (decade != null) {
       const yearNum = decade + 10;
       const acc: string[] = [];
@@ -374,10 +376,10 @@ export async function getLeaderboard(
         if (error) break;
         const rows = albums ?? [];
         acc.push(...rows.map((a) => a.id));
-        if (rows.length < pageSize) break;
+        if (rows.length < pageSize || acc.length >= MAX_ALBUMS_FOR_FILTER) break;
         rangeFrom += pageSize;
       }
-      albumIds = acc;
+      albumIds = acc.slice(0, MAX_ALBUMS_FOR_FILTER);
     }
 
     if (albumIds !== null && albumIds.length === 0) return [];
