@@ -1,22 +1,21 @@
-import { NextRequest } from "next/server";
-import { getUserFromRequest } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { getCachedRecentAlbumsFromLogs } from "@/lib/profile/recent-activity-cache";
 import { apiBadRequest, apiInternalError, apiOk } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
-import type { RecentAlbumItem } from "@/lib/recent-from-logs";
+import type { RecentAlbumItem, RecentAlbumsResponse } from "@/types";
 import { viewerSeesUserLogs } from "@/lib/privacy/logs-private";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export type { RecentAlbumItem };
 
 /** Recent unique albums — derived only from `logs` + catalog (all listen sources). */
-export async function GET(request: NextRequest) {
+export const GET = withHandler(async (request, { user: viewer }) => {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const userId = searchParams.get("user_id");
-    if (!userId || !isValidUuid(userId)) return apiBadRequest("Valid user_id required");
-
-    const viewer = await getUserFromRequest(request);
+    if (!userId || !isValidUuid(userId)) {
+      return apiBadRequest("Valid user_id required");
+    }
 
     const limitRaw = searchParams.get("limit");
     const limit = limitRaw
@@ -39,8 +38,8 @@ export async function GET(request: NextRequest) {
     }
 
     const albums = await getCachedRecentAlbumsFromLogs(userId, limit, bust);
-    return apiOk({ albums });
+    return apiOk<RecentAlbumsResponse>({ albums });
   } catch (e) {
     return apiInternalError(e);
   }
-}
+});

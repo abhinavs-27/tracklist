@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { withHandler } from "@/lib/api-handler";
 import {
   apiBadRequest,
   apiInternalError,
@@ -17,15 +17,11 @@ import { getTrackStatsForTrackIds } from "@/lib/queries";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import { ArtistResponse } from "@/types";
 
-type RouteParams = Promise<{ id: string }>;
-
-export async function GET(
-  _request: NextRequest,
-  ctx: { params: RouteParams },
-) {
+export const GET = withHandler(async (_request, ctx) => {
   try {
-    const { id } = await ctx.params;
+    const { id } = ctx.params;
     if (!id || (!isValidSpotifyId(id) && !isValidUuid(id))) {
       return apiBadRequest("Invalid artist id");
     }
@@ -100,7 +96,7 @@ export async function GET(
       });
     }
 
-    return apiOk({
+    return apiOk<ArtistResponse>({
       metadata_complete,
       artist: {
         id: artist.id,
@@ -121,4 +117,4 @@ export async function GET(
   } catch (e) {
     return apiInternalError(e);
   }
-}
+});
