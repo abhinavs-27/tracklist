@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   title: "Tracklist — Log your music",
   description:
     "The social media app for music. Log listens, rate albums and tracks, follow friends.",
+  other: {
+    "color-scheme": "dark",
+  },
 };
 
 export default async function RootLayout({
@@ -62,7 +65,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className="overflow-x-clip">
+    <html lang="en" className="overflow-x-clip" style={{ colorScheme: "dark" }}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen overflow-x-clip bg-zinc-950 font-sans text-zinc-100 antialiased`}
       >

@@ -815,6 +815,10 @@ export async function upsertTrackFromSpotify(
     "track_number" in track
       ? ((track as { track_number?: number }).track_number ?? null)
       : null;
+  const discNumber =
+    "disc_number" in track
+      ? ((track as { disc_number?: number }).disc_number ?? 1)
+      : 1;
 
   const trackWithPop = track as SpotifyApi.TrackObjectFull & {
     popularity?: number;
@@ -839,6 +843,7 @@ export async function upsertTrackFromSpotify(
     artist_id: artistUuid,
     duration_ms: track.duration_ms ?? null,
     track_number: trackNumber,
+    disc_number: discNumber,
     popularity: pop,
     updated_at: now,
     cached_at: now,
@@ -896,6 +901,10 @@ async function upsertTrackRowOnly(
     "track_number" in track
       ? ((track as { track_number?: number }).track_number ?? null)
       : null;
+  const discNumber =
+    "disc_number" in track
+      ? ((track as { disc_number?: number }).disc_number ?? 1)
+      : 1;
   const now = new Date().toISOString();
   const trackWithPop = track as SpotifyApi.TrackObjectFull & {
     popularity?: number;
@@ -920,6 +929,7 @@ async function upsertTrackRowOnly(
     artist_id: artistCanonicalId,
     duration_ms: track.duration_ms ?? null,
     track_number: trackNumber,
+    disc_number: discNumber,
     popularity: pop,
     updated_at: now,
     cached_at: now,
@@ -1647,9 +1657,10 @@ async function getOrFetchAlbumInner(
       const { data: songRows, error: songsErr } = await supabase
         .from("tracks")
         .select(
-          "id, name, album_id, artist_id, duration_ms, track_number, data_source",
+          "id, name, album_id, artist_id, duration_ms, disc_number, track_number, data_source",
         )
         .eq("album_id", albumUuid)
+        .order("disc_number", { ascending: true })
         .order("track_number", { ascending: true });
 
       if (songsErr) {
@@ -1689,10 +1700,11 @@ async function getOrFetchAlbumInner(
             const { data: refetched } = await supabase
               .from("tracks")
               .select(
-                "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, data_source",
+                "id, name, album_id, artist_id, duration_ms, disc_number, track_number, cached_at, updated_at, data_source",
               )
               .eq("album_id", albumUuid)
-              .order("track_number", { ascending: true });
+              .order("disc_number", { ascending: true })
+        .order("track_number", { ascending: true });
             songs = (refetched ?? []) as unknown as SongRow[];
           } catch (e) {
             console.warn(
@@ -1805,7 +1817,7 @@ async function getOrFetchAlbumInner(
     const { data: songRowsStale } = await supabase
       .from("tracks")
       .select(
-        "id, name, album_id, artist_id, duration_ms, track_number, data_source",
+        "id, name, album_id, artist_id, duration_ms, disc_number, track_number, data_source",
       )
       .eq("album_id", albumUuid)
       .order("track_number", { ascending: true });
@@ -1838,10 +1850,11 @@ async function getOrFetchAlbumInner(
           const { data: refetchedStale } = await supabase
             .from("tracks")
             .select(
-              "id, name, album_id, artist_id, duration_ms, track_number, cached_at, updated_at, data_source",
+              "id, name, album_id, artist_id, duration_ms, disc_number, track_number, cached_at, updated_at, data_source",
             )
             .eq("album_id", albumUuid)
-            .order("track_number", { ascending: true });
+            .order("disc_number", { ascending: true })
+        .order("track_number", { ascending: true });
           songsStale = (refetchedStale ?? []) as unknown as SongRow[];
         } catch (e) {
           console.warn(

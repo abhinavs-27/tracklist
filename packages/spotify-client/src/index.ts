@@ -20,6 +20,7 @@ const TTL_SEARCH_SEC = 3600;
 const TTL_ALBUM_TRACKS_PAGE_SEC = 86400;
 
 const CIRCUIT_REDIS_KEY = "spotify:circuit:blocked-until";
+const SEARCH_CIRCUIT_REDIS_KEY = "spotify:circuit:search-blocked-until";
 
 /** Max IDs per batch helper (sequential Spotify calls). */
 export const MAX_SPOTIFY_ITEMS = 50;
@@ -65,6 +66,7 @@ const metrics: SpotifyMetrics = {
 };
 
 let inMemoryCircuitUntil = 0;
+let inMemorySearchCircuitUntil = 0;
 
 function parsePositiveIntEnv(name: string, fallback: number): number {
   const v = process.env[name]?.trim();
@@ -362,11 +364,19 @@ export function checkSpotifyEnabled(): void {
   }
 }
 
-export async function checkCircuitBreaker(): Promise<void> {
+/** Search requests use an isolated circuit breaker so enrichment 429s can't block user-facing search. */
+function isSearchPath(path: string): boolean {
+  return path.startsWith("/search");
+}
+
+async function checkCircuitBreakerForPath(path: string): Promise<void> {
+  const search = isSearchPath(path);
+  const key = search ? SEARCH_CIRCUIT_REDIS_KEY : CIRCUIT_REDIS_KEY;
+  const inMemory = search ? inMemorySearchCircuitUntil : inMemoryCircuitUntil;
   const r = getSharedRedis();
   if (r) {
     try {
-      const v = await r.get(CIRCUIT_REDIS_KEY);
+      const v = await r.get(key);
       if (v) {
         const until = Number.parseInt(v, 10);
         if (Number.isFinite(until) && Date.now() < until) {
@@ -376,27 +386,36 @@ export async function checkCircuitBreaker(): Promise<void> {
         }
       }
     } catch (e) {
-      if (e instanceof Error && e.message.includes("circuit breaker")) {
-        throw e;
-      }
+      if (e instanceof Error && e.message.includes("circuit breaker")) throw e;
     }
     return;
   }
-  if (Date.now() < inMemoryCircuitUntil) {
+  if (Date.now() < inMemory) {
     throw new Error(
       "Spotify temporarily rate-limited (circuit breaker active)",
     );
   }
 }
 
-async function tripCircuitBreaker(retryAfterSec: number): Promise<void> {
+/** Exported for jobs/crons that want to bail out before doing enrichment work. Checks the enrichment circuit only. */
+export async function checkCircuitBreaker(): Promise<void> {
+  return checkCircuitBreakerForPath("/non-search");
+}
+
+async function tripCircuitBreaker(path: string, retryAfterSec: number): Promise<void> {
+  const search = isSearchPath(path);
+  const key = search ? SEARCH_CIRCUIT_REDIS_KEY : CIRCUIT_REDIS_KEY;
   const until = Date.now() + Math.min(300, Math.max(1, retryAfterSec)) * 1000;
-  inMemoryCircuitUntil = Math.max(inMemoryCircuitUntil, until);
+  if (search) {
+    inMemorySearchCircuitUntil = Math.max(inMemorySearchCircuitUntil, until);
+  } else {
+    inMemoryCircuitUntil = Math.max(inMemoryCircuitUntil, until);
+  }
   const r = getSharedRedis();
   if (r) {
     try {
       const ex = Math.min(600, Math.max(1, retryAfterSec * 2));
-      await r.set(CIRCUIT_REDIS_KEY, String(until), "EX", ex);
+      await r.set(key, String(until), "EX", ex);
     } catch {
       /* ignore */
     }
@@ -517,7 +536,7 @@ async function fetchCatalogResponseWithRetry(
   retriesLeft: number,
 ): Promise<Response> {
   checkSpotifyEnabled();
-  await checkCircuitBreaker();
+  await checkCircuitBreakerForPath(path);
   const token = await getClientCredentialsToken();
   metrics.apiCalls++;
 
@@ -541,7 +560,7 @@ async function fetchCatalogResponseWithRetry(
     maybeLogSpotifyHealth();
     const retryAfter = Number(res.headers.get("Retry-After") || 1);
     const retryAfterSec = Number.isFinite(retryAfter) ? retryAfter : 1;
-    await tripCircuitBreaker(retryAfterSec);
+    await tripCircuitBreaker(path, retryAfterSec);
     if (FAIL_FAST_ON_429) {
       const ra = Number.isFinite(retryAfter) ? retryAfter : null;
       throw new SpotifyRateLimitError(
@@ -737,6 +756,7 @@ export async function bearerSpotifyFetchJson<T>(
       maybeLogSpotifyHealth();
       const retryAfterSec = Number(res.headers.get("Retry-After") || 2);
       await tripCircuitBreaker(
+        path,
         Number.isFinite(retryAfterSec) ? retryAfterSec : 2,
       );
       if (FAIL_FAST_ON_429) {

@@ -7,8 +7,10 @@
  */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Always dark — the design is dark-first and has no light-mode variant */
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #ededed;
   --surface-elevated: 0 8px 32px -8px rgb(0 0 0 / 0.55);
   --ring-subtle: rgb(255 255 255 / 0.07);
 }
@@ -22,13 +24,6 @@
   --shadow-elevated: var(--surface-elevated);
   /* 1800px — ultra-wide community / dashboard layouts */
   --breakpoint-3xl: 112.5rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
