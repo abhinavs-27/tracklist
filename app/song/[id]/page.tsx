@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
@@ -26,6 +27,56 @@ function formatDuration(ms: number | undefined) {
   const min = Math.floor(ms / 60000);
   const sec = Math.floor((ms % 60000) / 1000);
   return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+async function SongPageTabsLoader({
+  entityId,
+  trackName,
+  viewerId,
+  image,
+}: {
+  entityId: string;
+  trackName: string;
+  viewerId: string | null;
+  image: string | null;
+}) {
+  const [reviewsData, recentListens, relatedTracks, leaderboard] =
+    await Promise.all([
+      getReviewsForEntity("song", entityId).catch(() => ({
+        reviews: [],
+        average_rating: null,
+        count: 0,
+        my_review: null,
+      })),
+      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
+      getRelatedMedia("song", entityId, 12)
+        .then((relatedSongsRaw) => {
+          const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
+          return relatedTrackIds.length > 0
+            ? getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false })
+            : Promise.resolve([]);
+        })
+        .then((res) =>
+          (res ?? []).filter((t): t is SpotifyApi.TrackObjectFull => t != null),
+        )
+        .catch(() => []),
+      viewerId
+        ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+  return (
+    <SongPageTabs
+      entityId={entityId}
+      trackName={trackName}
+      reviewsInitialData={reviewsData}
+      recentListens={recentListens}
+      leaderboard={leaderboard}
+      hasSocial={!!viewerId}
+      albumImageUrl={image}
+      relatedTracks={relatedTracks}
+    />
+  );
 }
 
 export default async function SongPage({ params }: { params: PageParams }) {
@@ -55,37 +106,13 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
 
-  const [reviewsData, stats, recentListens, relatedTracks, leaderboard] =
-    await Promise.all([
-      getReviewsForEntity("song", entityId).catch(() => ({
-        reviews: [],
-        average_rating: null,
-        count: 0,
-        my_review: null,
-      })),
-      getEntityStats("song", entityId),
-      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
-      getRelatedMedia("song", entityId, 12)
-        .then((relatedSongsRaw) => {
-          const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
-          return relatedTrackIds.length > 0
-            ? getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false })
-            : Promise.resolve([]);
-        })
-        .then((res) =>
-          (res ?? []).filter((t): t is SpotifyApi.TrackObjectFull => t != null),
-        )
-        .catch(() => []),
-      viewerId
-        ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
-        : Promise.resolve(null),
-    ]);
+  // Initial stats are still fetched in the shell to show average rating and play count in the hero.
+  const stats = await getEntityStats("song", entityId);
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
   const duration = formatDuration(track.duration_ms);
   const primaryArtist = track.artists?.[0];
-  const myReview = reviewsData?.my_review ?? null;
 
   return (
     <div className="space-y-8">
@@ -164,30 +191,14 @@ export default async function SongPage({ params }: { params: PageParams }) {
         </div>
       </div>
 
-      {/* Your rating */}
-      {myReview && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3 text-sm">
-          <span className="text-zinc-400">
-            Your rating: <span className="text-amber-400">{formatStarDisplay(myReview.rating)}</span>
-          </span>
-          {myReview.review_text && (
-            <><span className="text-zinc-700">·</span>
-              <span className="line-clamp-1 italic text-zinc-300">"{myReview.review_text}"</span></>
-          )}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <SongPageTabs
-        entityId={entityId}
-        trackName={track.name}
-        reviewsInitialData={reviewsData}
-        recentListens={recentListens}
-        leaderboard={leaderboard}
-        hasSocial={!!viewerId}
-        albumImageUrl={image ?? null}
-        relatedTracks={relatedTracks}
-      />
+      <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-2xl bg-zinc-900/50" />}>
+        <SongPageTabsLoader
+          entityId={entityId}
+          trackName={track.name}
+          viewerId={viewerId}
+          image={image ?? null}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -14,7 +14,6 @@ import { ChartsClient } from "@/app/charts/charts-client";
 import { TasteTimeline } from "@/components/profile/taste-timeline";
 import { ProfileWeeklyTopAlbumsSection } from "@/components/profile/profile-weekly-top-albums";
 import { ProfilePulseSection } from "@/components/profile/profile-pulse-section";
-import { ProfileRecentActivity } from "@/components/profile/profile-recent-activity";
 import { ProfileInsightCards } from "@/components/profile/profile-insight-cards";
 import { TasteBlindSpots } from "@/components/profile/taste-blind-spots";
 import { ProfileListeningReportPreview } from "@/components/profile/profile-listening-report-preview";
@@ -44,28 +43,15 @@ const EMPTY_TASTE: TasteIdentity = {
   summary: "",
 };
 
-export default async function HomePage({
-  searchParams,
+async function HomeData({
+  userId,
+  username,
+  weekStart,
 }: {
-  searchParams?: Promise<{ welcome?: string; type?: string; weekStart?: string }>;
+  userId: string;
+  username: string;
+  weekStart: string | null;
 }) {
-  const sp = searchParams != null ? await searchParams : {};
-  const welcomeOnboarding = sp.welcome === "1";
-
-  const session = await getSession();
-
-  if (!session?.user?.id) {
-    return (
-      <div className={sectionGap}>
-        <VisitorFeed />
-        <VisitorSignupTriggers />
-      </div>
-    );
-  }
-
-  const userId = session.user.id;
-  const username = session.user.username ?? session.user.name ?? "you";
-
   const settled = await Promise.allSettled([
     getCachedTasteIdentity(userId), // 0
     getCachedTopThisWeek(userId), // 1
@@ -74,30 +60,11 @@ export default async function HomePage({
     getTasteTimeline(userId), // 4
     getCachedListeningReportPreview(userId), // 5
     getTasteInsights(userId), // 6
-    createSupabaseAdminClient()
-      .from("users")
-      .select("onboarding_completed")
-      .eq("id", userId)
-      .maybeSingle(), // 7
-    createSupabaseServerClient().then((s) => countUnreadNotifications(userId, s)), // 8
+    createSupabaseServerClient().then((s) => countUnreadNotifications(userId, s)), // 7
   ]);
 
-  const onboardingRes = settled[7];
-  if (onboardingRes.status === "fulfilled") {
-    const { data: onboardingRow, error: onboardingErr } = onboardingRes.value;
-    if (onboardingErr) {
-      console.error("[home] onboarding_completed lookup failed", onboardingErr);
-    } else if (
-      onboardingRow &&
-      (onboardingRow as { onboarding_completed: boolean })
-        .onboarding_completed !== true
-    ) {
-      redirect("/onboarding");
-    }
-  }
-
   const unreadCount =
-    settled[8].status === "fulfilled" ? settled[8].value : 0;
+    settled[7].status === "fulfilled" ? settled[7].value : 0;
 
   const tasteIdentity: TasteIdentity =
     settled[0].status === "fulfilled" ? settled[0].value : EMPTY_TASTE;
@@ -151,7 +118,7 @@ export default async function HomePage({
 
   // ── Billboard tab — the real weekly ranked chart ─────────────────────────────
   const billboardTab = (
-    <ChartsClient initialType="tracks" initialWeekStart={sp.weekStart?.trim() || null} hideBackLink />
+    <ChartsClient initialType="tracks" initialWeekStart={weekStart} hideBackLink />
   );
 
   // ── Pulse tab — rolling 7-day top + pulse stats + narrative ──────────────────
@@ -207,6 +174,55 @@ export default async function HomePage({
   const activityTab = <RecentlyPlayedFeed />;
 
   return (
+    <HomeTabsContainer
+      billboardContent={billboardTab}
+      pulseContent={pulseTab}
+      historyContent={historyTab}
+      activityContent={activityTab}
+      unreadCount={unreadCount}
+    />
+  );
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ welcome?: string; type?: string; weekStart?: string }>;
+}) {
+  const sp = searchParams != null ? await searchParams : {};
+  const welcomeOnboarding = sp.welcome === "1";
+
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return (
+      <div className={sectionGap}>
+        <VisitorFeed />
+        <VisitorSignupTriggers />
+      </div>
+    );
+  }
+
+  const userId = session.user.id;
+  const username = session.user.username ?? session.user.name ?? "you";
+
+  // Phase 1: Onboarding check + initial render.
+  const { data: onboardingRow, error: onboardingErr } = await createSupabaseAdminClient()
+    .from("users")
+    .select("onboarding_completed")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (onboardingErr) {
+    console.error("[home] onboarding_completed lookup failed", onboardingErr);
+  } else if (
+    onboardingRow &&
+    (onboardingRow as { onboarding_completed: boolean }).onboarding_completed !== true
+  ) {
+    redirect("/onboarding");
+  }
+
+  return (
     <div className={sectionGap}>
       <Suspense fallback={null}>
         <HomeWelcomeOverlay initialActive={welcomeOnboarding} />
@@ -214,13 +230,13 @@ export default async function HomePage({
       <Suspense fallback={null}>
         <BillboardDropSection userId={userId} />
       </Suspense>
-      <HomeTabsContainer
-        billboardContent={billboardTab}
-        pulseContent={pulseTab}
-        historyContent={historyTab}
-        activityContent={activityTab}
-        unreadCount={unreadCount}
-      />
+      <Suspense fallback={<div className="h-96 w-full animate-pulse rounded-2xl bg-zinc-900/50" />}>
+        <HomeData
+          userId={userId}
+          username={username}
+          weekStart={sp.weekStart?.trim() || null}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -12,7 +12,6 @@ import { getOrCreateEntity, withTimeout } from "@/lib/catalog/getOrCreateEntity"
 import { spotifyResolverRouteTimeoutMs } from "@/lib/catalog/spotify-resolver-timeout";
 import { redirectToCanonicalEntityIfNeeded } from "@/lib/catalog/redirect-to-canonical-entity-route";
 import { getOrFetchAlbum } from "@/lib/spotify-cache";
-import { sectionGap } from "@/lib/ui/surface";
 import {
   isUUID,
   isValidSpotifyId,
@@ -59,11 +58,7 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     "page",
     "albumPage",
     async () => {
-      /**
-       * Phase 1: session + catalog fetch must finish before stats / friends / engagement.
-       * Those paths resolve canonical album UUID via `album_external_ids`; parallel runs
-       * raced `getOrFetchAlbum` upserts and returned empty / `no_canonical_album`.
-       */
+      // Phase 1: session + catalog fetch. Parallelized.
       const [sessionVal, fetched] = await Promise.all([
         withAlbumPagePhaseLog("getSession", id, getSession()),
         withAlbumPagePhaseLog(
@@ -80,13 +75,10 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
       redirectToCanonicalEntityIfNeeded("album", id, fetched!.canonicalAlbumId);
       const entityIdInner = fetched!.canonicalAlbumId ?? id;
 
-      /**
-       * Sequential Supabase server work: parallel `createSupabaseServerClient()` (each awaits
-       * `cookies()`) has deadlocked RSC — same pattern as `artist-page-content.tsx`.
-       */
       const viewerId = sessionVal?.user?.id ?? null;
       const trackIds = (tracksInner.items ?? []).map((t) => t.id);
 
+      // Phase 2: parallel fetch everything else now that we have the canonical UUID and track list.
       const [statsInner, engagementInner, friendActivityInner, viewerTrackRatingsInner] =
         await Promise.all([
           withAlbumPagePhaseLog(
