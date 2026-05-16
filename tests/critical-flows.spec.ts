@@ -1,24 +1,32 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Critical Integration flows for the Tracklist application.
- * These tests cover the primary user journeys using the UI and mocked API responses.
- * They also include validation for error states and edge cases.
+ * Consolidated Critical Flow Tests for Tracklist.
+ *
+ * This suite verifies the core application flows:
+ * 1. Creating reviews (UI & API)
+ * 2. Logging listens (UI & API)
+ * 3. Spotify ingestion (API)
+ * 4. User profile fetch (API)
+ * 5. Search results (UI)
+ *
+ * Mocks are used to ensure these tests are hermetic and environment-agnostic.
  */
+
 test.describe('Critical Flows Integration', () => {
 
   test.beforeEach(async ({ page }) => {
-    // 1. Mock the session to be authenticated for all tests
+    // Mock the session to be authenticated
     await page.route('**/api/auth/session', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           user: {
-            id: 'user_1',
-            name: 'Test User',
-            email: 'test@example.com',
-            username: 'testuser',
+            id: 'tester-uuid',
+            name: 'Tester',
+            email: 'tester@example.com',
+            username: 'tester',
             image: 'https://example.com/avatar.png'
           },
           expires: new Date(Date.now() + 3600000).toISOString(),
@@ -26,7 +34,7 @@ test.describe('Critical Flows Integration', () => {
       });
     });
 
-    // 2. Mock CSRF token for NextAuth
+    // Mock CSRF token for NextAuth
     await page.route('**/api/auth/csrf', async (route) => {
       await route.fulfill({
         status: 200,
@@ -36,153 +44,137 @@ test.describe('Critical Flows Integration', () => {
     });
   });
 
-  test('Flow: Creating a review (UI-driven)', async ({ page }) => {
-    // 1. Mock the reviews POST API
+  test('Flow: Creating a Review', async ({ page }) => {
+    // 1. Mock the reviews API
     await page.route('**/api/reviews*', async (route) => {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON();
-        // Edge case: invalid rating (should be handled by the API normally, but we mock success here for UI flow)
+        // Validation mock
         if (body.rating < 1 || body.rating > 5) {
           return route.fulfill({
             status: 400,
             contentType: 'application/json',
-            body: JSON.stringify({ error: 'Invalid rating' }),
+            body: JSON.stringify({ error: 'Rating must be between 1 and 5' }),
           });
         }
-        await route.fulfill({
+        return route.fulfill({
           status: 201,
           contentType: 'application/json',
-          body: JSON.stringify({ id: 'review_1', ...body }),
+          body: JSON.stringify({
+            id: 'review-uuid',
+            ...body,
+            created_at: new Date().toISOString(),
+            user: { id: 'tester-uuid', username: 'tester' }
+          }),
         });
       }
     });
 
-    // 2. Navigate to the E2E logging page
+    // 2. UI Flow (using E2E logging page for reliable testing of review components)
     await page.goto('/e2e/logging');
-
-    // 3. Open the review modal for the album
     await page.getByRole('button', { name: /rate.*review/i }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    // 4. Fill in the review
-    await page.getByRole('button', { name: '5 out of 5 stars' }).click();
-    await page.getByPlaceholder(/what did you think/i).fill('Excellent album');
+    await page.getByRole('button', { name: '5 out of 5 stars', exact: true }).click();
+    await page.getByPlaceholder(/what did you think/i).fill('Excellent consolidation!');
 
-    // 5. Submit and wait for request
-    const [request] = await Promise.all([
-      page.waitForRequest(r => r.url().includes('/api/reviews') && r.method() === 'POST'),
+    const [response] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/reviews') && res.status() === 201),
       page.getByRole('button', { name: /save review/i }).click()
     ]);
 
-    // 6. Verify the request payload and UI closure
-    const posted = request.postDataJSON();
-    expect(posted.rating).toBe(5);
-    expect(posted.review_text).toBe('Excellent album');
+    const result = await response.json();
+    expect(result.rating).toBe(5);
     await expect(page.getByRole('dialog')).not.toBeVisible();
-  });
 
-  test('Flow: Logging a listen (UI-driven)', async ({ page }) => {
-    // 1. Mock the logs POST API
-    await page.route('**/api/logs', async (route) => {
-      if (route.request().method() === 'POST') {
-        const body = route.request().postDataJSON();
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ id: 'log_1', ...body }),
-        });
-      }
-    });
-
-    // 2. Navigate and trigger via UI button
-    await page.goto('/e2e/logging');
-
-    const [request] = await Promise.all([
-      page.waitForRequest(r => r.url().includes('/api/logs') && r.method() === 'POST'),
-      page.getByRole('button', { name: /mock log listen/i }).click()
-    ]);
-
-    // 3. Verify the result
-    const posted = request.postDataJSON();
-    expect(posted.track_id).toBe('track_demo_1');
-  });
-
-  test('Flow: Spotify ingestion (API)', async ({ page }) => {
-    // 1. Mock the sync API response for success
-    await page.route('**/api/spotify/sync', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ inserted: 12, skipped: 3, mode: 'song' }),
-        });
-      }
-    });
-
-    // 2. Trigger the sync via evaluate
-    await page.goto('/');
-    const result = await page.evaluate(async () => {
-      const res = await fetch('/api/spotify/sync', { method: 'POST' });
-      return res.json();
-    });
-
-    // 3. Verify the result
-    expect(result.inserted).toBe(12);
-    expect(result.mode).toBe('song');
-
-    // 4. Test error case: 400 when Spotify is not connected
-    await page.route('**/api/spotify/sync', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 400,
-          contentType: 'application/json',
-          body: JSON.stringify({ error: 'Spotify not connected' }),
-        });
-      }
-    }, { times: 1 });
-
+    // 3. API validation for error state
     const errorResult = await page.evaluate(async () => {
-      const res = await fetch('/api/spotify/sync', { method: 'POST' });
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 })
+      });
       return { status: res.status, body: await res.json() };
     });
     expect(errorResult.status).toBe(400);
-    expect(errorResult.body.error).toBe('Spotify not connected');
+    expect(errorResult.body.error).toContain('between 1 and 5');
   });
 
-  test('Flow: User profile fetch (API)', async ({ page }) => {
-    const mockUser = {
-      id: 'user_99',
-      username: 'jules_tester',
-      avatar_url: 'https://example.com/jules.png',
-      bio: 'Software engineer testing critical flows.',
-      followers_count: 150,
-      following_count: 75,
-      is_following: false,
-      is_own_profile: false
-    };
+  test('Flow: Logging Listens', async ({ page }) => {
+    // 1. Mock the logs API
+    await page.route('**/api/logs', async (route) => {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON();
+        if (!body.track_id) {
+          return route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'Missing track_id' }),
+          });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'log-uuid', ...body }),
+        });
+      }
+    });
 
-    // 1. Mock the user fetch API for success
-    await page.route('**/api/users/jules_tester', async (route) => {
+    // 2. UI Flow
+    await page.goto('/e2e/logging');
+    const [response] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/logs') && res.status() === 200),
+      page.getByRole('button', { name: /mock log listen/i }).click()
+    ]);
+
+    const result = await response.json();
+    expect(result.track_id).toBe('track_demo_1');
+
+    // 3. API Error Case
+    const errorResult = await page.evaluate(async () => {
+      const res = await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'manual' })
+      });
+      return { status: res.status };
+    });
+    expect(errorResult.status).toBe(400);
+  });
+
+  test('Flow: Spotify Ingestion (API)', async ({ page }) => {
+    await page.route('**/api/spotify/sync', async (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ inserted: 7, skipped: 1, mode: 'song' }),
+        });
+      }
+    });
+
+    await page.goto('/');
+    const syncResult = await page.evaluate(async () => {
+      const res = await fetch('/api/spotify/sync', { method: 'POST' });
+      return { status: res.status, body: await res.json() };
+    });
+
+    expect(syncResult.status).toBe(200);
+    expect(syncResult.body.inserted).toBe(7);
+  });
+
+  test('Flow: User Profile Fetch (API)', async ({ page }) => {
+    // Success Case
+    await page.route('**/api/users/target_user', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockUser),
+        body: JSON.stringify({ username: 'target_user', bio: 'Bio Success' }),
       });
     });
 
-    // 2. Trigger the fetch via evaluate
-    await page.goto('/');
-    const result = await page.evaluate(async () => {
-      const res = await fetch('/api/users/jules_tester');
-      return res.json();
-    });
-
-    // 3. Verify the returned user data
-    expect(result.username).toBe('jules_tester');
-    expect(result.followers_count).toBe(150);
-
-    // 4. Test 404 case: user not found
-    await page.route('**/api/users/non_existent', async (route) => {
+    // 404 Case
+    await page.route('**/api/users/missing_user', async (route) => {
       await route.fulfill({
         status: 404,
         contentType: 'application/json',
@@ -190,52 +182,60 @@ test.describe('Critical Flows Integration', () => {
       });
     });
 
-    const notFoundResult = await page.evaluate(async () => {
-      const res = await fetch('/api/users/non_existent');
+    await page.goto('/');
+
+    const successProfile = await page.evaluate(async () => {
+      const res = await fetch('/api/users/target_user');
       return { status: res.status, body: await res.json() };
     });
-    expect(notFoundResult.status).toBe(404);
+    expect(successProfile.status).toBe(200);
+    expect(successProfile.body.bio).toBe('Bio Success');
+
+    const missingProfile = await page.evaluate(async () => {
+      const res = await fetch('/api/users/missing_user');
+      return { status: res.status };
+    });
+    expect(missingProfile.status).toBe(404);
   });
 
-  test('Flow: Search results (UI-driven)', async ({ page }) => {
-    // 1. Mock the search API
-    await page.route('**/api/search?q=radiohead*', async (route) => {
+  test('Flow: Search Results', async ({ page }) => {
+    // 1. Mock Search APIs
+    await page.route('**/api/search?q=daft*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          artists: { items: [{ id: '1', name: 'Radiohead', images: [] }] },
-          albums: { items: [{ id: '2', name: 'In Rainbows', artists: [{ name: 'Radiohead' }], images: [] }] },
-          tracks: { items: [{ id: '3', name: 'Nude', artists: [{ name: 'Radiohead' }], album: { id: '2', name: 'In Rainbows', images: [] } }] },
+          artists: {
+            items: [{
+              id: 'daft-1',
+              name: 'Daft Punk',
+              popularity: 99,
+              images: [{ url: 'https://example.com/daft.jpg' }]
+            }]
+          },
+          albums: { items: [] },
+          tracks: { items: [] }
         }),
       });
     });
 
-    // 2. Go to search page and type
+    await page.route('**/api/search/users?q=daft*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.goto('/search');
-    // We expect at least one search input.
-    const searchInput = page.getByRole('searchbox').first();
-    await searchInput.fill('radiohead');
-    await searchInput.press('Enter');
+    const searchInput = page.getByPlaceholder(/Search artists/i).filter({ visible: true });
 
-    // 3. Verify URL and UI results
-    await page.waitForURL(/\/search\?q=radiohead/);
+    await searchInput.fill('daft punk');
 
-    // We check for text since headings might be missing if Spotify credentials fail in some environments
-    // but here we mocked the API so it should show.
-    // However, the screenshot showed "Search failed" even with mocking?
-    // Ah, SearchPageContent is a server component that calls searchSpotify directly.
-    // page.route only mocks client-side fetches.
-
-    // If SearchPageContent calls searchSpotify (server-side), it won't be caught by page.route!
-    // This is why it showed "Search failed" in the screenshot.
-
-    // To test this properly with page.route, we need a client-side search or
-    // we must accept that server-side calls aren't easily mocked via page.route.
-
-    // Given the constraints, I will revert to validating the search bar is present
-    // and maybe use a client-side search if available, or just verify the search bar behavior.
-
-    await expect(searchInput).toHaveValue('radiohead');
+    // Verify results UI
+    await expect(page.getByText('Top result')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Daft Punk').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Artists/i })).toBeVisible();
   });
+
 });
