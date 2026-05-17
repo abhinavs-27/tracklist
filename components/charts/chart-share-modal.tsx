@@ -207,13 +207,29 @@ export function ChartShareModal(props: {
       const res = await fetch(imgUrl, { credentials: "include" });
       if (!res.ok) { toast("Couldn't generate image"); return; }
       const blob = await res.blob();
+      const filename = getChartShareImageFilename({ chartType: props.chartType, weekStart: props.weekStartIso ?? null, communityId: props.communityId });
+      const file = new File([blob], filename, { type: "image/png" });
+
+      // iOS: a.download saves to Files, not Camera Roll.
+      // Use the Web Share API so the user gets the native share sheet
+      // and can tap "Save Image" to send it to the Camera Roll.
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (isIOS && typeof navigator.share === "function") {
+        await navigator.share({ files: [file], title: props.shareTitle ?? "Tracklist chart" });
+        return;
+      }
+
+      // Desktop / Android: standard file download.
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = getChartShareImageFilename({ chartType: props.chartType, weekStart: props.weekStartIso ?? null, communityId: props.communityId });
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { toast("Couldn't download image"); }
+    } catch (e) {
+      if ((e as { name?: string }).name === "AbortError") return;
+      toast("Couldn't download image");
+    }
     finally { setBusy(false); }
   }
 
