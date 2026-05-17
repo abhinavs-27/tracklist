@@ -40,6 +40,19 @@ export function ChartShareImageDownload(props: {
         communityId: props.communityId,
       });
 
+      // On iOS (Safari, Chrome, or any browser) a.download saves to Files
+      // instead of the Camera Roll. Use the Web Share API with a File object
+      // so iOS shows its native share sheet — the user can then tap
+      // "Save Image" to send it straight to Photos.
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const file = new File([blob], filename, { type: "image/png" });
+
+      if (isIOS && typeof navigator.share === "function") {
+        await navigator.share({ files: [file], title: "Tracklist billboard" });
+        return;
+      }
+
+      // Desktop / Android: trigger a normal file download.
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objectUrl;
@@ -51,6 +64,8 @@ export function ChartShareImageDownload(props: {
       URL.revokeObjectURL(objectUrl);
       toast("Image downloaded");
     } catch (e) {
+      // User cancelled the share sheet — not an error.
+      if (e instanceof Error && e.name === "AbortError") return;
       toast(e instanceof Error ? e.message : "Could not download image");
     } finally {
       setLoading(false);

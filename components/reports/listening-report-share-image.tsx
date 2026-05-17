@@ -59,13 +59,21 @@ export function ListeningReportShareImageModal(props: ListeningReportShareImageM
     try {
       const blob = await fetchBlob();
       if (!blob) return;
+      const filename = `tracklist-${slugifyFilename(reportTitle)}.png`;
+      const file = new File([blob], filename, { type: "image/png" });
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (isIOS && typeof navigator.share === "function") {
+        await navigator.share({ files: [file], title: reportTitle });
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `tracklist-${slugifyFilename(reportTitle)}.png`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
+      if ((e as Error)?.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Could not create image.");
     } finally {
       setExporting(false);
