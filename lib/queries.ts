@@ -3568,6 +3568,20 @@ export async function getFollowCounts(userId: string): Promise<{
   }
 }
 
+/** Resolve a user ID from a username. Returns null if not found. */
+export async function getUserIdByUsername(
+  username: string,
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("username", username.trim())
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.id;
+}
+
 /** Detailed profile for a user by username, enriched with viewer context. */
 export async function getFullUserProfile(
   username: string,
@@ -3580,7 +3594,7 @@ export async function getFullUserProfile(
       .select(
         "id, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
       )
-      .eq("username", username)
+      .eq("username", username.trim())
       .single();
 
     if (error || !userRow) return null;

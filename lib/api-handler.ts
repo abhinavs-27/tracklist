@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleUnauthorized, requireApiAuth, type User } from './auth';
+import { getUserFromRequest, handleUnauthorized, requireApiAuth, type User } from './auth';
 import { apiInternalError } from './api-response';
 
 type HandlerContext = {
   params: Record<string, string>;
   user?: User;
+  userId?: string;
 };
 
 type APIHandler = (
@@ -30,7 +31,10 @@ export function withHandler(handler: APIHandler, options: HandlerOptions = {}) {
 
       if (options.requireAuth) {
         context.user = await requireApiAuth(request);
+      } else {
+        context.user = (await getUserFromRequest(request)) ?? undefined;
       }
+      context.userId = context.user?.id;
 
       return await handler(request, context);
     } catch (e) {
