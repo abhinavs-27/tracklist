@@ -1,18 +1,15 @@
 import { NextRequest } from "next/server";
-import { getUserFromRequest } from "@/lib/auth";
+import { withHandler } from "@/lib/api-handler";
 import { listUsersByCreatedAt, enrichUsersWithFollowStatus } from "@/lib/queries";
-import { apiInternalError, apiOk } from "@/lib/api-response";
+import { apiOk } from "@/lib/api-response";
 import { getPaginationParams } from "@/lib/api-utils";
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
 /** Authenticated and logged-out browse: earliest signups first. */
-export async function GET(request: NextRequest) {
-  try {
-    const me = await getUserFromRequest(request);
-    const viewerId = me?.id ?? null;
-
+export const GET = withHandler(
+  async (request: NextRequest, { userId: viewerId }) => {
     const { searchParams } = request.nextUrl;
     const { limit, offset } = getPaginationParams(
       searchParams,
@@ -24,10 +21,9 @@ export async function GET(request: NextRequest) {
     const rows = await listUsersByCreatedAt(overfetch, offset, viewerId);
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
-    const users = await enrichUsersWithFollowStatus(page, viewerId);
+    const users = await enrichUsersWithFollowStatus(page, viewerId ?? null);
 
     return apiOk({ users, hasMore });
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: false },
+);

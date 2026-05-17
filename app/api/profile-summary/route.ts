@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { getUserFromRequest } from "@/lib/auth";
-import { apiBadRequest, apiInternalError } from "@/lib/api-response";
+import { withHandler } from "@/lib/api-handler";
+import { apiBadRequest } from "@/lib/api-response";
 import { isValidUuid } from "@/lib/validation";
 import {
   getCachedRecentAlbumsFromLogs,
@@ -28,9 +28,8 @@ export type ProfileSummaryResponse = {
  * `recent_tracks` + Spotify sync only when the viewer is signed in as that user
  * (same contract as separate `/api/spotify/recently-played`).
  */
-export async function GET(request: NextRequest) {
-  try {
-    const viewer = await getUserFromRequest(request);
+export const GET = withHandler(
+  async (request: NextRequest, { userId: viewerId }) => {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("user_id");
     if (!userId || !isValidUuid(userId)) {
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest) {
       Math.max(1, parseInt(tracksLimitRaw ?? "8", 10) || 8),
     );
 
-    const viewerKey = viewer?.id ?? "anon";
+    const viewerKey = viewerId ?? "anon";
     const cacheKey = `profile:summary:${userId}:${viewerKey}:${albumsLimit}:${tracksLimit}`;
 
     return staleFirstApiOk(
@@ -58,7 +57,7 @@ export async function GET(request: NextRequest) {
       STALE_FIRST_TTL_SEC.profileSummary,
       STALE_FIRST_STALE_AFTER_SEC.profileSummary,
       async () => {
-        const isOwnProfile = !!viewer && viewer.id === userId;
+        const isOwnProfile = !!viewerId && viewerId === userId;
 
         const admin = createSupabaseAdminClient();
         const [privacyRes, albumsResult, tracksResult] = await Promise.all([
@@ -81,7 +80,7 @@ export async function GET(request: NextRequest) {
           (privacyRow as { logs_private?: boolean } | null)?.logs_private,
         );
         const canSeeLogDerived = viewerSeesUserLogs(
-          viewer?.id ?? null,
+          viewerId ?? null,
           userId,
           logsPrivate,
         );
@@ -102,7 +101,6 @@ export async function GET(request: NextRequest) {
       },
       { bypassCache: bust },
     );
-  } catch (e) {
-    return apiInternalError(e);
-  }
-}
+  },
+  { requireAuth: false },
+);
