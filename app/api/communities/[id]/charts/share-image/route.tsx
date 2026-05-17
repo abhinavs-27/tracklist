@@ -50,6 +50,7 @@ const COMMUNITY_SHARE_SUBTITLE: Record<ChartType, string> = {
   albums: "Top albums this week",
 };
 
+export const runtime = "edge";
 export const maxDuration = 60;
 
 /**
