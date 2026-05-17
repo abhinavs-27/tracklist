@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
 import { useAuth } from "./useAuth";
+import { CACHE_KEYS, readCache, writeCache } from "../persistent-cache";
 
 // ─── Taste Timeline ────────────────────────────────────────────────────────────
 
@@ -128,6 +129,34 @@ export function useHomeTasteInsights() {
   return useQuery<TasteInsightsData>({
     queryKey: ["home", "taste-insights"],
     queryFn: () => fetcher<TasteInsightsData>("/api/me/taste-insights"),
+    enabled: !!session && !authLoading,
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+// ─── History bundle (single request replaces 4 individual fetches) ─────────────
+
+export type HistoryBundle = {
+  blindSpots: TasteBlindSpotsResult;
+  report: ListeningReportPreviewData;
+  timeline: TasteTimelineResult;
+  tasteInsights: TasteInsightsData;
+};
+
+export function useHomeHistoryBundle() {
+  const { session, isLoading: authLoading } = useAuth();
+  const cached = readCache<HistoryBundle>(CACHE_KEYS.homeHistoryBundle);
+
+  return useQuery<HistoryBundle>({
+    queryKey: ["home", "history-bundle"],
+    queryFn: async () => {
+      const data = await fetcher<HistoryBundle>("/api/me/history-bundle");
+      writeCache(CACHE_KEYS.homeHistoryBundle, data);
+      return data;
+    },
+    initialData: cached ?? undefined,
+    initialDataUpdatedAt: 0,
     enabled: !!session && !authLoading,
     staleTime: 10 * 60 * 1000,
     retry: false,

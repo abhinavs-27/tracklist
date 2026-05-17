@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   ScrollView,
   Share,
@@ -10,13 +9,13 @@ import {
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { BillboardChartContent } from "@/components/charts/BillboardChartContent";
 import { ChartWeekSelector } from "@/components/charts/ChartWeekSelector";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  useHomeBillboard,
-  useHomePulse,
+  useHomeBundle,
   useWeeklyChart,
   useWeeklyChartWeeks,
   type TopArtistItem,
@@ -28,22 +27,22 @@ import {
   isDropout,
 } from "@/lib/hooks/useHomeDashboard";
 import {
-  useHomeBlindSpots,
-  useHomeListeningReport,
-  useHomeTasteTimeline,
-  useHomeTasteInsights,
+  useHomeHistoryBundle,
   type TimelineMonth,
   type TasteInsightsData,
 } from "@/lib/hooks/useHomeHistory";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
 import { fetcher } from "@/lib/api";
+import { usePrefetchAlbum, usePrefetchArtist } from "@/lib/hooks/usePrefetch";
 
 type HomeTab = "billboard" | "pulse" | "history" | "activity";
 
 export default function HomeScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<HomeTab>("billboard");
+  // Fetch billboard + pulse data in a single request shared across both tabs.
+  const { data: homeBundle, isLoading: bundleLoading } = useHomeBundle();
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -61,7 +60,7 @@ export default function HomeScreen() {
       </View>
 
       {tab === "billboard" && <BillboardTab router={router} />}
-      {tab === "pulse" && <PulseTab router={router} />}
+      {tab === "pulse" && <PulseTab router={router} billboard={homeBundle?.billboard ?? null} pulse={homeBundle?.pulse ?? null} isLoading={bundleLoading && !homeBundle} />}
       {tab === "history" && <HistoryTab />}
       {tab === "activity" && <ActivityTab />}
     </SafeAreaView>
@@ -360,11 +359,18 @@ function PulseArrow({ trend }: { trend: "up" | "down" | "flat" }) {
   );
 }
 
-function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
-  const { data: billboard, isLoading: billboardLoading } = useHomeBillboard();
-  const { data: pulse, isLoading: pulseLoading } = useHomePulse();
-
-  if (billboardLoading || pulseLoading) {
+function PulseTab({
+  router,
+  billboard,
+  pulse,
+  isLoading,
+}: {
+  router: ReturnType<typeof useRouter>;
+  billboard: import("@/lib/hooks/useHomeDashboard").BillboardData | null;
+  pulse: import("@/lib/hooks/useHomeDashboard").ProfilePulseInsights;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="small" color={theme.colors.emerald} />
@@ -372,6 +378,8 @@ function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
     );
   }
 
+  const prefetchArtist = usePrefetchArtist();
+  const prefetchAlbum = usePrefetchAlbum();
   const weeklyTop = billboard?.weeklyTop;
   const narrative = billboard?.narrative;
   const artists = weeklyTop?.artists.slice(0, 12) ?? [];
@@ -419,6 +427,7 @@ function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
                   <Pressable
                     key={a.artistId}
                     style={({ pressed }: { pressed: boolean }) => [styles.pulseArtistCard, pressed && { opacity: 0.75 }]}
+                    onPressIn={() => prefetchArtist(a.artistId)}
                     onPress={() => router.push(`/artist/${a.artistId}` as const)}
                   >
                     <View style={styles.pulseArtistImgWrap}>
@@ -444,6 +453,7 @@ function PulseTab({ router }: { router: ReturnType<typeof useRouter> }) {
                   <Pressable
                     key={al.albumId}
                     style={({ pressed }: { pressed: boolean }) => [styles.pulseAlbumCard, pressed && { opacity: 0.75 }]}
+                    onPressIn={() => prefetchAlbum(al.albumId)}
                     onPress={() => router.push(`/album/${al.albumId}` as const)}
                   >
                     <View style={styles.pulseAlbumArtWrap}>
@@ -794,18 +804,20 @@ function InsightCards({ data }: { data: TasteInsightsData }) {
 // ─── History Tab ───────────────────────────────────────────────────────────────
 
 function HistoryTab() {
-  const { data: blindSpots, isLoading: bsLoading } = useHomeBlindSpots();
-  const { data: report, isLoading: reportLoading } = useHomeListeningReport();
-  const { data: timeline, isLoading: timelineLoading } = useHomeTasteTimeline();
-  const { data: insights, isLoading: insightsLoading } = useHomeTasteInsights();
+  const { data: bundle, isLoading } = useHomeHistoryBundle();
 
-  if (bsLoading || reportLoading || timelineLoading || insightsLoading) {
+  if (isLoading && !bundle) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="small" color={theme.colors.emerald} />
       </View>
     );
   }
+
+  const blindSpots = bundle?.blindSpots ?? null;
+  const report = bundle?.report ?? null;
+  const timeline = bundle?.timeline ?? null;
+  const insights = bundle?.tasteInsights ?? null;
 
   const hasTimeline = timeline?.hasData && (timeline.months?.length ?? 0) > 0;
   const hasBlindSpots = blindSpots?.hasData && (blindSpots.artists?.length ?? 0) > 0;

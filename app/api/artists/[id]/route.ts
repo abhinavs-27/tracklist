@@ -37,7 +37,7 @@ export const GET = withHandler(async (_request, ctx) => {
     }
 
     const { artist } = await getOrFetchArtist(lookupId, {
-      allowNetwork: false,
+      allowNetwork: true,
     });
 
     const metadata_complete = artistDisplayMetadataComplete(artist);

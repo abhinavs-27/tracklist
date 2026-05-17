@@ -44,12 +44,15 @@ export function useAuth(): UseAuthResult {
 
   const signOutMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Time-box the Supabase signOut — if it takes > 5s, force clear locally
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 5000));
+      await Promise.race([supabase.auth.signOut(), timeout]);
     },
-    onSuccess: () => {
+    onSettled: () => {
+      // Always clear cache whether signOut succeeded or timed out
+      queryClient.setQueryData(AUTH_SESSION_KEY, null);
       queryClient.invalidateQueries({ queryKey: AUTH_SESSION_KEY });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.clear();
     },
   });
 
@@ -65,11 +68,8 @@ export function useAuth(): UseAuthResult {
       return { error, cancelled };
     },
     signOut: async () => {
-      try {
-        await sendExpoPushTokenToBackend(null);
-      } catch {
-        /* non-fatal */
-      }
+      // Fire-and-forget push token cleanup — don't let it block sign out
+      sendExpoPushTokenToBackend(null).catch(() => {});
       await signOutMutation.mutateAsync();
     },
   };

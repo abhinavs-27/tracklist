@@ -17,6 +17,7 @@ type Props = {
   data: MediaItem[];
   numColumns?: number;
   onPressItem?: (item: MediaItem) => void;
+  onPressInItem?: (item: MediaItem) => void;
   scrollEnabled?: boolean;
   showArtist?: boolean;
 };
@@ -24,13 +25,13 @@ type Props = {
 const GAP = 8;
 const HORIZONTAL_PAD = 32; // 16px on each side from parent container
 
-export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = true, showArtist = true }: Props) {
+export function MediaGrid({ data, numColumns = 2, onPressItem, onPressInItem, scrollEnabled = true, showArtist = true }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   const tileWidth = (screenWidth - HORIZONTAL_PAD - GAP * (numColumns - 1)) / numColumns;
 
   const renderItem = useCallback(
     ({ item }: { item: MediaItem }) => (
-      <TouchableOpacity style={[styles.tile, { width: tileWidth }]} activeOpacity={0.8} onPress={() => onPressItem?.(item)}>
+      <TouchableOpacity style={[styles.tile, { width: tileWidth }]} activeOpacity={0.8} onPress={() => onPressItem?.(item)} onPressIn={() => onPressInItem?.(item)}>
         <View style={styles.artWrap}>
           {item.artworkUrl ? (
             <Image source={{ uri: item.artworkUrl }} style={styles.art} contentFit="cover" />
@@ -61,7 +62,7 @@ export function MediaGrid({ data, numColumns = 2, onPressItem, scrollEnabled = t
         </View>
       </TouchableOpacity>
     ),
-    [onPressItem, tileWidth, showArtist],
+    [onPressItem, onPressInItem, tileWidth, showArtist],
   );
 
   return (

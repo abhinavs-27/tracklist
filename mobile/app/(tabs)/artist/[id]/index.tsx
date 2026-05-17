@@ -14,8 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/lib/theme";
 import { useArtist } from "@/lib/hooks/useArtist";
 import type { ArtistTrackItem, ArtistReviewItem } from "@/lib/hooks/useArtist";
-import { useArtistLeaderboard, useArtistViewerStats } from "@/lib/hooks/useArtistReviews";
-import { useArtistRecentListens } from "@/lib/hooks/useArtistRecentListens";
+import { useArtistDetailBundle } from "@/lib/hooks/useArtistReviews";
+import type { ArtistLeaderboardEntry, ArtistRecentListen as BundleRecentListen } from "@/lib/hooks/useArtistReviews";
+import { usePrefetchAlbum, usePrefetchSong } from "@/lib/hooks/usePrefetch";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import { formatRelativeTime } from "@/lib/time";
 
@@ -74,9 +75,9 @@ function ViewerStrip({ playCount, topAlbumName, topAlbumId, firstListened, onAlb
   );
 }
 
-function TrackRow({ track, onPress }: { track: ArtistTrackItem; onPress: () => void }) {
+function TrackRow({ track, onPress, onPressIn }: { track: ArtistTrackItem; onPress: () => void; onPressIn?: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.trackCard, pressed && { opacity: 0.8 }]}>
+    <Pressable onPressIn={onPressIn} onPress={onPress} style={({ pressed }) => [s.trackCard, pressed && { opacity: 0.8 }]}>
       {track.artwork_url
         ? <Image source={{ uri: track.artwork_url }} style={s.thumb44} contentFit="cover" />
         : <View style={[s.thumb44, s.ph]}><Ionicons name="musical-notes" size={14} color={theme.colors.muted} /></View>}
@@ -123,8 +124,7 @@ function ReviewCard({ review, onPress }: { review: ArtistReviewItem; onPress: ()
   );
 }
 
-function Leaderboard({ artistId }: { artistId: string }) {
-  const { data: entries = [], isPending } = useArtistLeaderboard(artistId);
+function Leaderboard({ entries, isPending }: { entries: ArtistLeaderboardEntry[]; isPending: boolean }) {
   if (isPending) return <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />;
   if (entries.length < 2) return <Text style={[s.muted, { paddingTop: 8 }]}>No friend data yet.</Text>;
   const max = entries[0]?.playCount ?? 1;
@@ -162,14 +162,15 @@ function Leaderboard({ artistId }: { artistId: string }) {
   );
 }
 
-function RecentListens({ artistId, onAlbum, onSong }: { artistId: string; onAlbum: (id: string) => void; onSong: (id: string) => void }) {
-  const { data: listens = [], isPending } = useArtistRecentListens(artistId);
+function RecentListens({ listens, isPending, onAlbum, onSong }: { listens: BundleRecentListen[]; isPending: boolean; onAlbum: (id: string) => void; onSong: (id: string) => void }) {
+  const prefetchAlbum = usePrefetchAlbum();
+  const prefetchSong = usePrefetchSong();
   if (isPending) return <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />;
   if (!listens.length) return null;
   return (
     <View style={{ gap: 8 }}>
       {listens.map((l) => (
-        <Pressable key={l.id} onPress={() => l.album_id ? onAlbum(l.album_id) : onSong(l.track_id)} style={({ pressed }) => [s.listenCard, pressed && { opacity: 0.8 }]}>
+        <Pressable key={l.id} onPressIn={() => l.album_id ? prefetchAlbum(l.album_id) : prefetchSong(l.track_id)} onPress={() => l.album_id ? onAlbum(l.album_id) : onSong(l.track_id)} style={({ pressed }) => [s.listenCard, pressed && { opacity: 0.8 }]}>
           {l.album_image
             ? <Image source={{ uri: l.album_image }} style={s.thumb44} contentFit="cover" />
             : <View style={[s.thumb44, s.ph]}><Ionicons name="musical-notes" size={14} color={theme.colors.muted} /></View>}
@@ -198,7 +199,9 @@ export default function ArtistDetailScreen() {
   const artistId = useMemo(() => (Array.isArray(id) ? id[0] : id) ?? "", [id]);
 
   const { artist, albums, topTracks, reviews, communityStats, isLoading, error } = useArtist(artistId);
-  const { data: viewerStats } = useArtistViewerStats(artistId);
+  const { data: bundle, isPending: bundlePending } = useArtistDetailBundle(artistId);
+  const prefetchAlbum = usePrefetchAlbum();
+  const prefetchSong = usePrefetchSong(); // used for TrackRow onPressIn
 
   if (isLoading) return <SafeAreaView style={[s.safe, { justifyContent: "center" }]}><ActivityIndicator color={theme.colors.emerald} /></SafeAreaView>;
   if (error || !artist) return <SafeAreaView style={[s.safe, { justifyContent: "center", alignItems: "center" }]}><Text style={{ color: theme.colors.danger, fontWeight: "700" }}>Failed to load artist</Text></SafeAreaView>;
@@ -220,7 +223,7 @@ export default function ArtistDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <ArtistHero name={artist.name} imageUrl={artist.image_url} genres={artist.genres} followers={artist.followers ?? null} />
         {communityStats && <CommunityStats {...communityStats} />}
-        {viewerStats && <ViewerStrip {...viewerStats} onAlbum={navAlbum} />}
+        {bundle?.viewerStats && <ViewerStrip {...bundle.viewerStats} onAlbum={navAlbum} />}
 
         {/* Tabs INSIDE scroll, after strips — matches web structure */}
         <View style={s.tabBar}>
@@ -240,7 +243,7 @@ export default function ArtistDetailScreen() {
               <View style={s.section}>
                 <Text style={s.h2}>Popular tracks</Text>
                 {topTracks.slice(0, tracksExpanded ? 10 : TRACKS_INITIAL).map((t) => (
-                  <TrackRow key={t.id} track={t} onPress={() => navSong(t.id)} />
+                  <TrackRow key={t.id} track={t} onPress={() => navSong(t.id)} onPressIn={() => prefetchSong(t.id)} />
                 ))}
                 {!tracksExpanded && topTracks.length > TRACKS_INITIAL && (
                   <Pressable onPress={() => setTracksExpanded(true)} style={s.loadMoreBtn}>
@@ -264,6 +267,7 @@ export default function ArtistDetailScreen() {
                   numColumns={3}
                   scrollEnabled={false}
                   showArtist={false}
+                  onPressInItem={(item) => prefetchAlbum(item.id)}
                   onPressItem={(item) => navAlbum(item.id)}
                 />
               </View>
@@ -278,8 +282,8 @@ export default function ArtistDetailScreen() {
             )}
           </View>
           <View style={tab !== "social" ? s.hidden : undefined}>
-            <View style={s.section}><Text style={s.h2}>Among your friends</Text><Leaderboard artistId={artistId} /></View>
-            <View style={s.section}><Text style={s.h2}>Friends listening</Text><RecentListens artistId={artistId} onAlbum={navAlbum} onSong={navSong} /></View>
+            <View style={s.section}><Text style={s.h2}>Among your friends</Text><Leaderboard entries={bundle?.leaderboard ?? []} isPending={bundlePending && !bundle} /></View>
+            <View style={s.section}><Text style={s.h2}>Friends listening</Text><RecentListens listens={bundle?.recentListens ?? []} isPending={bundlePending && !bundle} onAlbum={navAlbum} onSong={navSong} /></View>
           </View>
         </View>
       </ScrollView>

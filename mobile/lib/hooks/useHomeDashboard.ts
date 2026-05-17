@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
 import { useAuth } from "./useAuth";
+import { CACHE_KEYS, readCache, writeCache } from "../persistent-cache";
 
 // ─── Weekly chart types (mirrors server WeeklyChartRankingApiRow) ──────────────
 
@@ -116,10 +117,17 @@ export type ProfilePulseInsights = {
 
 export function useHomeBillboard() {
   const { session, isLoading: authLoading } = useAuth();
+  const cached = readCache<BillboardData>(CACHE_KEYS.homeBillboard);
 
   return useQuery<BillboardData>({
     queryKey: ["home", "billboard"],
-    queryFn: () => fetcher<BillboardData>("/api/me/billboard"),
+    queryFn: async () => {
+      const data = await fetcher<BillboardData>("/api/me/billboard");
+      writeCache(CACHE_KEYS.homeBillboard, data);
+      return data;
+    },
+    initialData: cached ?? undefined,
+    initialDataUpdatedAt: 0, // treat cached data as stale so it refetches
     enabled: !!session && !authLoading,
     staleTime: 5 * 60 * 1000,
     retry: false,
@@ -128,10 +136,43 @@ export function useHomeBillboard() {
 
 export function useHomePulse() {
   const { session, isLoading: authLoading } = useAuth();
+  const cached = readCache<ProfilePulseInsights>(CACHE_KEYS.homePulse);
 
   return useQuery<ProfilePulseInsights>({
     queryKey: ["home", "pulse"],
-    queryFn: () => fetcher<ProfilePulseInsights>("/api/me/pulse"),
+    queryFn: async () => {
+      const data = await fetcher<ProfilePulseInsights>("/api/me/pulse");
+      writeCache(CACHE_KEYS.homePulse, data);
+      return data;
+    },
+    initialData: cached ?? undefined,
+    initialDataUpdatedAt: 0,
+    enabled: !!session && !authLoading,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
+// ─── Home bundle (single request replaces billboard + pulse fetches) ───────────
+
+export type HomeBundleData = {
+  billboard: BillboardData;
+  pulse: ProfilePulseInsights;
+};
+
+export function useHomeBundle() {
+  const { session, isLoading: authLoading } = useAuth();
+  const cached = readCache<HomeBundleData>(CACHE_KEYS.homeBundle);
+
+  return useQuery<HomeBundleData>({
+    queryKey: ["home", "bundle"],
+    queryFn: async () => {
+      const data = await fetcher<HomeBundleData>("/api/me/home-bundle");
+      writeCache(CACHE_KEYS.homeBundle, data);
+      return data;
+    },
+    initialData: cached ?? undefined,
+    initialDataUpdatedAt: 0,
     enabled: !!session && !authLoading,
     staleTime: 5 * 60 * 1000,
     retry: false,

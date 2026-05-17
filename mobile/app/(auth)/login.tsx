@@ -1,15 +1,24 @@
 import { useState } from "react";
-import type { PressableStateCallbackType } from "react-native";
 import {
   ActivityIndicator,
   Image,
   Pressable,
+  StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { theme } from "@/lib/theme";
+
+function GoogleIcon() {
+  return (
+    <View style={s.googleIcon}>
+      {/* G made from coloured arcs — simple letter approach */}
+      <Text style={s.googleG}>G</Text>
+    </View>
+  );
+}
 
 export default function LoginScreen() {
   const { signInWithGoogle } = useAuth();
@@ -21,83 +30,208 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       const { error: err, cancelled } = await signInWithGoogle();
-      if (cancelled) {
-        setError("Sign in was cancelled.");
-        return;
-      }
-      if (err) {
-        setError(err.message);
-      }
+      if (cancelled) return;
+      if (err) setError(err.message);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        backgroundColor: theme.colors.bg,
-        paddingHorizontal: 24,
-        justifyContent: "center",
-        gap: 32,
-      }}
-    >
-      <View style={{ alignItems: "center", gap: 12 }}>
-        <Image
-          source={require("../../assets/icon.png")}
-          style={{ width: 88, height: 88, borderRadius: 20 }}
-          resizeMode="contain"
-        />
-        <Text style={{ ...theme.text.title, color: theme.colors.text }}>
-          Tracklist
-        </Text>
+    <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
+      {/* Ambient background glows */}
+      <View style={[s.glow, s.glowTop]} pointerEvents="none" />
+      <View style={[s.glow, s.glowBottom]} pointerEvents="none" />
+
+      {/* Main content */}
+      <View style={s.hero}>
+        {/* App icon */}
+        <View style={s.iconWrap}>
+          <Image
+            source={require("../../assets/icon.png")}
+            style={s.icon}
+            resizeMode="cover"
+          />
+        </View>
+
+        {/* Wordmark */}
+        <Text style={s.wordmark}>Tracklist</Text>
+        <Text style={s.tagline}>Your music, your people.</Text>
       </View>
 
-      {error ? (
-        <Text
-          style={{
-            color: theme.colors.danger,
-            fontWeight: "600",
-            textAlign: "center",
-          }}
-        >
-          {error}
-        </Text>
-      ) : null}
+      {/* Bottom section */}
+      <View style={s.bottom}>
+        {/* Feature pills */}
+        <View style={s.pills}>
+          {["Log listens", "Rate albums", "Follow friends", "Discover"].map((f) => (
+            <View key={f} style={s.pill}>
+              <Text style={s.pillText}>{f}</Text>
+            </View>
+          ))}
+        </View>
 
-      <Pressable
-        onPress={onContinue}
-        disabled={busy}
-        style={({ pressed }: PressableStateCallbackType) => [
-          {
-            paddingVertical: 14,
-            borderRadius: 12,
-            backgroundColor: theme.colors.panel,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            alignItems: "center",
-            flexDirection: "row",
-            justifyContent: "center",
-            gap: 10,
-            opacity: pressed || busy ? 0.85 : 1,
-          },
-        ]}
-      >
-        {busy ? (
-          <ActivityIndicator color={theme.colors.emerald} />
-        ) : (
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "800",
-              color: theme.colors.text,
-            }}
-          >
-            Continue with Google
-          </Text>
-        )}
-      </Pressable>
+        {/* Error */}
+        {error ? <Text style={s.error}>{error}</Text> : null}
+
+        {/* Google sign-in button */}
+        <Pressable
+          onPress={onContinue}
+          disabled={busy}
+          style={({ pressed }) => [s.googleBtn, (pressed || busy) && s.googleBtnPressed]}
+        >
+          {busy ? (
+            <ActivityIndicator color="#111" />
+          ) : (
+            <>
+              <GoogleIcon />
+              <Text style={s.googleBtnText}>Continue with Google</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Text style={s.legal}>
+          By continuing you agree to our Terms of Service and Privacy Policy.
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: theme.colors.bg,
+  },
+
+  /* Ambient glows */
+  glow: {
+    position: "absolute",
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    opacity: 0.18,
+  },
+  glowTop: {
+    backgroundColor: theme.colors.emerald,
+    top: -140,
+    left: -80,
+  },
+  glowBottom: {
+    backgroundColor: "#6366f1",
+    bottom: -140,
+    right: -80,
+  },
+
+  /* Hero */
+  hero: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  iconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 22,
+    overflow: "hidden",
+    shadowColor: theme.colors.emerald,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    marginBottom: 8,
+  },
+  icon: {
+    width: "100%",
+    height: "100%",
+  },
+  wordmark: {
+    fontSize: 40,
+    fontWeight: "800",
+    color: theme.colors.text,
+    letterSpacing: -1.5,
+  },
+  tagline: {
+    fontSize: 16,
+    color: theme.colors.muted,
+    fontWeight: "500",
+    letterSpacing: 0.2,
+  },
+
+  /* Bottom */
+  bottom: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    gap: 14,
+  },
+  pills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  pill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(63,63,70,0.8)",
+    backgroundColor: "rgba(24,24,27,0.8)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: theme.colors.muted,
+  },
+
+  /* Google button */
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  googleBtnPressed: { opacity: 0.88 },
+  googleBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#4285F4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  googleG: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#fff",
+    lineHeight: 14,
+  },
+
+  error: {
+    color: theme.colors.danger,
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  legal: {
+    fontSize: 11,
+    color: "#52525b",
+    textAlign: "center",
+    lineHeight: 16,
+    paddingHorizontal: 8,
+  },
+});

@@ -6,10 +6,10 @@ import { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { formatRelativeTime } from "@/lib/time";
 import { theme } from "@/lib/theme";
-import { useAlbum, useMyAlbumReview } from "@/lib/hooks/useAlbum";
+import { useAlbum, useAlbumSocialBundle } from "@/lib/hooks/useAlbum";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useAlbumLeaderboard, useAlbumFriendActivity, type FriendActivityItem } from "@/lib/hooks/useFriendLeaderboard";
+import type { FriendActivityItem } from "@/lib/hooks/useFriendLeaderboard";
 import { FriendLeaderboard } from "@/components/social/FriendLeaderboard";
 import { AlbumHeader } from "@/components/media/AlbumHeader";
 import { StatRow } from "@/components/media/StatRow";
@@ -78,14 +78,16 @@ export default function AlbumDetailScreen() {
   }, [id]);
 
   const { album, tracks, stats, reviews, isLoading, error } = useAlbum(albumId);
-  const { data: myReview } = useMyAlbumReview(albumId);
-  const { data: leaderboard = [] } = useAlbumLeaderboard(albumId, loggedIn);
+  const { data: social } = useAlbumSocialBundle(albumId);
   const queryClient = useQueryClient();
 
+  const myReview = social?.myReview ?? null;
+  const leaderboard = social?.leaderboard ?? [];
+  const friendActivity = social?.friendActivity ?? [];
+
   const invalidateAlbum = () => {
-    queryClient.invalidateQueries({ queryKey: ["my-album-review", albumId] });
+    queryClient.invalidateQueries({ queryKey: ["album-social-bundle", albumId] });
   };
-  const { data: friendActivity = [] } = useAlbumFriendActivity(albumId, loggedIn);
 
   if (isLoading) {
     return (

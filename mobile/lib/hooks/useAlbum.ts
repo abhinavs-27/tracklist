@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
 import { queryKeys } from "../query-keys";
+import { CACHE_KEYS, readCache, writeCache } from "../persistent-cache";
+import type { LeaderboardEntry, FriendActivityItem } from "./useFriendLeaderboard";
 
 export type AlbumHeader = {
   id: string;
@@ -93,6 +95,35 @@ export function useMyAlbumReview(albumId: string) {
     enabled: !!albumId,
     staleTime: 60_000,
     select: (d) => d.my_review ?? null,
+  });
+}
+
+// ─── Album social bundle (leaderboard + friend-activity + my-review in one request) ──
+
+export type AlbumSocialBundle = {
+  leaderboard: LeaderboardEntry[];
+  myReview: { id: string; rating: number; review_text: string | null } | null;
+  friendActivity: FriendActivityItem[];
+};
+
+export function useAlbumSocialBundle(albumId: string) {
+  const cacheKey = CACHE_KEYS.albumSocialBundle(albumId);
+  const cached = readCache<AlbumSocialBundle>(cacheKey);
+
+  return useQuery<AlbumSocialBundle>({
+    queryKey: ["album-social-bundle", albumId],
+    queryFn: async () => {
+      const data = await fetcher<AlbumSocialBundle>(
+        `/api/albums/${encodeURIComponent(albumId)}/social-bundle`,
+      );
+      writeCache(cacheKey, data);
+      return data;
+    },
+    initialData: cached ?? undefined,
+    initialDataUpdatedAt: 0,
+    enabled: !!albumId,
+    staleTime: 2 * 60 * 1000,
+    retry: false,
   });
 }
 

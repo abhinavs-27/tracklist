@@ -6,13 +6,64 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://127.0.0.1:3001",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tzpqywxncpzvszrynaoq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_secret_03bvap7DFXzJKkEN1lumhg_PIOSzQxs",
+        "EXPO_PUBLIC_SUPABASE_OAUTH_REDIRECT_URL": "https://tzpqywxncpzvszrynaoq.supabase.co/auth/v1/callback",
+        "EXPO_PUBLIC_ENABLE_SPOTIFY": "false"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "image": "latest",
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://tracklistsocial.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tzpqywxncpzvszrynaoq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_secret_03bvap7DFXzJKkEN1lumhg_PIOSzQxs",
+        "EXPO_PUBLIC_SUPABASE_OAUTH_REDIRECT_URL": "https://tzpqywxncpzvszrynaoq.supabase.co/auth/v1/callback",
+        "EXPO_PUBLIC_ENABLE_SPOTIFY": "false"
+      }
+    },
+    "testflight": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest",
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://tracklistsocial.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tzpqywxncpzvszrynaoq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_secret_03bvap7DFXzJKkEN1lumhg_PIOSzQxs",
+        "EXPO_PUBLIC_SUPABASE_OAUTH_REDIRECT_URL": "https://tzpqywxncpzvszrynaoq.supabase.co/auth/v1/callback",
+        "EXPO_PUBLIC_ENABLE_SPOTIFY": "false"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "distribution": "store",
+      "ios": {
+        "image": "latest"
+      },
+      "android": {
+        "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://tracklistsocial.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tzpqywxncpzvszrynaoq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_secret_03bvap7DFXzJKkEN1lumhg_PIOSzQxs",
+        "EXPO_PUBLIC_SUPABASE_OAUTH_REDIRECT_URL": "https://tzpqywxncpzvszrynaoq.supabase.co/auth/v1/callback",
+        "EXPO_PUBLIC_ENABLE_SPOTIFY": "false"
+      }
     }
   },
   "submit": {

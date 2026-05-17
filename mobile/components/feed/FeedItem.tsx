@@ -18,6 +18,7 @@ import type {
 import { Artwork } from "@/components/media/Artwork";
 import { FeedEngagementBar } from "./FeedEngagementBar";
 import { feedReactionTarget, feedCommentTarget } from "@/lib/feed-reaction-target";
+import { usePrefetchAlbum, usePrefetchSong, usePrefetchProfile } from "@/lib/hooks/usePrefetch";
 
 const DISPLAY_CAP = 10;
 
@@ -65,9 +66,11 @@ const ListenSessionRow = memo(function ListenSessionRow({
     session.artist_name ??
     album?.artists?.map((a) => a.name).join(", ") ??
     "";
+  const prefetchAlbum = usePrefetchAlbum();
 
   return (
     <Pressable
+      onPressIn={() => prefetchAlbum(session.album_id)}
       onPress={() => onPressAlbum(session.album_id)}
       style={({ pressed }: { pressed: boolean }) => [
         styles.listenRow,
@@ -206,6 +209,9 @@ function ReviewBlock({
   const ratingNum = Math.max(0, Math.min(5, Number(review.rating)));
   const typeLabel = review.entity_type === "album" ? "Album" : "Track";
   const displayName = displayEntityName(activity.spotifyName, review.entity_type);
+  const prefetchAlbum = usePrefetchAlbum();
+  const prefetchSong = usePrefetchSong();
+  const prefetchProfile = usePrefetchProfile();
 
   const openUser = useCallback(() => {
     if (user?.username) {
@@ -221,22 +227,32 @@ function ReviewBlock({
     }
   }, [review.entity_id, review.entity_type, router]);
 
+  const prefetchEntity = useCallback(() => {
+    if (review.entity_type === "album") prefetchAlbum(review.entity_id);
+    else prefetchSong(review.entity_id);
+  }, [review.entity_id, review.entity_type, prefetchAlbum, prefetchSong]);
+
   return (
     <View style={styles.card}>
       <View style={styles.rowTop}>
-        <Pressable onPress={openUser} disabled={!user?.username} style={styles.userRow}>
+        <Pressable
+          onPressIn={() => user?.username && prefetchProfile(user.username)}
+          onPress={openUser}
+          disabled={!user?.username}
+          style={styles.userRow}
+        >
           <UserAvatar uri={user?.avatar_url} label={username} />
           <Text style={styles.username} numberOfLines={1}>
             {username}
           </Text>
         </Pressable>
       </View>
-      <Text style={styles.entityLine}>
-        <Text style={styles.typeMuted}>{typeLabel}: </Text>
-        <Text onPress={openEntity} style={styles.entityLink}>
-          {displayName}
+      <Pressable onPressIn={prefetchEntity} onPress={openEntity}>
+        <Text style={styles.entityLine}>
+          <Text style={styles.typeMuted}>{typeLabel}: </Text>
+          <Text style={styles.entityLink}>{displayName}</Text>
         </Text>
-      </Text>
+      </Pressable>
       <View style={styles.ratingRow}>
         <Text
           style={styles.stars}
@@ -269,6 +285,8 @@ function ListenSessionBlock({ activity }: { activity: Extract<FeedActivity, { ty
     activity.artist_name ??
     album?.artists?.map((a) => a.name).join(", ") ??
     "";
+  const prefetchAlbum = usePrefetchAlbum();
+  const prefetchProfile = usePrefetchProfile();
 
   const openUser = useCallback(() => {
     if (activity.user?.username) {
@@ -279,7 +297,11 @@ function ListenSessionBlock({ activity }: { activity: Extract<FeedActivity, { ty
   return (
     <View style={styles.card}>
       <View style={styles.rowTop}>
-        <Pressable onPress={openUser} disabled={!activity.user?.username}>
+        <Pressable
+          onPressIn={() => activity.user?.username && prefetchProfile(activity.user.username)}
+          onPress={openUser}
+          disabled={!activity.user?.username}
+        >
           <UserAvatar uri={activity.user?.avatar_url} label={username} />
         </Pressable>
         <View style={styles.flex1}>
@@ -294,6 +316,7 @@ function ListenSessionBlock({ activity }: { activity: Extract<FeedActivity, { ty
             {" listened to "}
           </Text>
           <Pressable
+            onPressIn={() => prefetchAlbum(activity.album_id)}
             onPress={() => router.push(`/album/${activity.album_id}`)}
             style={({ pressed }: { pressed: boolean }) => [
               styles.entityCard,

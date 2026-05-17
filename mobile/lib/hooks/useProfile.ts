@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
 import { queryKeys } from "../query-keys";
 import type { UserListSummary, UserListsApiResponse } from "../types/user-list";
-import { supabase } from "../supabase";
 import { useAuth } from "./useAuth";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
@@ -84,35 +83,6 @@ type RecentAlbumsResponse = {
   }>;
 };
 
-function syntheticUserFromAuth(sessionUser: {
-  id: string;
-  email?: string | null;
-  user_metadata?: Record<string, unknown>;
-}): ProfileUser {
-  const meta = sessionUser.user_metadata ?? {};
-  const name =
-    (typeof meta.full_name === "string" && meta.full_name) ||
-    (typeof meta.name === "string" && meta.name) ||
-    sessionUser.email?.split("@")[0] ||
-    "user";
-  const pic =
-    (typeof meta.avatar_url === "string" && meta.avatar_url) ||
-    (typeof meta.picture === "string" && meta.picture) ||
-    null;
-  return {
-    id: sessionUser.id,
-    username: name.replace(/\s+/g, "_").slice(0, 20) || "user",
-    avatar_url: pic,
-    bio: null,
-    created_at: new Date().toISOString(),
-    lastfm_username: null,
-    lastfm_last_synced_at: null,
-    followers_count: 0,
-    following_count: 0,
-    is_following: false,
-    is_own_profile: true,
-  };
-}
 
 async function fetchFavoriteAlbums(userId: string): Promise<ProfileFavoriteItem[]> {
   if (!API_URL) return [];
@@ -146,6 +116,13 @@ async function fetchUserLists(userId: string): Promise<UserListSummary[]> {
   }
 }
 
+type ProfileBundleResponse = {
+  user: ProfileUser | null;
+  favorites: Array<{ album_id: string; position: number; name: string; image_url: string | null }>;
+  lists: UserListSummary[];
+  recentAlbums: Array<{ album_id: string; album_name: string | null; artist_name: string; album_image: string | null }>;
+};
+
 async function loadProfile(userIdentifier?: string): Promise<{
   user: ProfileUser;
   favorites: ProfileFavoriteItem[];
@@ -154,6 +131,7 @@ async function loadProfile(userIdentifier?: string): Promise<{
   stats: ProfileStats;
 }> {
   if (userIdentifier?.trim()) {
+    // Other-user profile: fetch user first (need their ID), then parallel data
     const user = await fetcher<ProfileUser>(
       `/api/users/${encodeURIComponent(userIdentifier.trim())}`,
     );
@@ -189,46 +167,15 @@ async function loadProfile(userIdentifier?: string): Promise<{
     };
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.user) {
+  // Own profile: single request — server resolves user ID from JWT, runs all
+  // queries in parallel. Eliminates the 3-step serial waterfall.
+  const bundle = await fetcher<ProfileBundleResponse>("/api/me/profile-bundle");
+
+  if (!bundle.user) {
     throw new Error("Sign in to view your profile.");
   }
 
-  const email = session.user.email;
-  if (!email) {
-    throw new Error("Sign in to view your profile.");
-  }
-
-  const { data: row } = await supabase
-    .from("users")
-    .select("id, username")
-    .eq("email", email)
-    .maybeSingle();
-
-  let user: ProfileUser;
-
-  if (row?.username) {
-    user = await fetcher<ProfileUser>(
-      `/api/users/${encodeURIComponent(row.username)}`,
-    );
-  } else {
-    const synthetic = syntheticUserFromAuth(session.user);
-    user = row?.id ? { ...synthetic, id: row.id } : synthetic;
-  }
-
-  const userIdForRecent = row?.id ?? user.id;
-
-  const [recentRes, favorites, lists] = await Promise.all([
-    fetcher<RecentAlbumsResponse>(
-      `/api/recent-albums?user_id=${encodeURIComponent(userIdForRecent)}&limit=48`,
-    ).catch(() => ({ albums: [] })),
-    fetchFavoriteAlbums(userIdForRecent),
-    fetchUserLists(userIdForRecent),
-  ]);
-
-  const recentActivity: ProfileActivityItem[] = (recentRes.albums ?? []).map(
+  const recentActivity: ProfileActivityItem[] = (bundle.recentAlbums ?? []).map(
     (a) => ({
       id: `play-${a.album_id}`,
       kind: "recent_play",
@@ -240,19 +187,24 @@ async function loadProfile(userIdentifier?: string): Promise<{
     }),
   );
 
-  const stats: ProfileStats = {
-    followers: user.followers_count ?? 0,
-    following: user.following_count ?? 0,
-    reviewCount:
-      typeof user.review_count === "number" ? user.review_count : null,
-  };
+  const favorites: ProfileFavoriteItem[] = (bundle.favorites ?? []).map((f) => ({
+    id: f.album_id,
+    title: f.name,
+    artist: "",
+    artworkUrl: f.image_url ?? null,
+  }));
 
   return {
-    user,
+    user: bundle.user,
     favorites,
-    lists,
+    lists: bundle.lists ?? [],
     recentActivity,
-    stats,
+    stats: {
+      followers: bundle.user.followers_count ?? 0,
+      following: bundle.user.following_count ?? 0,
+      reviewCount:
+        typeof bundle.user.review_count === "number" ? bundle.user.review_count : null,
+    },
   };
 }
 
@@ -274,7 +226,7 @@ export function useProfile(userIdentifier?: string) {
     queryKey: key,
     queryFn: () => loadProfile(userIdentifier),
     enabled,
-    staleTime: 30 * 1000,
+    staleTime: 3 * 60 * 1000,
   });
 
   return {

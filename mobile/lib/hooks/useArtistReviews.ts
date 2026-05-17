@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
+import { CACHE_KEYS, readCache, writeCache } from "../persistent-cache";
+import type { ArtistRecentListen } from "./useArtistRecentListens";
 
 export type ArtistReview = {
   id: string;
@@ -62,6 +64,36 @@ export function useArtistLeaderboard(artistId: string) {
       ),
     enabled: !!artistId,
     staleTime: 60_000,
+    retry: false,
+  });
+}
+
+// ─── Artist detail bundle (1 request replaces viewer-stats + leaderboard + recent-listens + reviews) ───
+
+export type ArtistDetailBundle = {
+  viewerStats: ArtistViewerStats | null;
+  recentListens: ArtistRecentListen[];
+  leaderboard: ArtistLeaderboardEntry[];
+  reviews: ArtistReview[];
+};
+
+export function useArtistDetailBundle(artistId: string) {
+  const cacheKey = CACHE_KEYS.artistDetailBundle(artistId);
+  const cached = readCache<ArtistDetailBundle>(cacheKey);
+
+  return useQuery<ArtistDetailBundle>({
+    queryKey: ["artist-detail-bundle", artistId],
+    queryFn: async () => {
+      const data = await fetcher<ArtistDetailBundle>(
+        `/api/artists/${encodeURIComponent(artistId)}/detail-bundle`,
+      );
+      writeCache(cacheKey, data);
+      return data;
+    },
+    initialData: cached ?? undefined,
+    initialDataUpdatedAt: 0,
+    enabled: !!artistId,
+    staleTime: 5 * 60 * 1000,
     retry: false,
   });
 }
