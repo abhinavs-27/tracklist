@@ -135,12 +135,13 @@ async function loadProfile(userIdentifier?: string): Promise<{
     const user = await fetcher<ProfileUser>(
       `/api/users/${encodeURIComponent(userIdentifier.trim())}`,
     );
+    // Use username (not UUID) for routes that expect username; favorites route accepts both
     const [recentRes, favorites, lists] = await Promise.all([
       fetcher<RecentAlbumsResponse>(
         `/api/recent-albums?user_id=${encodeURIComponent(user.id)}&limit=48`,
       ).catch(() => ({ albums: [] })),
-      fetchFavoriteAlbums(user.id),
-      fetchUserLists(user.id),
+      fetchFavoriteAlbums(user.username),
+      fetchUserLists(user.username),
     ]);
     const recentActivity: ProfileActivityItem[] = (recentRes.albums ?? []).map(
       (a) => ({
@@ -167,15 +168,23 @@ async function loadProfile(userIdentifier?: string): Promise<{
     };
   }
 
-  // Own profile: single request — server resolves user ID from JWT, runs all
-  // queries in parallel. Eliminates the 3-step serial waterfall.
-  const bundle = await fetcher<ProfileBundleResponse>("/api/me/profile-bundle");
+  // Own profile: use /api/users/me (proven working) then parallel individual calls.
+  // Avoids /api/me/profile-bundle which has a routing issue in production.
+  const me = await fetcher<ProfileUser>("/api/users/me");
 
-  if (!bundle.user) {
+  if (!me?.username) {
     throw new Error("Sign in to view your profile.");
   }
 
-  const recentActivity: ProfileActivityItem[] = (bundle.recentAlbums ?? []).map(
+  const [recentRes, favorites, lists] = await Promise.all([
+    fetcher<RecentAlbumsResponse>(
+      `/api/recent-albums?user_id=${encodeURIComponent(me.id)}&limit=48`,
+    ).catch(() => ({ albums: [] })),
+    fetchFavoriteAlbums(me.username),
+    fetchUserLists(me.username),
+  ]);
+
+  const recentActivity: ProfileActivityItem[] = (recentRes.albums ?? []).map(
     (a) => ({
       id: `play-${a.album_id}`,
       kind: "recent_play",
@@ -187,23 +196,15 @@ async function loadProfile(userIdentifier?: string): Promise<{
     }),
   );
 
-  const favorites: ProfileFavoriteItem[] = (bundle.favorites ?? []).map((f) => ({
-    id: f.album_id,
-    title: f.name,
-    artist: "",
-    artworkUrl: f.image_url ?? null,
-  }));
-
   return {
-    user: bundle.user,
+    user: me,
     favorites,
-    lists: bundle.lists ?? [],
+    lists,
     recentActivity,
     stats: {
-      followers: bundle.user.followers_count ?? 0,
-      following: bundle.user.following_count ?? 0,
-      reviewCount:
-        typeof bundle.user.review_count === "number" ? bundle.user.review_count : null,
+      followers: me.followers_count ?? 0,
+      following: me.following_count ?? 0,
+      reviewCount: typeof me.review_count === "number" ? me.review_count : null,
     },
   };
 }

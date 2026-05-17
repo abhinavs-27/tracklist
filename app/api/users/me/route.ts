@@ -1,11 +1,51 @@
 import { withHandler } from "@/lib/api-handler";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   apiBadRequest,
   apiConflict,
   apiInternalError,
+  apiNotFound,
   apiOk,
 } from "@/lib/api-response";
+import { getFollowCounts, getUserStreak } from "@/lib/queries";
+
+/** GET /api/users/me — own profile for mobile (uses Bearer token auth). */
+export const GET = withHandler(
+  async (_request, { user: me }) => {
+    const admin = createSupabaseAdminClient();
+    const [userRow, followCounts, streak] = await Promise.all([
+      admin
+        .from("users")
+        .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, logs_private")
+        .eq("id", me!.id)
+        .maybeSingle(),
+      getFollowCounts(me!.id),
+      getUserStreak(me!.id).catch(() => null),
+    ]);
+    if (!userRow.data) return apiNotFound("User not found");
+    const u = userRow.data as {
+      id: string; username: string; avatar_url: string | null; bio: string | null;
+      created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null; logs_private: boolean;
+    };
+    return apiOk({
+      id: u.id,
+      username: u.username,
+      avatar_url: u.avatar_url,
+      bio: u.bio,
+      created_at: u.created_at,
+      lastfm_username: u.lastfm_username,
+      lastfm_last_synced_at: u.lastfm_last_synced_at,
+      followers_count: followCounts.followers_count,
+      following_count: followCounts.following_count,
+      is_following: false,
+      is_own_profile: true,
+      current_streak: streak?.current_streak ?? 0,
+      longest_streak: streak?.longest_streak ?? 0,
+    });
+  },
+  { requireAuth: true },
+);
 import { parseBody } from "@/lib/api-utils";
 import { ProfileUpdateBody } from "@/types";
 import {

@@ -1,4 +1,6 @@
 import { withHandler } from "@/lib/api-handler";
+
+export const maxDuration = 30;
 import { apiOk } from "@/lib/api-response";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getUserFavoriteAlbums, getUserLists, getFollowCounts } from "@/lib/queries";

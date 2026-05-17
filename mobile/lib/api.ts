@@ -59,5 +59,14 @@ export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (res.status === 204) return undefined as T;
 
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const body = await res.text().catch(() => "(unreadable)");
+    throw new Error(
+      `Expected JSON from ${url} but got ${contentType || "unknown content-type"}. ` +
+      `Status: ${res.status}. Body preview: ${body.slice(0, 200)}`
+    );
+  }
+
   return res.json();
 }

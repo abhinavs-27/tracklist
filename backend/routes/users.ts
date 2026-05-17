@@ -15,16 +15,50 @@ import { badRequest, internalError, notFound, ok } from "../lib/http";
  */
 export const usersRouter = Router();
 
+/** GET /api/users/me — own profile for mobile (Bearer token auth). */
+usersRouter.get("/me", async (req, res) => {
+  if (!isSupabaseConfigured()) return internalError(res, "Server misconfigured");
+  const session = await getSession(req);
+  if (!session) return res.status(401).json({ error: "Unauthorized" });
+  const supabase = getSupabase();
+  const [userRow, followersRes, followingRes, streakRes] = await Promise.all([
+    supabase.from("users")
+      .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at")
+      .eq("id", session.id).maybeSingle(),
+    supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", session.id),
+    supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", session.id),
+    supabase.from("listening_streaks").select("current_streak, longest_streak").eq("user_id", session.id).maybeSingle(),
+  ]);
+  if (!userRow.data) return notFound(res, "User not found");
+  const u = userRow.data as { id: string; username: string; avatar_url: string | null; bio: string | null; created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null };
+  const streak = streakRes.data as { current_streak: number; longest_streak: number } | null;
+  return ok(res, {
+    id: u.id, username: u.username, avatar_url: u.avatar_url, bio: u.bio,
+    created_at: u.created_at, lastfm_username: u.lastfm_username,
+    lastfm_last_synced_at: u.lastfm_last_synced_at,
+    followers_count: followersRes.count ?? 0, following_count: followingRes.count ?? 0,
+    is_following: false, is_own_profile: true,
+    current_streak: streak?.current_streak ?? 0, longest_streak: streak?.longest_streak ?? 0,
+  });
+});
+
 usersRouter.get("/:userId/favorites", async (req, res) => {
   const userId = req.params.userId;
-  if (!isValidUuid(userId)) {
-    return badRequest(res, "Invalid user id");
-  }
   if (!isSupabaseConfigured()) {
     return internalError(res, "Server misconfigured");
   }
+  // Resolve username → UUID if needed
+  let resolvedId = userId;
+  if (!isValidUuid(userId)) {
+    if (!isValidUsername(userId)) return badRequest(res, "Invalid user id");
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("users").select("id").eq("username", userId).maybeSingle();
+    if (!data?.id) return notFound(res, "User not found");
+    resolvedId = data.id;
+  }
   try {
-    const items = await getFavoriteAlbumsForUser(userId);
+    const items = await getFavoriteAlbumsForUser(resolvedId);
     return ok(res, items);
   } catch (e) {
     return internalError(res, e);
@@ -205,7 +239,10 @@ usersRouter.get("/:username/following", async (req, res) => {
 
 usersRouter.get("/:username", async (req, res) => {
   const username = req.params.username;
-  if (!username || !isValidUsername(username)) {
+  if (!username) {
+    return badRequest(res, "username is required");
+  }
+  if (!isValidUsername(username) && !isValidUuid(username)) {
     return badRequest(res, "Invalid username format");
   }
   if (!isSupabaseConfigured()) {
@@ -213,10 +250,23 @@ usersRouter.get("/:username", async (req, res) => {
   }
 
   const supabase = getSupabase();
+
+  // If a UUID was passed, resolve to username first
+  let resolvedUsername = username;
+  if (isValidUuid(username)) {
+    const { data: byId } = await supabase
+      .from("users")
+      .select("username")
+      .eq("id", username)
+      .maybeSingle();
+    if (!byId?.username) return notFound(res, "User not found");
+    resolvedUsername = byId.username;
+  }
+
   const { data: user, error } = await supabase
     .from("users")
     .select("id, username, avatar_url, bio, created_at")
-    .eq("username", username)
+    .eq("username", resolvedUsername)
     .single();
 
   if (error || !user) {

@@ -12,6 +12,7 @@ import {
 import { parseBody } from "@/lib/api-utils";
 import {
   isValidUsername,
+  isValidUuid,
   validateUsernameUpdate,
   validateBio,
   validateAvatarUrl,
@@ -21,11 +22,25 @@ import { getFullUserProfile } from "@/lib/queries";
 export const GET = withHandler(async (request, { params }) => {
   const { username } = params;
   if (!username) return apiBadRequest("username is required");
-  if (!isValidUsername(username))
-    return apiBadRequest("Invalid username format");
 
   const viewer = await getUserFromRequest(request);
-  const user = await getFullUserProfile(username, viewer?.id);
+
+  // Accept UUID (from mobile navigation by user ID) or username string
+  let user;
+  if (isValidUuid(username)) {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("users")
+      .select("username")
+      .eq("id", username)
+      .maybeSingle();
+    if (!data?.username) return apiNotFound("User not found");
+    user = await getFullUserProfile(data.username, viewer?.id);
+  } else if (isValidUsername(username)) {
+    user = await getFullUserProfile(username, viewer?.id);
+  } else {
+    return apiBadRequest("Invalid username format");
+  }
 
   if (!user) return apiNotFound("User not found");
 
