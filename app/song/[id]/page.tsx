@@ -94,20 +94,20 @@ export default async function SongPage({ params }: { params: PageParams }) {
     redirect(`/song/${resolvedId}`);
   }
 
-  const [session, fetched] = await Promise.all([
+  const [session, fetched, stats] = await Promise.all([
     getSession(),
     getOrFetchTrack(id, { allowNetwork: true }).catch(() => {
       notFound();
     }),
+    getEntityStats("song", id),
   ]);
+
+  if (!fetched) notFound();
 
   redirectToCanonicalEntityIfNeeded("song", id, fetched.canonicalTrackId);
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
-
-  // Initial stats are still fetched in the shell to show average rating and play count in the hero.
-  const stats = await getEntityStats("song", entityId);
 
   const album = track.album;
   const image = album?.images?.[0]?.url;

@@ -21,14 +21,23 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { countUnreadNotifications } from "@/lib/queries";
 
 export default async function CommunitiesPage() {
-  const session = await getSession();
+  const sessionPromise = getSession();
+  const [session, unreadCount] = await Promise.all([
+    sessionPromise,
+    sessionPromise.then((s) =>
+      s?.user?.id
+        ? createSupabaseServerClient().then((supabase) =>
+            countUnreadNotifications(s.user.id, supabase),
+          )
+        : Promise.resolve(0),
+    ).catch(() => 0),
+  ]);
+
   if (!session?.user?.id) {
     redirect("/auth/signin?callbackUrl=/communities");
   }
 
   const userId = session.user.id;
-  const supabase = await createSupabaseServerClient();
-  const unreadCount = await countUnreadNotifications(userId, supabase).catch(() => 0);
 
   return (
     <>

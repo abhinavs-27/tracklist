@@ -47,13 +47,13 @@ export default async function CommunityDetailPage({
   const id = rawId?.trim() ?? "";
   if (!isValidUuid(id)) notFound();
 
-  const session = await getSession();
-  const community = await getCommunityById(id);
-  if (!community) notFound();
-
-  const userId = session?.user?.id ?? null;
+  const sessionPromise = getSession();
+  const userIdPromise = sessionPromise.then((s) => s?.user?.id ?? null);
+  const tzPromise = headers().then((h) => h.get("x-vercel-ip-timezone") ?? undefined);
 
   const [
+    session,
+    community,
     memberCount,
     isMember,
     myRole,
@@ -61,15 +61,18 @@ export default async function CommunityDetailPage({
     heroListening,
     pendingInvite,
   ] = await Promise.all([
+    sessionPromise,
+    getCommunityById(id),
     getCommunityMemberCount(id),
-    userId ? isCommunityMember(id, userId) : Promise.resolve(false),
-    userId ? getCommunityMemberRole(id, userId) : Promise.resolve(null),
+    userIdPromise.then((uid) => (uid ? isCommunityMember(id, uid) : false)),
+    userIdPromise.then((uid) => (uid ? getCommunityMemberRole(id, uid) : null)),
     getCommunityMemberGrowthThisWeek(id),
     getCommunityHeroListeningData(id),
-    userId
-      ? getPendingInviteForUserToCommunity(id, userId)
-      : Promise.resolve(null),
+    userIdPromise.then((uid) => (uid ? getPendingInviteForUserToCommunity(id, uid) : null)),
   ]);
+
+  if (!community) notFound();
+  const userId = session?.user?.id ?? null;
 
   const canEdit =
     userId && isMember && myRole
@@ -80,31 +83,28 @@ export default async function CommunityDetailPage({
       ? canInviteToCommunity(community.is_private, true, myRole)
       : false;
 
-  // Viewer stats (plays this week + rank) — only for members
-  const viewerStats =
-    userId && isMember
-      ? await getCommunityViewerAndTotalStats(userId, id).catch(() => null)
-      : null;
-
-  // Fetch billboard + community tab data at page level to avoid async server
-  // components inside ReactNode props passed to CommunityPageTabs (client component).
-  const tz = isMember
-    ? ((await headers()).get("x-vercel-ip-timezone") ?? undefined)
-    : undefined;
-  const [billboardInitial, tasteMatch, weeklySummary, communitySignature] = await Promise.all([
-    isMember && userId
-      ? getCachedCommunityBillboardTracksInitial(id, userId).catch(() => null)
-      : Promise.resolve(null),
-    isMember && userId
-      ? getCachedCommunityMatch(userId, id).catch(() => null)
-      : Promise.resolve(null),
-    isMember
-      ? getCachedCommunityWeeklySummaryWithTrend(id, tz).catch(() => null)
-      : Promise.resolve(null),
-    isMember && userId
-      ? getCommunitySignature(userId, id).catch(() => null)
-      : Promise.resolve(null),
-  ]);
+  // Parallelize secondary data fetching: viewer stats, tz, and community tab data.
+  const [viewerStats, tz, billboardInitial, tasteMatch, weeklySummary, communitySignature] =
+    await Promise.all([
+      userId && isMember
+        ? getCommunityViewerAndTotalStats(userId, id).catch(() => null)
+        : Promise.resolve(null),
+      isMember ? tzPromise : Promise.resolve(undefined),
+      isMember && userId
+        ? getCachedCommunityBillboardTracksInitial(id, userId).catch(() => null)
+        : Promise.resolve(null),
+      isMember && userId
+        ? getCachedCommunityMatch(userId, id).catch(() => null)
+        : Promise.resolve(null),
+      isMember
+        ? tzPromise.then((resolvedTz) =>
+            getCachedCommunityWeeklySummaryWithTrend(id, resolvedTz).catch(() => null),
+          )
+        : Promise.resolve(null),
+      isMember && userId
+        ? getCommunitySignature(userId, id).catch(() => null)
+        : Promise.resolve(null),
+    ]);
 
   const heroProps = {
     name: community.name,

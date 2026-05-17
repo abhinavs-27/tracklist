@@ -57,33 +57,30 @@ export default async function ProfilePage({
     typeof paramsResolved?.id === "string" ? paramsResolved.id.trim() : "";
   if (!segment) notFound();
 
-  const sessionPromise = getSession();
   const supabase = createSupabaseAdminClient();
 
-  const userQueryPromise = (async () => {
-    if (segment && isValidUuid(segment)) {
-      return supabase
-        .from("users")
-        .select(
-          "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
-        )
-        .eq("id", segment)
-        .maybeSingle();
-    } else if (segment) {
-      return supabase
-        .from("users")
-        .select(
-          "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
-        )
-        .eq("username", String(segment).trim())
-        .maybeSingle();
-    }
-    return { data: null, error: null };
-  })();
-
   const [session, userRes] = await Promise.all([
-    sessionPromise,
-    userQueryPromise,
+    getSession(),
+    (async () => {
+      if (segment && isValidUuid(segment)) {
+        return supabase
+          .from("users")
+          .select(
+            "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
+          )
+          .eq("id", segment)
+          .maybeSingle();
+      } else if (segment) {
+        return supabase
+          .from("users")
+          .select(
+            "id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private",
+          )
+          .eq("username", String(segment).trim())
+          .maybeSingle();
+      }
+      return { data: null, error: null };
+    })(),
   ]);
 
   const user = userRes.data as {

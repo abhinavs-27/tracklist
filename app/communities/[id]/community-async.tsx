@@ -179,13 +179,17 @@ export async function CommunityBillboardStreamSlot({
 }: {
   communityId: string;
 }) {
-  const session = await getSession();
+  const sessionPromise = getSession();
+  const [session, billboard] = await Promise.all([
+    sessionPromise,
+    sessionPromise.then((s) =>
+      s?.user?.id
+        ? getCachedCommunityBillboardTracksInitial(communityId, s.user.id)
+        : Promise.resolve(null),
+    ),
+  ]);
   const viewerId = session?.user?.id;
-  if (!viewerId) return null;
-  const billboard = await getCachedCommunityBillboardTracksInitial(
-    communityId,
-    viewerId,
-  );
+  if (!viewerId || !billboard) return null;
   return (
     <CommunityWeeklyBillboardClient
       communityId={communityId}
@@ -211,14 +215,19 @@ export async function CommunityMobileWebShellAsync({
   showPromote: boolean;
   communityCreatedBy: string;
 }) {
-  const tz = (await headers()).get("x-vercel-ip-timezone") ?? undefined;
-  const data = await loadCommunityMemberPageData({
-    communityId,
-    userId: viewerId,
-    communityCreatedBy,
-    timeZone: tz,
-    canInvite,
-  });
+  const tzPromise = headers().then((h) => h.get("x-vercel-ip-timezone") ?? undefined);
+  const [tz, data] = await Promise.all([
+    tzPromise,
+    tzPromise.then((resolvedTz) =>
+      loadCommunityMemberPageData({
+        communityId,
+        userId: viewerId,
+        communityCreatedBy,
+        timeZone: resolvedTz,
+        canInvite,
+      }),
+    ),
+  ]);
   return (
     <CommunityMobileWebShell
       communityId={communityId}
@@ -248,9 +257,11 @@ export async function CommunityInsightsSlot({
   /** When true, omits the "Top artists" block (e.g. when discovery carousels show artists). */
   hideTopArtists?: boolean;
 }) {
-  const session = await getSession();
+  const [session, insights] = await Promise.all([
+    getSession(),
+    getCachedCommunityInsights(communityId),
+  ]);
   if (!session?.user?.id) return null;
-  const insights = await getCachedCommunityInsights(communityId);
   if (!insights) return null;
   return (
     <CommunityInsights
