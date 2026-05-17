@@ -1,9 +1,9 @@
 # Project Dependency Audit Summary (May 2026 Update)
 
 ## Audit Status
-- **Vulnerabilities Fixed:** 4 (3 High, 1 Moderate).
+- **Vulnerabilities Fixed:** 4 (3 High, 1 Moderate) - *Current audit shows 0 vulnerabilities.*
 - **Core Guidelines Followed:**
-  - Updated all dependencies to their "Wanted" or safe versions.
+  - Updated all dependencies to their "Wanted" or safe versions (May 2026 Audit).
   - Resolved `fast-uri` and `fast-xml-builder` high severity vulnerabilities via root `overrides`.
   - Upgraded `next` to `16.2.6` to fix high severity DoS and bypass vulnerabilities.
   - Upgraded `vercel` to `54.1.0` to fix a moderate severity vulnerability.
@@ -28,10 +28,18 @@
 | `@supabase/ssr` | `0.10.0` -> `0.10.3` | - |
 | `@supabase/supabase-js` | `2.101.1` -> `2.105.4` | - |
 | `@tanstack/react-query` | `5.96.0` -> `5.100.10` | - |
-| `bullmq` | `5.71.1` -> `5.76.8` | - |
+| `bullmq` | `5.76.8` -> `5.76.9` | - |
 | `next-auth` | `4.24.13` -> `4.24.14` | - |
 | `react` | `19.2.4` -> `19.2.6` | - |
 | `react-dom` | `19.2.4` -> `19.2.6` | - |
+| `@playwright/test` | `1.58.2` -> `1.60.0` | - |
+| `@tailwindcss/postcss` | `4.2.2` -> `4.3.0` | - |
+| `@types/node` | `25.5.0` -> `25.8.0` | - |
+| `@vitejs/plugin-react` | `6.0.1` -> `6.0.2` | - |
+| `eslint-config-next` | `16.2.2` -> `16.2.6` | - |
+| `tailwindcss` | `4.2.2` -> `4.3.0` | - |
+| `tsx` | `4.22.0` -> `4.22.1` | - |
+| `vitest` | `4.1.2` -> `4.1.6` | - |
 
 ### Backend Project
 | Package | Version Change |
@@ -41,13 +49,16 @@
 | `express` | `4.22.1` -> `4.22.2` |
 | `http-proxy-middleware` | `3.0.3` -> `3.0.5` |
 | `next-auth` | `4.24.13` -> `4.24.14` |
+| `@types/node` | `22.19.17` -> `22.19.19` |
 
 ### Mobile Project
 | Package | Version Change |
 |---------|----------------|
 | `@supabase/supabase-js` | `2.101.1` -> `2.105.4` |
-| `@tanstack/react-query` | `5.96.0` -> `5.100.10` |
+| `@tanstack/react-query` | `5.100.10` -> `5.100.10` |
 | `expo` | `55.0.9` -> `55.0.24` |
 | `react` | `19.2.4` -> `19.2.6` |
 | `react-dom` | `19.2.4` -> `19.2.6` |
 | `axios` | `1.14.0` -> `1.16.1` |
+| `react-native-safe-area-context` | `5.6.2` -> `5.7.0` |
+| `react-native-screens` | `4.23.0` -> `4.25.0` |
