@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { apiBadRequest, apiInternalError } from "@/lib/api-response";
 import { loadChartShareImageFonts } from "@/lib/charts/chart-share-image-fonts";

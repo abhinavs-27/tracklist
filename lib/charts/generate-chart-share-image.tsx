@@ -1,6 +1,6 @@
 import "server-only";
 
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 
 import { loadChartShareImageFonts } from "@/lib/charts/chart-share-image-fonts";
 import {
