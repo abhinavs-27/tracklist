@@ -23,8 +23,10 @@ export type ListItemEnriched = {
 
 export default async function ListDetailPage({ params }: { params: PageParams }) {
   const { listId } = await params;
-  const session = await getSession();
-  const data = await getList(listId);
+  const [session, data] = await Promise.all([
+    getSession(),
+    getList(listId),
+  ]);
   if (!data) notFound();
 
   const enriched: ListItemEnriched[] = await Promise.all(
