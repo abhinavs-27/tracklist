@@ -36,10 +36,7 @@ const KIND_LABEL: Record<ChartType, string> = {
   albums: "Albums",
 };
 
-// @vercel/og uses @resvg/resvg-js (native binary) in Node.js runtime, which fails
-// on Vercel's serverless environment due to architecture mismatches at deploy time.
-// Edge runtime uses pure WASM instead — guaranteed portable.
-export const runtime = "edge";
+/** OG + font fetch can exceed default serverless timeout on cold starts. */
 export const maxDuration = 60;
 
 /**

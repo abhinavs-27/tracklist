@@ -9,7 +9,6 @@ import {
 } from "@/lib/reports/report-share-image-template";
 import { ReportSpotlightTemplate } from "@/lib/reports/report-spotlight-image-template";
 
-export const runtime = "edge";
 export const maxDuration = 60;
 
 type RequestBody = {
