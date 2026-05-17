@@ -82,7 +82,11 @@ export function ChartShareImageDownload(props: {
         "inline-flex w-full items-center justify-center rounded-xl border border-zinc-600 bg-zinc-800/90 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
       }
     >
-      {loading ? "Generating…" : "Download share image (PNG)"}
+      {loading
+        ? "Generating…"
+        : typeof window !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent)
+          ? "Share image → tap Save Image for Camera Roll"
+          : "Download share image (PNG)"}
     </button>
   );
 }
