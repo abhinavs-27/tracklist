@@ -38,7 +38,6 @@ export async function GET(
       album_id: a.album_id,
       name: a.name,
       image_url: a.image_url,
-      artist_name: a.artist_name ?? null,
     })));
   } catch (e) {
     return apiInternalError(e);
