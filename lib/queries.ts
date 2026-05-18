@@ -4328,31 +4328,38 @@ export async function getEntityDisplayNames(
   const map = new Map<string, string>();
   if (items.length === 0) return map;
 
-  const songIds = items
+  const songIds = [...new Set(items
     .filter((i) => i.entity_type === "song")
-    .map((i) => i.entity_id);
-  const albumIds = items
+    .map((i) => i.entity_id))];
+  const albumIds = [...new Set(items
     .filter((i) => i.entity_type === "album")
-    .map((i) => i.entity_id);
+    .map((i) => i.entity_id))];
 
   const supabase = await createSupabaseServerClient();
+  const CHUNK = 120;
 
   if (songIds.length > 0) {
-    const { data: songs } = await supabase
-      .from("tracks")
-      .select("id, name")
-      .in("id", songIds);
-    for (const s of songs ?? []) {
-      if (s.name) map.set(s.id, s.name);
+    for (let i = 0; i < songIds.length; i += CHUNK) {
+      const chunk = songIds.slice(i, i + CHUNK);
+      const { data: songs } = await supabase
+        .from("tracks")
+        .select("id, name")
+        .in("id", chunk);
+      for (const s of songs ?? []) {
+        if (s.name) map.set(s.id, s.name);
+      }
     }
   }
   if (albumIds.length > 0) {
-    const { data: albums } = await supabase
-      .from("albums")
-      .select("id, name")
-      .in("id", albumIds);
-    for (const a of albums ?? []) {
-      if (a.name) map.set(a.id, a.name);
+    for (let i = 0; i < albumIds.length; i += CHUNK) {
+      const chunk = albumIds.slice(i, i + CHUNK);
+      const { data: albums } = await supabase
+        .from("albums")
+        .select("id, name")
+        .in("id", chunk);
+      for (const a of albums ?? []) {
+        if (a.name) map.set(a.id, a.name);
+      }
     }
   }
   return map;
