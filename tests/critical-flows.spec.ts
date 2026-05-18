@@ -238,4 +238,40 @@ test.describe('Critical Flows Integration', () => {
     await expect(page.getByRole('heading', { name: /Artists/i })).toBeVisible();
   });
 
+  test('Flow: Search Results - Users', async ({ page }) => {
+    // 1. Mock Search APIs
+    await page.route('**/api/search?q=tester*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          artists: { items: [] },
+          albums: { items: [] },
+          tracks: { items: [] }
+        }),
+      });
+    });
+
+    await page.route('**/api/search/users?q=tester*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{
+          id: 'tester-uuid',
+          username: 'tester',
+          avatar_url: 'https://example.com/avatar.png'
+        }]),
+      });
+    });
+
+    await page.goto('/search');
+    const searchInput = page.getByPlaceholder(/Search artists/i).filter({ visible: true });
+
+    await searchInput.fill('tester');
+
+    // Verify results UI
+    await expect(page.getByRole('heading', { name: /People/i })).toBeVisible();
+    await expect(page.getByText('tester').first()).toBeVisible();
+  });
+
 });
