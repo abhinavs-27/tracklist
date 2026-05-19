@@ -1,13 +1,12 @@
-# Project Dependency Audit Summary (May 2026 Update)
+# Project Dependency Audit Summary (June 2026 Update)
 
 ## Audit Status
-- **Vulnerabilities Fixed:** 4 (3 High, 1 Moderate) - *Current audit shows 0 vulnerabilities.*
+- **Vulnerabilities Fixed:** 3 (1 High, 2 Moderate) - *Current audit shows 0 vulnerabilities.*
 - **Core Guidelines Followed:**
-  - Updated all dependencies to their "Wanted" or safe versions (May 2026 Audit).
-  - Resolved `fast-uri` and `fast-xml-builder` high severity vulnerabilities via root `overrides`.
-  - Upgraded `next` to `16.2.6` to fix high severity DoS and bypass vulnerabilities.
-  - Upgraded `vercel` to `54.1.0` to fix a moderate severity vulnerability.
-  - Maintained version consistency for shared packages (`@supabase/supabase-js`, `next-auth`, `react`, etc.) across root, backend, and mobile projects.
+  - Updated all dependencies to their "Wanted" or safe versions (June 2026 Audit).
+  - Resolved `brace-expansion` moderate severity vulnerability via root and backend `overrides`.
+  - Resolved `@xmldom/xmldom` high severity vulnerability via mobile `overrides`.
+  - Maintained version consistency for shared packages (`@supabase/supabase-js`, `@tanstack/react-query`, `react`, etc.) across root, backend, and mobile projects.
 - **Verification:**
   - Successfully ran `npm run build` for the root project.
   - Successfully ran `npm run test:unit` for the root project (54/54 passed).
@@ -20,45 +19,28 @@
 ### Root Project
 | Package | Version Change | Vulnerability Fixed |
 |---------|----------------|---------------------|
-| `next` | `16.2.2` -> `16.2.6` | High (DoS, Proxy Bypass, XSS, Cache Poisoning) |
-| `vercel` | `50.37.3` -> `54.1.0` | Moderate |
-| `fast-uri` (override) | N/A -> `3.1.2` | High (Path Traversal, Host Confusion) |
-| `fast-xml-builder` (override) | N/A -> `1.2.0` | High (Malicious Attribute Bypass) |
-| `@aws-sdk/client-s3` | `3.1025.0` -> `3.1048.0` | - |
-| `@supabase/ssr` | `0.10.0` -> `0.10.3` | - |
-| `@supabase/supabase-js` | `2.101.1` -> `2.105.4` | - |
-| `@tanstack/react-query` | `5.96.0` -> `5.100.10` | - |
-| `bullmq` | `5.76.8` -> `5.76.9` | - |
-| `next-auth` | `4.24.13` -> `4.24.14` | - |
-| `react` | `19.2.4` -> `19.2.6` | - |
-| `react-dom` | `19.2.4` -> `19.2.6` | - |
-| `@playwright/test` | `1.58.2` -> `1.60.0` | - |
-| `@tailwindcss/postcss` | `4.2.2` -> `4.3.0` | - |
-| `@types/node` | `25.5.0` -> `25.8.0` | - |
-| `@vitejs/plugin-react` | `6.0.1` -> `6.0.2` | - |
-| `eslint-config-next` | `16.2.2` -> `16.2.6` | - |
-| `tailwindcss` | `4.2.2` -> `4.3.0` | - |
-| `tsx` | `4.22.0` -> `4.22.1` | - |
-| `vitest` | `4.1.2` -> `4.1.6` | - |
+| `brace-expansion` (override) | `5.0.5` -> `5.0.6` | Moderate (DoS) |
+| `@aws-sdk/client-s3` | `3.1048.0` -> `^3.1049.0` | - |
+| `@aws-sdk/client-sqs` | `3.1048.0` -> `^3.1049.0` | - |
+| `@aws-sdk/s3-request-presigner` | `3.1048.0` -> `^3.1049.0` | - |
+| `@supabase/supabase-js` | `2.105.4` -> `^2.106.0` | - |
+| `@tanstack/react-query` | `5.100.10` -> `^5.100.11` | - |
+| `@tanstack/react-query-devtools` | `5.100.10` -> `^5.100.11` | - |
+| `bullmq` | `5.76.9` -> `^5.76.10` | - |
+| `framer-motion` | `12.38.0` -> `^12.39.0` | - |
+| `tsx` | `4.22.1` -> `^4.22.2` | - |
 
 ### Backend Project
-| Package | Version Change |
-|---------|----------------|
-| `@supabase/supabase-js` | `2.101.1` -> `2.105.4` |
-| `dotenv` | `17.4.1` -> `17.4.2` |
-| `express` | `4.22.1` -> `4.22.2` |
-| `http-proxy-middleware` | `3.0.3` -> `3.0.5` |
-| `next-auth` | `4.24.13` -> `4.24.14` |
-| `@types/node` | `22.19.17` -> `22.19.19` |
+| Package | Version Change | Vulnerability Fixed |
+|---------|----------------|---------------------|
+| `brace-expansion` (override) | N/A -> `5.0.6` | Moderate (DoS) |
+| `@supabase/supabase-js` | `2.105.4` -> `^2.106.0` | - |
 
 ### Mobile Project
-| Package | Version Change |
-|---------|----------------|
-| `@supabase/supabase-js` | `2.101.1` -> `2.105.4` |
-| `@tanstack/react-query` | `5.100.10` -> `5.100.10` |
-| `expo` | `55.0.9` -> `55.0.24` |
-| `react` | `19.2.4` -> `19.2.6` |
-| `react-dom` | `19.2.4` -> `19.2.6` |
-| `axios` | `1.14.0` -> `1.16.1` |
-| `react-native-safe-area-context` | `5.6.2` -> `5.7.0` |
-| `react-native-screens` | `4.23.0` -> `4.25.0` |
+| Package | Version Change | Vulnerability Fixed |
+|---------|----------------|---------------------|
+| `@xmldom/xmldom` (override) | `0.8.10` -> `0.9.10` | High (Multiple XML Injections) |
+| `@supabase/supabase-js` | `2.105.4` -> `^2.106.0` | - |
+| `@tanstack/react-query` | `5.100.10` -> `^5.100.11` | - |
+| `react` | `19.2.0` -> `19.2.6` | - |
+| `react-dom` | `19.2.0` -> `19.2.6` | - |
