@@ -9,7 +9,7 @@
     "start": "node dist/backend/server.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.4",
+    "@supabase/supabase-js": "^2.106.0",
     "@tracklist/spotify-client": "file:../packages/spotify-client",
     "bottleneck": "^2.19.5",
     "cookie-parser": "^1.4.7",
@@ -21,6 +21,7 @@
     "next-auth": "^4.24.14"
   },
   "overrides": {
+    "brace-expansion": "5.0.6",
     "uuid": "14.0.0",
     "fast-xml-parser": "^5.7.0",
     "basic-ftp": "5.3.1",
