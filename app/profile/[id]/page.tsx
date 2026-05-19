@@ -14,6 +14,8 @@ import type { TasteIdentity } from "@/lib/taste/types";
 import {
   getCachedTasteIdentity,
   getCachedUserFavoriteAlbums,
+  getCachedUserListsWithPreviews,
+  getCachedUserMatches,
 } from "@/lib/profile/cached-profile-data";
 import { sectionGap } from "@/lib/ui/surface";
 import { ProfileDeferredBody } from "@/app/profile/[id]/profile-deferred-body";
@@ -230,6 +232,9 @@ export default async function ProfilePage({
           session={session}
           spotifyConnected={spotifyConnected}
           logsPrivate={user.logs_private ?? false}
+          userListsPromise={getCachedUserListsWithPreviews(user.id, 50, 0).catch(() => [])}
+          tasteIdentityPromise={getCachedTasteIdentity(user.id).catch(() => EMPTY_TASTE)}
+          userMatchesPromise={getCachedUserMatches(user.id).catch(() => undefined)}
         />
       </Suspense>
     </div>

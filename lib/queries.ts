@@ -1760,15 +1760,18 @@ export async function getReviewsForArtist(
 
     // Chunk entityIds to avoid Supabase URL/header length limits
     const CHUNK = 120;
-    const allRows: any[] = [];
+    const chunkPromises = [];
     for (let i = 0; i < entityIds.length; i += CHUNK) {
       const chunk = entityIds.slice(i, i + CHUNK);
-      const { data, error } = await supabase
-        .from("reviews")
-        .select("id, user_id, entity_type, entity_id, rating, review_text, created_at")
-        .in("entity_id", chunk);
-      if (!error && data) allRows.push(...data);
+      chunkPromises.push(
+        supabase
+          .from("reviews")
+          .select("id, user_id, entity_type, entity_id, rating, review_text, created_at")
+          .in("entity_id", chunk),
+      );
     }
+    const chunkResults = await Promise.all(chunkPromises);
+    const allRows = chunkResults.flatMap((res) => res.data ?? []);
 
     if (!allRows.length) return [];
 
@@ -2665,13 +2668,26 @@ export async function getPopularAlbumsForArtist(
       return { rows: [], hasMoreAlbums: false };
     }
 
-    const { data: artistMeta } = await supabase
-      .from("artists")
-      .select("discography_synced_at")
-      .eq("id", canonicalArtistId)
-      .maybeSingle();
-    const discographySyncedAt = (artistMeta as { discography_synced_at?: string | null } | null)
-      ?.discography_synced_at ?? null;
+    const [artistMetaRes, countRes, albums] = await Promise.all([
+      supabase
+        .from("artists")
+        .select("discography_synced_at")
+        .eq("id", canonicalArtistId)
+        .maybeSingle(),
+      supabase
+        .from("albums")
+        .select("id", { count: "exact", head: true })
+        .eq("artist_id", canonicalArtistId),
+      fetchAllCanonicalAlbumRowsForArtist(
+        supabase,
+        canonicalArtistId,
+        POPULAR_ALBUMS_PREFETCH_MAX,
+      ),
+    ]);
+
+    const discographySyncedAt =
+      (artistMetaRes.data as { discography_synced_at?: string | null } | null)
+        ?.discography_synced_at ?? null;
 
     scheduleArtistDiscographyBackfill(canonicalArtistId, discographySyncedAt);
 
@@ -2683,16 +2699,7 @@ export async function getPopularAlbumsForArtist(
       });
     }
 
-    const { count: totalAlbumCount } = await supabase
-      .from("albums")
-      .select("id", { count: "exact", head: true })
-      .eq("artist_id", canonicalArtistId);
-
-    const albums = await fetchAllCanonicalAlbumRowsForArtist(
-      supabase,
-      canonicalArtistId,
-      POPULAR_ALBUMS_PREFETCH_MAX,
-    );
+    const totalAlbumCount = countRes.count;
 
     if (albums.length === 0) {
       void enqueueSpotifyEnrich({
