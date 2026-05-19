@@ -88,6 +88,29 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `user_achievements` | `(user_id, earned_at DESC)` | `151` | Optimized for ordered achievement fetching. |
 | `tracks` | `(artist_id, name_normalized)` | `151` | Optimized for track lookups by name within an artist. |
 | `tracks` | `(album_id, name_normalized)` | `151` | Optimized for track lookups by name within an album. |
+| `social_thread_participants` | `(thread_id)` | `152` | Optimized for read status and inbox lookups in social threads. |
+
+# Database Audit Report - June 2026
+
+This update summarizes additional optimizations performed in June 2026.
+
+## Overview
+
+The June 2026 audit focused on:
+- Standardizing `.in()` clause chunking across all services to prevent URI length errors.
+- Adding missing indexes for the social thread system.
+- Enforcing limits on lightweight interaction tables (replies).
+
+## Optimizations
+
+### 1. Unified Chunking Strategy
+Standardized the `CHUNK = 120` pattern across `lib/queries.ts`, `backend/services/followService.ts`, `backend/services/reviewsService.ts`, and `lib/social/threads.ts`. This ensures that even as the social graph grows, lookups for users, artists, and follow status remain reliable.
+
+### 2. Social Thread Limits
+Added a hard limit of 100 replies to the `getThreadDetail` query in `lib/social/threads.ts`. Since threads are designed for quick music-first notes, this prevents excessive data transfer for rare outlier threads while maintaining a fast detail view.
+
+### 3. New Database Indexes (Migration 152)
+Added an index on `social_thread_participants(thread_id)` to support efficient read-status enrichment when listing a user's social inbox.
 
 # Database Audit Report - May 2026
 

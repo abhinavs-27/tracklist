@@ -11,21 +11,28 @@ export async function enrichUsersWithFollowStatus<T extends { id: string }>(
 
   try {
     const supabase = getSupabase();
-    const { data: follows, error } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", viewerId)
-      .in(
-        "following_id",
-        users.map((u) => u.id),
-      );
+    const targetIds = users.map((u) => u.id);
+    const CHUNK = 120;
+    const followingIds: string[] = [];
 
-    if (error) {
-      console.error("[follow] enrichUsersWithFollowStatus failed:", error);
-      return users.map((u) => ({ ...u, is_following: false }));
+    for (let i = 0; i < targetIds.length; i += CHUNK) {
+      const chunk = targetIds.slice(i, i + CHUNK);
+      const { data, error } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", viewerId)
+        .in("following_id", chunk);
+
+      if (error) {
+        console.error("[follow] enrichUsersWithFollowStatus chunk failed:", error);
+        continue;
+      }
+      if (data) {
+        followingIds.push(...data.map((f) => f.following_id));
+      }
     }
 
-    const followingSet = new Set((follows ?? []).map((f) => f.following_id));
+    const followingSet = new Set(followingIds);
     return users.map((u) => ({
       ...u,
       is_following: followingSet.has(u.id),

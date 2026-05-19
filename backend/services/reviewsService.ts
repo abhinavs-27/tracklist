@@ -25,10 +25,21 @@ async function fetchUserMap(
   userIds: string[],
 ): Promise<Map<string, { id: string; username: string; avatar_url: string | null }>> {
   if (userIds.length === 0) return new Map();
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, username, avatar_url")
-    .in("id", userIds);
+  const uniqueIds = [...new Set(userIds)];
+  const users: any[] = [];
+  const CHUNK = 120;
+
+  for (let i = 0; i < uniqueIds.length; i += CHUNK) {
+    const chunk = uniqueIds.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, avatar_url")
+      .in("id", chunk);
+    if (!error && data) {
+      users.push(...data);
+    }
+  }
+
   return new Map((users ?? []).map((u) => [u.id, u]));
 }
 

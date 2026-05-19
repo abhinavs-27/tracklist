@@ -629,20 +629,30 @@ export async function getThreadDetail(
     .eq("thread_id", threadId);
   const participants = (parts ?? []).map((p) => p.user_id as string);
 
+  /** Threads are designed for lightweight interaction; cap replies to 100 per detail view. */
   const { data: replyRows } = await admin
     .from("social_thread_replies")
     .select("id, user_id, body, created_at")
     .eq("thread_id", threadId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(100);
 
   const rawReplies = replyRows ?? [];
   const replyUserIds = [...new Set(rawReplies.map((r) => r.user_id as string))];
-  const { data: replyAuthors } =
-    replyUserIds.length > 0
-      ? await admin.from("users").select("id, username").in("id", replyUserIds)
-      : { data: [] as { id: string; username: string }[] };
+
+  const CHUNK = 120;
+  const replyAuthors: { id: string; username: string }[] = [];
+  for (let i = 0; i < replyUserIds.length; i += CHUNK) {
+    const chunk = replyUserIds.slice(i, i + CHUNK);
+    const { data } = await admin
+      .from("users")
+      .select("id, username")
+      .in("id", chunk);
+    if (data) replyAuthors.push(...(data as { id: string; username: string }[]));
+  }
+
   const authorNameById = new Map(
-    (replyAuthors ?? []).map((u) => [u.id as string, u.username as string]),
+    replyAuthors.map((u) => [u.id, u.username]),
   );
   const replies: SocialThreadReplyRow[] = rawReplies.map((r) => ({
     id: r.id as string,
@@ -831,8 +841,14 @@ export async function resolveThreadListUsernames(
   const ids = [...new Set(userIds.filter((x): x is string => Boolean(x)))];
   if (ids.length === 0) return new Map();
   const admin = createSupabaseAdminClient();
-  const { data } = await admin.from("users").select("id, username").in("id", ids);
-  return new Map((data ?? []).map((u) => [u.id as string, u.username as string]));
+  const out: { id: string; username: string }[] = [];
+  const CHUNK = 120;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const { data } = await admin.from("users").select("id, username").in("id", chunk);
+    if (data) out.push(...(data as { id: string; username: string }[]));
+  }
+  return new Map(out.map((u) => [u.id, u.username]));
 }
 
 export async function addThreadReply(
