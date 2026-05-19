@@ -11,10 +11,9 @@ import { GET as searchGET } from '../app/api/search/route';
 
 // --- Mocks ---
 
-vi.mock('server-only', () => ({}));
-
 vi.mock('@/lib/auth', () => ({
   requireApiAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
+  requireAuth: vi.fn(async () => ({ id: 'test-user-id', username: 'testuser' })),
   getUserFromRequest: vi.fn(async () => ({ id: 'viewer-id' })),
   handleUnauthorized: vi.fn(() => null),
 }));
@@ -27,6 +26,7 @@ function createChain() {
     in: vi.fn().mockImplementation(() => chain),
     insert: vi.fn().mockImplementation(() => chain),
     upsert: vi.fn().mockImplementation(() => chain),
+    update: vi.fn().mockImplementation(() => chain),
     single: vi.fn().mockImplementation(() => chain),
     maybeSingle: vi.fn().mockImplementation(() => chain),
     order: vi.fn().mockImplementation(() => chain),
@@ -79,10 +79,18 @@ vi.mock('@/lib/catalog/entity-resolution', async (importOriginal) => {
     resolveAndCheckPending: vi.fn(async (supabase, rawId, kind) => {
       if (!rawId) return null;
       if (rawId === 'pending-id') return { kind: 'pending', spotifyId: 'pending-id', entity: kind };
+      if (rawId === 'unknown-id') return null;
       return { kind: 'resolved', id: 'resolved-uuid' };
     }),
   };
 });
+
+vi.mock('@/lib/catalog/getOrCreateEntity', () => ({
+  getOrCreateEntity: vi.fn(async ({ spotifyId }) => {
+    if (spotifyId === 'ERR4567890123456789012') throw new Error('Resolution failed');
+    return { id: 'resolved-uuid' };
+  }),
+}));
 
 vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
   scheduleTrackEnrichment: vi.fn(),
@@ -198,13 +206,30 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(400);
     });
+
+    it('should return 400 for invalid entity_type', async () => {
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'invalid', entity_id: 'a1', rating: 5 }),
+      });
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 if entity resolution fails', async () => {
+      const req = new NextRequest('http://localhost/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: 'album', entity_id: 'ERR4567890123456789012', rating: 5 }),
+      });
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain('Could not resolve entity');
+    });
   });
 
   describe('POST /api/logs', () => {
     it('should successfully log a listen', async () => {
-      const { resolveAndCheckPending } = await import('@/lib/catalog/entity-resolution');
-      vi.mocked(resolveAndCheckPending).mockResolvedValueOnce({ kind: 'resolved', id: 'track-uuid' });
-
       const chain = createChain();
       mockSupabase.from.mockReturnValue(chain);
       chain.single.mockResolvedValue({
@@ -232,17 +257,32 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         expect(res.status).toBe(400);
     });
 
-    it('should return 503 if catalog is pending', async () => {
-        const { resolveAndCheckPending } = await import('@/lib/catalog/entity-resolution');
-        vi.mocked(resolveAndCheckPending).mockResolvedValueOnce({
-          kind: 'pending',
-          spotifyId: '2nLhD10Z7Sb4RFyCX2ZCyx',
-          entity: 'track'
-        });
+    it('should return 400 for invalid listened_at date', async () => {
+      const req = new NextRequest('http://localhost/api/logs', {
+        method: 'POST',
+        body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', listened_at: 'invalid-date' }),
+      });
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain('Invalid listened_at date');
+    });
 
+    it('should return 400 for unknown track_id', async () => {
+      const req = new NextRequest('http://localhost/api/logs', {
+        method: 'POST',
+        body: JSON.stringify({ track_id: 'unknown-id' }),
+      });
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain('Invalid or unknown track_id');
+    });
+
+    it('should return 503 if catalog is pending', async () => {
         const req = new NextRequest('http://localhost/api/logs', {
           method: 'POST',
-          body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
+          body: JSON.stringify({ track_id: 'pending-id', source: 'manual' }),
         });
         const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
         expect(res.status).toBe(503);
@@ -299,6 +339,14 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         const res = await userGET(req, { params: { username: 'error' } } as any);
         expect(res.status).toBe(500);
     });
+
+    it('should return 400 for invalid username format', async () => {
+      const req = new NextRequest('http://localhost/api/users/!!');
+      const res = await userGET(req, { params: { username: '!!' } } as any);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain('Invalid username format');
+    });
   });
 
   describe('GET /api/search', () => {
@@ -309,6 +357,12 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       const body = await res.json();
       expect(body.artists.items.length).toBeGreaterThan(0);
       expect(body.artists.items[0].name).toBe('Test Artist');
+    });
+
+    it('should return 400 if no query parameter is provided', async () => {
+      const req = new NextRequest('http://localhost/api/search');
+      const res = await searchGET(req);
+      expect(res.status).toBe(400);
     });
 
     it('should return 400 for empty query', async () => {
