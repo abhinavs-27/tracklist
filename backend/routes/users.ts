@@ -4,7 +4,7 @@ import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
 import { getFavoriteAlbumsForUser } from "../services/favoriteAlbumsService";
 import { getFollowListWithStatus } from "../services/followNetworkService";
 import { clampLimit, isValidUsername, isValidUuid } from "../lib/validation";
-import { badRequest, internalError, notFound, ok } from "../lib/http";
+import { badRequest, internalError, notFound, ok, unauthorized } from "../lib/http";
 
 /**
  * GET /api/users/:username — public profile (mirrors Next.js).
@@ -19,7 +19,7 @@ export const usersRouter = Router();
 usersRouter.get("/me", async (req, res) => {
   if (!isSupabaseConfigured()) return internalError(res, "Server misconfigured");
   const session = await getSession(req);
-  if (!session) return res.status(401).json({ error: "Unauthorized" });
+  if (!session) return unauthorized(res);
   const supabase = getSupabase();
   const [userRow, followersRes, followingRes, streakRes] = await Promise.all([
     supabase.from("users")
