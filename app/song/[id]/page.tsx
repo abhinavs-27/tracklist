@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
 import { RecordRecentView } from "@/components/logging/record-recent-view";
@@ -10,7 +10,9 @@ import {
   getEntityStats,
   getListenLogsForTrack,
   getSongFriendLeaderboard,
+  type AlbumLeaderboardEntry,
 } from "@/lib/queries";
+import type { ReviewsResult, ListenLogWithUser } from "@/types";
 import {
   GetOrCreateEntityError,
   getOrCreateEntity,
@@ -29,41 +31,29 @@ function formatDuration(ms: number | undefined) {
   return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
-async function SongPageTabsLoader({
+function SongPageTabsLoader({
   entityId,
   trackName,
   viewerId,
   image,
+  reviewsPromise,
+  listensPromise,
+  relatedPromise,
+  leaderboardPromise,
 }: {
   entityId: string;
   trackName: string;
   viewerId: string | null;
   image: string | null;
+  reviewsPromise: Promise<ReviewsResult | null>;
+  listensPromise: Promise<ListenLogWithUser[]>;
+  relatedPromise: Promise<SpotifyApi.TrackObjectFull[]>;
+  leaderboardPromise: Promise<AlbumLeaderboardEntry[] | null>;
 }) {
-  const [reviewsData, recentListens, relatedTracks, leaderboard] =
-    await Promise.all([
-      getReviewsForEntity("song", entityId).catch(() => ({
-        reviews: [],
-        average_rating: null,
-        count: 0,
-        my_review: null,
-      })),
-      getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []),
-      getRelatedMedia("song", entityId, 12)
-        .then((relatedSongsRaw) => {
-          const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
-          return relatedTrackIds.length > 0
-            ? getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false })
-            : Promise.resolve([]);
-        })
-        .then((res) =>
-          (res ?? []).filter((t): t is SpotifyApi.TrackObjectFull => t != null),
-        )
-        .catch(() => []),
-      viewerId
-        ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
-        : Promise.resolve(null),
-    ]);
+  const reviewsData = use(reviewsPromise);
+  const recentListens = use(listensPromise);
+  const relatedTracks = use(relatedPromise);
+  const leaderboard = use(leaderboardPromise);
 
   return (
     <SongPageTabs
@@ -108,6 +98,28 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const entityId = fetched.canonicalTrackId ?? id;
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
+
+  // Start secondary fetches immediately after we have the canonical ID and session.
+  // These are passed as promises to the loader component which resolves them.
+  const reviewsPromise = getReviewsForEntity("song", entityId).catch(() => ({
+    reviews: [],
+    average_rating: null,
+    count: 0,
+    my_review: null,
+  }));
+  const listensPromise = getListenLogsForTrack(entityId, 8, 0, viewerId).catch(() => []);
+  const relatedPromise = getRelatedMedia("song", entityId, 12)
+    .then((relatedSongsRaw) => {
+      const relatedTrackIds = relatedSongsRaw.map((r) => r.contentId);
+      return relatedTrackIds.length > 0
+        ? getOrFetchTracksBatch(relatedTrackIds, { allowNetwork: false })
+        : Promise.resolve([]);
+    })
+    .then((res) => (res ?? []).filter((t): t is SpotifyApi.TrackObjectFull => t != null))
+    .catch(() => []);
+  const leaderboardPromise = viewerId
+    ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
+    : Promise.resolve(null);
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
@@ -197,6 +209,10 @@ export default async function SongPage({ params }: { params: PageParams }) {
           trackName={track.name}
           viewerId={viewerId}
           image={image ?? null}
+          reviewsPromise={reviewsPromise}
+          listensPromise={listensPromise}
+          relatedPromise={relatedPromise}
+          leaderboardPromise={leaderboardPromise}
         />
       </Suspense>
     </div>

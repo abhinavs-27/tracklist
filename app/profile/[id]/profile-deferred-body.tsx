@@ -1,3 +1,4 @@
+import { use } from "react";
 import type { Session } from "next-auth";
 import { SectionBlock } from "@/components/layout/section-block";
 import { TasteMatchSection } from "@/components/taste-match";
@@ -12,6 +13,7 @@ import { SignOutSection } from "@/components/profile/sign-out-section";
 import type { TasteIdentity } from "@/lib/taste/types";
 import { cardElevated, sectionGap } from "@/lib/ui/surface";
 import { ProfileTabsContainer } from "@/components/profile/profile-tabs";
+import type { UserListWithPreview } from "@/lib/queries";
 import {
   getCachedTasteIdentity,
   getCachedUserListsWithPreviews,
@@ -57,45 +59,26 @@ type ProfileDeferredBodyProps = {
   };
   session: Session | null;
   spotifyConnected: boolean;
+  // Prefetched promises from parent
+  userListsPromise: Promise<UserListWithPreview[]>;
+  tasteIdentityPromise: Promise<TasteIdentity>;
+  userMatchesPromise: Promise<any>;
 };
 
-export async function ProfileDeferredBody({
+export function ProfileDeferredBody({
   user,
   profile,
   session,
   logsPrivate,
+  userListsPromise,
+  tasteIdentityPromise,
+  userMatchesPromise,
 }: ProfileDeferredBodyProps) {
   const isOwnProfile = !!profile.is_own_profile;
 
-  const settled = await Promise.allSettled([
-    getCachedUserListsWithPreviews(user.id, 50, 0),
-    getCachedTasteIdentity(user.id),
-    getCachedUserMatches(user.id),
-  ]);
-
-  const userLists =
-    settled[0].status === "fulfilled" ? settled[0].value : [];
-  if (settled[0].status === "rejected")
-    console.error(
-      "[profile] getCachedUserListsWithPreviews failed:",
-      settled[0].reason,
-    );
-
-  const tasteIdentity: TasteIdentity =
-    settled[1].status === "fulfilled" ? settled[1].value : EMPTY_TASTE;
-  if (settled[1].status === "rejected")
-    console.error(
-      "[profile] getCachedTasteIdentity failed:",
-      settled[1].reason,
-    );
-
-  const userMatchesPrefetched =
-    settled[2].status === "fulfilled" ? settled[2].value : undefined;
-  if (settled[2].status === "rejected")
-    console.error(
-      "[profile] getCachedUserMatches failed:",
-      settled[2].reason,
-    );
+  const userLists = use(userListsPromise) ?? [];
+  const tasteIdentity = use(tasteIdentityPromise) ?? EMPTY_TASTE;
+  const userMatchesPrefetched = use(userMatchesPromise);
 
   // ── Overview tab ──────────────────────────────────────────────────────────────
   const overviewTab = (
