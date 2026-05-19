@@ -563,3 +563,69 @@ export interface ArtistTrack {
   review_count: number;
   average_rating: number | null;
 }
+
+/** Reviews for any album or track belonging to an artist. */
+export interface ArtistReview {
+  id: string;
+  user_id: string;
+  username: string | null;
+  entity_type: "album" | "song";
+  entity_id: string;
+  entity_name: string | null;
+  entity_image_url: string | null;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  user: { id: string; username: string; avatar_url: string | null } | null;
+}
+
+export type AlbumLeaderboardEntry = {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  playCount: number;
+  isViewer: boolean;
+};
+
+export type ArtistLeaderboardEntry = {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  playCount: number;
+  isViewer: boolean;
+};
+
+export type TasteIdentityResponse = {
+  topArtists: { id: string; name: string; imageUrl?: string | null; listenCount: number }[];
+  topGenres: { name: string; weight: number }[];
+  totalLogs: number;
+  summary: string;
+  diversityScore: number;
+  obscurityScore: number | null;
+  listeningStyle: string;
+};
+
+export type ArtistReviewsResponse = ArtistReview[];
+
+export type ArtistAlbumsResponse = {
+  artistName: string;
+  artistImageUrl: string | null;
+  albums: {
+    id: string;
+    name: string;
+    artist: string;
+    artwork_url: string | null;
+    listen_count: number;
+    average_rating: number | null;
+  }[];
+};
+
+export type LeaderboardEntry = {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  listen_count: number;
+  rank: number;
+};
+
+export type LeaderboardResponse = (AlbumLeaderboardEntry | ArtistLeaderboardEntry)[];
