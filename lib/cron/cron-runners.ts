@@ -486,15 +486,34 @@ export async function runRefreshBlindSpots(): Promise<{
   const { refreshBlindSpots } = await import("@/lib/profile/taste-blind-spots");
   const admin = createSupabaseAdminClient();
 
-  // All users with any listening history
-  const { data: rows, error } = await admin
-    .from("logs")
+  // Users whose blind spots are stale (computed > 7 days ago)
+  const { data: staleRows, error: staleErr } = await admin
+    .from("user_blind_spots")
     .select("user_id")
-    .limit(100_000);
+    .lt("computed_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
-  if (error) throw new Error(`[blind-spots] user query: ${error.message}`);
+  if (staleErr) throw new Error(`[blind-spots] stale query: ${staleErr.message}`);
 
-  const userIds = [...new Set((rows ?? []).map((r) => r.user_id as string))];
+  // Users with any listening history but no blind spots row yet
+  const { data: newRows, error: newErr } = await admin
+    .from("user_listening_aggregates")
+    .select("user_id")
+    .eq("entity_type", "track")
+    .not("year", "is", null)
+    .limit(500);
+
+  if (newErr) throw new Error(`[blind-spots] new-users query: ${newErr.message}`);
+
+  const existingSet = new Set((staleRows ?? []).map((r) => r.user_id as string));
+  const { data: existingBlindSpots } = await admin.from("user_blind_spots").select("user_id");
+  const hasBlindSpot = new Set((existingBlindSpots ?? []).map((r) => r.user_id as string));
+
+  for (const r of newRows ?? []) {
+    const uid = r.user_id as string;
+    if (!hasBlindSpot.has(uid)) existingSet.add(uid);
+  }
+
+  const userIds = [...existingSet];
 
   // Bottleneck in the Spotify client already paces the API calls — no extra delay needed.
   let processed = 0, skipped = 0, errors = 0;
