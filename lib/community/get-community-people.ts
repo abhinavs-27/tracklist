@@ -30,7 +30,7 @@ export async function getCommunityPeople(
   // 1. All community members with profiles
   const { data: members, error: mErr } = await admin
     .from("community_members")
-    .select("user_id, role, users!inner(id, username, avatar_url, created_at)")
+    .select("user_id, role, users!inner(id, username, avatar_url)")
     .eq("community_id", cid);
 
   if (mErr) {

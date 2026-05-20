@@ -90,6 +90,36 @@ Based on the audit of query patterns in `lib/queries.ts` and `backend/services/`
 | `tracks` | `(album_id, name_normalized)` | `151` | Optimized for track lookups by name within an album. |
 | `social_thread_participants` | `(thread_id)` | `152` | Optimized for read status and inbox lookups in social threads. |
 
+# Database Audit Report - July 2026
+
+This update summarizes optimizations performed in July 2026.
+
+## Overview
+
+The July 2026 audit focused on:
+- Eliminating redundant column fetching in community and user profile queries.
+- Optimizing friend activity and leaderboard lookups in the Express backend.
+- Adding indexes to support fast music entity resolution and ordered review lookups.
+
+## Optimizations
+
+### 1. Refined Explicit Field Selection
+Removed the redundant `created_at` column from user profile lookups where it was already known or unused, reducing payload size for community roster and profile activity queries.
+
+### 2. Safer User Lookups
+Standardized on `.maybeSingle()` instead of `.single()` for user-by-username lookups in the Express backend to prevent 500 errors when users are not found.
+
+### 3. New Database Indexes (Migration 153)
+The following indexes were added to support high-traffic resolution and activity flows:
+
+| Table | Index Columns | Rationale |
+|-------|---------------|-----------|
+| `track_external_ids` | `(source, external_id)` | Optimized for resolving canonical track UUIDs from Spotify/Last.fm IDs. |
+| `album_external_ids` | `(source, external_id)` | Optimized for resolving canonical album UUIDs. |
+| `artist_external_ids` | `(source, external_id)` | Optimized for resolving canonical artist UUIDs. |
+| `logs` | `(track_id, user_id)` | Optimized for "friends who listened to this" lookups across tracks. |
+| `reviews` | `(user_id, created_at DESC)` | Optimized for user profile "Recent Activity" feeds. |
+
 # Database Audit Report - June 2026
 
 This update summarizes additional optimizations performed in June 2026.

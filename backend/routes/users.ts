@@ -27,7 +27,7 @@ usersRouter.get("/me", async (req, res) => {
       .eq("id", session.id).maybeSingle(),
     supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", session.id),
     supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", session.id),
-    supabase.from("listening_streaks").select("current_streak, longest_streak").eq("user_id", session.id).maybeSingle(),
+    supabase.from("user_streaks").select("current_streak, longest_streak").eq("user_id", session.id).maybeSingle(),
   ]);
   if (!userRow.data) return notFound(res, "User not found");
   const u = userRow.data as { id: string; username: string; avatar_url: string | null; bio: string | null; created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null };
@@ -267,7 +267,7 @@ usersRouter.get("/:username", async (req, res) => {
     .from("users")
     .select("id, username, avatar_url, bio, created_at")
     .eq("username", resolvedUsername)
-    .single();
+    .maybeSingle();
 
   if (error || !user) {
     return notFound(res, "User not found");
