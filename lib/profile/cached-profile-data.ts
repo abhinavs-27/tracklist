@@ -8,7 +8,7 @@ import { getTopThisWeek } from "@/lib/profile/top-this-week";
 import {
   getUserAchievements,
   getUserFavoriteAlbums,
-  getUserListsWithPreviews,
+  getUserListsWithPreviewsAdmin,
 } from "@/lib/queries";
 import { getListeningInsights } from "@/lib/taste/listening-insights";
 import { getUserMatches } from "@/lib/taste/getUserMatches";
@@ -106,7 +106,7 @@ export async function getCachedUserListsWithPreviews(
   // sensitive (visibility is enforced at render time), and the uncached version
   // was the #2 per-request DB cost on profile pages.
   return unstable_cache(
-    () => getUserListsWithPreviews(uid, limit, offset),
+    () => getUserListsWithPreviewsAdmin(uid, limit, offset),
     ["profile-user-lists", uid, String(limit), String(offset)],
     { revalidate: REVALIDATE_SLOW_SEC },
   )();

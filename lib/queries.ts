@@ -4598,6 +4598,93 @@ export async function getUserListsWithPreviews(
   }
 }
 
+/**
+ * Same as `getUserListsWithPreviews` but uses the admin (service-role) client
+ * so it can be safely called inside `unstable_cache` — no cookies() dependency.
+ * Safe to use here: we explicitly filter by user_id and lists are semi-public.
+ */
+export async function getUserListsWithPreviewsAdmin(
+  userId: string,
+  limit = 50,
+  offset = 0,
+): Promise<UserListWithPreview[]> {
+  const supabase = createSupabaseAdminClient();
+  const cappedLimit = Math.min(Math.max(1, limit), 50);
+  const cappedOffset = Math.max(0, offset);
+
+  try {
+    const { data: listRows, error: listError } = await supabase
+      .from("lists")
+      .select("id, title, description, type, visibility, emoji, image_url, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .range(cappedOffset, cappedOffset + cappedLimit - 1);
+
+    if (listError || !listRows?.length) return [];
+
+    const listIds = listRows.map((l) => l.id);
+    const countByList = await getListItemCountsMap(supabase, listIds);
+
+    const lists: UserListSummary[] = listRows.map((l) => ({
+      id: l.id,
+      title: l.title,
+      description: l.description ?? null,
+      type: l.type as "album" | "song",
+      visibility: (l.visibility as "public" | "friends" | "private") ?? "private",
+      emoji: (l.emoji as string | null) ?? null,
+      image_url: (l.image_url as string | null) ?? null,
+      created_at: l.created_at,
+      item_count: countByList.get(l.id) ?? 0,
+    }));
+
+    const { data: itemRows } = await supabase
+      .from("list_items")
+      .select("list_id, entity_type, entity_id, position")
+      .in("list_id", listIds);
+
+    if (!itemRows?.length) return lists.map((l) => ({ ...l, preview_labels: [] }));
+
+    type ItemRow = { list_id: string; entity_type: string; entity_id: string; position: number | null };
+    const byList = new Map<string, ItemRow[]>();
+    for (const r of itemRows as ItemRow[]) {
+      const arr = byList.get(r.list_id) ?? [];
+      arr.push(r);
+      byList.set(r.list_id, arr);
+    }
+    for (const arr of byList.values()) arr.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+    const albumIds = new Set<string>();
+    const songIds = new Set<string>();
+    for (const listId of listIds) {
+      for (const r of (byList.get(listId) ?? []).slice(0, 4)) {
+        if (r.entity_type === "album") albumIds.add(r.entity_id);
+        else if (r.entity_type === "song") songIds.add(r.entity_id);
+      }
+    }
+
+    const albumNames = new Map<string, string>();
+    const songNames = new Map<string, string>();
+    const [albumRes, songRes] = await Promise.all([
+      albumIds.size ? supabase.from("albums").select("id, name").in("id", [...albumIds]) : { data: [] },
+      songIds.size ? supabase.from("tracks").select("id, name").in("id", [...songIds]) : { data: [] },
+    ]);
+    for (const a of albumRes.data ?? []) albumNames.set(a.id as string, a.name as string);
+    for (const s of songRes.data ?? []) songNames.set(s.id as string, s.name as string);
+
+    return lists.map((list) => {
+      const preview_labels: string[] = [];
+      for (const r of (byList.get(list.id) ?? []).slice(0, 4)) {
+        const n = r.entity_type === "album" ? albumNames.get(r.entity_id) : songNames.get(r.entity_id);
+        if (n) preview_labels.push(n);
+      }
+      return { ...list, preview_labels };
+    });
+  } catch (e) {
+    console.error("[queries] getUserListsWithPreviewsAdmin failed:", e);
+    return [];
+  }
+}
+
 export type ListWithItems = {
   list: ListRow;
   items: ListItemRow[];
