@@ -2,13 +2,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SkeletonBox, SkeletonCircle, SkeletonLine, SkeletonScreen } from "@/components/ui/Skeleton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/lib/theme";
@@ -125,7 +125,11 @@ function ReviewCard({ review, onPress }: { review: ArtistReviewItem; onPress: ()
 }
 
 function Leaderboard({ entries, isPending }: { entries: ArtistLeaderboardEntry[]; isPending: boolean }) {
-  if (isPending) return <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />;
+  if (isPending) return (
+    <View style={{ gap: 10, marginTop: 4 }}>
+      {[0, 1, 2].map((i) => <SkeletonBox key={i} height={44} radius={10} />)}
+    </View>
+  );
   if (entries.length < 2) return <Text style={[s.muted, { paddingTop: 8 }]}>No friend data yet.</Text>;
   const max = entries[0]?.playCount ?? 1;
   return (
@@ -165,7 +169,16 @@ function Leaderboard({ entries, isPending }: { entries: ArtistLeaderboardEntry[]
 function RecentListens({ listens, isPending, onAlbum, onSong }: { listens: BundleRecentListen[]; isPending: boolean; onAlbum: (id: string) => void; onSong: (id: string) => void }) {
   const prefetchAlbum = usePrefetchAlbum();
   const prefetchSong = usePrefetchSong();
-  if (isPending) return <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />;
+  if (isPending) return (
+    <View style={{ gap: 10, marginTop: 4 }}>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <SkeletonBox width={44} height={44} radius={6} />
+          <View style={{ flex: 1, gap: 6 }}><SkeletonLine width="60%" /><SkeletonLine width="40%" /></View>
+        </View>
+      ))}
+    </View>
+  );
   if (!listens.length) return null;
   return (
     <View style={{ gap: 8 }}>
@@ -203,7 +216,55 @@ export default function ArtistDetailScreen() {
   const prefetchAlbum = usePrefetchAlbum();
   const prefetchSong = usePrefetchSong(); // used for TrackRow onPressIn
 
-  if (isLoading) return <SafeAreaView style={[s.safe, { justifyContent: "center" }]}><ActivityIndicator color={theme.colors.emerald} /></SafeAreaView>;
+  if (isLoading) {
+    return (
+      <SkeletonScreen>
+        <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+          {/* Nav */}
+          <View style={s.nav}>
+            <Pressable onPress={() => router.back()} hitSlop={10}>
+              <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+            </Pressable>
+            <SkeletonLine width="45%" style={{ marginHorizontal: 12 }} />
+            <View style={{ width: 26 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ gap: 0 }} scrollEnabled={false}>
+            {/* Hero block */}
+            <View style={{ height: 280, backgroundColor: "#111113", alignItems: "center", justifyContent: "flex-end", paddingBottom: 28, gap: 12 }}>
+              <SkeletonCircle size={120} />
+              <SkeletonLine width="45%" style={{ marginTop: 4 }} />
+              {/* Genre pills */}
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <SkeletonBox width={60} height={22} radius={999} />
+                <SkeletonBox width={72} height={22} radius={999} />
+                <SkeletonBox width={50} height={22} radius={999} />
+              </View>
+            </View>
+            {/* Stats */}
+            <View style={{ flexDirection: "row", gap: 10, padding: 16 }}>
+              {[0, 1, 2].map((i) => <SkeletonBox key={i} height={44} radius={10} style={{ flex: 1 }} />)}
+            </View>
+            {/* Tab bar */}
+            <View style={{ flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }}>
+              {[0, 1].map((i) => <View key={i} style={{ flex: 1, alignItems: "center", paddingVertical: 14 }}><SkeletonLine width={60} /></View>)}
+            </View>
+            {/* Track rows */}
+            <View style={{ paddingHorizontal: 16, paddingTop: 20, gap: 16 }}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <SkeletonBox width={44} height={44} radius={6} />
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <SkeletonLine width="65%" />
+                    <SkeletonLine width="40%" />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </SkeletonScreen>
+    );
+  }
   if (error || !artist) return <SafeAreaView style={[s.safe, { justifyContent: "center", alignItems: "center" }]}><Text style={{ color: theme.colors.danger, fontWeight: "700" }}>Failed to load artist</Text></SafeAreaView>;
 
   const navAlbum = (id: string) => router.push(`/album/${id}` as const);

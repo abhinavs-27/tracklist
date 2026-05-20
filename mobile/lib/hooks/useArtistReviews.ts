@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "../api";
 import { CACHE_KEYS, readCache, writeCache } from "../persistent-cache";
 import type { ArtistRecentListen } from "./useArtistRecentListens";
+export type { ArtistRecentListen };
 
 export type ArtistReview = {
   id: string;

@@ -2,7 +2,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useMemo, useState } from "react";
 import { formatRelativeTime } from "@/lib/time";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SkeletonBox, SkeletonLine, SkeletonScreen } from "@/components/ui/Skeleton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
@@ -65,9 +66,47 @@ export default function SongDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center" }}>
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
-      </SafeAreaView>
+      <SkeletonScreen>
+        <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+          {/* Nav */}
+          <View style={s.nav}>
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+            </Pressable>
+            <SkeletonLine width="50%" style={{ marginHorizontal: 12 }} />
+            <View style={{ width: 26 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, alignItems: "center", gap: 20 }} scrollEnabled={false}>
+            {/* Artwork */}
+            <SkeletonBox width={224} height={224} radius={12} />
+            {/* Title / artist / album */}
+            <View style={{ width: "100%", alignItems: "center", gap: 10 }}>
+              <SkeletonLine width="55%" />
+              <SkeletonLine width="38%" />
+              <SkeletonLine width="44%" />
+            </View>
+            {/* Stats */}
+            <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+              {[0, 1, 2, 3].map((i) => <SkeletonBox key={i} height={48} radius={10} style={{ flex: 1 }} />)}
+            </View>
+            {/* Tab bar */}
+            <View style={{ flexDirection: "row", gap: 8, width: "100%" }}>
+              {[0, 1].map((i) => <SkeletonBox key={i} width={80} height={32} radius={16} />)}
+            </View>
+            {/* Review rows */}
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ width: "100%", backgroundColor: theme.colors.panel, borderRadius: 12, padding: 14, gap: 10 }}>
+                <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+                  <SkeletonBox width={36} height={36} radius={18} />
+                  <SkeletonLine width="35%" />
+                </View>
+                <SkeletonLine width="90%" />
+                <SkeletonLine width="70%" />
+              </View>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </SkeletonScreen>
     );
   }
 
@@ -227,7 +266,7 @@ export default function SongDetailScreen() {
                   </View>
                 ))
               ) : (
-                <Text style={s.activityEmpty}>No recent plays from your network.</Text>
+                <Text style={s.activityText}>No recent plays from your network.</Text>
               )}
             </View>
           </View>

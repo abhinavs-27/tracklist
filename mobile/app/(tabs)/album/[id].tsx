@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMemo, useState } from "react";
+import { SkeletonBox, SkeletonLine, SkeletonScreen } from "@/components/ui/Skeleton";
 import { Ionicons } from "@expo/vector-icons";
 import { formatRelativeTime } from "@/lib/time";
 import { theme } from "@/lib/theme";
@@ -91,9 +92,46 @@ export default function AlbumDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center" }}>
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
-      </SafeAreaView>
+      <SkeletonScreen>
+        <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+          {/* Nav */}
+          <View style={s.nav}>
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+            </Pressable>
+            <SkeletonLine width="50%" style={{ marginHorizontal: 12 }} />
+            <View style={{ width: 26 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 20 }} scrollEnabled={false}>
+            {/* Artwork */}
+            <SkeletonBox width={220} height={220} radius={12} style={{ alignSelf: "center" }} />
+            {/* Title + artist */}
+            <View style={{ gap: 10, alignItems: "center" }}>
+              <SkeletonLine width="65%" />
+              <SkeletonLine width="40%" />
+            </View>
+            {/* Stats row */}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {[0, 1, 2, 3].map((i) => <SkeletonBox key={i} height={48} radius={10} style={{ flex: 1 }} />)}
+            </View>
+            {/* Tab bar */}
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+              {[0, 1, 2].map((i) => <SkeletonBox key={i} width={72} height={32} radius={16} />)}
+            </View>
+            {/* Track rows */}
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <SkeletonBox width={16} height={14} radius={3} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <SkeletonLine width="70%" />
+                  <SkeletonLine width="40%" />
+                </View>
+                <SkeletonLine width={36} />
+              </View>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </SkeletonScreen>
     );
   }
 

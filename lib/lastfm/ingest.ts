@@ -258,12 +258,81 @@ export async function ingestLastfmScrobbles(
   let resolveStaggerSlot = 0;
   const ingestedForLogs: { listenedAt: string; trackUuid: string }[] = [];
 
+  // ── Bulk pre-load all external IDs in 3 queries (replaces per-scrobble lookups) ──
+  const allArtistExtIds = [...new Set(pending.map((p) => p.artistId))];
+  const allSongExtIds = [...new Set(pending.map((p) => p.songId))];
+  const allAlbumExtIds = [
+    ...new Set(
+      pending
+        .map((p) =>
+          p.scrobble.albumName?.trim()
+            ? lfmAlbumId(p.scrobble.artistName, p.scrobble.albumName.trim())
+            : null,
+        )
+        .filter((k): k is string => k != null),
+    ),
+  ];
+
+  const [artistExtRows, trackExtRows, albumExtRows] = await Promise.all([
+    supabase
+      .from("artist_external_ids")
+      .select("external_id, artist_id")
+      .eq("source", "lastfm")
+      .in("external_id", allArtistExtIds)
+      .then((r) => r.data ?? []),
+    supabase
+      .from("track_external_ids")
+      .select("external_id, track_id")
+      .eq("source", "lastfm")
+      .in("external_id", allSongExtIds)
+      .then((r) => r.data ?? []),
+    allAlbumExtIds.length > 0
+      ? supabase
+          .from("album_external_ids")
+          .select("external_id, album_id")
+          .eq("source", "lastfm")
+          .in("external_id", allAlbumExtIds)
+          .then((r) => r.data ?? [])
+      : Promise.resolve([]),
+  ]);
+
+  const artistExtCache = new Map<string, string>(
+    (artistExtRows as { external_id: string; artist_id: string }[]).map(
+      (r) => [r.external_id, r.artist_id],
+    ),
+  );
+  const trackExtCache = new Map<string, string>(
+    (trackExtRows as { external_id: string; track_id: string }[]).map(
+      (r) => [r.external_id, r.track_id],
+    ),
+  );
+  const albumExtCache = new Map<string, string>(
+    (albumExtRows as { external_id: string; album_id: string }[]).map(
+      (r) => [r.external_id, r.album_id],
+    ),
+  );
+
+  // Collect listens to batch-insert at the end
+  const listensBatch: {
+    user_id: string;
+    artist_name: string;
+    track_name: string;
+    spotify_track_id: null;
+    source: "lastfm";
+    listened_at: string;
+  }[] = [];
+
+  // Collect new external ID links to batch-upsert at the end
+  const newArtistLinks: { artist_id: string; source: "lastfm"; external_id: string }[] = [];
+  const newTrackLinks: { track_id: string; source: "lastfm"; external_id: string }[] = [];
+  const newAlbumLinks: { album_id: string; source: "lastfm"; external_id: string }[] = [];
+
   const tLoop0 = Date.now();
   for (const p of pending) {
     const { scrobble, songId, artistId, listenedAt } = p;
     const { artistName, trackName, albumName } = scrobble;
 
-    const { error: listenErr } = await supabase.from("listens").insert({
+    listensBatch.push({
       user_id: userId,
       artist_name: artistName,
       track_name: trackName,
@@ -271,12 +340,10 @@ export async function ingestLastfmScrobbles(
       source: "lastfm",
       listened_at: listenedAt,
     });
-    if (!listenErr) insertedListens++;
-    else if (listenErr.code !== "23505") {
-      console.warn("[lastfm ingest] listens insert failed", listenErr);
-    }
 
+    // Use pre-loaded cache; fall back to individual lookup only for misses
     let artistUuid =
+      artistExtCache.get(artistId) ??
       (await getArtistIdByExternalId(supabase, "lastfm", artistId)) ??
       (await findArtistIdByNormalizedName(supabase, artistName));
     if (!artistUuid) {
@@ -310,13 +377,17 @@ export async function ingestLastfmScrobbles(
         })
         .eq("id", artistUuid);
     }
-    await linkArtistExternalId(supabase, artistUuid, "lastfm", artistId);
+    // Queue link instead of immediate await
+    newArtistLinks.push({ artist_id: artistUuid, source: "lastfm", external_id: artistId });
+    artistExtCache.set(artistId, artistUuid); // cache newly created artists
 
     const albumTitle = albumName?.trim() || null;
     let albumUuid: string | null = null;
     if (albumTitle) {
       const lfmAlbumKey = lfmAlbumId(artistName, albumTitle);
+      // Use pre-loaded cache first
       albumUuid =
+        albumExtCache.get(lfmAlbumKey) ??
         (await getAlbumIdByExternalId(supabase, "lastfm", lfmAlbumKey)) ??
         (await findAlbumIdByArtistAndName(supabase, artistUuid, albumTitle));
       const coverFromScrobble =
@@ -363,11 +434,14 @@ export async function ingestLastfmScrobbles(
           .eq("id", albumUuid);
       }
       if (albumUuid) {
-        await linkAlbumExternalId(supabase, albumUuid, "lastfm", lfmAlbumKey);
+        newAlbumLinks.push({ album_id: albumUuid, source: "lastfm", external_id: lfmAlbumKey });
+        albumExtCache.set(lfmAlbumKey, albumUuid);
       }
     }
 
+    // Use pre-loaded cache for track lookup
     let trackUuid =
+      trackExtCache.get(songId) ??
       (await getTrackIdByExternalId(supabase, "lastfm", songId)) ??
       (await findTrackIdByArtistAlbumAndName(
         supabase,
@@ -410,7 +484,8 @@ export async function ingestLastfmScrobbles(
         })
         .eq("id", trackUuid);
     }
-    await linkTrackExternalId(supabase, trackUuid, "lastfm", songId);
+    newTrackLinks.push({ track_id: trackUuid, source: "lastfm", external_id: songId });
+    trackExtCache.set(songId, trackUuid);
     ingestedForLogs.push({ listenedAt, trackUuid });
 
     /** Track job maps Last.fm → Spotify and links catalog to real Spotify ids (see resolveTrackSpotifyJob). */
@@ -432,6 +507,43 @@ export async function ingestLastfmScrobbles(
     }
   }
   const perScrobbleLoopMs = Date.now() - tLoop0;
+
+  // ── Flush batched inserts (listens + external ID links) ──────────────────────
+  await Promise.all([
+    // Batch-upsert all listens at once
+    listensBatch.length > 0
+      ? supabase
+          .from("listens")
+          .upsert(listensBatch, {
+            onConflict: "user_id,artist_name,track_name,listened_at",
+            ignoreDuplicates: true,
+          })
+          .then(({ error }) => {
+            if (error && error.code !== "23505")
+              console.warn("[lastfm ingest] listens batch upsert failed", error);
+            else insertedListens += listensBatch.length;
+          })
+      : Promise.resolve(),
+    // Batch-upsert all new external ID links
+    newArtistLinks.length > 0
+      ? supabase
+          .from("artist_external_ids")
+          .upsert(newArtistLinks, { onConflict: "artist_id,source,external_id", ignoreDuplicates: true })
+          .then(({ error }) => { if (error) console.warn("[lastfm ingest] artist links upsert", error); })
+      : Promise.resolve(),
+    newTrackLinks.length > 0
+      ? supabase
+          .from("track_external_ids")
+          .upsert(newTrackLinks, { onConflict: "track_id,source,external_id", ignoreDuplicates: true })
+          .then(({ error }) => { if (error) console.warn("[lastfm ingest] track links upsert", error); })
+      : Promise.resolve(),
+    newAlbumLinks.length > 0
+      ? supabase
+          .from("album_external_ids")
+          .upsert(newAlbumLinks, { onConflict: "album_id,source,external_id", ignoreDuplicates: true })
+          .then(({ error }) => { if (error) console.warn("[lastfm ingest] album links upsert", error); })
+      : Promise.resolve(),
+  ]);
 
   const logRows = ingestedForLogs.map((row) => ({
     user_id: userId,

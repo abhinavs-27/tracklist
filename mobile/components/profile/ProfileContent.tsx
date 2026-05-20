@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   Share,
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { SkeletonBox, SkeletonCircle, SkeletonLine, SkeletonScreen } from "@/components/ui/Skeleton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,15 +71,49 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView
-        style={{
-          flex: 1,
-          backgroundColor: theme.colors.bg,
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
-      </SafeAreaView>
+      <SkeletonScreen>
+        <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+          {showBack && (
+            <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+              <Pressable onPress={() => router.back()} hitSlop={10}>
+                <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+              </Pressable>
+            </View>
+          )}
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 24 }} scrollEnabled={false}>
+            {/* Avatar + name */}
+            <View style={{ alignItems: "center", gap: 14 }}>
+              <SkeletonCircle size={88} />
+              <SkeletonLine width="40%" />
+              <SkeletonLine width="60%" />
+            </View>
+            {/* Stats row */}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {[0, 1, 2].map((i) => <SkeletonBox key={i} height={56} radius={12} style={{ flex: 1 }} />)}
+            </View>
+            {/* Favorite albums */}
+            <View style={{ gap: 12 }}>
+              <SkeletonLine width="35%" />
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                {[0, 1, 2, 3].map((i) => <SkeletonBox key={i} height={72} radius={8} style={{ flex: 1 }} />)}
+              </View>
+            </View>
+            {/* Lists */}
+            <View style={{ gap: 12 }}>
+              <SkeletonLine width="25%" />
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.panel, borderRadius: 12, padding: 14 }}>
+                  <SkeletonBox width={44} height={44} radius={8} />
+                  <View style={{ flex: 1, gap: 8 }}>
+                    <SkeletonLine width="55%" />
+                    <SkeletonLine width="30%" />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </SkeletonScreen>
     );
   }
 
