@@ -85,6 +85,31 @@ export async function updateListeningAggregates(options?: {
     return { processed: 0, errors: 1 };
   }
 
+  // Advance the watermark cursor to the last processed row so the next
+  // invocation uses a fast range scan instead of a full anti-join.
+  const lastRow = rows[rows.length - 1];
+  if (lastRow) {
+    const { error: wmErr } = await admin.rpc(
+      "advance_aggregate_ingest_watermark",
+      {
+        p_listened_at: lastRow.listened_at,
+        p_log_id: lastRow.id,
+      },
+    );
+    if (wmErr) {
+      // Non-fatal: the ingest rows were already inserted, so aggregates are
+      // correct. The watermark will just not advance, causing a redundant
+      // anti-join on the next run (old behaviour), not data loss.
+      console.error("[analytics] advance_aggregate_ingest_watermark", wmErr);
+      log("watermark_advance_failed", { message: wmErr.message });
+    } else {
+      log("watermark_advanced", {
+        listened_at: lastRow.listened_at,
+        log_id: lastRow.id,
+      });
+    }
+  }
+
   log("done", {
     processed: rows.length,
     errors: 0,
