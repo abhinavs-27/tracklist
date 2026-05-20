@@ -8,6 +8,7 @@ import { POST as logPOST } from '../app/api/logs/route';
 import { POST as syncPOST } from '../app/api/spotify/sync/route';
 import { GET as userGET } from '../app/api/users/[username]/route';
 import { GET as searchGET } from '../app/api/search/route';
+import { GET as searchUsersGET } from '../app/api/search/users/route';
 
 // --- Mocks ---
 
@@ -120,6 +121,13 @@ vi.mock('@/lib/queries', () => ({
     }
     return null;
   }),
+  searchUsers: vi.fn(async (q) => {
+    if (q === 'test') {
+      return [{ id: 'test-user-id', username: 'testuser' }];
+    }
+    return [];
+  }),
+  enrichUsersWithFollowStatus: vi.fn(async (users) => users.map((u: any) => ({ ...u, following: false }))),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({
@@ -377,6 +385,29 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.artists.items.length).toBe(0);
+    });
+  });
+
+  describe('GET /api/search/users', () => {
+    it('should return user search results', async () => {
+      const req = new NextRequest('http://localhost/api/search/users?q=test');
+      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as any);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.length).toBeGreaterThan(0);
+      expect(body[0].username).toBe('testuser');
+    });
+
+    it('should return 400 for short query', async () => {
+      const req = new NextRequest('http://localhost/api/search/users?q=a');
+      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as any);
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 if no query provided', async () => {
+      const req = new NextRequest('http://localhost/api/search/users');
+      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as any);
+      expect(res.status).toBe(400);
     });
   });
 });
