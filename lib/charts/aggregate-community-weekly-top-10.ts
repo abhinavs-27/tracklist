@@ -134,6 +134,109 @@ function bumpUser(
 }
 
 /**
+ * Fast path: reads per-user weekly play counts from user_listening_aggregates.
+ * Returns null if no aggregate rows found (triggers log-scan fallback).
+ * weekStart must be "YYYY-MM-DD" Monday UTC.
+ */
+async function aggregateCommunityTop10FromAggregates(args: {
+  communityId: string;
+  weekStart: string;
+  chartType: ChartType;
+}): Promise<AggregatedCommunityPlay[] | null> {
+  const memberIds = await getCommunityMemberUserIds(args.communityId);
+  if (memberIds.length === 0) return [];
+
+  const entityType =
+    args.chartType === "tracks"
+      ? "track"
+      : args.chartType === "artists"
+        ? "artist"
+        : "album";
+
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("user_listening_aggregates")
+    .select("entity_id, user_id, count")
+    .in("user_id", memberIds)
+    .eq("entity_type", entityType)
+    .eq("week_start", args.weekStart);
+
+  if (error) {
+    console.warn("[community-weekly-chart] aggregates read", error.message);
+    return null;
+  }
+  if (!data?.length) return null;
+
+  // Build per-entity, per-user count map
+  const byEntityUser = new Map<string, Map<string, number>>();
+  for (const row of data) {
+    const r = row as { entity_id: string; user_id: string; count: number };
+    let m = byEntityUser.get(r.entity_id);
+    if (!m) { m = new Map(); byEntityUser.set(r.entity_id, m); }
+    m.set(r.user_id, (m.get(r.user_id) ?? 0) + r.count);
+  }
+
+  // Compute totals and rank top 10
+  const totals = [...byEntityUser.entries()]
+    .map(([entity_id, m]) => ({
+      entity_id,
+      play_count: [...m.values()].reduce((a, b) => a + b, 0),
+      last_played_at: args.weekStart,
+    }))
+    .sort((a, b) => b.play_count - a.play_count)
+    .slice(0, 10);
+
+  if (totals.length === 0) return [];
+
+  const communityActiveUsers = new Set(
+    (data as { user_id: string }[]).map((r) => r.user_id),
+  ).size;
+
+  // Collect contributor user IDs for username lookup
+  const contributorIds: string[] = [];
+  for (const row of totals) {
+    const m = byEntityUser.get(row.entity_id);
+    if (!m) continue;
+    [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).forEach(([u]) => contributorIds.push(u));
+  }
+  const nameById = await fetchUsernamesByIds(contributorIds);
+
+  return totals.map((row) => {
+    const m = byEntityUser.get(row.entity_id);
+    const unique_listeners = m?.size ?? 0;
+    const community_listen_percent =
+      communityActiveUsers > 0 ? unique_listeners / communityActiveUsers : null;
+
+    const sortedUsers = m
+      ? [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+      : [];
+    const top_contributors: CommunityChartContributor[] = sortedUsers.map(
+      ([user_id, play_count]) => ({
+        user_id,
+        username: nameById.get(user_id) ?? null,
+        play_count,
+      }),
+    );
+
+    let repeat_strength: number | null = null;
+    if (m && unique_listeners > 0) {
+      let capped = 0;
+      for (const [, plays] of m) capped += Math.min(plays, 3);
+      repeat_strength = capped / unique_listeners;
+    }
+
+    return {
+      ...row,
+      unique_listeners,
+      community_active_users: communityActiveUsers,
+      community_listen_percent,
+      repeat_strength,
+      top_contributors,
+    };
+  });
+}
+
+/**
  * Top 10 + community metrics: unique listeners per entity, % of active members, top contributors.
  */
 export async function aggregateCommunityWeeklyTop10WithMetrics(args: {
@@ -142,6 +245,16 @@ export async function aggregateCommunityWeeklyTop10WithMetrics(args: {
   endExclusiveIso: string;
   chartType: ChartType;
 }): Promise<AggregatedCommunityPlay[]> {
+  // Fast path: read from pre-aggregated weekly counts (single query vs log pagination)
+  const weekStart = args.startIso.slice(0, 10);
+  const fromAggregates = await aggregateCommunityTop10FromAggregates({
+    communityId: args.communityId,
+    weekStart,
+    chartType: args.chartType,
+  });
+  if (fromAggregates !== null) return fromAggregates;
+
+  // Fallback: no aggregate rows — re-aggregate from raw logs
   const logs = await fetchCommunityLogsWindow({
     communityId: args.communityId,
     startIso: args.startIso,
