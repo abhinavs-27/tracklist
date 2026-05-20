@@ -505,8 +505,12 @@ export async function runRefreshBlindSpots(): Promise<{
   if (newErr) throw new Error(`[blind-spots] new-users query: ${newErr.message}`);
 
   const existingSet = new Set((staleRows ?? []).map((r) => r.user_id as string));
-  const { data: existingBlindSpots } = await admin.from("user_blind_spots").select("user_id");
-  const hasBlindSpot = new Set((existingBlindSpots ?? []).map((r) => r.user_id as string));
+  const newUserIds = (newRows ?? []).map((r) => r.user_id as string);
+  const { data: conflictingBlindSpots } = await admin
+    .from("user_blind_spots")
+    .select("user_id")
+    .in("user_id", newUserIds);
+  const hasBlindSpot = new Set((conflictingBlindSpots ?? []).map((r) => r.user_id as string));
 
   for (const r of newRows ?? []) {
     const uid = r.user_id as string;
