@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getRolling7dVsPrior7dBounds } from "@/lib/analytics/rolling-windows";
+import { currentWeekStart, getWeeklyAgg } from "@/lib/analytics/from-aggregates";
 import type { CatalogFetchOpts } from "@/lib/spotify/catalog-read-policy";
 import {
   getOrFetchAlbumsBatch,
@@ -37,7 +37,6 @@ async function fetchCatalogBatches(
 }
 
 const TOP_N = 10;
-const MAX_LOGS = 20000;
 
 export type TopWeekTrack = {
   trackId: string;
@@ -78,74 +77,6 @@ function isValidCatalogId(id: unknown): id is string {
   return true;
 }
 
-type RpcAgg = {
-  tracks: { track_id: string; play_count: number }[];
-  artists: { artist_id: string; play_count: number }[];
-  albums: { album_id: string; play_count: number }[];
-};
-
-function parseTopWeekRpcPayload(raw: unknown): RpcAgg {
-  const empty: RpcAgg = { tracks: [], artists: [], albums: [] };
-  if (raw == null || typeof raw !== "object") return empty;
-  const o = raw as Record<string, unknown>;
-
-  const parseTrackRows = (): RpcAgg["tracks"] => {
-    const a = o.tracks;
-    if (!Array.isArray(a)) return [];
-    const out: RpcAgg["tracks"] = [];
-    for (const row of a) {
-      if (!row || typeof row !== "object") continue;
-      const r = row as Record<string, unknown>;
-      const tid = r.track_id;
-      const c = r.play_count;
-      if (typeof tid !== "string" || !isValidCatalogId(tid)) continue;
-      const n = typeof c === "number" ? c : Number(c);
-      if (!Number.isFinite(n) || n < 0) continue;
-      out.push({ track_id: tid.trim(), play_count: Math.floor(n) });
-    }
-    return out;
-  };
-
-  const parseArtistRows = (): RpcAgg["artists"] => {
-    const a = o.artists;
-    if (!Array.isArray(a)) return [];
-    const out: RpcAgg["artists"] = [];
-    for (const row of a) {
-      if (!row || typeof row !== "object") continue;
-      const r = row as Record<string, unknown>;
-      const id = r.artist_id;
-      const c = r.play_count;
-      if (typeof id !== "string" || !isValidCatalogId(id)) continue;
-      const n = typeof c === "number" ? c : Number(c);
-      if (!Number.isFinite(n) || n < 0) continue;
-      out.push({ artist_id: id.trim(), play_count: Math.floor(n) });
-    }
-    return out;
-  };
-
-  const parseAlbumRows = (): RpcAgg["albums"] => {
-    const a = o.albums;
-    if (!Array.isArray(a)) return [];
-    const out: RpcAgg["albums"] = [];
-    for (const row of a) {
-      if (!row || typeof row !== "object") continue;
-      const r = row as Record<string, unknown>;
-      const id = r.album_id;
-      const c = r.play_count;
-      if (typeof id !== "string" || !isValidCatalogId(id)) continue;
-      const n = typeof c === "number" ? c : Number(c);
-      if (!Number.isFinite(n) || n < 0) continue;
-      out.push({ album_id: id.trim(), play_count: Math.floor(n) });
-    }
-    return out;
-  };
-
-  return {
-    tracks: parseTrackRows(),
-    artists: parseArtistRows(),
-    albums: parseAlbumRows(),
-  };
-}
 
 /** `tracks.id` → `album_id` for hrefs when catalog cache has no album on the track. */
 async function fetchTrackAlbumIds(
@@ -171,12 +102,19 @@ async function fetchTrackAlbumIds(
 }
 
 /**
- * Top tracks, artists, and albums over the rolling last 7 days from `logs`.
- * Aggregates in Postgres (`get_top_this_week_aggregates`); metadata from DB cache only.
- * Spotify artwork is filled client-side via `/api/profile/top-week-catalog`.
+ * Top tracks, artists, and albums for the current calendar week (Monday–today UTC).
+ * Reads from `user_listening_aggregates` — precomputed, no log scan.
  */
 export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult> {
-  const { current, rangeLabel } = getRolling7dVsPrior7dBounds();
+  const weekStart = currentWeekStart();
+
+  // Range label: "Week of Mon d" (e.g. "Week of May 19")
+  const weekDate = new Date(weekStart + "T00:00:00Z");
+  const rangeLabel = `Week of ${weekDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  })}`;
 
   const empty = (): TopThisWeekResult => ({
     rangeLabel,
@@ -190,37 +128,19 @@ export async function getTopThisWeek(userId: string): Promise<TopThisWeekResult>
 
   const admin = createSupabaseAdminClient();
 
-  const { data: aggRaw, error: rpcErr } = await admin.rpc("get_top_this_week_aggregates", {
-    p_user_id: uid,
-    p_start: current.startIso,
-    p_end_exclusive: current.endExclusiveIso,
-    p_top_n: TOP_N,
-    p_log_cap: MAX_LOGS,
-  });
+  const [artistRows, albumRows, trackRows] = await Promise.all([
+    getWeeklyAgg(admin, uid, "artist", weekStart, TOP_N),
+    getWeeklyAgg(admin, uid, "album", weekStart, TOP_N),
+    getWeeklyAgg(admin, uid, "track", weekStart, TOP_N),
+  ]);
 
-  if (rpcErr) {
-    console.error("[top-this-week] get_top_this_week_aggregates:", rpcErr);
+  if (artistRows.length === 0 && albumRows.length === 0 && trackRows.length === 0) {
     return empty();
   }
 
-  const agg = parseTopWeekRpcPayload(aggRaw);
-  if (
-    agg.tracks.length === 0 &&
-    agg.artists.length === 0 &&
-    agg.albums.length === 0
-  ) {
-    return empty();
-  }
-
-  const sortedTracks = agg.tracks.map(
-    (r) => [r.track_id, r.play_count] as [string, number],
-  );
-  const sortedArtists = agg.artists.map(
-    (r) => [r.artist_id, r.play_count] as [string, number],
-  );
-  const sortedAlbums = agg.albums.map(
-    (r) => [r.album_id, r.play_count] as [string, number],
-  );
+  const sortedTracks = trackRows.map((r) => [r.entity_id, r.count] as [string, number]);
+  const sortedArtists = artistRows.map((r) => [r.entity_id, r.count] as [string, number]);
+  const sortedAlbums = albumRows.map((r) => [r.entity_id, r.count] as [string, number]);
 
   const artistIds = sortedArtists.map(([id]) => id).filter(isValidCatalogId);
   const trackIdsTop = sortedTracks.map(([id]) => id).filter(isValidCatalogId);

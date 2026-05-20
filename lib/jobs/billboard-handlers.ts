@@ -30,25 +30,26 @@ export async function runGenerateUserBillboard(args: {
     userIds: [args.userId],
   });
 
-  let chartsWritten = 0;
-  let skipped = 0;
-  for (const chartType of CHART_TYPES) {
-    const { skipped: sk } = await computeWeeklyChart({
-      userId: args.userId,
-      weekStart: window.weekStart,
-      weekEndExclusive: window.weekEndExclusive,
-      chartType,
-    });
-    if (sk) skipped += 1;
-    else chartsWritten += 1;
-  }
+  // All 3 chart types are independent — run in parallel for ~3x speedup
+  const results = await Promise.all(
+    CHART_TYPES.map((chartType) =>
+      computeWeeklyChart({
+        userId: args.userId,
+        weekStart: window.weekStart,
+        weekEndExclusive: window.weekEndExclusive,
+        chartType,
+      }),
+    ),
+  );
 
-  return { chartsWritten, skipped };
+  return {
+    chartsWritten: results.filter((r) => !r.skipped).length,
+    skipped: results.filter((r) => r.skipped).length,
+  };
 }
 
 /**
- * One community × one week: upsert all three chart types (rankings use existing aggregate:
- * unique listeners + capped plays baked into `aggregateCommunityWeeklyTop10WithMetrics`).
+ * One community × one week: upsert all three chart types.
  * Idempotent via `uq_community_weekly_charts_community_week_type`.
  */
 export async function runGenerateCommunityBillboard(args: {
@@ -60,18 +61,20 @@ export async function runGenerateCommunityBillboard(args: {
       ? parseBillboardWeek(args.week)
       : getLastCompletedWeekWindow(new Date());
 
-  let chartsWritten = 0;
-  let skipped = 0;
-  for (const chartType of CHART_TYPES) {
-    const { skipped: sk } = await computeCommunityWeeklyChart({
-      communityId: args.communityId,
-      weekStart: window.weekStart,
-      weekEndExclusive: window.weekEndExclusive,
-      chartType,
-    });
-    if (sk) skipped += 1;
-    else chartsWritten += 1;
-  }
+  // All 3 chart types are independent — run in parallel
+  const results = await Promise.all(
+    CHART_TYPES.map((chartType) =>
+      computeCommunityWeeklyChart({
+        communityId: args.communityId,
+        weekStart: window.weekStart,
+        weekEndExclusive: window.weekEndExclusive,
+        chartType,
+      }),
+    ),
+  );
 
-  return { chartsWritten, skipped };
+  return {
+    chartsWritten: results.filter((r) => !r.skipped).length,
+    skipped: results.filter((r) => r.skipped).length,
+  };
 }

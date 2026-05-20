@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getAllTimeAgg, getTotalPlayCount } from "@/lib/analytics/from-aggregates";
 import { getArtists } from "@/lib/spotify";
 import {
   getOrFetchAlbumsBatch,
@@ -802,52 +803,19 @@ export async function aggregateLogsForTasteMatch(
   } => ({ topArtists: [], topAlbum: null, topTrack: null });
 
   const cap = Math.min(Math.max(1, artistLimit), 50);
-  const { data: logRows, error: logErr } = await admin
-    .from("logs")
-    .select("track_id, listened_at, album_id, artist_id")
-    .eq("user_id", userId)
-    .order("listened_at", { ascending: true })
-    .limit(LOG_CAP);
 
-  if (logErr || !logRows?.length) {
-    if (logErr) {
-      console.error("[taste-identity] logs query failed (match)", logErr);
-    }
-    return none();
-  }
+  // Pull all-time counts from aggregates — no log cap, no track-resolution joins.
+  const [artistAgg, albumAgg, trackAgg] = await Promise.all([
+    getAllTimeAgg(admin, userId, "artist", cap + 10),
+    getAllTimeAgg(admin, userId, "album", 10),
+    getAllTimeAgg(admin, userId, "track", 10),
+  ]);
 
-  const logs = logRows as {
-    track_id: string;
-    listened_at: string;
-    album_id: string | null;
-    artist_id: string | null;
-  }[];
+  if (artistAgg.length === 0) return none();
 
-  const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean))];
-  const songMap = await fetchSongsBatch(admin, trackIds);
-
-  const artistCounts = new Map<string, number>();
-  const albumCounts = new Map<string, number>();
-  const trackCounts = new Map<string, number>();
-
-  for (const log of logs) {
-    const song = songMap.get(log.track_id);
-    const artistId = log.artist_id ?? song?.artist_id ?? null;
-    if (artistId) {
-      artistCounts.set(artistId, (artistCounts.get(artistId) ?? 0) + 1);
-    }
-    const albId =
-      log.album_id?.trim() || song?.album_id?.trim() || null;
-    if (albId) {
-      albumCounts.set(albId, (albumCounts.get(albId) ?? 0) + 1);
-    }
-    const tid = log.track_id?.trim();
-    if (tid) {
-      trackCounts.set(tid, (trackCounts.get(tid) ?? 0) + 1);
-    }
-  }
-
-  if (artistCounts.size === 0) return none();
+  const artistCounts = new Map(artistAgg.map((r) => [r.entity_id, r.count]));
+  const albumCounts = new Map(albumAgg.map((r) => [r.entity_id, r.count]));
+  const trackCounts = new Map(trackAgg.map((r) => [r.entity_id, r.count]));
 
   const topIds = [...artistCounts.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -993,52 +961,42 @@ export async function computeTasteIdentity(
   admin: SupabaseClient,
   userId: string,
 ): Promise<TasteIdentity> {
-  const { data: logRows, error: logErr } = await admin
-    .from("logs")
-    .select("track_id, listened_at, album_id, artist_id")
-    .eq("user_id", userId)
-    .order("listened_at", { ascending: true })
-    .limit(LOG_CAP);
+  // --- Counts from aggregates (no log cap, accurate even for 100k+ log users) ---
+  const [artistAgg, albumAgg, totalLogs] = await Promise.all([
+    getAllTimeAgg(admin, userId, "artist", 200),
+    getAllTimeAgg(admin, userId, "album", 200),
+    getTotalPlayCount(admin, userId),
+  ]);
 
-  if (logErr) {
-    console.error("[taste-identity] logs query failed", logErr);
-    return { ...EMPTY, summary: "Could not load listening history." };
-  }
-
-  const logs = (logRows ?? []) as {
-    track_id: string;
-    listened_at: string;
-    album_id: string | null;
-    artist_id: string | null;
-  }[];
-
-  const totalLogs = logs.length;
-  if (totalLogs === 0) {
+  if (totalLogs === 0 && artistAgg.length === 0) {
     return { ...EMPTY };
   }
 
+  const artistCounts = new Map(artistAgg.map((r) => [r.entity_id, r.count]));
+  const albumCounts = new Map(albumAgg.map((r) => [r.entity_id, r.count]));
+  const artistIdsForMeta = new Set(artistCounts.keys());
+
+  // --- Small log scan — only needed for popularity scores and session timing ---
+  // Track IDs for popularity; listened_at timestamps for session gap detection.
+  const { data: logRows, error: logErr } = await admin
+    .from("logs")
+    .select("track_id, listened_at")
+    .eq("user_id", userId)
+    .order("listened_at", { ascending: true })
+    .limit(2000);
+
+  if (logErr) {
+    console.warn("[taste-identity] session/popularity log scan failed", logErr);
+  }
+
+  const logs = (logRows ?? []) as { track_id: string; listened_at: string }[];
+
   const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean))];
-  const songMap = await fetchSongsBatch(admin, trackIds);
+  const songMap = trackIds.length ? await fetchSongsBatch(admin, trackIds) : new Map();
 
-  const artistCounts = new Map<string, number>();
-  const albumCounts = new Map<string, number>();
   const popularities: number[] = [];
-  const artistIdsForMeta = new Set<string>();
-
   for (const log of logs) {
-    const song = songMap.get(log.track_id);
-    const albumId = log.album_id ?? song?.album_id ?? null;
-    const artistId = log.artist_id ?? song?.artist_id ?? null;
-
-    if (artistId) {
-      artistCounts.set(artistId, (artistCounts.get(artistId) ?? 0) + 1);
-      artistIdsForMeta.add(artistId);
-    }
-    if (albumId) {
-      albumCounts.set(albumId, (albumCounts.get(albumId) ?? 0) + 1);
-    }
-
-    const pop = song?.popularity;
+    const pop = songMap.get(log.track_id)?.popularity;
     if (typeof pop === "number" && !Number.isNaN(pop)) {
       popularities.push(pop);
     }
@@ -1086,6 +1044,10 @@ export async function computeTasteIdentity(
     obscurityScore = clamp(Math.round(100 - avgPop), 0, 100);
   }
 
+  // Session detection uses the 2000-row sample. avgTracksPerSession must use
+  // the same sample's play count — mixing the all-time total with a sampled
+  // session count inflates the result by 10-100x for heavy users.
+  const samplePlayCount = logs.length;
   const listenedTimes = logs.map((l) => new Date(l.listened_at).getTime());
   let sessions = 1;
   for (let i = 1; i < listenedTimes.length; i++) {
@@ -1094,15 +1056,23 @@ export async function computeTasteIdentity(
     }
   }
   const avgTracksPerSession =
-    sessions > 0 ? Math.round((totalLogs / sessions) * 10) / 10 : totalLogs;
+    sessions > 0 ? Math.round((samplePlayCount / sessions) * 10) / 10 : samplePlayCount;
 
   const uniqueAlbums = albumCounts.size;
 
-  const t0 = new Date(logs[0]!.listened_at).getTime();
-  const t1 = new Date(logs[logs.length - 1]!.listened_at).getTime();
-  const daysSpan = Math.max((t1 - t0) / (24 * 60 * 60 * 1000), 1 / 24);
+  // Session / recency calculations use the small log sample (first 2000 logs).
+  // If the sample is empty (e.g. all logs are older and not in the limit window),
+  // fall back to safe defaults.
+  const daysSpan = logs.length >= 2
+    ? Math.max(
+        (new Date(logs[logs.length - 1]!.listened_at).getTime() -
+          new Date(logs[0]!.listened_at).getTime()) /
+          (24 * 60 * 60 * 1000),
+        1 / 24,
+      )
+    : 1;
 
-  const mlpd = maxLogsPerDay(logs);
+  const mlpd = logs.length > 0 ? maxLogsPerDay(logs) : 1;
 
   let maxArtistPlays = 0;
   for (const c of artistCounts.values()) {

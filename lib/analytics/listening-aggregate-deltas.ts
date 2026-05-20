@@ -25,7 +25,9 @@ type AggregateDeltaKey =
   | { kind: "year"; year: number };
 
 export const MAX_GENRES_PER_LOG = 3;
-export const BULK_DELTA_CHUNK = 5000;
+// Kept small so each RPC stays well under Supabase's statement timeout (~8-10s).
+// 5000 was timing out; 500 rows each takes ~1-2s at current table size.
+export const BULK_DELTA_CHUNK = 500;
 const FS = "\x1f";
 
 function deltaKey(
@@ -340,6 +342,7 @@ export async function applyListeningAggregateDeltaMaps(
     for (let i = 0; i < bulkRows.length; i += BULK_DELTA_CHUNK) {
       const chunk = bulkRows.slice(i, i + BULK_DELTA_CHUNK);
       const chunkIndex = Math.floor(i / BULK_DELTA_CHUNK) + 1;
+      const chunkT0 = Date.now();
       log("bulk_apply_chunk", {
         chunk: chunkIndex,
         totalChunks,
@@ -348,6 +351,7 @@ export async function applyListeningAggregateDeltaMaps(
       const { error } = await admin.rpc("apply_listening_aggregate_deltas", {
         p_rows: chunk,
       });
+      const chunkMs = Date.now() - chunkT0;
       if (error) {
         console.warn(
           "[analytics] apply_listening_aggregate_deltas failed",
@@ -357,9 +361,11 @@ export async function applyListeningAggregateDeltaMaps(
           message: error.message,
           chunk: chunkIndex,
           totalChunks,
+          chunkMs,
         });
         return { errors: errors + 1 };
       }
+      log("bulk_apply_chunk_done", { chunk: chunkIndex, totalChunks, chunkMs });
     }
     log("bulk_apply_done");
   } else {

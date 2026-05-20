@@ -528,19 +528,19 @@ export async function ingestLastfmScrobbles(
     newArtistLinks.length > 0
       ? supabase
           .from("artist_external_ids")
-          .upsert(newArtistLinks, { onConflict: "artist_id,source,external_id", ignoreDuplicates: true })
+          .upsert(newArtistLinks, { onConflict: "source,external_id", ignoreDuplicates: true })
           .then(({ error }) => { if (error) console.warn("[lastfm ingest] artist links upsert", error); })
       : Promise.resolve(),
     newTrackLinks.length > 0
       ? supabase
           .from("track_external_ids")
-          .upsert(newTrackLinks, { onConflict: "track_id,source,external_id", ignoreDuplicates: true })
+          .upsert(newTrackLinks, { onConflict: "source,external_id", ignoreDuplicates: true })
           .then(({ error }) => { if (error) console.warn("[lastfm ingest] track links upsert", error); })
       : Promise.resolve(),
     newAlbumLinks.length > 0
       ? supabase
           .from("album_external_ids")
-          .upsert(newAlbumLinks, { onConflict: "album_id,source,external_id", ignoreDuplicates: true })
+          .upsert(newAlbumLinks, { onConflict: "source,external_id", ignoreDuplicates: true })
           .then(({ error }) => { if (error) console.warn("[lastfm ingest] album links upsert", error); })
       : Promise.resolve(),
   ]);

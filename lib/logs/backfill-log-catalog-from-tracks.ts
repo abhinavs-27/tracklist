@@ -125,35 +125,34 @@ export async function backfillMissingLogCatalogFromTracks(options?: {
     const albumArtist = (albumId: string) =>
       normId(albumById.get(albumId)?.artist_id ?? null);
 
+    // Build all patches first, then run all updates in parallel
+    const updateJobs: Array<{ logId: string; patch: Record<string, string> }> = [];
     for (const log of rows) {
       const tid = normId(log.track_id);
-      if (!tid) {
-        skippedNoTrackRow += 1;
-        continue;
-      }
+      if (!tid) { skippedNoTrackRow += 1; continue; }
       const song = songById.get(tid);
       if (!song) {
         skippedNoTrackRow += 1;
-        console.warn(LOG, "track not in catalog after hydrate", {
-          trackId: tid,
-          logId: log.id,
-        });
+        console.warn(LOG, "track not in catalog after hydrate", { trackId: tid, logId: log.id });
         continue;
       }
-
       const patch = buildPatch(log, song, albumArtist);
-      if (!patch) {
-        skippedNoImprovement += 1;
-        continue;
-      }
-
-      const { error } = await admin.from("logs").update(patch).eq("id", log.id);
-      if (error) {
-        console.warn(LOG, "update failed", { logId: log.id, error: error.message });
-        continue;
-      }
-      updated += 1;
+      if (!patch) { skippedNoImprovement += 1; continue; }
+      updateJobs.push({ logId: log.id, patch });
     }
+
+    // Parallel updates — each row has a different patch so we can't use a single bulk upsert,
+    // but running them concurrently cuts wall-clock time from O(n) sequential to O(1) parallel.
+    await Promise.all(
+      updateJobs.map(async ({ logId, patch }) => {
+        const { error } = await admin.from("logs").update(patch).eq("id", logId);
+        if (error) {
+          console.warn(LOG, "update failed", { logId, error: error.message });
+        } else {
+          updated += 1;
+        }
+      }),
+    );
   }
 
   async function scanLogs(userIdFilter: string[] | null): Promise<void> {

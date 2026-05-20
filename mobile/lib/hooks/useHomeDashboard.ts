@@ -115,44 +115,6 @@ export type ProfilePulseInsights = {
   soundShift: { trend: PulseTrend; headline: string; detail: string } | null;
 } | null;
 
-export function useHomeBillboard() {
-  const { session, isLoading: authLoading } = useAuth();
-  const cached = readCache<BillboardData>(CACHE_KEYS.homeBillboard);
-
-  return useQuery<BillboardData>({
-    queryKey: ["home", "billboard"],
-    queryFn: async () => {
-      const data = await fetcher<BillboardData>("/api/me/billboard");
-      writeCache(CACHE_KEYS.homeBillboard, data);
-      return data;
-    },
-    initialData: cached ?? undefined,
-    initialDataUpdatedAt: 0, // treat cached data as stale so it refetches
-    enabled: !!session && !authLoading,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-}
-
-export function useHomePulse() {
-  const { session, isLoading: authLoading } = useAuth();
-  const cached = readCache<ProfilePulseInsights>(CACHE_KEYS.homePulse);
-
-  return useQuery<ProfilePulseInsights>({
-    queryKey: ["home", "pulse"],
-    queryFn: async () => {
-      const data = await fetcher<ProfilePulseInsights>("/api/me/pulse");
-      writeCache(CACHE_KEYS.homePulse, data);
-      return data;
-    },
-    initialData: cached ?? undefined,
-    initialDataUpdatedAt: 0,
-    enabled: !!session && !authLoading,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-}
-
 // ─── Home bundle (single request replaces billboard + pulse fetches) ───────────
 
 export type HomeBundleData = {

@@ -272,7 +272,10 @@ export async function getProfilePulseInsights(
   const uid = userId?.trim();
   if (!uid) return null;
 
-  const { current, previous, rangeCaption } = getRolling7dVsPrior7dBounds();
+  // Play-volume counts use the rolling 7-day window (fair comparison regardless
+  // of day-of-week). Artist/genre movers come from calendar-week aggregates.
+  const { current, previous } = getRolling7dVsPrior7dBounds();
+  const rangeCaption = "This week · vs last week";
   const admin = createSupabaseAdminClient();
 
   const [artistCmp, genreCmp, curIds, curWindow, prevWindow] =

@@ -3,7 +3,7 @@ import "server-only";
 import { getRolling7dVsPrior7dBounds } from "@/lib/analytics/rolling-windows";
 import { getArtist } from "@/lib/spotify";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { currentWeekStart, previousWeekStart, getWeeklyAgg } from "@/lib/analytics/from-aggregates";
 import { unstable_cache } from "next/cache";
 
 import type { ListeningReportsCompareResult } from "@/lib/analytics/getReportsCompare";
@@ -12,7 +12,6 @@ export type { ListeningReportsCompareResult };
 
 type AggRow = { entity_id: string; count: number };
 
-const MAX_ROWS = 20000;
 const MAX_RANK = 60;
 
 function buildRankMap(rows: AggRow[]): Map<string, number> {
@@ -40,150 +39,38 @@ async function countLogsInRange(args: {
   return count ?? 0;
 }
 
-async function fetchSongsBatch(
-  admin: SupabaseClient,
-  ids: string[],
-): Promise<Map<string, { album_id: string; artist_id: string }>> {
-  const out = new Map<string, { album_id: string; artist_id: string }>();
-  const unique = [...new Set(ids)].filter(Boolean);
-  const CHUNK = 400;
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const { data, error } = await admin
-      .from("tracks")
-      .select("id, album_id, artist_id")
-      .in("id", chunk);
-    if (error) {
-      console.warn("[rolling-compare] songs batch", error.message);
-      continue;
-    }
-    for (const row of data ?? []) {
-      const r = row as { id: string; album_id: string; artist_id: string };
-      out.set(r.id, { album_id: r.album_id, artist_id: r.artist_id });
-    }
-  }
-  return out;
-}
 
-async function fetchArtistsBatchGenres(
-  admin: SupabaseClient,
-  ids: string[],
-): Promise<Map<string, { genres: string[] | null }>> {
-  const out = new Map<string, { genres: string[] | null }>();
-  const unique = [...new Set(ids)].filter(Boolean);
-  const CHUNK = 300;
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const { data, error } = await admin
-      .from("artists")
-      .select("id, genres")
-      .in("id", chunk);
-    if (error) {
-      console.warn("[rolling-compare] artists batch", error.message);
-      continue;
-    }
-    for (const row of data ?? []) {
-      const r = row as { id: string; genres: string[] | null };
-      out.set(r.id, { genres: r.genres });
-    }
-  }
-  return out;
-}
-
+/**
+ * Artist play-count ranking for a calendar week from precomputed aggregates.
+ * Replaces `fetchArtistAggFromLogs` (was: scan 20k raw log rows + resolve tracks).
+ */
 export async function fetchArtistAggFromLogs(
   userId: string,
-  startIso: string,
-  endExclusiveIso: string,
+  _startIso: string,
+  _endExclusiveIso: string,
+  weekStart?: string,
 ): Promise<AggRow[]> {
   const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
-    .from("logs")
-    .select("track_id, artist_id")
-    .eq("user_id", userId)
-    .gte("listened_at", startIso)
-    .lt("listened_at", endExclusiveIso)
-    .limit(MAX_ROWS);
-
-  if (error) {
-    console.warn("[rolling-compare] artist logs", error.message);
-    return [];
-  }
-
-  const rows = (data ?? []) as { track_id: string; artist_id: string | null }[];
-  const trackIds = [...new Set(rows.map((r) => r.track_id).filter(Boolean))];
-  const songMap = trackIds.length ? await fetchSongsBatch(admin, trackIds) : new Map();
-
-  const counts = new Map<string, number>();
-  for (const r of rows) {
-    let aid = r.artist_id?.trim() ?? null;
-    if (!aid && r.track_id) {
-      aid = songMap.get(r.track_id)?.artist_id?.trim() ?? null;
-    }
-    if (!aid) continue;
-    counts.set(aid, (counts.get(aid) ?? 0) + 1);
-  }
-
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_RANK)
-    .map(([entity_id, count]) => ({ entity_id, count }));
+  const wk = weekStart ?? currentWeekStart();
+  const rows = await getWeeklyAgg(admin, userId, "artist", wk, MAX_RANK);
+  return rows.map((r) => ({ entity_id: r.entity_id, count: r.count }));
 }
 
+/**
+ * Genre play-count ranking for a calendar week from precomputed aggregates.
+ * Replaces `fetchGenreAggFromLogs` (was: scan 20k rows + resolve artists → genres).
+ * Genre aggregates are written by the cron alongside artist/album/track.
+ */
 async function fetchGenreAggFromLogs(
   userId: string,
-  startIso: string,
-  endExclusiveIso: string,
+  _startIso: string,
+  _endExclusiveIso: string,
+  weekStart?: string,
 ): Promise<AggRow[]> {
   const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
-    .from("logs")
-    .select("track_id, artist_id")
-    .eq("user_id", userId)
-    .gte("listened_at", startIso)
-    .lt("listened_at", endExclusiveIso)
-    .limit(MAX_ROWS);
-
-  if (error) {
-    console.warn("[rolling-compare] genre logs", error.message);
-    return [];
-  }
-
-  const rows = (data ?? []) as { track_id: string; artist_id: string | null }[];
-  const trackIds = [...new Set(rows.map((r) => r.track_id).filter(Boolean))];
-  const songMap = trackIds.length ? await fetchSongsBatch(admin, trackIds) : new Map();
-
-  const artistCounts = new Map<string, number>();
-  for (const r of rows) {
-    let aid = r.artist_id?.trim() ?? null;
-    if (!aid && r.track_id) {
-      aid = songMap.get(r.track_id)?.artist_id?.trim() ?? null;
-    }
-    if (!aid) continue;
-    artistCounts.set(aid, (artistCounts.get(aid) ?? 0) + 1);
-  }
-
-  if (artistCounts.size === 0) return [];
-
-  const meta = await fetchArtistsBatchGenres(admin, [...artistCounts.keys()]);
-  const genreRaw = new Map<string, number>();
-  for (const [artistId, listenCount] of artistCounts) {
-    const genres =
-      meta.get(artistId)?.genres?.map((g) => g.trim()).filter(Boolean) ?? [];
-    if (genres.length === 0) continue;
-    const per = listenCount / genres.length;
-    for (const g of genres) {
-      const key = g.toLowerCase();
-      genreRaw.set(key, (genreRaw.get(key) ?? 0) + per);
-    }
-  }
-
-  return [...genreRaw.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_RANK)
-    .map(([entity_id, count]) => ({
-      entity_id,
-      count: Math.round(count * 100) / 100,
-    }));
+  const wk = weekStart ?? currentWeekStart();
+  const rows = await getWeeklyAgg(admin, userId, "genre", wk, MAX_RANK);
+  return rows.map((r) => ({ entity_id: r.entity_id, count: r.count }));
 }
 
 function pickTopMovers(
@@ -251,7 +138,12 @@ async function fetchListeningReportsRollingCompareUncached(args: {
   userId: string;
   entityType: "artist" | "genre";
 }): Promise<ListeningReportsCompareResult> {
+  // Entity rankings come from calendar-week aggregates (fast, precomputed).
+  // Play-volume COUNT stays on logs — it uses a rolling window so partial-week
+  // comparisons stay fair (same number of days in both windows).
   const { current, previous } = getRolling7dVsPrior7dBounds();
+  const curWeek = currentWeekStart();
+  const prevWeek = previousWeekStart();
 
   const fetchAgg =
     args.entityType === "artist"
@@ -274,16 +166,8 @@ async function fetchListeningReportsRollingCompareUncached(args: {
       startIso: previous.startIso,
       endExclusiveIso: previous.endExclusiveIso,
     }),
-    fetchAgg(
-      args.userId,
-      current.startIso,
-      current.endExclusiveIso,
-    ),
-    fetchAgg(
-      args.userId,
-      previous.startIso,
-      previous.endExclusiveIso,
-    ),
+    fetchAgg(args.userId, current.startIso, current.endExclusiveIso, curWeek),
+    fetchAgg(args.userId, previous.startIso, previous.endExclusiveIso, prevWeek),
   ]);
 
   const percentChange =
