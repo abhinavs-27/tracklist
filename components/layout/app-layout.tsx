@@ -8,21 +8,16 @@ import { TopNav } from "./top-nav";
 type Props = {
   children: React.ReactNode;
   unreadCount: number;
-  hideQuickLogFab: boolean;
 };
 
 /**
  * App chrome: sticky top nav (desktop + mobile variants), fixed bottom tabs (mobile).
  */
-export function AppLayout({ children, unreadCount, hideQuickLogFab }: Props) {
+export function AppLayout({ children, unreadCount }: Props) {
   const pathname = usePathname();
   const minimalChrome =
     pathname === "/onboarding" || pathname.startsWith("/auth");
-  const mainPaddingBottom = minimalChrome
-    ? "pb-6 sm:pb-8"
-    : hideQuickLogFab
-      ? "pb-8 max-md:pb-28"
-      : "pb-24 max-md:pb-36";
+  const mainPaddingBottom = minimalChrome ? "pb-6 sm:pb-8" : "pb-8 max-md:pb-28";
 
   return (
     <>

@@ -35,26 +35,13 @@ async function LayoutData({
   children,
 }: {
   userId: string;
-  children: (data: { unreadCount: number; hideQuickLogFab: boolean }) => React.ReactNode;
+  children: (data: { unreadCount: number }) => React.ReactNode;
 }) {
-  let hideQuickLogFab = false;
   let unreadCount = 0;
   try {
     const supabase = await createSupabaseServerClient();
-    const [{ data: meRow }, unread] = await Promise.all([
-      supabase
-        .from("users")
-        .select("lastfm_username")
-        .eq("id", userId)
-        .maybeSingle(),
-      countUnreadNotifications(userId, supabase),
-    ]);
-    hideQuickLogFab = Boolean(
-      (meRow as { lastfm_username?: string | null } | null)?.lastfm_username?.trim(),
-    );
-    unreadCount = unread;
+    unreadCount = await countUnreadNotifications(userId, supabase);
   } catch {
-    hideQuickLogFab = false;
     try {
       unreadCount = await countUnreadNotifications(userId);
     } catch {
@@ -62,7 +49,7 @@ async function LayoutData({
     }
   }
 
-  return <>{children({ unreadCount, hideQuickLogFab })}</>;
+  return <>{children({ unreadCount })}</>;
 }
 
 export default async function RootLayout({
@@ -80,9 +67,9 @@ export default async function RootLayout({
       >
         <Suspense
           fallback={
-            <Providers session={session} hideQuickLogFab={false}>
+            <Providers session={session}>
               <ProfilingHydrationMarker />
-              <AppLayout unreadCount={0} hideQuickLogFab={false}>
+              <AppLayout unreadCount={0}>
                 {children}
               </AppLayout>
               <Analytics />
@@ -92,10 +79,10 @@ export default async function RootLayout({
         >
           {userId ? (
             <LayoutData userId={userId}>
-              {({ unreadCount, hideQuickLogFab }) => (
-                <Providers session={session} hideQuickLogFab={hideQuickLogFab}>
+              {({ unreadCount }) => (
+                <Providers session={session}>
                   <ProfilingHydrationMarker />
-                  <AppLayout unreadCount={unreadCount} hideQuickLogFab={hideQuickLogFab}>
+                  <AppLayout unreadCount={unreadCount}>
                     {children}
                   </AppLayout>
                   <Analytics />
@@ -104,9 +91,9 @@ export default async function RootLayout({
               )}
             </LayoutData>
           ) : (
-            <Providers session={session} hideQuickLogFab={false}>
+            <Providers session={session}>
               <ProfilingHydrationMarker />
-              <AppLayout unreadCount={0} hideQuickLogFab={false}>
+              <AppLayout unreadCount={0}>
                 {children}
               </AppLayout>
               <Analytics />

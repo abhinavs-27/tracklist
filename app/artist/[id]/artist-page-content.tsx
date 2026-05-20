@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { RecordRecentView } from "@/components/logging/record-recent-view";
 import {
   isArtistPageDebugEnabled,
   withArtistPagePhaseLog,
@@ -83,19 +82,6 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
     <div className="h-[4.5rem] md:hidden" />
 
     <div className="space-y-8">
-      {session && heroTrack ? (
-        <RecordRecentView
-          kind="artist"
-          id={entityId}
-          title={artist.name}
-          subtitle={artist.genres?.length ? artist.genres.slice(0, 5).join(" · ") : "Artist"}
-          artworkUrl={image ?? null}
-          trackId={heroTrack.id}
-          albumId={heroTrack.album?.id ?? null}
-          artistId={entityId}
-        />
-      ) : null}
-
       {/* Hero — album-page style: blurred bg + full photo at proper size */}
       <div className="relative overflow-hidden rounded-2xl bg-zinc-900">
         {image && (

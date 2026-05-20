@@ -54,22 +54,6 @@ test.describe('Extended UI Critical Flows', () => {
     await expect(page.getByRole('dialog')).not.toBeVisible();
   });
 
-  test('UI: Logging a listen from button', async ({ page }) => {
-    await page.route('**/api/logs', async (route) => {
-      if (route.request().method() === 'POST') {
-        return route.fulfill({ status: 200, body: JSON.stringify({ id: 'l1' }) });
-      }
-    });
-
-    await page.goto('/e2e/logging');
-    const [request] = await Promise.all([
-      page.waitForRequest(r => r.url().includes('/api/logs') && r.method() === 'POST'),
-      page.getByRole('button', { name: /mock log listen/i }).click()
-    ]);
-
-    expect(request.postDataJSON().track_id).toBe('track_demo_1');
-  });
-
   test('UI: Search interaction shows results', async ({ page }) => {
     // Note: SearchPageContent is a server component, so page.route on /api/search
     // won't work for the initial server render. We test the search bar and results display.

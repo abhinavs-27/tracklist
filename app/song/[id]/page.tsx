@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense, use } from "react";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
-import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { getRelatedMedia } from "@/lib/discovery/getRelatedMedia";
 import {
   getReviewsForEntity,
@@ -128,14 +127,6 @@ export default async function SongPage({ params }: { params: PageParams }) {
 
   return (
     <div className="space-y-8">
-      {session && (
-        <RecordRecentView
-          kind="song" id={entityId} title={track.name}
-          subtitle={primaryArtist?.name ?? ""} artworkUrl={image ?? null}
-          trackId={track.id} albumId={album?.id ?? null}
-          artistId={primaryArtist?.id ?? null}
-        />
-      )}
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">

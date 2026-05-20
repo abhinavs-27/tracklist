@@ -100,48 +100,6 @@ test.describe('Critical Flows Integration', () => {
     expect(errorResult.body.error).toContain('between 1 and 5');
   });
 
-  test('Flow: Logging Listens', async ({ page }) => {
-    // 1. Mock the logs API
-    await page.route('**/api/logs', async (route) => {
-      if (route.request().method() === 'POST') {
-        const body = route.request().postDataJSON();
-        if (!body.track_id) {
-          return route.fulfill({
-            status: 400,
-            contentType: 'application/json',
-            body: JSON.stringify({ error: 'Missing track_id' }),
-          });
-        }
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ id: 'log-uuid', ...body }),
-        });
-      }
-    });
-
-    // 2. UI Flow
-    await page.goto('/e2e/logging');
-    const [response] = await Promise.all([
-      page.waitForResponse(res => res.url().includes('/api/logs') && res.status() === 200),
-      page.getByRole('button', { name: /mock log listen/i }).click()
-    ]);
-
-    const result = await response.json();
-    expect(result.track_id).toBe('track_demo_1');
-
-    // 3. API Error Case
-    const errorResult = await page.evaluate(async () => {
-      const res = await fetch('/api/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'manual' })
-      });
-      return { status: res.status };
-    });
-    expect(errorResult.status).toBe(400);
-  });
-
   test('Flow: Spotify Ingestion (API)', async ({ page }) => {
     await page.route('**/api/spotify/sync', async (route) => {
       if (route.request().method() === 'POST') {

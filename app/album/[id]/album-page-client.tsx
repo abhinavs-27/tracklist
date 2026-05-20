@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { RecordRecentView } from "@/components/logging/record-recent-view";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { TrackRating } from "@/app/album/[id]/track-rating";
 import { TrackCard } from "@/components/track-card";
@@ -155,12 +154,6 @@ export function AlbumPageClient({
     <div className="h-12 md:hidden" />
 
     <div className="space-y-10">
-      {session && firstTrack && (
-        <RecordRecentView kind="album" id={id} title={album.name}
-          subtitle={album.artists?.map((a) => a.name).join(", ") ?? ""}
-          artworkUrl={image ?? null} trackId={firstTrack.id} albumId={id}
-          artistId={album.artists?.[0]?.id ?? null} />
-      )}
 
       {/* ── Hero — clean, no background tricks ───────────── */}
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
