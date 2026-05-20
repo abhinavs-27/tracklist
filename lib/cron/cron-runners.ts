@@ -247,13 +247,19 @@ export async function runTasteIdentityRefresh(): Promise<{
   let processed = 0;
   let failures = 0;
 
-  for (const userId of userIds) {
-    try {
-      await refreshTasteIdentityCacheForUser(userId);
-      processed += 1;
-    } catch (e) {
-      console.error(LOG, "taste-identity refresh failed", userId, e);
-      failures += 1;
+  const CONCURRENCY = 10;
+  for (let i = 0; i < userIds.length; i += CONCURRENCY) {
+    const chunk = userIds.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      chunk.map((userId) => refreshTasteIdentityCacheForUser(userId)),
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        processed += 1;
+      } else {
+        console.error(LOG, "taste-identity refresh failed", r.reason);
+        failures += 1;
+      }
     }
   }
 
