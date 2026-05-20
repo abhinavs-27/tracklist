@@ -5,10 +5,6 @@ import {
   type HydrateStatsCatalogResult,
 } from "@/lib/cron/hydrate-stats-catalog";
 import { populatePrecomputedCaches } from "@/lib/cron/populate-precomputed-caches";
-import {
-  computeSongCooccurrence,
-  computeAlbumCooccurrence,
-} from "@/lib/discovery/computeCooccurrence";
 import { syncLastfmScrobblesForUser } from "@/lib/lastfm/sync-user-scrobbles";
 import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
 import { computeAllCommunitiesWeekly } from "@/lib/community/compute-community-weekly";
@@ -185,12 +181,32 @@ export async function runRefreshStats(): Promise<{
 
 export async function runComputeCooccurrence(): Promise<{
   ok: true;
-  songs: Awaited<ReturnType<typeof computeSongCooccurrence>>;
-  albums: Awaited<ReturnType<typeof computeAlbumCooccurrence>>;
+  songs: { pairs_written: number };
+  albums: { pairs_written: number };
 }> {
-  const songResult = await computeSongCooccurrence();
-  const albumResult = await computeAlbumCooccurrence();
-  return { ok: true, songs: songResult, albums: albumResult };
+  const admin = createSupabaseAdminClient();
+
+  const { data: songData, error: songErr } = await admin.rpc(
+    "compute_song_cooccurrence_in_db",
+  );
+  if (songErr) throw new Error(songErr.message);
+
+  const { data: albumData, error: albumErr } = await admin.rpc(
+    "compute_album_cooccurrence_in_db",
+  );
+  if (albumErr) throw new Error(albumErr.message);
+
+  const songs = {
+    pairs_written:
+      (songData?.[0] as { pairs_written: number } | undefined)?.pairs_written ?? 0,
+  };
+  const albums = {
+    pairs_written:
+      (albumData?.[0] as { pairs_written: number } | undefined)?.pairs_written ?? 0,
+  };
+
+  console.log(LOG, "co-occurrence done", { songs, albums });
+  return { ok: true, songs, albums };
 }
 
 export async function runLastfmSync(): Promise<{
