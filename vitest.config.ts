@@ -11,6 +11,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', '**/tests/**'],
     alias: {
       '@': path.resolve(__dirname, './'),
+      'server-only': path.resolve(__dirname, 'tests/mocks/empty.js'),
     },
   },
 });

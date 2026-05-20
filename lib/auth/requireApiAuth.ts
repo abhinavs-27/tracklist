@@ -130,6 +130,30 @@ export async function getUserFromRequest(
 ): Promise<User | null> {
   try {
     const session = await getSession();
+
+    // 1. If we have a session with a valid user ID, trust it.
+    // NextAuth sessions are already validated by the JWT/Cookie.
+    const sessionUserId =
+      session?.user &&
+      typeof (session.user as { id?: string }).id === "string"
+        ? (session.user as { id: string }).id
+        : null;
+
+    if (sessionUserId && isValidUuid(sessionUserId)) {
+      const su = session!.user!;
+      // NextAuth session often has the metadata we need.
+      // Returning this directly saves a database round-trip (findOrCreateUser).
+      return {
+        id: sessionUserId,
+        email: su.email ?? undefined,
+        username: (su as any).username ?? su.name ?? "user",
+        avatar_url: (su as any).avatar_url ?? su.image ?? null,
+        bio: (su as any).bio ?? null,
+        created_at: (su as any).created_at ?? undefined,
+      };
+    }
+
+    // 2. Fallback: Lookup by email if ID is missing (rare for active sessions).
     const sessionEmail = session?.user?.email;
     if (
       session &&
@@ -149,24 +173,6 @@ export async function getUserFromRequest(
           image,
         },
       });
-    }
-
-    /** Email sometimes missing from the session; resolve by stable DB id if present. */
-    const sessionUserId =
-      session?.user &&
-      typeof (session.user as { id?: string }).id === "string"
-        ? (session.user as { id: string }).id
-        : null;
-    if (sessionUserId && isValidUuid(sessionUserId)) {
-      const supabase = createSupabaseServiceRoleClient();
-      const { data: byId, error: byIdErr } = await supabase
-        .from("users")
-        .select("id, email, username, avatar_url, bio, created_at")
-        .eq("id", sessionUserId)
-        .maybeSingle();
-      if (!byIdErr && byId) {
-        return rowToUser(byId);
-      }
     }
 
     let authHeader = getAuthorizationHeader(request);

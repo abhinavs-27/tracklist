@@ -26,15 +26,17 @@ export function withHandler(handler: APIHandler, options: HandlerOptions = {}) {
     { params }: { params?: Promise<Record<string, string>> | Record<string, string> } = {}
   ): Promise<NextResponse> => {
     try {
-      const resolvedParams = params ? await params : {};
-      const context: HandlerContext = { params: resolvedParams };
+      // Parallelize params resolution and user authentication.
+      const [resolvedParams, user] = await Promise.all([
+        params ? Promise.resolve(params) : Promise.resolve({}),
+        options.requireAuth ? requireApiAuth(request) : getUserFromRequest(request),
+      ]);
 
-      if (options.requireAuth) {
-        context.user = await requireApiAuth(request);
-      } else {
-        context.user = (await getUserFromRequest(request)) ?? undefined;
-      }
-      context.userId = context.user?.id;
+      const context: HandlerContext = {
+        params: resolvedParams,
+        user: user ?? undefined,
+        userId: user?.id,
+      };
 
       return await handler(request, context);
     } catch (e) {

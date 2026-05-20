@@ -206,19 +206,10 @@ export default async function HomePage({
   const userId = session.user.id;
   const username = session.user.username ?? session.user.name ?? "you";
 
-  // Phase 1: Onboarding check + initial render.
-  const { data: onboardingRow, error: onboardingErr } = await createSupabaseAdminClient()
-    .from("users")
-    .select("onboarding_completed")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (onboardingErr) {
-    console.error("[home] onboarding_completed lookup failed", onboardingErr);
-  } else if (
-    onboardingRow &&
-    (onboardingRow as { onboarding_completed: boolean }).onboarding_completed !== true
-  ) {
+  // Phase 1: Onboarding check.
+  // Use the value from the session/JWT to avoid a database lookup.
+  // NextAuth 'jwt' callback in route.ts ensures this is synced from the DB.
+  if ((session.user as any).onboarding_completed === false) {
     redirect("/onboarding");
   }
 
