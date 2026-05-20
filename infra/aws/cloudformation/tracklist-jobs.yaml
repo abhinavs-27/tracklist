@@ -101,8 +101,8 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: tracklist-cron-compute-cooccurrence
-      Description: Daily 00:30 UTC — COMPUTE_COOCCURRENCE
-      ScheduleExpression: cron(30 0 * * ? *)
+      Description: Weekly Sunday 03:30 UTC — COMPUTE_COOCCURRENCE
+      ScheduleExpression: cron(30 3 ? * SUN *)
       State: ENABLED
       Targets:
         - Id: SqsCooccurrence
@@ -127,8 +127,8 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: tracklist-cron-taste-identity
-      Description: Daily 00:00 UTC — TASTE_IDENTITY_REFRESH
-      ScheduleExpression: cron(0 0 * * ? *)
+      Description: Weekly Monday 00:00 UTC — TASTE_IDENTITY_REFRESH
+      ScheduleExpression: cron(0 0 ? * MON *)
       State: ENABLED
       Targets:
         - Id: SqsTaste
@@ -205,8 +205,8 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: tracklist-cron-upgrade-lastfm-album-covers
-      Description: Daily 02:50 UTC — UPGRADE_LASTFM_ALBUM_COVERS
-      ScheduleExpression: cron(50 2 * * ? *)
+      Description: Monthly 1st 02:50 UTC — UPGRADE_LASTFM_ALBUM_COVERS
+      ScheduleExpression: cron(50 2 1 * ? *)
       State: ENABLED
       Targets:
         - Id: SqsUpgradeCovers
