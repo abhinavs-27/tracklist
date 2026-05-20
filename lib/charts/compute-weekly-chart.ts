@@ -69,7 +69,8 @@ export async function computeWeeklyChart(args: {
     .eq("user_id", args.userId)
     .eq("chart_type", dbType)
     .lt("week_start", args.weekStart.toISOString())
-    .order("week_start", { ascending: true });
+    .order("week_start", { ascending: false })
+    .limit(52);
 
   const currentRows = top.map((row, i) => ({
     entity_id: row.entity_id,
