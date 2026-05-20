@@ -337,42 +337,56 @@ export async function runBillboardWeeklyEmail(): Promise<{
   let sendFailed = 0;
   let firstSendError: string | undefined;
 
-  for (const userId of userIds) {
-    const { data: userRow, error: userErr } = await admin
-      .from("users")
-      .select("email, billboard_weekly_email_last_week")
-      .eq("id", userId)
-      .maybeSingle();
+  // Batch-fetch all candidate users in one query (was N individual SELECTs)
+  const { data: userRows, error: usersErr } = await admin
+    .from("users")
+    .select("id, email, billboard_weekly_email_last_week")
+    .in("id", userIds);
 
-    if (userErr || !userRow?.email) {
+  if (usersErr) throw new Error(usersErr.message);
+
+  const sentUserIds: string[] = [];
+
+  for (const userRow of userRows ?? []) {
+    const { id: userId, email, billboard_weekly_email_last_week } = userRow as {
+      id: string;
+      email: string | null;
+      billboard_weekly_email_last_week: string | null;
+    };
+
+    if (!email) {
       skippedNoEmail += 1;
       continue;
     }
 
-    if (userRow.billboard_weekly_email_last_week === weekStart) {
+    if (billboard_weekly_email_last_week === weekStart) {
       skippedAlready += 1;
       continue;
     }
 
     const sendResult = await sendBillboardWeeklyDigestEmail({
       userId,
-      email: userRow.email,
+      email,
       weekStart,
     });
 
     if (sendResult.ok) {
-      const { error: upErr } = await admin
-        .from("users")
-        .update({ billboard_weekly_email_last_week: weekStart })
-        .eq("id", userId);
-      if (upErr) {
-        console.error(LOG, "billboard-weekly-email update", upErr);
-      } else {
-        sent += 1;
-      }
+      sentUserIds.push(userId);
+      sent += 1;
     } else {
       sendFailed += 1;
       if (!firstSendError) firstSendError = sendResult.reason;
+    }
+  }
+
+  // Batch-update all successful sends in one query (was N individual UPDATEs)
+  if (sentUserIds.length > 0) {
+    const { error: upErr } = await admin
+      .from("users")
+      .update({ billboard_weekly_email_last_week: weekStart })
+      .in("id", sentUserIds);
+    if (upErr) {
+      console.error(LOG, "billboard-weekly-email batch update", upErr);
     }
   }
 
