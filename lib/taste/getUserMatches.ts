@@ -1,26 +1,11 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import {
-  buildNormalizedTasteVector,
-  countArtistPlaysFromLogs,
-  fetchSongsArtistIds,
-  normalizeTasteVector,
-  TASTE_LOOKBACK_MS,
-  type LogRow,
-} from "@/lib/taste/buildTasteVector";
 import { cosineSimilarity } from "@/lib/taste/cosineSimilarity";
+import type { TasteIdentity, TasteTopArtist } from "@/lib/taste/types";
 
 const CANDIDATE_LIMIT = 80;
 const TOP_N = 10;
-
-/** One query for all candidates’ logs; cap rows to keep PostgREST + Node work bounded. */
-function matchQueryLogLimit(): number {
-  const raw = process.env.TASTE_MATCH_LOGS_LIMIT?.trim();
-  if (!raw) return 12_000;
-  const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 50_000) : 12_000;
-}
 
 export type UserTasteMatch = {
   userId: string;
@@ -28,7 +13,31 @@ export type UserTasteMatch = {
 };
 
 /**
- * Cosine similarity vs other users (last 30d artist vectors). Top 10.
+ * Build a normalized artist-weight vector from precomputed topArtists.
+ * Normalizes by total play count so two users with different activity
+ * levels are compared on relative taste, not raw volume.
+ */
+function vectorFromTopArtists(
+  artists: TasteTopArtist[],
+): Record<string, number> {
+  if (!artists.length) return {};
+  const total = artists.reduce((s, a) => s + (a.listenCount ?? 0), 0);
+  if (total <= 0) return {};
+  const out: Record<string, number> = {};
+  for (const a of artists) {
+    if (a.id && (a.listenCount ?? 0) > 0) {
+      out[a.id] = a.listenCount / total;
+    }
+  }
+  return out;
+}
+
+/**
+ * Cosine-similarity taste matches using `taste_identity_cache`.
+ *
+ * Previous approach: scan 12,000 raw log rows from 80 candidates + resolve
+ * all track_ids to artist_ids. Replaced with a single batch read of the
+ * precomputed cache — orders of magnitude faster.
  */
 export async function getUserMatches(
   userId: string,
@@ -36,13 +45,23 @@ export async function getUserMatches(
   const uid = userId?.trim();
   if (!uid) return [];
 
-  const mine = await buildNormalizedTasteVector(uid);
+  const admin = createSupabaseAdminClient();
+
+  // Fetch viewing user's precomputed taste identity.
+  const { data: myRow } = await admin
+    .from("taste_identity_cache")
+    .select("payload")
+    .eq("user_id", uid)
+    .maybeSingle();
+
+  const myPayload = myRow?.payload as TasteIdentity | null;
+  const mine = vectorFromTopArtists(myPayload?.topArtists ?? []);
+
   let mineEnergy = 0;
   for (const v of Object.values(mine)) mineEnergy += v * v;
   if (mineEnergy === 0) return [];
 
-  const admin = createSupabaseAdminClient();
-
+  // Candidate users — most recently created.
   const { data: candRows, error: candErr } = await admin
     .from("users")
     .select("id")
@@ -52,48 +71,32 @@ export async function getUserMatches(
 
   if (candErr || !candRows?.length) return [];
 
-  const candidateIds = (candRows as { id: string }[])
-    .map((r) => r.id)
-    .filter(Boolean);
+  const candidateIds = (candRows as { id: string }[]).map((r) => r.id);
 
-  const since = new Date(Date.now() - TASTE_LOOKBACK_MS).toISOString();
+  // One batch read replaces 12k log rows + track resolution.
+  const { data: cacheRows, error: cacheErr } = await admin
+    .from("taste_identity_cache")
+    .select("user_id, payload")
+    .in("user_id", candidateIds);
 
-  const { data: logRows, error: logErr } = await admin
-    .from("logs")
-    .select("user_id, listened_at, artist_id, track_id")
-    .in("user_id", candidateIds)
-    .gte("listened_at", since)
-    .order("listened_at", { ascending: true })
-    .limit(matchQueryLogLimit());
-
-  if (logErr) {
-    console.error("[getUserMatches] logs", logErr);
+  if (cacheErr) {
+    console.error("[getUserMatches] taste_identity_cache fetch", cacheErr);
     return [];
   }
 
-  const byUser = new Map<string, LogRow[]>();
-  for (const row of (logRows ?? []) as LogRow[]) {
-    const list = byUser.get(row.user_id) ?? [];
-    list.push(row);
-    byUser.set(row.user_id, list);
+  const payloadByUser = new Map<string, TasteIdentity>();
+  for (const row of (cacheRows ?? []) as { user_id: string; payload: TasteIdentity }[]) {
+    if (row.payload) payloadByUser.set(row.user_id, row.payload);
   }
-
-  const allLogs = (logRows ?? []) as LogRow[];
-  const allTrackIds = [
-    ...new Set(allLogs.map((l) => l.track_id).filter(Boolean)),
-  ] as string[];
-  const songMap = await fetchSongsArtistIds(admin, allTrackIds);
 
   const scored: UserTasteMatch[] = [];
 
   for (const cid of candidateIds) {
-    const logs = byUser.get(cid) ?? [];
-    if (logs.length === 0) continue;
-    const totalLogs = logs.length;
-    const counts = countArtistPlaysFromLogs(logs, songMap);
-    const their = normalizeTasteVector(counts, totalLogs);
+    const payload = payloadByUser.get(cid);
+    if (!payload?.topArtists?.length) continue;
+    const their = vectorFromTopArtists(payload.topArtists);
     const sim = cosineSimilarity(mine, their);
-    scored.push({ userId: cid, similarityScore: sim });
+    if (sim > 0) scored.push({ userId: cid, similarityScore: sim });
   }
 
   scored.sort((a, b) => b.similarityScore - a.similarityScore);

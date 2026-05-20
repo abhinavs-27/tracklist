@@ -233,7 +233,7 @@ export default async function ProfilePage({
           spotifyConnected={spotifyConnected}
           logsPrivate={user.logs_private ?? false}
           userListsPromise={getCachedUserListsWithPreviews(user.id, 50, 0).catch(() => [])}
-          tasteIdentityPromise={getCachedTasteIdentity(user.id).catch(() => EMPTY_TASTE)}
+          tasteIdentityPromise={Promise.resolve(tasteForHero ?? EMPTY_TASTE)}
           userMatchesPromise={getCachedUserMatches(user.id).catch(() => undefined)}
         />
       </Suspense>

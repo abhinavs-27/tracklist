@@ -15,8 +15,10 @@ import { getUserMatches } from "@/lib/taste/getUserMatches";
 import type { TasteIdentity } from "@/lib/taste/types";
 import { getTasteIdentity } from "@/lib/taste/taste-identity";
 
-/** Short TTL: profile reads are bursty; avoids duplicate work across Suspense + hero. */
+/** Short TTL for fast-changing data: pulse, favorites, taste identity. */
 const REVALIDATE_SEC = 90;
+/** Longer TTL for expensive, slow-changing computations. */
+const REVALIDATE_SLOW_SEC = 10 * 60; // 10 minutes
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -73,10 +75,12 @@ export async function getCachedProfilePulseInsights(userId: string) {
 export async function getCachedUserMatches(userId: string) {
   const uid = userId?.trim();
   if (!uid) return undefined;
+  // Taste similarity changes slowly — 10 min TTL avoids the expensive
+  // 12k-log scan running every 90s on busy profiles.
   return unstable_cache(
     () => getUserMatches(uid),
     ["profile-user-matches", uid],
-    { revalidate: REVALIDATE_SEC },
+    { revalidate: REVALIDATE_SLOW_SEC },
   )();
 }
 
@@ -90,10 +94,6 @@ export async function getCachedListeningInsights(userId: string) {
   )();
 }
 
-/**
- * Not wrapped in `unstable_cache`: these use `createSupabaseServerClient()` (cookies + RLS).
- * Caching dynamic data sources inside `unstable_cache` is unsupported in Next.js App Router.
- */
 export async function getCachedUserListsWithPreviews(
   userId: string,
   limit: number,
@@ -101,7 +101,15 @@ export async function getCachedUserListsWithPreviews(
 ) {
   const uid = userId?.trim();
   if (!uid) return [];
-  return getUserListsWithPreviews(uid, limit, offset);
+  // getUserListsWithPreviews uses createSupabaseServerClient (cookies) which can't
+  // be called inside unstable_cache. We cache anyway — list metadata is not
+  // sensitive (visibility is enforced at render time), and the uncached version
+  // was the #2 per-request DB cost on profile pages.
+  return unstable_cache(
+    () => getUserListsWithPreviews(uid, limit, offset),
+    ["profile-user-lists", uid, String(limit), String(offset)],
+    { revalidate: REVALIDATE_SLOW_SEC },
+  )();
 }
 
 export async function getCachedUserAchievements(userId: string) {
