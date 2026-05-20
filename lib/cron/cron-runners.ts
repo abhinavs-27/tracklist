@@ -16,7 +16,7 @@ import { runUpgradeLastfmAlbumCovers as upgradeLastfmAlbumCoversCatalog } from "
 const LOG = "[cron-runners]";
 
 const MAX_LASTFM_USERS_PER_RUN = 50;
-const MAX_TASTE_IDENTITY_USERS_PER_RUN = 35;
+const MAX_TASTE_IDENTITY_USERS_PER_RUN = 500;
 
 async function resolveTasteIdentityCronUserIds(): Promise<string[]> {
   const admin = createSupabaseAdminClient();
