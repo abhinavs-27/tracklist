@@ -318,9 +318,50 @@ export async function aggregateLogsIntoWeeklyTop10(
 }
 
 /**
+ * Fast path: reads pre-aggregated play counts from user_listening_aggregates.
+ * Returns empty array if no aggregate rows exist for this week (triggers fallback to log scan).
+ * weekStart must be "YYYY-MM-DD" Monday UTC matching the aggregates table’s week_start column.
+ */
+export async function aggregateWeeklyTop10FromAggregates(args: {
+  userId: string;
+  weekStart: string;
+  chartType: ChartType;
+}): Promise<AggregatedPlay[]> {
+  const admin = createSupabaseAdminClient();
+
+  const entityType =
+    args.chartType === "tracks"
+      ? "track"
+      : args.chartType === "artists"
+        ? "artist"
+        : "album";
+
+  const { data, error } = await admin
+    .from("user_listening_aggregates")
+    .select("entity_id, count")
+    .eq("user_id", args.userId)
+    .eq("entity_type", entityType)
+    .eq("week_start", args.weekStart)
+    .order("count", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.warn("[weekly-chart] aggregates read", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((r) => ({
+    entity_id: (r as { entity_id: string; count: number }).entity_id,
+    play_count: (r as { entity_id: string; count: number }).count,
+    last_played_at: args.weekStart,
+  }));
+}
+
+/**
  * Raw play counts from `logs` for the window; tie-break by latest listen (stable).
  * Catalog lookups are chunked so large weeks don’t miss rows. Album/artist keys use
  * resolved IDs with defensive fallbacks to `logs.album_id` / `logs.artist_id`.
+ * Tries the pre-aggregated table first; falls back to log scan if no rows exist.
  */
 export async function aggregateWeeklyTop10(args: {
   userId: string;
@@ -328,11 +369,24 @@ export async function aggregateWeeklyTop10(args: {
   endExclusiveIso: string;
   chartType: ChartType;
 }): Promise<AggregatedPlay[]> {
+  // Convert startIso (e.g. "2025-01-06T00:00:00.000Z") to "YYYY-MM-DD"
+  const weekStart = args.startIso.slice(0, 10);
+
+  const fromAggregates = await aggregateWeeklyTop10FromAggregates({
+    userId: args.userId,
+    weekStart,
+    chartType: args.chartType,
+  });
+
+  if (fromAggregates.length > 0) {
+    return fromAggregates;
+  }
+
+  // Fallback: no aggregate rows for this week — re-aggregate from raw logs.
   const logs = await fetchLogsWindow({
     userId: args.userId,
     startIso: args.startIso,
     endExclusiveIso: args.endExclusiveIso,
   });
-
   return aggregateLogsIntoWeeklyTop10(logs, args.chartType);
 }
