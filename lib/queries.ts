@@ -3602,7 +3602,7 @@ export async function getFullUserProfile(
         "id, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at",
       )
       .eq("username", username.trim())
-      .single();
+      .maybeSingle();
 
     if (error || !userRow) return null;
     const user = { ...userRow, username };
