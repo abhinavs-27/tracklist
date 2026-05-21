@@ -5,6 +5,13 @@ import type { NextConfig } from "next";
 loadEnvConfig(process.cwd());
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "i.scdn.co" },           // Spotify album art
+      { protocol: "https", hostname: "lastfm.freetls.fastly.net" }, // Last.fm album art
+      { protocol: "https", hostname: "*.discogs.com" },        // Discogs
+    ],
+  },
   /** Allow dev HMR / fonts when the site is opened via 127.0.0.1 instead of localhost. */
   allowedDevOrigins: ["127.0.0.1"],
   /** gzip for `next start`; Vercel also applies Brotli/gzip at the edge. */

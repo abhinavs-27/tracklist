@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import {
   Platform,
   Pressable,
@@ -19,6 +19,8 @@ import {
   type ExploreRangeParam,
 } from "@/lib/hooks/useExploreDiscoveryBundle";
 import { useRisingArtists } from "@/lib/hooks/useDiscover";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { fetcher } from "@/lib/api";
 import type { RisingArtist } from "@repo/types";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
@@ -518,13 +520,38 @@ const comStyles = StyleSheet.create({
   },
 });
 
+type LovedByFriendsItem = {
+  kind: "album";
+  id: string;
+  name: string;
+  artist: string;
+  image_url: string | null;
+  href: string;
+  stat_label: string;
+};
+
 export default function ExploreScreen() {
   const router = useRouter();
+  const { session } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState<ExploreRangeParam>("week");
+  const [talkMode, setTalkMode] = useState<"discussed" | "friends">("discussed");
+  const [lovedByFriends, setLovedByFriends] = useState<LovedByFriendsItem[]>([]);
+  const [lovedLoading, setLovedLoading] = useState(false);
   const { data, isPending, isError, refetch, isFetching } =
     useExploreDiscoveryBundle(range);
   const { data: risingArtists = [] } = useRisingArtists(20);
+
+  useEffect(() => {
+    if (talkMode !== "friends" || !session) return;
+    let cancelled = false;
+    setLovedLoading(true);
+    fetcher<{ items: LovedByFriendsItem[] }>("/api/explore/loved-by-friends")
+      .then((res) => { if (!cancelled) setLovedByFriends(res.items ?? []); })
+      .catch(() => { if (!cancelled) setLovedByFriends([]); })
+      .finally(() => { if (!cancelled) setLovedLoading(false); });
+    return () => { cancelled = true; };
+  }, [talkMode, session]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -687,10 +714,61 @@ export default function ExploreScreen() {
             </DiscoverSection>
 
             <DiscoverSection
-              title="Most talked about"
-              description="Albums and songs sparking the most reviews."
+              title={talkMode === "friends" ? "Loved by friends" : "Most talked about"}
+              description={
+                talkMode === "friends"
+                  ? "Albums your friends have rated highly."
+                  : "Albums and songs sparking the most reviews."
+              }
             >
-              {talked.length > 0 ? (
+              {/* Toggle — only shown when logged in */}
+              {session ? (
+                <View style={{ flexDirection: "row", gap: 6, marginBottom: 10, paddingHorizontal: 18 }}>
+                  {(["discussed", "friends"] as const).map((m) => (
+                    <Pressable
+                      key={m}
+                      onPress={() => setTalkMode(m)}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: talkMode === m ? theme.colors.emerald : "rgba(63,63,70,0.8)",
+                        backgroundColor: talkMode === m ? "rgba(16,185,129,0.1)" : "rgba(24,24,27,0.5)",
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 12, fontWeight: "600",
+                        color: talkMode === m ? "#6ee7b7" : theme.colors.muted,
+                      }}>
+                        {m === "discussed" ? "Most discussed" : "Loved by friends"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
+              {talkMode === "friends" ? (
+                lovedLoading ? (
+                  <View style={styles.inlineEmpty}>
+                    <Text style={styles.inlineEmptyText}>Loading…</Text>
+                  </View>
+                ) : lovedByFriends.length > 0 ? (
+                  <View style={{ gap: 10 }}>
+                    {lovedByFriends.map((item: LovedByFriendsItem) => (
+                      <TalkedAboutRow
+                        key={item.id}
+                        item={{ ...item, movement: { rank_delta: 0, badge: null }, review_snippet: null } as unknown as ExploreDiscoveryReviewEntityItem}
+                        onPress={() => navigateHref(item.href)}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.inlineEmpty}>
+                    <Text style={styles.inlineEmptyText}>
+                      No ratings from people you follow yet — follow more music fans to see this.
+                    </Text>
+                  </View>
+                )
+              ) : talked.length > 0 ? (
                 <View style={{ gap: 10 }}>
                   {talked.map((item) => (
                     <TalkedAboutRow

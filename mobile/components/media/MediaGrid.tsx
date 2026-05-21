@@ -34,7 +34,7 @@ export function MediaGrid({ data, numColumns = 2, onPressItem, onPressInItem, sc
       <TouchableOpacity style={[styles.tile, { width: tileWidth }]} activeOpacity={0.8} onPress={() => onPressItem?.(item)} onPressIn={() => onPressInItem?.(item)}>
         <View style={styles.artWrap}>
           {item.artworkUrl ? (
-            <Image source={{ uri: item.artworkUrl }} style={styles.art} contentFit="cover" />
+            <Image source={{ uri: item.artworkUrl }} style={styles.art} contentFit="cover" transition={200} cachePolicy="memory-disk" recyclingKey={item.artworkUrl} />
           ) : (
             <View style={[styles.art, styles.artPlaceholder]}>
               <Text style={styles.artGlyph}>♪</Text>

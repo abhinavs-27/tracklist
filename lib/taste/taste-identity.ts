@@ -11,6 +11,7 @@ import {
   upsertArtistFromSpotify,
 } from "@/lib/spotify-cache";
 import { scheduleEnrichArtistGenresForArtistIds } from "./enrich-artist-genres";
+import { ratingsToArtistCountMap } from "./ratings-weight";
 import {
   normalizeListeningStyle,
   type TasteListeningStyle,
@@ -266,14 +267,11 @@ function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   const diversityScore = normalizeDiversityScore(cached.diversityScore);
   const base = { ...cached, listeningStyle, diversityScore };
   if (base.totalLogs === 0) {
-    /** Onboarding seed: favorite albums and/or artist picks before first log. */
-    if (
-      (base.topArtists.length > 0 || base.topAlbums.length > 0) &&
-      base.summary?.trim()
-    ) {
-      return { ...base, recent: undefined };
-    }
-    return { ...base, summary: EMPTY.summary, recent: undefined };
+    const ratingCount = base.topAlbums.length;
+    const coldSummary = ratingCount > 0
+      ? `Rated ${ratingCount} album${ratingCount === 1 ? "" : "s"} · taste profile built from your ratings`
+      : EMPTY.summary;
+    return { ...base, summary: coldSummary, recent: undefined };
   }
   return { ...base, summary: buildSummary(base) };
 }
@@ -965,6 +963,34 @@ async function fetchAlbumsBatch(
   return out;
 }
 
+/** Fetches all album reviews (rating ≥ 3) for a user, resolved to artistId. */
+async function fetchUserAlbumRatings(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<import("./ratings-weight").RatingEntry[]> {
+  const { data, error } = await admin
+    .from("reviews")
+    .select("entity_id, rating")
+    .eq("user_id", userId)
+    .eq("entity_type", "album")
+    .gte("rating", 3);
+
+  if (error || !data?.length) return [];
+
+  const albumIds = data.map((r) => (r as { entity_id: string; rating: number }).entity_id);
+  const albumMeta = await fetchAlbumsBatch(admin, albumIds);
+
+  return data.map((r) => {
+    const row = r as { entity_id: string; rating: number };
+    const album = albumMeta.get(row.entity_id);
+    return {
+      albumId: row.entity_id,
+      artistId: album?.artist_id ?? "",
+      rating: row.rating,
+    };
+  });
+}
+
 async function enrichTopArtistsFromSpotify(
   admin: SupabaseClient,
   artistIdsMissingImage: string[],
@@ -993,11 +1019,20 @@ export async function computeTasteIdentity(
     getTotalPlayCount(admin, userId),
   ]);
 
-  if (totalLogs === 0 && artistAgg.length === 0) {
+  const ratingEntries = await fetchUserAlbumRatings(admin, userId);
+  const ratingArtistCounts = ratingsToArtistCountMap(ratingEntries);
+
+  if (totalLogs === 0 && artistAgg.length === 0 && ratingArtistCounts.size === 0) {
     return { ...EMPTY };
   }
 
   const artistCounts = new Map(artistAgg.map((r) => [r.entity_id, r.count]));
+  // Merge ratings-derived synthetic weights into log-derived counts.
+  // For zero-log users, ratings carry the full signal.
+  // For active listeners, the small synthetic weights (max 15/album) are a minor nudge.
+  for (const [artistId, syntheticCount] of ratingArtistCounts) {
+    artistCounts.set(artistId, (artistCounts.get(artistId) ?? 0) + syntheticCount);
+  }
   const albumCounts = new Map(albumAgg.map((r) => [r.entity_id, r.count]));
   const artistIdsForMeta = new Set(artistCounts.keys());
 
@@ -1103,7 +1138,8 @@ export async function computeTasteIdentity(
   for (const c of artistCounts.values()) {
     if (c > maxArtistPlays) maxArtistPlays = c;
   }
-  const topArtistShare = totalLogs > 0 ? maxArtistPlays / totalLogs : 0;
+  const totalSignal = [...artistCounts.values()].reduce((a, b) => a + b, 0);
+  const topArtistShare = totalSignal > 0 ? maxArtistPlays / totalSignal : 0;
 
   const avgTrackPopularity =
     popularities.length > 0
@@ -1289,6 +1325,44 @@ export async function refreshTasteIdentityCacheForUser(
   const hydrated = await hydrateTasteIdentityArtwork(admin, computed);
   await upsertTasteIdentityCache(admin, userId, hydrated);
   return hydrated;
+}
+
+/**
+ * Batch-inserts onboarding ratings to `reviews`, saves preferred_genres,
+ * and seeds taste_identity_cache. Replaces seedTasteIdentityFromFavoriteAlbums.
+ */
+export async function seedTasteIdentityFromRatings(
+  userId: string,
+  ratings: Array<{ albumId: string; rating: number; reviewText?: string }>,
+  preferredGenres: string[],
+): Promise<void> {
+  const admin = createSupabaseAdminClient();
+
+  // 1. Save preferred genres
+  if (preferredGenres.length > 0) {
+    await admin
+      .from("users")
+      .update({ preferred_genres: preferredGenres })
+      .eq("id", userId);
+  }
+
+  // 2. Batch-insert reviews (upsert so re-running onboarding doesn't duplicate)
+  const validRatings = ratings.filter((r) => r.albumId && r.rating >= 1 && r.rating <= 5);
+  if (validRatings.length > 0) {
+    const rows = validRatings.map((r) => ({
+      user_id: userId,
+      entity_type: "album" as const,
+      entity_id: r.albumId,
+      rating: r.rating,
+      review_text: r.reviewText ?? null,
+    }));
+    await admin
+      .from("reviews")
+      .upsert(rows, { onConflict: "user_id,entity_type,entity_id", ignoreDuplicates: false });
+  }
+
+  // 3. Seed taste identity using full ratings (not capped 4-album seed)
+  await refreshTasteIdentityCacheForUser(userId);
 }
 
 /**

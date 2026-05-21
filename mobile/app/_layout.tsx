@@ -1,6 +1,6 @@
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -9,12 +9,14 @@ import { NotificationsTray } from "@/components/notifications/NotificationsTray"
 import { maybeCompleteAuthSession } from "@/lib/auth-oauth";
 import { AuthProvider } from "@/lib/auth-provider";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { fetcher } from "@/lib/api";
 import { theme } from "@/lib/theme";
 
 function RootLayoutNav() {
   const { session, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const checkedOnboarding = useRef(false);
 
   useEffect(() => {
     maybeCompleteAuthSession();
@@ -24,13 +26,38 @@ function RootLayoutNav() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
-    const onOAuthCallback =
-      segments[0] === "auth" && segments[1] === "callback";
+    const inOnboardingGroup = segments[0] === "(onboarding)";
+    const onOAuthCallback = segments[0] === "auth" && segments[1] === "callback";
 
     if (!session && !inAuthGroup && !onOAuthCallback) {
+      checkedOnboarding.current = false;
       router.replace("/(auth)/login");
-    } else if (session && inAuthGroup) {
-      router.replace("/(tabs)");
+      return;
+    }
+
+    if (session && inAuthGroup) {
+      // New login — check onboarding status before sending to tabs
+      if (checkedOnboarding.current) {
+        router.replace("/(tabs)");
+        return;
+      }
+      checkedOnboarding.current = true;
+      fetcher<{ onboarding_completed?: boolean }>("/api/users/me")
+        .then((me) => {
+          if (me.onboarding_completed === false) {
+            router.replace("/(onboarding)");
+          } else {
+            router.replace("/(tabs)");
+          }
+        })
+        .catch(() => {
+          router.replace("/(tabs)");
+        });
+      return;
+    }
+
+    if (session && inOnboardingGroup && checkedOnboarding.current === false) {
+      // Already handled above
     }
   }, [session, isLoading, segments, router]);
 

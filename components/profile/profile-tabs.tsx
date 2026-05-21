@@ -2,22 +2,25 @@
 
 import { type ReactNode, useState } from "react";
 
-export type ProfileTab = "overview" | "lists" | "settings";
+export type ProfileTab = "overview" | "lists" | "reviews" | "settings";
 
 const BASE_TABS: { id: ProfileTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "lists", label: "Lists" },
+  { id: "reviews", label: "Reviews" },
 ];
 
 /** Renders all tab panes upfront (server-rendered) and switches instantly via CSS. */
 export function ProfileTabsContainer({
   overviewContent,
   listsContent,
+  reviewsContent,
   settingsContent,
   defaultTab = "overview",
 }: {
   overviewContent: ReactNode;
   listsContent: ReactNode;
+  reviewsContent: ReactNode;
   /** Only rendered when provided — settings tab is omitted for other-user profiles. */
   settingsContent?: ReactNode;
   defaultTab?: ProfileTab;
@@ -59,6 +62,9 @@ export function ProfileTabsContainer({
       </div>
       <div className={active === "lists" ? undefined : "hidden"}>
         {listsContent}
+      </div>
+      <div className={active === "reviews" ? undefined : "hidden"}>
+        {reviewsContent}
       </div>
       {settingsContent ? (
         <div className={active === "settings" ? undefined : "hidden"}>

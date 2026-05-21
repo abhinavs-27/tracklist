@@ -116,7 +116,7 @@ export default async function ProfilePage({
     redirect(`/profile/${user.id}`);
   }
 
-  const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
+  const [profileSettled, tasteForHero, favoriteAlbumsHero, reviewCountRes] = await Promise.all([
     Promise.allSettled([
       earlyCounts ? Promise.resolve(earlyCounts) : getFollowCounts(user.id),
       session?.user?.id && session.user.id !== user.id
@@ -132,6 +132,13 @@ export default async function ProfilePage({
       console.error("[profile] getCachedUserFavoriteAlbums (hero):", e);
       return [];
     }),
+    (async () => {
+      const { count } = await supabase
+        .from("reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      return count ?? 0;
+    })().catch(() => 0),
   ]);
 
   const counts =
@@ -194,6 +201,7 @@ export default async function ProfilePage({
           isFollowing={profile.is_following ?? false}
           userId={profile.id}
           viewerUserId={session?.user?.id ?? null}
+          reviewCount={reviewCountRes}
         />
 
         {/* Stats row */}
@@ -238,6 +246,7 @@ export default async function ProfilePage({
           session={session}
           spotifyConnected={spotifyConnected}
           logsPrivate={user.logs_private ?? false}
+          reviewCount={reviewCountRes}
           userListsPromise={getCachedUserListsWithPreviews(user.id, 50, 0).catch(() => [])}
           tasteIdentityPromise={Promise.resolve(tasteForHero ?? EMPTY_TASTE)}
           userMatchesPromise={getCachedUserMatches(user.id).catch(() => undefined)}

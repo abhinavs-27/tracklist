@@ -289,6 +289,7 @@ export async function getReviewsForEntity(
   entityType: "album" | "song",
   entityId: string,
   limit = 20,
+  viewerId?: string | null,
 ): Promise<ReviewsResult | null> {
   const cappedLimit = Math.min(Math.max(1, limit), 20);
   try {
@@ -367,6 +368,16 @@ export async function getReviewsForEntity(
       userId,
     );
 
+    let friendIds = new Set<string>();
+    if (viewerId) {
+      const { data: followRows } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", viewerId)
+        .limit(500);
+      friendIds = new Set((followRows ?? []).map((f) => (f as { following_id: string }).following_id));
+    }
+
     const reviews: ReviewWithUser[] = reviewRows.map((r) => {
       const u = userMap.get(r.user_id);
       const ls = likeStatMap.get(r.id);
@@ -387,6 +398,15 @@ export async function getReviewsForEntity(
           : null,
       };
     });
+
+    if (friendIds.size > 0) {
+      reviews.sort((a, b) => {
+        const aFriend = friendIds.has(a.user_id) ? 0 : 1;
+        const bFriend = friendIds.has(b.user_id) ? 0 : 1;
+        if (aFriend !== bFriend) return aFriend - bFriend;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
 
     const count = reviews.length;
     const sum = reviews.reduce((a, r) => a + r.rating, 0);

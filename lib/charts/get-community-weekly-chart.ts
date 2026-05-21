@@ -162,13 +162,25 @@ export async function getCommunityWeeklyChart(args: {
   const prevWeekStart = new Date(weekStartDate);
   prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
 
-  const { data: prevRow } = await admin
-    .from("community_weekly_charts")
-    .select("rankings")
-    .eq("community_id", args.communityId)
-    .eq("chart_type", args.chartType)
-    .eq("week_start", prevWeekStart.toISOString())
-    .maybeSingle();
+  const vid = args.viewerId?.trim();
+
+  // prev-week chart and viewer plays are independent — fetch in parallel
+  const [{ data: prevRow }, viewerPlaysCount] = await Promise.all([
+    admin
+      .from("community_weekly_charts")
+      .select("rankings")
+      .eq("community_id", args.communityId)
+      .eq("chart_type", args.chartType)
+      .eq("week_start", prevWeekStart.toISOString())
+      .maybeSingle(),
+    vid
+      ? countViewerPlaysInWeekWindow({
+          userId: vid,
+          startIso: row.week_start,
+          endExclusiveIso: row.week_end,
+        })
+      : Promise.resolve(0),
+  ]);
 
   const prevRankings = filterKnownRankings(
     parseRankings((prevRow as { rankings?: unknown } | null)?.rankings),
@@ -220,16 +232,7 @@ export async function getCommunityWeeklyChart(args: {
     sortedByRank.find((r) => r.community_active_users != null)
       ?.community_active_users ?? null;
 
-  let viewer_contributed: boolean | undefined;
-  const vid = args.viewerId?.trim();
-  if (vid) {
-    const n = await countViewerPlaysInWeekWindow({
-      userId: vid,
-      startIso: row.week_start,
-      endExclusiveIso: row.week_end,
-    });
-    viewer_contributed = n > 0;
-  }
+  const viewer_contributed: boolean | undefined = vid ? viewerPlaysCount > 0 : undefined;
 
   return {
     week_start: row.week_start,

@@ -19,6 +19,7 @@ import {
   getCachedUserListsWithPreviews,
   getCachedUserMatches,
 } from "@/lib/profile/cached-profile-data";
+import { ProfileReviewsTab } from "@/components/profile/profile-reviews-tab";
 
 const LISTS_PREVIEW_MAX = 6;
 
@@ -59,6 +60,7 @@ type ProfileDeferredBodyProps = {
   };
   session: Session | null;
   spotifyConnected: boolean;
+  reviewCount: number;
   // Prefetched promises from parent
   userListsPromise: Promise<UserListWithPreview[]>;
   tasteIdentityPromise: Promise<TasteIdentity>;
@@ -70,6 +72,7 @@ export function ProfileDeferredBody({
   profile,
   session,
   logsPrivate,
+  reviewCount,
   userListsPromise,
   tasteIdentityPromise,
   userMatchesPromise,
@@ -173,6 +176,16 @@ export function ProfileDeferredBody({
     </div>
   );
 
+  // ── Reviews tab ───────────────────────────────────────────────────────────────
+  const reviewsTab = (
+    <ProfileReviewsTab
+      username={profile.username}
+      isOwnProfile={isOwnProfile}
+      hasLastfm={!!user.lastfm_username}
+      initialReviewCount={reviewCount ?? 0}
+    />
+  );
+
   // ── Settings tab (own profile only) ──────────────────────────────────────────
   const settingsTab = isOwnProfile ? (
     <div className={sectionGap}>
@@ -198,6 +211,7 @@ export function ProfileDeferredBody({
     <ProfileTabsContainer
       overviewContent={overviewTab}
       listsContent={listsTab}
+      reviewsContent={reviewsTab}
       settingsContent={settingsTab}
     />
   );

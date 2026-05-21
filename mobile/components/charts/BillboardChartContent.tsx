@@ -94,7 +94,7 @@ function ChartRowCard({ row, onPress }: { row: BillboardRow; onPress: () => void
           {row.rank}
         </Text>
         {row.image
-          ? <Image source={{ uri: row.image }} style={s.chartArt} contentFit="cover" />
+          ? <Image source={{ uri: row.image }} style={s.chartArt} contentFit="cover" transition={200} cachePolicy="memory-disk" recyclingKey={row.image} />
           : <View style={[s.chartArt, s.chartArtPlaceholder]}><Text style={{ fontSize: 18, color: theme.colors.muted }}>—</Text></View>}
         <View style={s.chartMeta}>
           <Text style={s.chartTitle} numberOfLines={1}>{row.name}</Text>
@@ -182,7 +182,7 @@ export function BillboardChartContent({
           <Text style={s.heroWeekLabel}>{weekLabel}</Text>
           <View style={s.heroInner}>
             {hero.image
-              ? <Image source={{ uri: hero.image }} style={s.heroArt} contentFit="cover" />
+              ? <Image source={{ uri: hero.image }} style={s.heroArt} contentFit="cover" transition={200} cachePolicy="memory-disk" recyclingKey={hero.image} />
               : <View style={[s.heroArt, s.heroArtPlaceholder]}><Text style={{ fontSize: 32, color: theme.colors.muted }}>♪</Text></View>}
             <View style={s.heroMeta}>
               <Text style={s.heroRank}>#1 THIS WEEK</Text>

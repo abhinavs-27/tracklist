@@ -12,6 +12,18 @@ import type {
   ExploreRangeParam,
 } from "@/lib/explore-discovery-data";
 
+type LovedByFriendsItem = {
+  kind: "album";
+  id: string;
+  name: string;
+  artist: string;
+  image_url: string | null;
+  href: string;
+  stat_label: string;
+};
+
+type TalkedAboutMode = "most_discussed" | "loved_by_friends";
+
 function MovementBadges({ movement }: { movement: ExploreMovement }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
@@ -173,6 +185,72 @@ function ReviewRow({ item }: { item: ExploreDiscoveryReviewEntityItem }) {
   );
 }
 
+function TalkedAboutToggle({
+  value,
+  onChange,
+}: {
+  value: TalkedAboutMode;
+  onChange: (m: TalkedAboutMode) => void;
+}) {
+  return (
+    <div
+      className="flex rounded-xl bg-zinc-950/90 p-0.5 ring-1 ring-white/[0.08]"
+      role="group"
+      aria-label="Most talked about filter"
+    >
+      {(
+        [
+          ["most_discussed", "Most discussed"],
+          ["loved_by_friends", "Loved by friends"],
+        ] as const
+      ).map(([v, label]) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          aria-pressed={value === v}
+          className={
+            value === v
+              ? "rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm"
+              : "rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:text-zinc-200"
+          }
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LovedByFriendsRow({ item }: { item: LovedByFriendsItem }) {
+  return (
+    <Link
+      href={item.href}
+      className="flex gap-3 rounded-2xl bg-zinc-900/50 p-3 ring-1 ring-white/[0.06] transition hover:bg-zinc-900/70"
+    >
+      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-800 ring-1 ring-white/[0.06]">
+        {item.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.image_url}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-zinc-600">
+            ♪
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-white">{item.name}</p>
+        <p className="truncate text-xs text-zinc-500">{item.artist}</p>
+        <p className="mt-1 text-xs text-zinc-400">{item.stat_label}</p>
+      </div>
+    </Link>
+  );
+}
+
 function CommunityRow({ row }: { row: ExploreCommunityContrastRow }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-zinc-900/40 p-3 ring-1 ring-white/[0.06] sm:flex-row sm:items-center sm:gap-4">
@@ -216,14 +294,23 @@ function CommunityRow({ row }: { row: ExploreCommunityContrastRow }) {
 export function ExploreDiscoveryFeedClient({
   initial,
   risingArtistsSlot,
+  userId,
 }: {
   initial: ExploreDiscoveryBundle | null;
   risingArtistsSlot?: ReactNode;
+  userId: string | null;
 }) {
   const [range, setRange] = useState<ExploreRangeParam>("week");
   const [data, setData] = useState<ExploreDiscoveryBundle | null>(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [talkedAboutMode, setTalkedAboutMode] =
+    useState<TalkedAboutMode>("most_discussed");
+  const [lovedByFriends, setLovedByFriends] = useState<
+    LovedByFriendsItem[] | null
+  >(null);
+  const [lovedLoading, setLovedLoading] = useState(false);
+  const [lovedError, setLovedError] = useState<string | null>(null);
 
   const load = useCallback(async (r: ExploreRangeParam) => {
     setLoading(true);
@@ -262,6 +349,34 @@ export function ExploreDiscoveryFeedClient({
       void load(r);
     },
     [load],
+  );
+
+  const loadLovedByFriends = useCallback(async () => {
+    if (lovedByFriends !== null) return; // already fetched
+    setLovedLoading(true);
+    setLovedError(null);
+    try {
+      const res = await fetch("/api/explore/loved-by-friends", {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load");
+      const json = (await res.json()) as { items: LovedByFriendsItem[] };
+      setLovedByFriends(json.items ?? []);
+    } catch {
+      setLovedError("Couldn't load friends' picks. Try again.");
+    } finally {
+      setLovedLoading(false);
+    }
+  }, [lovedByFriends]);
+
+  const onTalkedAboutModeChange = useCallback(
+    (mode: TalkedAboutMode) => {
+      setTalkedAboutMode(mode);
+      if (mode === "loved_by_friends") {
+        void loadLovedByFriends();
+      }
+    },
+    [loadLovedByFriends],
   );
 
   const bundle = data;
@@ -307,9 +422,39 @@ export function ExploreDiscoveryFeedClient({
 
           <SectionBlock
             title="Most talked about"
-            description="Albums and songs sparking the most reviews."
+            description={
+              talkedAboutMode === "loved_by_friends"
+                ? "Albums your friends rated highest."
+                : "Albums and songs sparking the most reviews."
+            }
+            headerRight={
+              userId ? (
+                <TalkedAboutToggle
+                  value={talkedAboutMode}
+                  onChange={onTalkedAboutModeChange}
+                />
+              ) : undefined
+            }
           >
-            {bundle.most_talked_about.length === 0 ? (
+            {talkedAboutMode === "loved_by_friends" ? (
+              lovedLoading ? (
+                <p className="py-4 text-sm text-zinc-500">Loading…</p>
+              ) : lovedError ? (
+                <p className="rounded-xl bg-red-950/40 px-4 py-3 text-sm text-red-200 ring-1 ring-red-500/20">
+                  {lovedError}
+                </p>
+              ) : !lovedByFriends || lovedByFriends.length === 0 ? (
+                <p className="rounded-2xl bg-zinc-900/40 px-4 py-6 text-center text-sm text-zinc-500 ring-1 ring-white/[0.06]">
+                  No album ratings from people you follow yet.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {lovedByFriends.map((item) => (
+                    <LovedByFriendsRow key={item.id} item={item} />
+                  ))}
+                </div>
+              )
+            ) : bundle.most_talked_about.length === 0 ? (
               <EmptyHint />
             ) : (
               <div className="space-y-2">

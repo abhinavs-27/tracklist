@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { memo } from 'react';
 import { CatalogArtworkPlaceholder } from '@/components/catalog-artwork-placeholder';
 
@@ -40,8 +41,8 @@ function TrackCardInner({
       {showThumbnail && (
         <div className="h-12 w-12 shrink-0">
           {image ? (
-            <div className="h-12 w-12 overflow-hidden rounded bg-zinc-800">
-              <img src={image} alt="" className="h-full w-full object-cover" />
+            <div className="relative h-12 w-12 overflow-hidden rounded bg-zinc-800">
+              <Image src={image} alt="" fill sizes="48px" className="object-cover" />
             </div>
           ) : (
             <CatalogArtworkPlaceholder size="md" />

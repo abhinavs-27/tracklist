@@ -22,6 +22,7 @@ interface ProfileHeaderProps {
   variant?: "default" | "hero" | "banner";
   /** One line, e.g. top artist or streak */
   keyStatLine?: string | null;
+  reviewCount?: number;
 }
 
 export function ProfileHeader({
@@ -37,6 +38,7 @@ export function ProfileHeader({
   onProfileUpdated,
   variant = "default",
   keyStatLine = null,
+  reviewCount,
 }: ProfileHeaderProps) {
   const [followersOpen, setFollowersOpen] = useState(false);
   const [initialTab, setInitialTab] = useState<"followers" | "following">(
@@ -129,6 +131,13 @@ export function ProfileHeader({
               <span className="font-semibold tabular-nums text-zinc-200">{followingCount}</span>
               <span>following</span>
             </button>
+            <span className="text-zinc-600" aria-hidden>·</span>
+            {typeof reviewCount === "number" && reviewCount > 0 ? (
+              <span className="inline-flex items-baseline gap-1 px-1.5 py-0.5 text-sm text-zinc-400">
+                <span className="font-medium tabular-nums text-zinc-200">{reviewCount}</span>
+                <span>reviews</span>
+              </span>
+            ) : null}
           </div>
           {bio ? (
             <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{bio}</p>
@@ -235,6 +244,13 @@ export function ProfileHeader({
             </span>
             <span>following</span>
           </button>
+          <span className="text-zinc-600" aria-hidden>·</span>
+          {typeof reviewCount === "number" && reviewCount > 0 ? (
+            <span className="inline-flex items-baseline gap-1 px-1.5 py-0.5 text-sm text-zinc-400">
+              <span className="font-medium tabular-nums text-zinc-200">{reviewCount}</span>
+              <span>reviews</span>
+            </span>
+          ) : null}
         </div>
         {bio ? (
           <p

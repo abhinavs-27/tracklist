@@ -40,6 +40,8 @@ export function FriendLeaderboard({ entries }: Props) {
                     source={{ uri: entry.avatarUrl }}
                     style={styles.avatarImg}
                     contentFit="cover"
+                    transition={150}
+                    cachePolicy="memory-disk"
                   />
                 ) : (
                   <Text style={styles.avatarInitial}>

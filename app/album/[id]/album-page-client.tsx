@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { TrackRating } from "@/app/album/[id]/track-rating";
@@ -158,10 +159,9 @@ export function AlbumPageClient({
       {/* ── Hero — clean, no background tricks ───────────── */}
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
         {/* Album art — large square, prominent */}
-        <div className="h-56 w-56 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.85)] sm:h-64 sm:w-64">
+        <div className="relative h-56 w-56 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.85)] sm:h-64 sm:w-64">
           {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" className="h-full w-full object-cover" />
+            <Image src={image} alt="" fill sizes="256px" className="object-cover" priority />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">♪</div>
           )}

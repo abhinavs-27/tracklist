@@ -12,7 +12,7 @@ import {
 } from "@/lib/queries";
 import { isValidSpotifyId } from "@/lib/validation";
 
-export const GET = withHandler(async (_request, { params }) => {
+export const GET = withHandler(async (_request, { user, params }) => {
     const { id } = params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
 
@@ -42,7 +42,7 @@ export const GET = withHandler(async (_request, { params }) => {
 
     const favorite_count = engagement.favorite_count;
 
-    const reviewsResult = await getReviewsForEntity("album", entityId, 5);
+    const reviewsResult = await getReviewsForEntity("album", entityId, 5, user?.id ?? null);
     const reviews =
       reviewsResult?.reviews?.map((r) => ({
         id: r.id,

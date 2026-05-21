@@ -100,7 +100,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
 
   // Start secondary fetches immediately after we have the canonical ID and session.
   // These are passed as promises to the loader component which resolves them.
-  const reviewsPromise = getReviewsForEntity("song", entityId).catch(() => ({
+  const reviewsPromise = getReviewsForEntity("song", entityId, 20, viewerId).catch(() => ({
     reviews: [],
     average_rating: null,
     count: 0,

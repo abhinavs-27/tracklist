@@ -27,7 +27,7 @@ const inFlight = new Map<string, Promise<unknown>>();
  * Include viewer-specific segments (e.g. user id for match / charts).
  */
 export function communityEndpointCacheKey(
-  endpoint: "insights" | "leaderboard" | "match" | "charts",
+  endpoint: "insights" | "leaderboard" | "match" | "charts" | "chart-weeks" | "people" | "consensus",
   communityId: string,
   ...parts: (string | null | undefined)[]
 ): string {

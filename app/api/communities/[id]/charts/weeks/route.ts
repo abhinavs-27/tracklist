@@ -3,6 +3,10 @@ import { apiBadRequest, apiForbidden, apiOk } from "@/lib/api-response";
 import { listCommunityWeeklyChartWeeks } from "@/lib/charts/get-community-weekly-chart";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 import { isCommunityMember } from "@/lib/community/queries";
+import {
+  communityEndpointCacheKey,
+  getOrSetCommunityApiCache,
+} from "@/lib/cache/community-endpoint-cache";
 import { isValidUuid } from "@/lib/validation";
 
 const TYPES: ChartType[] = ["tracks", "artists", "albums"];
@@ -33,10 +37,12 @@ export const GET = withHandler(
       return apiBadRequest("type must be tracks, artists, or albums");
     }
 
-    const weeks = await listCommunityWeeklyChartWeeks({
-      communityId: id,
-      chartType,
-    });
+    const cacheKey = communityEndpointCacheKey("chart-weeks", id, chartType);
+    const weeks = await getOrSetCommunityApiCache(
+      cacheKey,
+      3600, // weeks list changes at most once a week
+      () => listCommunityWeeklyChartWeeks({ communityId: id, chartType }),
+    );
 
     return apiOk({ weeks });
   },

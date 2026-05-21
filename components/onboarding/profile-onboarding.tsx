@@ -13,11 +13,14 @@ import { ImageCropModal } from "@/components/profile/image-crop-modal";
 import { SampleWeeklyChartPreview } from "@/components/home/sample-weekly-chart-preview";
 import { LastfmConnectModal } from "@/components/onboarding/lastfm-connect-modal";
 import { LastfmSkipWarningDialog } from "@/components/onboarding/lastfm-skip-warning-dialog";
+import { GenrePicker } from "@/components/onboarding/genre-picker";
+import { RatingGrid, type RatedAlbum } from "@/components/onboarding/rating-grid";
 import { FollowButton } from "@/components/follow-button";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { uploadProfilePictureJPEG } from "@/lib/client/profile-picture-upload";
 import { queryKeys } from "@/lib/query-keys";
 import { resolveUserAvatarUrl } from "@/lib/profile-pictures/resolve-avatar-display";
+import type { GenreKey } from "@/lib/onboarding/genre-map";
 
 const MAX_PROFILE_PHOTO_INPUT_BYTES = 25 * 1024 * 1024;
 
@@ -71,7 +74,7 @@ export function ProfileOnboarding({
   const photoInputRef = useRef<HTMLInputElement>(null);
   const savedAvatarUrlRef = useRef<string | null>(initialAvatarUrl);
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [usernameInput, setUsernameInput] = useState(initialUsername);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [favorites, setFavorites] =
@@ -79,6 +82,14 @@ export function ProfileOnboarding({
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [stepBusy, setStepBusy] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+
+  const [selectedGenres, setSelectedGenres] = useState<GenreKey[]>([]);
+  const [genreSubstep, setGenreSubstep] = useState<"genres" | "albums">("genres");
+  const [albumSuggestions, setAlbumSuggestions] = useState<Array<{
+    genreKey: string; genreLabel: string;
+    albums: Array<{ id: string; name: string; artistName: string; imageUrl: string | null }>;
+  }>>([]);
+  const [ratedAlbums, setRatedAlbums] = useState<RatedAlbum[]>([]);
 
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [lastfmSkipWarningOpen, setLastfmSkipWarningOpen] = useState(false);
@@ -236,7 +247,7 @@ export function ProfileOnboarding({
   }, [finishAndGo, inviteFlow, inviteToken, updateSession]);
 
   useEffect(() => {
-    if (step !== 4) return;
+    if (step !== 5) return;
     let cancelled = false;
     (async () => {
       setSuggestionsLoading(true);
@@ -297,6 +308,31 @@ export function ProfileOnboarding({
     }
   }, [usernameInput, initialUsername]);
 
+  const [albumSuggestionsLoading, setAlbumSuggestionsLoading] = useState(false);
+
+  const loadSuggestions = useCallback(async (genres: GenreKey[]) => {
+    if (genres.length === 0) return;
+    setAlbumSuggestionsLoading(true);
+    try {
+      const params = new URLSearchParams({ genres: genres.join(",") });
+      const res = await fetch(`/api/onboarding/album-suggestions?${params}`);
+      if (res.ok) {
+        const data = (await res.json()) as {
+          suggestions: Array<{
+            genreKey: string; genreLabel: string;
+            albums: Array<{ id: string; name: string; artistName: string; imageUrl: string | null }>;
+          }>;
+        };
+        setAlbumSuggestions(data.suggestions ?? []);
+        setGenreSubstep("albums");
+      } else {
+        setFavoritesError("Could not load album suggestions. Please try again.");
+      }
+    } finally {
+      setAlbumSuggestionsLoading(false);
+    }
+  }, []);
+
   const goStep2 = useCallback(async () => {
     setFavoritesError(null);
     if (favorites.length < 1) {
@@ -308,9 +344,7 @@ export function ProfileOnboarding({
       const res = await fetch("/api/users/me/favorites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          albums: favorites.map((a) => a.album_id),
-        }),
+        body: JSON.stringify({ albums: favorites.map((a) => a.album_id) }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
@@ -324,9 +358,36 @@ export function ProfileOnboarding({
     }
   }, [favorites, queryClient, userId]);
 
+  const goStep3 = useCallback(async () => {
+    if (genreSubstep === "genres") {
+      await loadSuggestions(selectedGenres);
+      return;
+    }
+    // Submit ratings
+    setStepBusy(true);
+    try {
+      const res = await fetch("/api/users/me/onboarding-ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ratings: ratedAlbums,
+          preferredGenres: selectedGenres,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setFavoritesError(data.error ?? "Could not save ratings");
+        return;
+      }
+      setStep(4);
+    } finally {
+      setStepBusy(false);
+    }
+  }, [genreSubstep, selectedGenres, ratedAlbums, loadSuggestions]);
+
   const advanceFromLastfm = useCallback(() => {
     setLastfmModalOpen(false);
-    setStep(4);
+    setStep(5);
   }, []);
 
   const onLastfmConnected = useCallback(() => {
@@ -407,7 +468,7 @@ export function ProfileOnboarding({
         >
           {/* Visual step indicator */}
           <div className="flex items-center">
-            {(["Username", "Albums", "Your chart", inviteFlow ? "Community" : "People"] as const).map(
+            {(["Username", "Albums", "Taste", "Your chart", inviteFlow ? "Community" : "People"] as const).map(
               (label, i) => {
                 const num = i + 1;
                 const done = step > num;
@@ -434,9 +495,9 @@ export function ProfileOnboarding({
                         {label}
                       </span>
                     </div>
-                    {i < 3 && (
+                    {i < 4 && (
                       <div
-                        className={`mx-2 h-px w-6 shrink-0 sm:mx-3 sm:w-8 ${
+                        className={`mx-2 h-px w-4 shrink-0 sm:mx-3 sm:w-6 ${
                           step > num ? "bg-emerald-800/80" : "bg-zinc-800"
                         }`}
                       />
@@ -571,12 +632,7 @@ export function ProfileOnboarding({
                 </p>
               ) : null}
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  disabled={stepBusy}
-                  className={secondaryBtn}
-                >
+                <button type="button" onClick={() => setStep(1)} disabled={stepBusy} className={secondaryBtn}>
                   Back
                 </button>
                 <button
@@ -586,10 +642,7 @@ export function ProfileOnboarding({
                   className={primaryBtn}
                 >
                   {stepBusy ? (
-                    <>
-                      <InlineSpinner tone="emerald" />
-                      Saving…
-                    </>
+                    <><InlineSpinner tone="emerald" /> Saving…</>
                   ) : (
                     "Continue"
                   )}
@@ -599,6 +652,85 @@ export function ProfileOnboarding({
           ) : null}
 
           {step === 3 ? (
+            <div className="mt-6 space-y-5 sm:mt-8">
+              {genreSubstep === "genres" ? (
+                <>
+                  <div>
+                    <h2 className={h2}>What do you listen to?</h2>
+                    <p className={bodyMuted}>
+                      Pick your genres and we'll show you albums to rate. This builds your taste profile right away — no Last.fm needed.
+                    </p>
+                  </div>
+                  <GenrePicker
+                    selected={selectedGenres}
+                    onChange={setSelectedGenres}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setStep(2)} disabled={stepBusy} className={secondaryBtn}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void goStep3()}
+                      disabled={stepBusy || selectedGenres.length === 0 || albumSuggestionsLoading}
+                      className={primaryBtn}
+                    >
+                      {albumSuggestionsLoading ? (
+                        <><InlineSpinner tone="emerald" /> Loading…</>
+                      ) : (
+                        "See albums →"
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStep(4)}
+                      disabled={stepBusy}
+                      className="text-sm text-zinc-600 hover:text-zinc-400"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <h2 className={h2}>Rate what you know</h2>
+                    <p className={bodyMuted}>
+                      Half-stars welcome. Skip anything you haven't heard.
+                    </p>
+                  </div>
+                  <RatingGrid
+                    suggestions={albumSuggestions}
+                    onRatingsChange={setRatedAlbums}
+                  />
+                  {favoritesError ? (
+                    <p className="text-sm text-red-400" role="alert">{favoritesError}</p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setGenreSubstep("genres")} disabled={stepBusy} className={secondaryBtn}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void goStep3()}
+                      disabled={stepBusy}
+                      className={primaryBtn}
+                    >
+                      {stepBusy ? (
+                        <><InlineSpinner tone="emerald" /> Saving…</>
+                      ) : ratedAlbums.length > 0 ? (
+                        `Save ${ratedAlbums.length} rating${ratedAlbums.length === 1 ? "" : "s"} →`
+                      ) : (
+                        "Continue →"
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {step === 4 ? (
             <div className="mt-6 space-y-6 sm:mt-8">
               {hasLastfmAlready ? (
                 <>
@@ -612,7 +744,7 @@ export function ProfileOnboarding({
                     Continue
                   </button>
                   <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
-                    <button type="button" onClick={() => setStep(2)} className={backSmall}>Back</button>
+                    <button type="button" onClick={() => setStep(3)} className={backSmall}>Back</button>
                   </div>
                 </>
               ) : (
@@ -678,14 +810,14 @@ export function ProfileOnboarding({
                   </div>
 
                   <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
-                    <button type="button" onClick={() => setStep(2)} className={backSmall}>Back</button>
+                    <button type="button" onClick={() => setStep(3)} className={backSmall}>Back</button>
                   </div>
                 </>
               )}
             </div>
           ) : null}
 
-          {step === 4 ? (
+          {step === 5 ? (
             <div className="mt-6 space-y-6 sm:mt-8">
               <div>
                 <h2 className={h2}>You&apos;re almost there</h2>
@@ -789,7 +921,7 @@ export function ProfileOnboarding({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(4)}
                   disabled={stepBusy}
                   className={secondaryBtn}
                 >
