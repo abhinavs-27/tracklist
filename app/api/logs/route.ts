@@ -110,24 +110,39 @@ export const POST = withHandler(
       return apiInternalError(error);
     }
 
+    // Parallelize all post-write side effects.
     await Promise.all([
-      grantAchievementsOnListen(me!.id),
-      syncManualLogSideEffects(me!.id, trackId, listenedAt),
+      import("@/lib/queries")
+        .then((m) => {
+          if (m?.grantAchievementsOnListen) {
+            return m.grantAchievementsOnListen(me!.id).catch(e => console.warn("[logs] achievement error", e));
+          }
+        })
+        .catch(e => console.warn("[logs] queries import error", e)),
+      import("@/lib/sync-manual-log-side-effects")
+        .then((m) => {
+          if (m?.syncManualLogSideEffects) {
+            return m.syncManualLogSideEffects(me!.id, trackId, listenedAt).catch(e => console.warn("[logs] sync side effects error", e));
+          }
+        })
+        .catch(e => console.warn("[logs] sync-manual-log-side-effects import error", e)),
       import("@/lib/community/community-feed-insert")
-        .then(({ fanOutListenForUserCommunities }) =>
-          fanOutListenForUserCommunities({
-            userId: me!.id,
-            logId: data.id as string,
-            listenedAt: listenedAt,
-            source,
-            trackId,
-            albumId: albumId,
-            artistId: artistId,
-            title: null,
-          }),
-        )
+        .then((m) => {
+          if (m?.fanOutListenForUserCommunities) {
+            return m.fanOutListenForUserCommunities({
+              userId: me!.id,
+              logId: data.id as string,
+              listenedAt: listenedAt,
+              source,
+              trackId,
+              albumId: albumId,
+              artistId: artistId,
+              title: null,
+            }).catch(e => console.warn("[logs] community_feed fan-out error", e));
+          }
+        })
         .catch((e) => {
-          console.warn("[logs] community_feed fan-out", e);
+          console.warn("[logs] community-feed-insert import error", e);
         }),
     ]);
     console.log("[logs] manual-log-created", {

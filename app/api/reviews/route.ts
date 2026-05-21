@@ -105,33 +105,44 @@ export const POST = withHandler(
 
     if (error) return apiInternalError(error);
 
+    // Parallelize all post-write side effects.
     const [userRow] = await Promise.all([
       fetchUserSummary(me!.id),
-      import("@/lib/queries").then(({ grantAchievementOnReview }) =>
-        grantAchievementOnReview(me!.id),
-      ),
-      import("@/lib/feed/generate-events").then(({ recordRatingFeedEvent }) =>
-        recordRatingFeedEvent(me!.id, {
-          review_id: data.id,
-          entity_type: data.entity_type,
-          entity_id: data.entity_id,
-          rating: data.rating,
-        }),
-      ),
+      import("@/lib/queries")
+        .then((m) => {
+          if (m?.grantAchievementOnReview) {
+            return m.grantAchievementOnReview(me!.id).catch(e => console.warn("[reviews] achievement error", e));
+          }
+        })
+        .catch(e => console.warn("[reviews] queries import error", e)),
+      import("@/lib/feed/generate-events")
+        .then((m) => {
+          if (m?.recordRatingFeedEvent) {
+            return m.recordRatingFeedEvent(me!.id, {
+              review_id: data.id,
+              entity_type: data.entity_type,
+              entity_id: data.entity_id,
+              rating: data.rating,
+            }).catch(e => console.warn("[reviews] feed event error", e));
+          }
+        })
+        .catch(e => console.warn("[reviews] feed events import error", e)),
       import("@/lib/community/community-feed-insert")
-        .then(({ fanOutReviewForUserCommunities }) =>
-          fanOutReviewForUserCommunities({
-            userId: me!.id,
-            reviewId: data.id,
-            entityType: data.entity_type,
-            entityId: data.entity_id,
-            rating: data.rating,
-            reviewText: data.review_text ?? null,
-            createdAt: data.created_at,
-          }),
-        )
+        .then((m) => {
+          if (m?.fanOutReviewForUserCommunities) {
+            return m.fanOutReviewForUserCommunities({
+              userId: me!.id,
+              reviewId: data.id,
+              entityType: data.entity_type,
+              entityId: data.entity_id,
+              rating: data.rating,
+              reviewText: data.review_text ?? null,
+              createdAt: data.created_at,
+            }).catch(e => console.warn("[reviews] community_feed fan-out error", e));
+          }
+        })
         .catch((e) => {
-          console.warn("[reviews] community_feed fan-out", e);
+          console.warn("[reviews] community-feed-insert import error", e);
         }),
     ]);
 

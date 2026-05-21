@@ -31,18 +31,23 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
   const id = normalizeReviewEntityId(rawId);
 
-  const [session, artistFetched] = await Promise.all([
-    withArtistPagePhaseLog("getSession", id, getSession()),
-    withArtistPagePhaseLog(
-      "getOrFetchArtist",
-      id,
-      getOrFetchArtist(id, { allowNetwork: true }),
-      (v) => ({
-        name: v.artist.name,
-        hasImage: Boolean(v.artist.images?.[0]?.url),
-      }),
-    ).catch(() => null),
-  ]);
+  const sessionPromise = withArtistPagePhaseLog("getSession", id, getSession());
+  const artistFetchedPromise = withArtistPagePhaseLog(
+    "getOrFetchArtist",
+    id,
+    getOrFetchArtist(id, { allowNetwork: true }),
+    (v) => ({
+      name: v.artist.name,
+      hasImage: Boolean(v.artist.images?.[0]?.url),
+    }),
+  ).catch(() => null);
+
+  // These queries resolve canonical ID internally, so we can start them NOW in parallel with the main artist fetch.
+  const topTracksPromise = withArtistPagePhaseLog("getTopTracksForArtist", id, getTopTracksForArtist(id, 10));
+  const reviewsPromise = withArtistPagePhaseLog("getReviewsForArtist", id, getReviewsForArtist(id, 6));
+  const popularAlbumsPromise = withArtistPagePhaseLog("getPopularAlbumsForArtist", id, getPopularAlbumsForArtist(id, 8));
+
+  const [session, artistFetched] = await Promise.all([sessionPromise, artistFetchedPromise]);
 
   if (!artistFetched) notFound();
   redirectToCanonicalEntityIfNeeded("artist", id, artistFetched.canonicalArtistId);
@@ -50,13 +55,17 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const artist = artistFetched.artist;
   const viewerId = session?.user?.id ?? null;
 
+  // These need viewerId AND canonical UUID.
+  const viewerStatsPromise = viewerId ? getViewerArtistStats(viewerId, entityId).catch(() => null) : Promise.resolve(null);
+  const firstListenPromise = viewerId ? getArtistFirstListenDate(viewerId, entityId).catch(() => null) : Promise.resolve(null);
+
   const [topTracks, recentReviews, popularAlbumsResult, viewerStats, firstListened] =
     await Promise.all([
-      withArtistPagePhaseLog("getTopTracksForArtist", id, getTopTracksForArtist(entityId, 10)),
-      withArtistPagePhaseLog("getReviewsForArtist", id, getReviewsForArtist(entityId, 6)),
-      withArtistPagePhaseLog("getPopularAlbumsForArtist", id, getPopularAlbumsForArtist(entityId, 8)),
-      viewerId ? getViewerArtistStats(viewerId, entityId).catch(() => null) : Promise.resolve(null),
-      viewerId ? getArtistFirstListenDate(viewerId, entityId).catch(() => null) : Promise.resolve(null),
+      topTracksPromise,
+      reviewsPromise,
+      popularAlbumsPromise,
+      viewerStatsPromise,
+      firstListenPromise,
     ]);
 
   const popularAlbums = popularAlbumsResult.rows;
