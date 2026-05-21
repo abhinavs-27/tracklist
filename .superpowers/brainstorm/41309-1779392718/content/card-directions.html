@@ -1,0 +1,223 @@
+<h2>Share Card Design Directions</h2>
+<p class="subtitle">Three visual directions for your weekly chart & taste identity cards. Which feels right for Tracklist?</p>
+
+<div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 28px; max-width: 1100px;">
+
+  <!-- Option A: Cinematic -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; aspect-ratio: 4/5; background: #09090b; position: relative; overflow: hidden; border-radius: 8px;">
+      <!-- Background glow -->
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 120% 80% at 80% -10%, rgba(16,185,129,0.45) 0%, transparent 55%), radial-gradient(ellipse 100% 70% at -10% 85%, rgba(99,102,241,0.3) 0%, transparent 55%), #09090b;"></div>
+
+      <!-- Album art strip (simulated) -->
+      <div style="position:absolute;top:72px;left:24px;right:24px;display:flex;gap:6px;">
+        <div style="flex:1.8;aspect-ratio:1;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#16213e);box-shadow:0 8px 32px rgba(0,0,0,0.5);"></div>
+        <div style="flex:1;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#2d1b4e,#1a0a2e);opacity:.85;"></div>
+        <div style="flex:1;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#1a2e1a,#0a2e16);opacity:.75;"></div>
+      </div>
+
+      <!-- Content -->
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(to top,rgba(9,9,11,0.98) 0%,rgba(9,9,11,0.85) 60%,transparent 100%);">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:#10b981;text-transform:uppercase;margin-bottom:6px;">Week of May 21</div>
+
+        <!-- #1 big -->
+        <div style="font-size:22px;font-weight:800;color:#fff;line-height:1.1;margin-bottom:2px;">Dark Side of the Moon</div>
+        <div style="font-size:12px;color:#a1a1aa;margin-bottom:14px;">Pink Floyd · 12 plays this week</div>
+
+        <!-- List 2-5 -->
+        <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:10px;color:#10b981;font-weight:700;width:14px;">2</span>
+            <div style="flex:1;height:28px;background:rgba(255,255,255,0.04);border-radius:6px;display:flex;align-items:center;padding:0 10px;">
+              <span style="font-size:11px;color:#d4d4d8;">OK Computer</span>
+              <span style="margin-left:auto;font-size:10px;color:#71717a;">9</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:10px;color:#6ee7b7;font-weight:700;width:14px;">3</span>
+            <div style="flex:1;height:28px;background:rgba(255,255,255,0.04);border-radius:6px;display:flex;align-items:center;padding:0 10px;">
+              <span style="font-size:11px;color:#d4d4d8;">Rumours</span>
+              <span style="margin-left:auto;font-size:10px;color:#71717a;">7</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:10px;color:#71717a;font-weight:700;width:14px;">4</span>
+            <div style="flex:1;height:28px;background:rgba(255,255,255,0.04);border-radius:6px;display:flex;align-items:center;padding:0 10px;">
+              <span style="font-size:11px;color:#d4d4d8;">Funeral</span>
+              <span style="margin-left:auto;font-size:10px;color:#71717a;">6</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:10px;color:#71717a;">tracklist.lol/@abhinav</div>
+          <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:#10b981;text-transform:uppercase;">Tracklist</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Cinematic</h3>
+      <p>Album art dominates the top half. Stats-forward list. Dark gradient fade. Feels premium, editorial.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Statement / Wrapped-style -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; aspect-ratio: 4/5; background: #09090b; position: relative; overflow: hidden; border-radius: 8px;">
+
+      <!-- Bold color field from album -->
+      <div style="position:absolute;inset:0;background:linear-gradient(155deg, #0f4c35 0%, #09090b 45%, #09090b 100%);"></div>
+      <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(16,185,129,0.15);filter:blur(40px);"></div>
+
+      <!-- Big #1 album art center stage -->
+      <div style="position:absolute;top:40px;left:50%;transform:translateX(-50%);width:180px;height:180px;border-radius:16px;background:linear-gradient(135deg,#1a1a2e,#2d1b4e);box-shadow:0 20px 60px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.06);"></div>
+
+      <!-- #1 label -->
+      <div style="position:absolute;top:228px;left:0;right:0;text-align:center;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:3px;color:#10b981;text-transform:uppercase;margin-bottom:4px;">YOUR #1 THIS WEEK</div>
+        <div style="font-size:20px;font-weight:900;color:#fff;padding:0 24px;line-height:1.1;">Dark Side of the Moon</div>
+        <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">Pink Floyd</div>
+        <div style="margin-top:6px;display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);border-radius:99px;padding:3px 10px;">
+          <span style="font-size:13px;font-weight:800;color:#10b981;">12</span>
+          <span style="font-size:10px;color:#6ee7b7;">plays</span>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div style="position:absolute;top:330px;left:24px;right:24px;height:1px;background:rgba(255,255,255,0.06);"></div>
+
+      <!-- Also listening to -->
+      <div style="position:absolute;top:346px;left:24px;right:24px;">
+        <div style="font-size:8px;font-weight:700;letter-spacing:2px;color:#71717a;text-transform:uppercase;margin-bottom:10px;">Also in rotation</div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;text-align:center;">
+            <div style="width:100%;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#2d1b4e,#1a0a2e);margin-bottom:4px;"></div>
+            <div style="font-size:9px;color:#a1a1aa;line-height:1.2;">OK Computer</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:100%;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#1a2e1a,#0a2e16);margin-bottom:4px;"></div>
+            <div style="font-size:9px;color:#a1a1aa;line-height:1.2;">Rumours</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:100%;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#2e1a1a,#2e0a0a);margin-bottom:4px;"></div>
+            <div style="font-size:9px;color:#a1a1aa;line-height:1.2;">Funeral</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:100%;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#1a2a2e,#0a1e2e);margin-bottom:4px;"></div>
+            <div style="font-size:9px;color:#a1a1aa;line-height:1.2;">Illinois</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom -->
+      <div style="position:absolute;bottom:16px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:9px;color:#52525b;">tracklist.lol/@abhinav</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:#10b981;text-transform:uppercase;">Tracklist</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Statement</h3>
+      <p>Big #1 album art center stage. Supporting cast below. Spotify Wrapped energy — emotional, shareable.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Data / Magazine -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; aspect-ratio: 4/5; background: #09090b; position: relative; overflow: hidden; border-radius: 8px;">
+
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(16,185,129,0.18) 0%,transparent 60%),#09090b;"></div>
+
+      <!-- Header bar -->
+      <div style="position:absolute;top:0;left:0;right:0;height:48px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;padding:0 20px;justify-content:space-between;">
+        <div style="font-size:8px;font-weight:700;letter-spacing:2px;color:#10b981;text-transform:uppercase;">Weekly Chart</div>
+        <div style="font-size:8px;color:#52525b;">May 21, 2025</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1px;color:#71717a;text-transform:uppercase;">@abhinav</div>
+      </div>
+
+      <!-- Chart rows -->
+      <div style="position:absolute;top:56px;left:0;right:0;padding:0 16px;">
+
+        <!-- Row 1 - #1 highlighted -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(90deg,rgba(16,185,129,0.1) 0%,transparent 100%);border-radius:10px;margin-bottom:4px;border:1px solid rgba(16,185,129,0.15);">
+          <span style="font-size:24px;font-weight:900;color:#10b981;width:28px;text-align:center;line-height:1;">1</span>
+          <div style="width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#1a1a2e,#2d1b4e);flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Dark Side of the Moon</div>
+            <div style="font-size:10px;color:#a1a1aa;">Pink Floyd</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:16px;font-weight:800;color:#fff;">12</div>
+            <div style="font-size:8px;color:#52525b;text-transform:uppercase;letter-spacing:1px;">plays</div>
+          </div>
+        </div>
+
+        <!-- Rows 2-5 -->
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:8px;">
+            <span style="font-size:14px;font-weight:700;color:#6ee7b7;width:28px;text-align:center;">2</span>
+            <div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#2d1b4e,#1a0a2e);flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:#e4e4e7;">OK Computer</div>
+              <div style="font-size:9px;color:#71717a;">Radiohead</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:#a1a1aa;">9</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:8px;">
+            <span style="font-size:14px;font-weight:700;color:#a1a1aa;width:28px;text-align:center;">3</span>
+            <div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1a2e1a,#0a2e16);flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:#e4e4e7;">Rumours</div>
+              <div style="font-size:9px;color:#71717a;">Fleetwood Mac</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:#a1a1aa;">7</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:8px;opacity:.85;">
+            <span style="font-size:14px;font-weight:700;color:#71717a;width:28px;text-align:center;">4</span>
+            <div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#2e1a1a,#2e0a0a);flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:#e4e4e7;">Funeral</div>
+              <div style="font-size:9px;color:#71717a;">Arcade Fire</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:#71717a;">6</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:8px;opacity:.7;">
+            <span style="font-size:14px;font-weight:700;color:#52525b;width:28px;text-align:center;">5</span>
+            <div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1a2a2e,#0a1e2e);flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:#e4e4e7;">Illinois</div>
+              <div style="font-size:9px;color:#71717a;">Sufjan Stevens</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:#52525b;">5</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stat pills at bottom -->
+      <div style="position:absolute;bottom:40px;left:16px;right:16px;display:flex;gap:6px;">
+        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px;text-align:center;">
+          <div style="font-size:16px;font-weight:800;color:#fff;">39</div>
+          <div style="font-size:8px;color:#71717a;text-transform:uppercase;letter-spacing:1px;">plays</div>
+        </div>
+        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px;text-align:center;">
+          <div style="font-size:16px;font-weight:800;color:#fff;">5</div>
+          <div style="font-size:8px;color:#71717a;text-transform:uppercase;letter-spacing:1px;">artists</div>
+        </div>
+        <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px;text-align:center;">
+          <div style="font-size:16px;font-weight:800;color:#fff;">W3</div>
+          <div style="font-size:8px;color:#71717a;text-transform:uppercase;letter-spacing:1px;">streak</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="position:absolute;bottom:16px;left:16px;right:16px;display:flex;justify-content:center;">
+        <div style="font-size:9px;color:#52525b;">tracklist.lol</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Data / Leaderboard</h3>
+      <p>All 5 entries visible, ranked clearly. Stats row at bottom. Feels like a scoreboard — for the music-data nerd.</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 20px; font-size: 13px; opacity: 0.6;">These are mockups — real cards will include actual album artwork pulled from your listening history.</p>

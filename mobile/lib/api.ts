@@ -13,8 +13,12 @@ function bootstrapToken(): Promise<void> {
   _bootstrapPromise = supabase.auth.getSession().then(({ data }) => {
     _cachedToken = data.session?.access_token ?? null;
     _tokenBootstrapped = true;
+  }).catch((e) => {
+    // Don't cache the failure — next call will retry
+    _bootstrapPromise = null;
+    console.warn("[api] getSession failed during bootstrap:", e);
   });
-  return _bootstrapPromise;
+  return _bootstrapPromise!;
 }
 
 // Keep cache fresh for the lifetime of the app.
@@ -48,7 +52,6 @@ export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
 
   const res = await fetch(url, {
     ...init,
-    credentials: "include",
     headers,
   });
 

@@ -1,0 +1,214 @@
+<h2>Complete Share Experience</h2>
+<p class="subtitle">The card design (D-style) + the share modal below it. Two states: mobile and desktop.</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;max-width:1100px;align-items:start;">
+
+  <!-- THE CARD (D-style, final) -->
+  <div>
+    <div class="label" style="margin-bottom:12px;">The Card (1080×1350)</div>
+    <div style="width:100%;aspect-ratio:4/5;position:relative;overflow:hidden;border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,0.5);">
+
+      <!-- LAYER 1: Blurred album art fills entire background -->
+      <div style="position:absolute;inset:-8%;background:linear-gradient(135deg,#7c2d12 0%,#451a03 35%,#0a0505 70%,#050305 100%);transform:scale(1.2);filter:blur(32px);opacity:0.9;"></div>
+
+      <!-- LAYER 2: Dark overlay for readability -->
+      <div style="position:absolute;inset:0;background:rgba(4,2,2,0.72);"></div>
+
+      <!-- LAYER 3: Edge vignette -->
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 25%,rgba(0,0,0,0.55) 100%);"></div>
+
+      <!-- LAYER 4: Grain texture -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:.055;" xmlns="http://www.w3.org/2000/svg">
+        <filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+        <rect width="100%" height="100%" filter="url(#g)"/>
+      </svg>
+
+      <!-- Header bar -->
+      <div style="position:absolute;top:0;left:0;right:0;height:42px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;padding:0 16px;justify-content:space-between;">
+        <div style="font-size:7.5px;font-weight:700;letter-spacing:2.5px;color:#f97316;text-transform:uppercase;font-family:sans-serif;">Tracklist</div>
+        <div style="font-size:7.5px;color:rgba(255,255,255,0.32);font-family:sans-serif;">Week of May 21</div>
+        <div style="font-size:7.5px;color:rgba(255,255,255,0.38);font-family:sans-serif;">@abhinav</div>
+      </div>
+
+      <!-- Big #1 art — the album fills this -->
+      <div style="position:absolute;top:56px;left:50%;transform:translateX(-50%);width:178px;height:178px;border-radius:16px;background:linear-gradient(135deg,#7c2d12,#451a03);box-shadow:0 28px 80px rgba(0,0,0,0.85),0 0 0 1px rgba(255,150,60,0.12),0 0 50px rgba(180,60,0,0.25);"></div>
+
+      <!-- #1 copy -->
+      <div style="position:absolute;top:248px;left:0;right:0;text-align:center;padding:0 16px;font-family:sans-serif;">
+        <div style="font-size:7px;font-weight:700;letter-spacing:3px;color:#f97316;text-transform:uppercase;margin-bottom:5px;">Your #1 This Week</div>
+        <div style="font-size:19px;font-weight:900;color:#fff;line-height:1.15;margin-bottom:3px;">Dark Side of the Moon</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.48);">Pink Floyd · 12 plays</div>
+      </div>
+
+      <!-- Divider -->
+      <div style="position:absolute;top:332px;left:16px;right:16px;height:1px;background:rgba(255,255,255,0.055);"></div>
+
+      <!-- Album thumbnail grid -->
+      <div style="position:absolute;top:344px;left:16px;right:16px;font-family:sans-serif;">
+        <div style="font-size:6.5px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.22);text-transform:uppercase;margin-bottom:8px;">Also in rotation</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
+          <div>
+            <div style="width:100%;aspect-ratio:1;border-radius:7px;background:linear-gradient(135deg,#2d1b4e,#1a0a2e);box-shadow:0 4px 16px rgba(0,0,0,0.6);margin-bottom:3px;"></div>
+            <div style="font-size:6.5px;color:rgba(255,255,255,0.4);text-align:center;line-height:1.3;">OK Computer</div>
+          </div>
+          <div>
+            <div style="width:100%;aspect-ratio:1;border-radius:7px;background:linear-gradient(135deg,#1a2e1a,#0a2e16);box-shadow:0 4px 16px rgba(0,0,0,0.6);margin-bottom:3px;"></div>
+            <div style="font-size:6.5px;color:rgba(255,255,255,0.4);text-align:center;line-height:1.3;">Rumours</div>
+          </div>
+          <div>
+            <div style="width:100%;aspect-ratio:1;border-radius:7px;background:linear-gradient(135deg,#2e1a1a,#2e0a0a);box-shadow:0 4px 16px rgba(0,0,0,0.6);margin-bottom:3px;"></div>
+            <div style="font-size:6.5px;color:rgba(255,255,255,0.4);text-align:center;line-height:1.3;">Funeral</div>
+          </div>
+          <div>
+            <div style="width:100%;aspect-ratio:1;border-radius:7px;background:linear-gradient(135deg,#1a2a2e,#0a1e2e);box-shadow:0 4px 16px rgba(0,0,0,0.6);margin-bottom:3px;"></div>
+            <div style="font-size:6.5px;color:rgba(255,255,255,0.4);text-align:center;line-height:1.3;">Illinois</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stat pills -->
+      <div style="position:absolute;bottom:12px;left:16px;right:16px;display:flex;gap:5px;font-family:sans-serif;">
+        <div style="flex:1;text-align:center;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:6px 0;">
+          <div style="font-size:12px;font-weight:800;color:#fff;">39</div>
+          <div style="font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1px;">plays</div>
+        </div>
+        <div style="flex:1;text-align:center;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:6px 0;">
+          <div style="font-size:12px;font-weight:800;color:#fff;">Rock</div>
+          <div style="font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1px;">top genre</div>
+        </div>
+        <div style="flex:1;text-align:center;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.07);border-radius:7px;padding:6px 0;">
+          <div style="font-size:12px;font-weight:800;color:#fff;">W3</div>
+          <div style="font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1px;">streak</div>
+        </div>
+      </div>
+
+    </div>
+    <p style="font-size:11px;color:#52525b;text-align:center;margin-top:8px;">Colors pulled from your #1 album's artwork.</p>
+  </div>
+
+  <!-- MOBILE SHARE MODAL -->
+  <div>
+    <div class="label" style="margin-bottom:12px;">Mobile share sheet</div>
+    <div style="background:#09090b;border-radius:24px 24px 0 0;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 -16px 60px rgba(0,0,0,0.4);">
+
+      <!-- Drag handle -->
+      <div style="display:flex;justify-content:center;padding:10px 0 4px;">
+        <div style="width:36px;height:3.5px;border-radius:99px;background:#3f3f46;"></div>
+      </div>
+
+      <!-- Thumbnail preview of the card -->
+      <div style="margin:8px 16px 0;border-radius:14px;overflow:hidden;position:relative;aspect-ratio:4/5;max-height:180px;">
+        <div style="position:absolute;inset:-8%;background:linear-gradient(135deg,#7c2d12,#451a03,#0a0505);filter:blur(12px);transform:scale(1.2);opacity:0.9;"></div>
+        <div style="position:absolute;inset:0;background:rgba(4,2,2,0.7);"></div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-family:sans-serif;">
+          <div style="width:60px;height:60px;border-radius:8px;background:linear-gradient(135deg,#7c2d12,#451a03);box-shadow:0 8px 24px rgba(0,0,0,0.7);"></div>
+          <div style="font-size:11px;font-weight:800;color:#fff;text-align:center;">Dark Side of the Moon</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.45);">Pink Floyd · #1 this week</div>
+        </div>
+        <!-- "Preview" label -->
+        <div style="position:absolute;top:7px;right:7px;background:rgba(0,0,0,0.55);border-radius:5px;padding:2px 7px;font-size:8px;color:rgba(255,255,255,0.5);font-family:sans-serif;">Preview</div>
+      </div>
+
+      <!-- Primary action: big Share button (Web Share API) -->
+      <div style="padding:12px 16px 8px;font-family:sans-serif;">
+        <button style="width:100%;background:#f97316;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share image
+        </button>
+        <p style="text-align:center;font-size:10px;color:#52525b;margin:6px 0 0;">Opens your phone's share sheet — Instagram, WhatsApp, Messages, and more</p>
+      </div>
+
+      <!-- Secondary: smaller options row -->
+      <div style="padding:4px 16px 6px;font-family:sans-serif;">
+        <div style="display:flex;gap:8px;">
+          <button style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 6px;font-size:11px;color:#a1a1aa;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            Copy link
+          </button>
+          <button style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 6px;font-size:11px;color:#a1a1aa;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Save PNG
+          </button>
+          <button style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 6px;font-size:11px;color:#a1a1aa;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Post to X
+          </button>
+        </div>
+      </div>
+
+      <!-- Cancel -->
+      <div style="padding:6px 16px 20px;font-family:sans-serif;">
+        <button style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px;font-size:14px;font-weight:600;color:#71717a;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DESKTOP SHARE MODAL -->
+  <div>
+    <div class="label" style="margin-bottom:12px;">Desktop share dialog</div>
+    <div style="background:#09090b;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 24px 80px rgba(0,0,0,0.5);max-width:340px;">
+
+      <!-- Title -->
+      <div style="padding:18px 18px 0;display:flex;align-items:center;justify-content:space-between;font-family:sans-serif;">
+        <span style="font-size:14px;font-weight:700;color:#fff;">Share your chart</span>
+        <button style="background:rgba(255,255,255,0.06);border:none;border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#71717a;font-size:16px;">✕</button>
+      </div>
+
+      <!-- Card preview (larger on desktop) -->
+      <div style="margin:14px 18px;border-radius:14px;overflow:hidden;position:relative;aspect-ratio:4/5;max-height:220px;">
+        <div style="position:absolute;inset:-8%;background:linear-gradient(135deg,#7c2d12,#451a03,#0a0505);filter:blur(12px);transform:scale(1.2);opacity:0.9;"></div>
+        <div style="position:absolute;inset:0;background:rgba(4,2,2,0.7);"></div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-family:sans-serif;">
+          <div style="width:70px;height:70px;border-radius:10px;background:linear-gradient(135deg,#7c2d12,#451a03);box-shadow:0 8px 24px rgba(0,0,0,0.7);"></div>
+          <div style="font-size:12px;font-weight:800;color:#fff;">Dark Side of the Moon</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.45);">Pink Floyd · #1 this week</div>
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <span style="font-size:8px;background:rgba(255,255,255,0.07);border-radius:4px;padding:2px 7px;color:rgba(255,255,255,0.4);">39 plays</span>
+            <span style="font-size:8px;background:rgba(255,255,255,0.07);border-radius:4px;padding:2px 7px;color:rgba(255,255,255,0.4);">Rock</span>
+            <span style="font-size:8px;background:rgba(255,255,255,0.07);border-radius:4px;padding:2px 7px;color:rgba(255,255,255,0.4);">W3</span>
+          </div>
+        </div>
+        <div style="position:absolute;top:7px;right:7px;background:rgba(0,0,0,0.55);border-radius:5px;padding:2px 7px;font-size:8px;color:rgba(255,255,255,0.5);font-family:sans-serif;">1080×1350</div>
+      </div>
+
+      <!-- Action buttons on desktop -->
+      <div style="padding:0 18px 16px;display:flex;flex-direction:column;gap:8px;font-family:sans-serif;">
+        <!-- Download — primary -->
+        <button style="width:100%;background:#f97316;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download image
+        </button>
+
+        <!-- Secondary row -->
+        <div style="display:flex;gap:8px;">
+          <button style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;font-size:12px;color:#a1a1aa;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            Copy link
+          </button>
+          <button style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;font-size:12px;color:#a1a1aa;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Post to X
+          </button>
+        </div>
+
+        <!-- Instagram note for desktop -->
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="url(#ig2)" style="flex-shrink:0;margin-top:1px;" aria-hidden>
+            <defs><linearGradient id="ig2" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#f09433"/><stop offset="50%" stop-color="#dc2743"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs>
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+          </svg>
+          <p style="font-size:10px;color:#71717a;margin:0;line-height:1.5;">For Instagram: download the image, then upload from your phone's camera roll.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:28px;padding:16px 20px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:14px;max-width:700px;">
+  <p style="margin:0 0 6px;font-size:13px;color:#f97316;font-weight:700;">How Instagram actually works</p>
+  <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.6;">
+    <strong style="color:rgba(255,255,255,0.7);">Mobile (iOS/Android):</strong> "Share image" button uses the native Web Share API with a PNG file. Your phone shows its share sheet — you pick Instagram, WhatsApp, iMessage, etc. Instagram receives the image directly and you can post to Stories or Feed.<br><br>
+    <strong style="color:rgba(255,255,255,0.7);">Desktop:</strong> Direct-to-Instagram from a website isn't possible without the Instagram API (restricted). So we give them the image and tell them what to do. Honest > fake.
+  </p>
+</div>
