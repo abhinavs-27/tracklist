@@ -50,7 +50,12 @@ If no axis exceeds the primary threshold: show "Well Rounded" with no badge (gen
 
 #### Axis 1: RANGE — Nomad ↔ Devotee
 
-**Signal:** `unique_artists / total_plays` (ratio)
+**Signal:** `unique_artists / total_plays` (ratio), computed entirely from `user_listening_aggregates`.
+
+```sql
+unique_artists = COUNT(DISTINCT entity_id) WHERE entity_type='artist'
+total_plays    = SUM(count) WHERE entity_type='track'
+```
 
 **Requirements:** total_plays ≥ 100 (otherwise axis is neutral — too noisy with fresh accounts)
 
@@ -86,44 +91,56 @@ popularity < 40  →  score = 30 - (40 - popularity) / 40 × 30  (Archivist, 0�
 
 #### Axis 3: MODE — Daily Ritual ↔ Session Maximalist
 
-**Signal A (Sessions):** `max_logs_any_single_day` from recent 90 days of logs
-**Signal B (Ritual):** `active_days / total_days` for last 90 days AND average daily plays 5–25
+All signals computed from `user_listening_aggregates` — no raw log scan needed.
 
-**Requirements:** At least 14 days of log history
+**Signal A (Sessions):** weekly play count proxy. Query `SUM(count) WHERE entity_type='track'` grouped by `week_start` for last 12 weeks. Max weekly plays > 200 = heavy session weeks.
 
-**Sessions scoring:**
+**Signal B (Ritual):** weeks_with_plays / 12. Query count of distinct `week_start` values with `SUM(count) > 0` in the last 12 weeks. Fraction of active weeks = consistency signal.
+
+**Requirements:** At least 4 weeks of aggregate data
+
+**Sessions scoring (from max weekly track plays):**
 ```
-max_day ≥ 80  →  score = 90
-max_day ≥ 60  →  score = 80
-max_day ≥ 40  →  score = 70
-below 40      →  neutral toward 50
+max_week ≥ 350  →  score = 90
+max_week ≥ 200  →  score = 80
+max_week ≥ 100  →  score = 70
+below 100       →  neutral toward 50
 ```
 
-**Ritual scoring (must satisfy ALL):**
-- active_days / 90 > 0.60 (listens on 60%+ of days)
-- avg daily plays between 5 and 25
-- If both satisfied: score = 30 - (active_rate - 0.60) / 0.40 × 20 (Ritual pole, 10–30)
+**Ritual scoring:**
+```
+active_weeks / 12 ≥ 0.75  →  score = 20
+active_weeks / 12 ≥ 0.60  →  score = 30
+below 0.60                 →  neutral toward 50
+```
 
-Sessions takes priority if both would fire (heavy daily listener is a session maximalist, not a ritualist).
+Sessions takes priority if both would fire.
 
 **Primary labels:** Session Maximalist (score ≥ 80) | Daily Ritual (score ≤ 30)
 **Badge labels:** "Sessions" | "Ritual"
-
-**Implementation note:** requires a query on `logs` grouped by date for the last 90 days — not available from weekly aggregates. New helper function `getDailyLogStats(userId, days=90)`.
 
 ---
 
 #### Axis 4: DISCOVERY — Explorer ↔ Loyalist
 
-**Signal:** In the last 30 days of logs, what fraction of plays are to artists the user had never listened to before that 30-day window?
+All signals computed from `user_listening_aggregates` — no raw log self-join needed.
+
+**Signal:** For each artist, find their `MIN(week_start)` in the user's aggregates (their "first encounter week"). Then compute what fraction of total plays in the last 4 weeks are to artists whose first encounter week also falls within those same 4 weeks.
 
 ```
-new_artist_ratio = plays_to_first_time_artists / total_plays_in_30d
+new_artist_plays = SUM(count) WHERE entity_type='artist'
+                   AND week_start >= 4_weeks_ago
+                   AND artist_id IN (
+                     SELECT entity_id WHERE entity_type='artist'
+                     GROUP BY entity_id HAVING MIN(week_start) >= 4_weeks_ago
+                   )
+
+total_recent_plays = SUM(count) WHERE entity_type='artist' AND week_start >= 4_weeks_ago
+
+new_artist_ratio = new_artist_plays / total_recent_plays
 ```
 
-"First time" = `artist_id` appears in last-30-day logs AND has zero plays in logs before that window.
-
-**Requirements:** ≥ 30 days of log history AND ≥ 50 plays in the last 30 days (otherwise axis neutral)
+**Requirements:** ≥ 8 weeks of aggregate history AND ≥ 50 total plays in the last 4 weeks
 
 **Scoring:**
 ```
@@ -134,8 +151,6 @@ ratio < 0.05  →  score = 30 - (0.05 - ratio) / 0.05 × 30  (Loyalist, 0–30)
 
 **Primary labels:** The Explorer (score > 70) | The Loyalist (score < 30)
 **Badge labels:** "Explorer" | "Loyalist"
-
-**Implementation note:** requires a self-join or subquery on `logs` to find artist_ids with zero pre-window history. New helper `getDiscoveryRate(userId)`.
 
 ---
 
@@ -323,8 +338,19 @@ Each axis row shows:
 
 ---
 
+## Computation and Cron
+
+Axes are computed inside the existing `refreshTasteIdentityCacheForUser` function, which is called by the `/api/cron/taste-identity-refresh` cron. No new cron job needed.
+
+Because all four axes now read from `user_listening_aggregates` (except Signal which reads from the existing `obscurityScore` already computed), the computation is fast — a handful of aggregate queries, no raw log scans.
+
+The `TasteStyleResult` (primary label, badge, all axis scores) is stored as a new `styleResult` field inside the existing `taste_identity_cache.payload` JSON. No schema migration required.
+
+**Cron frequency:** the taste-identity-refresh cron currently runs daily. Axes are cheap enough to compute on every run. The style label is unlikely to flip daily but computing it daily means it stays current when listening patterns shift meaningfully.
+
+---
+
 ## Open Questions
 
-1. **`getDailyLogStats` query cost:** querying raw logs for 90 days to compute max/active days could be slow for heavy users (10k+ logs). Should cap at 90 days and sample if needed. Flag for implementer.
-2. **`getDiscoveryRate` self-join:** finding "first-time artists in last 30 days" requires comparing last-30-day artist IDs against all prior log history. For users with large log history, this could be expensive. Consider limiting to checking against `user_listening_aggregates` (by-artist aggregate) instead of raw logs.
-3. **`well-rounded` label:** is "Well Rounded" positive enough that users won't feel it's a consolation prize? Alternative: "The Purist" for users with a very consistent, focused but not extreme pattern. Flagging for product decision.
+1. **`well-rounded` label:** product decision confirmed — "Well Rounded" is the name. Subtitle: "No single axis dominates. Broad enough to cover ground, focused enough to go deep."
+2. **Signal axis for Last.fm users:** obscurityScore (already computed from Spotify popularity in `computeTasteIdentity`) serves as the proxy — if `obscurityScore` is available, derive Signal axis from it. If null, axis is neutral. No change to existing obscurity computation needed.
