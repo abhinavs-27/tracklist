@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.0",
+    "@supabase/supabase-js": "^2.106.1",
     "@tracklist/spotify-client": "file:../packages/spotify-client",
     "bottleneck": "^2.19.5",
     "cookie-parser": "^1.4.7",
