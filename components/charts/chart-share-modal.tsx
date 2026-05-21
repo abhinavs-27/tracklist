@@ -105,20 +105,15 @@ export function ChartShareModal(props: {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [imgError, setImgError] = useState(false);
   const shareCapability = useRef(detectShareCapability());
 
   const pageUrl = typeof window !== "undefined" ? window.location.href : "";
   const numberOne = props.chart_moment.number_one;
+  const top5 = props.chart_moment.top_5;
   const summaryText = formatWeeklyChartShareText({
     chartKind: props.chartKind,
     moment: props.chart_moment,
     pageUrl,
-  });
-  const previewSrc = getChartShareImageApiUrl({
-    chartType: props.chartType,
-    weekStart: props.weekStartIso,
-    communityId: props.communityId,
   });
   const tweetText = encodeURIComponent(summaryText);
   const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
@@ -249,34 +244,41 @@ export function ChartShareModal(props: {
           </button>
         </div>
 
-        {/* Card preview */}
+        {/* Instant card preview — rendered from chart data, no API call */}
         <div className="px-5 pb-4">
-          {!imgError ? (
-            <div className="relative overflow-hidden rounded-2xl bg-zinc-900 aspect-[4/5] max-h-52">
-              {/* Skeleton shimmer while loading */}
-              <div className="absolute inset-0 animate-pulse bg-zinc-800" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewSrc}
-                alt="Your chart card preview"
-                className="absolute inset-0 w-full h-full object-cover rounded-2xl opacity-0 transition-opacity duration-300"
-                onLoad={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "1"; }}
-                onError={() => setImgError(true)}
-              />
-              <div className="absolute top-2 right-2 rounded-md bg-black/50 px-1.5 py-0.5 text-[10px] text-white/40">
-                Preview
-              </div>
+          <div className="relative overflow-hidden rounded-2xl aspect-[4/5] max-h-52"
+            style={{ background: "linear-gradient(160deg, #0f0907 0%, #09090b 45%, #060404 100%)" }}
+          >
+            {/* Ambient glow */}
+            <div className="absolute inset-0 rounded-2xl"
+              style={{ background: "radial-gradient(ellipse 140% 80% at 70% -10%, rgba(16,185,129,0.18) 0%, transparent 55%)" }}
+            />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 py-3">
+              {/* #1 */}
+              {numberOne ? (
+                <>
+                  <p className="text-[8px] font-bold tracking-[3px] text-emerald-400 uppercase">Your #1 This Week</p>
+                  <p className="text-base font-black text-white text-center leading-tight truncate w-full text-center">{numberOne.name}</p>
+                  {numberOne.artist_name ? (
+                    <p className="text-[10px] text-zinc-500 truncate w-full text-center">{numberOne.artist_name}</p>
+                  ) : null}
+                </>
+              ) : null}
+              {/* Also in rotation */}
+              {top5.slice(1, 5).length > 0 ? (
+                <div className="mt-2 w-full border-t border-white/[0.06] pt-2 flex flex-col gap-1">
+                  {top5.slice(1, 5).map((row) => (
+                    <div key={row.rank} className="flex items-center gap-1.5">
+                      <span className="text-[9px] font-bold text-emerald-500/60 w-3">{row.rank}</span>
+                      <span className="text-[10px] text-zinc-400 truncate">{row.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
-          ) : numberOne ? (
-            /* Fallback text preview if image fails */
-            <div className="rounded-2xl bg-zinc-900/60 px-4 py-3 ring-1 ring-white/[0.06]">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-amber-400/80 mb-1">#1 this week</p>
-              <p className="text-sm font-semibold text-white truncate">{numberOne.name}</p>
-              {numberOne.artist_name && (
-                <p className="text-xs text-zinc-500 truncate">{numberOne.artist_name}</p>
-              )}
-            </div>
-          ) : null}
+            {/* Tracklist watermark */}
+            <div className="absolute bottom-2 right-3 text-[8px] font-bold tracking-widest text-white/20 uppercase">Tracklist</div>
+          </div>
         </div>
 
         <div className="border-t border-zinc-800/60" />
