@@ -132,12 +132,13 @@ export default async function ProfilePage({
       console.error("[profile] getCachedUserFavoriteAlbums (hero):", e);
       return [];
     }),
-    Promise.resolve(
-      supabase
+    (async () => {
+      const { count } = await supabase
         .from("reviews")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-    ).then((res) => res.count ?? 0).catch(() => 0),
+        .eq("user_id", user.id);
+      return count ?? 0;
+    })().catch(() => 0),
   ]);
 
   const counts =

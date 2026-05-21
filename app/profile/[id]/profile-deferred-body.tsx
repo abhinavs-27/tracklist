@@ -67,7 +67,7 @@ type ProfileDeferredBodyProps = {
   userMatchesPromise: Promise<any>;
 };
 
-export async function ProfileDeferredBody({
+export function ProfileDeferredBody({
   user,
   profile,
   session,
