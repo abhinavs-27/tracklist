@@ -57,6 +57,6 @@ describe("darkenHex", () => {
   it("clamps lightness at 8", () => {
     const result = darkenHex("#000000", 0.5);
     const [, , l] = hexToHsl(result);
-    expect(l).toBeGreaterThanOrEqual(8);
+    expect(l).toBeGreaterThanOrEqual(8.2); // actual floor is ~8.235 due to hex quantization
   });
 });

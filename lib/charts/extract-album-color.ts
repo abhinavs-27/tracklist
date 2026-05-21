@@ -55,11 +55,13 @@ export function lightenHex(hex: string, amount: number): string {
   return hslToHex(h, Math.max(s, 30), Math.min(l + amount * 100, 85));
 }
 
+// Smallest HSL lightness (%) that survives hex quantization above 8%
+const DARKEN_FLOOR = (Math.ceil((8 / 100) * 255) / 255) * 100; // ≈ 8.235
+
 /** Darken a hex color by adjusting HSL lightness. Clamps at 8 (minimum ~8.24 to survive hex round-trip). */
 export function darkenHex(hex: string, amount: number): string {
   const [h, s, l] = hexToHsl(hex);
-  // 21/255*100 ≈ 8.235 — the smallest HSL lightness that round-trips above 8% after hex quantization
-  return hslToHex(h, s, Math.max(l - amount * 100, (Math.ceil(8 / 100 * 255) / 255) * 100));
+  return hslToHex(h, s, Math.max(l - amount * 100, DARKEN_FLOOR));
 }
 
 /**
