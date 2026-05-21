@@ -47,25 +47,35 @@ function AxisBar({ label, leftLabel, rightLabel, score, pole }: AxisBarProps) {
     return (
       <div className="flex items-center gap-3 text-xs">
         <span className="w-24 shrink-0 text-zinc-600">{label}</span>
-        <span className="text-zinc-700 italic">unavailable</span>
+        <span className="text-zinc-700 italic text-[11px]">
+          No data — requires Spotify listening history
+        </span>
       </div>
     );
   }
+
   const pct = Math.min(100, Math.max(0, score));
-  const poleLabel = pole === "left" ? leftLabel : pole === "right" ? rightLabel : "—";
+  const isNeutral = pole === "neutral";
+  const poleLabel = pole === "left" ? leftLabel : pole === "right" ? rightLabel : "Balanced";
 
   return (
-    <div className="flex items-center gap-3 text-xs">
-      <span className="w-24 shrink-0 text-zinc-500">{label}</span>
-      <div className="relative flex-1 h-1.5 rounded-full bg-zinc-800">
-        <div
-          className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
-          style={{ left: `calc(${pct}% - 6px)` }}
-        />
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-3 text-xs">
+        <span className="w-24 shrink-0 text-zinc-500">{label}</span>
+        <div className="relative flex-1 h-1.5 rounded-full bg-zinc-800">
+          {/* Left pole label */}
+          <span className="absolute -top-4 left-0 text-[10px] text-zinc-700">{leftLabel}</span>
+          {/* Right pole label */}
+          <span className="absolute -top-4 right-0 text-[10px] text-zinc-700">{rightLabel}</span>
+          <div
+            className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+            style={{ left: `calc(${pct}% - 6px)` }}
+          />
+        </div>
+        <span className={`w-20 shrink-0 text-right text-[11px] font-medium ${isNeutral ? "text-zinc-600" : "text-zinc-300"}`}>
+          {poleLabel}
+        </span>
       </div>
-      <span className={`w-20 shrink-0 text-right ${pole === "neutral" ? "text-zinc-700" : "text-zinc-400"}`}>
-        {poleLabel}
-      </span>
     </div>
   );
 }
@@ -184,7 +194,7 @@ export function TasteStyleWidget({
           </button>
 
           {expanded ? (
-            <div className="mt-3 space-y-3 border-t border-white/[0.06] pt-3">
+            <div className="mt-3 space-y-5 border-t border-white/[0.06] pt-4">
               <AxisBar
                 label="Range"
                 leftLabel={AXIS_DISPLAY.range.left}
