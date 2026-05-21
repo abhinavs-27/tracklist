@@ -233,7 +233,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
             </Pressable>
           ) : null}
         </View>
-        <TasteIdentity userId={user.id} />
+        <TasteIdentity userId={user.id} isOwnProfile={isOwn} />
       </View>
     </View>
   ) : tab === "lists" ? (

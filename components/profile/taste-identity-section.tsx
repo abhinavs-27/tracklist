@@ -6,12 +6,14 @@ import { TasteIdentityDisplay } from "./taste-identity-display";
 export async function TasteIdentitySection({
   userId,
   hubMode = false,
+  isOwnProfile = false,
   initialData,
   weeklyListening = null,
   weeklyListeningHideInIdentity = false,
 }: {
   userId: string;
   hubMode?: boolean;
+  isOwnProfile?: boolean;
   initialData?: TasteIdentity;
   weeklyListening?: TopThisWeekResult | null;
   weeklyListeningHideInIdentity?: boolean;
@@ -21,6 +23,7 @@ export async function TasteIdentitySection({
     <TasteIdentityDisplay
       data={data}
       hubMode={hubMode}
+      isOwnProfile={isOwnProfile}
       weeklyListening={weeklyListening}
       weeklyListeningHideInIdentity={weeklyListeningHideInIdentity}
     />

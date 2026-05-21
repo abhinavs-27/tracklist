@@ -112,6 +112,7 @@ export function ProfileDeferredBody({
           <TasteIdentitySection
             userId={profile.id}
             hubMode
+            isOwnProfile={isOwnProfile}
             initialData={tasteIdentity}
           />
         </SectionBlock>

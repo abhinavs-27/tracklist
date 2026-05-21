@@ -16,6 +16,8 @@ type Props = {
   data: TasteIdentity;
   /** Nested under a SectionBlock; flattens chrome and hides duplicate TasteCard title */
   hubMode?: boolean;
+  /** Show the share button and breakdown — only for the signed-in user's own profile */
+  isOwnProfile?: boolean;
   /** Current UTC week top artists/albums — own profile only; grounds identity in recent listens */
   weeklyListening?: TopThisWeekResult | null;
   /** When the same weekly artists/albums appear elsewhere on the profile, hide this block */
@@ -133,6 +135,7 @@ function WeeklyListeningContext({ data }: { data: TopThisWeekResult }) {
 export function TasteIdentityDisplay({
   data: t,
   hubMode = false,
+  isOwnProfile = false,
   weeklyListening = null,
   weeklyListeningHideInIdentity = false,
 }: Props) {
@@ -280,7 +283,7 @@ export function TasteIdentityDisplay({
           styleResult={t.styleResult}
           totalLogs={t.totalLogs}
           totalArtists={t.topArtists.length}
-          isOwnProfile={hubMode ?? false}
+          isOwnProfile={isOwnProfile}
         />
       ) : null}
     </Shell>
