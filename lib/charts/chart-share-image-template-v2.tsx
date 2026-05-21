@@ -79,23 +79,15 @@ export function ChartShareImageTemplateV2(props: ChartShareImageV2Props) {
         overflow: "hidden",
       }}
     >
-      {/* Grain texture via SVG */}
-      <svg
-        style={{ position: "absolute", inset: 0, width: W, height: H, opacity: 0.055, pointerEvents: "none" }}
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <filter id="grain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch" />
-          <feColorMatrix type="saturate" values="0" />
-        </filter>
-        <rect width={W} height={H} filter="url(#grain)" />
-      </svg>
-
-      {/* Edge vignette */}
+      {/* Edge vignette — inset shorthand not supported by Satori; use explicit sides */}
       <div
         style={{
           position: "absolute",
-          inset: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          display: "flex",
           backgroundImage: "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 28%, rgba(0,0,0,0.52) 100%)",
         }}
       />
@@ -138,6 +130,7 @@ export function ChartShareImageTemplateV2(props: ChartShareImageV2Props) {
       >
         <div
           style={{
+            display: "flex",
             boxShadow: `0 40px 100px rgba(0,0,0,0.85), 0 0 0 2px rgba(255,255,255,0.07), 0 0 60px ${palette.tint}55`,
             borderRadius: 32,
             overflow: "hidden",
@@ -260,6 +253,7 @@ export function ChartShareImageTemplateV2(props: ChartShareImageV2Props) {
             >
               <div
                 style={{
+                  display: "flex",
                   boxShadow: "0 6px 24px rgba(0,0,0,0.6)",
                   borderRadius: 12,
                   overflow: "hidden",
