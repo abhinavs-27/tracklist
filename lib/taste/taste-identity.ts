@@ -999,34 +999,6 @@ export async function computeTasteIdentity(
   const avgTracksPerSession =
     sessions > 0 ? Math.round((samplePlayCount / sessions) * 10) / 10 : samplePlayCount;
 
-  const uniqueAlbums = albumCounts.size;
-
-  // Session / recency calculations use the small log sample (first 2000 logs).
-  // If the sample is empty (e.g. all logs are older and not in the limit window),
-  // fall back to safe defaults.
-  const daysSpan = logs.length >= 2
-    ? Math.max(
-        (new Date(logs[logs.length - 1]!.listened_at).getTime() -
-          new Date(logs[0]!.listened_at).getTime()) /
-          (24 * 60 * 60 * 1000),
-        1 / 24,
-      )
-    : 1;
-
-  const mlpd = logs.length > 0 ? maxLogsPerDay(logs) : 1;
-
-  let maxArtistPlays = 0;
-  for (const c of artistCounts.values()) {
-    if (c > maxArtistPlays) maxArtistPlays = c;
-  }
-  const totalSignal = [...artistCounts.values()].reduce((a, b) => a + b, 0);
-  const topArtistShare = totalSignal > 0 ? maxArtistPlays / totalSignal : 0;
-
-  const avgTrackPopularity =
-    popularities.length > 0
-      ? popularities.reduce((a, b) => a + b, 0) / popularities.length
-      : null;
-
   const styleResult = await computeTasteAxes(admin, userId, obscurityScore);
 
   const topArtistIds = [...artistCounts.entries()]
