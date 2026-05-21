@@ -267,13 +267,6 @@ function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
   const diversityScore = normalizeDiversityScore(cached.diversityScore);
   const base = { ...cached, listeningStyle, diversityScore };
   if (base.totalLogs === 0) {
-    /** Onboarding seed: favorite albums and/or artist picks before first log. */
-    if (
-      (base.topArtists.length > 0 || base.topAlbums.length > 0) &&
-      base.summary?.trim()
-    ) {
-      return { ...base, recent: undefined };
-    }
     const ratingCount = base.topAlbums.length;
     const coldSummary = ratingCount > 0
       ? `Rated ${ratingCount} album${ratingCount === 1 ? "" : "s"} · taste profile built from your ratings`
@@ -1026,9 +1019,7 @@ export async function computeTasteIdentity(
     getTotalPlayCount(admin, userId),
   ]);
 
-  const [ratingEntries] = await Promise.all([
-    fetchUserAlbumRatings(admin, userId),
-  ]);
+  const ratingEntries = await fetchUserAlbumRatings(admin, userId);
   const ratingArtistCounts = ratingsToArtistCountMap(ratingEntries);
 
   if (totalLogs === 0 && artistAgg.length === 0 && ratingArtistCounts.size === 0) {
@@ -1147,7 +1138,8 @@ export async function computeTasteIdentity(
   for (const c of artistCounts.values()) {
     if (c > maxArtistPlays) maxArtistPlays = c;
   }
-  const topArtistShare = totalLogs > 0 ? maxArtistPlays / totalLogs : 0;
+  const totalSignal = [...artistCounts.values()].reduce((a, b) => a + b, 0);
+  const topArtistShare = totalSignal > 0 ? maxArtistPlays / totalSignal : 0;
 
   const avgTrackPopularity =
     popularities.length > 0
