@@ -214,6 +214,19 @@ Resources:
           RoleArn: !GetAtt EventBridgeRole.Arn
           Input: '{"type":"UPGRADE_LASTFM_ALBUM_COVERS","batch":20,"scan":600}'
 
+  RuleArchiveOldLogs:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-archive-old-logs
+      Description: Monthly 1st 03:00 UTC — ARCHIVE_OLD_LOGS
+      ScheduleExpression: cron(0 3 1 * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsArchiveLogs
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"ARCHIVE_OLD_LOGS","cutoff_days":180}'
+
   BillboardWeeklyScheduleRule:
     Condition: HasBillboardLambda
     Type: AWS::Events::Rule
