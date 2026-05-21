@@ -1328,6 +1328,47 @@ export async function refreshTasteIdentityCacheForUser(
 }
 
 /**
+ * Batch-inserts onboarding ratings to `reviews`, saves preferred_genres,
+ * and seeds taste_identity_cache. Replaces seedTasteIdentityFromFavoriteAlbums.
+ */
+export async function seedTasteIdentityFromRatings(
+  userId: string,
+  ratings: Array<{ albumId: string; rating: number; reviewText?: string }>,
+  preferredGenres: string[],
+): Promise<void> {
+  const admin = createSupabaseAdminClient();
+
+  // 1. Save preferred genres
+  if (preferredGenres.length > 0) {
+    await admin
+      .from("users")
+      .update({ preferred_genres: preferredGenres })
+      .eq("id", userId);
+  }
+
+  // 2. Batch-insert reviews (upsert so re-running onboarding doesn't duplicate)
+  const validRatings = ratings.filter((r) => r.albumId && r.rating >= 1 && r.rating <= 5);
+  if (validRatings.length > 0) {
+    const rows = validRatings.map((r) => ({
+      user_id: userId,
+      entity_type: "album" as const,
+      entity_id: r.albumId,
+      rating: r.rating,
+      review_text: r.reviewText ?? null,
+    }));
+    await admin
+      .from("reviews")
+      .upsert(rows, { onConflict: "user_id,entity_type,entity_id", ignoreDuplicates: false });
+  }
+
+  // 3. Seed taste identity from the newly saved ratings
+  if (validRatings.length > 0) {
+    const albumIds = validRatings.map((r) => r.albumId);
+    await seedTasteIdentityFromFavoriteAlbums(userId, albumIds);
+  }
+}
+
+/**
  * Cold-start `taste_identity_cache` from onboarding favorite albums (no logs yet).
  * Replaced on first real `refreshTasteIdentityCacheForUser` / cron when logs exist.
  */
