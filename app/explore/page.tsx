@@ -60,6 +60,7 @@ export default async function ExploreHubPage() {
 
         <Suspense fallback={<ExploreDiscoverySkeleton />}>
           <ExploreDiscoveryLoader
+            userId={userId}
             risingArtistsSlot={
               <Suspense fallback={<SectionSkeleton />}>
                 <RisingArtistsLoader />
