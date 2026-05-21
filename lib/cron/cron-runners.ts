@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { startJobRun } from "@/lib/jobs/job-logger";
 import { snapshotAllUsersLastMonth } from "@/lib/cron/snapshot-taste";
 import {
   hydrateStatsCatalogFromSpotify,
@@ -77,106 +78,113 @@ export async function runRefreshStats(): Promise<{
   catalogHydration: HydrateStatsCatalogResult | null;
   catalogHydrationError: string | null;
 }> {
-  const runStarted = Date.now();
-  console.log(LOG, "refresh-stats start", {
-    SPOTIFY_REFRESH_DISABLED: process.env.SPOTIFY_REFRESH_DISABLED === "true",
-  });
-
-  const supabase = createSupabaseAdminClient();
-
-  let t = Date.now();
-  const { error: statsError } = await supabase.rpc("refresh_entity_stats");
-  console.log(LOG, "refresh_entity_stats", {
-    ok: !statsError,
-    ms: Date.now() - t,
-    error: statsError?.message,
-  });
-  if (statsError) {
-    throw new Error(statsError.message);
-  }
-
-  t = Date.now();
-  const { error: favError } = await supabase.rpc(
-    "sync_favorite_counts_from_user_favorite_albums",
-  );
-  console.log(LOG, "sync_favorite_counts_from_user_favorite_albums", {
-    ok: !favError,
-    ms: Date.now() - t,
-    error: favError?.message,
-  });
-  if (favError) {
-    throw new Error(favError.message);
-  }
-
-  t = Date.now();
-  const { error: discoverError } = await supabase.rpc("refresh_discover_mvs");
-  console.log(LOG, "refresh_discover_mvs", {
-    ok: !discoverError,
-    ms: Date.now() - t,
-    error: discoverError?.message ?? null,
-  });
-  if (discoverError) {
-    console.warn(
-      LOG,
-      "refresh_discover_mvs skipped (non-fatal if migration missing):",
-      discoverError.message,
-    );
-  }
-
-  let precomputedCaches: Awaited<
-    ReturnType<typeof populatePrecomputedCaches>
-  > | null = null;
+  const run = await startJobRun("refresh_stats");
   try {
-    precomputedCaches = await populatePrecomputedCaches();
-    console.log(LOG, "populate_precomputed_caches", {
-      leaderboardRows: precomputedCaches.leaderboardRows,
-      trending: precomputedCaches.trending,
-      communityRows: precomputedCaches.communityRows,
-      errorCount: precomputedCaches.errors.length,
+    const runStarted = Date.now();
+    console.log(LOG, "refresh-stats start", {
+      SPOTIFY_REFRESH_DISABLED: process.env.SPOTIFY_REFRESH_DISABLED === "true",
     });
-  } catch (e) {
-    console.warn(
-      LOG,
-      "populate_precomputed_caches failed (non-fatal)",
-      e instanceof Error ? e.message : e,
-    );
-  }
 
-  let catalogHydration: HydrateStatsCatalogResult | null = null;
-  let catalogHydrationError: string | null = null;
-  try {
-    const maxAlbums = parseInt(
-      process.env.STATS_HYDRATE_MAX_ALBUMS ?? "500",
-      10,
-    );
-    const maxTracks = parseInt(
-      process.env.STATS_HYDRATE_MAX_TRACKS ?? "200",
-      10,
-    );
-    t = Date.now();
-    catalogHydration = await hydrateStatsCatalogFromSpotify(supabase, {
-      maxAlbums: Number.isFinite(maxAlbums) ? maxAlbums : 500,
-      maxTracks: Number.isFinite(maxTracks) ? maxTracks : 200,
-    });
-    console.log(LOG, "hydrate_stats_catalog_summary", {
+    const supabase = createSupabaseAdminClient();
+
+    let t = Date.now();
+    const { error: statsError } = await supabase.rpc("refresh_entity_stats");
+    console.log(LOG, "refresh_entity_stats", {
+      ok: !statsError,
       ms: Date.now() - t,
-      hydrationMode: catalogHydration.hydrationMode,
+      error: statsError?.message,
     });
-  } catch (e) {
-    catalogHydrationError =
-      e instanceof Error ? e.message : String(e);
-    console.error(LOG, "hydrate_stats_catalog_failed", catalogHydrationError);
-  }
+    if (statsError) {
+      throw new Error(statsError.message);
+    }
 
-  const totalMs = Date.now() - runStarted;
-  console.log(LOG, "refresh-stats done", { totalMs });
-  return {
-    ok: true,
-    totalMs,
-    precomputedCaches,
-    catalogHydration,
-    catalogHydrationError,
-  };
+    t = Date.now();
+    const { error: favError } = await supabase.rpc(
+      "sync_favorite_counts_from_user_favorite_albums",
+    );
+    console.log(LOG, "sync_favorite_counts_from_user_favorite_albums", {
+      ok: !favError,
+      ms: Date.now() - t,
+      error: favError?.message,
+    });
+    if (favError) {
+      throw new Error(favError.message);
+    }
+
+    t = Date.now();
+    const { error: discoverError } = await supabase.rpc("refresh_discover_mvs");
+    console.log(LOG, "refresh_discover_mvs", {
+      ok: !discoverError,
+      ms: Date.now() - t,
+      error: discoverError?.message ?? null,
+    });
+    if (discoverError) {
+      console.warn(
+        LOG,
+        "refresh_discover_mvs skipped (non-fatal if migration missing):",
+        discoverError.message,
+      );
+    }
+
+    let precomputedCaches: Awaited<
+      ReturnType<typeof populatePrecomputedCaches>
+    > | null = null;
+    try {
+      precomputedCaches = await populatePrecomputedCaches();
+      console.log(LOG, "populate_precomputed_caches", {
+        leaderboardRows: precomputedCaches.leaderboardRows,
+        trending: precomputedCaches.trending,
+        communityRows: precomputedCaches.communityRows,
+        errorCount: precomputedCaches.errors.length,
+      });
+    } catch (e) {
+      console.warn(
+        LOG,
+        "populate_precomputed_caches failed (non-fatal)",
+        e instanceof Error ? e.message : e,
+      );
+    }
+
+    let catalogHydration: HydrateStatsCatalogResult | null = null;
+    let catalogHydrationError: string | null = null;
+    try {
+      const maxAlbums = parseInt(
+        process.env.STATS_HYDRATE_MAX_ALBUMS ?? "500",
+        10,
+      );
+      const maxTracks = parseInt(
+        process.env.STATS_HYDRATE_MAX_TRACKS ?? "200",
+        10,
+      );
+      t = Date.now();
+      catalogHydration = await hydrateStatsCatalogFromSpotify(supabase, {
+        maxAlbums: Number.isFinite(maxAlbums) ? maxAlbums : 500,
+        maxTracks: Number.isFinite(maxTracks) ? maxTracks : 200,
+      });
+      console.log(LOG, "hydrate_stats_catalog_summary", {
+        ms: Date.now() - t,
+        hydrationMode: catalogHydration.hydrationMode,
+      });
+    } catch (e) {
+      catalogHydrationError =
+        e instanceof Error ? e.message : String(e);
+      console.error(LOG, "hydrate_stats_catalog_failed", catalogHydrationError);
+    }
+
+    const totalMs = Date.now() - runStarted;
+    console.log(LOG, "refresh-stats done", { totalMs });
+    void run.finish({ status: "ok" });
+    return {
+      ok: true,
+      totalMs,
+      precomputedCaches,
+      catalogHydration,
+      catalogHydrationError,
+    };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
 }
 
 export async function runComputeCooccurrence(): Promise<{
@@ -184,29 +192,36 @@ export async function runComputeCooccurrence(): Promise<{
   songs: { pairs_written: number };
   albums: { pairs_written: number };
 }> {
-  const admin = createSupabaseAdminClient();
+  const run = await startJobRun("compute_cooccurrence");
+  try {
+    const admin = createSupabaseAdminClient();
 
-  const { data: songData, error: songErr } = await admin.rpc(
-    "compute_song_cooccurrence_in_db",
-  );
-  if (songErr) throw new Error(songErr.message);
+    const { data: songData, error: songErr } = await admin.rpc(
+      "compute_song_cooccurrence_in_db",
+    );
+    if (songErr) throw new Error(songErr.message);
 
-  const { data: albumData, error: albumErr } = await admin.rpc(
-    "compute_album_cooccurrence_in_db",
-  );
-  if (albumErr) throw new Error(albumErr.message);
+    const { data: albumData, error: albumErr } = await admin.rpc(
+      "compute_album_cooccurrence_in_db",
+    );
+    if (albumErr) throw new Error(albumErr.message);
 
-  const songs = {
-    pairs_written:
-      (songData?.[0] as { pairs_written: number } | undefined)?.pairs_written ?? 0,
-  };
-  const albums = {
-    pairs_written:
-      (albumData?.[0] as { pairs_written: number } | undefined)?.pairs_written ?? 0,
-  };
+    const songs = {
+      pairs_written:
+        (songData?.[0] as { pairs_written: number } | undefined)?.pairs_written ?? 0,
+    };
+    const albums = {
+      pairs_written:
+        (albumData?.[0] as { pairs_written: number } | undefined)?.pairs_written ?? 0,
+    };
 
-  console.log(LOG, "co-occurrence done", { songs, albums });
-  return { ok: true, songs, albums };
+    console.log(LOG, "co-occurrence done", { songs, albums });
+    void run.finish({ status: "ok", items_ok: songs.pairs_written + albums.pairs_written });
+    return { ok: true, songs, albums };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
 }
 
 export async function runLastfmSync(): Promise<{
@@ -259,32 +274,39 @@ export async function runTasteIdentityRefresh(): Promise<{
   processed: number;
   failures: number;
 }> {
-  const userIds = await resolveTasteIdentityCronUserIds();
-  let processed = 0;
-  let failures = 0;
+  const run = await startJobRun("taste_identity_refresh");
+  try {
+    const userIds = await resolveTasteIdentityCronUserIds();
+    let processed = 0;
+    let failures = 0;
 
-  const CONCURRENCY = 10;
-  for (let i = 0; i < userIds.length; i += CONCURRENCY) {
-    const chunk = userIds.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      chunk.map((userId) => refreshTasteIdentityCacheForUser(userId)),
-    );
-    for (const r of results) {
-      if (r.status === "fulfilled") {
-        processed += 1;
-      } else {
-        console.error(LOG, "taste-identity refresh failed", r.reason);
-        failures += 1;
+    const CONCURRENCY = 10;
+    for (let i = 0; i < userIds.length; i += CONCURRENCY) {
+      const chunk = userIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        chunk.map((userId) => refreshTasteIdentityCacheForUser(userId)),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          processed += 1;
+        } else {
+          console.error(LOG, "taste-identity refresh failed", r.reason);
+          failures += 1;
+        }
       }
     }
-  }
 
-  return {
-    ok: true,
-    attempted: userIds.length,
-    processed,
-    failures,
-  };
+    void run.finish({ status: "ok", items_ok: processed, items_failed: failures });
+    return {
+      ok: true,
+      attempted: userIds.length,
+      processed,
+      failures,
+    };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
 }
 
 export async function runCommunityFeatureWeekly(
@@ -308,148 +330,167 @@ export async function runBillboardWeeklyEmail(): Promise<{
   skipped?: boolean;
   reason?: string;
 }> {
-  const admin = createSupabaseAdminClient();
+  const run = await startJobRun("billboard_weekly_email");
+  try {
+    const admin = createSupabaseAdminClient();
 
-  const { data: latestRow, error: latestErr } = await admin
-    .from("user_weekly_charts")
-    .select("week_start")
-    .eq("chart_type", "tracks")
-    .order("week_start", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    const { data: latestRow, error: latestErr } = await admin
+      .from("user_weekly_charts")
+      .select("week_start")
+      .eq("chart_type", "tracks")
+      .order("week_start", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (latestErr || !latestRow?.week_start) {
+    if (latestErr || !latestRow?.week_start) {
+      void run.finish({ status: "skipped" });
+      return {
+        ok: true,
+        skipped: true,
+        reason: "no_chart_week",
+        week_start: "",
+        candidates: 0,
+        sent: 0,
+        skippedAlready: 0,
+        skippedNoEmail: 0,
+        sendFailed: 0,
+        firstSendError: null,
+        note:
+          "No rows in user_weekly_charts (tracks) — weekly chart jobs must run first.",
+      };
+    }
+
+    const weekStart = latestRow.week_start as string;
+
+    const { data: chartRows, error: chartErr } = await admin
+      .from("user_weekly_charts")
+      .select("user_id")
+      .eq("chart_type", "tracks")
+      .eq("week_start", weekStart);
+
+    if (chartErr) {
+      throw new Error(chartErr.message);
+    }
+
+    const userIds = [
+      ...new Set(
+        (chartRows ?? []).map((r: { user_id: string }) => r.user_id),
+      ),
+    ];
+
+    let sent = 0;
+    let skippedAlready = 0;
+    let skippedNoEmail = 0;
+    let sendFailed = 0;
+    let firstSendError: string | undefined;
+
+    // Batch-fetch all candidate users in one query (was N individual SELECTs)
+    const { data: userRows, error: usersErr } = await admin
+      .from("users")
+      .select("id, email, billboard_weekly_email_last_week")
+      .in("id", userIds);
+
+    if (usersErr) throw new Error(usersErr.message);
+
+    const sentUserIds: string[] = [];
+
+    for (const userRow of userRows ?? []) {
+      const { id: userId, email, billboard_weekly_email_last_week } = userRow as {
+        id: string;
+        email: string | null;
+        billboard_weekly_email_last_week: string | null;
+      };
+
+      if (!email) {
+        skippedNoEmail += 1;
+        continue;
+      }
+
+      if (billboard_weekly_email_last_week === weekStart) {
+        skippedAlready += 1;
+        continue;
+      }
+
+      const sendResult = await sendBillboardWeeklyDigestEmail({
+        userId,
+        email,
+        weekStart,
+      });
+
+      if (sendResult.ok) {
+        sentUserIds.push(userId);
+        sent += 1;
+      } else {
+        sendFailed += 1;
+        if (!firstSendError) firstSendError = sendResult.reason;
+      }
+    }
+
+    // Batch-update all successful sends in one query (was N individual UPDATEs)
+    if (sentUserIds.length > 0) {
+      const { error: upErr } = await admin
+        .from("users")
+        .update({ billboard_weekly_email_last_week: weekStart })
+        .in("id", sentUserIds);
+      if (upErr) {
+        console.error(LOG, "billboard-weekly-email batch update", upErr);
+      }
+    }
+
+    let note: string | null = null;
+    if (userIds.length === 0) {
+      note =
+        "No users have a tracks chart row for this week_start (candidates is 0).";
+    } else if (sent === 0) {
+      const withEmail = userIds.length - skippedNoEmail;
+      if (withEmail > 0 && skippedAlready === withEmail) {
+        note =
+          "Dedupe only: every user with an email already has users.billboard_weekly_email_last_week equal to this week.";
+      } else if (sendFailed > 0) {
+        note =
+          "At least one send failed (Resend/chart/env). See firstSendError and logs.";
+      } else if (skippedNoEmail === userIds.length) {
+        note = "No candidate user had an email address.";
+      } else {
+        note =
+          "sent=0 — see skippedAlready, skippedNoEmail, sendFailed in this JSON.";
+      }
+    }
+
+    void run.finish({ status: sent > 0 ? "ok" : "skipped", items_ok: sent, items_failed: sendFailed });
     return {
       ok: true,
-      skipped: true,
-      reason: "no_chart_week",
-      week_start: "",
-      candidates: 0,
-      sent: 0,
-      skippedAlready: 0,
-      skippedNoEmail: 0,
-      sendFailed: 0,
-      firstSendError: null,
-      note:
-        "No rows in user_weekly_charts (tracks) — weekly chart jobs must run first.",
+      week_start: weekStart,
+      candidates: userIds.length,
+      sent,
+      skippedAlready,
+      skippedNoEmail,
+      sendFailed,
+      firstSendError: firstSendError ?? null,
+      note,
     };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
   }
-
-  const weekStart = latestRow.week_start as string;
-
-  const { data: chartRows, error: chartErr } = await admin
-    .from("user_weekly_charts")
-    .select("user_id")
-    .eq("chart_type", "tracks")
-    .eq("week_start", weekStart);
-
-  if (chartErr) {
-    throw new Error(chartErr.message);
-  }
-
-  const userIds = [
-    ...new Set(
-      (chartRows ?? []).map((r: { user_id: string }) => r.user_id),
-    ),
-  ];
-
-  let sent = 0;
-  let skippedAlready = 0;
-  let skippedNoEmail = 0;
-  let sendFailed = 0;
-  let firstSendError: string | undefined;
-
-  // Batch-fetch all candidate users in one query (was N individual SELECTs)
-  const { data: userRows, error: usersErr } = await admin
-    .from("users")
-    .select("id, email, billboard_weekly_email_last_week")
-    .in("id", userIds);
-
-  if (usersErr) throw new Error(usersErr.message);
-
-  const sentUserIds: string[] = [];
-
-  for (const userRow of userRows ?? []) {
-    const { id: userId, email, billboard_weekly_email_last_week } = userRow as {
-      id: string;
-      email: string | null;
-      billboard_weekly_email_last_week: string | null;
-    };
-
-    if (!email) {
-      skippedNoEmail += 1;
-      continue;
-    }
-
-    if (billboard_weekly_email_last_week === weekStart) {
-      skippedAlready += 1;
-      continue;
-    }
-
-    const sendResult = await sendBillboardWeeklyDigestEmail({
-      userId,
-      email,
-      weekStart,
-    });
-
-    if (sendResult.ok) {
-      sentUserIds.push(userId);
-      sent += 1;
-    } else {
-      sendFailed += 1;
-      if (!firstSendError) firstSendError = sendResult.reason;
-    }
-  }
-
-  // Batch-update all successful sends in one query (was N individual UPDATEs)
-  if (sentUserIds.length > 0) {
-    const { error: upErr } = await admin
-      .from("users")
-      .update({ billboard_weekly_email_last_week: weekStart })
-      .in("id", sentUserIds);
-    if (upErr) {
-      console.error(LOG, "billboard-weekly-email batch update", upErr);
-    }
-  }
-
-  let note: string | null = null;
-  if (userIds.length === 0) {
-    note =
-      "No users have a tracks chart row for this week_start (candidates is 0).";
-  } else if (sent === 0) {
-    const withEmail = userIds.length - skippedNoEmail;
-    if (withEmail > 0 && skippedAlready === withEmail) {
-      note =
-        "Dedupe only: every user with an email already has users.billboard_weekly_email_last_week equal to this week.";
-    } else if (sendFailed > 0) {
-      note =
-        "At least one send failed (Resend/chart/env). See firstSendError and logs.";
-    } else if (skippedNoEmail === userIds.length) {
-      note = "No candidate user had an email address.";
-    } else {
-      note =
-        "sent=0 — see skippedAlready, skippedNoEmail, sendFailed in this JSON.";
-    }
-  }
-
-  return {
-    ok: true,
-    week_start: weekStart,
-    candidates: userIds.length,
-    sent,
-    skippedAlready,
-    skippedNoEmail,
-    sendFailed,
-    firstSendError: firstSendError ?? null,
-    note,
-  };
 }
 
 export async function runListeningAggregates(): Promise<
   Awaited<ReturnType<typeof updateListeningAggregates>> & { ok: true }
 > {
-  const result = await updateListeningAggregates();
-  return { ok: true, ...result };
+  const run = await startJobRun("listening_aggregates");
+  try {
+    const result = await updateListeningAggregates();
+    void run.finish({
+      status: result.processed > 0 ? "ok" : "skipped",
+      items_ok: result.processed,
+      items_failed: result.errors,
+    });
+    return { ok: true, ...result };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
 }
 
 export async function runRepairLastfmAggregates(batch = 500): Promise<
@@ -499,58 +540,65 @@ export async function runRefreshBlindSpots(): Promise<{
   skipped: number;
   errors: number;
 }> {
-  const { refreshBlindSpots } = await import("@/lib/profile/taste-blind-spots");
-  const admin = createSupabaseAdminClient();
+  const run = await startJobRun("blind_spots");
+  try {
+    const { refreshBlindSpots } = await import("@/lib/profile/taste-blind-spots");
+    const admin = createSupabaseAdminClient();
 
-  // Users whose blind spots are stale (computed > 7 days ago)
-  const { data: staleRows, error: staleErr } = await admin
-    .from("user_blind_spots")
-    .select("user_id")
-    .lt("computed_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+    // Users whose blind spots are stale (computed > 7 days ago)
+    const { data: staleRows, error: staleErr } = await admin
+      .from("user_blind_spots")
+      .select("user_id")
+      .lt("computed_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
-  if (staleErr) throw new Error(`[blind-spots] stale query: ${staleErr.message}`);
+    if (staleErr) throw new Error(`[blind-spots] stale query: ${staleErr.message}`);
 
-  // Users with any listening history but no blind spots row yet
-  const { data: newRows, error: newErr } = await admin
-    .from("user_listening_aggregates")
-    .select("user_id")
-    .eq("entity_type", "track")
-    .not("year", "is", null)
-    .limit(500);
+    // Users with any listening history but no blind spots row yet
+    const { data: newRows, error: newErr } = await admin
+      .from("user_listening_aggregates")
+      .select("user_id")
+      .eq("entity_type", "track")
+      .not("year", "is", null)
+      .limit(500);
 
-  if (newErr) throw new Error(`[blind-spots] new-users query: ${newErr.message}`);
+    if (newErr) throw new Error(`[blind-spots] new-users query: ${newErr.message}`);
 
-  const existingSet = new Set((staleRows ?? []).map((r) => r.user_id as string));
-  const newUserIds = (newRows ?? []).map((r) => r.user_id as string);
-  const { data: conflictingBlindSpots } = await admin
-    .from("user_blind_spots")
-    .select("user_id")
-    .in("user_id", newUserIds);
-  const hasBlindSpot = new Set((conflictingBlindSpots ?? []).map((r) => r.user_id as string));
+    const existingSet = new Set((staleRows ?? []).map((r) => r.user_id as string));
+    const newUserIds = (newRows ?? []).map((r) => r.user_id as string);
+    const { data: conflictingBlindSpots } = await admin
+      .from("user_blind_spots")
+      .select("user_id")
+      .in("user_id", newUserIds);
+    const hasBlindSpot = new Set((conflictingBlindSpots ?? []).map((r) => r.user_id as string));
 
-  for (const r of newRows ?? []) {
-    const uid = r.user_id as string;
-    if (!hasBlindSpot.has(uid)) existingSet.add(uid);
-  }
-
-  const userIds = [...existingSet];
-
-  // Bottleneck in the Spotify client already paces the API calls — no extra delay needed.
-  let processed = 0, skipped = 0, errors = 0;
-
-  for (const userId of userIds) {
-    try {
-      const result = await refreshBlindSpots(userId);
-      if (result.hasData) processed++;
-      else skipped++;
-    } catch (e) {
-      errors++;
-      console.error("[blind-spots] failed for", userId, e instanceof Error ? e.message : String(e));
+    for (const r of newRows ?? []) {
+      const uid = r.user_id as string;
+      if (!hasBlindSpot.has(uid)) existingSet.add(uid);
     }
-  }
 
-  console.log(`[blind-spots] done — processed:${processed} skipped:${skipped} errors:${errors}`);
-  return { ok: true, processed, skipped, errors };
+    const userIds = [...existingSet];
+
+    // Bottleneck in the Spotify client already paces the API calls — no extra delay needed.
+    let processed = 0, skipped = 0, errors = 0;
+
+    for (const userId of userIds) {
+      try {
+        const result = await refreshBlindSpots(userId);
+        if (result.hasData) processed++;
+        else skipped++;
+      } catch (e) {
+        errors++;
+        console.error("[blind-spots] failed for", userId, e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    console.log(`[blind-spots] done — processed:${processed} skipped:${skipped} errors:${errors}`);
+    void run.finish({ status: "ok", items_ok: processed, items_failed: errors });
+    return { ok: true, processed, skipped, errors };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
 }
 
 export async function runDrainEnrichBacklog(): Promise<{
