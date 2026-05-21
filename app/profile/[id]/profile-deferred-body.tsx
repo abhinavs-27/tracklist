@@ -19,6 +19,8 @@ import {
   getCachedUserListsWithPreviews,
   getCachedUserMatches,
 } from "@/lib/profile/cached-profile-data";
+import { ProfileReviewsTab } from "@/components/profile/profile-reviews-tab";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const LISTS_PREVIEW_MAX = 6;
 
@@ -65,7 +67,7 @@ type ProfileDeferredBodyProps = {
   userMatchesPromise: Promise<any>;
 };
 
-export function ProfileDeferredBody({
+export async function ProfileDeferredBody({
   user,
   profile,
   session,
@@ -79,6 +81,12 @@ export function ProfileDeferredBody({
   const userLists = use(userListsPromise) ?? [];
   const tasteIdentity = use(tasteIdentityPromise) ?? EMPTY_TASTE;
   const userMatchesPrefetched = use(userMatchesPromise);
+
+  const supabase = await createSupabaseServerClient();
+  const { count: reviewCount } = await supabase
+    .from("reviews")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
 
   // ── Overview tab ──────────────────────────────────────────────────────────────
   const overviewTab = (
@@ -173,6 +181,16 @@ export function ProfileDeferredBody({
     </div>
   );
 
+  // ── Reviews tab ───────────────────────────────────────────────────────────────
+  const reviewsTab = (
+    <ProfileReviewsTab
+      username={profile.username}
+      isOwnProfile={isOwnProfile}
+      hasLastfm={!!user.lastfm_username}
+      initialReviewCount={reviewCount ?? 0}
+    />
+  );
+
   // ── Settings tab (own profile only) ──────────────────────────────────────────
   const settingsTab = isOwnProfile ? (
     <div className={sectionGap}>
@@ -198,6 +216,7 @@ export function ProfileDeferredBody({
     <ProfileTabsContainer
       overviewContent={overviewTab}
       listsContent={listsTab}
+      reviewsContent={reviewsTab}
       settingsContent={settingsTab}
     />
   );
