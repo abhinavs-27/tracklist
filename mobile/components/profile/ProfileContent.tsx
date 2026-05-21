@@ -29,8 +29,9 @@ import { CreateListModal } from "@/components/list/CreateListModal";
 import { LastfmSection } from "./LastfmSection";
 import { TasteIdentity } from "./TasteIdentity";
 import { SimilarUsersSection } from "./SimilarUsersSection";
+import { ProfileReviewsTab } from "./ProfileReviewsTab";
 
-type Tab = "overview" | "lists" | "settings";
+type Tab = "overview" | "lists" | "reviews" | "settings";
 
 type Props = {
   /** When set, loads that user's profile; when omitted, loads the signed-in user. */
@@ -143,11 +144,13 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     ? [
         { id: "overview", label: "Overview" },
         { id: "lists", label: "Lists" },
+        { id: "reviews", label: "Reviews" },
         { id: "settings", label: "Settings" },
       ]
     : [
         { id: "overview", label: "Overview" },
         { id: "lists", label: "Lists" },
+        { id: "reviews", label: "Reviews" },
       ];
 
   const totalLogs = (tasteData as { totalLogs?: number } | undefined)?.totalLogs ?? 0;
@@ -238,6 +241,12 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
       <ProfileListsSection lists={lists} isOwnProfile={isOwn} username={user.username}
         onPressCreate={isOwn ? () => setCreateListOpen(true) : undefined} />
     </View>
+  ) : tab === "reviews" ? (
+    <ProfileReviewsTab
+      username={user.username}
+      isOwnProfile={isOwn}
+      hasLastfm={!!user.lastfm_username}
+    />
   ) : tab === "settings" && isOwn ? (
     <View style={{ paddingHorizontal: 16, gap: 20 }}>
       {/* Privacy — matches web order */}
