@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -404,18 +405,20 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
   }
 
   const reportRows = data?.items ?? [];
+  const heroRow = reportRows[0] ?? null;
+  const listRows = reportRows.slice(1);
   const reportListParentRef = useRef<HTMLDivElement>(null);
   const reportSentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef(loadMore);
   loadMoreRef.current = loadMore;
 
   const reportVirtualizer = useVirtualizer({
-    count: reportRows.length,
+    count: listRows.length,
     getScrollElement: () => reportListParentRef.current,
     estimateSize: () => 76,
     overscan: 6,
     getItemKey: (index) => {
-      const row = reportRows[index];
+      const row = listRows[index];
       return row ? `${row.entityId}-${row.rank}` : String(index);
     },
   });
@@ -432,7 +435,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
     );
     io.observe(target);
     return () => io.disconnect();
-  }, [data?.nextOffset, reportRows.length]);
+  }, [data?.nextOffset, listRows.length]);
 
   async function savePrivate() {
     const name = defaultReportName();
@@ -758,101 +761,136 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
         ) : null}
 
         {data && data.items.length > 0 ? (
-          <div
-            ref={reportListParentRef}
-            className="max-h-[min(70vh,640px)] overflow-auto"
-            aria-busy={loadingMore}
-            role="list"
-          >
-            <div
-              style={{
-                height: `${reportVirtualizer.getTotalSize()}px`,
-                width: "100%",
-                position: "relative",
-              }}
-            >
-              {reportVirtualizer.getVirtualItems().map((virtualRow) => {
-                const row = reportRows[virtualRow.index];
-                if (!row) return null;
-                return (
+          <div className="space-y-2">
+            {heroRow && (
+              <div className="flex overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                <div className="flex w-16 shrink-0 items-center justify-center bg-gradient-to-b from-emerald-600 to-emerald-800">
+                  <span className="text-2xl font-black text-white/90">#1</span>
+                </div>
+                <div className="relative my-3 ml-4 h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+                  {heroRow.image ? (
+                    <Image src={heroRow.image} alt="" fill sizes="56px" className="object-cover" priority />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-zinc-500">♪</div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 py-3 pl-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-400">
+                    {RANGES.find((r) => r.value === range)?.label} · {TYPES.find((t) => t.value === entityType)?.label}
+                  </p>
+                  <p className="mt-1 truncate text-lg font-bold text-white">{heroRow.name}</p>
+                  <p className="text-xs text-zinc-500">{heroRow.count} plays</p>
+                </div>
+                <div className="flex shrink-0 items-center px-4">
+                  {heroRow.isNew ? (
+                    <span className="text-xs italic text-zinc-400">New entry</span>
+                  ) : (
+                    <span className={`text-sm font-semibold tabular-nums ${
+                      heroRow.movement != null && heroRow.movement > 0 ? "text-emerald-400"
+                      : heroRow.movement != null && heroRow.movement < 0 ? "text-red-400"
+                      : "text-zinc-500"
+                    }`}>
+                      {formatMovement(heroRow.movement, heroRow.isNew)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {listRows.length > 0 && (
+              <div className="overflow-hidden rounded-2xl border border-zinc-800">
+                <div
+                  ref={reportListParentRef}
+                  className="max-h-[min(70vh,640px)] overflow-auto"
+                  aria-busy={loadingMore}
+                  role="list"
+                >
                   <div
-                    key={virtualRow.key}
-                    data-index={virtualRow.index}
-                    ref={reportVirtualizer.measureElement}
-                    role="listitem"
-                    className={`pb-2 ${loadingMore ? "opacity-60" : ""}`}
                     style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
+                      height: `${reportVirtualizer.getTotalSize()}px`,
                       width: "100%",
-                      transform: `translateY(${virtualRow.start}px)`,
+                      position: "relative",
                     }}
                   >
-                    <div
-                      className={`flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 transition ${
-                        row.isNew ? "border-violet-500/30 bg-violet-950/20" : ""
-                      }`}
-                    >
-                      <span className="w-8 text-sm tabular-nums text-zinc-500">
-                        {row.rank}
-                      </span>
-                      {row.image ? (
-                        <img
-                          src={row.image}
-                          alt=""
-                          className="h-12 w-12 shrink-0 rounded object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-zinc-800 text-zinc-500">
-                          ♪
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium text-white">{row.name}</p>
-                          {row.isNew ? (
-                            <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-                              New
+                    {reportVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const row = listRows[virtualRow.index];
+                      if (!row) return null;
+                      return (
+                        <div
+                          key={virtualRow.key}
+                          data-index={virtualRow.index}
+                          ref={reportVirtualizer.measureElement}
+                          role="listitem"
+                          className={`pb-2 ${loadingMore ? "opacity-60" : ""}`}
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
+                        >
+                          <div
+                            className={`flex items-center gap-3 px-4 py-3 ${virtualRow.index < listRows.length - 1 ? "border-b border-zinc-800/60" : ""} ${row.isNew ? "bg-violet-950/10" : ""}`}
+                          >
+                            <span className="w-7 text-base font-bold tabular-nums text-zinc-600">
+                              {row.rank}
                             </span>
-                          ) : null}
+                            {row.image ? (
+                              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-zinc-800">
+                                <Image src={row.image} alt="" fill sizes="40px" className="object-cover" />
+                              </div>
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-zinc-500">♪</div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium text-white">{row.name}</p>
+                                {row.isNew ? (
+                                  <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
+                                    New
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="text-xs text-zinc-500">{row.count} plays</p>
+                            </div>
+                            <span
+                              className={`shrink-0 text-sm tabular-nums ${
+                                row.movement != null && row.movement > 0
+                                  ? "text-emerald-400"
+                                  : row.movement != null && row.movement < 0
+                                    ? "text-red-400"
+                                    : "text-zinc-500"
+                              }`}
+                            >
+                              {formatMovement(row.movement, row.isNew)}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-xs text-zinc-500">{row.count} plays</p>
-                      </div>
-                      <span
-                        className={`shrink-0 text-sm tabular-nums ${
-                          row.movement != null && row.movement > 0
-                            ? "text-emerald-400"
-                            : row.movement != null && row.movement < 0
-                              ? "text-red-400"
-                              : "text-zinc-500"
-                        }`}
-                      >
-                        {formatMovement(row.movement, row.isNew)}
-                      </span>
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-            {data.nextOffset != null ? (
-              <div
-                ref={reportSentinelRef}
-                className="flex min-h-12 items-center justify-center py-4"
-              >
-                {loadingMore ? (
-                  <span className="inline-flex items-center gap-2 text-sm text-zinc-500">
-                    <span
-                      className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent"
-                      aria-hidden
-                    />
-                    Loading…
-                  </span>
-                ) : (
-                  <span className="sr-only">Scroll for more</span>
-                )}
+                  {data.nextOffset != null ? (
+                    <div
+                      ref={reportSentinelRef}
+                      className="flex min-h-12 items-center justify-center py-4"
+                    >
+                      {loadingMore ? (
+                        <span className="inline-flex items-center gap-2 text-sm text-zinc-500">
+                          <span
+                            className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent"
+                            aria-hidden
+                          />
+                          Loading…
+                        </span>
+                      ) : (
+                        <span className="sr-only">Scroll for more</span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
+            )}
           </div>
         ) : null}
       </div>
