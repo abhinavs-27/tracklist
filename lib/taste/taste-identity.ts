@@ -12,6 +12,7 @@ import {
 } from "@/lib/spotify-cache";
 import { scheduleEnrichArtistGenresForArtistIds } from "./enrich-artist-genres";
 import { ratingsToArtistCountMap } from "./ratings-weight";
+import { computeTasteAxes } from "./compute-taste-axes";
 import {
   normalizeListeningStyle,
   type TasteListeningStyle,
@@ -78,126 +79,6 @@ function maxLogsPerDay(
   let m = 0;
   for (const v of byDay.values()) m = Math.max(m, v);
   return m;
-}
-
-function pickListeningStyle(args: {
-  totalLogs: number;
-  avgTrackPopularity: number | null;
-  uniqueArtists: number;
-  uniqueAlbums: number;
-  uniqueGenres: number;
-  daysSpan: number;
-  maxLogsPerDay: number;
-  /** Max plays for a single artist / totalLogs */
-  topArtistShare: number;
-}): TasteListeningStyle {
-  const {
-    totalLogs,
-    avgTrackPopularity,
-    uniqueArtists,
-    uniqueAlbums,
-    uniqueGenres,
-    daysSpan,
-    maxLogsPerDay,
-    topArtistShare,
-  } = args;
-
-  const albumRatio = uniqueAlbums / Math.max(totalLogs, 1);
-  const logsPerDay = totalLogs / Math.max(daysSpan, 1 / 24);
-  /** Distinct artists per play — high means you rarely repeat the same artist. */
-  const diversityRate = uniqueArtists / Math.max(totalLogs, 1);
-
-  type Scored = { style: TasteListeningStyle; score: number };
-  const scores: Scored[] = [];
-
-  if (totalLogs < 22) {
-    scores.push({ style: "still-forming", score: 72 - totalLogs * 1.2 });
-  }
-
-  /** Mainstream vs niche — wide bands; capped so one signal does not always win. */
-  if (avgTrackPopularity != null && avgTrackPopularity > 64) {
-    const raw = 56 + (avgTrackPopularity - 64) * 0.62;
-    scores.push({
-      style: "cultural-pulse",
-      score: Math.min(78, raw),
-    });
-  }
-
-  if (avgTrackPopularity != null && avgTrackPopularity < 48) {
-    const raw = 56 + (48 - avgTrackPopularity) * 0.62;
-    scores.push({
-      style: "the-archivist",
-      score: Math.min(78, raw),
-    });
-  }
-
-  /**
-   * Genre-nomad: only for genuinely wide rotation (high diversity rate + many artists).
-   * Scores stay **below** chart/deep/session peaks so popularity and habits win a mix.
-   */
-  if (uniqueArtists >= 70 && diversityRate >= 0.034) {
-    scores.push({
-      style: "genre-nomad",
-      score: 66 + Math.min(4, uniqueGenres * 0.1),
-    });
-  } else if (uniqueArtists >= 52 && diversityRate >= 0.04) {
-    scores.push({
-      style: "genre-nomad",
-      score: 60 + Math.min(4, uniqueGenres * 0.12),
-    });
-  } else if (
-    uniqueArtists >= 42 &&
-    diversityRate >= 0.045 &&
-    uniqueGenres >= 11
-  ) {
-    scores.push({
-      style: "genre-nomad",
-      score: 52 + Math.min(6, uniqueGenres * 0.35),
-    });
-  }
-
-  /** Plays cluster on a few favorites — downweight if rotation is actually wide. */
-  if (totalLogs >= 28 && topArtistShare >= 0.11) {
-    let s = 55 + Math.min(28, (topArtistShare - 0.11) * 125);
-    if (diversityRate > 0.045) s *= 0.9;
-    if (diversityRate > 0.07) s *= 0.85;
-    scores.push({ style: "the-loyalist", score: s });
-  }
-
-  /** Consistent day-to-day volume, moderate spikes, mid rotation — not nomad, not loyalist. */
-  if (
-    totalLogs >= 40 &&
-    daysSpan >= 7 &&
-    maxLogsPerDay >= 4 &&
-    maxLogsPerDay <= 34 &&
-    logsPerDay >= 3 &&
-    logsPerDay <= 24 &&
-    topArtistShare >= 0.06 &&
-    topArtistShare <= 0.29 &&
-    diversityRate >= 0.0025 &&
-    diversityRate <= 0.022 &&
-    uniqueArtists >= 8 &&
-    uniqueArtists <= 72
-  ) {
-    scores.push({ style: "daily-ritual", score: 68 });
-  }
-
-  if (totalLogs >= 28 && albumRatio < 0.2 && uniqueAlbums >= 3) {
-    scores.push({ style: "the-devotee", score: 80 });
-  } else if (totalLogs >= 18 && albumRatio < 0.28 && uniqueAlbums >= 2) {
-    scores.push({ style: "the-devotee", score: 64 });
-  }
-
-  if (maxLogsPerDay >= 90 || logsPerDay >= 45) {
-    scores.push({ style: "session-maximalist", score: 84 });
-  } else if (maxLogsPerDay >= 45 || logsPerDay >= 28) {
-    scores.push({ style: "session-maximalist", score: 68 });
-  }
-
-  if (scores.length === 0) return "still-forming";
-
-  scores.sort((a, b) => b.score - a.score);
-  return scores[0]!.style;
 }
 
 function buildSummary(t: TasteIdentity): string {
@@ -1146,16 +1027,7 @@ export async function computeTasteIdentity(
       ? popularities.reduce((a, b) => a + b, 0) / popularities.length
       : null;
 
-  const listeningStyle = pickListeningStyle({
-    totalLogs,
-    avgTrackPopularity,
-    uniqueArtists: artistCounts.size,
-    uniqueAlbums,
-    uniqueGenres,
-    daysSpan,
-    maxLogsPerDay: mlpd,
-    topArtistShare,
-  });
+  const styleResult = await computeTasteAxes(admin, userId, obscurityScore);
 
   const topArtistIds = [...artistCounts.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -1281,10 +1153,11 @@ export async function computeTasteIdentity(
     topGenres,
     obscurityScore,
     diversityScore,
-    listeningStyle,
+    listeningStyle: styleResult.primary,  // set from axis model result
     avgTracksPerSession,
     totalLogs,
     summary: "",
+    styleResult,
   };
   const withSummary = { ...base, summary: buildSummary(base) };
   const recent = await computeRecentTasteSnapshot(admin, userId);
@@ -1477,6 +1350,7 @@ export async function seedTasteIdentityFromFavoriteAlbums(
     avgTracksPerSession: 1,
     totalLogs: 0,
     summary,
+    styleResult: null,
   };
 
   await upsertTasteIdentityCache(admin, userId, payload);
