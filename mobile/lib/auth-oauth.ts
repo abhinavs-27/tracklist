@@ -1,5 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import { supabase } from "./supabase";
 import {
   getNativeOAuthRedirectUrl,
@@ -141,6 +143,60 @@ export async function signInWithGoogleOAuth(): Promise<SignInWithGoogleResult> {
     return {
       error: e instanceof Error ? e : new Error(String(e)),
     };
+  }
+}
+
+export type SignInWithAppleResult = {
+  error: Error | null;
+  cancelled?: boolean;
+};
+
+/**
+ * Native Sign in with Apple via expo-apple-authentication.
+ * iOS only — always returns { cancelled: true } on other platforms.
+ * After getting the credential, exchanges it with Supabase via signInWithIdToken.
+ *
+ * Prerequisites in Supabase dashboard: enable Apple provider, configure
+ * your Apple Service ID and private key.
+ */
+export async function signInWithApple(): Promise<SignInWithAppleResult> {
+  if (Platform.OS !== "ios") {
+    return { error: null, cancelled: true };
+  }
+  try {
+    // Generate a cryptographically random nonce for PKCE-like replay protection
+    const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      rawNonce,
+    );
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+
+    if (!credential.identityToken) {
+      return { error: new Error("Apple did not return an identity token") };
+    }
+
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: "apple",
+      token: credential.identityToken,
+      nonce: rawNonce,
+    });
+
+    if (error) return { error: new Error(error.message) };
+    return { error: null };
+  } catch (e) {
+    // ERR_REQUEST_CANCELED is thrown when the user dismisses the sheet
+    if (e instanceof Error && e.message.includes("canceled")) {
+      return { error: null, cancelled: true };
+    }
+    return { error: e instanceof Error ? e : new Error(String(e)) };
   }
 }
 

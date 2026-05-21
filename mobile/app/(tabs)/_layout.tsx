@@ -2,8 +2,13 @@ import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  // Half the safe-area bottom so the home-indicator strip is covered but compact
+  const bottomPad = Math.round(insets.bottom / 2);
+
   return (
     <Tabs
       screenOptions={{
@@ -15,9 +20,8 @@ export default function TabsLayout() {
           borderTopWidth: 0,
           backgroundColor: Platform.OS === "ios" ? "transparent" : "#09090b",
           elevation: 0,
-          height: 60,
-          paddingBottom: 8,
-          marginBottom: 20,
+          height: 60 + bottomPad,
+          paddingBottom: bottomPad,
         },
         tabBarBackground:
           Platform.OS === "ios"

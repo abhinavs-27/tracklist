@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../supabase";
-import { signInWithGoogleOAuth } from "../auth-oauth";
+import { signInWithGoogleOAuth, signInWithApple } from "../auth-oauth";
 import { sendExpoPushTokenToBackend } from "../notifications";
 
 const AUTH_SESSION_KEY = ["auth", "session"] as const;
@@ -11,10 +11,8 @@ export type UseAuthResult = {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
-  signInWithGoogle: () => Promise<{
-    error: Error | null;
-    cancelled?: boolean;
-  }>;
+  signInWithGoogle: () => Promise<{ error: Error | null; cancelled?: boolean }>;
+  signInWithApple: () => Promise<{ error: Error | null; cancelled?: boolean }>;
   signOut: () => Promise<void>;
 };
 
