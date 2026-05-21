@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { apiOk, apiUnauthorized, apiBadRequest } from "@/lib/api-response";
+import { apiOk, apiUnauthorized, apiInternalError } from "@/lib/api-response";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 function parseSince(raw: string | null): string {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   const { data: runs, error: runsErr } = await query;
   if (runsErr) {
     console.error("[admin/job-runs] fetch runs", runsErr.message);
-    return apiBadRequest("Failed to fetch job runs");
+    return apiInternalError(runsErr);
   }
 
   // Build summary from fetched rows — no second DB query needed
