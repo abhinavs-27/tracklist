@@ -15,7 +15,7 @@ export type OgFontSpec = {
 export async function loadChartShareImageFonts(): Promise<OgFontSpec[]> {
   const base = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
-    : `http://localhost:${process.env.PORT ?? 3000}`;
+    : `http://127.0.0.1:${process.env.PORT ?? 3000}`;
 
   try {
     const [r400, r700] = await Promise.all([
