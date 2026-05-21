@@ -288,9 +288,8 @@ SELECT archive_old_logs(180, 100);
 - [ ] **Step 3: Deploy updated EventBridge rule via AWS CLI**
 
 ```bash
-export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
 export AWS_REGION=us-east-2
+# (credentials loaded from .env or aws-vault — do not hardcode here)
 
 aws events put-rule \
   --name tracklist-cron-archive-old-logs \

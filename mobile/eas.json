@@ -22,6 +22,9 @@
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://tracklistsocial.com"
+      },
       "ios": {
         "image": "latest",
         "resourceClass": "m-medium"
@@ -30,6 +33,9 @@
     "production": {
       "autoIncrement": true,
       "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://tracklistsocial.com"
+      },
       "ios": {
         "image": "latest"
       },

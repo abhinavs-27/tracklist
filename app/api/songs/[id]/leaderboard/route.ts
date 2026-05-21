@@ -1,12 +1,12 @@
 import { withHandler } from "@/lib/api-handler";
 import { apiOk, apiBadRequest, apiInternalError } from "@/lib/api-response";
 import { getSongFriendLeaderboard } from "@/lib/queries";
-import { isValidUuid } from "@/lib/validation";
+import { isValidReviewEntityId } from "@/lib/validation";
 
 export const GET = withHandler(async (request, { user: me, params }) => {
   try {
     const { id } = params;
-    if (!id || !isValidUuid(id)) return apiBadRequest("Invalid song id");
+    if (!id || !isValidReviewEntityId(id)) return apiBadRequest("Invalid song id");
 
     const entries = await getSongFriendLeaderboard(me!.id, id);
     return apiOk(entries ?? []);
