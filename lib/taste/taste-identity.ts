@@ -11,6 +11,7 @@ import {
   upsertArtistFromSpotify,
 } from "@/lib/spotify-cache";
 import { scheduleEnrichArtistGenresForArtistIds } from "./enrich-artist-genres";
+import { ratingsToArtistCountMap } from "./ratings-weight";
 import {
   normalizeListeningStyle,
   type TasteListeningStyle,
@@ -273,7 +274,11 @@ function normalizeCachedTasteIdentity(cached: TasteIdentity): TasteIdentity {
     ) {
       return { ...base, recent: undefined };
     }
-    return { ...base, summary: EMPTY.summary, recent: undefined };
+    const ratingCount = base.topAlbums.length;
+    const coldSummary = ratingCount > 0
+      ? `Rated ${ratingCount} album${ratingCount === 1 ? "" : "s"} · taste profile built from your ratings`
+      : EMPTY.summary;
+    return { ...base, summary: coldSummary, recent: undefined };
   }
   return { ...base, summary: buildSummary(base) };
 }
@@ -965,6 +970,34 @@ async function fetchAlbumsBatch(
   return out;
 }
 
+/** Fetches all album reviews (rating ≥ 3) for a user, resolved to artistId. */
+async function fetchUserAlbumRatings(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<import("./ratings-weight").RatingEntry[]> {
+  const { data, error } = await admin
+    .from("reviews")
+    .select("entity_id, rating")
+    .eq("user_id", userId)
+    .eq("entity_type", "album")
+    .gte("rating", 3);
+
+  if (error || !data?.length) return [];
+
+  const albumIds = data.map((r) => (r as { entity_id: string; rating: number }).entity_id);
+  const albumMeta = await fetchAlbumsBatch(admin, albumIds);
+
+  return data.map((r) => {
+    const row = r as { entity_id: string; rating: number };
+    const album = albumMeta.get(row.entity_id);
+    return {
+      albumId: row.entity_id,
+      artistId: album?.artist_id ?? "",
+      rating: row.rating,
+    };
+  });
+}
+
 async function enrichTopArtistsFromSpotify(
   admin: SupabaseClient,
   artistIdsMissingImage: string[],
@@ -993,11 +1026,22 @@ export async function computeTasteIdentity(
     getTotalPlayCount(admin, userId),
   ]);
 
-  if (totalLogs === 0 && artistAgg.length === 0) {
+  const [ratingEntries] = await Promise.all([
+    fetchUserAlbumRatings(admin, userId),
+  ]);
+  const ratingArtistCounts = ratingsToArtistCountMap(ratingEntries);
+
+  if (totalLogs === 0 && artistAgg.length === 0 && ratingArtistCounts.size === 0) {
     return { ...EMPTY };
   }
 
   const artistCounts = new Map(artistAgg.map((r) => [r.entity_id, r.count]));
+  // Merge ratings-derived synthetic weights into log-derived counts.
+  // For zero-log users, ratings carry the full signal.
+  // For active listeners, the small synthetic weights (max 15/album) are a minor nudge.
+  for (const [artistId, syntheticCount] of ratingArtistCounts) {
+    artistCounts.set(artistId, (artistCounts.get(artistId) ?? 0) + syntheticCount);
+  }
   const albumCounts = new Map(albumAgg.map((r) => [r.entity_id, r.count]));
   const artistIdsForMeta = new Set(artistCounts.keys());
 
