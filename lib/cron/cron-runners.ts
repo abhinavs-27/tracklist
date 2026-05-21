@@ -659,3 +659,26 @@ export async function runDrainEnrichBacklog(): Promise<{
   console.log(`[drain-enrich] done — drained:${drained} errors:${errors}`);
   return { ok: true, drained, errors };
 }
+
+export async function runArchiveOldLogs(
+  cutoffDays = 180,
+): Promise<{ ok: true; archived: number }> {
+  const capped = Math.min(365, Math.max(30, cutoffDays));
+  const run = await startJobRun("archive_old_logs", { cutoff_days: capped });
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data, error } = await admin.rpc("archive_old_logs", {
+      p_cutoff_days: capped,
+      p_batch_size:  5000,
+    });
+    if (error) throw new Error(error.message);
+    const archived =
+      (data?.[0] as { archived: number } | undefined)?.archived ?? 0;
+    console.log(LOG, "archive_old_logs done", { archived });
+    void run.finish({ status: archived > 0 ? "ok" : "skipped", items_ok: archived });
+    return { ok: true, archived };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
+}
