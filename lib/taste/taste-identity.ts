@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getAllTimeAgg, getTotalPlayCount } from "@/lib/analytics/from-aggregates";
+import { getAllTimeAgg, getTotalPlayCount, getWeeklyAgg, currentWeekStart } from "@/lib/analytics/from-aggregates";
 import { getArtists } from "@/lib/spotify";
 import {
   getOrFetchAlbumsBatch,
@@ -733,51 +733,76 @@ async function computeRecentTasteSnapshot(
   admin: SupabaseClient,
   userId: string,
 ): Promise<TasteRecentSnapshot | null> {
-  const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: rows, error } = await admin
-    .from("logs")
-    .select("track_id, listened_at, album_id, artist_id")
-    .eq("user_id", userId)
-    .gte("listened_at", since30)
-    .order("listened_at", { ascending: false })
-    .limit(2000);
+  const curWeek = currentWeekStart();
 
-  if (error) {
-    console.warn("[taste-identity] recent window logs failed", error);
-    return null;
-  }
-  const logs = (rows ?? []) as {
-    track_id: string;
-    listened_at: string;
-    album_id: string | null;
-    artist_id: string | null;
-  }[];
-  if (logs.length === 0) return null;
+  // Four-week window start: Monday 4 weeks before current week
+  const fourWeeksAgoDate = new Date(curWeek);
+  fourWeeksAgoDate.setUTCDate(fourWeeksAgoDate.getUTCDate() - 28);
+  const fourWeeksAgo = fourWeeksAgoDate.toISOString().slice(0, 10);
 
-  const now = Date.now();
-  const sevenMs = 7 * 24 * 60 * 60 * 1000;
-  const logs7 = logs.filter((l) => now - new Date(l.listened_at).getTime() <= sevenMs);
-  const slice = (x: (typeof logs)[number]) => ({
-    track_id: x.track_id,
-    album_id: x.album_id,
-    artist_id: x.artist_id,
-  });
-
-  const [topGenres7d, topGenres30d] = await Promise.all([
-    aggregateLogsToTopGenres(admin, logs7.map(slice)),
-    aggregateLogsToTopGenres(admin, logs.map(slice)),
+  // Parallel: current-week genre/track aggregates + last-4-weeks genre/track aggregates
+  const [curGenres, curTrackCount, allGenreData, allTrackData] = await Promise.all([
+    getWeeklyAgg(admin, userId, "genre", curWeek, 50),
+    getWeeklyAgg(admin, userId, "track", curWeek, 1000).then((rows) =>
+      rows.reduce((s, r) => s + r.count, 0),
+    ),
+    admin
+      .from("user_listening_aggregates")
+      .select("entity_id, count")
+      .eq("user_id", userId)
+      .eq("entity_type", "genre")
+      .gte("week_start", fourWeeksAgo)
+      .not("week_start", "is", null),
+    admin
+      .from("user_listening_aggregates")
+      .select("count")
+      .eq("user_id", userId)
+      .eq("entity_type", "track")
+      .gte("week_start", fourWeeksAgo)
+      .not("week_start", "is", null),
   ]);
+
+  const logCount7d  = curTrackCount;
+  const logCount30d = (allTrackData.data ?? []).reduce(
+    (s, r) => s + (r as { count: number }).count,
+    0,
+  );
+
+  if (logCount30d === 0) return null;
+
+  // Sum genre counts across all weeks in the 4-week window
+  const genreSums = new Map<string, number>();
+  for (const r of allGenreData.data ?? []) {
+    const row = r as { entity_id: string; count: number };
+    genreSums.set(row.entity_id, (genreSums.get(row.entity_id) ?? 0) + row.count);
+  }
+  const allGenres = [...genreSums.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50)
+    .map(([entity_id, count]) => ({ entity_id, count }));
+
+  const toTasteGenres = (rows: { entity_id: string; count: number }[]): TasteGenre[] => {
+    const total = rows.reduce((s, r) => s + r.count, 0);
+    if (total === 0) return [];
+    return rows.slice(0, TOP_GENRES).map((r) => ({
+      name:   r.entity_id,
+      weight: Math.round((r.count / total) * 1000) / 10,
+    }));
+  };
+
+  const topGenres7d  = toTasteGenres(curGenres);
+  const topGenres30d = toTasteGenres(allGenres);
 
   const insightWeek = buildRecentInsightSentence(
     topGenres7d,
     topGenres30d,
-    logs7.length,
-    logs.length,
+    logCount7d,
+    logCount30d,
   );
 
   return {
-    logCount7d: logs7.length,
-    logCount30d: logs.length,
+    logCount7d,
+    logCount30d,
     topGenres7d,
     topGenres30d,
     insightWeek,
