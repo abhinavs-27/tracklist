@@ -5,6 +5,7 @@ import { getLastCompletedWeekWindow } from "@/lib/charts/utc-week";
 import { backfillMissingLogCatalogFromTracks } from "@/lib/logs/backfill-log-catalog-from-tracks";
 import { parseBillboardWeek } from "@/lib/jobs/week-window";
 import { createJobsSupabaseClient } from "@/lib/jobs/service-role";
+import { startJobRun } from "@/lib/jobs/job-logger";
 
 const CHART_TYPES: ChartType[] = ["tracks", "artists", "albums"];
 
@@ -15,7 +16,6 @@ const CHART_TYPES: ChartType[] = ["tracks", "artists", "albums"];
  */
 export async function runGenerateUserBillboard(args: {
   userId: string;
-  /** Defaults to last completed week when omitted (e.g. manual replay). */
   week?: string;
 }): Promise<{ chartsWritten: number; skipped: number }> {
   const window =
@@ -25,42 +25,52 @@ export async function runGenerateUserBillboard(args: {
 
   const startIso = window.weekStart.toISOString();
   const endIso = window.weekEndExclusive.toISOString();
-  const weekStartDate = startIso.slice(0, 10); // "YYYY-MM-DD"
+  const weekStartDate = startIso.slice(0, 10);
 
-  // Only backfill when no aggregate rows exist for this user+week.
-  // Presence of aggregates means logs were already processed → catalog IDs are filled.
-  const admin = createJobsSupabaseClient();
-  const { count } = await admin
-    .from("user_listening_aggregates")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", args.userId)
-    .eq("week_start", weekStartDate)
-    .limit(1);
+  const run = await startJobRun("billboard_user", {
+    user_id: args.userId,
+    week_start: weekStartDate,
+  });
 
-  if (!count || count === 0) {
-    await backfillMissingLogCatalogFromTracks({
-      startIso,
-      endExclusiveIso: endIso,
-      userIds: [args.userId],
-    });
+  try {
+    const admin = createJobsSupabaseClient();
+    const { count } = await admin
+      .from("user_listening_aggregates")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", args.userId)
+      .eq("week_start", weekStartDate)
+      .limit(1);
+
+    const fastPath = (count ?? 0) > 0;
+
+    if (!fastPath) {
+      await backfillMissingLogCatalogFromTracks({
+        startIso,
+        endExclusiveIso: endIso,
+        userIds: [args.userId],
+      });
+    }
+
+    const results = await Promise.all(
+      CHART_TYPES.map((chartType) =>
+        computeWeeklyChart({
+          userId: args.userId,
+          weekStart: window.weekStart,
+          weekEndExclusive: window.weekEndExclusive,
+          chartType,
+        }),
+      ),
+    );
+
+    const chartsWritten = results.filter((r) => !r.skipped).length;
+    const skipped = results.filter((r) => r.skipped).length;
+
+    void run.finish({ status: "ok", fast_path: fastPath, items_ok: chartsWritten, items_failed: skipped });
+    return { chartsWritten, skipped };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
   }
-
-  // All 3 chart types are independent — run in parallel for ~3x speedup
-  const results = await Promise.all(
-    CHART_TYPES.map((chartType) =>
-      computeWeeklyChart({
-        userId: args.userId,
-        weekStart: window.weekStart,
-        weekEndExclusive: window.weekEndExclusive,
-        chartType,
-      }),
-    ),
-  );
-
-  return {
-    chartsWritten: results.filter((r) => !r.skipped).length,
-    skipped: results.filter((r) => r.skipped).length,
-  };
 }
 
 /**
@@ -76,20 +86,31 @@ export async function runGenerateCommunityBillboard(args: {
       ? parseBillboardWeek(args.week)
       : getLastCompletedWeekWindow(new Date());
 
-  // All 3 chart types are independent — run in parallel
-  const results = await Promise.all(
-    CHART_TYPES.map((chartType) =>
-      computeCommunityWeeklyChart({
-        communityId: args.communityId,
-        weekStart: window.weekStart,
-        weekEndExclusive: window.weekEndExclusive,
-        chartType,
-      }),
-    ),
-  );
+  const weekStartDate = window.weekStart.toISOString().slice(0, 10);
+  const run = await startJobRun("billboard_community", {
+    community_id: args.communityId,
+    week_start: weekStartDate,
+  });
 
-  return {
-    chartsWritten: results.filter((r) => !r.skipped).length,
-    skipped: results.filter((r) => r.skipped).length,
-  };
+  try {
+    const results = await Promise.all(
+      CHART_TYPES.map((chartType) =>
+        computeCommunityWeeklyChart({
+          communityId: args.communityId,
+          weekStart: window.weekStart,
+          weekEndExclusive: window.weekEndExclusive,
+          chartType,
+        }),
+      ),
+    );
+
+    const chartsWritten = results.filter((r) => !r.skipped).length;
+    const skipped = results.filter((r) => r.skipped).length;
+
+    void run.finish({ status: "ok", items_ok: chartsWritten, items_failed: skipped });
+    return { chartsWritten, skipped };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
 }
