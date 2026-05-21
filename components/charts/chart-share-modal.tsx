@@ -259,7 +259,6 @@ export function ChartShareModal(props: {
               <img
                 src={previewSrc}
                 alt="Your chart card preview"
-                crossOrigin="use-credentials"
                 className="absolute inset-0 w-full h-full object-cover rounded-2xl opacity-0 transition-opacity duration-300"
                 onLoad={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "1"; }}
                 onError={() => setImgError(true)}
