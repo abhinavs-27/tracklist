@@ -9,6 +9,8 @@ describe("ratingToSyntheticWeight", () => {
   it("returns 2 for 3 stars", () => expect(ratingToSyntheticWeight(3)).toBe(2));
   it("returns 0 for 2.5 stars", () => expect(ratingToSyntheticWeight(2.5)).toBe(0));
   it("returns 0 for 1 star", () => expect(ratingToSyntheticWeight(1)).toBe(0));
+  it("returns 15 for ratings above 5 (treated as max weight)", () => expect(ratingToSyntheticWeight(6)).toBe(15));
+  it("returns 0 for 0 stars", () => expect(ratingToSyntheticWeight(0)).toBe(0));
 });
 
 describe("ratingsToArtistCountMap", () => {
@@ -36,5 +38,10 @@ describe("ratingsToArtistCountMap", () => {
     const ratings = [{ albumId: "a1", artistId: null as unknown as string, rating: 5 }];
     const result = ratingsToArtistCountMap(ratings);
     expect(result.size).toBe(0);
+  });
+
+  it("skips entries with empty-string artistId", () => {
+    const ratings = [{ albumId: "a1", artistId: "", rating: 5 }];
+    expect(ratingsToArtistCountMap(ratings).size).toBe(0);
   });
 });
