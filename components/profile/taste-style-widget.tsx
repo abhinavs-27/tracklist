@@ -102,6 +102,8 @@ export function TasteStyleWidget({
   const copy = getListeningStyleDisplay(styleKey);
   const accent = STYLE_ACCENT_COLOR[styleKey] ?? "#10b981";
 
+  const [copying, setCopying] = useState(false);
+
   const handleShare = useCallback(async () => {
     if (sharing) return;
     setSharing(true);
@@ -128,6 +130,22 @@ export function TasteStyleWidget({
       setSharing(false);
     }
   }, [sharing, toast]);
+
+  const handleCopyImage = useCallback(async () => {
+    if (copying) return;
+    setCopying(true);
+    try {
+      const file = await fetchIdentityPng();
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": file }),
+      ]);
+      toast("Image copied — paste it anywhere");
+    } catch {
+      toast("Could not copy image");
+    } finally {
+      setCopying(false);
+    }
+  }, [copying, toast]);
 
   const axes = styleResult?.axes;
 
@@ -160,24 +178,48 @@ export function TasteStyleWidget({
         </div>
 
         {isOwnProfile ? (
-          <button
-            type="button"
-            onClick={() => void handleShare()}
-            disabled={sharing}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800/60 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
-          >
-            {sharing ? (
-              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
-              </svg>
-            )}
-            {sharing ? "Generating…" : "Share"}
-          </button>
+          <div className="flex shrink-0 gap-1.5">
+            {/* Copy to clipboard — desktop only; mobile gets image via native share sheet */}
+            {shareCapability.current === "download" ? (
+              <button
+                type="button"
+                onClick={() => void handleCopyImage()}
+                disabled={copying || sharing}
+                className="flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800/60 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
+                title="Copy image to clipboard — paste into Twitter, Discord, etc."
+              >
+                {copying ? (
+                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                  </svg>
+                )}
+                {copying ? "Copying…" : "Copy"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void handleShare()}
+              disabled={sharing || copying}
+              className="flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800/60 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
+            >
+              {sharing ? (
+                <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
+                </svg>
+              )}
+              {sharing ? "Generating…" : shareCapability.current === "native-files" ? "Share" : "Download"}
+            </button>
+          </div>
         ) : null}
       </div>
 
