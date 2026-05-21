@@ -322,6 +322,8 @@ export function ProfileOnboarding({
         };
         setAlbumSuggestions(data.suggestions ?? []);
         setGenreSubstep("albums");
+      } else {
+        setFavoritesError("Could not load album suggestions. Please try again.");
       }
     } finally {
       setAlbumSuggestionsLoading(false);
@@ -438,7 +440,7 @@ export function ProfileOnboarding({
         >
           {/* Visual step indicator */}
           <div className="flex items-center">
-            {(["Username", "Albums", "Your chart", inviteFlow ? "Community" : "People"] as const).map(
+            {(["Username", "Taste", "Your chart", inviteFlow ? "Community" : "People"] as const).map(
               (label, i) => {
                 const num = i + 1;
                 const done = step > num;

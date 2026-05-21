@@ -1361,11 +1361,8 @@ export async function seedTasteIdentityFromRatings(
       .upsert(rows, { onConflict: "user_id,entity_type,entity_id", ignoreDuplicates: false });
   }
 
-  // 3. Seed taste identity from the newly saved ratings
-  if (validRatings.length > 0) {
-    const albumIds = validRatings.map((r) => r.albumId);
-    await seedTasteIdentityFromFavoriteAlbums(userId, albumIds);
-  }
+  // 3. Seed taste identity using full ratings (not capped 4-album seed)
+  await refreshTasteIdentityCacheForUser(userId);
 }
 
 /**

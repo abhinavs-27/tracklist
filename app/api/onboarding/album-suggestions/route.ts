@@ -38,34 +38,41 @@ export const GET = withHandler(
     for (const genreKey of requestedGenres) {
       const stubs = (GENRE_ALBUMS[genreKey] ?? []).slice(0, ALBUMS_PER_GENRE);
       const genreLabel = GENRES.find((g) => g.key === genreKey)?.label ?? genreKey;
+
+      // Batch fetch all candidate albums for this genre
+      const albumNames = stubs.map((s) => s.albumName);
+      const { data: dbAlbums } = await admin
+        .from("albums")
+        .select("id, name, image_url, artist_id")
+        .in("name", albumNames);
+
+      const dbAlbumMap = new Map(
+        ((dbAlbums ?? []) as Array<{ id: string; name: string; image_url: string | null; artist_id: string }>)
+          .map((a) => [a.name.toLowerCase(), a]),
+      );
+
+      // Batch fetch artists for found albums
+      const artistIds = [...new Set(
+        Array.from(dbAlbumMap.values()).map((a) => a.artist_id).filter(Boolean)
+      )];
+      const { data: artistRows } = artistIds.length > 0
+        ? await admin.from("artists").select("id, name").in("id", artistIds)
+        : { data: [] };
+      const artistNameMap = new Map(
+        ((artistRows ?? []) as Array<{ id: string; name: string }>).map((a) => [a.id, a.name])
+      );
+
       const albums: Array<{ id: string; name: string; artistName: string; imageUrl: string | null }> = [];
-
       for (const stub of stubs) {
-        try {
-          const { data: dbAlbum } = await admin
-            .from("albums")
-            .select("id, name, image_url, artist_id")
-            .ilike("name", stub.albumName)
-            .limit(1)
-            .maybeSingle();
-
-          if (dbAlbum && !seen.has(dbAlbum.id)) {
-            seen.add(dbAlbum.id);
-            const { data: artist } = await admin
-              .from("artists")
-              .select("name")
-              .eq("id", dbAlbum.artist_id)
-              .maybeSingle();
-
-            albums.push({
-              id: dbAlbum.id,
-              name: dbAlbum.name,
-              artistName: (artist as { name: string } | null)?.name ?? stub.artistName,
-              imageUrl: dbAlbum.image_url,
-            });
-          }
-        } catch {
-          // Skip albums that can't be resolved
+        const dbAlbum = dbAlbumMap.get(stub.albumName.toLowerCase());
+        if (dbAlbum && !seen.has(dbAlbum.id)) {
+          seen.add(dbAlbum.id);
+          albums.push({
+            id: dbAlbum.id,
+            name: dbAlbum.name,
+            artistName: artistNameMap.get(dbAlbum.artist_id) ?? stub.artistName,
+            imageUrl: dbAlbum.image_url,
+          });
         }
       }
 

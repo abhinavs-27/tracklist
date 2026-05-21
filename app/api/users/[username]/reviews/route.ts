@@ -19,11 +19,16 @@ export const GET = withHandler(
     // Resolve user by username
     const { data: profileUser } = await supabase
       .from("users")
-      .select("id, lastfm_username")
+      .select("id, lastfm_username, logs_private")
       .eq("username", username)
       .maybeSingle();
 
     if (!profileUser) return apiNotFound("User not found");
+
+    const viewerId = viewer?.id ?? null;
+    if ((profileUser as { logs_private?: boolean }).logs_private && viewerId !== profileUser.id) {
+      return apiOk({ reviews: [], hasLastfm: false, availableYears: [] });
+    }
 
     const admin = createSupabaseAdminClient();
     const from = (page - 1) * PAGE_SIZE;
