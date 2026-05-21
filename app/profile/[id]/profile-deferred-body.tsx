@@ -20,7 +20,6 @@ import {
   getCachedUserMatches,
 } from "@/lib/profile/cached-profile-data";
 import { ProfileReviewsTab } from "@/components/profile/profile-reviews-tab";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const LISTS_PREVIEW_MAX = 6;
 
@@ -61,6 +60,7 @@ type ProfileDeferredBodyProps = {
   };
   session: Session | null;
   spotifyConnected: boolean;
+  reviewCount: number;
   // Prefetched promises from parent
   userListsPromise: Promise<UserListWithPreview[]>;
   tasteIdentityPromise: Promise<TasteIdentity>;
@@ -72,6 +72,7 @@ export async function ProfileDeferredBody({
   profile,
   session,
   logsPrivate,
+  reviewCount,
   userListsPromise,
   tasteIdentityPromise,
   userMatchesPromise,
@@ -81,12 +82,6 @@ export async function ProfileDeferredBody({
   const userLists = use(userListsPromise) ?? [];
   const tasteIdentity = use(tasteIdentityPromise) ?? EMPTY_TASTE;
   const userMatchesPrefetched = use(userMatchesPromise);
-
-  const supabase = await createSupabaseServerClient();
-  const { count: reviewCount } = await supabase
-    .from("reviews")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
 
   // ── Overview tab ──────────────────────────────────────────────────────────────
   const overviewTab = (
