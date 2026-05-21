@@ -10,6 +10,9 @@
 --            when NULL, repairs all users up to p_limit rows of album aggregates.
 -- Idempotent: inserts only where the artist row is completely missing.
 
+-- Drop old single-param overload so PostgREST doesn't get confused between signatures.
+DROP FUNCTION IF EXISTS public.repair_missing_artist_aggregates(integer);
+
 CREATE OR REPLACE FUNCTION repair_missing_artist_aggregates(
   p_limit   INT  DEFAULT 50000,
   p_user_id UUID DEFAULT NULL

@@ -475,11 +475,51 @@ export async function mergeCanonicalArtists(
       .eq("entity_id", loserId);
   }
 
+  // Migrate loser's aggregate rows to winner. A simple UPDATE entity_id = winner
+  // fails silently when the winner already has a row for the same (user, bucket) —
+  // unique constraint violation. Those rows stay orphaned under the deleted loser UUID.
+  // So: bulk-update first (fast path for buckets where only the loser exists),
+  // then for any rows that couldn't be migrated, merge counts + delete.
   await supabase
     .from("user_listening_aggregates")
     .update({ entity_id: winnerId })
     .eq("entity_type", "artist")
     .eq("entity_id", loserId);
+
+  const { data: remainingLoserRows } = await supabase
+    .from("user_listening_aggregates")
+    .select("id, user_id, count, week_start, month, year")
+    .eq("entity_type", "artist")
+    .eq("entity_id", loserId);
+
+  for (const row of (remainingLoserRows ?? []) as {
+    id: string;
+    user_id: string;
+    count: number;
+    week_start: string | null;
+    month: string | null;
+    year: number | null;
+  }[]) {
+    // Find the winner row for this exact bucket
+    let q = supabase
+      .from("user_listening_aggregates")
+      .select("id, count")
+      .eq("entity_type", "artist")
+      .eq("entity_id", winnerId)
+      .eq("user_id", row.user_id);
+    q = row.week_start !== null ? q.eq("week_start", row.week_start) : q.is("week_start", null);
+    q = row.month !== null ? q.eq("month", row.month) : q.is("month", null);
+    q = row.year !== null ? q.eq("year", row.year) : q.is("year", null);
+    const { data: winnerRow } = await q.maybeSingle();
+    if (winnerRow) {
+      const w = winnerRow as { id: string; count: number };
+      await supabase
+        .from("user_listening_aggregates")
+        .update({ count: w.count + row.count, updated_at: new Date().toISOString() })
+        .eq("id", w.id);
+    }
+    await supabase.from("user_listening_aggregates").delete().eq("id", row.id);
+  }
 
   await supabase
     .from("notifications")

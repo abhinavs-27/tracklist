@@ -1,19 +1,24 @@
 import { NextRequest } from "next/server";
 import { apiUnauthorized, apiOk, apiError, apiBadRequest } from "@/lib/api-response";
 import { runRepairArtistAggregates } from "@/lib/cron/cron-runners";
-import { repairMissingArtistAggregates } from "@/lib/analytics/repair-artist-aggregates";
+import {
+  repairMissingArtistAggregates,
+  repairOrphanedArtistAggregates,
+} from "@/lib/analytics/repair-artist-aggregates";
 import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
 import { isValidUuid } from "@/lib/validation";
 
 /**
- * Repair missing artist rows in user_listening_aggregates.
+ * Runs both artist aggregate repairs then refreshes the user's taste identity cache.
  *
- * ?userId=<uuid>  — repairs only that user (no row-limit issue) then immediately
- *                   refreshes their taste_identity_cache. Use this when a specific
- *                   user's top artists are wrong after the general repair ran.
+ * Two separate bugs are fixed:
+ *  1. Missing rows: logs processed before Spotify enrichment set tracks.artist_id
+ *     (album plays counted, artist plays silently dropped).
+ *  2. Orphaned rows: artist merges that hit a unique-constraint conflict left rows
+ *     under the deleted loser UUID, showing as "Unknown" in top artists.
  *
- * No ?userId      — global repair pass (all users, up to 100k album rows).
- *                   Does NOT trigger taste-identity-refresh; run that separately.
+ * ?userId=<uuid>  — targets one user, no row-limit issue, refreshes their cache immediately.
+ * No ?userId      — global pass across all users.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -28,11 +33,19 @@ export async function GET(request: NextRequest) {
 
   if (userId) {
     if (!isValidUuid(userId)) return apiBadRequest("invalid userId");
-
     try {
-      const repair = await repairMissingArtistAggregates({ userId });
+      const [missing, orphaned] = await Promise.all([
+        repairMissingArtistAggregates({ userId }),
+        repairOrphanedArtistAggregates({ userId }),
+      ]);
       await refreshTasteIdentityCacheForUser(userId);
-      return apiOk({ ok: true, userId, repairInserted: repair.inserted, errors: repair.errors });
+      return apiOk({
+        ok: true,
+        userId,
+        missingInserted: missing.inserted,
+        orphanedMerged: orphaned.merged,
+        errors: missing.errors + orphaned.errors,
+      });
     } catch (e) {
       console.error("[cron] repair-artist-aggregates per-user", e);
       return apiError("Repair failed", 500);

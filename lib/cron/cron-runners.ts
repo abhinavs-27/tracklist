@@ -12,7 +12,10 @@ import { computeAllCommunitiesWeekly } from "@/lib/community/compute-community-w
 import { sendBillboardWeeklyDigestEmail } from "@/lib/email/send-billboard-weekly-email";
 import { updateListeningAggregates } from "@/lib/analytics/updateListeningAggregates";
 import { repairLastfmListeningAggregates } from "@/lib/analytics/repairLastfmAggregates";
-import { repairMissingArtistAggregates } from "@/lib/analytics/repair-artist-aggregates";
+import {
+  repairMissingArtistAggregates,
+  repairOrphanedArtistAggregates,
+} from "@/lib/analytics/repair-artist-aggregates";
 import { runUpgradeLastfmAlbumCovers as upgradeLastfmAlbumCoversCatalog } from "@/lib/catalog/upgrade-lastfm-album-covers";
 
 const LOG = "[cron-runners]";
@@ -507,11 +510,20 @@ export async function runListeningAggregates(): Promise<
 
 export async function runRepairArtistAggregates(): Promise<{
   ok: true;
-  inserted: number;
+  missingInserted: number;
+  orphanedMerged: number;
   errors: number;
 }> {
-  const result = await repairMissingArtistAggregates({ limit: 100000 });
-  return { ok: true, ...result };
+  const [missing, orphaned] = await Promise.all([
+    repairMissingArtistAggregates({ limit: 100000 }),
+    repairOrphanedArtistAggregates(),
+  ]);
+  return {
+    ok: true,
+    missingInserted: missing.inserted,
+    orphanedMerged: orphaned.merged,
+    errors: missing.errors + orphaned.errors,
+  };
 }
 
 export async function runRepairLastfmAggregates(batch = 500): Promise<
