@@ -19,6 +19,8 @@ import { getTasteIdentity } from "@/lib/taste/taste-identity";
 const REVALIDATE_SEC = 90;
 /** Longer TTL for expensive, slow-changing computations. */
 const REVALIDATE_SLOW_SEC = 10 * 60; // 10 minutes
+/** Pulse shows weekly data, no need for 90s refresh. */
+const PULSE_REVALIDATE_SEC = 5 * 60; // 5 minutes
 
 const EMPTY_TASTE: TasteIdentity = {
   topArtists: [],
@@ -68,7 +70,7 @@ export async function getCachedProfilePulseInsights(userId: string) {
   return unstable_cache(
     () => getProfilePulseInsights(uid),
     ["profile-pulse", uid],
-    { revalidate: REVALIDATE_SEC },
+    { revalidate: PULSE_REVALIDATE_SEC },
   )();
 }
 
