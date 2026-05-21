@@ -161,7 +161,6 @@ export async function getCommunityWeeklyChart(args: {
   const weekStartDate = new Date(row.week_start);
   const prevWeekStart = new Date(weekStartDate);
   prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
-
   const vid = args.viewerId?.trim();
 
   // prev-week chart and viewer plays are independent — fetch in parallel

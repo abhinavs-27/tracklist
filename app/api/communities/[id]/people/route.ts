@@ -15,16 +15,20 @@ export const GET = withHandler(
     const id = params.id?.trim() ?? "";
     if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
 
-    const member = await isCommunityMember(id, me!.id);
-    if (!member) return apiForbidden("Members only");
+    const cacheKey = communityEndpointCacheKey("people", id);
 
     try {
-      const cacheKey = communityEndpointCacheKey("people", id);
-      const people = await getOrSetCommunityApiCache(
-        cacheKey,
-        COMMUNITY_API_CACHE_TTL_SEC,
-        () => getCommunityPeople(id),
-      );
+      // membership check and data fetch are independent — run in parallel
+      const [member, people] = await Promise.all([
+        isCommunityMember(id, me!.id),
+        getOrSetCommunityApiCache(
+          cacheKey,
+          COMMUNITY_API_CACHE_TTL_SEC,
+          () => getCommunityPeople(id),
+        ),
+      ]);
+
+      if (!member) return apiForbidden("Members only");
       return apiOk({ people });
     } catch (e) {
       return apiInternalError(e instanceof Error ? e : new Error(String(e)));

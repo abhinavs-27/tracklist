@@ -30,16 +30,11 @@ function parseRange(raw: string | null): ConsensusRange {
   return "all";
 }
 
-/** GET /api/communities/[id]/consensus — shared favorites ranking; members only. Cached ~5m. */
+/** GET /api/communities/[id]/consensus — shared favorites ranking; members only. Cached ~10m. */
 export const GET = withHandler(
   async (request, { user: me, params }) => {
     const id = params.id?.trim() ?? "";
     if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
-
-    const member = await isCommunityMember(id, me!.id);
-    if (!member) {
-      return apiForbidden("Join this community to see consensus rankings");
-    }
 
     const { searchParams } = new URL(request.url);
     const type = parseType(searchParams.get("type"));
@@ -61,11 +56,20 @@ export const GET = withHandler(
       String(limit),
       String(offset),
     );
-    const { items, hasMore } = await getOrSetCommunityApiCache(
-      cacheKey,
-      COMMUNITY_API_CACHE_TTL_SEC,
-      () => getCommunityConsensusRankings(id, type, range, limit, offset),
-    );
+
+    // membership check and data fetch are independent — run in parallel
+    const [member, result] = await Promise.all([
+      isCommunityMember(id, me!.id),
+      getOrSetCommunityApiCache(
+        cacheKey,
+        COMMUNITY_API_CACHE_TTL_SEC,
+        () => getCommunityConsensusRankings(id, type, range, limit, offset),
+      ),
+    ]);
+
+    if (!member) return apiForbidden("Join this community to see consensus rankings");
+
+    const { items, hasMore } = result;
     return apiOk({ items, type, range, limit, offset, hasMore });
   },
   { requireAuth: true },

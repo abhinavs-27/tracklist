@@ -2843,27 +2843,28 @@ async function getOrFetchAlbumsBatchInner(
   const artistIds = [
     ...new Set(albums.map((a) => a.artist_id).filter(Boolean)),
   ];
-  const artistRowsFlat: { id: string; name: string }[] = [];
-  for (const chunk of chunkArray(artistIds, SUPABASE_IN_CHUNK)) {
-    const { data: artistRows } = await supabase
-      .from("artists")
-      .select("id, name")
-      .in("id", chunk);
-    artistRowsFlat.push(...((artistRows ?? []) as typeof artistRowsFlat));
-  }
-  const artistMap = new Map(
-    artistRowsFlat.map((r: { id: string; name: string }) => [r.id, r.name]),
-  );
-
   const albumCanonIds = albums.map((a) => a.id);
-  const { data: albExtRows } =
+
+  // artists and album_external_ids are both derivable from album rows — fetch in parallel
+  const [artistRowsFlat, albExtRows] = await Promise.all([
+    Promise.all(
+      chunkArray(artistIds, SUPABASE_IN_CHUNK).map((chunk) =>
+        supabase.from("artists").select("id, name").in("id", chunk).then((r) => r.data ?? []),
+      ),
+    ).then((chunks) => chunks.flat() as { id: string; name: string }[]),
     albumCanonIds.length > 0
-      ? await supabase
+      ? supabase
           .from("album_external_ids")
           .select("album_id, external_id")
           .eq("source", "spotify")
           .in("album_id", albumCanonIds)
-      : { data: [] as { album_id: string; external_id: string }[] };
+          .then((r) => (r.data ?? []) as { album_id: string; external_id: string }[])
+      : Promise.resolve([] as { album_id: string; external_id: string }[]),
+  ]);
+
+  const artistMap = new Map(
+    artistRowsFlat.map((r: { id: string; name: string }) => [r.id, r.name]),
+  );
   const spotifyAlbumIdByCanon = new Map<string, string>();
   for (const r of albExtRows ?? []) {
     const row = r as { album_id: string; external_id: string };

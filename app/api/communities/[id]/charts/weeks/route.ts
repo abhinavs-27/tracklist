@@ -26,11 +26,6 @@ export const GET = withHandler(
       return apiBadRequest("Invalid community id");
     }
 
-    const member = await isCommunityMember(id, me!.id);
-    if (!member) {
-      return apiForbidden("Join this community to see chart weeks");
-    }
-
     const { searchParams } = new URL(request.url);
     const chartType = parseChartType(searchParams.get("type"));
     if (!chartType) {
@@ -38,11 +33,18 @@ export const GET = withHandler(
     }
 
     const cacheKey = communityEndpointCacheKey("chart-weeks", id, chartType);
-    const weeks = await getOrSetCommunityApiCache(
-      cacheKey,
-      3600, // weeks list changes at most once a week
-      () => listCommunityWeeklyChartWeeks({ communityId: id, chartType }),
-    );
+
+    // membership check and weeks fetch are independent — run in parallel
+    const [member, weeks] = await Promise.all([
+      isCommunityMember(id, me!.id),
+      getOrSetCommunityApiCache(
+        cacheKey,
+        3600, // weeks list changes at most weekly
+        () => listCommunityWeeklyChartWeeks({ communityId: id, chartType }),
+      ),
+    ]);
+
+    if (!member) return apiForbidden("Join this community to see chart weeks");
 
     return apiOk({ weeks });
   },

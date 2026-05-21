@@ -25,11 +25,6 @@ export const GET = withHandler(
     const id = params.id?.trim() ?? "";
     if (!id || !isValidUuid(id)) return apiNotFound("Invalid id");
 
-    const member = await isCommunityMember(id, me!.id);
-    if (!member) {
-      return apiForbidden("Join this community to see the weekly chart");
-    }
-
     const { searchParams } = new URL(request.url);
     const chartType = parseChartType(searchParams.get("type"));
     if (!chartType) {
@@ -37,7 +32,6 @@ export const GET = withHandler(
     }
 
     const weekStart = searchParams.get("weekStart")?.trim() ?? null;
-
     const cacheKey = communityEndpointCacheKey(
       "charts",
       id,
@@ -45,12 +39,19 @@ export const GET = withHandler(
       weekStart ?? "latest",
       me!.id,
     );
-    const data = await getOrSetCommunityApiCache(
-      cacheKey,
-      COMMUNITY_API_CACHE_TTL_SEC,
-      () => getCommunityWeeklyChart({ communityId: id, chartType, weekStart, viewerId: me!.id }),
-      { cacheWhen: (v) => v !== null },
-    );
+
+    // membership check and data fetch are independent — run in parallel
+    const [member, data] = await Promise.all([
+      isCommunityMember(id, me!.id),
+      getOrSetCommunityApiCache(
+        cacheKey,
+        COMMUNITY_API_CACHE_TTL_SEC,
+        () => getCommunityWeeklyChart({ communityId: id, chartType, weekStart, viewerId: me!.id }),
+        { cacheWhen: (v) => v !== null },
+      ),
+    ]);
+
+    if (!member) return apiForbidden("Join this community to see the weekly chart");
 
     if (!data) {
       return apiNotFound(
