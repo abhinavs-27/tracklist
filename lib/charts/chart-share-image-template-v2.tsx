@@ -2,6 +2,7 @@
 
 export type ChartShareImageV2Props = {
   weekLabel: string;
+  /** Kept for API compatibility but no longer rendered on card */
   chartKindLabel: string;
   /** Top 5 rows — used for thumbnails and computing total plays */
   top5Rows: Array<{
@@ -41,7 +42,6 @@ function Thumbnail({ src, size, radius = 12 }: { src: string | null; size: numbe
 export function ChartShareImageTemplateV2(props: ChartShareImageV2Props) {
   const {
     weekLabel,
-    chartKindLabel,
     top5Rows,
     numberOneImageUrl,
     usernameDisplay,
@@ -50,7 +50,6 @@ export function ChartShareImageTemplateV2(props: ChartShareImageV2Props) {
 
   const numberOne = top5Rows[0] ?? null;
   const also = top5Rows.slice(1, 5);
-  const totalPlays = top5Rows.reduce((s, r) => s + r.play_count, 0);
 
   const W = 1080;
   const H = 1350;
@@ -175,28 +174,6 @@ export function ChartShareImageTemplateV2(props: ChartShareImageV2Props) {
               {truncate(numberOne.artist_name, 36)}
             </span>
           ) : null}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              marginTop: 14,
-              backgroundColor: `${palette.accent}18`,
-              border: `1px solid ${palette.accent}38`,
-              borderRadius: 999,
-              paddingTop: 6,
-              paddingBottom: 6,
-              paddingLeft: 18,
-              paddingRight: 18,
-            }}
-          >
-            <span style={{ fontSize: 20, fontWeight: 800, color: palette.accent }}>
-              {numberOne?.play_count ?? 0}
-            </span>
-            <span style={{ fontSize: 14, color: `${palette.accent}cc`, fontWeight: 500 }}>
-              {` play${(numberOne?.play_count ?? 0) !== 1 ? "s" : ""} this week`}
-            </span>
-          </div>
         </div>
       </div>
 
@@ -284,56 +261,6 @@ export function ChartShareImageTemplateV2(props: ChartShareImageV2Props) {
         </div>
       </div>
 
-      {/* ── Stat pills ──────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          gap: 14,
-          paddingLeft: PAD,
-          paddingRight: PAD,
-          marginTop: "auto",
-          paddingBottom: 48,
-          paddingTop: 36,
-          flexShrink: 0,
-        }}
-      >
-        {[
-          { value: String(totalPlays), label: "plays this week" },
-          { value: chartKindLabel, label: "chart" },
-          { value: weekLabel.slice(0, 6), label: "week" },
-        ].map(({ value, label }) => (
-          <div
-            key={label}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 16,
-              paddingTop: 16,
-              paddingBottom: 16,
-              gap: 6,
-            }}
-          >
-            <span style={{ fontSize: 32, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{value}</span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.28)",
-                textTransform: "uppercase",
-                letterSpacing: 1.5,
-              }}
-            >
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
