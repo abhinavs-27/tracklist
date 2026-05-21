@@ -1,0 +1,225 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+import { useToast } from "@/components/toast";
+import {
+  getListeningStyleDisplay,
+  STYLE_ACCENT_COLOR,
+  AXIS_DISPLAY,
+  normalizeListeningStyle,
+} from "@/lib/taste/listening-style";
+import type { TasteStyleResult } from "@/lib/taste/types";
+import type { TasteListeningStyle } from "@/lib/taste/listening-style";
+
+async function fetchIdentityPng(): Promise<File> {
+  const res = await fetch("/api/profile/identity-card", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(err?.error ?? "Could not generate card");
+  }
+  const blob = await res.blob();
+  return new File([blob], "tracklist-identity.png", { type: "image/png" });
+}
+
+function detectShareCapability(): "native-files" | "download" {
+  if (typeof navigator === "undefined") return "download";
+  if (!/mobile|android|iphone|ipad|ipod/i.test(navigator.userAgent)) return "download";
+  try {
+    if (navigator.canShare?.({ files: [new File([], "t.png", { type: "image/png" })] }))
+      return "native-files";
+  } catch { /* ignore */ }
+  return "download";
+}
+
+type AxisBarProps = {
+  label: string;
+  leftLabel: string;
+  rightLabel: string;
+  score: number | null;
+  pole: "left" | "right" | "neutral" | null;
+};
+
+function AxisBar({ label, leftLabel, rightLabel, score, pole }: AxisBarProps) {
+  if (score === null) {
+    return (
+      <div className="flex items-center gap-3 text-xs">
+        <span className="w-24 shrink-0 text-zinc-600">{label}</span>
+        <span className="text-zinc-700 italic">unavailable</span>
+      </div>
+    );
+  }
+  const pct = Math.min(100, Math.max(0, score));
+  const poleLabel = pole === "left" ? leftLabel : pole === "right" ? rightLabel : "—";
+
+  return (
+    <div className="flex items-center gap-3 text-xs">
+      <span className="w-24 shrink-0 text-zinc-500">{label}</span>
+      <div className="relative flex-1 h-1.5 rounded-full bg-zinc-800">
+        <div
+          className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+          style={{ left: `calc(${pct}% - 6px)` }}
+        />
+      </div>
+      <span className={`w-20 shrink-0 text-right ${pole === "neutral" ? "text-zinc-700" : "text-zinc-400"}`}>
+        {poleLabel}
+      </span>
+    </div>
+  );
+}
+
+type Props = {
+  styleKey: TasteListeningStyle;
+  styleResult: TasteStyleResult | null | undefined;
+  totalLogs: number;
+  totalArtists: number;
+  isOwnProfile: boolean;
+};
+
+export function TasteStyleWidget({
+  styleKey,
+  styleResult,
+  totalLogs,
+  totalArtists,
+  isOwnProfile,
+}: Props) {
+  const [expanded, setExpanded] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const shareCapability = useRef(detectShareCapability());
+  const { toast } = useToast();
+  const copy = getListeningStyleDisplay(styleKey);
+  const accent = STYLE_ACCENT_COLOR[styleKey] ?? "#10b981";
+
+  const handleShare = useCallback(async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const file = await fetchIdentityPng();
+      if (shareCapability.current === "native-files") {
+        await navigator.share({ files: [file], title: "My listening style on Tracklist" });
+      } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast("Image downloaded");
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      toast(e instanceof Error ? e.message : "Could not generate card");
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing, toast]);
+
+  const axes = styleResult?.axes;
+
+  return (
+    <div
+      className="rounded-xl border px-4 py-4"
+      style={{ borderColor: `${accent}40`, backgroundColor: `${accent}0a` }}
+    >
+      <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: `${accent}e6` }}>
+        Listening style
+      </p>
+
+      <div className="mt-1 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-2xl font-semibold leading-tight text-white sm:text-3xl">
+            {copy.title}
+          </p>
+          {styleResult?.badge ? (
+            <span
+              className="mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+              style={{
+                backgroundColor: `${accent}18`,
+                border: `1px solid ${accent}30`,
+                color: `${accent}dd`,
+              }}
+            >
+              {styleResult.badge}
+            </span>
+          ) : null}
+        </div>
+
+        {isOwnProfile ? (
+          <button
+            type="button"
+            onClick={() => void handleShare()}
+            disabled={sharing}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800/60 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
+          >
+            {sharing ? (
+              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
+              </svg>
+            )}
+            {sharing ? "Generating…" : "Share"}
+          </button>
+        ) : null}
+      </div>
+
+      <p className="mt-1.5 text-sm leading-snug text-zinc-400">{copy.subtitle}</p>
+
+      {axes ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-3 text-[11px] text-zinc-600 transition hover:text-zinc-400"
+          >
+            {expanded ? "Hide breakdown ↑" : "Show breakdown ↓"}
+          </button>
+
+          {expanded ? (
+            <div className="mt-3 space-y-3 border-t border-white/[0.06] pt-3">
+              <AxisBar
+                label="Range"
+                leftLabel={AXIS_DISPLAY.range.left}
+                rightLabel={AXIS_DISPLAY.range.right}
+                score={axes.range.score}
+                pole={axes.range.pole}
+              />
+              <AxisBar
+                label="Discovery"
+                leftLabel={AXIS_DISPLAY.discovery.left}
+                rightLabel={AXIS_DISPLAY.discovery.right}
+                score={axes.discovery?.score ?? null}
+                pole={axes.discovery?.pole ?? null}
+              />
+              <AxisBar
+                label="Mode"
+                leftLabel={AXIS_DISPLAY.mode.left}
+                rightLabel={AXIS_DISPLAY.mode.right}
+                score={axes.mode?.score ?? null}
+                pole={axes.mode?.pole ?? null}
+              />
+              <AxisBar
+                label="Signal"
+                leftLabel={AXIS_DISPLAY.signal.left}
+                rightLabel={AXIS_DISPLAY.signal.right}
+                score={axes.signal?.score ?? null}
+                pole={axes.signal?.pole ?? null}
+              />
+              <p className="pt-1 text-[10px] text-zinc-700">
+                Based on {totalLogs.toLocaleString()} plays across {totalArtists.toLocaleString()} artists
+              </p>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}

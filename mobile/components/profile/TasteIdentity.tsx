@@ -247,6 +247,22 @@ export function TasteIdentity({ userId }: Props) {
         <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "rgba(16,185,129,0.25)", backgroundColor: "rgba(6,78,59,0.25)", padding: 14, gap: 6 }}>
           <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(52,211,153,0.95)", textTransform: "uppercase", letterSpacing: 0.6 }}>Listening style</Text>
           <Text style={{ fontSize: 24, fontWeight: "800", color: theme.colors.text, lineHeight: 28 }}>{styleDisplay.title}</Text>
+          {t.styleResult?.badge ? (
+            <View style={{
+              marginTop: 6,
+              alignSelf: "flex-start",
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: "rgba(16,185,129,0.3)",
+              backgroundColor: "rgba(16,185,129,0.1)",
+            }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: "#6ee7b7" }}>
+                {t.styleResult.badge}
+              </Text>
+            </View>
+          ) : null}
           <Text style={{ fontSize: 14, color: theme.colors.muted, lineHeight: 20 }}>{styleDisplay.subtitle}</Text>
           <Text style={{ fontSize: 12, color: theme.colors.muted }}>~{t.avgTracksPerSession} tracks / session</Text>
         </View>

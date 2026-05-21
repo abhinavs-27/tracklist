@@ -1,0 +1,104 @@
+<h2>Listening Style Label Redesign</h2>
+<p class="subtitle">Current labels on the left, proposed replacements on the right. The label is the hero of the shareable card — it needs to feel like an identity, not a description.</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;margin-top:8px;">
+
+  <!-- Column headers -->
+  <div style="padding:10px 16px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:11px;font-weight:700;letter-spacing:2px;color:#71717a;text-transform:uppercase;">Current</div>
+  <div style="padding:10px 16px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;font-size:11px;font-weight:700;letter-spacing:2px;color:#10b981;text-transform:uppercase;">Proposed</div>
+
+  <!-- chart-gravity -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Mainstream</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">You gravitate toward popular music — the stuff that's already everywhere.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(245,158,11,0.06);border-radius:10px;border:1px solid rgba(245,158,11,0.2);">
+    <div style="font-size:20px;font-weight:700;color:#fbbf24;">Cultural Pulse</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">Always plugged into what the world is listening to. You know what's next before it's everywhere.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: high avg track popularity (>64)</div>
+  </div>
+
+  <!-- deep-cuts-dept -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Deep cuts</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">You reach for tracks that don't show up on the front page.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(99,102,241,0.06);border-radius:10px;border:1px solid rgba(99,102,241,0.2);">
+    <div style="font-size:20px;font-weight:700;color:#a5b4fc;">The Archivist</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">You dig past the surface. Your picks rarely appear on anyone else's radar.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: low avg track popularity (&lt;48)</div>
+  </div>
+
+  <!-- album-gravity-well -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">On Loop</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">A few records get most of the plays — you go deep on what you love.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(236,72,153,0.06);border-radius:10px;border:1px solid rgba(236,72,153,0.2);">
+    <div style="font-size:20px;font-weight:700;color:#f9a8d4;">Full Album Energy</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">You commit. A handful of records run deep — replayed until you know every breath.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: low album-to-log ratio, repeating albums</div>
+  </div>
+
+  <!-- omnivore-mode -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Omnivore</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">Lots of different artists — hard to pin to one lane.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(16,185,129,0.06);border-radius:10px;border:1px solid rgba(16,185,129,0.2);">
+    <div style="font-size:20px;font-weight:700;color:#6ee7b7;">Genre Nomad</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">No borders. You move freely across genres, artists, eras — always following the sound.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: high unique artists + high diversity rate</div>
+  </div>
+
+  <!-- mainstay-mode -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Mainstay</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">Most plays go to a tight circle of long-term favorites.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(251,146,60,0.06);border-radius:10px;border:1px solid rgba(251,146,60,0.2);">
+    <div style="font-size:20px;font-weight:700;color:#fdba74;">The Loyalist</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">Your artists earned their spot. A tight circle, kept for a reason — you don't stray easily.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: high top-artist share, lower diversity</div>
+  </div>
+
+  <!-- steady-rhythm -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Consistent</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">You listen regularly without wild spikes or gaps — just steady rotation.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(56,189,248,0.06);border-radius:10px;border:1px solid rgba(56,189,248,0.2);">
+    <div style="font-size:20px;font-weight:700;color:#7dd3fc;">Daily Ritual</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">Music is baked into your day. Not a mood, not a phase — just always on.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: steady daily play count, no extreme spikes</div>
+  </div>
+
+  <!-- session-maximalist -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Deep sessions</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">Some days you stack a lot of plays in a single sitting.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(139,92,246,0.06);border-radius:10px;border:1px solid rgba(139,92,246,0.2);">
+    <div style="font-size:20px;font-weight:700;color:#c4b5fd;">Session Maximalist</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">When you're in it, you're really in it. Some sessions run for hours — full immersion.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: high max logs/day or very high daily average</div>
+  </div>
+
+  <!-- plotting-the-plot -->
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Still building</div>
+    <div style="font-size:12px;color:#71717a;margin-top:4px;">Keep logging listens and your style will start to take shape.</div>
+  </div>
+  <div style="padding:14px 16px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.1);">
+    <div style="font-size:20px;font-weight:700;color:#e4e4e7;">Just Getting Started</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">Your sound is taking shape. Log more listens and your identity will emerge.</div>
+    <div style="font-size:10px;color:#78716c;margin-top:6px;font-style:italic;">Condition: &lt;22 total logs</div>
+  </div>
+
+</div>
+
+<div style="margin-top:24px;padding:14px 18px;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:12px;max-width:700px;">
+  <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;">
+    <strong style="color:#6ee7b7;">Key changes:</strong> "Mainstream" → "Cultural Pulse" (removes the negative connotation — being plugged in is cool). "Mainstay" → "The Loyalist" (loyalty is a virtue). "Consistent" → "Daily Ritual" (a habit sounds intentional). "Still building" → "Just Getting Started" (welcoming, not dismissive). Each label now has a distinctive accent color for the shareable card.
+  </p>
+</div>

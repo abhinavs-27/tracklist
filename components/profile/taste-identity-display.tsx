@@ -1,10 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { TasteCard } from "@/components/taste-card";
-import { getListeningStyleDisplay, normalizeListeningStyle } from "@/lib/taste/listening-style";
+import { normalizeListeningStyle } from "@/lib/taste/listening-style";
 import type { TasteIdentity } from "@/lib/taste/types";
 import { cardElevatedInteractive } from "@/lib/ui/surface";
 import type { TopThisWeekResult } from "@/lib/profile/top-this-week";
+import { TasteStyleWidget } from "@/components/profile/taste-style-widget";
 
 const weeklyStrip =
   "flex gap-3 overflow-x-auto pb-1 pl-0.5 pt-0.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
@@ -141,8 +142,6 @@ export function TasteIdentityDisplay({
     t.topGenres.length > 0;
 
   const styleKey = normalizeListeningStyle(t.listeningStyle as string);
-  const { title: styleTitle, subtitle: styleSubtitle } =
-    getListeningStyleDisplay(styleKey);
 
   const cardInsight = t.recent?.insightWeek?.trim()
     ? t.recent.insightWeek
@@ -275,13 +274,14 @@ export function TasteIdentityDisplay({
       ) : null}
 
       {/* 4 — Listening style */}
-      {t.totalLogs > 0 ? (
-        <div className="rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-4 py-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/90">Listening style</p>
-          <p className="mt-1 text-2xl font-semibold leading-tight text-white sm:text-3xl">{styleTitle}</p>
-          <p className="mt-1.5 text-sm leading-snug text-zinc-400">{styleSubtitle}</p>
-          <p className="mt-2 text-xs text-zinc-500">~{t.avgTracksPerSession} tracks / session</p>
-        </div>
+      {hasAny ? (
+        <TasteStyleWidget
+          styleKey={styleKey}
+          styleResult={t.styleResult}
+          totalLogs={t.totalLogs}
+          totalArtists={t.topArtists.length}
+          isOwnProfile={hubMode ?? false}
+        />
       ) : null}
     </Shell>
   );
