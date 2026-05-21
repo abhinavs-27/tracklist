@@ -48,4 +48,36 @@ export type TasteIdentity = {
   summary: string;
   /** Present after identity refresh when enough recent logs exist. */
   recent?: TasteRecentSnapshot | null;
+  /** 4-axis style breakdown. Populated after taste refresh. null for new users. */
+  styleResult?: TasteStyleResult | null;
+};
+
+// ── Listening style axis model ────────────────────────────────────────────────
+
+export type AxisScore = {
+  /** 0–100; 50 = neutral, 0 = fully left pole, 100 = fully right pole */
+  score: number;
+  /** |score - 50| — used to pick the strongest axis */
+  deviation: number;
+  pole: "left" | "right" | "neutral";
+};
+
+export type TasteAxes = {
+  /** Devotee (0) ↔ Genre Nomad (100) */
+  range: AxisScore;
+  /** The Archivist (0) ↔ Cultural Pulse (100). null if no Spotify popularity data. */
+  signal: AxisScore | null;
+  /** Daily Ritual (0) ↔ Session Maximalist (100). null if < 4 weeks of aggregates. */
+  mode: AxisScore | null;
+  /** The Loyalist (0) ↔ The Explorer (100). null if < 8 weeks history or < 50 recent plays. */
+  discovery: AxisScore | null;
+};
+
+export type TasteStyleResult = {
+  /** Primary identity label — the axis with the highest deviation from neutral */
+  primary: TasteListeningStyle;
+  /** Short badge label for the second-strongest axis, or null */
+  badge: string | null;
+  /** Full axis breakdown for the profile widget */
+  axes: TasteAxes;
 };
