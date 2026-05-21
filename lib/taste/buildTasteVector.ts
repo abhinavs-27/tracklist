@@ -47,7 +47,9 @@ function resolveArtistId(
 }
 
 /**
- * Raw play counts per Spotify artist id from logs in the last 30 days.
+ * Raw play counts per artist id from the last 30 days.
+ * Fast path: reads from user_listening_aggregates (pre-aggregated weekly counts).
+ * Falls back to raw log scan if no aggregate rows exist for this window.
  */
 export async function buildTasteVector(
   userId: string,
@@ -56,13 +58,32 @@ export async function buildTasteVector(
   const uid = userId?.trim();
   if (!uid) return {};
 
-  const since = new Date(Date.now() - TASTE_LOOKBACK_MS).toISOString();
+  // Use week aggregates: sum artist counts for weeks overlapping the last 30 days.
+  // Slightly over-counts at the edge week (~0-6 days), acceptable for taste matching.
+  const since = new Date(Date.now() - TASTE_LOOKBACK_MS).toISOString().slice(0, 10);
+  const { data: aggRows, error: aggErr } = await admin
+    .from("user_listening_aggregates")
+    .select("entity_id, count")
+    .eq("user_id", uid)
+    .eq("entity_type", "artist")
+    .gte("week_start", since)
+    .not("week_start", "is", null);
 
+  if (!aggErr && aggRows?.length) {
+    const counts: Record<string, number> = {};
+    for (const r of aggRows as { entity_id: string; count: number }[]) {
+      counts[r.entity_id] = (counts[r.entity_id] ?? 0) + r.count;
+    }
+    return counts;
+  }
+
+  // Fallback: no aggregate rows — scan raw logs
+  const sinceIso = new Date(Date.now() - TASTE_LOOKBACK_MS).toISOString();
   const { data: logRows, error } = await admin
     .from("logs")
     .select("user_id, listened_at, artist_id, track_id")
     .eq("user_id", uid)
-    .gte("listened_at", since)
+    .gte("listened_at", sinceIso)
     .order("listened_at", { ascending: true })
     .limit(MAX_LOG_ROWS);
 
