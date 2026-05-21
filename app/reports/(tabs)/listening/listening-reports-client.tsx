@@ -473,72 +473,64 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
   const compareEntityKindLabel =
     entityType.charAt(0).toUpperCase() + entityType.slice(1);
 
-  const compareLine =
+  const topGainerMovement = compare?.topGainer
+    ? (data?.items.find((r) => r.entityId === compare.topGainer!.entityId)?.movement ?? null)
+    : null;
+  const topDropperMovement = compare?.topDropper
+    ? (data?.items.find((r) => r.entityId === compare.topDropper!.entityId)?.movement ?? null)
+    : null;
+
+  const statStrip =
     compare && range !== "custom" ? (
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300">
-        <p className="font-medium text-white">vs previous period</p>
-        <p className="mt-1 text-zinc-400">
-          {compare.percentChange != null ? (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Total plays */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Total plays</p>
+          <p className="mt-1.5 text-2xl font-bold text-white">{compare.totalPlaysCurrent.toLocaleString()}</p>
+          {compare.percentChange != null && (
+            <p className={`mt-0.5 text-xs font-medium ${compare.percentChange >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {compare.percentChange >= 0 ? "↑" : "↓"} {compare.percentChange >= 0 ? "+" : ""}{compare.percentChange.toFixed(0)}% vs prior
+            </p>
+          )}
+        </div>
+        {/* Top gainer */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Top gainer</p>
+          {compare.topGainer ? (
             <>
-              {compare.percentChange === 0 ? (
-                <>
-                  Same volume as the prior period (
-                  {compare.totalPlaysCurrent.toLocaleString()} plays).
-                </>
-              ) : (
-                <>
-                  {compare.totalPlaysCurrent.toLocaleString()} plays this period
-                  vs {compare.totalPlaysPrevious.toLocaleString()} in the prior
-                  period —{" "}
-                  <span
-                    className={
-                      compare.percentChange > 0
-                        ? "text-emerald-400"
-                        : "text-red-400"
-                    }
-                  >
-                    {compare.percentChange > 0 ? "+" : ""}
-                    {compare.percentChange.toFixed(0)}%
-                  </span>{" "}
-                  {compare.percentChange > 0 ? "more" : "less"} than last time.
-                </>
-              )}
+              <p className="mt-1.5 text-sm font-bold leading-tight text-white">{compare.topGainer.name}</p>
+              <p className="mt-0.5 text-xs font-medium text-emerald-400">{topGainerMovement != null ? `+${topGainerMovement} spots` : "—"}</p>
             </>
           ) : (
-            <>
-              {compare.totalPlaysCurrent.toLocaleString()} plays this period
-              {compare.totalPlaysPrevious > 0
-                ? ` (${compare.totalPlaysPrevious.toLocaleString()} prior).`
-                : "."}
-            </>
+            <p className="mt-1.5 text-sm text-zinc-500">—</p>
           )}
-        </p>
-        {(compare.topGainer || compare.topDropper) && (
-          <ul className="mt-2 space-y-1 text-zinc-400">
-            {compare.topGainer ? (
-              <li>
-                Biggest rank gain ({compareEntityKindLabel}):{" "}
-                <span className="font-medium text-emerald-400">
-                  {compare.topGainer.name}
-                </span>
-              </li>
-            ) : null}
-            {compare.topDropper ? (
-              <li>
-                Biggest rank drop ({compareEntityKindLabel}):{" "}
-                <span className="font-medium text-red-400">
-                  {compare.topDropper.name}
-                </span>
-              </li>
-            ) : null}
-          </ul>
-        )}
+        </div>
+        {/* New entries */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">New entries</p>
+          <p className="mt-1.5 text-2xl font-bold text-white">
+            {data?.items.filter((r) => r.isNew).length ?? 0}
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-500">not in prior period</p>
+        </div>
+        {/* Top dropper */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Top dropper</p>
+          {compare.topDropper ? (
+            <>
+              <p className="mt-1.5 text-sm font-bold leading-tight text-white">{compare.topDropper.name}</p>
+              <p className="mt-0.5 text-xs font-medium text-red-400">{topDropperMovement != null ? `${topDropperMovement} spots` : "—"}</p>
+            </>
+          ) : (
+            <p className="mt-1.5 text-sm text-zinc-500">—</p>
+          )}
+        </div>
       </div>
     ) : null;
 
   return (
     <div className="space-y-8">
-      {compareLine}
+      {statStrip}
 
       <div className="flex flex-wrap gap-2">
         {RANGES.map((r) => (
