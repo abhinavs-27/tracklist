@@ -61,7 +61,9 @@ export default async function ProfilePage({
 
   const supabase = createSupabaseAdminClient();
 
-  const [session, userRes] = await Promise.all([
+  const knownUserId = isValidUuid(segment) ? segment : null;
+
+  const [session, userRes, earlyCounts, earlyStreak, earlyTaste, earlyFavs] = await Promise.all([
     getSession(),
     (async () => {
       if (segment && isValidUuid(segment)) {
@@ -83,6 +85,10 @@ export default async function ProfilePage({
       }
       return { data: null, error: null };
     })(),
+    knownUserId ? getFollowCounts(knownUserId).catch(() => null) : Promise.resolve(null),
+    knownUserId ? getUserStreak(knownUserId).catch(() => null) : Promise.resolve(null),
+    knownUserId ? getCachedTasteIdentity(knownUserId).catch(() => null) : Promise.resolve(null),
+    knownUserId ? getCachedUserFavoriteAlbums(knownUserId).catch(() => null) : Promise.resolve(null),
   ]);
 
   const user = userRes.data as {
@@ -112,17 +118,17 @@ export default async function ProfilePage({
 
   const [profileSettled, tasteForHero, favoriteAlbumsHero] = await Promise.all([
     Promise.allSettled([
-      getFollowCounts(user.id),
+      earlyCounts ? Promise.resolve(earlyCounts) : getFollowCounts(user.id),
       session?.user?.id && session.user.id !== user.id
         ? isFollowing(session.user.id, user.id)
         : Promise.resolve(false),
       session?.user?.id === user.id
         ? hasSpotifyToken(user.id)
         : Promise.resolve(false),
-      getUserStreak(user.id),
+      earlyStreak ? Promise.resolve(earlyStreak) : getUserStreak(user.id),
     ]),
-    getCachedTasteIdentity(user.id),
-    getCachedUserFavoriteAlbums(user.id).catch((e) => {
+    earlyTaste ? Promise.resolve(earlyTaste) : getCachedTasteIdentity(user.id),
+    earlyFavs ? Promise.resolve(earlyFavs) : getCachedUserFavoriteAlbums(user.id).catch((e) => {
       console.error("[profile] getCachedUserFavoriteAlbums (hero):", e);
       return [];
     }),

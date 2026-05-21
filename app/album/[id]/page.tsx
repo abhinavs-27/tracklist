@@ -58,46 +58,53 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     "page",
     "albumPage",
     async () => {
-      // Phase 1: session + catalog fetch. Parallelized.
-      const [sessionVal, fetched] = await Promise.all([
-        withAlbumPagePhaseLog("getSession", id, getSession()),
-        withAlbumPagePhaseLog(
-          "getOrFetchAlbum",
-          id,
-          getOrFetchAlbum(id, { allowNetwork: true }),
-        ).catch(() => {
-          notFound();
-        }),
+      // Start session and catalog fetch immediately.
+      const sessionPromise = withAlbumPagePhaseLog("getSession", id, getSession());
+      const fetchedPromise = withAlbumPagePhaseLog(
+        "getOrFetchAlbum",
+        id,
+        getOrFetchAlbum(id, { allowNetwork: true }),
+      ).catch(() => {
+        notFound();
+      });
+
+      // These queries can also start immediately as they resolve the ID internally.
+      const statsPromise = withAlbumPagePhaseLog(
+        "getEntityStats(album)",
+        id,
+        getEntityStats("album", id),
+      );
+      const engagementPromise = withAlbumPagePhaseLog(
+        "getAlbumEngagementStats",
+        id,
+        getAlbumEngagementStats(id),
+      );
+
+      const sessionVal = await sessionPromise;
+      const viewerId = sessionVal?.user?.id ?? null;
+
+      // Now that we have viewerId, we can also start friend activity.
+      const friendActivityPromise = viewerId
+        ? getFriendsAlbumActivity(viewerId, id, 10)
+        : Promise.resolve([]);
+
+      const [fetched, statsInner, engagementInner, friendActivityInner] = await Promise.all([
+        fetchedPromise,
+        statsPromise,
+        engagementPromise,
+        friendActivityPromise,
       ]);
 
       const albumInner = fetched.album;
       const tracksInner = fetched.tracks;
       redirectToCanonicalEntityIfNeeded("album", id, fetched!.canonicalAlbumId);
       const entityIdInner = fetched!.canonicalAlbumId ?? id;
-
-      const viewerId = sessionVal?.user?.id ?? null;
       const trackIds = (tracksInner.items ?? []).map((t) => t.id);
 
-      // Phase 2: parallel fetch everything else now that we have the canonical UUID and track list.
-      const [statsInner, engagementInner, friendActivityInner, viewerTrackRatingsInner] =
-        await Promise.all([
-          withAlbumPagePhaseLog(
-            "getEntityStats(album)",
-            id,
-            getEntityStats("album", entityIdInner),
-          ),
-          withAlbumPagePhaseLog(
-            "getAlbumEngagementStats",
-            id,
-            getAlbumEngagementStats(entityIdInner),
-          ),
-          viewerId
-            ? getFriendsAlbumActivity(viewerId, entityIdInner, 10)
-            : Promise.resolve([]),
-          viewerId
-            ? getViewerAlbumTrackRatings(viewerId, trackIds)
-            : Promise.resolve(new Map<string, number>()),
-        ]);
+      // Only the track ratings definitively need the track list from fetched.
+      const viewerTrackRatingsInner = viewerId
+        ? await getViewerAlbumTrackRatings(viewerId, trackIds)
+        : new Map<string, number>();
 
       return {
         album: albumInner,

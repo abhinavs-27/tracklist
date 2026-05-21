@@ -102,8 +102,8 @@ vi.mock('@/lib/catalog/non-blocking-enrichment', () => ({
 
 // Mock other internal helpers to avoid DB/external calls
 vi.mock('@/lib/queries', () => ({
-  grantAchievementOnReview: vi.fn(),
-  grantAchievementsOnListen: vi.fn(),
+  grantAchievementOnReview: vi.fn(async () => {}),
+  grantAchievementsOnListen: vi.fn(async () => {}),
   getReviewsForEntity: vi.fn(),
   getFullUserProfile: vi.fn(async (username) => {
     if (username === 'testuser') {
@@ -131,16 +131,16 @@ vi.mock('@/lib/queries', () => ({
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({
-  recordRatingFeedEvent: vi.fn(),
+  recordRatingFeedEvent: vi.fn(async () => {}),
 }));
 
 vi.mock('@/lib/community/community-feed-insert', () => ({
-  fanOutReviewForUserCommunities: vi.fn(),
-  fanOutListenForUserCommunities: vi.fn(),
+  fanOutReviewForUserCommunities: vi.fn(async () => {}),
+  fanOutListenForUserCommunities: vi.fn(async () => {}),
 }));
 
 vi.mock('@/lib/sync-manual-log-side-effects', () => ({
-  syncManualLogSideEffects: vi.fn(),
+  syncManualLogSideEffects: vi.fn(async () => {}),
 }));
 
 vi.mock('@/lib/spotify-user', () => ({
