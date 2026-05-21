@@ -586,6 +586,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
             onClick={() => void savePrivate()}
             disabled={savingPrivate || loading || (range === "custom" && (!startDate || !endDate)) || !data?.items.length}
             className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:opacity-40"
+            title="Save a private copy you can access later. Not shared publicly."
           >
             {savingPrivate ? "Saving…" : "Save"}
           </button>
