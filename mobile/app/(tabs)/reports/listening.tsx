@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -101,7 +101,7 @@ function ListRow({ item, isLast }: { item: ReportItem; isLast: boolean }) {
           contentFit="cover"
           transition={200}
           cachePolicy="memory-disk"
-          recyclingKey={item.image}
+          recyclingKey={item.entityId}
         />
       ) : (
         <View style={[s.listArt, s.artPlaceholder]}>
@@ -176,6 +176,12 @@ function RangeSheet({
   const insets = useSafeAreaInsets();
   const [localStart, setLocalStart] = useState(startDate);
   const [localEnd, setLocalEnd] = useState(endDate);
+
+  // Sync local state when parent date props change (e.g. after clearing a custom range)
+  useEffect(() => {
+    setLocalStart(startDate);
+    setLocalEnd(endDate);
+  }, [startDate, endDate]);
 
   function handleChip(r: ReportRange) {
     if (r !== "custom") {
@@ -436,9 +442,27 @@ const s = StyleSheet.create({
   heroMovement: { paddingHorizontal: 12, justifyContent: "center" },
   newBadge: { backgroundColor: "rgba(124,58,237,0.2)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   newBadgeText: { fontSize: 9, fontWeight: "700", color: "#a78bfa", textTransform: "uppercase", letterSpacing: 0.6 },
-  groupedCardTop: { borderTopLeftRadius: 14, borderTopRightRadius: 14, borderWidth: 1, borderColor: theme.colors.border, height: 0 },
-  groupedCardBottom: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14, borderWidth: 1, borderTopWidth: 0, borderColor: theme.colors.border, height: 0 },
-  listRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.colors.panel },
+  groupedCardTop: {
+    height: 14,
+    backgroundColor: theme.colors.panel,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: theme.colors.border,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+  },
+  groupedCardBottom: {
+    height: 14,
+    backgroundColor: theme.colors.panel,
+    borderBottomWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: theme.colors.border,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  listRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.colors.panel, borderLeftWidth: 1, borderRightWidth: 1, borderColor: theme.colors.border },
   listRowDivider: { borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   listRank: { width: 22, fontSize: 14, fontWeight: "800", color: "#52525b", textAlign: "center" },
   listArt: { width: 36, height: 36, borderRadius: 6 },
@@ -448,7 +472,7 @@ const s = StyleSheet.create({
   movementUp: { fontSize: 11, fontWeight: "600", color: theme.colors.emerald, minWidth: 36, textAlign: "right" },
   movementDown: { fontSize: 11, fontWeight: "600", color: "#ef4444", minWidth: 36, textAlign: "right" },
   movementFlat: { fontSize: 11, color: theme.colors.muted, minWidth: 36, textAlign: "right" },
-  movementNew: { fontSize: 9, fontWeight: "700", color: "#a78bfa", fontStyle: "italic", minWidth: 36, textAlign: "right" },
+  movementNew: { fontSize: 9, fontWeight: "700", color: "#a78bfa", minWidth: 36, textAlign: "right" },
   artPlaceholder: { backgroundColor: theme.colors.active, alignItems: "center", justifyContent: "center" },
   artGlyph: { fontSize: 14, color: theme.colors.muted },
   skeletonWrap: { padding: 14, gap: 6 },
