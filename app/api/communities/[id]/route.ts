@@ -37,32 +37,22 @@ export const GET = withHandler(async (request, { params }) => {
     userId = null;
   }
 
-  const [community, member_count, is_member] = await Promise.all([
+  const [community, member_count, is_member, my_role, pending_invite] = await Promise.all([
     getCommunityById(id),
     getCommunityMemberCount(id),
     userId ? isCommunityMember(id, userId) : Promise.resolve(false),
+    userId ? getCommunityMemberRole(id, userId) : Promise.resolve(null),
+    userId ? getPendingInviteForUserToCommunity(id, userId) : Promise.resolve(null),
   ]);
 
   if (!community) return apiNotFound("Community not found");
-
-  let my_role: "admin" | "member" | null = null;
-  let pending_invite_id: string | null = null;
-
-  if (userId) {
-    if (is_member) {
-      my_role = await getCommunityMemberRole(id, userId);
-    } else {
-      const p = await getPendingInviteForUserToCommunity(id, userId);
-      pending_invite_id = p?.id ?? null;
-    }
-  }
 
   return apiOk({
     community,
     member_count,
     is_member,
-    my_role,
-    pending_invite_id,
+    my_role: is_member ? my_role : null,
+    pending_invite_id: !is_member ? (pending_invite?.id ?? null) : null,
   });
 });
 
