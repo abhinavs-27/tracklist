@@ -29,7 +29,7 @@ const EMPTY_TASTE: TasteIdentity = {
   topGenres: [],
   obscurityScore: null,
   diversityScore: 0,
-  listeningStyle: "plotting-the-plot",
+  listeningStyle: "still-forming",
   avgTracksPerSession: 0,
   totalLogs: 0,
   summary: "",

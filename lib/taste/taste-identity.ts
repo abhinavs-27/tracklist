@@ -50,7 +50,7 @@ const EMPTY: TasteIdentity = {
   topGenres: [],
   obscurityScore: null,
   diversityScore: 0,
-  listeningStyle: "plotting-the-plot",
+  listeningStyle: "still-forming",
   avgTracksPerSession: 0,
   totalLogs: 0,
   summary: "Log more listens to build your taste profile.",
@@ -111,14 +111,14 @@ function pickListeningStyle(args: {
   const scores: Scored[] = [];
 
   if (totalLogs < 22) {
-    scores.push({ style: "plotting-the-plot", score: 72 - totalLogs * 1.2 });
+    scores.push({ style: "still-forming", score: 72 - totalLogs * 1.2 });
   }
 
   /** Mainstream vs niche — wide bands; capped so one signal does not always win. */
   if (avgTrackPopularity != null && avgTrackPopularity > 64) {
     const raw = 56 + (avgTrackPopularity - 64) * 0.62;
     scores.push({
-      style: "chart-gravity",
+      style: "cultural-pulse",
       score: Math.min(78, raw),
     });
   }
@@ -126,23 +126,23 @@ function pickListeningStyle(args: {
   if (avgTrackPopularity != null && avgTrackPopularity < 48) {
     const raw = 56 + (48 - avgTrackPopularity) * 0.62;
     scores.push({
-      style: "deep-cuts-dept",
+      style: "the-archivist",
       score: Math.min(78, raw),
     });
   }
 
   /**
-   * Omnivore: only for genuinely wide rotation (high diversity rate + many artists).
+   * Genre-nomad: only for genuinely wide rotation (high diversity rate + many artists).
    * Scores stay **below** chart/deep/session peaks so popularity and habits win a mix.
    */
   if (uniqueArtists >= 70 && diversityRate >= 0.034) {
     scores.push({
-      style: "omnivore-mode",
+      style: "genre-nomad",
       score: 66 + Math.min(4, uniqueGenres * 0.1),
     });
   } else if (uniqueArtists >= 52 && diversityRate >= 0.04) {
     scores.push({
-      style: "omnivore-mode",
+      style: "genre-nomad",
       score: 60 + Math.min(4, uniqueGenres * 0.12),
     });
   } else if (
@@ -151,7 +151,7 @@ function pickListeningStyle(args: {
     uniqueGenres >= 11
   ) {
     scores.push({
-      style: "omnivore-mode",
+      style: "genre-nomad",
       score: 52 + Math.min(6, uniqueGenres * 0.35),
     });
   }
@@ -161,10 +161,10 @@ function pickListeningStyle(args: {
     let s = 55 + Math.min(28, (topArtistShare - 0.11) * 125);
     if (diversityRate > 0.045) s *= 0.9;
     if (diversityRate > 0.07) s *= 0.85;
-    scores.push({ style: "mainstay-mode", score: s });
+    scores.push({ style: "the-loyalist", score: s });
   }
 
-  /** Consistent day-to-day volume, moderate spikes, mid rotation — not omnivore, not mainstay. */
+  /** Consistent day-to-day volume, moderate spikes, mid rotation — not nomad, not loyalist. */
   if (
     totalLogs >= 40 &&
     daysSpan >= 7 &&
@@ -179,13 +179,13 @@ function pickListeningStyle(args: {
     uniqueArtists >= 8 &&
     uniqueArtists <= 72
   ) {
-    scores.push({ style: "steady-rhythm", score: 68 });
+    scores.push({ style: "daily-ritual", score: 68 });
   }
 
   if (totalLogs >= 28 && albumRatio < 0.2 && uniqueAlbums >= 3) {
-    scores.push({ style: "album-gravity-well", score: 80 });
+    scores.push({ style: "the-devotee", score: 80 });
   } else if (totalLogs >= 18 && albumRatio < 0.28 && uniqueAlbums >= 2) {
-    scores.push({ style: "album-gravity-well", score: 64 });
+    scores.push({ style: "the-devotee", score: 64 });
   }
 
   if (maxLogsPerDay >= 90 || logsPerDay >= 45) {
@@ -194,7 +194,7 @@ function pickListeningStyle(args: {
     scores.push({ style: "session-maximalist", score: 68 });
   }
 
-  if (scores.length === 0) return "plotting-the-plot";
+  if (scores.length === 0) return "still-forming";
 
   scores.sort((a, b) => b.score - a.score);
   return scores[0]!.style;
@@ -216,28 +216,28 @@ function buildSummary(t: TasteIdentity): string {
   }
   const ls = normalizeListeningStyle(t.listeningStyle as string);
   switch (ls) {
-    case "album-gravity-well":
+    case "the-devotee":
       bits.push("You circle back to the same albums a lot.");
       break;
-    case "omnivore-mode":
+    case "genre-nomad":
       bits.push("You jump between a lot of different artists.");
       break;
-    case "mainstay-mode":
+    case "the-loyalist":
       bits.push("Your plays keep circling back to the same few artists.");
       break;
-    case "steady-rhythm":
+    case "daily-ritual":
       bits.push("You listen steadily without wild swings or huge binges.");
       break;
-    case "chart-gravity":
+    case "cultural-pulse":
       bits.push("A lot of your plays sit on the popular side.");
       break;
-    case "deep-cuts-dept":
+    case "the-archivist":
       bits.push("You lean toward tracks that aren’t the obvious singles.");
       break;
     case "session-maximalist":
       bits.push("Sometimes you rack up a ton of plays in one go.");
       break;
-    case "plotting-the-plot":
+    case "still-forming":
       bits.push("Not enough logged listens yet to say much.");
       break;
     default:
@@ -1473,7 +1473,7 @@ export async function seedTasteIdentityFromFavoriteAlbums(
     topGenres,
     obscurityScore: null,
     diversityScore,
-    listeningStyle: "plotting-the-plot",
+    listeningStyle: "still-forming",
     avgTracksPerSession: 1,
     totalLogs: 0,
     summary,

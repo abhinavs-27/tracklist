@@ -17,6 +17,7 @@ export default function TabsLayout() {
           elevation: 0,
           height: 60,
           paddingBottom: 8,
+          marginBottom: 20,
         },
         tabBarBackground:
           Platform.OS === "ios"
