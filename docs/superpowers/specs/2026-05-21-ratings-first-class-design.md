@@ -102,7 +102,7 @@ Single line, shown once at the top of the diary. Links to the Last.fm connect mo
 - `app/api/users/[username]/reviews/route.ts` — paginated reviews for a user, joined to album/track/artist metadata and listen counts
 
 **Existing files modified:**
-- `app/profile/[username]/page.tsx` (or equivalent) — add Reviews tab
+- `app/profile/[id]/page.tsx` — add Reviews tab
 - `components/profile-header.tsx` — add review count stat
 
 ---
@@ -119,24 +119,73 @@ Implementation: the existing reviews query adds a join/subquery on `follows` for
 
 ---
 
-### 4. Onboarding — Rating-First Reframe
+### 4. Onboarding — Genre-First Rating Step
 
-The existing Step 2 (favorite albums picker) is reframed, not restructured.
+The existing Step 2 (favorite albums picker) is replaced with a genre-first rating flow. The step count and overall wizard structure stay the same.
 
-**Current framing:** "Pick your favorite albums" — feels like a preference form, no sense of permanence.
+#### 4a. Genre Selection
 
-**New framing:** "Rate albums you know and love" — same album picker, but:
-- Star rating input appears per album (can pick album then immediately rate it 1–5★ in 0.5 steps)
-- Subtitle changes to: "These ratings build your taste profile and help you find people with similar taste."
-- Album cap removed: users can rate as many albums as they want, not just 4
-- `seedTasteIdentityFromFavoriteAlbums` replaced with `seedTasteIdentityFromRatings` which saves ratings to the `reviews` table (not just the taste cache) — so these are real, permanent ratings that appear in their diary
+Before seeing any albums, the user picks 2–5 genres from a curated top-level list. These are clean, human-readable labels — not raw Last.fm or Spotify genre tags, which are too granular and often weird.
 
-**Post-onboarding state:** a user who rates 10 albums during onboarding immediately has:
-- A populated taste identity and listening style label
+**Curated genre list (18 options):**
+Rock, Indie, Pop, Hip-Hop, R&B / Soul, Electronic, Jazz, Classical, Metal, Folk, Alternative, Punk, Funk, Reggae, Latin, Ambient, Experimental, Country
+
+Each genre maps to a set of Spotify/Last.fm genre tag substrings internally (e.g. "Indie" covers "indie rock", "indie pop", "indie folk", "chamber pop", etc.). This mapping is defined in a static config file — `lib/onboarding/genre-map.ts`.
+
+**Selected genres are saved to the user's profile** as `users.preferred_genres TEXT[]` (new column, migration required). This is a persistent attribute used for:
+- Community recommendations
+- Future "music you might know" surfaces
+- Seeding the album suggestions below
+
+#### 4b. Album Suggestions by Genre
+
+After genre selection, the step transitions to an album rating grid. Albums are shown grouped by the selected genres — 6–8 per genre. These are **curated, well-known records** people are likely to have opinions on (not obscure long-tail albums).
+
+**Sourcing strategy:**
+- Primary: a static curated list per genre, defined in `lib/onboarding/genre-albums.ts` — a flat JSON map of `{ genre: Album[] }`. This ensures reliable, high-quality suggestions regardless of DB state.
+- Secondary: if the static list doesn't cover a selected genre, fall back to top-rated albums in that genre from `entity_stats` (ordered by `avg_rating DESC, review_count DESC`).
+
+New API endpoint: `GET /api/onboarding/album-suggestions?genres=rock,indie` — returns the curated list merged with any DB fallbacks, deduplicated.
+
+#### 4c. Rating Interaction
+
+Each album card in the grid:
+- Album art (square, ~80px)
+- Album name + artist
+- Half-star rating input (1–5★ in 0.5 steps) — **the primary action**
+- Small "add a note" link below the stars — expands an optional textarea for review text. Not shown by default; not required.
+- Skip affordance: unrated albums are simply not submitted
+
+Manual search remains available — a search input at the top of the grid lets users find albums not in the suggestions. Searched albums appear inline and can be rated the same way.
+
+**No minimum required** — users can skip all suggestions and just search, or rate none and proceed. The step is additive, not a gate.
+
+#### 4d. Submission
+
+On step advance, all rated albums are batch-inserted into `reviews` as real permanent reviews (not a taste cache seed). `seedTasteIdentityFromFavoriteAlbums` is replaced by `seedTasteIdentityFromRatings(userId, ratings[])` which:
+1. Batch-inserts to `reviews`
+2. Seeds the `taste_identity_cache` from those ratings
+3. Saves `preferred_genres` to `users`
+
+**Post-onboarding state for a user who rates 8 albums:**
+- Populated taste identity and listening style label
 - Matched users and community recommendations
-- 10 entries in their diary
+- 8 entries in their diary from day one
+- Preferred genres saved for future surfacing
 
-This is the core unlock for non-Last.fm users.
+This is the core unlock for non-Last.fm users — they have a real profile immediately.
+
+**New files:**
+- `lib/onboarding/genre-map.ts` — curated genre list + tag mappings
+- `lib/onboarding/genre-albums.ts` — curated album list per genre
+- `app/api/onboarding/album-suggestions/route.ts` — suggestions endpoint
+- `components/onboarding/genre-picker.tsx` — genre selection UI
+- `components/onboarding/rating-grid.tsx` — album suggestion + rating grid
+
+**Existing files modified:**
+- `components/onboarding/profile-onboarding.tsx` — Step 2 replaced
+- `lib/taste/taste-identity.ts` — `seedTasteIdentityFromRatings` replaces `seedTasteIdentityFromFavoriteAlbums`
+- Migration: `users.preferred_genres TEXT[]` column
 
 ---
 
@@ -144,7 +193,7 @@ This is the core unlock for non-Last.fm users.
 
 **Current:** "Most talked about" section on explore page orders by review count.
 
-**Change:** Add a sort option alongside it: "Loved by friends" — orders by average rating from users the viewer follows, minimum 2 friend ratings required to appear. Falls back to global avg rating if viewer has few follows or is logged out.
+**Change:** Add a sort option alongside it: "Loved by friends" — orders by average rating from users the viewer follows, minimum 1 friend rating required to appear (low bar at this stage). Falls back to global avg rating when viewer is logged out or follows fewer than 3 people.
 
 Touch point: new or modified RPC in Supabase (`get_loved_by_friends`) — joins `reviews` to `follows` on `follower_id = viewer_id`, aggregates avg rating per entity among followed users.
 
@@ -153,24 +202,25 @@ Touch point: new or modified RPC in Supabase (`get_loved_by_friends`) — joins 
 ## Data Flow
 
 ```
-Onboarding album rating
+Onboarding: genre picks + album ratings
         │
-        ▼
-  reviews table ──────────────────────────────────┐
-        │                                          │
-        │  fetchUserRatings()                      │
-        ▼                                          ▼
-  ratingsToWeightMap()                   Profile diary query
-        │                                (with listen counts
-        │                                 from user_listening_aggregates
-        ▼                                 when Last.fm connected)
-  computeTasteIdentity()
-  (merged with log-derived weights)
+        ├──► users.preferred_genres (persistent)
         │
-        ├──► topArtists / topAlbums / topGenres
-        ├──► listeningStyle
-        ├──► social matching vectors
-        └──► community recommendations
+        └──► reviews table (batch insert) ──────────────────┐
+                    │                                        │
+                    │  fetchUserRatings()                    │
+                    ▼                                        ▼
+          ratingsToWeightMap()                   Profile diary query
+                    │                            (with listen counts
+                    │                             from user_listening_aggregates
+                    ▼                             when Last.fm connected)
+          computeTasteIdentity()
+          (merged with log-derived weights)
+                    │
+                    ├──► topArtists / topAlbums / topGenres
+                    ├──► listeningStyle
+                    ├──► social matching vectors
+                    └──► community recommendations
 ```
 
 ---
@@ -188,6 +238,8 @@ Onboarding album rating
 
 ## Open Questions
 
-1. Should ratings made during onboarding be marked differently (e.g., `source: 'onboarding'`) or treated as normal reviews? Leaning toward normal — they're real ratings, not synthetic seeds.
-2. Does the Reviews tab appear on your own profile only, or on any user's profile? Leaning toward any user's profile (public by default, same as other profile content).
-3. Rate limiting on the `seedTasteIdentityFromRatings` path during onboarding — if a user rates 30 albums, this could be a lot of DB writes. Batch insert is cleaner.
+1. ~~Should ratings made during onboarding be marked differently?~~ **Resolved: normal reviews.**
+2. ~~Reviews tab visibility?~~ **Resolved: any user's profile, public by default.**
+3. ~~Batch insert during onboarding?~~ **Resolved: batch insert all rated albums in one call.**
+4. **Curated album list maintenance.** The static `genre-albums.ts` list will get stale as new albums are released and tastes shift. Should this be a DB table editable via admin, or a file maintained in code? Code is simpler to start; can migrate to DB-backed later.
+5. **`preferred_genres` display.** Do selected genres appear anywhere on the public profile (e.g., profile header tags)? Not specced here — could be a small addition worth considering during implementation.
