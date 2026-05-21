@@ -95,6 +95,9 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
       case "DRAIN_ENRICH_BACKLOG":
         await cron.runDrainEnrichBacklog();
         break;
+      case "SPOTIFY_ENRICHMENT_RETRY":
+        await cron.runSpotifyEnrichmentRetry(job.batchSongs, job.batchArtists);
+        break;
       case "ARCHIVE_OLD_LOGS":
         await cron.runArchiveOldLogs(job.cutoff_days);
         break;

@@ -12,6 +12,7 @@ import { computeAllCommunitiesWeekly } from "@/lib/community/compute-community-w
 import { sendBillboardWeeklyDigestEmail } from "@/lib/email/send-billboard-weekly-email";
 import { updateListeningAggregates } from "@/lib/analytics/updateListeningAggregates";
 import { repairLastfmListeningAggregates } from "@/lib/analytics/repairLastfmAggregates";
+import { repairMissingArtistAggregates } from "@/lib/analytics/repair-artist-aggregates";
 import { runUpgradeLastfmAlbumCovers as upgradeLastfmAlbumCoversCatalog } from "@/lib/catalog/upgrade-lastfm-album-covers";
 
 const LOG = "[cron-runners]";
@@ -476,21 +477,41 @@ export async function runBillboardWeeklyEmail(): Promise<{
 }
 
 export async function runListeningAggregates(): Promise<
-  Awaited<ReturnType<typeof updateListeningAggregates>> & { ok: true }
+  Awaited<ReturnType<typeof updateListeningAggregates>> & { ok: true; repairInserted: number }
 > {
   const run = await startJobRun("listening_aggregates");
   try {
     const result = await updateListeningAggregates();
+
+    // After each batch, repair any album→artist attribution gaps created when
+    // logs were processed before Spotify enrichment completed (artist_id was null).
+    const repair = result.processed > 0
+      ? await repairMissingArtistAggregates()
+      : { inserted: 0, errors: 0 };
+
+    if (repair.inserted > 0) {
+      console.log("[cron] repair_missing_artist_aggregates inserted", repair.inserted);
+    }
+
     void run.finish({
       status: result.processed > 0 ? "ok" : "skipped",
       items_ok: result.processed,
-      items_failed: result.errors,
+      items_failed: result.errors + repair.errors,
     });
-    return { ok: true, ...result };
+    return { ok: true, ...result, repairInserted: repair.inserted };
   } catch (e) {
     void run.finish({ status: "error" });
     throw e;
   }
+}
+
+export async function runRepairArtistAggregates(): Promise<{
+  ok: true;
+  inserted: number;
+  errors: number;
+}> {
+  const result = await repairMissingArtistAggregates({ limit: 100000 });
+  return { ok: true, ...result };
 }
 
 export async function runRepairLastfmAggregates(batch = 500): Promise<
@@ -677,6 +698,105 @@ export async function runArchiveOldLogs(
     console.log(LOG, "archive_old_logs done", { archived });
     void run.finish({ status: archived > 0 ? "ok" : "skipped", items_ok: archived });
     return { ok: true, archived };
+  } catch (e) {
+    void run.finish({ status: "error" });
+    throw e;
+  }
+}
+
+export async function runSpotifyEnrichmentRetry(
+  batchSongs = 30,
+  batchArtists = 20,
+): Promise<{ ok: true; songs: number; artists: number; queued: number }> {
+  const run = await startJobRun("spotify_enrichment_retry", {
+    batch_songs: batchSongs,
+    batch_artists: batchArtists,
+  });
+  try {
+    const {
+      enqueueSpotifyEnrich,
+      getSpotifyEnrichQueue,
+      getSpotifyResolveStaggerMs,
+      processSpotifyEnrichJob,
+    } = await import("@/lib/jobs/spotifyQueue");
+    const { lfmArtistId, lfmSongId } = await import("@/lib/lastfm/lfm-ids");
+    const { syncListensSpotifyTrackIdsFromSongs } = await import(
+      "@/lib/lastfm/sync-listens-spotify-from-songs"
+    );
+
+    const admin = createSupabaseAdminClient();
+
+    await syncListensSpotifyTrackIdsFromSongs(admin, { limit: 800 });
+
+    const cappedSongs = Math.min(200, Math.max(1, batchSongs));
+    const cappedArtists = Math.min(100, Math.max(1, batchArtists));
+
+    const [{ data: songs }, { data: artists }] = await Promise.all([
+      admin
+        .from("tracks")
+        .select("id, lastfm_name, lastfm_artist_name")
+        .eq("needs_spotify_enrichment", true)
+        .not("lastfm_name", "is", null)
+        .not("lastfm_artist_name", "is", null)
+        .order("updated_at", { ascending: true })
+        .limit(cappedSongs),
+      admin
+        .from("artists")
+        .select("id, lastfm_name")
+        .eq("needs_spotify_enrichment", true)
+        .not("lastfm_name", "is", null)
+        .order("updated_at", { ascending: true })
+        .limit(cappedArtists),
+    ]);
+
+    const jobList: Awaited<ReturnType<typeof getSpotifyEnrichQueue>> extends null
+      ? never
+      : Parameters<typeof enqueueSpotifyEnrich>[0][] = [];
+
+    type JobData = Parameters<typeof enqueueSpotifyEnrich>[0];
+    const jobs: JobData[] = [];
+
+    for (const s of songs ?? []) {
+      if (!s.lastfm_name || !s.lastfm_artist_name) continue;
+      jobs.push({
+        name: "resolve_track_spotify",
+        lfmSongId: lfmSongId(s.lastfm_artist_name, s.lastfm_name),
+        artistName: s.lastfm_artist_name,
+        trackName: s.lastfm_name,
+        albumName: null,
+      } as JobData);
+    }
+    for (const a of artists ?? []) {
+      if (!a.lastfm_name) continue;
+      jobs.push({
+        name: "resolve_artist_spotify",
+        lfmArtistId: lfmArtistId(a.lastfm_name),
+        artistName: a.lastfm_name,
+      } as JobData);
+    }
+
+    const queue = getSpotifyEnrichQueue();
+    if (queue) {
+      for (let i = 0; i < jobs.length; i++) {
+        await enqueueSpotifyEnrich(jobs[i]!, { staggerIndex: i });
+      }
+    } else {
+      const staggerMs = getSpotifyResolveStaggerMs();
+      for (let i = 0; i < jobs.length; i++) {
+        try { await processSpotifyEnrichJob(jobs[i]!); } catch {}
+        if (staggerMs > 0 && i < jobs.length - 1) {
+          await new Promise((r) => setTimeout(r, staggerMs));
+        }
+      }
+    }
+
+    console.log(LOG, "spotify_enrichment_retry done", {
+      songs: (songs ?? []).length,
+      artists: (artists ?? []).length,
+      queued: jobs.length,
+    });
+    void run.finish({ status: jobs.length > 0 ? "ok" : "skipped", items_ok: jobs.length });
+    return { ok: true, songs: (songs ?? []).length, artists: (artists ?? []).length, queued: jobs.length };
   } catch (e) {
     void run.finish({ status: "error" });
     throw e;
