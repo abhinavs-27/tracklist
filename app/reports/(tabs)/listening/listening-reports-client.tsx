@@ -533,23 +533,66 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
     <div className="space-y-8">
       {statStrip}
 
-      <div className="flex flex-wrap gap-2">
-        {RANGES.map((r) => (
+      {/* Controls: range left, entity right, share+save far right */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Range pills */}
+        <div className="flex flex-wrap gap-1.5">
+          {RANGES.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => selectRange(r.value)}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                range === r.value
+                  ? "bg-emerald-600 text-white"
+                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Entity pills — pushed right on wider screens */}
+        <div className="flex flex-wrap gap-1.5 sm:ml-auto">
+          {TYPES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => selectEntity(t.value)}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                entityType === t.value
+                  ? "bg-violet-600 text-white"
+                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Share + Save */}
+        <div className="flex gap-2">
           <button
-            key={r.value}
             type="button"
-            onClick={() => selectRange(r.value)}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-              range === r.value
-                ? "bg-emerald-600 text-white"
-                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-            }`}
+            onClick={() => openShareFromCurrent()}
+            disabled={loading || (range === "custom" && (!startDate || !endDate)) || !data?.items.length}
+            className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:opacity-40"
           >
-            {r.label}
+            Share
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={() => void savePrivate()}
+            disabled={savingPrivate || loading || (range === "custom" && (!startDate || !endDate)) || !data?.items.length}
+            className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:opacity-40"
+          >
+            {savingPrivate ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
 
+      {/* Custom date inputs — only visible when Custom is selected */}
       {range === "custom" ? (
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm text-zinc-400">
@@ -580,54 +623,6 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
           </button>
         </div>
       ) : null}
-
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {TYPES.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => selectEntity(t.value)}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                entityType === t.value
-                  ? "bg-violet-600 text-white"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-          <button
-            type="button"
-            onClick={() => openShareFromCurrent()}
-            disabled={
-              loading ||
-              (range === "custom" && (!startDate || !endDate)) ||
-              !data?.items.length
-            }
-            className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50 sm:w-auto"
-          >
-            Share report
-          </button>
-          <button
-            type="button"
-            onClick={() => void savePrivate()}
-            disabled={
-              savingPrivate ||
-              loading ||
-              (range === "custom" && (!startDate || !endDate)) ||
-              !data?.items.length
-            }
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2.5 text-sm font-medium text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50 sm:w-auto"
-            title="Save a private copy you can access later. Not shared publicly."
-          >
-            {savingPrivate ? "Saving…" : "Save privately"}
-          </button>
-        </div>
-      </div>
 
       {saved.length > 0 ? (
         <section className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
