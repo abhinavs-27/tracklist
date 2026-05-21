@@ -65,6 +65,13 @@ export function useAuth(): UseAuthResult {
       }
       return { error, cancelled };
     },
+    signInWithApple: async () => {
+      const { error, cancelled } = await signInWithApple();
+      if (!error && !cancelled) {
+        await queryClient.invalidateQueries({ queryKey: AUTH_SESSION_KEY });
+      }
+      return { error, cancelled };
+    },
     signOut: async () => {
       // Fire-and-forget push token cleanup — don't let it block sign out
       sendExpoPushTokenToBackend(null).catch(() => {});

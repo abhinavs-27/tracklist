@@ -2,38 +2,54 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { theme } from "@/lib/theme";
 
 function GoogleIcon() {
   return (
     <View style={s.googleIcon}>
-      {/* G made from coloured arcs — simple letter approach */}
       <Text style={s.googleG}>G</Text>
     </View>
   );
 }
 
 export default function LoginScreen() {
-  const { signInWithGoogle } = useAuth();
-  const [busy, setBusy] = useState(false);
+  const { signInWithGoogle, signInWithApple } = useAuth();
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onContinue() {
+  const busy = googleBusy || appleBusy;
+
+  async function onGoogle() {
     setError(null);
-    setBusy(true);
+    setGoogleBusy(true);
     try {
       const { error: err, cancelled } = await signInWithGoogle();
       if (cancelled) return;
       if (err) setError(err.message);
     } finally {
-      setBusy(false);
+      setGoogleBusy(false);
+    }
+  }
+
+  async function onApple() {
+    setError(null);
+    setAppleBusy(true);
+    try {
+      const { error: err, cancelled } = await signInWithApple();
+      if (cancelled) return;
+      if (err) setError(err.message);
+    } finally {
+      setAppleBusy(false);
     }
   }
 
@@ -45,7 +61,6 @@ export default function LoginScreen() {
 
       {/* Main content */}
       <View style={s.hero}>
-        {/* App icon */}
         <View style={s.iconWrap}>
           <Image
             source={require("../../assets/icon.png")}
@@ -53,15 +68,12 @@ export default function LoginScreen() {
             resizeMode="cover"
           />
         </View>
-
-        {/* Wordmark */}
         <Text style={s.wordmark}>Tracklist</Text>
         <Text style={s.tagline}>Your music, your people.</Text>
       </View>
 
       {/* Bottom section */}
       <View style={s.bottom}>
-        {/* Feature pills */}
         <View style={s.pills}>
           {["Log listens", "Rate albums", "Follow friends", "Discover"].map((f) => (
             <View key={f} style={s.pill}>
@@ -70,16 +82,26 @@ export default function LoginScreen() {
           ))}
         </View>
 
-        {/* Error */}
         {error ? <Text style={s.error}>{error}</Text> : null}
+
+        {/* Apple Sign-in — iOS only, shown first per Apple HIG */}
+        {Platform.OS === "ios" ? (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={14}
+            style={s.appleBtn}
+            onPress={onApple}
+          />
+        ) : null}
 
         {/* Google sign-in button */}
         <Pressable
-          onPress={onContinue}
+          onPress={onGoogle}
           disabled={busy}
-          style={({ pressed }) => [s.googleBtn, (pressed || busy) && s.googleBtnPressed]}
+          style={({ pressed }) => [s.googleBtn, (pressed || googleBusy) && s.googleBtnPressed]}
         >
-          {busy ? (
+          {googleBusy ? (
             <ActivityIndicator color="#111" />
           ) : (
             <>
@@ -102,8 +124,6 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.bg,
   },
-
-  /* Ambient glows */
   glow: {
     position: "absolute",
     width: 360,
@@ -121,8 +141,6 @@ const s = StyleSheet.create({
     bottom: -140,
     right: -80,
   },
-
-  /* Hero */
   hero: {
     flex: 1,
     alignItems: "center",
@@ -157,12 +175,10 @@ const s = StyleSheet.create({
     fontWeight: "500",
     letterSpacing: 0.2,
   },
-
-  /* Bottom */
   bottom: {
     paddingHorizontal: 24,
     paddingBottom: 16,
-    gap: 14,
+    gap: 12,
   },
   pills: {
     flexDirection: "row",
@@ -184,8 +200,10 @@ const s = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.muted,
   },
-
-  /* Google button */
+  appleBtn: {
+    height: 50,
+    width: "100%",
+  },
   googleBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -220,7 +238,6 @@ const s = StyleSheet.create({
     color: "#fff",
     lineHeight: 14,
   },
-
   error: {
     color: theme.colors.danger,
     fontSize: 14,
