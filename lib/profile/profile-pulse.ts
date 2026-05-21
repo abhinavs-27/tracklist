@@ -6,6 +6,7 @@ import {
   getTopArtistIdsForLogWindow,
 } from "@/lib/analytics/getRollingReportsCompare";
 import { getRolling7dVsPrior7dBounds } from "@/lib/analytics/rolling-windows";
+import { currentWeekStart, previousWeekStart, getWeeklyAgg } from "@/lib/analytics/from-aggregates";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { ListeningReportsCompareResult } from "@/lib/analytics/getReportsCompare";
 
@@ -92,67 +93,37 @@ type WindowStats = {
 
 async function listeningWindowStats(
   userId: string,
-  startIso: string,
-  endExclusiveIso: string,
+  weekStart: string,  // "YYYY-MM-DD" Monday UTC
 ): Promise<WindowStats> {
   const admin = createSupabaseAdminClient();
-  const { data: logs, error } = await admin
-    .from("logs")
-    .select("track_id, artist_id")
-    .eq("user_id", userId)
-    .gte("listened_at", startIso)
-    .lt("listened_at", endExclusiveIso)
-    .limit(12000);
+  const ZERO: WindowStats = { playCount: 0, avgPopularity: null, popSamples: 0, uniqueArtists: 0 };
 
-  if (error) {
-    console.warn("[profile-pulse] listeningWindowStats", error.message);
-    return { playCount: 0, avgPopularity: null, popSamples: 0, uniqueArtists: 0 };
-  }
+  const [trackRows, artistRows] = await Promise.all([
+    getWeeklyAgg(admin, userId, "track",  weekStart, 50),
+    getWeeklyAgg(admin, userId, "artist", weekStart, 500),
+  ]);
 
-  const rows = logs ?? [];
-  const trackIds = [...new Set(rows.map((r) => r.track_id).filter(Boolean))] as string[];
+  if (trackRows.length === 0 && artistRows.length === 0) return ZERO;
 
-  const songArtist = new Map<string, string>();
-  if (trackIds.length > 0) {
-    const chunk = 400;
-    for (let i = 0; i < trackIds.length; i += chunk) {
-      const slice = trackIds.slice(i, i + chunk);
-      const { data: songs } = await admin
-        .from("tracks")
-        .select("id, artist_id")
-        .in("id", slice);
-      for (const s of songs ?? []) {
-        const r = s as { id: string; artist_id: string | null };
-        if (r.artist_id?.trim()) songArtist.set(r.id, r.artist_id.trim());
-      }
-    }
-  }
+  const playCount     = trackRows.reduce((s, r) => s + r.count, 0);
+  const uniqueArtists = artistRows.length;
 
-  const artistIds = new Set<string>();
-  for (const r of rows) {
-    let a = r.artist_id?.trim() ?? null;
-    if (!a && r.track_id) a = songArtist.get(r.track_id) ?? null;
-    if (a) artistIds.add(a);
-  }
+  // Popularity: batch-lookup top 50 tracks by play count (already sorted desc by getWeeklyAgg)
+  const topTrackIds = trackRows.slice(0, 50).map((r) => r.entity_id);
+  const popMap      = await fetchPopularityMap(topTrackIds);
 
-  const popMap = await fetchPopularityMap(trackIds);
-  let sum = 0;
+  let sum  = 0;
   let nPop = 0;
-  for (const r of rows) {
-    const tid = r.track_id?.trim();
-    if (!tid) continue;
-    const p = popMap.get(tid);
-    if (p != null) {
-      sum += p;
-      nPop++;
-    }
+  for (const row of trackRows.slice(0, 50)) {
+    const p = popMap.get(row.entity_id);
+    if (p != null) { sum += p * row.count; nPop += row.count; }
   }
 
   return {
-    playCount: rows.length,
+    playCount,
     avgPopularity: nPop > 0 ? sum / nPop : null,
-    popSamples: nPop,
-    uniqueArtists: artistIds.size,
+    popSamples:    nPop,
+    uniqueArtists,
   };
 }
 
@@ -294,8 +265,8 @@ export async function getProfilePulseInsights(
         current.endExclusiveIso,
         24,
       ),
-      listeningWindowStats(uid, current.startIso, current.endExclusiveIso),
-      listeningWindowStats(uid, previous.startIso, previous.endExclusiveIso),
+      listeningWindowStats(uid, currentWeekStart()),
+      listeningWindowStats(uid, previousWeekStart()),
     ]);
 
   const firstListenMap = await getFirstListenAtForArtists(uid, curIds);
