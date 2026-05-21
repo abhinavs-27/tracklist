@@ -470,9 +470,6 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
     return { url: `${origin}/reports/shared/${json.id}` };
   }
 
-  const compareEntityKindLabel =
-    entityType.charAt(0).toUpperCase() + entityType.slice(1);
-
   const topGainerMovement = compare?.topGainer
     ? (data?.items.find((r) => r.entityId === compare.topGainer!.entityId)?.movement ?? null)
     : null;
