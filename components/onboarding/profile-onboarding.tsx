@@ -5,19 +5,19 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  FavoriteAlbumsPicker,
-  type FavoriteAlbumPick,
-} from "@/components/favorite-albums-picker";
+import type { FavoriteAlbumPick } from "@/components/favorite-albums-picker";
 import { ImageCropModal } from "@/components/profile/image-crop-modal";
 import { SampleWeeklyChartPreview } from "@/components/home/sample-weekly-chart-preview";
 import { LastfmConnectModal } from "@/components/onboarding/lastfm-connect-modal";
 import { LastfmSkipWarningDialog } from "@/components/onboarding/lastfm-skip-warning-dialog";
+import { GenrePicker } from "@/components/onboarding/genre-picker";
+import { RatingGrid, type RatedAlbum } from "@/components/onboarding/rating-grid";
 import { FollowButton } from "@/components/follow-button";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { uploadProfilePictureJPEG } from "@/lib/client/profile-picture-upload";
 import { queryKeys } from "@/lib/query-keys";
 import { resolveUserAvatarUrl } from "@/lib/profile-pictures/resolve-avatar-display";
+import type { GenreKey } from "@/lib/onboarding/genre-map";
 
 const MAX_PROFILE_PHOTO_INPUT_BYTES = 25 * 1024 * 1024;
 
@@ -79,6 +79,14 @@ export function ProfileOnboarding({
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [stepBusy, setStepBusy] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+
+  const [selectedGenres, setSelectedGenres] = useState<GenreKey[]>([]);
+  const [genreSubstep, setGenreSubstep] = useState<"genres" | "albums">("genres");
+  const [albumSuggestions, setAlbumSuggestions] = useState<Array<{
+    genreKey: string; genreLabel: string;
+    albums: Array<{ id: string; name: string; artistName: string; imageUrl: string | null }>;
+  }>>([]);
+  const [ratedAlbums, setRatedAlbums] = useState<RatedAlbum[]>([]);
 
   const [lastfmModalOpen, setLastfmModalOpen] = useState(false);
   const [lastfmSkipWarningOpen, setLastfmSkipWarningOpen] = useState(false);
@@ -297,32 +305,55 @@ export function ProfileOnboarding({
     }
   }, [usernameInput, initialUsername]);
 
+  const [albumSuggestionsLoading, setAlbumSuggestionsLoading] = useState(false);
+
+  const loadSuggestions = useCallback(async (genres: GenreKey[]) => {
+    if (genres.length === 0) return;
+    setAlbumSuggestionsLoading(true);
+    try {
+      const params = new URLSearchParams({ genres: genres.join(",") });
+      const res = await fetch(`/api/onboarding/album-suggestions?${params}`);
+      if (res.ok) {
+        const data = (await res.json()) as {
+          suggestions: Array<{
+            genreKey: string; genreLabel: string;
+            albums: Array<{ id: string; name: string; artistName: string; imageUrl: string | null }>;
+          }>;
+        };
+        setAlbumSuggestions(data.suggestions ?? []);
+        setGenreSubstep("albums");
+      }
+    } finally {
+      setAlbumSuggestionsLoading(false);
+    }
+  }, []);
+
   const goStep2 = useCallback(async () => {
-    setFavoritesError(null);
-    if (favorites.length < 1) {
-      setFavoritesError("Pick at least one album.");
+    if (genreSubstep === "genres") {
+      await loadSuggestions(selectedGenres);
       return;
     }
+    // Submit ratings
     setStepBusy(true);
     try {
-      const res = await fetch("/api/users/me/favorites", {
+      const res = await fetch("/api/users/me/onboarding-ratings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          albums: favorites.map((a) => a.album_id),
+          ratings: ratedAlbums,
+          preferredGenres: selectedGenres,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setFavoritesError(data.error ?? "Could not save favorites");
+        setFavoritesError(data.error ?? "Could not save ratings");
         return;
       }
-      void queryClient.invalidateQueries({ queryKey: queryKeys.favorites(userId) });
       setStep(3);
     } finally {
       setStepBusy(false);
     }
-  }, [favorites, queryClient, userId]);
+  }, [genreSubstep, selectedGenres, ratedAlbums, loadSuggestions]);
 
   const advanceFromLastfm = useCallback(() => {
     setLastfmModalOpen(false);
@@ -552,49 +583,80 @@ export function ProfileOnboarding({
 
           {step === 2 ? (
             <div className="mt-6 space-y-5 sm:mt-8">
-              <div>
-                <h2 className={h2}>Pick up to four favorite albums</h2>
-                <p className={bodyMuted}>
-                  They show on your profile and help others get your taste. You
-                  can change them anytime.
-                </p>
-              </div>
-              <FavoriteAlbumsPicker
-                value={favorites}
-                onChange={setFavorites}
-                disabled={stepBusy}
-                searchInputId="onboarding-fav-album-search"
-              />
-              {favoritesError ? (
-                <p className="text-sm text-red-400" role="alert">
-                  {favoritesError}
-                </p>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  disabled={stepBusy}
-                  className={secondaryBtn}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void goStep2()}
-                  disabled={stepBusy || favorites.length < 1}
-                  className={primaryBtn}
-                >
-                  {stepBusy ? (
-                    <>
-                      <InlineSpinner tone="emerald" />
-                      Saving…
-                    </>
-                  ) : (
-                    "Continue"
-                  )}
-                </button>
-              </div>
+              {genreSubstep === "genres" ? (
+                <>
+                  <div>
+                    <h2 className={h2}>What do you listen to?</h2>
+                    <p className={bodyMuted}>
+                      Pick your genres and we'll show you albums to rate. This builds your taste profile right away — no Last.fm needed.
+                    </p>
+                  </div>
+                  <GenrePicker
+                    selected={selectedGenres}
+                    onChange={setSelectedGenres}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setStep(1)} disabled={stepBusy} className={secondaryBtn}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void goStep2()}
+                      disabled={stepBusy || selectedGenres.length === 0 || albumSuggestionsLoading}
+                      className={primaryBtn}
+                    >
+                      {albumSuggestionsLoading ? (
+                        <><InlineSpinner tone="emerald" /> Loading…</>
+                      ) : (
+                        "See albums →"
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStep(3)}
+                      disabled={stepBusy}
+                      className="text-sm text-zinc-600 hover:text-zinc-400"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <h2 className={h2}>Rate what you know</h2>
+                    <p className={bodyMuted}>
+                      Half-stars welcome. Skip anything you haven't heard.
+                    </p>
+                  </div>
+                  <RatingGrid
+                    suggestions={albumSuggestions}
+                    onRatingsChange={setRatedAlbums}
+                  />
+                  {favoritesError ? (
+                    <p className="text-sm text-red-400" role="alert">{favoritesError}</p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setGenreSubstep("genres")} disabled={stepBusy} className={secondaryBtn}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void goStep2()}
+                      disabled={stepBusy}
+                      className={primaryBtn}
+                    >
+                      {stepBusy ? (
+                        <><InlineSpinner tone="emerald" /> Saving…</>
+                      ) : ratedAlbums.length > 0 ? (
+                        `Save ${ratedAlbums.length} rating${ratedAlbums.length === 1 ? "" : "s"} →`
+                      ) : (
+                        "Continue →"
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : null}
 
