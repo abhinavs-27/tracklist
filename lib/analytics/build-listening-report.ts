@@ -78,6 +78,99 @@ async function fetchLogsWindow(args: {
 }
 
 /**
+ * Fast path: reads from user_listening_aggregates instead of paginating raw logs.
+ * Returns null if no aggregate rows exist (triggers log-scan fallback).
+ * Genre counts are derived from artist play counts × artists.genres (same as log path).
+ */
+async function buildListeningReportFromAggregates(args: {
+  userId: string;
+  startDate: string;   // "YYYY-MM-DD"
+  endDate: string;     // "YYYY-MM-DD" inclusive
+}): Promise<ListeningReportBuildResult | null> {
+  const admin = createSupabaseAdminClient();
+
+  const { data, error } = await admin.rpc("get_listening_report_from_aggregates", {
+    p_user_id:    args.userId,
+    p_start_date: args.startDate,
+    p_end_date:   args.endDate,
+  });
+
+  if (error) {
+    console.warn("[listening-report] aggregates RPC failed", error.message);
+    return null;
+  }
+
+  const rows = (data ?? []) as { entity_type: string; entity_id: string; total_count: number }[];
+  if (!rows.length) return null;
+
+  const trackCounts  = new Map<string, number>();
+  const albumCounts  = new Map<string, number>();
+  const artistCounts = new Map<string, number>();
+
+  for (const row of rows) {
+    if (row.entity_type === "track")       trackCounts.set(row.entity_id,  row.total_count);
+    else if (row.entity_type === "album")  albumCounts.set(row.entity_id,  row.total_count);
+    else if (row.entity_type === "artist") artistCounts.set(row.entity_id, row.total_count);
+  }
+
+  if (trackCounts.size === 0 && albumCounts.size === 0 && artistCounts.size === 0) {
+    return null;
+  }
+
+  // Fetch genres for top 200 artists (same lookup as log-scan path)
+  const topArtistIds = [...artistCounts.keys()].slice(0, 200);
+  const { data: artists } = topArtistIds.length
+    ? await admin.from("artists").select("id, genres").in("id", topArtistIds)
+    : { data: [] };
+
+  const artistById = new Map(
+    (artists ?? []).map((a) => [a.id, a as { id: string; genres: string[] | null }]),
+  );
+
+  // Weight genres by artist play count (same semantics as log-scan path)
+  const genreCounts = new Map<string, number>();
+  for (const [artistId, playCount] of artistCounts) {
+    const genres = artistById.get(artistId)?.genres;
+    if (!genres?.length) continue;
+    for (const raw of genres.slice(0, 3)) {
+      const genre = raw?.trim().toLowerCase();
+      if (genre) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + playCount);
+    }
+  }
+
+  // totalPlays = sum of track counts (matches logs.length semantics in the log-scan path)
+  let totalPlays = 0;
+  for (const count of trackCounts.values()) totalPlays += count;
+
+  const byEntity: ListeningReportBuildResult["byEntity"] = {
+    track:  sortAndCap(trackCounts),
+    album:  sortAndCap(albumCounts),
+    artist: sortAndCap(artistCounts),
+    genre:  sortAndCap(genreCounts),
+  };
+
+  console.info("[listening-report] build (aggregates fast path)", {
+    userId: args.userId,
+    startDate: args.startDate,
+    endDate: args.endDate,
+    totalPlays,
+    grouped: {
+      tracks:  byEntity.track.length,
+      albums:  byEntity.album.length,
+      artists: byEntity.artist.length,
+      genres:  byEntity.genre.length,
+    },
+  });
+
+  return {
+    startDate: args.startDate,
+    endDate:   args.endDate,
+    totalPlays,
+    byEntity,
+  };
+}
+
+/**
  * Single source of truth: aggregates from `logs` only (no `user_listening_aggregates`).
  * Uses application-side LEFT semantics: missing `tracks`/`albums`/`artists` rows never drop plays.
  */
@@ -86,6 +179,15 @@ async function buildListeningReportUncached(args: {
   startDate: string;
   endDate: string;
 }): Promise<ListeningReportBuildResult> {
+  // Fast path: read from user_listening_aggregates (1 query vs N log pages)
+  const fast = await buildListeningReportFromAggregates({
+    userId:    args.userId,
+    startDate: args.startDate,
+    endDate:   args.endDate,
+  });
+  if (fast) return fast;
+
+  // Fallback: no aggregate rows — paginate raw logs
   const { startIso, endExclusiveIso } = inclusiveRangeToListenWindow({
     startDate: args.startDate,
     endDate: args.endDate,
