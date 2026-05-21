@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import * as FileSystem from "expo-file-system";
 import {
   ActivityIndicator,
   FlatList,
@@ -249,13 +250,38 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
   } : null;
 
   const hero = chart ? [...chart.rankings].sort((a, b) => a.rank - b.rank)[0] ?? null : null;
+  const [sharing, setSharing] = useState(false);
 
-  const handleShare = () => {
-    if (!hero) return;
-    void Share.share({
-      message: `My #1 this week: ${hero.name}${hero.artist_name ? ` by ${hero.artist_name}` : ""} — ${weekLabel}`,
-    });
-  };
+  const handleShare = useCallback(async () => {
+    if (!hero || sharing) return;
+    setSharing(true);
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const params = new URLSearchParams({ type: chartType });
+      if (weekStart) params.set("weekStart", weekStart);
+      const imageUrl = `${apiBase}/api/charts/share-image?${params.toString()}`;
+
+      const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-chart.png";
+      await FileSystem.downloadAsync(imageUrl, localUri, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      await Share.share({ url: localUri });
+    } catch (e) {
+      // Fallback to text share if image download fails
+      if (hero) {
+        void Share.share({
+          message: `My #1 this week: ${hero.name}${hero.artist_name ? ` by ${hero.artist_name}` : ""} — ${weekLabel}`,
+        });
+      }
+    } finally {
+      setSharing(false);
+    }
+  }, [hero, sharing, chartType, weekStart, weekLabel]);
 
   return (
     <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
@@ -313,14 +339,14 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
           <View style={styles.shareCard}>
             <Text style={styles.shareTitle}>Share this week</Text>
             <Text style={styles.shareDesc}>Export a summary or link. Anyone with the link needs to be signed in.</Text>
-            <Pressable onPress={handleShare} style={({ pressed }: { pressed: boolean }) => [styles.shareBtn, pressed && { opacity: 0.88 }]}>
-              <Text style={styles.shareBtnText}>Share your chart</Text>
+            <Pressable onPress={() => void handleShare()} disabled={sharing} style={({ pressed }: { pressed: boolean }) => [styles.shareBtn, (pressed || sharing) && { opacity: 0.88 }]}>
+              <Text style={styles.shareBtnText}>{sharing ? "Generating…" : "Share your chart"}</Text>
             </Pressable>
             <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(63,63,70,0.8)", paddingTop: 20 }}>
               <Text style={styles.quickActionsLabel}>QUICK ACTIONS</Text>
               <View style={styles.quickActionsRow}>
-                <Pressable onPress={handleShare} style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}>
-                  <Text style={styles.quickBtnText}>Share</Text>
+                <Pressable onPress={() => void handleShare()} disabled={sharing} style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, (pressed || sharing) && { opacity: 0.7 }]}>
+                  <Text style={styles.quickBtnText}>{sharing ? "…" : "Share"}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
