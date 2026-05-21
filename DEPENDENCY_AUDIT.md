@@ -1,46 +1,40 @@
-# Project Dependency Audit Summary (June 2026 Update)
+# Project Dependency Audit Summary (May 2026 Update)
 
 ## Audit Status
-- **Vulnerabilities Fixed:** 3 (1 High, 2 Moderate) - *Current audit shows 0 vulnerabilities.*
+- **Vulnerabilities Fixed:** 0 (All projects already had 0 vulnerabilities; audit confirms zero new vulnerabilities).
 - **Core Guidelines Followed:**
-  - Updated all dependencies to their "Wanted" or safe versions (June 2026 Audit).
-  - Resolved `brace-expansion` moderate severity vulnerability via root and backend `overrides`.
-  - Resolved `@xmldom/xmldom` high severity vulnerability via mobile `overrides`.
-  - Maintained version consistency for shared packages (`@supabase/supabase-js`, `@tanstack/react-query`, `react`, etc.) across root, backend, and mobile projects.
+  - Updated dependencies to their latest safe versions (May 2026 Audit).
+  - Maintained version consistency for shared packages across root, backend, and mobile projects.
+  - Verified zero vulnerabilities across all projects via `npm audit`.
 - **Verification:**
   - Successfully ran `npm run build` for the root project.
-  - Successfully ran `npm run test:unit` for the root project (54/54 passed).
+  - Successfully ran `npm run test:unit` for the root project (60/60 passed).
+  - Successfully ran Playwright E2E tests for critical flows (6/6 passed).
   - Successfully ran `npm run build` for the backend project.
-  - Verified 0 vulnerabilities across all projects via `npm audit`.
-  - Identified that existing lint/typecheck issues in root and mobile are pre-existing and not regressions from the upgrades.
+  - Verified that pre-existing lint/typecheck issues in root and mobile are not regressions from the upgrades.
 
 ## Updated Dependencies
 
 ### Root Project
 | Package | Version Change | Vulnerability Fixed |
 |---------|----------------|---------------------|
-| `brace-expansion` (override) | `5.0.5` -> `5.0.6` | Moderate (DoS) |
-| `@aws-sdk/client-s3` | `3.1048.0` -> `^3.1049.0` | - |
-| `@aws-sdk/client-sqs` | `3.1048.0` -> `^3.1049.0` | - |
-| `@aws-sdk/s3-request-presigner` | `3.1048.0` -> `^3.1049.0` | - |
-| `@supabase/supabase-js` | `2.105.4` -> `^2.106.0` | - |
-| `@tanstack/react-query` | `5.100.10` -> `^5.100.11` | - |
-| `@tanstack/react-query-devtools` | `5.100.10` -> `^5.100.11` | - |
-| `bullmq` | `5.76.9` -> `^5.76.10` | - |
-| `framer-motion` | `12.38.0` -> `^12.39.0` | - |
-| `tsx` | `4.22.1` -> `^4.22.2` | - |
+| `@aws-sdk/client-s3` | `^3.1049.0` -> `^3.1050.0` | - |
+| `@aws-sdk/client-sqs` | `^3.1049.0` -> `^3.1050.0` | - |
+| `@aws-sdk/s3-request-presigner` | `^3.1049.0` -> `^3.1050.0` | - |
+| `@types/node` | `^25.8.0` -> `^25.9.1` | - |
+| `@types/react` | `^19.2.14` -> `^19.2.15` | - |
+| `tsx` | `^4.22.2` -> `^4.22.3` | - |
+| `vercel` | `^54.1.0` -> `^54.2.0` | - |
+| `vitest` | `^4.1.6` -> `^4.1.7` | - |
 
 ### Backend Project
 | Package | Version Change | Vulnerability Fixed |
 |---------|----------------|---------------------|
-| `brace-expansion` (override) | N/A -> `5.0.6` | Moderate (DoS) |
-| `@supabase/supabase-js` | `2.105.4` -> `^2.106.0` | - |
+| *No changes* | Audited & Synced | - |
 
 ### Mobile Project
 | Package | Version Change | Vulnerability Fixed |
 |---------|----------------|---------------------|
-| `@xmldom/xmldom` (override) | `0.8.10` -> `0.9.10` | High (Multiple XML Injections) |
-| `@supabase/supabase-js` | `2.105.4` -> `^2.106.0` | - |
-| `@tanstack/react-query` | `5.100.10` -> `^5.100.11` | - |
-| `react` | `19.2.0` -> `19.2.6` | - |
-| `react-dom` | `19.2.0` -> `19.2.6` | - |
+| `expo` | `~55.0.24` -> `~55.0.25` | - |
+| `expo-router` | `~55.0.14` -> `~55.0.15` | - |
+| `@types/react` | `~19.2.2` -> `~19.2.15` | - |
