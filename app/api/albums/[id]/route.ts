@@ -42,7 +42,7 @@ export const GET = withHandler(async (_request, { params }) => {
 
     const favorite_count = engagement.favorite_count;
 
-    const reviewsResult = await getReviewsForEntity("album", entityId, 5);
+    const reviewsResult = await getReviewsForEntity("album", entityId, 5, null);
     const reviews =
       reviewsResult?.reviews?.map((r) => ({
         id: r.id,

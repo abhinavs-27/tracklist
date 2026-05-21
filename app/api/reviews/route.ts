@@ -21,7 +21,7 @@ import { getReviewsForEntity, fetchUserSummary } from "@/lib/queries";
 import { getOrCreateEntity } from "@/lib/catalog/getOrCreateEntity";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_or_lfm_id>&limit= optional */
-export const GET = withHandler(async (request: NextRequest) => {
+export const GET = withHandler(async (request: NextRequest, { user }) => {
   const { searchParams } = request.nextUrl;
   const entityType = searchParams.get("entity_type");
   const rawEntityId = searchParams.get("entity_id");
@@ -39,7 +39,7 @@ export const GET = withHandler(async (request: NextRequest) => {
     return apiBadRequest("Invalid entity_id");
   }
 
-  const result = await getReviewsForEntity(typeResult.value, entityId, limit);
+  const result = await getReviewsForEntity(typeResult.value, entityId, limit, user?.id ?? null);
   if (!result) return apiInternalError("Failed to fetch reviews");
 
   return apiOk(result);
