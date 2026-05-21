@@ -70,6 +70,9 @@ export async function getCommunityMemberGrowthThisWeek(
 /**
  * Top artists by listen volume among community members (last 7 days).
  * Used for hero "Top this week" and blurred background collage.
+ *
+ * Fast path: reads from user_listening_aggregates (pre-aggregated weekly counts).
+ * Falls back to raw log scan if no aggregate rows exist for this community.
  */
 export async function getCommunityHeroListeningData(communityId: string): Promise<{
   topArtists: CommunityHeroTopArtist[];
@@ -95,32 +98,54 @@ export async function getCommunityHeroListeningData(communityId: string): Promis
   ];
   if (memberIds.length === 0) return { topArtists: [], backgroundImageUrls: [] };
 
-  const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
+  // Fast path: sum artist counts from weekly aggregates (last 1–2 weeks covers 7-day window)
+  const sinceDateOnly = new Date(Date.now() - LOOKBACK_MS)
+    .toISOString()
+    .slice(0, 10);
 
-  const { data: logRows, error: logErr } = await admin
-    .from("logs")
-    .select("user_id, listened_at, artist_id, track_id")
+  const { data: aggRows, error: aggErr } = await admin
+    .from("user_listening_aggregates")
+    .select("entity_id, count")
     .in("user_id", memberIds)
-    .gte("listened_at", since)
-    .order("listened_at", { ascending: true })
-    .limit(MAX_LOG_ROWS);
+    .eq("entity_type", "artist")
+    .gte("week_start", sinceDateOnly)
+    .not("week_start", "is", null);
 
-  if (logErr) {
-    console.error("[community] hero logs failed", logErr);
-    return { topArtists: [], backgroundImageUrls: [] };
-  }
+  let artistCounts: Map<string, number>;
 
-  const logs = (logRows ?? []) as LogRow[];
-  const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean))] as string[];
-  const songMap = await fetchSongsArtistIds(admin, trackIds);
+  if (!aggErr && aggRows?.length) {
+    artistCounts = new Map<string, number>();
+    for (const r of aggRows as { entity_id: string; count: number }[]) {
+      artistCounts.set(r.entity_id, (artistCounts.get(r.entity_id) ?? 0) + r.count);
+    }
+  } else {
+    // Fallback: raw log scan
+    const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
+    const { data: logRows, error: logErr } = await admin
+      .from("logs")
+      .select("user_id, listened_at, artist_id, track_id")
+      .in("user_id", memberIds)
+      .gte("listened_at", since)
+      .order("listened_at", { ascending: true })
+      .limit(MAX_LOG_ROWS);
 
-  const artistCounts = new Map<string, number>();
-  for (const log of logs) {
-    const aid =
-      log.artist_id?.trim() ||
-      (log.track_id ? songMap.get(log.track_id) : undefined);
-    if (!aid) continue;
-    artistCounts.set(aid, (artistCounts.get(aid) ?? 0) + 1);
+    if (logErr) {
+      console.error("[community] hero logs failed", logErr);
+      return { topArtists: [], backgroundImageUrls: [] };
+    }
+
+    const logs = (logRows ?? []) as LogRow[];
+    const trackIds = [...new Set(logs.map((l) => l.track_id).filter(Boolean))] as string[];
+    const songMap = await fetchSongsArtistIds(admin, trackIds);
+
+    artistCounts = new Map<string, number>();
+    for (const log of logs) {
+      const aid =
+        log.artist_id?.trim() ||
+        (log.track_id ? songMap.get(log.track_id) : undefined);
+      if (!aid) continue;
+      artistCounts.set(aid, (artistCounts.get(aid) ?? 0) + 1);
+    }
   }
 
   const sortedIds = [...artistCounts.entries()]
