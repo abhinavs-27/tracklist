@@ -95,6 +95,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="reviews/[entityType]/[entityId]" options={{ href: null }} />
       <Tabs.Screen name="user/[username]/index" options={{ href: null }} />
       <Tabs.Screen name="user/[username]/lists" options={{ href: null }} />
+      <Tabs.Screen name="reports/listening" options={{ href: null }} />
     </Tabs>
   );
 }

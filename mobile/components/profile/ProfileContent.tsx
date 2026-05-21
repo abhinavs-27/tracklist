@@ -209,7 +209,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         {isOwn ? (
           <Pressable
             style={({ pressed }) => [ph.actionBtn, ph.actionBtnEmerald, pressed && { opacity: 0.75 }]}
-            onPress={() => router.push("/reports/listening" as never)}
+            onPress={() => router.push("/(tabs)/reports/listening" as never)}
           >
             <Ionicons name="bar-chart-outline" size={15} color={theme.colors.emerald} />
             <Text style={[ph.actionBtnText, ph.actionBtnEmeraldText]}>Report</Text>
@@ -228,7 +228,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>Music identity</Text>
           {isOwn ? (
-            <Pressable onPress={() => router.push("/reports/listening" as never)}>
+            <Pressable onPress={() => router.push("/(tabs)/reports/listening" as never)}>
               <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.emerald }}>Full report →</Text>
             </Pressable>
           ) : null}
