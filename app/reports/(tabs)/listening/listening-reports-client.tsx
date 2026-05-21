@@ -476,6 +476,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
   const topDropperMovement = compare?.topDropper
     ? (data?.items.find((r) => r.entityId === compare.topDropper!.entityId)?.movement ?? null)
     : null;
+  // Note: movement lookup is against the current loaded window; shows "—" if gainer/dropper is outside loaded items.
 
   const statStrip =
     compare && range !== "custom" ? (
@@ -516,7 +517,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
           {compare.topDropper ? (
             <>
               <p className="mt-1.5 text-sm font-bold leading-tight text-white">{compare.topDropper.name}</p>
-              <p className="mt-0.5 text-xs font-medium text-red-400">{topDropperMovement != null ? `${topDropperMovement} spots` : "—"}</p>
+              <p className="mt-0.5 text-xs font-medium text-red-400">{topDropperMovement != null ? `${Math.abs(topDropperMovement)} spots` : "—"}</p>
             </>
           ) : (
             <p className="mt-1.5 text-sm text-zinc-500">—</p>
