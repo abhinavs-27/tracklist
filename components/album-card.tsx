@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import Image from 'next/image';
 import { PrefetchLink } from '@/components/prefetch-link';
 
 interface AlbumCardProps {
@@ -14,12 +15,14 @@ function AlbumCardInner({ album }: AlbumCardProps) {
       href={`/album/${album.id}`}
       className="group flex min-h-0 touch-manipulation flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition hover:border-zinc-600 hover:bg-zinc-800/50"
     >
-      <div className="aspect-square w-full overflow-hidden bg-zinc-800">
+      <div className="relative aspect-square w-full overflow-hidden bg-zinc-800">
         {image ? (
-          <img
+          <Image
             src={image}
             alt=""
-            className="h-full w-full object-cover transition group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover transition group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-4xl text-zinc-600">

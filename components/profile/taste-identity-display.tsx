@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { TasteCard } from "@/components/taste-card";
 import { getListeningStyleDisplay, normalizeListeningStyle } from "@/lib/taste/listening-style";
 import type { TasteIdentity } from "@/lib/taste/types";
@@ -235,9 +236,9 @@ export function TasteIdentityDisplay({
                   href={`/album/${al.id}`}
                   className="flex items-center gap-3 rounded-lg border border-zinc-800/60 bg-zinc-950/30 p-2 transition hover:border-zinc-500/50"
                 >
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
                     {al.imageUrl ? (
-                      <img src={al.imageUrl} alt="" className="h-full w-full object-cover" />
+                      <Image src={al.imageUrl} alt="" fill sizes="48px" className="object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">♪</div>
                     )}

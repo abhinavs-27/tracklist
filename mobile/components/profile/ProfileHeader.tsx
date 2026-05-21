@@ -39,6 +39,9 @@ export function ProfileHeader({
                 source={{ uri: a.artworkUrl! }}
                 style={s.bannerSlot}
                 contentFit="cover"
+                transition={200}
+                cachePolicy="memory-disk"
+                recyclingKey={a.artworkUrl!}
               />
             ))}
             {/* fill remaining slots */}
@@ -58,7 +61,7 @@ export function ProfileHeader({
         {/* Avatar pulled up over banner */}
         <View style={s.avatarRow}>
           {user.avatar_url ? (
-            <Image source={{ uri: user.avatar_url }} style={s.avatar} contentFit="cover" />
+            <Image source={{ uri: user.avatar_url }} style={s.avatar} contentFit="cover" transition={150} cachePolicy="memory-disk" />
           ) : (
             <View style={[s.avatar, s.avatarPh]}>
               <Text style={s.avatarGlyph}>{user.username[0]?.toUpperCase() ?? "?"}</Text>

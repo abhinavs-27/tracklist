@@ -65,6 +65,7 @@ export function ProfileDiaryEntry({ entry }: { entry: DiaryEntry }) {
             alt={entry.name ?? ""}
             width={40}
             height={40}
+            sizes="40px"
             className="rounded object-cover"
           />
         ) : (

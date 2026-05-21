@@ -95,6 +95,25 @@ export const GET = withHandler(
         .map((t) => [t.id, t]),
     );
 
+    // Fetch album art for track reviews (tracks have album_id but not image_url directly)
+    const trackAlbumIds = [
+      ...new Set(
+        Array.from(trackMap.values())
+          .map((t) => t.album_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ].filter((id) => !albumMap.has(id));
+    if (trackAlbumIds.length > 0) {
+      const { data: trackAlbumRows } = await admin
+        .from("albums")
+        .select("id, image_url")
+        .in("id", trackAlbumIds);
+      for (const row of (trackAlbumRows ?? []) as Array<{ id: string; image_url: string | null }>) {
+        // Store as a minimal entry so track enrichment can read the image
+        albumMap.set(row.id, { id: row.id, name: "", image_url: row.image_url, artist_id: "" });
+      }
+    }
+
     // Resolve artist names
     const artistIds = [
       ...new Set([
@@ -155,7 +174,7 @@ export const GET = withHandler(
         review_text: r.review_text,
         created_at: r.created_at,
         name: track?.name ?? null,
-        image_url: null,
+        image_url: track?.album_id ? (albumMap.get(track.album_id)?.image_url ?? null) : null,
         artist_name: track?.artist_id ? (artistMap.get(track.artist_id) ?? null) : null,
         listen_count: null,
       };

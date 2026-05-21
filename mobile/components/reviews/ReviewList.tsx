@@ -36,7 +36,7 @@ function StarDisplay({ rating }: { rating: number }) {
 
 function Avatar({ username, avatarUrl }: { username: string | null; avatarUrl?: string | null }) {
   if (avatarUrl) {
-    return <Image source={{ uri: avatarUrl }} style={s.avatar} contentFit="cover" />;
+    return <Image source={{ uri: avatarUrl }} style={s.avatar} contentFit="cover" transition={150} cachePolicy="memory-disk" />;
   }
   return (
     <View style={[s.avatar, s.avatarFallback]}>

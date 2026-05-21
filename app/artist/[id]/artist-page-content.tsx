@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
@@ -95,8 +96,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
       <div className="relative overflow-hidden rounded-2xl bg-zinc-900">
         {image && (
           <div className="pointer-events-none absolute inset-0" aria-hidden>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image} alt="" className="h-full w-full scale-150 object-cover opacity-[0.18] blur-3xl" />
+            <Image src={image} alt="" fill sizes="100vw" className="scale-150 object-cover opacity-[0.18] blur-3xl" />
             <div className="absolute inset-0 bg-zinc-950/65" />
           </div>
         )}
@@ -104,10 +104,9 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
         <div className="relative flex flex-col items-center gap-6 p-6 sm:flex-row sm:items-start sm:gap-8 sm:p-8">
           {/* Artist photo — full, uncropped */}
-          <div className="h-52 w-52 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] ring-1 ring-inset ring-white/[0.08] sm:h-60 sm:w-60">
+          <div className="relative h-52 w-52 shrink-0 overflow-hidden rounded-2xl bg-zinc-800 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] ring-1 ring-inset ring-white/[0.08] sm:h-60 sm:w-60">
             {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={image} alt="" className="h-full w-full object-cover" />
+              <Image src={image} alt="" fill sizes="240px" className="object-cover" priority />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-6xl text-zinc-600">♪</div>
             )}

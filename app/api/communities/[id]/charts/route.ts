@@ -3,6 +3,11 @@ import { apiBadRequest, apiForbidden, apiNotFound, apiOk } from "@/lib/api-respo
 import { getCommunityWeeklyChart } from "@/lib/charts/get-community-weekly-chart";
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 import { isCommunityMember } from "@/lib/community/queries";
+import {
+  communityEndpointCacheKey,
+  getOrSetCommunityApiCache,
+  COMMUNITY_API_CACHE_TTL_SEC,
+} from "@/lib/cache/community-endpoint-cache";
 import { isValidUuid } from "@/lib/validation";
 
 const TYPES: ChartType[] = ["tracks", "artists", "albums"];
@@ -33,12 +38,19 @@ export const GET = withHandler(
 
     const weekStart = searchParams.get("weekStart")?.trim() ?? null;
 
-    const data = await getCommunityWeeklyChart({
-      communityId: id,
+    const cacheKey = communityEndpointCacheKey(
+      "charts",
+      id,
       chartType,
-      weekStart,
-      viewerId: me!.id,
-    });
+      weekStart ?? "latest",
+      me!.id,
+    );
+    const data = await getOrSetCommunityApiCache(
+      cacheKey,
+      COMMUNITY_API_CACHE_TTL_SEC,
+      () => getCommunityWeeklyChart({ communityId: id, chartType, weekStart, viewerId: me!.id }),
+      { cacheWhen: (v) => v !== null },
+    );
 
     if (!data) {
       return apiNotFound(

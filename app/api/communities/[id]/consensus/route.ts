@@ -6,6 +6,11 @@ import {
 } from "@/lib/community/getCommunityConsensus";
 import { isCommunityMember } from "@/lib/community/queries";
 import { apiForbidden, apiNotFound, apiOk } from "@/lib/api-response";
+import {
+  communityEndpointCacheKey,
+  getOrSetCommunityApiCache,
+  COMMUNITY_API_CACHE_TTL_SEC,
+} from "@/lib/cache/community-endpoint-cache";
 import { isValidUuid } from "@/lib/validation";
 
 const TYPES: ConsensusEntityType[] = ["track", "album", "artist"];
@@ -48,12 +53,18 @@ export const GET = withHandler(
       parseInt(searchParams.get("offset") ?? "0", 10) || 0,
     );
 
-    const { items, hasMore } = await getCommunityConsensusRankings(
+    const cacheKey = communityEndpointCacheKey(
+      "consensus",
       id,
       type,
       range,
-      limit,
-      offset,
+      String(limit),
+      String(offset),
+    );
+    const { items, hasMore } = await getOrSetCommunityApiCache(
+      cacheKey,
+      COMMUNITY_API_CACHE_TTL_SEC,
+      () => getCommunityConsensusRankings(id, type, range, limit, offset),
     );
     return apiOk({ items, type, range, limit, offset, hasMore });
   },

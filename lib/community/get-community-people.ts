@@ -27,30 +27,33 @@ export async function getCommunityPeople(
 
   const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
 
-  // 1. All community members with profiles
-  const { data: members, error: mErr } = await admin
-    .from("community_members")
-    .select("user_id, role, users!inner(id, username, avatar_url)")
-    .eq("community_id", cid);
+  // All 3 queries are independent — run in parallel
+  const [
+    { data: members, error: mErr },
+    { data: community },
+    { data: agg },
+  ] = await Promise.all([
+    admin
+      .from("community_members")
+      .select("user_id, role, users!inner(id, username, avatar_url)")
+      .eq("community_id", cid),
+    admin
+      .from("communities")
+      .select("created_by")
+      .eq("id", cid)
+      .single(),
+    admin.rpc("get_community_weekly_leaderboard", {
+      p_community_id: cid,
+      p_since: since,
+    }),
+  ]);
 
   if (mErr) {
     console.error("[community] people members failed", mErr);
     return [];
   }
 
-  // 2. Creator = oldest admin
-  const { data: community } = await admin
-    .from("communities")
-    .select("created_by")
-    .eq("id", cid)
-    .single();
   const creatorId = (community as { created_by: string } | null)?.created_by ?? null;
-
-  // 3. Live listen stats from RPC
-  const { data: agg } = await admin.rpc("get_community_weekly_leaderboard", {
-    p_community_id: cid,
-    p_since: since,
-  });
 
   const statsMap = new Map<string, { totalLogs: number; uniqueArtists: number }>();
   for (const r of (agg ?? []) as { user_id: string; total_logs: number; unique_artists: number }[]) {
