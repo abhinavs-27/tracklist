@@ -776,14 +776,14 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
                 </div>
                 <div className="min-w-0 flex-1 py-3 pl-4">
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-400">
-                    {RANGES.find((r) => r.value === range)?.label} · {TYPES.find((t) => t.value === entityType)?.label}
+                    {RANGES.find((r) => r.value === range)?.label ?? range} · {TYPES.find((t) => t.value === entityType)?.label ?? entityType}
                   </p>
                   <p className="mt-1 truncate text-lg font-bold text-white">{heroRow.name}</p>
                   <p className="text-xs text-zinc-500">{heroRow.count} plays</p>
                 </div>
                 <div className="flex shrink-0 items-center px-4">
                   {heroRow.isNew ? (
-                    <span className="text-xs italic text-zinc-400">New entry</span>
+                    <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">New</span>
                   ) : (
                     <span className={`text-sm font-semibold tabular-nums ${
                       heroRow.movement != null && heroRow.movement > 0 ? "text-emerald-400"
@@ -821,7 +821,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
                           data-index={virtualRow.index}
                           ref={reportVirtualizer.measureElement}
                           role="listitem"
-                          className={`pb-2 ${loadingMore ? "opacity-60" : ""}`}
+                          className={loadingMore ? "opacity-60" : ""}
                           style={{
                             position: "absolute",
                             top: 0,
