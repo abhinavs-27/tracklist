@@ -16,6 +16,7 @@ export type ProfileIdentityCardProps = {
   /** One palette per top artist (up to 3). Must have at least 1. */
   palettes: [AlbumPalette, AlbumPalette?, AlbumPalette?];
   usernameDisplay: string | null;
+  totalLogs?: number;
 };
 
 function truncate(s: string, max: number): string {
@@ -65,6 +66,7 @@ export function ProfileIdentityCardTemplate({
   topArtists,
   palettes,
   usernameDisplay,
+  totalLogs,
 }: ProfileIdentityCardProps) {
   const copy = LISTENING_STYLE_COPY[style] ?? LISTENING_STYLE_COPY["still-forming"];
 
@@ -72,8 +74,14 @@ export function ProfileIdentityCardTemplate({
   const p2 = palettes[1] ?? p1;
   const p3 = palettes[2] ?? p2;
 
-  const a1 = topArtists[0];
-  const a2 = topArtists[1];
+  // Artist[0] is most played — show as center/hero circle
+  const a1 = topArtists[1]; // left
+  const a2 = topArtists[0]; // center (largest — #1 artist)
+  const a3 = topArtists[2]; // right
+  // Palettes follow the same remapping so colors match
+  const glow1 = p2.accent; // left glow uses p2
+  const glow2 = p1.accent; // center glow uses p1 (most played artist)
+  const glow3 = p3.accent; // right glow uses p3
   const a3 = topArtists[2];
 
   const W = 1080;
@@ -138,7 +146,7 @@ export function ProfileIdentityCardTemplate({
           position: "relative",
         }}
       >
-        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 3, color: accentColor, textTransform: "uppercase" }}>
+        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 3, color: "rgba(255,255,255,0.7)", textTransform: "uppercase" }}>
           Tracklist
         </span>
         <span style={{ fontSize: 18, color: "rgba(255,255,255,0.32)", fontWeight: 400 }}>
@@ -146,20 +154,20 @@ export function ProfileIdentityCardTemplate({
         </span>
       </div>
 
-      {/* Artist circles — visual center of the card */}
+      {/* Artist circles — pushed up from center, not perfectly centered */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
           flex: 1,
           position: "relative",
           paddingLeft: PAD,
           paddingRight: PAD,
+          paddingTop: 80,
         }}
       >
-        {/* Overlapping circles row */}
+        {/* Overlapping circles row — a2 is #1 artist (center/biggest) */}
         <div
           style={{
             display: "flex",
@@ -168,16 +176,13 @@ export function ProfileIdentityCardTemplate({
             justifyContent: "center",
           }}
         >
-          {/* Left: artist 1 */}
-          <ArtistCircle artist={a1} size={SIDE_SIZE} glowColor={p1.accent} />
+          <ArtistCircle artist={a1} size={SIDE_SIZE} glowColor={glow1} />
 
-          {/* Center: artist 2 — overlaps both sides, raised slightly */}
           <div style={{ display: "flex", marginLeft: -OVERLAP, marginRight: -OVERLAP, zIndex: 2, marginBottom: 28 }}>
-            <ArtistCircle artist={a2} size={CENTER_SIZE} glowColor={p2.accent} />
+            <ArtistCircle artist={a2} size={CENTER_SIZE} glowColor={glow2} />
           </div>
 
-          {/* Right: artist 3 */}
-          <ArtistCircle artist={a3} size={SIDE_SIZE} glowColor={p3.accent} />
+          <ArtistCircle artist={a3} size={SIDE_SIZE} glowColor={glow3} />
         </div>
 
         {/* Artist names */}
@@ -196,9 +201,9 @@ export function ProfileIdentityCardTemplate({
               <span
                 key={i}
                 style={{
-                  fontSize: i === 1 ? 20 : 17,
+                  fontSize: i === 1 ? 22 : 17,
                   fontWeight: i === 1 ? 700 : 500,
-                  color: i === 1 ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)",
+                  color: i === 1 ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.45)",
                   textAlign: "center",
                   maxWidth: 220,
                 }}
@@ -208,6 +213,32 @@ export function ProfileIdentityCardTemplate({
             ) : null
           )}
         </div>
+
+        {/* Total plays — fills space, gives context */}
+        {totalLogs && totalLogs > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 44,
+              backgroundColor: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 999,
+              paddingTop: 10,
+              paddingBottom: 10,
+              paddingLeft: 28,
+              paddingRight: 28,
+            }}
+          >
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>
+              {totalLogs.toLocaleString("en-US")}
+            </span>
+            <span style={{ fontSize: 15, color: "rgba(255,255,255,0.35)", fontWeight: 400 }}>
+              {" plays logged"}
+            </span>
+          </div>
+        ) : null}
       </div>
 
       {/* Bottom — style label + badge */}

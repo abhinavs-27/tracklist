@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
         topArtists={topArtists}
         palettes={palettes}
         usernameDisplay={user.username ?? null}
+        totalLogs={identity.totalLogs ?? undefined}
       />,
       {
         width: 1080,
