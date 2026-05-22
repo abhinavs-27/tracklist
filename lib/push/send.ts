@@ -75,22 +75,28 @@ export async function sendPushToUsers(
 ): Promise<void> {
   if (userIds.length === 0) return;
   try {
-    const { data } = await admin
-      .from("users")
-      .select("id, expo_push_token")
-      .in("id", userIds);
+    const DB_CHUNK = 900; // stay safely under Supabase's 1000-row default
+    const allTokens: string[] = [];
+    for (let i = 0; i < userIds.length; i += DB_CHUNK) {
+      const chunk = userIds.slice(i, i + DB_CHUNK);
+      const { data } = await admin
+        .from("users")
+        .select("id, expo_push_token")
+        .in("id", chunk);
+      const chunkTokens = (
+        (data ?? []) as Array<{ id: string; expo_push_token?: string | null }>
+      )
+        .map((u) => u.expo_push_token)
+        .filter((t): t is string => Boolean(t));
+      allTokens.push(...chunkTokens);
+    }
 
-    const tokens = (
-      (data ?? []) as Array<{ id: string; expo_push_token?: string | null }>
-    )
-      .map((u) => u.expo_push_token)
-      .filter((t): t is string => Boolean(t));
+    if (allTokens.length === 0) return;
 
-    if (tokens.length === 0) return;
-
+    // Expo API batching at 100
     const CHUNK = 100;
-    for (let i = 0; i < tokens.length; i += CHUNK) {
-      const chunk = tokens.slice(i, i + CHUNK);
+    for (let i = 0; i < allTokens.length; i += CHUNK) {
+      const chunk = allTokens.slice(i, i + CHUNK);
       const messages = chunk.map((token) => buildPushMessage(token, payload));
       await fetch(EXPO_PUSH_URL, {
         method: "POST",

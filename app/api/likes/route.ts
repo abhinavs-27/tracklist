@@ -52,14 +52,6 @@ export const POST = withHandler(
 
       const ownerId = (review as { user_id?: string } | null)?.user_id;
       if (ownerId && ownerId !== me!.id) {
-        // Look up actor username
-        const { data: actor } = await admin
-          .from("users")
-          .select("username")
-          .eq("id", me!.id)
-          .maybeSingle();
-        const username = (actor as { username?: string } | null)?.username ?? "Someone";
-
         // Insert notification row
         await admin.from("notifications").insert({
           user_id: ownerId,
@@ -74,7 +66,7 @@ export const POST = withHandler(
         const entityType = (review as { entity_type?: string } | null)?.entity_type;
         await sendPushToUser(admin, ownerId, {
           title: "Someone liked your review",
-          body: `@${username} liked your review`,
+          body: `@${me!.username ?? "Someone"} liked your review`,
           data: entityType === "album" && entityId
             ? { url: `/album/${entityId}` }
             : { url: "/notifications" },
