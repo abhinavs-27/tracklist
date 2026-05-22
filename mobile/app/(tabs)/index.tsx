@@ -266,10 +266,11 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
       const imageUrl = `${apiBase}/api/charts/share-image?${params.toString()}`;
 
       const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-chart.png";
-      await FileSystem.downloadAsync(imageUrl, localUri, {
+      const downloadResult = await FileSystem.downloadAsync(imageUrl, localUri, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
+      if (downloadResult.status !== 200) throw new Error("chart not ready");
       await Share.share({ url: localUri });
     } catch (e) {
       // Fallback to text share if image download fails
@@ -788,8 +789,8 @@ function InsightCards({ data }: { data: TasteInsightsData }) {
     signature = { traits, narrative: raw.charAt(0).toUpperCase() + raw.slice(1) };
   }
 
-  const showArc = arc.kind !== "insufficient";
-  const showDisc = discovery.kind !== "insufficient";
+  const showArc = arc?.kind !== "insufficient";
+  const showDisc = discovery?.kind !== "insufficient";
   if (!showArc && !showDisc && !signature) return null;
 
   return (

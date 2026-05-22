@@ -17,7 +17,7 @@ export const GET = withHandler(
     const [userRow, followCounts, streak] = await Promise.all([
       admin
         .from("users")
-        .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, logs_private")
+        .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, logs_private, onboarding_completed")
         .eq("id", me!.id)
         .maybeSingle(),
       getFollowCounts(me!.id),
@@ -26,7 +26,8 @@ export const GET = withHandler(
     if (!userRow.data) return apiNotFound("User not found");
     const u = userRow.data as {
       id: string; username: string; avatar_url: string | null; bio: string | null;
-      created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null; logs_private: boolean;
+      created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null;
+      logs_private: boolean; onboarding_completed: boolean;
     };
     return apiOk({
       id: u.id,
@@ -36,6 +37,7 @@ export const GET = withHandler(
       created_at: u.created_at,
       lastfm_username: u.lastfm_username,
       lastfm_last_synced_at: u.lastfm_last_synced_at,
+      onboarding_completed: u.onboarding_completed,
       followers_count: followCounts.followers_count,
       following_count: followCounts.following_count,
       is_following: false,

@@ -84,9 +84,13 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         const token = sessionData.session?.access_token;
         const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
         const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
-        await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, localUri, {
+        const result = await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, localUri, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (result.status !== 200) {
+          await Share.share({ message: `Check out my music on Tracklist — tracklist.lol` });
+          return;
+        }
         await Share.share({ url: localUri });
       } else {
         await Share.share({ message: `Check out ${user?.username} on Tracklist` });

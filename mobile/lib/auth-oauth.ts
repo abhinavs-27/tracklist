@@ -191,9 +191,10 @@ export async function signInWithApple(): Promise<SignInWithAppleResult> {
 
     if (error) return { error: new Error(error.message) };
     return { error: null };
-  } catch (e) {
-    // ERR_REQUEST_CANCELED is thrown when the user dismisses the sheet
-    if (e instanceof Error && e.message.includes("canceled")) {
+  } catch (e: unknown) {
+    // expo-apple-authentication throws { code: "ERR_REQUEST_CANCELED" } when user dismisses
+    const code = (e as { code?: string }).code;
+    if (code === "ERR_REQUEST_CANCELED") {
       return { error: null, cancelled: true };
     }
     return { error: e instanceof Error ? e : new Error(String(e)) };
