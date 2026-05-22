@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -88,15 +89,21 @@ export default function LoginScreen() {
 
         {error ? <Text style={s.error}>{error}</Text> : null}
 
-        {/* Apple Sign-in — only when native module is available (signed-in iCloud + correct entitlement) */}
-        {appleAvailable ? (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={14}
-            style={s.appleBtn}
-            onPress={onApple}
-          />
+        {/* Apple Sign-in — real button when available; dev placeholder otherwise */}
+        {Platform.OS === "ios" ? (
+          appleAvailable ? (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={14}
+              style={s.appleBtn}
+              onPress={onApple}
+            />
+          ) : __DEV__ ? (
+            <View style={[s.appleBtn, s.appleBtnDevStub]}>
+              <Text style={s.appleBtnDevText}>Sign in with Apple (sign into iCloud in simulator to enable)</Text>
+            </View>
+          ) : null
         ) : null}
 
         {/* Google sign-in button */}
@@ -207,6 +214,20 @@ const s = StyleSheet.create({
   appleBtn: {
     height: 50,
     width: "100%",
+  },
+  appleBtnDevStub: {
+    backgroundColor: "#1c1c1e",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#3f3f46",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appleBtnDevText: {
+    fontSize: 12,
+    color: "#71717a",
+    textAlign: "center",
+    paddingHorizontal: 12,
   },
   googleBtn: {
     flexDirection: "row",
