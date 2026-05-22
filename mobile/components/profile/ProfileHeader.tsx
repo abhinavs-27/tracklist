@@ -134,9 +134,8 @@ const s = StyleSheet.create({
   bannerSlotFill: { backgroundColor: "#27272a" },
   bannerFallback: { flex: 1, backgroundColor: "#18181b" },
   bannerFade: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 48,
-    // Simulated gradient — just a semi-transparent overlay at the bottom
-    backgroundColor: "rgba(9,9,11,0.5)",
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 16,
+    backgroundColor: "rgba(9,9,11,0.25)",
   },
 
   body: { paddingHorizontal: 16, paddingBottom: 4 },
