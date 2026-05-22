@@ -13,6 +13,7 @@ import {
 import { scheduleEnrichArtistGenresForArtistIds } from "./enrich-artist-genres";
 import { ratingsToArtistCountMap } from "./ratings-weight";
 import { computeTasteAxes } from "./compute-taste-axes";
+import { genreKey, genreLabel as makeGenreLabel } from "./normalize-genre";
 import {
   normalizeListeningStyle,
   type TasteListeningStyle,
@@ -544,8 +545,8 @@ function genreWeightsFromArtistCounts(
     if (genres.length === 0) continue;
     const per = listenCount / genres.length;
     for (const g of genres) {
-      const key = g.toLowerCase();
-      if (!genreLabel.has(key)) genreLabel.set(key, g);
+      const key = genreKey(g);
+      if (!genreLabel.has(key)) genreLabel.set(key, makeGenreLabel(g));
       genreRaw.set(key, (genreRaw.get(key) ?? 0) + per);
     }
   }
@@ -955,8 +956,8 @@ export async function computeTasteIdentity(
     if (genres.length === 0) continue;
     const per = listenCount / genres.length;
     for (const g of genres) {
-      const key = g.toLowerCase();
-      if (!genreLabel.has(key)) genreLabel.set(key, g);
+      const key = genreKey(g);
+      if (!genreLabel.has(key)) genreLabel.set(key, makeGenreLabel(g));
       genreRaw.set(key, (genreRaw.get(key) ?? 0) + per);
     }
   }
