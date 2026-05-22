@@ -5,6 +5,7 @@ import "server-only";
  * There is no separate `plays` table — this is the single source for report math.
  */
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 
 import { resolveAlbumArtistForAggregate } from "@/lib/analytics/resolve-log-catalog-ids";
 import { inclusiveRangeToListenWindow } from "@/lib/analytics/listening-report-windows";
@@ -334,6 +335,14 @@ async function buildListeningReportUncached(args: {
 }
 
 /**
- * Cached per request (React cache): duplicate calls with the same args share one build.
+ * Persistent cache (120 s) across requests: the compare and report endpoints both call
+ * this for the same periods, so the second call is a cache hit instead of a duplicate build.
+ * React cache() deduplicates within a single request on top of that.
  */
-export const buildListeningReport = cache(buildListeningReportUncached);
+const buildListeningReportPersisted = unstable_cache(
+  buildListeningReportUncached,
+  ["build-listening-report"],
+  { revalidate: 120 },
+);
+
+export const buildListeningReport = cache(buildListeningReportPersisted);

@@ -7,6 +7,7 @@ import { currentWeekStart, previousWeekStart, getWeeklyAgg } from "@/lib/analyti
 import { unstable_cache } from "next/cache";
 
 import type { ListeningReportsCompareResult } from "@/lib/analytics/getReportsCompare";
+import { pickTopMovers, countNewEntries } from "@/lib/analytics/getReportsCompare";
 
 export type { ListeningReportsCompareResult };
 
@@ -73,36 +74,6 @@ async function fetchGenreAggFromLogs(
   return rows.map((r) => ({ entity_id: r.entity_id, count: r.count }));
 }
 
-function pickTopMovers(
-  current: AggRow[],
-  previous: AggRow[],
-): { gainerId: string | null; dropperId: string | null } {
-  const currRank = buildRankMap(current);
-  const prevRank = buildRankMap(previous);
-  let bestId: string | null = null;
-  let bestDelta = -Infinity;
-  let worstId: string | null = null;
-  let worstDelta = Infinity;
-
-  for (const [id, cr] of currRank) {
-    const pr = prevRank.get(id);
-    if (pr == null) continue;
-    const delta = pr - cr;
-    if (delta > bestDelta) {
-      bestDelta = delta;
-      bestId = id;
-    }
-    if (delta < worstDelta) {
-      worstDelta = delta;
-      worstId = id;
-    }
-  }
-
-  return {
-    gainerId: bestDelta > 0 ? bestId : null,
-    dropperId: worstDelta < 0 ? worstId : null,
-  };
-}
 
 async function resolveArtistNameRolling(artistId: string): Promise<string> {
   const admin = createSupabaseAdminClient();
@@ -175,19 +146,22 @@ async function fetchListeningReportsRollingCompareUncached(args: {
       ? ((totalPlaysCurrent - totalPlaysPrevious) / totalPlaysPrevious) * 100
       : null;
 
-  const { gainerId, dropperId } = pickTopMovers(curEntities, prevEntities);
+  const { gainerId, gainerDelta, dropperId, dropperDelta } = pickTopMovers(curEntities, prevEntities);
+  const newEntriesCount = countNewEntries(curEntities, prevEntities);
 
-  let topGainer: { entityId: string; name: string } | null = null;
-  let topDropper: { entityId: string; name: string } | null = null;
+  const [gainerName, dropperName] = await Promise.all([
+    gainerId ? resolveEntityDisplayName(args.entityType, gainerId) : Promise.resolve(null),
+    dropperId ? resolveEntityDisplayName(args.entityType, dropperId) : Promise.resolve(null),
+  ]);
 
-  if (gainerId) {
-    const name = await resolveEntityDisplayName(args.entityType, gainerId);
-    topGainer = { entityId: gainerId, name };
-  }
-  if (dropperId) {
-    const name = await resolveEntityDisplayName(args.entityType, dropperId);
-    topDropper = { entityId: dropperId, name };
-  }
+  const topGainer =
+    gainerId && gainerName && gainerDelta != null
+      ? { entityId: gainerId, name: gainerName, movement: gainerDelta }
+      : null;
+  const topDropper =
+    dropperId && dropperName && dropperDelta != null
+      ? { entityId: dropperId, name: dropperName, movement: dropperDelta }
+      : null;
 
   return {
     totalPlaysCurrent,
@@ -195,6 +169,7 @@ async function fetchListeningReportsRollingCompareUncached(args: {
     percentChange,
     topGainer,
     topDropper,
+    newEntriesCount,
   };
 }
 

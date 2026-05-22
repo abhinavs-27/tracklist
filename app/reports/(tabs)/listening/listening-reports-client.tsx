@@ -34,8 +34,9 @@ type ComparePayload = {
   totalPlaysCurrent: number;
   totalPlaysPrevious: number;
   percentChange: number | null;
-  topGainer: { entityId: string; name: string } | null;
-  topDropper: { entityId: string; name: string } | null;
+  topGainer: { entityId: string; name: string; movement: number } | null;
+  topDropper: { entityId: string; name: string; movement: number } | null;
+  newEntriesCount: number;
 };
 
 type SavedReportRow = {
@@ -473,13 +474,8 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
     return { url: `${origin}/reports/shared/${json.id}` };
   }
 
-  const topGainerMovement = compare?.topGainer
-    ? (data?.items.find((r) => r.entityId === compare.topGainer!.entityId)?.movement ?? null)
-    : null;
-  const topDropperMovement = compare?.topDropper
-    ? (data?.items.find((r) => r.entityId === compare.topDropper!.entityId)?.movement ?? null)
-    : null;
-  // Note: movement lookup is against the current loaded window; shows "—" if gainer/dropper is outside loaded items.
+  // Movement and new-entry count come directly from the compare API (server-computed over the full
+  // ranked list) — no longer derived from the paginated client window, which was inaccurate.
 
   const statStrip =
     compare && range !== "custom" ? (
@@ -500,7 +496,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
           {compare.topGainer ? (
             <>
               <p className="mt-1.5 text-sm font-bold leading-tight text-white">{compare.topGainer.name}</p>
-              <p className="mt-0.5 text-xs font-medium text-emerald-400">{topGainerMovement != null ? `+${topGainerMovement} spots` : "—"}</p>
+              <p className="mt-0.5 text-xs font-medium text-emerald-400">+{compare.topGainer.movement} spots</p>
             </>
           ) : (
             <p className="mt-1.5 text-sm text-zinc-500">—</p>
@@ -510,7 +506,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">New entries</p>
           <p className="mt-1.5 text-2xl font-bold text-white">
-            {data?.items.filter((r) => r.isNew).length ?? 0}
+            {compare.newEntriesCount}
           </p>
           <p className="mt-0.5 text-xs text-zinc-500">not in prior period</p>
         </div>
@@ -520,7 +516,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
           {compare.topDropper ? (
             <>
               <p className="mt-1.5 text-sm font-bold leading-tight text-white">{compare.topDropper.name}</p>
-              <p className="mt-0.5 text-xs font-medium text-red-400">{topDropperMovement != null ? `${Math.abs(topDropperMovement)} spots` : "—"}</p>
+              <p className="mt-0.5 text-xs font-medium text-red-400">{Math.abs(compare.topDropper.movement)} spots</p>
             </>
           ) : (
             <p className="mt-1.5 text-sm text-zinc-500">—</p>

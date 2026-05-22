@@ -16,8 +16,9 @@ export type ListeningReportsCompareResult = {
   totalPlaysCurrent: number;
   totalPlaysPrevious: number;
   percentChange: number | null;
-  topGainer: { entityId: string; name: string } | null;
-  topDropper: { entityId: string; name: string } | null;
+  topGainer: { entityId: string; name: string; movement: number } | null;
+  topDropper: { entityId: string; name: string; movement: number } | null;
+  newEntriesCount: number;
 };
 
 type AggRow = { entity_id: string; count: number };
@@ -71,10 +72,10 @@ async function resolveEntityDisplayName(
   return fromDb || entityId;
 }
 
-function pickTopMovers(
+export function pickTopMovers(
   current: AggRow[],
   previous: AggRow[],
-): { gainerId: string | null; dropperId: string | null } {
+): { gainerId: string | null; gainerDelta: number | null; dropperId: string | null; dropperDelta: number | null } {
   const currRank = buildRankMap(current);
   const prevRank = buildRankMap(previous);
   let bestId: string | null = null;
@@ -98,8 +99,15 @@ function pickTopMovers(
 
   return {
     gainerId: bestDelta > 0 ? bestId : null,
+    gainerDelta: bestDelta > 0 ? bestDelta : null,
     dropperId: worstDelta < 0 ? worstId : null,
+    dropperDelta: worstDelta < 0 ? worstDelta : null,
   };
+}
+
+export function countNewEntries(current: AggRow[], previous: AggRow[]): number {
+  const prevIds = new Set(previous.map((r) => r.entity_id));
+  return current.filter((r) => !prevIds.has(r.entity_id)).length;
 }
 
 async function fetchListeningReportsCompareUncached(args: {
@@ -141,19 +149,23 @@ async function fetchListeningReportsCompareUncached(args: {
       ? ((totalPlaysCurrent - totalPlaysPrevious) / totalPlaysPrevious) * 100
       : null;
 
-  const { gainerId, dropperId } = pickTopMovers(curEntities, prevEntities);
+  const { gainerId, gainerDelta, dropperId, dropperDelta } = pickTopMovers(curEntities, prevEntities);
+  const newEntriesCount = countNewEntries(curEntities, prevEntities);
 
-  let topGainer: { entityId: string; name: string } | null = null;
-  let topDropper: { entityId: string; name: string } | null = null;
+  // Resolve names in parallel instead of sequentially
+  const [gainerName, dropperName] = await Promise.all([
+    gainerId ? resolveEntityDisplayName(args.entityType, gainerId) : Promise.resolve(null),
+    dropperId ? resolveEntityDisplayName(args.entityType, dropperId) : Promise.resolve(null),
+  ]);
 
-  if (gainerId) {
-    const name = await resolveEntityDisplayName(args.entityType, gainerId);
-    topGainer = { entityId: gainerId, name };
-  }
-  if (dropperId) {
-    const name = await resolveEntityDisplayName(args.entityType, dropperId);
-    topDropper = { entityId: dropperId, name };
-  }
+  const topGainer =
+    gainerId && gainerName && gainerDelta != null
+      ? { entityId: gainerId, name: gainerName, movement: gainerDelta }
+      : null;
+  const topDropper =
+    dropperId && dropperName && dropperDelta != null
+      ? { entityId: dropperId, name: dropperName, movement: dropperDelta }
+      : null;
 
   console.info("[listening-report] compare", {
     userId: args.userId,
@@ -163,6 +175,7 @@ async function fetchListeningReportsCompareUncached(args: {
     prevBounds,
     totalPlaysCurrent,
     totalPlaysPrevious,
+    newEntriesCount,
   });
 
   return {
@@ -171,6 +184,7 @@ async function fetchListeningReportsCompareUncached(args: {
     percentChange,
     topGainer,
     topDropper,
+    newEntriesCount,
   };
 }
 
