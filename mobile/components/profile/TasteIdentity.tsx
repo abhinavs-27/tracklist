@@ -1,18 +1,14 @@
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
-  Share,
   Text,
   View,
 } from "react-native";
-import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { fetcher } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/query-keys";
 import { theme } from "@/lib/theme";
 import {
@@ -23,32 +19,11 @@ import type { TasteIdentity } from "@repo/lib/taste/types";
 
 type Props = {
   userId: string;
-  /** Show share button — true only when viewing own profile */
   isOwnProfile?: boolean;
 };
 
-export function TasteIdentity({ userId, isOwnProfile = false }: Props) {
+export function TasteIdentity({ userId }: Props) {
   const router = useRouter();
-  const [sharing, setSharing] = useState(false);
-
-  const handleShareCard = useCallback(async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
-      const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
-      await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, localUri, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      await Share.share({ url: localUri });
-    } catch {
-      // silently fail — card may not be generated yet
-    } finally {
-      setSharing(false);
-    }
-  }, [sharing]);
   const q = useQuery({
     queryKey: queryKeys.tasteIdentity(userId),
     queryFn: () =>
@@ -290,30 +265,6 @@ export function TasteIdentity({ userId, isOwnProfile = false }: Props) {
             </View>
           ) : null}
           <Text style={{ fontSize: 14, color: theme.colors.muted, lineHeight: 20 }}>{styleDisplay.subtitle}</Text>
-          {isOwnProfile ? (
-            <Pressable
-              onPress={() => void handleShareCard()}
-              disabled={sharing}
-              style={({ pressed }) => ({
-                marginTop: 8,
-                alignSelf: "flex-start",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                paddingHorizontal: 12,
-                paddingVertical: 7,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: "rgba(63,63,70,0.8)",
-                backgroundColor: "rgba(24,24,27,0.6)",
-                opacity: pressed || sharing ? 0.7 : 1,
-              })}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.text }}>
-                {sharing ? "Generating…" : "Share card"}
-              </Text>
-            </Pressable>
-          ) : null}
         </View>
       ) : null}
     </View>

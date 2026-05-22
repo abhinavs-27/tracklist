@@ -71,44 +71,86 @@ function InboxIcon({ className }: { className?: string }) {
   );
 }
 
-function ShareProfileButton({ profilePath }: { profilePath: string }) {
+function ShareProfileButton({
+  profilePath,
+  isOwnProfile,
+}: {
+  profilePath: string;
+  isOwnProfile: boolean;
+}) {
+  const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const share = useCallback(async () => {
-    const path = profilePath.startsWith("/") ? profilePath : `/${profilePath}`;
-    const url =
-      typeof window !== "undefined"
-        ? `${window.location.origin}${path}`
-        : path;
+  const shareCard = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "Profile",
-          url,
-        });
+      const res = await fetch("/api/profile/identity-card", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Could not generate card");
+      const blob = await res.blob();
+      const file = new File([blob], "tracklist-identity.png", { type: "image/png" });
+
+      const isMobile = /mobile|android|iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (isMobile && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "My listening style on Tracklist" });
         return;
       }
-    } catch {
-      /* user cancelled or share failed */
+      // Desktop: copy to clipboard so user can paste into Twitter, Discord, etc.
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+        return;
+      } catch {
+        // Clipboard write failed — fall back to download
+      }
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url; a.download = file.name; a.style.display = "none";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+    } finally {
+      setBusy(false);
     }
+  }, [busy]);
+
+  const shareUrl = useCallback(async () => {
+    const path = profilePath.startsWith("/") ? profilePath : `/${profilePath}`;
+    const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+    try {
+      if (navigator.share) { await navigator.share({ title: "Profile", url }); return; }
+    } catch { /* user cancelled */ }
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      window.prompt("Copy this link:", url);
-    }
+    } catch { window.prompt("Copy this link:", url); }
   }, [profilePath]);
+
+  const label = busy ? "Generating…" : copied ? "Copied!" : "Share";
 
   return (
     <button
       type="button"
-      onClick={() => void share()}
+      onClick={() => void (isOwnProfile ? shareCard() : shareUrl())}
+      disabled={busy}
       className={quickBtn}
       aria-label="Share profile"
     >
-      <ShareIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
-      <span>{copied ? "Copied" : "Share"}</span>
+      {busy ? (
+        <svg className="h-4 w-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      ) : (
+        <ShareIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+      )}
+      <span>{label}</span>
     </button>
   );
 }
@@ -172,7 +214,7 @@ export function ProfileQuickActions({
         />
       ) : null}
 
-      <ShareProfileButton profilePath={profilePath} />
+      <ShareProfileButton profilePath={profilePath} isOwnProfile={isOwnProfile} />
 
       {showSendRec ? (
         <button

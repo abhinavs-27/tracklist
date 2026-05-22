@@ -283,7 +283,6 @@ export function TasteIdentityDisplay({
           styleResult={t.styleResult}
           totalLogs={t.totalLogs}
           totalArtists={t.topArtists.length}
-          isOwnProfile={isOwnProfile}
         />
       ) : null}
     </Shell>

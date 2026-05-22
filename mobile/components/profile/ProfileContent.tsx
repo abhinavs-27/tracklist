@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Share,
@@ -8,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import * as FileSystem from "expo-file-system";
 import { SkeletonBox, SkeletonCircle, SkeletonLine, SkeletonScreen } from "@/components/ui/Skeleton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -138,6 +140,33 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
 
   const isOwn = user.is_own_profile;
   const viewerId = authUser?.id ?? null;
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = useCallback(async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      if (isOwn) {
+        // Own profile: share identity card PNG
+        const { supabase } = await import("@/lib/supabase");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+        const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
+        await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, localUri, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        await Share.share({ url: localUri });
+      } else {
+        // Other profile: share profile URL
+        await Share.share({ message: `Check out ${user.username} on Tracklist` });
+      }
+    } catch {
+      // silently ignore AbortError / user cancel
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing, isOwn, user.username]);
 
   // Only show settings tab for own profile
   const tabs: { id: Tab; label: string }[] = isOwn
@@ -200,11 +229,15 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
           <ProfileFollowButton targetUserId={user.id} initialFollowing={user.is_following} />
         )}
         <Pressable
-          style={({ pressed }) => [ph.actionBtn, pressed && { opacity: 0.75 }]}
-          onPress={() => void Share.share({ message: `Check out ${user.username} on Tracklist` })}
+          style={({ pressed }) => [ph.actionBtn, (pressed || sharing) && { opacity: 0.75 }]}
+          onPress={() => void handleShare()}
+          disabled={sharing}
         >
-          <Ionicons name="share-outline" size={15} color="#d4d4d8" />
-          <Text style={ph.actionBtnText}>Share</Text>
+          {sharing
+            ? <ActivityIndicator size="small" color="#d4d4d8" />
+            : <Ionicons name="share-outline" size={15} color="#d4d4d8" />
+          }
+          <Text style={ph.actionBtnText}>{sharing ? "…" : "Share"}</Text>
         </Pressable>
         {isOwn ? (
           <Pressable
