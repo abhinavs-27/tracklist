@@ -664,10 +664,24 @@ async function computeRecentTasteSnapshot(
   const toTasteGenres = (rows: { entity_id: string; count: number }[]): TasteGenre[] => {
     const total = rows.reduce((s, r) => s + r.count, 0);
     if (total === 0) return [];
-    return rows.slice(0, TOP_GENRES).map((r) => ({
-      name:   r.entity_id,
-      weight: Math.round((r.count / total) * 1000) / 10,
-    }));
+    // Normalize and merge duplicates (hip-hop + hip hop → Hip Hop)
+    const merged = new Map<string, { label: string; count: number }>();
+    for (const r of rows) {
+      const key = genreKey(r.entity_id);
+      const existing = merged.get(key);
+      if (existing) {
+        existing.count += r.count;
+      } else {
+        merged.set(key, { label: makeGenreLabel(r.entity_id), count: r.count });
+      }
+    }
+    return [...merged.entries()]
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, TOP_GENRES)
+      .map(([, { label, count }]) => ({
+        name: label,
+        weight: Math.round((count / total) * 1000) / 10,
+      }));
   };
 
   const topGenres7d  = toTasteGenres(curGenres);
