@@ -36,6 +36,7 @@ import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { theme } from "@/lib/theme";
 import { fetcher } from "@/lib/api";
 import { usePrefetchAlbum, usePrefetchArtist } from "@/lib/hooks/usePrefetch";
+import { WelcomeCard } from "@/components/home/WelcomeCard";
 
 type HomeTab = "billboard" | "pulse" | "history" | "activity";
 
@@ -286,6 +287,9 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
   return (
     <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
+      {/* Welcome card — shown once to new users, dismissed permanently */}
+      <WelcomeCard />
+
       {/* Chart type pills */}
       <View style={styles.chartTypePills}>
         {CHART_TABS.map((t) => (
