@@ -269,44 +269,39 @@ type AxisRowProps = {
 function AxisRow({ label, leftLabel, rightLabel, score, pole }: AxisRowProps) {
   if (score === null) {
     return (
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
-        <Text style={{ width: 70, fontSize: 11, color: "#52525b" }}>{label}</Text>
-        <Text style={{ fontSize: 11, color: "#3f3f46", fontStyle: "italic" }}>unavailable</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 }}>
+        <Text style={{ width: 72, fontSize: 12, color: "#71717a" }}>{label}</Text>
+        <Text style={{ fontSize: 11, color: "#3f3f46", fontStyle: "italic" }}>No data — requires Spotify history</Text>
       </View>
     );
   }
+
   const pct = Math.min(100, Math.max(0, score));
   const poleLabel = pole === "left" ? leftLabel : pole === "right" ? rightLabel : "Balanced";
   const isNeutral = pole === "neutral";
 
   return (
-    <View style={{ marginTop: 10 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Text style={{ width: 70, fontSize: 11, color: "#71717a" }}>{label}</Text>
-        <View style={{ flex: 1, height: 4, backgroundColor: "#27272a", borderRadius: 999, position: "relative" }}>
-          <View style={{
-            position: "absolute",
-            top: -4,
-            left: `${pct}%` as unknown as number,
-            width: 12,
-            height: 12,
-            borderRadius: 6,
-            backgroundColor: "#34d399",
-            marginLeft: -6,
-            shadowColor: "#34d399",
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.6,
-            shadowRadius: 4,
-          }} />
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 }}>
+      {/* Axis name */}
+      <Text style={{ width: 72, fontSize: 12, color: "#71717a" }}>{label}</Text>
+
+      {/* Track with pole labels above */}
+      <View style={{ flex: 1 }}>
+        {/* Pole labels above bar — one at each end, no redundancy with result */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
+          <Text style={{ fontSize: 9, color: "#3f3f46" }}>{leftLabel}</Text>
+          <Text style={{ fontSize: 9, color: "#3f3f46" }}>{rightLabel}</Text>
         </View>
-        <Text style={{ width: 60, fontSize: 11, fontWeight: "600", color: isNeutral ? "#52525b" : "#d4d4d8", textAlign: "right" }}>
-          {poleLabel}
-        </Text>
+        {/* Filled progress track — works reliably with percentage in React Native */}
+        <View style={{ height: 4, backgroundColor: "#27272a", borderRadius: 999, overflow: "hidden" }}>
+          <View style={{ width: `${pct}%`, height: 4, backgroundColor: "#34d399", borderRadius: 999 }} />
+        </View>
       </View>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", paddingLeft: 78, marginTop: 2 }}>
-        <Text style={{ fontSize: 9, color: "#3f3f46" }}>{leftLabel}</Text>
-        <Text style={{ fontSize: 9, color: "#3f3f46" }}>{rightLabel}</Text>
-      </View>
+
+      {/* Result — single label, no duplication */}
+      <Text style={{ width: 58, fontSize: 11, fontWeight: "600", textAlign: "right", color: isNeutral ? "#52525b" : "#e4e4e7" }}>
+        {poleLabel}
+      </Text>
     </View>
   );
 }
