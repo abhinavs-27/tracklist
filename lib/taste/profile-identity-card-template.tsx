@@ -98,9 +98,9 @@ export function ProfileIdentityCardTemplate({
   const accentColor = p1.accent;
 
   // Artist circle sizes — center (a2) is the visual anchor, sides slightly smaller
-  const SIDE_SIZE = 200;
-  const CENTER_SIZE = 230;
-  const OVERLAP = 44; // how much circles overlap
+  const SIDE_SIZE = 252;
+  const CENTER_SIZE = 294;
+  const OVERLAP = 54; // how much circles overlap
 
   return (
     <div
@@ -163,7 +163,7 @@ export function ProfileIdentityCardTemplate({
           position: "relative",
           paddingLeft: PAD,
           paddingRight: PAD,
-          paddingTop: 80,
+          paddingTop: 52,
         }}
       >
         {/* Overlapping circles row — a2 is #1 artist (center/biggest) */}
