@@ -890,5 +890,35 @@ export async function addThreadReply(
     .update({ last_activity_at: new Date().toISOString() })
     .eq("id", threadId);
 
+  // Push other thread participants about the new reply
+  try {
+    const { sendPushToUsers } = await import("@/lib/push/send");
+    const { data: participants } = await admin
+      .from("social_thread_participants")
+      .select("user_id")
+      .eq("thread_id", threadId)
+      .neq("user_id", userId);
+
+    const otherIds = ((participants ?? []) as Array<{ user_id: string }>)
+      .map((p) => p.user_id);
+
+    if (otherIds.length > 0) {
+      const { data: actor } = await admin
+        .from("users")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+      const username = (actor as { username?: string } | null)?.username ?? "Someone";
+
+      await sendPushToUsers(admin, otherIds, {
+        title: "New reply",
+        body: `@${username}: ${trimmed.slice(0, 80)}${trimmed.length > 80 ? "…" : ""}`,
+        data: { url: "/notifications" },
+      });
+    }
+  } catch (e) {
+    console.warn("[threads] reply push failed", e);
+  }
+
   return { ok: true };
 }
