@@ -7,6 +7,15 @@ import * as cron from "@/lib/cron/cron-runners";
 
 const JOB_LOG = "[job]";
 
+const SPOTIFY_JOB_TYPES = new Set([
+  "ENRICH_ARTIST",
+  "ENRICH_ALBUM",
+  "SPOTIFY_ENRICHMENT_RETRY",
+  "DRAIN_ENRICH_BACKLOG",
+  "SYNC_ARTIST_DISCOGRAPHY",
+  "SYNC_ALBUM_TRACKS",
+]);
+
 export async function runBillboardJob(job: BillboardJobMessage): Promise<void> {
   const t0 = Date.now();
   console.log(JOB_LOG, "start", job);
@@ -34,6 +43,18 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
   const t0 = Date.now();
   console.log(JOB_LOG, "start", job);
   try {
+    // Single circuit breaker check for all Spotify-dependent jobs.
+    // If rate-limited, return cleanly so SQS deletes the message (no retry storm).
+    if (SPOTIFY_JOB_TYPES.has(job.type)) {
+      const { checkCircuitBreaker } = await import("@/lib/spotify/client");
+      try {
+        await checkCircuitBreaker();
+      } catch {
+        console.warn(JOB_LOG, `${job.type} skipped — Spotify circuit breaker active`);
+        return;
+      }
+    }
+
     switch (job.type) {
       case "REFRESH_STATS":
         await cron.runRefreshStats();
@@ -102,15 +123,11 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         await cron.runArchiveOldLogs(job.cutoff_days);
         break;
       case "ENRICH_ARTIST": {
-        const { checkCircuitBreaker } = await import("@/lib/spotify/client");
-        await checkCircuitBreaker(); // throws → SQS message returns to queue
         const { processSpotifyEnrichJob } = await import("@/lib/jobs/spotifyQueue");
         await processSpotifyEnrichJob({ name: "enrich_artist", artistId: job.artistId });
         break;
       }
       case "ENRICH_ALBUM": {
-        const { checkCircuitBreaker } = await import("@/lib/spotify/client");
-        await checkCircuitBreaker(); // throws → SQS message returns to queue
         const { processSpotifyEnrichJob } = await import("@/lib/jobs/spotifyQueue");
         await processSpotifyEnrichJob({ name: "enrich_album", albumId: job.albumId });
         break;

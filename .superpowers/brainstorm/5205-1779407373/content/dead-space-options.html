@@ -1,0 +1,167 @@
+<h2>Filling the dead space — three options</h2>
+<p class="subtitle">Same artist photos (Clipse center, Shashwat left, Kendrick right). No plays pill. Click to pick your direction.</p>
+
+<div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 28px; max-width: 1100px;">
+
+  <!-- Option A: Bigger circles -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 190% 110% at 78% -15%, rgba(160,40,30,0.65) 0%, transparent 50%),
+        radial-gradient(ellipse 150% 95% at -15% 88%, rgba(30,25,80,0.45) 0%, transparent 52%),
+        radial-gradient(ellipse 110% 80% at 50% 115%, rgba(60,50,20,0.3) 0%, transparent 50%),
+        linear-gradient(160deg, #070707 0%, #09090b 45%, #050505 100%);"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 30%,rgba(0,0,0,0.52) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:8%;box-sizing:border-box;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:auto;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- BIGGER circles — this IS the content -->
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 0 0;">
+          <div style="display:flex;align-items:center;justify-content:center;">
+            <!-- Left: smaller -->
+            <div style="width:175px;height:175px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#1a0a03,#2d1200);box-shadow:0 0 40px rgba(160,40,20,0.4),0 0 0 2px rgba(255,255,255,0.1);flex-shrink:0;">
+              <div style="width:100%;height:100%;background:linear-gradient(135deg,rgba(160,40,20,0.3),rgba(80,20,10,0.6));"></div>
+            </div>
+            <!-- Center: biggest, raised -->
+            <div style="width:210px;height:210px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#8B0000,#4a0010);box-shadow:0 0 50px rgba(200,50,30,0.55),0 0 0 2.5px rgba(255,255,255,0.12);flex-shrink:0;margin-left:-40px;margin-right:-40px;margin-bottom:22px;z-index:2;">
+              <div style="width:100%;height:100%;background:linear-gradient(135deg,rgba(200,50,20,0.4),rgba(100,10,10,0.7));"></div>
+            </div>
+            <!-- Right: smaller -->
+            <div style="width:175px;height:175px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);box-shadow:0 0 40px rgba(100,100,100,0.35),0 0 0 2px rgba(255,255,255,0.1);flex-shrink:0;">
+              <div style="width:100%;height:100%;background:linear-gradient(135deg,rgba(100,100,100,0.3),rgba(40,40,40,0.6));"></div>
+            </div>
+          </div>
+
+          <!-- Names -->
+          <div style="display:flex;gap:24px;align-items:center;justify-content:center;margin-top:28px;">
+            <span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.42);font-family:sans-serif;">Shashwat Sachdev</span>
+            <span style="font-size:16px;font-weight:700;color:rgba(255,255,255,0.9);font-family:sans-serif;">Clipse</span>
+            <span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.42);font-family:sans-serif;">Kendrick Lamar</span>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:14px;margin-top:24px;">
+          <div style="text-align:center;">
+            <span style="font-size:7px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.25);text-transform:uppercase;display:block;margin-bottom:5px;font-family:sans-serif;">Listening Style</span>
+            <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px;font-family:sans-serif;">Session Maximalist</span>
+            <span style="font-size:10px;color:rgba(255,255,255,0.3);display:block;margin-top:3px;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Bigger circles, same layout</h3>
+      <p>Side circles 175px, center 210px. The circles ARE the content — more visual weight, less empty feel. Footer stays but tighter. Dead space largely absorbed.</p>
+    </div>
+  </div>
+
+  <!-- Option B: No footer, style integrated -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 190% 110% at 78% -15%, rgba(160,40,30,0.65) 0%, transparent 50%),
+        radial-gradient(ellipse 150% 95% at -15% 88%, rgba(30,25,80,0.45) 0%, transparent 52%),
+        linear-gradient(160deg, #070707 0%, #09090b 45%, #050505 100%);"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 30%,rgba(0,0,0,0.52) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:8%;box-sizing:border-box;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Circles — pushed toward top third -->
+        <div style="display:flex;flex-direction:column;align-items:center;margin-top:32px;">
+          <div style="display:flex;align-items:center;justify-content:center;">
+            <div style="width:155px;height:155px;border-radius:50%;background:linear-gradient(135deg,#1a0a03,#2d1200);box-shadow:0 0 35px rgba(160,40,20,0.4),0 0 0 2px rgba(255,255,255,0.1);flex-shrink:0;"></div>
+            <div style="width:185px;height:185px;border-radius:50%;background:linear-gradient(135deg,#8B0000,#4a0010);box-shadow:0 0 45px rgba(200,50,30,0.55),0 0 0 2px rgba(255,255,255,0.12);flex-shrink:0;margin-left:-36px;margin-right:-36px;margin-bottom:20px;z-index:2;"></div>
+            <div style="width:155px;height:155px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);box-shadow:0 0 35px rgba(100,100,100,0.35),0 0 0 2px rgba(255,255,255,0.1);flex-shrink:0;"></div>
+          </div>
+
+          <!-- Names -->
+          <div style="display:flex;gap:20px;align-items:center;justify-content:center;margin-top:22px;">
+            <span style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);font-family:sans-serif;">Shashwat Sachdev</span>
+            <span style="font-size:15px;font-weight:700;color:rgba(255,255,255,0.9);font-family:sans-serif;">Clipse</span>
+            <span style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);font-family:sans-serif;">Kendrick Lamar</span>
+          </div>
+        </div>
+
+        <!-- Style integrated — no footer divider, just flows below -->
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:8px;gap:8px;">
+          <div style="width:40px;height:1px;background:rgba(255,255,255,0.12);"></div>
+          <span style="font-size:7px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.22);text-transform:uppercase;font-family:sans-serif;">Listening Style</span>
+          <span style="font-size:30px;font-weight:900;color:rgba(255,255,255,0.9);letter-spacing:-1px;font-family:sans-serif;">Session Maximalist</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.32);text-align:center;max-width:320px;line-height:1.5;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+          <span style="font-size:7px;color:rgba(255,255,255,0.15);margin-top:4px;font-family:sans-serif;">tracklist.lol</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Style flows in, no hard footer</h3>
+      <p>No divider line. Style label, subtitle, and "tracklist.lol" float at the bottom of one unified space. Top section has the artists, bottom has the label. One card, not two halves.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Genre tags fill the gap -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 190% 110% at 78% -15%, rgba(160,40,30,0.65) 0%, transparent 50%),
+        radial-gradient(ellipse 150% 95% at -15% 88%, rgba(30,25,80,0.45) 0%, transparent 52%),
+        linear-gradient(160deg, #070707 0%, #09090b 45%, #050505 100%);"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 30%,rgba(0,0,0,0.52) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:8%;box-sizing:border-box;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:auto;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Circles -->
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 0 0;">
+          <div style="display:flex;align-items:center;justify-content:center;">
+            <div style="width:155px;height:155px;border-radius:50%;background:linear-gradient(135deg,#1a0a03,#2d1200);box-shadow:0 0 35px rgba(160,40,20,0.4),0 0 0 2px rgba(255,255,255,0.1);flex-shrink:0;"></div>
+            <div style="width:185px;height:185px;border-radius:50%;background:linear-gradient(135deg,#8B0000,#4a0010);box-shadow:0 0 45px rgba(200,50,30,0.55),0 0 0 2px rgba(255,255,255,0.12);flex-shrink:0;margin-left:-36px;margin-right:-36px;margin-bottom:20px;z-index:2;"></div>
+            <div style="width:155px;height:155px;border-radius:50%;background:linear-gradient(135deg,#1a1a1a,#2a2a2a);box-shadow:0 0 35px rgba(100,100,100,0.35),0 0 0 2px rgba(255,255,255,0.1);flex-shrink:0;"></div>
+          </div>
+
+          <!-- Names -->
+          <div style="display:flex;gap:20px;align-items:center;justify-content:center;margin-top:22px;">
+            <span style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);font-family:sans-serif;">Shashwat Sachdev</span>
+            <span style="font-size:15px;font-weight:700;color:rgba(255,255,255,0.9);font-family:sans-serif;">Clipse</span>
+            <span style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);font-family:sans-serif;">Kendrick Lamar</span>
+          </div>
+
+          <!-- Genre tags — fills the gap naturally -->
+          <div style="display:flex;gap:8px;margin-top:22px;flex-wrap:wrap;justify-content:center;">
+            <span style="font-size:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:5px 14px;color:rgba(255,255,255,0.5);font-family:sans-serif;">hip-hop</span>
+            <span style="font-size:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:5px 14px;color:rgba(255,255,255,0.5);font-family:sans-serif;">rap</span>
+            <span style="font-size:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:5px 14px;color:rgba(255,255,255,0.5);font-family:sans-serif;">east coast</span>
+          </div>
+        </div>
+
+        <!-- Footer — same as before -->
+        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:14px;margin-top:20px;text-align:center;">
+          <span style="font-size:7px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.22);text-transform:uppercase;display:block;margin-bottom:5px;font-family:sans-serif;">Listening Style</span>
+          <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px;font-family:sans-serif;">Session Maximalist</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.28);display:block;margin-top:3px;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Genre tags bridge the gap</h3>
+      <p>Your top genres as small pills appear between the names and the footer. Adds context ("what do you listen to?") without heavy data. Naturally fills the space.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;font-size:12px;opacity:0.5;">Circles are placeholder gradients — real cards have actual Spotify artist photos. Colors shown approximate your artist palette (red tones from Clipse).</p>

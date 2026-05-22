@@ -391,7 +391,10 @@ export async function checkCircuitBreaker(): Promise<void> {
 async function tripCircuitBreaker(path: string, retryAfterSec: number): Promise<void> {
   const search = isSearchPath(path);
   const key = search ? SEARCH_CIRCUIT_REDIS_KEY : CIRCUIT_REDIS_KEY;
-  const until = Date.now() + Math.min(300, Math.max(1, retryAfterSec)) * 1000;
+  // Respect the full Retry-After value (up to 24h) so we don't hammer Spotify
+  // during a long rate-limit ban. Previous 300s cap meant constant retry storms.
+  const cappedSec = Math.min(86400, Math.max(1, retryAfterSec));
+  const until = Date.now() + cappedSec * 1000;
   if (search) {
     inMemorySearchCircuitUntil = Math.max(inMemorySearchCircuitUntil, until);
   } else {
@@ -400,7 +403,7 @@ async function tripCircuitBreaker(path: string, retryAfterSec: number): Promise<
   const r = getSharedRedis();
   if (r) {
     try {
-      const ex = Math.min(600, Math.max(1, retryAfterSec * 2));
+      const ex = Math.min(86400, Math.max(1, cappedSec + 60)); // TTL = retryAfter + 1min buffer
       await r.set(key, String(until), "EX", ex);
     } catch {
       /* ignore */

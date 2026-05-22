@@ -293,11 +293,12 @@ export async function enqueueSpotifyEnrich(
   }
   const staggerMs = resolveStaggerMs();
   const staggerIndex = options?.staggerIndex;
+  const MAX_STAGGER_DELAY_MS = 24 * 60 * 60 * 1000; // 24h ceiling — prevents runaway delays from bad indices
   const delay =
     isLastfmResolveJob(job) &&
     typeof staggerIndex === "number" &&
     staggerIndex > 0
-      ? staggerIndex * staggerMs
+      ? Math.min(staggerIndex * staggerMs, MAX_STAGGER_DELAY_MS)
       : undefined;
   /** Never await BullMQ on the request path — Redis slowness must not block RSC (can hang ~minutes). */
   void q
