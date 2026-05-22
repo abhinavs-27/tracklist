@@ -36,6 +36,54 @@ export const POST = withHandler(
       userId: me!.id,
       reviewId: validReviewId,
     });
+
+    // Notify the review owner (skip self-likes)
+    try {
+      const { createSupabaseAdminClient } = await import("@/lib/supabase-admin");
+      const { sendPushToUser } = await import("@/lib/push/send");
+      const admin = createSupabaseAdminClient();
+
+      // Look up the review to get its owner, entity_type, entity_id
+      const { data: review } = await admin
+        .from("reviews")
+        .select("user_id, entity_type, entity_id")
+        .eq("id", validReviewId)
+        .maybeSingle();
+
+      const ownerId = (review as { user_id?: string } | null)?.user_id;
+      if (ownerId && ownerId !== me!.id) {
+        // Look up actor username
+        const { data: actor } = await admin
+          .from("users")
+          .select("username")
+          .eq("id", me!.id)
+          .maybeSingle();
+        const username = (actor as { username?: string } | null)?.username ?? "Someone";
+
+        // Insert notification row
+        await admin.from("notifications").insert({
+          user_id: ownerId,
+          actor_user_id: me!.id,
+          type: "review_like",
+          entity_type: (review as { entity_type?: string } | null)?.entity_type ?? null,
+          entity_id: (review as { entity_id?: string } | null)?.entity_id ?? null,
+        });
+
+        // Send push
+        const entityId = (review as { entity_id?: string } | null)?.entity_id;
+        const entityType = (review as { entity_type?: string } | null)?.entity_type;
+        await sendPushToUser(admin, ownerId, {
+          title: "Someone liked your review",
+          body: `@${username} liked your review`,
+          data: entityType === "album" && entityId
+            ? { url: `/album/${entityId}` }
+            : { url: "/notifications" },
+        });
+      }
+    } catch (e) {
+      console.warn("[likes] notification/push failed", e);
+    }
+
     return apiOk({ success: true });
   },
   { requireAuth: true }
