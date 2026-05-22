@@ -1,14 +1,20 @@
 // lib/taste/profile-identity-card-template.tsx
 
-import { LISTENING_STYLE_COPY, STYLE_ACCENT_COLOR } from "./listening-style";
+import { LISTENING_STYLE_COPY } from "./listening-style";
 import type { TasteListeningStyle } from "./listening-style";
-import type { TasteGenre } from "./types";
+import type { AlbumPalette } from "@/lib/charts/extract-album-color";
+
+export type ProfileArtistEntry = {
+  name: string;
+  imageUrl: string | null;
+};
 
 export type ProfileIdentityCardProps = {
   style: TasteListeningStyle;
   badge: string | null;
-  topGenres: TasteGenre[];
-  obscurityScore: number | null;
+  topArtists: ProfileArtistEntry[];
+  /** One palette per top artist (up to 3). Must have at least 1. */
+  palettes: [AlbumPalette, AlbumPalette?, AlbumPalette?];
   usernameDisplay: string | null;
 };
 
@@ -17,29 +23,77 @@ function truncate(s: string, max: number): string {
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
 }
 
+/** rgba() helper — Satori doesn't support 8-digit hex (#rrggbbaa) */
+function rgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function ArtistCircle({
+  artist,
+  size,
+  glowColor,
+}: {
+  artist: ProfileArtistEntry | undefined;
+  size: number;
+  glowColor: string;
+}) {
+  const style = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    flexShrink: 0,
+    overflow: "hidden" as const,
+    backgroundColor: "#27272a",
+    boxShadow: `0 0 ${size * 0.5}px ${rgba(glowColor, 0.55)}, 0 0 0 2px rgba(255,255,255,0.1)`,
+  };
+
+  if (artist?.imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- OG runtime
+      <img src={artist.imageUrl} alt="" width={size} height={size} style={style} />
+    );
+  }
+  return <div style={style} />;
+}
+
 export function ProfileIdentityCardTemplate({
   style,
   badge,
-  topGenres,
-  obscurityScore,
+  topArtists,
+  palettes,
   usernameDisplay,
 }: ProfileIdentityCardProps) {
   const copy = LISTENING_STYLE_COPY[style] ?? LISTENING_STYLE_COPY["still-forming"];
-  const accent = STYLE_ACCENT_COLOR[style] ?? "#10b981";
-  const accentLight = `${accent}44`;
-  const accentFaint = `${accent}22`;
+
+  const p1 = palettes[0];
+  const p2 = palettes[1] ?? p1;
+  const p3 = palettes[2] ?? p2;
+
+  const a1 = topArtists[0];
+  const a2 = topArtists[1];
+  const a3 = topArtists[2];
 
   const W = 1080;
   const H = 1080;
-  const PAD = 72;
+  const PAD = 80;
 
+  // Three-artist gradient — each artist's color becomes one radial blob
   const bg = [
-    `radial-gradient(ellipse 140% 90% at 80% -10%, ${accentLight} 0%, transparent 52%)`,
-    `radial-gradient(ellipse 110% 75% at -10% 90%, ${accentFaint} 0%, transparent 55%)`,
+    `radial-gradient(ellipse 190% 110% at 78% -15%, ${rgba(p1.accent, 0.65)} 0%, transparent 50%)`,
+    `radial-gradient(ellipse 150% 95% at -15% 88%, ${rgba(p2.accent, 0.45)} 0%, transparent 52%)`,
+    `radial-gradient(ellipse 110% 80% at 50% 115%, ${rgba(p3.accent, 0.3)} 0%, transparent 50%)`,
     "linear-gradient(160deg, #070707 0%, #09090b 45%, #050505 100%)",
   ].join(", ");
 
-  const titleFontSize = copy.title.length > 16 ? 88 : copy.title.length > 12 ? 96 : 108;
+  const accentColor = p1.accent;
+
+  // Artist circle sizes — center (a2) is the visual anchor, sides slightly smaller
+  const SIDE_SIZE = 200;
+  const CENTER_SIZE = 230;
+  const OVERLAP = 44; // how much circles overlap
 
   return (
     <div
@@ -55,7 +109,7 @@ export function ProfileIdentityCardTemplate({
         overflow: "hidden",
       }}
     >
-      {/* Edge vignette — use explicit sides, NOT inset shorthand */}
+      {/* Edge vignette */}
       <div
         style={{
           position: "absolute",
@@ -65,18 +119,18 @@ export function ProfileIdentityCardTemplate({
           left: 0,
           display: "flex",
           backgroundImage:
-            "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 30%, rgba(0,0,0,0.5) 100%)",
+            "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 30%, rgba(0,0,0,0.52) 100%)",
         }}
       />
 
-      {/* Header bar */}
+      {/* Header */}
       <div
         style={{
           display: "flex",
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          height: 88,
+          height: 90,
           paddingLeft: PAD,
           paddingRight: PAD,
           borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -84,23 +138,15 @@ export function ProfileIdentityCardTemplate({
           position: "relative",
         }}
       >
-        <span
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: 3,
-            color: accent,
-            textTransform: "uppercase",
-          }}
-        >
+        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 3, color: accentColor, textTransform: "uppercase" }}>
           Tracklist
         </span>
-        <span style={{ fontSize: 18, color: "rgba(255,255,255,0.35)", fontWeight: 400 }}>
+        <span style={{ fontSize: 18, color: "rgba(255,255,255,0.32)", fontWeight: 400 }}>
           {usernameDisplay ? `@${truncate(usernameDisplay, 22)}` : ""}
         </span>
       </div>
 
-      {/* Center content */}
+      {/* Artist circles — visual center of the card */}
       <div
         style={{
           display: "flex",
@@ -108,82 +154,63 @@ export function ProfileIdentityCardTemplate({
           alignItems: "center",
           justifyContent: "center",
           flex: 1,
+          position: "relative",
           paddingLeft: PAD,
           paddingRight: PAD,
-          position: "relative",
         }}
       >
+        {/* Overlapping circles row */}
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
             alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: 4,
-              color: accent,
-              textTransform: "uppercase",
-              marginBottom: 20,
-            }}
-          >
-            Listening Style
-          </span>
-          <span
-            style={{
-              fontSize: titleFontSize,
-              fontWeight: 900,
-              color: "#fff",
-              letterSpacing: -3,
-              lineHeight: 1.0,
-              textAlign: "center",
-              maxWidth: 900,
-            }}
-          >
-            {copy.title}
-          </span>
+          {/* Left: artist 1 */}
+          <ArtistCircle artist={a1} size={SIDE_SIZE} glowColor={p1.accent} />
 
-          {badge ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                marginTop: 24,
-                backgroundColor: `${accent}18`,
-                border: `1px solid ${accent}38`,
-                borderRadius: 999,
-                paddingTop: 8,
-                paddingBottom: 8,
-                paddingLeft: 22,
-                paddingRight: 22,
-              }}
-            >
-              <span style={{ fontSize: 16, color: `${accent}dd`, fontWeight: 600 }}>
-                {badge}
+          {/* Center: artist 2 — overlaps both sides, raised slightly */}
+          <div style={{ display: "flex", marginLeft: -OVERLAP, marginRight: -OVERLAP, zIndex: 2, marginBottom: 28 }}>
+            <ArtistCircle artist={a2} size={CENTER_SIZE} glowColor={p2.accent} />
+          </div>
+
+          {/* Right: artist 3 */}
+          <ArtistCircle artist={a3} size={SIDE_SIZE} glowColor={p3.accent} />
+        </div>
+
+        {/* Artist names */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 32,
+            marginTop: 36,
+          }}
+        >
+          {[a1, a2, a3].map((a, i) =>
+            a ? (
+              <span
+                key={i}
+                style={{
+                  fontSize: i === 1 ? 20 : 17,
+                  fontWeight: i === 1 ? 700 : 500,
+                  color: i === 1 ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)",
+                  textAlign: "center",
+                  maxWidth: 220,
+                }}
+              >
+                {truncate(a.name, 20)}
               </span>
-            </div>
-          ) : null}
-
-          <span
-            style={{
-              fontSize: 22,
-              color: "rgba(255,255,255,0.42)",
-              textAlign: "center",
-              marginTop: badge ? 20 : 24,
-              maxWidth: 820,
-              lineHeight: 1.45,
-              fontWeight: 400,
-            }}
-          >
-            {truncate(copy.subtitle, 120)}
-          </span>
+            ) : null
+          )}
         </div>
       </div>
 
-      {/* Bottom bar */}
+      {/* Bottom — style label + badge */}
       <div
         style={{
           display: "flex",
@@ -191,42 +218,46 @@ export function ProfileIdentityCardTemplate({
           alignItems: "center",
           paddingLeft: PAD,
           paddingRight: PAD,
-          paddingBottom: 52,
+          paddingBottom: 56,
           paddingTop: 28,
           flexShrink: 0,
-          borderTop: "1px solid rgba(255,255,255,0.055)",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
           position: "relative",
+          gap: 10,
         }}
       >
-        {topGenres.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "row", gap: 12, marginBottom: 16 }}>
-            {topGenres.slice(0, 3).map((g) => (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 3.5, color: rgba(accentColor, 0.7), textTransform: "uppercase" }}>
+            Listening Style
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ fontSize: 34, fontWeight: 900, color: "#fff", letterSpacing: -1 }}>
+              {copy.title}
+            </span>
+            {badge ? (
               <div
-                key={g.name}
                 style={{
                   display: "flex",
-                  paddingTop: 7,
-                  paddingBottom: 7,
-                  paddingLeft: 18,
-                  paddingRight: 18,
+                  alignItems: "center",
+                  backgroundColor: rgba(accentColor, 0.15),
+                  border: `1px solid ${rgba(accentColor, 0.3)}`,
                   borderRadius: 999,
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.09)",
+                  paddingTop: 6,
+                  paddingBottom: 6,
+                  paddingLeft: 16,
+                  paddingRight: 16,
                 }}
               >
-                <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-                  {g.name}
+                <span style={{ fontSize: 14, color: rgba(accentColor, 0.9), fontWeight: 600 }}>
+                  {badge}
                 </span>
               </div>
-            ))}
+            ) : null}
           </div>
-        ) : null}
-
-        {obscurityScore !== null && obscurityScore > 0 ? (
-          <span style={{ fontSize: 14, color: "rgba(255,255,255,0.25)" }}>
-            {`More obscure than ${Math.min(obscurityScore, 99)}% of listeners`}
+          <span style={{ fontSize: 16, color: "rgba(255,255,255,0.35)", textAlign: "center", maxWidth: 760, lineHeight: 1.4 }}>
+            {truncate(copy.subtitle, 100)}
           </span>
-        ) : null}
+        </div>
       </div>
     </div>
   );
