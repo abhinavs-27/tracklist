@@ -82,7 +82,6 @@ export function ProfileIdentityCardTemplate({
   const glow1 = p2.accent; // left glow uses p2
   const glow2 = p1.accent; // center glow uses p1 (most played artist)
   const glow3 = p3.accent; // right glow uses p3
-  const a3 = topArtists[2];
 
   const W = 1080;
   const H = 1080;
