@@ -35,7 +35,7 @@ export async function getCommunityPeople(
   ] = await Promise.all([
     admin
       .from("community_members")
-      .select("user_id, role, users!inner(id, username, avatar_url)")
+      .select("user_id, role, users!inner(username, avatar_url)")
       .eq("community_id", cid),
     admin
       .from("communities")

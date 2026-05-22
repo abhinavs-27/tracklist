@@ -23,17 +23,17 @@ usersRouter.get("/me", async (req, res) => {
   const supabase = getSupabase();
   const [userRow, followersRes, followingRes, streakRes] = await Promise.all([
     supabase.from("users")
-      .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at")
+      .select("username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at")
       .eq("id", session.id).maybeSingle(),
     supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", session.id),
     supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", session.id),
     supabase.from("user_streaks").select("current_streak, longest_streak").eq("user_id", session.id).maybeSingle(),
   ]);
   if (!userRow.data) return notFound(res, "User not found");
-  const u = userRow.data as { id: string; username: string; avatar_url: string | null; bio: string | null; created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null };
+  const u = userRow.data as { username: string; avatar_url: string | null; bio: string | null; created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null };
   const streak = streakRes.data as { current_streak: number; longest_streak: number } | null;
   return ok(res, {
-    id: u.id, username: u.username, avatar_url: u.avatar_url, bio: u.bio,
+    id: session.id, username: u.username, avatar_url: u.avatar_url, bio: u.bio,
     created_at: u.created_at, lastfm_username: u.lastfm_username,
     lastfm_last_synced_at: u.lastfm_last_synced_at,
     followers_count: followersRes.count ?? 0, following_count: followingRes.count ?? 0,
@@ -265,7 +265,7 @@ usersRouter.get("/:username", async (req, res) => {
 
   const { data: user, error } = await supabase
     .from("users")
-    .select("id, username, avatar_url, bio, created_at")
+    .select("id, avatar_url, bio, created_at")
     .eq("username", resolvedUsername)
     .maybeSingle();
 
@@ -328,6 +328,7 @@ usersRouter.get("/:username", async (req, res) => {
 
   return ok(res, {
     ...user,
+    username: resolvedUsername,
     followers_count: followersRes.count ?? 0,
     following_count: followingRes.count ?? 0,
     is_following: isFollowing,

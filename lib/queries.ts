@@ -1775,7 +1775,7 @@ export async function getReviewsForArtist(
 
     const albumIds = new Set((albumRows ?? []).map((a) => a.id as string));
     const songIds = new Set((songRows ?? []).map((s) => s.id as string));
-    const entityIds = [...albumIds, ...songIds];
+    const entityIds = [...albumIds, ...songIds].slice(0, 2000);
     if (entityIds.length === 0) return [];
 
     // Chunk entityIds to avoid Supabase URL/header length limits
