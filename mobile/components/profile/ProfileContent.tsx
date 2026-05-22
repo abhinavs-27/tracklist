@@ -72,6 +72,32 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = useCallback(async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      if (user?.is_own_profile) {
+        const { supabase } = await import("@/lib/supabase");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+        const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
+        await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, localUri, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        await Share.share({ url: localUri });
+      } else {
+        await Share.share({ message: `Check out ${user?.username} on Tracklist` });
+      }
+    } catch {
+      // silently ignore AbortError / user cancel
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing, user?.is_own_profile, user?.username]);
+
   if (isLoading) {
     return (
       <SkeletonScreen>
@@ -140,33 +166,6 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
 
   const isOwn = user.is_own_profile;
   const viewerId = authUser?.id ?? null;
-  const [sharing, setSharing] = useState(false);
-
-  const handleShare = useCallback(async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      if (isOwn) {
-        // Own profile: share identity card PNG
-        const { supabase } = await import("@/lib/supabase");
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
-        const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
-        await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, localUri, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        await Share.share({ url: localUri });
-      } else {
-        // Other profile: share profile URL
-        await Share.share({ message: `Check out ${user.username} on Tracklist` });
-      }
-    } catch {
-      // silently ignore AbortError / user cancel
-    } finally {
-      setSharing(false);
-    }
-  }, [sharing, isOwn, user.username]);
 
   // Only show settings tab for own profile
   const tabs: { id: Tab; label: string }[] = isOwn
