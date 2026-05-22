@@ -98,15 +98,7 @@ function ShareProfileButton({
         await navigator.share({ files: [file], title: "My listening style on Tracklist" });
         return;
       }
-      // Desktop: copy to clipboard so user can paste into Twitter, Discord, etc.
-      try {
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-        return;
-      } catch {
-        // Clipboard write failed — fall back to download
-      }
+      // Desktop: download the image file
       const url = URL.createObjectURL(file);
       const a = document.createElement("a");
       a.href = url; a.download = file.name; a.style.display = "none";
