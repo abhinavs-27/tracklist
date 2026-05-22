@@ -107,6 +107,24 @@ async function notifyInviteeOfCommunityInvite(
       error.message,
     );
   }
+
+  // Push to invited user
+  try {
+    const { sendPushToUser } = await import("@/lib/push/send");
+    const [inviterResult, communityResult] = await Promise.all([
+      admin.from("users").select("username").eq("id", actorUserId).maybeSingle(),
+      admin.from("communities").select("name").eq("id", communityId).maybeSingle(),
+    ]);
+    const inviterUsername = inviterResult.data?.username ?? "Someone";
+    const communityName = communityResult.data?.name ?? "a community";
+    await sendPushToUser(admin, invitedUserId, {
+      title: "You've been invited!",
+      body: `@${inviterUsername} invited you to ${communityName}`,
+      data: { url: "/notifications" },
+    });
+  } catch (e) {
+    console.warn("[invites] push failed", e);
+  }
 }
 
 /**
