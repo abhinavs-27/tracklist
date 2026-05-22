@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import {
   buildListeningReport,
   type AggregateReportRow,
@@ -291,7 +292,7 @@ export function listeningReportsResultFromSnapshot(args: {
   };
 }
 
-export async function getListeningReports(args: {
+async function getListeningReportsUncached(args: {
   userId: string;
   entityType: ReportEntityType;
   range: ReportRange;
@@ -383,3 +384,15 @@ export async function getListeningReports(args: {
     nextOffset: hasMore ? offset + limit : null,
   };
 }
+
+/**
+ * Cached enriched report pages (120 s).
+ * buildListeningReport is cached separately; this layer caches the full
+ * enriched slice so repeat pagination and tab-switches return instantly.
+ * Cache key covers all args that affect the output (nulls/undefineds normalised to empty string).
+ */
+export const getListeningReports = unstable_cache(
+  getListeningReportsUncached,
+  ["listening-reports"],
+  { revalidate: 120 },
+);
