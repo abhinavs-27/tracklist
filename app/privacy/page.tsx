@@ -125,11 +125,10 @@ export default function PrivacyPage() {
           </ul>
         </Section>
 
-        <Section title="Children">
+        <Section title="Age requirement">
           <p>
-            Tracklist is not directed at children under 13. We do not knowingly collect personal
-            information from anyone under 13. If you believe a child has created an account, please
-            contact us and we will delete it promptly.
+            By creating an account, you confirm you are at least 13 years old. If you become aware
+            that someone under 13 has created an account, please contact us and we will remove it.
           </p>
         </Section>
 
