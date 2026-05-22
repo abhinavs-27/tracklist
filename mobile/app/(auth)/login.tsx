@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -12,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { theme } from "@/lib/theme";
+
+const PRIVACY_URL = `${process.env.EXPO_PUBLIC_API_URL ?? "https://tracklist.lol"}/privacy`;
 
 function GoogleIcon() {
   return (
@@ -123,7 +126,14 @@ export default function LoginScreen() {
         </Pressable>
 
         <Text style={s.legal}>
-          By continuing you agree to our Terms of Service and Privacy Policy.
+          By continuing you agree to our{" "}
+          <Text
+            style={s.legalLink}
+            onPress={() => void Linking.openURL(PRIVACY_URL)}
+          >
+            Privacy Policy
+          </Text>
+          .
         </Text>
       </View>
     </SafeAreaView>
@@ -275,5 +285,9 @@ const s = StyleSheet.create({
     textAlign: "center",
     lineHeight: 16,
     paddingHorizontal: 8,
+  },
+  legalLink: {
+    color: "#71717a",
+    textDecorationLine: "underline",
   },
 });
