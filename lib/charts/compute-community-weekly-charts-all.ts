@@ -43,6 +43,32 @@ export async function computeCommunityWeeklyChartsForAll(options?: {
       });
       if (!skipped) chartsWritten += 1;
     }
+
+    // Push all community members when their chart drops
+    try {
+      const { createSupabaseAdminClient } = await import("@/lib/supabase-admin");
+      const { sendPushToUsers } = await import("@/lib/push/send");
+      const admin = createSupabaseAdminClient();
+
+      const [nameRes, membersRes] = await Promise.all([
+        admin.from("communities").select("name").eq("id", communityId).maybeSingle(),
+        admin.from("community_members").select("user_id").eq("community_id", communityId),
+      ]);
+
+      const communityName = (nameRes.data as { name?: string } | null)?.name ?? "Your community";
+      const memberIds = ((membersRes.data ?? []) as Array<{ user_id: string }>)
+        .map((m) => m.user_id);
+
+      if (memberIds.length > 0) {
+        await sendPushToUsers(admin, memberIds, {
+          title: `${communityName} weekly chart is ready`,
+          body: "See what your community listened to most this week",
+          data: { url: `/communities/${communityId}` },
+        });
+      }
+    } catch (e) {
+      console.warn("[community-charts] push failed", communityId, e);
+    }
   }
 
   return {
