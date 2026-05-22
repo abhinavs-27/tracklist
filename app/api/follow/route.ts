@@ -39,6 +39,27 @@ export const POST = withHandler(
       actor_user_id: me!.id,
       type: 'follow',
     });
+    // Push to the followed user
+    try {
+      const { createSupabaseAdminClient } = await import("@/lib/supabase-admin");
+      const { sendPushToUser } = await import("@/lib/push/send");
+      const admin = createSupabaseAdminClient();
+
+      const { data: actor } = await admin
+        .from("users")
+        .select("username")
+        .eq("id", me!.id)
+        .maybeSingle();
+      const username = (actor as { username?: string } | null)?.username ?? "Someone";
+
+      await sendPushToUser(admin, validFollowingId, {
+        title: "New follower",
+        body: `@${username} started following you`,
+        data: { url: `/user/${username}` },
+      });
+    } catch (e) {
+      console.warn("[follow] push failed", e);
+    }
     try {
       const { fanOutFollowInSharedCommunities } = await import(
         '@/lib/community/community-feed-insert'
