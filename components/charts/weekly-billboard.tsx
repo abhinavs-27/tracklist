@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { memo, useMemo, useState } from "react";
-import { ChartShareActions } from "@/components/charts/chart-share-actions";
 import { ChartShareModal } from "@/components/charts/chart-share-modal";
 import { CommunityChartDropCountdown } from "@/components/community/community-chart-drop-countdown";
 import type { WeeklyChartMoversApi } from "@/lib/charts/get-user-weekly-chart";
@@ -234,8 +233,8 @@ function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
   }
   if (row.is_reentry) {
     return (
-      <span className="inline-flex items-center rounded-md bg-violet-950 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-violet-300 ring-1 ring-violet-500/30">
-        RE
+      <span className="inline-flex items-center gap-0.5 text-sm font-bold text-emerald-400" title="Re-entry">
+        <span aria-hidden>▲</span>
       </span>
     );
   }
@@ -817,39 +816,13 @@ export function WeeklyBillboardView(props: {
 
       {!props.hideShareSection && (
         <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-950/65 p-6 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-white/[0.06] sm:p-8`}>
-          <h3 className="text-lg font-semibold text-white">
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-6 py-3.5 text-base font-bold text-black shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
+          >
             {isCommunity ? "Share chart" : "Share this week"}
-          </h3>
-          <p className="mt-2 max-w-xl text-sm text-zinc-500">
-            {isCommunity
-              ? "Export a summary or image. Members need to be signed in to open community chart links."
-              : "Export a summary or link. Anyone with the link needs to be signed in to open your chart."}
-          </p>
-          <div className="mt-6 flex flex-col gap-6">
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-6 py-3.5 text-base font-bold text-black shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
-            >
-              {isCommunity ? "Share community chart" : "Share your chart"}
-            </button>
-            <div className="border-t border-zinc-800/80 pt-6">
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
-                Quick actions
-              </p>
-              <div className="mt-3">
-                <ChartShareActions
-                  chartKind={props.chartKind}
-                  chart_moment={props.chart_moment}
-                  disableFormattedShare={!canShare}
-                  layout="inline"
-                  chartType={props.chartType}
-                  weekStartIso={props.weekStartIso}
-                  communityId={props.communityId}
-                />
-              </div>
-            </div>
-          </div>
+          </button>
         </section>
       )}
 

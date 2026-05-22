@@ -28,12 +28,12 @@ export function ChartWeekSelector({ weeks, weekStart, effectiveIndex, disabled, 
     <div className="flex flex-col gap-2">
       <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Week</span>
       <div className="flex overflow-hidden rounded-xl border border-zinc-700/80 bg-zinc-900 ring-1 ring-white/[0.04]">
-        {/* ‹ newer */}
+        {/* ‹ older — left goes back in time */}
         <button
           type="button"
-          onClick={onNewer}
-          disabled={isDisabled || effectiveIndex <= 0}
-          aria-label="Newer week"
+          onClick={onOlder}
+          disabled={isDisabled || effectiveIndex >= weeks.length - 1}
+          aria-label="Older week"
           className="flex w-10 shrink-0 items-center justify-center border-r border-zinc-700/80 text-lg text-zinc-400 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-25 disabled:cursor-not-allowed"
         >
           ‹
@@ -63,12 +63,12 @@ export function ChartWeekSelector({ weeks, weekStart, effectiveIndex, disabled, 
           )}
         </div>
 
-        {/* › older */}
+        {/* › newer — right goes forward in time */}
         <button
           type="button"
-          onClick={onOlder}
-          disabled={isDisabled || effectiveIndex >= weeks.length - 1}
-          aria-label="Older week"
+          onClick={onNewer}
+          disabled={isDisabled || effectiveIndex <= 0}
+          aria-label="Newer week"
           className="flex w-10 shrink-0 items-center justify-center border-l border-zinc-700/80 text-lg text-zinc-400 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-25 disabled:cursor-not-allowed"
         >
           ›
