@@ -53,6 +53,22 @@ export async function computeWeeklyChartsForAllUsers(options?: {
     }
   }
 
+  // Push all users whose chart just dropped
+  if (userIds.length > 0) {
+    try {
+      const { createSupabaseAdminClient } = await import("@/lib/supabase-admin");
+      const { sendPushToUsers } = await import("@/lib/push/send");
+      const admin = createSupabaseAdminClient();
+      await sendPushToUsers(admin, userIds, {
+        title: "Your weekly chart is ready 🎵",
+        body: "See what you listened to most this week",
+        data: { url: "/" },
+      });
+    } catch (e) {
+      console.warn("[charts] billboard push failed", e);
+    }
+  }
+
   return {
     weekStart: startIso,
     weekEndExclusive: endIso,
