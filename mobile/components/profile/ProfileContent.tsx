@@ -88,7 +88,10 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (result.status !== 200) {
-          await Share.share({ message: `Check out my music on Tracklist — tracklist.lol` });
+          // Card not ready yet (new user) — share a text invite instead
+          await Share.share({
+            message: `Check out my music profile on Tracklist — tracklist.lol/@${user?.username ?? ""}`,
+          });
           return;
         }
         await Share.share({ url: localUri });

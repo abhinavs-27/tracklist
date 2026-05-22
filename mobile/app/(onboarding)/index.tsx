@@ -347,9 +347,14 @@ export default function OnboardingScreen() {
         ))}
 
         {suggestions.length === 0 ? (
-          <Text style={{ color: theme.colors.muted, textAlign: "center", marginTop: 40 }}>
-            No album suggestions found for your genres yet. You can rate albums on any album page.
-          </Text>
+          <View style={{ marginTop: 32, gap: 12 }}>
+            <Text style={{ color: theme.colors.muted, textAlign: "center", fontSize: 14 }}>
+              We don't have album data for your genres yet.
+            </Text>
+            <Text style={{ color: theme.colors.muted, textAlign: "center", fontSize: 14 }}>
+              Search for albums you know and rate them — or skip for now and rate albums as you discover them in the app.
+            </Text>
+          </View>
         ) : null}
       </ScrollView>
 

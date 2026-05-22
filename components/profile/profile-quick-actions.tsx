@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { ProfileEditModal } from "@/app/profile/[id]/profile-edit-modal";
 import { SendRecommendationModal } from "@/components/taste-match/send-recommendation-modal";
 import { SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED } from "@/lib/feature-social-music-rec-ui";
+import { useToast } from "@/components/toast";
 
 const quickBtn =
   "inline-flex min-h-11 min-w-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700/90 bg-zinc-900/60 px-3 py-2.5 text-sm font-medium text-zinc-200 shadow-sm ring-1 ring-white/[0.04] transition hover:border-zinc-600 hover:bg-zinc-800/80 sm:flex-none sm:px-4";
@@ -80,6 +81,7 @@ function ShareProfileButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   const shareCard = useCallback(async () => {
     if (busy) return;
@@ -89,6 +91,10 @@ function ShareProfileButton({
         credentials: "include",
         cache: "no-store",
       });
+      if (res.status === 400) {
+        toast("Keep listening — your identity card unlocks after a few days of logs.");
+        return;
+      }
       if (!res.ok) throw new Error("Could not generate card");
       const blob = await res.blob();
       const file = new File([blob], "tracklist-identity.png", { type: "image/png" });
@@ -106,10 +112,11 @@ function ShareProfileButton({
       URL.revokeObjectURL(url);
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") return;
+      toast("Couldn't generate card — try again shortly.");
     } finally {
       setBusy(false);
     }
-  }, [busy]);
+  }, [busy, toast]);
 
   const shareUrl = useCallback(async () => {
     const path = profilePath.startsWith("/") ? profilePath : `/${profilePath}`;

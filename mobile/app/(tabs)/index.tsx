@@ -322,7 +322,17 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
       ) : !chart || chart.rankings.length === 0 ? (
         <View style={styles.emptySection}>
           <Text style={styles.emptyText}>
-            No chart for this week yet. Billboard updates every Sunday after you've logged listens.
+            Your chart builds from your listening history.
+          </Text>
+          <Text style={[styles.emptyText, { marginTop: 6 }]}>
+            Connect Last.fm in{" "}
+            <Text
+              style={{ color: theme.colors.emerald }}
+              onPress={() => router.push("/(tabs)/profile" as never)}
+            >
+              Settings
+            </Text>
+            {" "}to start logging plays automatically.
           </Text>
         </View>
       ) : (
