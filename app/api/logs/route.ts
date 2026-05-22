@@ -110,8 +110,9 @@ export const POST = withHandler(
       return apiInternalError(error);
     }
 
-    // Parallelize all post-write side effects.
-    await Promise.all([
+    // Fire-and-forget post-write side effects (non-blocking for response).
+    // Note: in serverless environments, these might be interrupted if the response is sent immediately.
+    Promise.all([
       import("@/lib/queries")
         .then((m) => {
           if (m?.grantAchievementsOnListen) {
@@ -144,7 +145,7 @@ export const POST = withHandler(
         .catch((e) => {
           console.warn("[logs] community-feed-insert import error", e);
         }),
-    ]);
+    ]).catch(e => console.error("[logs] side effects error", e));
     console.log("[logs] manual-log-created", {
       userId: me!.id,
       trackId,

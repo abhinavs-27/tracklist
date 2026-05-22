@@ -1,7 +1,6 @@
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { countUnreadNotifications } from "@/lib/queries";
 import { BillboardDropSection } from "@/components/billboard-drop/billboard-drop-section";
@@ -43,86 +42,32 @@ const EMPTY_TASTE: TasteIdentity = {
   summary: "",
 };
 
-async function HomeData({
-  userId,
+// ── Sub-components for streaming ──────────────────────────────────────────
+
+function PulseTabContent({
   username,
-  weekStart,
+  tastePromise,
+  weeklyTopPromise,
+  pulsePromise,
 }: {
-  userId: string;
   username: string;
-  weekStart: string | null;
+  tastePromise: Promise<TasteIdentity>;
+  weeklyTopPromise: Promise<any>;
+  pulsePromise: Promise<any>;
 }) {
-  const settled = await Promise.allSettled([
-    getCachedTasteIdentity(userId), // 0
-    getCachedTopThisWeek(userId), // 1
-    getCachedProfilePulseInsights(userId), // 2
-    getBlindSpots(userId), // 3
-    getTasteTimeline(userId), // 4
-    getCachedListeningReportPreview(userId), // 5
-    getTasteInsights(userId), // 6
-    createSupabaseServerClient().then((s) => countUnreadNotifications(userId, s)), // 7
-  ]);
-
-  const unreadCount =
-    settled[7].status === "fulfilled" ? settled[7].value : 0;
-
-  const tasteIdentity: TasteIdentity =
-    settled[0].status === "fulfilled" ? settled[0].value : EMPTY_TASTE;
-  if (settled[0].status === "rejected")
-    console.error("[home] getCachedTasteIdentity failed:", settled[0].reason);
-
-  const weeklyTop =
-    settled[1].status === "fulfilled" ? settled[1].value : null;
-  if (settled[1].status === "rejected")
-    console.error("[home] getCachedTopThisWeek failed:", settled[1].reason);
-
-  const profilePulse =
-    settled[2].status === "fulfilled" ? settled[2].value : null;
-  if (settled[2].status === "rejected")
-    console.error("[home] getCachedProfilePulseInsights failed:", settled[2].reason);
-
-  const blindSpots =
-    settled[3].status === "fulfilled" ? settled[3].value : null;
-  if (settled[3].status === "rejected")
-    console.error("[home] getBlindSpots failed:", settled[3].reason);
-
-  const tasteTimeline =
-    settled[4].status === "fulfilled"
-      ? settled[4].value
-      : { months: [], shifts: [], hasData: false };
-  if (settled[4].status === "rejected")
-    console.error("[home] getTasteTimeline failed:", settled[4].reason);
-
-  const listeningReportPreview =
-    settled[5].status === "fulfilled" ? settled[5].value : null;
-  if (settled[5].status === "rejected")
-    console.error("[home] getCachedListeningReportPreview failed:", settled[5].reason);
-
-  const tasteInsights =
-    settled[6].status === "fulfilled"
-      ? settled[6].value
-      : {
-          arc: { kind: "insufficient" as const, narrative: "", risingArtists: [], stableArtists: [] },
-          discovery: { kind: "insufficient" as const, narrative: "", newArtistsCount: 0, revisitRate: 0, recentFinds: [] },
-        };
-  if (settled[6].status === "rejected")
-    console.error("[home] getTasteInsights failed:", settled[6].reason);
+  const taste = use(tastePromise);
+  const weeklyTop = use(weeklyTopPromise);
+  const pulse = use(pulsePromise);
 
   const weeklyNarrative = buildWeeklyNarrative({
     username,
     isOwnProfile: true,
-    taste: tasteIdentity,
-    pulse: profilePulse,
+    taste,
+    pulse,
     weeklyTop,
   });
 
-  // ── Billboard tab — the real weekly ranked chart ─────────────────────────────
-  const billboardTab = (
-    <ChartsClient initialType="tracks" initialWeekStart={weekStart} hideBackLink />
-  );
-
-  // ── Pulse tab — rolling 7-day top + pulse stats + narrative ──────────────────
-  const pulseTab = (
+  return (
     <div className={sectionGap}>
       {weeklyNarrative ? (
         <div className={`${cardElevated} px-4 py-4 text-sm leading-relaxed italic text-zinc-300 sm:px-5 sm:py-5`}>
@@ -137,12 +82,37 @@ async function HomeData({
         }
         isOwnProfile
       />
-      <ProfilePulseSection insights={profilePulse} />
+      <ProfilePulseSection insights={pulse} />
     </div>
   );
+}
 
-  // ── History tab ───────────────────────────────────────────────────────────────
-  const historyTab = (
+function HistoryTabContent({
+  tastePromise,
+  timelinePromise,
+  blindSpotsPromise,
+  reportPreviewPromise,
+  insightsPromise,
+}: {
+  tastePromise: Promise<TasteIdentity>;
+  timelinePromise: Promise<any>;
+  blindSpotsPromise: Promise<any>;
+  reportPreviewPromise: Promise<any>;
+  insightsPromise: Promise<any>;
+}) {
+  const taste = use(tastePromise);
+  const timeline = use(timelinePromise);
+  const blindSpots = use(blindSpotsPromise);
+  const reportPreview = use(reportPreviewPromise);
+  const insights = use(insightsPromise);
+
+  const tasteTimeline = timeline || { months: [], shifts: [], hasData: false };
+  const tasteInsights = insights || {
+    arc: { kind: "insufficient" as const, narrative: "", risingArtists: [], stableArtists: [] },
+    discovery: { kind: "insufficient" as const, narrative: "", newArtistsCount: 0, revisitRate: 0, recentFinds: [] },
+  };
+
+  return (
     <div className={sectionGap}>
       {tasteTimeline.hasData && (
         <SectionBlock title="Taste over time">
@@ -158,26 +128,73 @@ async function HomeData({
         title="Listening report"
         action={{ label: "Full report →", href: "/reports/listening" }}
       >
-        <ProfileListeningReportPreview data={listeningReportPreview} />
+        <ProfileListeningReportPreview data={reportPreview} />
       </SectionBlock>
       <SectionBlock title="Listening insights">
         <ProfileInsightCards
           arc={tasteInsights.arc}
           discovery={tasteInsights.discovery}
-          taste={tasteIdentity}
+          taste={taste}
         />
       </SectionBlock>
     </div>
   );
+}
 
-  // ── Activity tab ──────────────────────────────────────────────────────────────
+async function HomeData({
+  userId,
+  username,
+  weekStart,
+}: {
+  userId: string;
+  username: string;
+  weekStart: string | null;
+}) {
+  // Start all promises immediately.
+  const tastePromise = getCachedTasteIdentity(userId).catch(() => EMPTY_TASTE);
+  const weeklyTopPromise = getCachedTopThisWeek(userId).catch(() => null);
+  const pulsePromise = getCachedProfilePulseInsights(userId).catch(() => null);
+  const blindSpotsPromise = getBlindSpots(userId).catch(() => null);
+  const timelinePromise = getTasteTimeline(userId).catch(() => null);
+  const reportPreviewPromise = getCachedListeningReportPreview(userId).catch(() => null);
+  const insightsPromise = getTasteInsights(userId).catch(() => null);
+  const unreadCountPromise = createSupabaseServerClient().then((s) => countUnreadNotifications(userId, s)).catch(() => 0);
+
+  // Billboard tab is static or depends only on weekStart.
+  const billboardTab = (
+    <ChartsClient initialType="tracks" initialWeekStart={weekStart} hideBackLink />
+  );
+
+  // Activity tab is its own loader.
   const activityTab = <RecentlyPlayedFeed />;
+
+  // unreadCount is needed for the tab header shell. We await it but it's usually fast.
+  const unreadCount = await unreadCountPromise;
 
   return (
     <HomeTabsContainer
       billboardContent={billboardTab}
-      pulseContent={pulseTab}
-      historyContent={historyTab}
+      pulseContent={
+        <Suspense fallback={<div className="h-96 w-full animate-pulse rounded-2xl bg-zinc-900/50" />}>
+          <PulseTabContent
+            username={username}
+            tastePromise={tastePromise}
+            weeklyTopPromise={weeklyTopPromise}
+            pulsePromise={pulsePromise}
+          />
+        </Suspense>
+      }
+      historyContent={
+        <Suspense fallback={<div className="h-96 w-full animate-pulse rounded-2xl bg-zinc-900/50" />}>
+          <HistoryTabContent
+            tastePromise={tastePromise}
+            timelinePromise={timelinePromise}
+            blindSpotsPromise={blindSpotsPromise}
+            reportPreviewPromise={reportPreviewPromise}
+            insightsPromise={insightsPromise}
+          />
+        </Suspense>
+      }
       activityContent={activityTab}
       unreadCount={unreadCount}
     />

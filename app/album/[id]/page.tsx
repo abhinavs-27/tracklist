@@ -45,20 +45,12 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
     redirect(`/album/${resolvedId}`);
   }
 
-  const {
-    album,
-    tracks,
-    stats,
-    session,
-    engagementStats,
-    friendActivity,
-    viewerTrackRatings,
-    entityId,
-  } = await timeAsync(
+  const { album, tracks, session, entityId, promises } = await timeAsync(
     "page",
     "albumPage",
     async () => {
-      // Start session and catalog fetch immediately.
+      // Phase 1: Core Shell Data.
+      // We start session and main album fetch immediately.
       const sessionPromise = withAlbumPagePhaseLog("getSession", id, getSession());
       const fetchedPromise = withAlbumPagePhaseLog(
         "getOrFetchAlbum",
@@ -68,7 +60,8 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         notFound();
       });
 
-      // These queries can also start immediately as they resolve the ID internally.
+      // Phase 2: Secondary Metadata Promises (Streaming).
+      // These can start immediately as they resolve the ID internally.
       const statsPromise = withAlbumPagePhaseLog(
         "getEntityStats(album)",
         id,
@@ -80,41 +73,40 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         getAlbumEngagementStats(id),
       );
 
-      const sessionVal = await sessionPromise;
-      const viewerId = sessionVal?.user?.id ?? null;
-
-      // Now that we have viewerId, we can also start friend activity.
-      const friendActivityPromise = viewerId
-        ? getFriendsAlbumActivity(viewerId, id, 10)
-        : Promise.resolve([]);
-
-      const [fetched, statsInner, engagementInner, friendActivityInner] = await Promise.all([
+      // Wait only for the core shell data.
+      const [sessionVal, fetched] = await Promise.all([
+        sessionPromise,
         fetchedPromise,
-        statsPromise,
-        engagementPromise,
-        friendActivityPromise,
       ]);
 
       const albumInner = fetched.album;
       const tracksInner = fetched.tracks;
       redirectToCanonicalEntityIfNeeded("album", id, fetched!.canonicalAlbumId);
       const entityIdInner = fetched!.canonicalAlbumId ?? id;
+
+      const viewerId = sessionVal?.user?.id ?? null;
       const trackIds = (tracksInner.items ?? []).map((t) => t.id);
 
-      // Only the track ratings definitively need the track list from fetched.
-      const viewerTrackRatingsInner = viewerId
-        ? await getViewerAlbumTrackRatings(viewerId, trackIds)
-        : new Map<string, number>();
+      // Phase 3: Secondary Metadata Promises that depend on session/shell.
+      const friendActivityPromise = viewerId
+        ? getFriendsAlbumActivity(viewerId, entityIdInner, 10)
+        : Promise.resolve([]);
+
+      const viewerTrackRatingsPromise = viewerId
+        ? getViewerAlbumTrackRatings(viewerId, trackIds)
+        : Promise.resolve(new Map<string, number>());
 
       return {
         album: albumInner,
         tracks: tracksInner,
-        stats: statsInner,
         session: sessionVal,
-        engagementStats: engagementInner,
-        friendActivity: friendActivityInner,
-        viewerTrackRatings: viewerTrackRatingsInner,
         entityId: entityIdInner,
+        promises: {
+          stats: statsPromise,
+          engagementStats: engagementPromise,
+          friendActivity: friendActivityPromise,
+          viewerTrackRatings: viewerTrackRatingsPromise,
+        },
       };
     },
     { id },
@@ -150,10 +142,10 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         tracks={tracks}
         session={!!session}
         viewerUserId={viewerId}
-        stats={stats}
-        engagementStats={engagementStats}
-        friendActivity={friendActivity}
-        viewerTrackRatings={viewerTrackRatings}
+        statsPromise={promises.stats}
+        engagementStatsPromise={promises.engagementStats}
+        friendActivityPromise={promises.friendActivity}
+        viewerTrackRatingsPromise={promises.viewerTrackRatings}
         recommendationsNode={recommendationsNode}
         leaderboardNode={leaderboardNode}
       />

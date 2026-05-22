@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import {
@@ -17,6 +17,8 @@ import {
   getViewerArtistStats,
   getArtistFirstListenDate,
   type ArtistReview,
+  type PopularAlbumsForArtistResult,
+  type ArtistPopularTrack,
 } from "@/lib/queries";
 import { formatStarDisplay } from "@/lib/ratings";
 import { formatRelativeTime } from "@/lib/time";
@@ -27,6 +29,265 @@ import { ArtistFriendLeaderboard } from "./artist-friend-leaderboard";
 import { ArtistTabs } from "./artist-tabs";
 
 type PageParams = Promise<{ id: string }>;
+
+// ── Sub-components for streaming ──────────────────────────────────────────
+
+function CommunityStatsLine({
+  popularAlbumsPromise,
+}: {
+  popularAlbumsPromise: Promise<PopularAlbumsForArtistResult>;
+}) {
+  const popularAlbumsResult = use(popularAlbumsPromise);
+  const popularAlbums = popularAlbumsResult.rows;
+  const showAlbumsViewMore = popularAlbumsResult.hasMoreAlbums;
+
+  const totalCommunityPlays = popularAlbums.reduce(
+    (s, a) => s + (a.listen_count ?? 0),
+    0,
+  );
+  const ratedAlbums = popularAlbums.filter((a) => a.average_rating != null);
+  const avgRating =
+    ratedAlbums.length > 0
+      ? ratedAlbums.reduce((s, a) => s + (a.average_rating ?? 0), 0) /
+        ratedAlbums.length
+      : null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+      {totalCommunityPlays > 0 && (
+        <span>
+          <span className="font-semibold text-white">
+            {totalCommunityPlays.toLocaleString()}
+          </span>{" "}
+          <span className="text-zinc-400">plays on Tracklist</span>
+        </span>
+      )}
+      {avgRating != null && (
+        <span>
+          <span className="text-amber-400">
+            {formatStarDisplay(Math.round(avgRating * 2) / 2)}
+          </span>{" "}
+          <span className="text-zinc-500">avg rating</span>
+        </span>
+      )}
+      {popularAlbums.length > 0 && (
+        <span>
+          <span className="font-semibold text-white">
+            {popularAlbums.length}
+          </span>
+          {showAlbumsViewMore ? "+" : ""}{" "}
+          <span className="text-zinc-500">albums</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ViewerArtistRelationship({
+  viewerStatsPromise,
+  firstListenPromise,
+}: {
+  viewerStatsPromise: Promise<{
+    playCount: number;
+    topAlbumName: string | null;
+    topAlbumId: string | null;
+  } | null>;
+  firstListenPromise: Promise<string | null>;
+}) {
+  const viewerStats = use(viewerStatsPromise);
+  const firstListened = use(firstListenPromise);
+
+  if (!viewerStats || viewerStats.playCount === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3 text-sm">
+      <span>
+        <span className="font-semibold text-white">
+          {viewerStats.playCount.toLocaleString()}
+        </span>{" "}
+        <span className="text-zinc-400">
+          {viewerStats.playCount === 1 ? "play" : "plays"} by you
+        </span>
+      </span>
+      {viewerStats.topAlbumName && viewerStats.topAlbumId && (
+        <>
+          <span className="text-zinc-700">·</span>
+          <span className="text-zinc-400">
+            Favourite:{" "}
+            <Link
+              href={`/album/${viewerStats.topAlbumId}`}
+              className="font-medium text-white hover:text-emerald-400 hover:underline"
+            >
+              {viewerStats.topAlbumName}
+            </Link>
+          </span>
+        </>
+      )}
+      {firstListened && (
+        <>
+          <span className="text-zinc-700">·</span>
+          <span className="text-zinc-400">
+            Since{" "}
+            <span className="font-medium text-white">
+              {new Date(firstListened).toLocaleDateString(undefined, {
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TopTracksSection({
+  promise,
+}: {
+  promise: Promise<ArtistPopularTrack[]>;
+}) {
+  const topTracks = use(promise);
+  if (!topTracks.length) return null;
+  return <ArtistPopularTracks tracks={topTracks} />;
+}
+
+function PopularAlbumsSection({
+  promise,
+  artistName,
+  entityId,
+}: {
+  promise: Promise<PopularAlbumsForArtistResult>;
+  artistName: string;
+  entityId: string;
+}) {
+  const popularAlbumsResult = use(promise);
+  const popularAlbums = popularAlbumsResult.rows;
+  const showAlbumsViewMore = popularAlbumsResult.hasMoreAlbums;
+
+  if (popularAlbums.length === 0) return null;
+
+  return (
+    <section>
+      <div className="mb-3 flex items-end justify-between">
+        <h2 className="text-lg font-semibold text-white">Albums</h2>
+        {showAlbumsViewMore && (
+          <Link
+            href={`/artist/${entityId}/albums`}
+            className="text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+          >
+            View all
+          </Link>
+        )}
+      </div>
+      <MediaGrid
+        items={popularAlbums.map(
+          (a): MediaItem => ({
+            id: a.id,
+            type: "album",
+            title: a.name,
+            artist: artistName,
+            artworkUrl: a.image_url ?? null,
+            avgRating: a.average_rating ?? undefined,
+            totalPlays: a.listen_count,
+          }),
+        )}
+        columns={3}
+        showArtist={false}
+      />
+    </section>
+  );
+}
+
+function RecentReviewsSection({
+  promise,
+}: {
+  promise: Promise<ArtistReview[]>;
+}) {
+  const recentReviews = use(promise);
+  if (recentReviews.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-white">Reviews</h2>
+      <ul className="space-y-3">
+        {recentReviews.map((r: ArtistReview) => {
+          const entityHref =
+            r.entity_type === "album"
+              ? `/album/${r.entity_id}`
+              : `/song/${r.entity_id}`;
+          return (
+            <li
+              key={r.id}
+              className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-4"
+            >
+              <Link href={entityHref} className="group flex items-center gap-3">
+                {r.entity_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={r.entity_image_url}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-white/[0.07] transition group-hover:ring-white/20"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-zinc-600">
+                    ♪
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white group-hover:text-emerald-400 group-hover:underline">
+                    {r.entity_name ??
+                      (r.entity_type === "album" ? "Album" : "Track")}
+                  </p>
+                  <p className="mt-0.5 text-base text-amber-400 leading-none">
+                    {formatStarDisplay(
+                      Math.max(0, Math.min(5, Number(r.rating))),
+                    )}
+                  </p>
+                </div>
+              </Link>
+              {r.review_text && (
+                <p className="mt-3 line-clamp-4 whitespace-pre-line text-sm leading-relaxed text-zinc-300">
+                  {r.review_text}
+                </p>
+              )}
+              <div className="mt-3 flex items-center gap-2 border-t border-zinc-800/60 pt-3">
+                <Link
+                  href={r.user_id ? `/profile/${r.user_id}` : "#"}
+                  className="shrink-0"
+                >
+                  {r.user?.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={r.user.avatar_url}
+                      alt=""
+                      className="h-6 w-6 rounded-full object-cover ring-1 ring-white/10"
+                    />
+                  ) : (
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-semibold text-zinc-400">
+                      {(r.username ?? "?")[0]?.toUpperCase()}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  href={r.user_id ? `/profile/${r.user_id}` : "#"}
+                  className="text-xs font-medium text-zinc-400 hover:text-white hover:underline"
+                >
+                  {r.username ?? "Unknown"}
+                </Link>
+                <span className="text-zinc-700">·</span>
+                <span className="text-xs text-zinc-600">
+                  {formatRelativeTime(r.created_at)}
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+// ── Page Content Component ──────────────────────────────────────────────────
 
 export async function ArtistPageContent({ params }: { params: PageParams }) {
   const { id: rawId } = await params;
@@ -44,43 +305,46 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   ).catch(() => null);
 
   // These queries resolve canonical ID internally, so we can start them NOW in parallel with the main artist fetch.
-  const topTracksPromise = withArtistPagePhaseLog("getTopTracksForArtist", id, getTopTracksForArtist(id, 10));
-  const reviewsPromise = withArtistPagePhaseLog("getReviewsForArtist", id, getReviewsForArtist(id, 6));
-  const popularAlbumsPromise = withArtistPagePhaseLog("getPopularAlbumsForArtist", id, getPopularAlbumsForArtist(id, 8));
+  const topTracksPromise = withArtistPagePhaseLog(
+    "getTopTracksForArtist",
+    id,
+    getTopTracksForArtist(id, 10),
+  );
+  const reviewsPromise = withArtistPagePhaseLog(
+    "getReviewsForArtist",
+    id,
+    getReviewsForArtist(id, 6),
+  );
+  const popularAlbumsPromise = withArtistPagePhaseLog(
+    "getPopularAlbumsForArtist",
+    id,
+    getPopularAlbumsForArtist(id, 8),
+  );
 
-  const [session, artistFetched] = await Promise.all([sessionPromise, artistFetchedPromise]);
+  const [session, artistFetched] = await Promise.all([
+    sessionPromise,
+    artistFetchedPromise,
+  ]);
 
   if (!artistFetched) notFound();
-  redirectToCanonicalEntityIfNeeded("artist", id, artistFetched.canonicalArtistId);
+  redirectToCanonicalEntityIfNeeded(
+    "artist",
+    id,
+    artistFetched.canonicalArtistId,
+  );
   const entityId = artistFetched.canonicalArtistId ?? id;
   const artist = artistFetched.artist;
   const viewerId = session?.user?.id ?? null;
 
   // These need viewerId AND canonical UUID.
-  const viewerStatsPromise = viewerId ? getViewerArtistStats(viewerId, entityId).catch(() => null) : Promise.resolve(null);
-  const firstListenPromise = viewerId ? getArtistFirstListenDate(viewerId, entityId).catch(() => null) : Promise.resolve(null);
+  const viewerStatsPromise = viewerId
+    ? getViewerArtistStats(viewerId, entityId).catch(() => null)
+    : Promise.resolve(null);
+  const firstListenPromise = viewerId
+    ? getArtistFirstListenDate(viewerId, entityId).catch(() => null)
+    : Promise.resolve(null);
 
-  const [topTracks, recentReviews, popularAlbumsResult, viewerStats, firstListened] =
-    await Promise.all([
-      topTracksPromise,
-      reviewsPromise,
-      popularAlbumsPromise,
-      viewerStatsPromise,
-      firstListenPromise,
-    ]);
-
-  const popularAlbums = popularAlbumsResult.rows;
-  const showAlbumsViewMore = popularAlbumsResult.hasMoreAlbums;
-  const heroTrack = topTracks[0]?.track ?? null;
   const image = artist.images?.[0]?.url;
-
-  // Derive community stats from albums already fetched
-  const totalCommunityPlays = popularAlbums.reduce((s, a) => s + (a.listen_count ?? 0), 0);
-  const ratedAlbums = popularAlbums.filter((a) => a.average_rating != null);
-  const avgRating =
-    ratedAlbums.length > 0
-      ? ratedAlbums.reduce((s, a) => s + (a.average_rating ?? 0), 0) / ratedAlbums.length
-      : null;
 
   return (
     <>
@@ -137,169 +401,37 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
       </div>
 
       {/* Community stats */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        {totalCommunityPlays > 0 && (
-          <span>
-            <span className="font-semibold text-white">
-              {totalCommunityPlays.toLocaleString()}
-            </span>{" "}
-            <span className="text-zinc-400">plays on Tracklist</span>
-          </span>
-        )}
-        {avgRating != null && (
-          <span>
-            <span className="text-amber-400">
-              {formatStarDisplay(Math.round(avgRating * 2) / 2)}
-            </span>{" "}
-            <span className="text-zinc-500">avg rating</span>
-          </span>
-        )}
-        {popularAlbums.length > 0 && (
-          <span>
-            <span className="font-semibold text-white">{popularAlbums.length}</span>
-            {showAlbumsViewMore ? "+" : ""}{" "}
-            <span className="text-zinc-500">albums</span>
-          </span>
-        )}
-      </div>
+      <Suspense fallback={<div className="h-5 w-48 animate-pulse rounded bg-zinc-800/40" />}>
+        <CommunityStatsLine popularAlbumsPromise={popularAlbumsPromise} />
+      </Suspense>
 
       {/* Your relationship with this artist */}
-      {viewerStats && viewerStats.playCount > 0 && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3 text-sm">
-          <span>
-            <span className="font-semibold text-white">
-              {viewerStats.playCount.toLocaleString()}
-            </span>{" "}
-            <span className="text-zinc-400">
-              {viewerStats.playCount === 1 ? "play" : "plays"} by you
-            </span>
-          </span>
-          {viewerStats.topAlbumName && viewerStats.topAlbumId && (
-            <>
-              <span className="text-zinc-700">·</span>
-              <span className="text-zinc-400">
-                Favourite:{" "}
-                <Link
-                  href={`/album/${viewerStats.topAlbumId}`}
-                  className="font-medium text-white hover:text-emerald-400 hover:underline"
-                >
-                  {viewerStats.topAlbumName}
-                </Link>
-              </span>
-            </>
-          )}
-          {firstListened && (
-            <>
-              <span className="text-zinc-700">·</span>
-              <span className="text-zinc-400">
-                Since{" "}
-                <span className="font-medium text-white">
-                  {new Date(firstListened).toLocaleDateString(undefined, {
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              </span>
-            </>
-          )}
-        </div>
-      )}
+      <Suspense fallback={<div className="h-11 w-full animate-pulse rounded-2xl bg-zinc-900/40" />}>
+        <ViewerArtistRelationship
+          viewerStatsPromise={viewerStatsPromise}
+          firstListenPromise={firstListenPromise}
+        />
+      </Suspense>
 
       <ArtistTabs
         hasSocial={!!viewerId}
         generalContent={
           <div className="space-y-8">
-            {topTracks?.length ? <ArtistPopularTracks tracks={topTracks} /> : null}
+            <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-2xl bg-zinc-900/40" />}>
+              <TopTracksSection promise={topTracksPromise} />
+            </Suspense>
 
-            {popularAlbums.length > 0 && (
-              <section>
-                <div className="mb-3 flex items-end justify-between">
-                  <h2 className="text-lg font-semibold text-white">Albums</h2>
-                  {showAlbumsViewMore && (
-                    <Link
-                      href={`/artist/${entityId}/albums`}
-                      className="text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
-                    >
-                      View all
-                    </Link>
-                  )}
-                </div>
-                <MediaGrid
-                  items={popularAlbums.map(
-                    (a): MediaItem => ({
-                      id: a.id,
-                      type: "album",
-                      title: a.name,
-                      artist: artist.name,
-                      artworkUrl: a.image_url ?? null,
-                      avgRating: a.average_rating ?? undefined,
-                      totalPlays: a.listen_count,
-                    }),
-                  )}
-                  columns={3}
-                  showArtist={false}
-                />
-              </section>
-            )}
+            <Suspense fallback={<div className="h-96 w-full animate-pulse rounded-2xl bg-zinc-900/40" />}>
+              <PopularAlbumsSection
+                promise={popularAlbumsPromise}
+                artistName={artist.name}
+                entityId={entityId}
+              />
+            </Suspense>
 
-            {recentReviews.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-lg font-semibold text-white">Reviews</h2>
-                <ul className="space-y-3">
-                  {recentReviews.map((r: ArtistReview) => {
-                    const entityHref = r.entity_type === "album"
-                      ? `/album/${r.entity_id}`
-                      : `/song/${r.entity_id}`;
-                    return (
-                      <li key={r.id} className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-4">
-                        <Link href={entityHref} className="group flex items-center gap-3">
-                          {r.entity_image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={r.entity_image_url}
-                              alt=""
-                              className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-white/[0.07] transition group-hover:ring-white/20"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-zinc-600">♪</div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-white group-hover:text-emerald-400 group-hover:underline">
-                              {r.entity_name ?? (r.entity_type === "album" ? "Album" : "Track")}
-                            </p>
-                            <p className="mt-0.5 text-base text-amber-400 leading-none">
-                              {formatStarDisplay(Math.max(0, Math.min(5, Number(r.rating))))}
-                            </p>
-                          </div>
-                        </Link>
-                        {r.review_text && (
-                          <p className="mt-3 line-clamp-4 whitespace-pre-line text-sm leading-relaxed text-zinc-300">
-                            {r.review_text}
-                          </p>
-                        )}
-                        <div className="mt-3 flex items-center gap-2 border-t border-zinc-800/60 pt-3">
-                          <Link href={r.user_id ? `/profile/${r.user_id}` : "#"} className="shrink-0">
-                            {r.user?.avatar_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={r.user.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-white/10" />
-                            ) : (
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-semibold text-zinc-400">
-                                {(r.username ?? "?")[0]?.toUpperCase()}
-                              </span>
-                            )}
-                          </Link>
-                          <Link href={r.user_id ? `/profile/${r.user_id}` : "#"} className="text-xs font-medium text-zinc-400 hover:text-white hover:underline">
-                            {r.username ?? "Unknown"}
-                          </Link>
-                          <span className="text-zinc-700">·</span>
-                          <span className="text-xs text-zinc-600">{formatRelativeTime(r.created_at)}</span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
+            <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-2xl bg-zinc-900/40" />}>
+              <RecentReviewsSection promise={reviewsPromise} />
+            </Suspense>
           </div>
         }
         socialContent={
