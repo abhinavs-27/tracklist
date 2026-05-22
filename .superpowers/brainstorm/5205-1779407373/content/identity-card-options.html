@@ -1,0 +1,173 @@
+<h2>Identity Card — Three directions</h2>
+<p class="subtitle">All three fix the background color and fill the dead space. Same content, different emphasis. Click to select.</p>
+
+<div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1100px;">
+
+  <!-- Option A: Artists as hero -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;">
+      <!-- Strong indigo gradient background -->
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 150% 90% at 70% -10%, rgba(99,102,241,0.65) 0%, transparent 52%),
+        radial-gradient(ellipse 120% 70% at -15% 85%, rgba(139,92,246,0.4) 0%, transparent 55%),
+        linear-gradient(160deg, #070511 0%, #09090b 45%, #050308 100%);"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%, transparent 30%, rgba(0,0,0,0.5) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:8%;box-sizing:border-box;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:auto;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:2.5px;color:#818cf8;text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:9px;color:rgba(255,255,255,0.35);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Center: style -->
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;gap:8px;padding:16px 0;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:3px;color:#818cf8;text-transform:uppercase;font-family:sans-serif;">Listening Style</span>
+          <span style="font-size:46px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;font-family:sans-serif;">Session<br>Maximalist</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.45);line-height:1.5;max-width:220px;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+        </div>
+
+        <!-- Bottom: TOP ARTISTS as the hero data -->
+        <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;">
+          <div style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase;margin-bottom:8px;font-family:sans-serif;">Top artists</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4338ca);flex-shrink:0;"></div>
+              <span style="font-size:11px;font-weight:600;color:#fff;font-family:sans-serif;">Kendrick Lamar</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#6366f1);flex-shrink:0;"></div>
+              <span style="font-size:11px;font-weight:600;color:#fff;font-family:sans-serif;">Frank Ocean</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#3730a3);flex-shrink:0;"></div>
+              <span style="font-size:11px;font-weight:600;color:#fff;font-family:sans-serif;">Tyler, the Creator</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Artists as data</h3>
+      <p>Style label is the hero, top 3 artists fill the bottom. Most personal — every card different. Clean and readable.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Stats + artists side by side -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 160% 95% at 65% -5%, rgba(99,102,241,0.6) 0%, transparent 50%),
+        radial-gradient(ellipse 130% 75% at -10% 80%, rgba(139,92,246,0.35) 0%, transparent 55%),
+        linear-gradient(160deg, #070511 0%, #09090b 45%, #050308 100%);"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%, transparent 30%, rgba(0,0,0,0.5) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:8%;box-sizing:border-box;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:2.5px;color:#818cf8;text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:9px;color:rgba(255,255,255,0.35);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Big stat as visual anchor -->
+        <div style="margin-top:auto;margin-bottom:auto;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:12px 0;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:3px;color:#818cf8;text-transform:uppercase;font-family:sans-serif;">Listening Style</span>
+          <span style="font-size:44px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;font-family:sans-serif;">Session<br>Maximalist</span>
+
+          <!-- stat pill -->
+          <div style="margin-top:4px;display:flex;align-items:center;gap:6px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:999px;padding:5px 14px;">
+            <span style="font-size:14px;font-weight:800;color:#818cf8;font-family:sans-serif;">1,193</span>
+            <span style="font-size:10px;color:rgba(255,255,255,0.4);font-family:sans-serif;">plays this month</span>
+          </div>
+
+          <span style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;max-width:220px;margin-top:4px;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+        </div>
+
+        <!-- Bottom row: genres + artists combined -->
+        <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:10px;display:flex;justify-content:space-between;align-items:flex-end;">
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            <span style="font-size:9px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:2px 8px;color:rgba(255,255,255,0.45);font-family:sans-serif;">hip-hop</span>
+            <span style="font-size:9px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:2px 8px;color:rgba(255,255,255,0.45);font-family:sans-serif;">rap</span>
+          </div>
+          <span style="font-size:9px;color:rgba(255,255,255,0.2);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Stats + style</h3>
+      <p>Monthly play count as a badge under the title. Gives the label weight — "Session Maximalist with 1,193 plays" lands differently than just the label.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Full data card -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 150% 90% at 75% -10%, rgba(99,102,241,0.6) 0%, transparent 52%),
+        radial-gradient(ellipse 110% 70% at -10% 90%, rgba(139,92,246,0.38) 0%, transparent 55%),
+        linear-gradient(160deg, #070511 0%, #09090b 45%, #050308 100%);"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%, transparent 30%, rgba(0,0,0,0.5) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:8%;box-sizing:border-box;gap:0;">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:2.5px;color:#818cf8;text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:9px;color:rgba(255,255,255,0.35);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Style + subtitle -->
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:3px;color:#818cf8;text-transform:uppercase;font-family:sans-serif;">Listening Style</span>
+          <span style="font-size:42px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;font-family:sans-serif;">Session<br>Maximalist</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.42);line-height:1.5;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+        </div>
+
+        <!-- Stats row -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:15px;font-weight:800;color:#fff;font-family:sans-serif;">1,193</div>
+            <div style="font-size:7px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;font-family:sans-serif;">plays</div>
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:15px;font-weight:800;color:#fff;font-family:sans-serif;">89%</div>
+            <div style="font-size:7px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;font-family:sans-serif;">obscure</div>
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:11px;font-weight:800;color:#fff;font-family:sans-serif;">hip-hop</div>
+            <div style="font-size:7px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;font-family:sans-serif;">top genre</div>
+          </div>
+        </div>
+
+        <!-- Artists -->
+        <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:10px;">
+          <div style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.22);text-transform:uppercase;margin-bottom:7px;font-family:sans-serif;">Most played</div>
+          <div style="display:flex;gap:12px;align-items:center;">
+            <div style="display:flex;align-items:center;gap:5px;">
+              <div style="width:18px;height:18px;border-radius:50%;background:#6366f1;flex-shrink:0;"></div>
+              <span style="font-size:10px;color:rgba(255,255,255,0.6);font-family:sans-serif;">Kendrick</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <div style="width:18px;height:18px;border-radius:50%;background:#818cf8;flex-shrink:0;"></div>
+              <span style="font-size:10px;color:rgba(255,255,255,0.6);font-family:sans-serif;">Frank Ocean</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <div style="width:18px;height:18px;border-radius:50%;background:#4f46e5;flex-shrink:0;"></div>
+              <span style="font-size:10px;color:rgba(255,255,255,0.6);font-family:sans-serif;">Tyler</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Full data</h3>
+      <p>Style + play count + obscurity score + top genre as stat pills, plus top artists below. Most info, most unique to you, smallest title.</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:14px 18px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.15);border-radius:12px;max-width:700px;">
+  <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.6;">
+    <strong style="color:#818cf8;">Note on genres:</strong> "hip-hop", "rap", and "hip hop" are the same Last.fm tag spelled differently — needs deduplication before going live. All three options also fix the background — the indigo gradient is now fully visible (was too faint before).
+  </p>
+</div>

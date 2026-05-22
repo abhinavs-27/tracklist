@@ -28,7 +28,8 @@
     "backfill:taste-snapshots": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-taste-snapshots.ts",
     "backfill:blind-spots": "REDIS_URL='' NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-blind-spots.ts",
     "build:lambda:taste-snapshot": "node scripts/build-lambda-taste-snapshot.mjs",
-    "build:lambda:enrich-drain": "node scripts/build-lambda-enrich-drain.mjs"
+    "build:lambda:enrich-drain": "node scripts/build-lambda-enrich-drain.mjs",
+    "build:lambda:spotify-enrichment-retry": "node scripts/build-lambda-spotify-enrichment-retry.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1050.0",

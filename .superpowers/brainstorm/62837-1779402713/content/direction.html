@@ -1,0 +1,163 @@
+<h2>Listening Report — Visual Direction</h2>
+<p class="subtitle">Three design directions for web + mobile. Which feels right for Tracklist?</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;padding:16px;font-family:-apple-system,sans-serif">
+      <!-- stat strip -->
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:10px;padding:10px">
+          <div style="font-size:9px;color:#71717a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Total plays</div>
+          <div style="font-size:20px;font-weight:700;color:#fff">342</div>
+          <div style="font-size:10px;color:#10b981;margin-top:2px">↑ +18%</div>
+        </div>
+        <div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:10px;padding:10px">
+          <div style="font-size:9px;color:#71717a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Top gainer</div>
+          <div style="font-size:13px;font-weight:600;color:#fff;line-height:1.2">Kendrick Lamar</div>
+          <div style="font-size:10px;color:#10b981;margin-top:2px">+14 spots</div>
+        </div>
+        <div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:10px;padding:10px">
+          <div style="font-size:9px;color:#71717a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">New entries</div>
+          <div style="font-size:20px;font-weight:700;color:#fff">7</div>
+          <div style="font-size:10px;color:#a1a1aa;margin-top:2px">vs last period</div>
+        </div>
+      </div>
+      <!-- list rows -->
+      <div style="background:#18181b;border:1px solid #27272a;border-radius:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #27272a">
+          <div style="width:22px;text-align:center;font-size:16px;font-weight:800;color:#10b981">1</div>
+          <div style="width:36px;height:36px;border-radius:6px;background:#27272a;flex-shrink:0;overflow:hidden">
+            <div style="width:100%;height:100%;background:linear-gradient(135deg,#10b981,#059669)"></div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Shashwat Sachdev</div>
+            <div style="font-size:11px;color:#71717a">40 plays</div>
+          </div>
+          <div style="font-size:11px;color:#71717a">—</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #27272a">
+          <div style="width:22px;text-align:center;font-size:16px;font-weight:800;color:#a1a1aa">2</div>
+          <div style="width:36px;height:36px;border-radius:6px;background:#27272a;flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#fff">Isaiah Rashad</div>
+            <div style="font-size:11px;color:#71717a">22 plays</div>
+          </div>
+          <div style="font-size:11px;color:#10b981">↑ +3</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px">
+          <div style="width:22px;text-align:center;font-size:16px;font-weight:800;color:#a1a1aa">3</div>
+          <div style="width:36px;height:36px;border-radius:6px;background:#27272a;flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#fff">Drake</div>
+            <div style="font-size:11px;color:#71717a">21 plays</div>
+          </div>
+          <div style="font-size:11px;color:#ef4444">↓ −2</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Dashboard</h3>
+      <p>Stat strip header (total plays, top gainer, new entries). Album art on every row. Color-coded movement. Clean cards.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;padding:16px;font-family:-apple-system,sans-serif">
+      <!-- hero #1 -->
+      <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;overflow:hidden;margin-bottom:10px">
+        <div style="display:flex;align-items:stretch;gap:0">
+          <div style="width:70px;min-height:70px;background:linear-gradient(135deg,#10b981,#065f46);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+            <div style="font-size:28px;font-weight:900;color:rgba(255,255,255,0.9)">#1</div>
+          </div>
+          <div style="padding:12px 14px;flex:1">
+            <div style="font-size:9px;color:#10b981;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:4px">This week · Artists</div>
+            <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px">Shashwat Sachdev</div>
+            <div style="font-size:12px;color:#71717a">40 plays this period</div>
+          </div>
+        </div>
+      </div>
+      <!-- condensed list -->
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#18181b;border-radius:8px">
+          <div style="width:20px;font-size:12px;font-weight:700;color:#a1a1aa;text-align:center">2</div>
+          <div style="width:30px;height:30px;background:#27272a;border-radius:5px;flex-shrink:0"></div>
+          <div style="flex:1;font-size:12px;font-weight:600;color:#fff">Isaiah Rashad</div>
+          <div style="font-size:11px;color:#71717a">22</div>
+          <div style="width:36px;text-align:right;font-size:10px;color:#10b981">↑ +3</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#18181b;border-radius:8px">
+          <div style="width:20px;font-size:12px;font-weight:700;color:#a1a1aa;text-align:center">3</div>
+          <div style="width:30px;height:30px;background:#27272a;border-radius:5px;flex-shrink:0"></div>
+          <div style="flex:1;font-size:12px;font-weight:600;color:#fff">Drake</div>
+          <div style="font-size:11px;color:#71717a">21</div>
+          <div style="width:36px;text-align:right;font-size:10px;color:#ef4444">↓ −1</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#18181b;border-radius:8px">
+          <div style="width:20px;font-size:12px;font-weight:700;color:#a1a1aa;text-align:center">4</div>
+          <div style="width:30px;height:30px;background:#27272a;border-radius:5px;flex-shrink:0"></div>
+          <div style="flex:1;font-size:12px;font-weight:600;color:#fff">Stevie Wonder</div>
+          <div style="font-size:11px;color:#71717a">19</div>
+          <div style="width:36px;text-align:right;font-size:10px;color:#71717a">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Charts Magazine</h3>
+      <p>#1 gets a big hero treatment. Rest are tight rows below. Editorial feel — like seeing your own chart.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;padding:16px;font-family:-apple-system,sans-serif">
+      <!-- inline compare bar -->
+      <div style="background:#18181b;border:1px solid #27272a;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:#a1a1aa">342 plays <span style="color:#10b981">↑ 18%</span> vs last week</span>
+        <span style="font-size:11px;color:#71717a">7 new entries</span>
+      </div>
+      <!-- dense rows, no art, big numbers -->
+      <div style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #27272a">
+          <div style="width:28px;font-size:18px;font-weight:900;color:#10b981">1</div>
+          <div style="flex:1;font-size:13px;font-weight:600;color:#fff">Shashwat Sachdev</div>
+          <div style="font-size:12px;color:#52525b;margin-right:10px">40 plays</div>
+          <div style="width:16px;height:16px;background:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center">
+            <span style="font-size:8px;color:#fff;font-weight:700">—</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #27272a">
+          <div style="width:28px;font-size:18px;font-weight:900;color:#52525b">2</div>
+          <div style="flex:1;font-size:13px;font-weight:600;color:#fff">Isaiah Rashad</div>
+          <div style="font-size:12px;color:#52525b;margin-right:10px">22 plays</div>
+          <div style="width:16px;height:16px;background:#10b981;border-radius:3px;display:flex;align-items:center;justify-content:center">
+            <span style="font-size:8px;color:#fff;font-weight:700">↑</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #27272a">
+          <div style="width:28px;font-size:18px;font-weight:900;color:#52525b">3</div>
+          <div style="flex:1;font-size:13px;font-weight:600;color:#fff">Drake</div>
+          <div style="font-size:12px;color:#52525b;margin-right:10px">21 plays</div>
+          <div style="width:16px;height:16px;background:#ef4444;border-radius:3px;display:flex;align-items:center;justify-content:center">
+            <span style="font-size:8px;color:#fff;font-weight:700">↓</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;padding:9px 0">
+          <div style="width:28px;font-size:18px;font-weight:900;color:#52525b">4</div>
+          <div style="flex:1;font-size:13px;font-weight:600;color:#fff">Stevie Wonder</div>
+          <div style="font-size:12px;color:#52525b;margin-right:10px">19 plays</div>
+          <div style="width:36px;text-align:right;font-size:10px;color:#52525b;font-style:italic">NEW</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Dense & Fast</h3>
+      <p>No album art by default (faster, cleaner). Big rank numbers. Tiny status badges. One-line stat bar at top. Max info density.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:24px">All three carry forward: range picker, entity type tabs (Artists/Albums/Tracks/Genres), rank movement, compare stats, share/save. The difference is presentation.</p>

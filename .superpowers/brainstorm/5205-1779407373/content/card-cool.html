@@ -1,0 +1,198 @@
+<h2>Making it worth sharing — three stronger directions</h2>
+<p class="subtitle">All keep Style + Artists as the core. The difference is visual drama. Click to select your favorite direction.</p>
+
+<div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 28px; max-width: 1100px;">
+
+  <!-- Option 1: Artist photo rings + strong glow -->
+  <div class="card" data-choice="1" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+
+      <!-- Very strong gradient - actually visible -->
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 200% 120% at 80% -20%, rgba(99,102,241,0.85) 0%, transparent 48%),
+        radial-gradient(ellipse 150% 100% at -20% 100%, rgba(139,92,246,0.6) 0%, transparent 52%),
+        #09090b;"></div>
+
+      <!-- Subtle noise texture via repeating gradient -->
+      <div style="position:absolute;inset:0;opacity:0.04;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><filter id=%22n%22><feTurbulence baseFrequency=%220.9%22 numOctaves=%224%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%221%22/></svg>');background-size:200px;"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:auto;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.9);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.4);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Center: BIG style name with glow effect -->
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:16px 0;gap:10px;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:4px;color:rgba(255,255,255,0.5);text-transform:uppercase;font-family:sans-serif;">Your listening style</span>
+          <span style="font-size:48px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2.5px;font-family:sans-serif;text-shadow:0 0 60px rgba(99,102,241,0.8), 0 0 120px rgba(139,92,246,0.4);">Session<br>Maximalist</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.45);max-width:190px;line-height:1.5;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+        </div>
+
+        <!-- Artists: overlapping photo rings + names -->
+        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;">
+          <span style="font-size:7px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.25);text-transform:uppercase;display:block;margin-bottom:10px;font-family:sans-serif;">Most played</span>
+          <div style="display:flex;align-items:center;gap:0;">
+            <!-- Overlapping artist circles with glow -->
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4338ca);border:2px solid rgba(255,255,255,0.15);box-shadow:0 0 20px rgba(99,102,241,0.6);z-index:3;flex-shrink:0;"></div>
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:2px solid rgba(255,255,255,0.15);box-shadow:0 0 20px rgba(139,92,246,0.5);z-index:2;flex-shrink:0;margin-left:-10px;"></div>
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#3730a3);border:2px solid rgba(255,255,255,0.15);box-shadow:0 0 20px rgba(79,70,229,0.5);z-index:1;flex-shrink:0;margin-left:-10px;"></div>
+            <div style="margin-left:12px;display:flex;flex-direction:column;gap:1px;">
+              <span style="font-size:10px;font-weight:600;color:#fff;font-family:sans-serif;">Kendrick · Frank · Tyler</span>
+              <span style="font-size:8px;color:rgba(255,255,255,0.3);font-family:sans-serif;">& more</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>1 — Glow & drama</h3>
+      <p>Title has a purple glow behind it. Artists shown as overlapping rings. Very saturated gradient — immediately catches the eye. Bold but clean.</p>
+    </div>
+  </div>
+
+  <!-- Option 2: Album art collage background -->
+  <div class="card" data-choice="2" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+
+      <!-- Album art collage: 9 squares in a 3x3 grid, blurred, faded -->
+      <div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;opacity:0.18;">
+        <div style="background:linear-gradient(135deg,#1e3a5f,#0f2040);"></div>
+        <div style="background:linear-gradient(135deg,#3d1b4e,#1a0a30);"></div>
+        <div style="background:linear-gradient(135deg,#1a3a1a,#0a200a);"></div>
+        <div style="background:linear-gradient(135deg,#4a1a1a,#2a0a0a);"></div>
+        <div style="background:linear-gradient(135deg,#1a2a4a,#0a1530);"></div>
+        <div style="background:linear-gradient(135deg,#2a1a4a,#150a30);"></div>
+        <div style="background:linear-gradient(135deg,#3a2a1a,#201508);"></div>
+        <div style="background:linear-gradient(135deg,#1a3a3a,#0a2020);"></div>
+        <div style="background:linear-gradient(135deg,#4a3a1a,#281e08);"></div>
+      </div>
+
+      <!-- Dark overlay to make it readable -->
+      <div style="position:absolute;inset:0;background:rgba(9,9,11,0.82);"></div>
+
+      <!-- Accent gradient on top -->
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 160% 90% at 75% -10%, rgba(99,102,241,0.55) 0%, transparent 50%),
+        radial-gradient(ellipse 120% 70% at -10% 90%, rgba(139,92,246,0.35) 0%, transparent 55%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:auto;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.9);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.4);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:16px 0;gap:10px;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:4px;color:rgba(255,255,255,0.5);text-transform:uppercase;font-family:sans-serif;">Your listening style</span>
+          <span style="font-size:48px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2.5px;font-family:sans-serif;">Session<br>Maximalist</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.45);max-width:190px;line-height:1.5;font-family:sans-serif;">Puts something on and two hours later is still going.</span>
+        </div>
+
+        <!-- Artists as a tight row of album squares -->
+        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;">
+          <span style="font-size:7px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.25);text-transform:uppercase;display:block;margin-bottom:10px;font-family:sans-serif;">Most played</span>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+              <div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#1e3a5f,#0f2040);box-shadow:0 4px 16px rgba(0,0,0,0.5);"></div>
+              <span style="font-size:8px;color:rgba(255,255,255,0.5);font-family:sans-serif;">Kendrick</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+              <div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#3d1b4e,#1a0a30);box-shadow:0 4px 16px rgba(0,0,0,0.5);"></div>
+              <span style="font-size:8px;color:rgba(255,255,255,0.5);font-family:sans-serif;">Frank Ocean</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+              <div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#1a3a1a,#0a200a);box-shadow:0 4px 16px rgba(0,0,0,0.5);"></div>
+              <span style="font-size:8px;color:rgba(255,255,255,0.5);font-family:sans-serif;">Tyler</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>2 — Album art mosaic</h3>
+      <p>Your top albums tile the background at low opacity. The title punches through. Artists shown as album square thumbnails — real art makes every card look different.</p>
+    </div>
+  </div>
+
+  <!-- Option 3: Split editorial layout -->
+  <div class="card" data-choice="3" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+
+      <!-- Strong diagonal gradient -->
+      <div style="position:absolute;inset:0;background:
+        linear-gradient(135deg, rgba(99,102,241,0.7) 0%, transparent 45%),
+        linear-gradient(315deg, rgba(139,92,246,0.4) 0%, transparent 45%),
+        #09090b;"></div>
+
+      <!-- Top left colored block -->
+      <div style="position:absolute;top:0;left:0;width:45%;height:100%;background:linear-gradient(160deg,rgba(99,102,241,0.25) 0%,transparent 70%);"></div>
+
+      <!-- Thin accent line -->
+      <div style="position:absolute;top:0;left:44%;width:1px;height:100%;background:linear-gradient(to bottom, transparent, rgba(99,102,241,0.4) 30%, rgba(99,102,241,0.2) 70%, transparent);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;padding:9%;box-sizing:border-box;gap:5%;">
+
+        <!-- Left column: title -->
+        <div style="width:42%;display:flex;flex-direction:column;justify-content:space-between;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.9);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <span style="font-size:7px;font-weight:700;letter-spacing:3px;color:rgba(99,102,241,0.9);text-transform:uppercase;font-family:sans-serif;">Style</span>
+            <!-- Rotated/stacked title -->
+            <span style="font-size:38px;font-weight:900;color:#fff;line-height:0.95;letter-spacing:-2px;font-family:sans-serif;">Ses-<br>sion<br>Max-<br>imal-<br>ist</span>
+          </div>
+
+          <span style="font-size:8px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Right column: artists + subtitle -->
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;">
+          <span style="font-size:9px;color:rgba(255,255,255,0.4);line-height:1.6;font-family:sans-serif;">Puts something on and two hours later is still going. Doesn't do background music.</span>
+
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <span style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase;font-family:sans-serif;">Most played</span>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+              <div style="display:flex;align-items:center;gap:7px;">
+                <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#4338ca);flex-shrink:0;box-shadow:0 2px 12px rgba(99,102,241,0.5);"></div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:#fff;font-family:sans-serif;">Kendrick Lamar</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;">
+                <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);flex-shrink:0;box-shadow:0 2px 12px rgba(139,92,246,0.4);"></div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:#fff;font-family:sans-serif;">Frank Ocean</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;">
+                <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#4f46e5,#3730a3);flex-shrink:0;box-shadow:0 2px 12px rgba(79,70,229,0.4);"></div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:#fff;font-family:sans-serif;">Tyler, the Creator</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <span style="font-size:8px;color:rgba(255,255,255,0.2);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>3 — Split editorial</h3>
+      <p>Two columns divided by a thin accent line. Title stacks vertically on the left (magazine-style). Artists listed with thumbnails on the right. Feels premium, different from anything else out there.</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:14px 18px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.15);border-radius:12px;max-width:700px;">
+  <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.6;">
+    <strong style="color:#818cf8;">On artist images:</strong> In the real card, the circles/squares would show actual Spotify artist photos — making every card completely unique. The colored placeholders here simulate that. Option 2 would also pull real album art for the mosaic background.
+  </p>
+</div>

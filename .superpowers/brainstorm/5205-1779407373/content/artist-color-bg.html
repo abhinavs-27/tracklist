@@ -1,0 +1,173 @@
+<h2>Artist-color backgrounds — same layout, different listeners</h2>
+<p class="subtitle">Each card shows what the background looks like when pulled from that person's top 3 artist photos. Same A-direction layout, completely different atmosphere.</p>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1100px;">
+
+  <!-- Person 1: Hip-hop / rap palette — deep purples + dark blue -->
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="label">Hip-hop listener</div>
+    <div style="aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 180% 110% at 75% -15%, rgba(88,28,135,0.75) 0%, transparent 50%),
+        radial-gradient(ellipse 140% 90% at -15% 85%, rgba(30,27,75,0.65) 0%, transparent 52%),
+        radial-gradient(ellipse 100% 80% at 50% 110%, rgba(49,46,129,0.4) 0%, transparent 50%),
+        #09090b;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,0.5) 100%);"></div>
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:7px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@user</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 0;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#581c87,#3b0764);box-shadow:0 0 24px rgba(139,92,246,0.6),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">Kendrick</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;margin-bottom:16px;">
+            <div style="width:74px;height:74px;border-radius:50%;background:linear-gradient(135deg,#312e81,#1e1b4b);box-shadow:0 0 28px rgba(99,102,241,0.7),0 0 0 2px rgba(255,255,255,0.14);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:74px;">Drake</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#0f2040);box-shadow:0 0 24px rgba(59,130,246,0.5),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">J. Cole</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;display:block;font-family:sans-serif;">listening style</span>
+            <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);font-family:sans-serif;">The Archivist</span>
+          </div>
+          <span style="font-size:6px;color:rgba(255,255,255,0.2);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Person 2: Indie/folk — warm earthy tones -->
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="label">Indie / folk listener</div>
+    <div style="aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 180% 110% at 75% -15%, rgba(120,53,15,0.75) 0%, transparent 50%),
+        radial-gradient(ellipse 140% 90% at -15% 85%, rgba(78,47,22,0.6) 0%, transparent 52%),
+        radial-gradient(ellipse 100% 80% at 50% 110%, rgba(92,64,25,0.4) 0%, transparent 50%),
+        #09090b;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,0.5) 100%);"></div>
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:7px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@user</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 0;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#78350f,#451a03);box-shadow:0 0 24px rgba(251,191,36,0.4),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">Bon Iver</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;margin-bottom:16px;">
+            <div style="width:74px;height:74px;border-radius:50%;background:linear-gradient(135deg,#92400e,#78350f);box-shadow:0 0 28px rgba(245,158,11,0.5),0 0 0 2px rgba(255,255,255,0.14);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:74px;">Big Thief</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1a2e1a,#0a1a0a);box-shadow:0 0 24px rgba(52,211,153,0.35),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">Fleet Foxes</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;display:block;font-family:sans-serif;">listening style</span>
+            <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);font-family:sans-serif;">Genre Nomad</span>
+          </div>
+          <span style="font-size:6px;color:rgba(255,255,255,0.2);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Person 3: Electronic — teal + cyan -->
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="label">Electronic listener</div>
+    <div style="aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 180% 110% at 75% -15%, rgba(6,182,212,0.65) 0%, transparent 50%),
+        radial-gradient(ellipse 140% 90% at -15% 85%, rgba(16,185,129,0.45) 0%, transparent 52%),
+        radial-gradient(ellipse 100% 80% at 50% 110%, rgba(14,116,144,0.35) 0%, transparent 50%),
+        #09090b;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,0.5) 100%);"></div>
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:7px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@user</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 0;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#164e63,#0c2d3a);box-shadow:0 0 24px rgba(6,182,212,0.6),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">Four Tet</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;margin-bottom:16px;">
+            <div style="width:74px;height:74px;border-radius:50%;background:linear-gradient(135deg,#0f766e,#064e3b);box-shadow:0 0 28px rgba(20,184,166,0.65),0 0 0 2px rgba(255,255,255,0.14);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:74px;">Aphex Twin</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#0e7490,#0c4a6e);box-shadow:0 0 24px rgba(56,189,248,0.5),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">Bicep</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;display:block;font-family:sans-serif;">listening style</span>
+            <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);font-family:sans-serif;">Daily Ritual</span>
+          </div>
+          <span style="font-size:6px;color:rgba(255,255,255,0.2);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Person 4: Pop/mainstream — warm gold + pink -->
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="label">Pop listener</div>
+    <div style="aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 180% 110% at 75% -15%, rgba(190,24,93,0.65) 0%, transparent 50%),
+        radial-gradient(ellipse 140% 90% at -15% 85%, rgba(161,18,60,0.45) 0%, transparent 52%),
+        radial-gradient(ellipse 100% 80% at 50% 110%, rgba(234,88,12,0.3) 0%, transparent 50%),
+        #09090b;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,0.5) 100%);"></div>
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:7px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@user</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 0;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#9f1239,#881337);box-shadow:0 0 24px rgba(244,63,94,0.55),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">Taylor Swift</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;margin-bottom:16px;">
+            <div style="width:74px;height:74px;border-radius:50%;background:linear-gradient(135deg,#be185d,#9d174d);box-shadow:0 0 28px rgba(236,72,153,0.65),0 0 0 2px rgba(255,255,255,0.14);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:74px;">Olivia Rodrigo</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#9a3412,#7c2d12);box-shadow:0 0 24px rgba(251,146,60,0.5),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:7px;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;max-width:64px;">Sabrina Carpenter</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1.5px;display:block;font-family:sans-serif;">listening style</span>
+            <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);font-family:sans-serif;">Cultural Pulse</span>
+          </div>
+          <span style="font-size:6px;color:rgba(255,255,255,0.2);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:24px;padding:14px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;max-width:800px;">
+  <p style="margin:0 0 6px;font-size:12px;color:rgba(255,255,255,0.6);font-weight:600;">How the color extraction works:</p>
+  <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.7;">
+    Each artist's photo is fetched → dominant color extracted → the three artist colors become three radial gradient blobs (primary at top-right, secondary at bottom-left, tertiary subtle center). The blobs overlap and blend naturally. Result: a background that's atmospherically yours — a hip-hop listener gets moody purples, an electronic listener gets cool teals, a pop listener gets warm pinks. Same as the chart card's color extraction, just sourced from all three artists instead of one album.
+  </p>
+</div>

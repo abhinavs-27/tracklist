@@ -1,0 +1,128 @@
+<h2>Date Range Filter on Mobile</h2>
+<p class="subtitle">Three ways to handle the range picker inside the Filter bottom sheet</p>
+
+<div class="cards">
+
+  <!-- Option A: Presets + date pickers inline -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;font-family:-apple-system,sans-serif;padding:0">
+      <div style="max-width:220px;margin:0 auto">
+        <!-- simulated bottom sheet -->
+        <div style="background:#18181b;border-radius:16px 16px 0 0;border-top:1px solid #27272a;padding:0;overflow:hidden">
+          <div style="width:36px;height:4px;background:#3f3f46;border-radius:2px;margin:10px auto"></div>
+          <div style="padding:0 16px 16px">
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px">Range</div>
+            <!-- preset chips -->
+            <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#10b981;border-radius:10px">
+                <span style="font-size:13px;font-weight:600;color:#fff">This week</span>
+                <span style="font-size:12px;color:rgba(255,255,255,.7)">✓</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#27272a;border-radius:10px">
+                <span style="font-size:13px;font-weight:500;color:#a1a1aa">This month</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#27272a;border-radius:10px">
+                <span style="font-size:13px;font-weight:500;color:#a1a1aa">This year</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#27272a;border-radius:10px">
+                <span style="font-size:13px;font-weight:500;color:#a1a1aa">Custom</span>
+                <span style="font-size:10px;color:#71717a">→</span>
+              </div>
+            </div>
+            <!-- entity type -->
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px">Show</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+              <div style="padding:8px;background:#7c3aed;border-radius:8px;text-align:center;font-size:11px;font-weight:600;color:#fff">Artists</div>
+              <div style="padding:8px;background:#27272a;border-radius:8px;text-align:center;font-size:11px;color:#71717a">Albums</div>
+              <div style="padding:8px;background:#27272a;border-radius:8px;text-align:center;font-size:11px;color:#71717a">Tracks</div>
+              <div style="padding:8px;background:#27272a;border-radius:8px;text-align:center;font-size:11px;color:#71717a">Genres</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Sheet with presets list</h3>
+      <p>Tall list of preset options. "Custom →" navigates to a second sheet with two native date pickers. Entity type also moves here. One tap to apply any preset.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Sheet with presets + inline custom expander -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;font-family:-apple-system,sans-serif;padding:0">
+      <div style="max-width:220px;margin:0 auto">
+        <div style="background:#18181b;border-radius:16px 16px 0 0;border-top:1px solid #27272a;padding:0">
+          <div style="width:36px;height:4px;background:#3f3f46;border-radius:2px;margin:10px auto"></div>
+          <div style="padding:0 16px 16px">
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px">Filter</div>
+            <!-- horizontal chips -->
+            <div style="display:flex;gap:5px;margin-bottom:12px">
+              <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:5px 10px;border-radius:20px">Week</div>
+              <div style="background:#10b981;color:#fff;font-size:10px;font-weight:600;padding:5px 10px;border-radius:20px">Month</div>
+              <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:5px 10px;border-radius:20px">Year</div>
+              <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:5px 10px;border-radius:20px">Custom</div>
+            </div>
+            <!-- custom expands inline when tapped — shown expanded -->
+            <div style="background:#111113;border:1px solid #3f3f46;border-radius:10px;padding:10px;margin-bottom:12px">
+              <div style="font-size:10px;color:#71717a;margin-bottom:8px">Custom range</div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <div style="flex:1;background:#27272a;border-radius:7px;padding:7px 8px">
+                  <div style="font-size:9px;color:#71717a;margin-bottom:2px">From</div>
+                  <div style="font-size:12px;color:#fff;font-weight:500">Apr 1</div>
+                </div>
+                <div style="font-size:12px;color:#52525b">→</div>
+                <div style="flex:1;background:#27272a;border-radius:7px;padding:7px 8px">
+                  <div style="font-size:9px;color:#71717a;margin-bottom:2px">To</div>
+                  <div style="font-size:12px;color:#fff;font-weight:500">Apr 30</div>
+                </div>
+              </div>
+            </div>
+            <!-- apply button -->
+            <div style="background:#10b981;border-radius:10px;padding:11px;text-align:center;font-size:13px;font-weight:700;color:#fff">Apply</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Chips + inline expander</h3>
+      <p>Horizontal chips for week/month/year/custom. Tapping "Custom" expands two date fields inline in the same sheet. Tap Apply to close. No second sheet needed.</p>
+    </div>
+  </div>
+
+  <!-- Option C: No custom, month-based -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;font-family:-apple-system,sans-serif;padding:0">
+      <div style="max-width:220px;margin:0 auto">
+        <div style="background:#18181b;border-radius:16px 16px 0 0;border-top:1px solid #27272a;padding:0">
+          <div style="width:36px;height:4px;background:#3f3f46;border-radius:2px;margin:10px auto"></div>
+          <div style="padding:0 16px 16px">
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px">Period</div>
+            <!-- segmented -->
+            <div style="display:flex;gap:0;background:#111113;border-radius:8px;padding:2px;margin-bottom:14px">
+              <div style="flex:1;text-align:center;background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:6px 4px;border-radius:6px">Week</div>
+              <div style="flex:1;text-align:center;background:#10b981;color:#fff;font-size:10px;font-weight:600;padding:6px 4px;border-radius:6px">Month</div>
+              <div style="flex:1;text-align:center;background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:6px 4px;border-radius:6px">Year</div>
+            </div>
+            <!-- month scroll picker for "Month" mode -->
+            <div style="font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Which month?</div>
+            <div style="position:relative;overflow:hidden;height:90px">
+              <div style="display:flex;flex-direction:column;gap:0;transform:translateY(-18px)">
+                <div style="padding:9px 12px;text-align:center;font-size:12px;color:#52525b">February 2026</div>
+                <div style="padding:9px 12px;text-align:center;font-size:12px;color:#a1a1aa">March 2026</div>
+                <div style="padding:9px 12px;text-align:center;font-size:14px;font-weight:700;color:#fff;background:#27272a;border-radius:8px">April 2026</div>
+                <div style="padding:9px 12px;text-align:center;font-size:12px;color:#a1a1aa">May 2026</div>
+              </div>
+              <div style="position:absolute;top:0;left:0;right:0;height:28px;background:linear-gradient(to bottom,#18181b,transparent)"></div>
+              <div style="position:absolute;bottom:0;left:0;right:0;height:28px;background:linear-gradient(to top,#18181b,transparent)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Week / Month / Year only</h3>
+      <p>No arbitrary custom range. "Month" shows a scroll picker to choose which month. Clean, fast, no date-string typing. Custom range is web-only.</p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,156 @@
+<h2>Music-first — the artists ARE the card</h2>
+<p class="subtitle">The listening style becomes a badge or subtitle. The actual music you love is the visual headline. Click to select.</p>
+
+<div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 28px; max-width: 1100px;">
+
+  <!-- Option A: Big artist photos dominate -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 180% 100% at 60% -20%, rgba(99,102,241,0.55) 0%, transparent 50%),
+        radial-gradient(ellipse 120% 80% at -10% 90%, rgba(139,92,246,0.3) 0%, transparent 55%),
+        #09090b;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,0.45) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Three big artist photos -->
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:14px;padding:20px 0;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#312e81,#1e1b4b);box-shadow:0 0 30px rgba(99,102,241,0.5),0 0 0 2px rgba(255,255,255,0.1);"></div>
+            <span style="font-size:9px;font-weight:600;color:#fff;text-align:center;max-width:88px;font-family:sans-serif;">Kendrick Lamar</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:24px;">
+            <div style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#581c87,#3b0764);box-shadow:0 0 36px rgba(139,92,246,0.6),0 0 0 2px rgba(255,255,255,0.12);"></div>
+            <span style="font-size:9px;font-weight:600;color:#fff;text-align:center;max-width:100px;font-family:sans-serif;">Frank Ocean</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#0f2040);box-shadow:0 0 30px rgba(59,130,246,0.4),0 0 0 2px rgba(255,255,255,0.1);"></div>
+            <span style="font-size:9px;font-weight:600;color:#fff;text-align:center;max-width:88px;font-family:sans-serif;">Tyler, the Creator</span>
+          </div>
+        </div>
+
+        <!-- Style as supporting badge -->
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <span style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase;display:block;margin-bottom:3px;font-family:sans-serif;">My listening style</span>
+            <span style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);font-family:sans-serif;">Session Maximalist</span>
+          </div>
+          <span style="font-size:8px;color:rgba(255,255,255,0.2);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Artists as the hero</h3>
+      <p>Three big circular photos, center and front. The style label is a small line at the bottom — context, not the headline. Center photo is slightly larger (your #1). In production these are real Spotify artist photos.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Album art grid + style badge -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 160% 90% at 70% -10%, rgba(99,102,241,0.5) 0%, transparent 50%),
+        #09090b;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,0.4) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <div style="display:inline-flex;align-items:center;gap:5px;background:rgba(99,102,241,0.18);border:1px solid rgba(99,102,241,0.3);border-radius:999px;padding:3px 10px;">
+            <span style="font-size:8px;font-weight:700;color:#818cf8;font-family:sans-serif;">Session Maximalist</span>
+          </div>
+        </div>
+
+        <!-- 2x3 album art grid — the actual records you love -->
+        <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;">
+          <div style="border-radius:8px;background:linear-gradient(135deg,#312e81,#1e1b4b);box-shadow:0 4px 20px rgba(0,0,0,0.5);"></div>
+          <div style="border-radius:8px;background:linear-gradient(135deg,#581c87,#3b0764);box-shadow:0 4px 20px rgba(0,0,0,0.5);"></div>
+          <div style="border-radius:8px;background:linear-gradient(135deg,#1e3a5f,#0f2040);box-shadow:0 4px 20px rgba(0,0,0,0.5);"></div>
+          <div style="border-radius:8px;background:linear-gradient(135deg,#1a3a1a,#0a200a);box-shadow:0 4px 20px rgba(0,0,0,0.5);"></div>
+          <div style="border-radius:8px;background:linear-gradient(135deg,#4a1a1a,#2a0a0a);box-shadow:0 4px 20px rgba(0,0,0,0.5);"></div>
+          <div style="border-radius:8px;background:linear-gradient(135deg,#3a2a1a,#201508);box-shadow:0 4px 20px rgba(0,0,0,0.5);"></div>
+        </div>
+
+        <!-- Bottom: just username and stat -->
+        <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:8px;color:rgba(255,255,255,0.25);font-family:sans-serif;">@abhinavs27</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.25);font-family:sans-serif;">tracklist.lol</span>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Album art grid</h3>
+      <p>Six top album covers fill the card. Style becomes a small badge in the header corner — almost like a tag. The music is the whole visual. Minimal text, maximum art.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Balanced — style line + artist photos + one key stat -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;background:#09090b;">
+      <div style="position:absolute;inset:0;background:
+        radial-gradient(ellipse 180% 100% at 65% -15%, rgba(99,102,241,0.55) 0%, transparent 50%),
+        radial-gradient(ellipse 130% 80% at -15% 85%, rgba(139,92,246,0.3) 0%, transparent 55%),
+        #09090b;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,0.4) 100%);"></div>
+
+      <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;padding:9%;box-sizing:border-box;justify-content:space-between;">
+
+        <!-- Top: wordmark + username -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:8px;font-weight:700;letter-spacing:2.5px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-family:sans-serif;">Tracklist</span>
+          <span style="font-size:8px;color:rgba(255,255,255,0.3);font-family:sans-serif;">@abhinavs27</span>
+        </div>
+
+        <!-- Middle: artist photos in a horizontal strip -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="display:flex;align-items:center;">
+            <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#312e81,#1e1b4b);box-shadow:0 0 24px rgba(99,102,241,0.5),0 0 0 2px rgba(255,255,255,0.1);z-index:3;"></div>
+            <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#581c87,#3b0764);box-shadow:0 0 24px rgba(139,92,246,0.4),0 0 0 2px rgba(255,255,255,0.1);z-index:2;margin-left:-18px;"></div>
+            <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#0f2040);box-shadow:0 0 24px rgba(59,130,246,0.35),0 0 0 2px rgba(255,255,255,0.1);z-index:1;margin-left:-18px;"></div>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;font-weight:700;color:#fff;line-height:1.6;font-family:sans-serif;">Kendrick Lamar<br>Frank Ocean<br>Tyler, the Creator</div>
+          </div>
+        </div>
+
+        <!-- Bottom: style + stat -->
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="height:1px;background:rgba(255,255,255,0.08);"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <span style="font-size:7px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase;display:block;margin-bottom:2px;font-family:sans-serif;">listening style</span>
+              <span style="font-size:16px;font-weight:800;color:rgba(255,255,255,0.9);font-family:sans-serif;">Session Maximalist</span>
+            </div>
+            <div style="text-align:right;">
+              <span style="font-size:20px;font-weight:900;color:#fff;display:block;font-family:sans-serif;">1,193</span>
+              <span style="font-size:7px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1px;font-family:sans-serif;">plays this month</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Balanced</h3>
+      <p>Overlapping artist circles + names in the center. Style as a medium label, not the headline. Play count as one key number. Feels like a music card, not a personality quiz result.</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:14px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;max-width:700px;">
+  <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.7;">
+    <strong style="color:rgba(255,255,255,0.7);">The shift:</strong> In all three, "Session Maximalist" is still there — but as a label that provides context for your taste, not the headline that defines it. Your actual music (the artists, the albums) does the talking first.
+  </p>
+</div>

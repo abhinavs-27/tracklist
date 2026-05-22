@@ -1,0 +1,176 @@
+<h2>Mobile Controls Layout</h2>
+<p class="subtitle">How should the range picker + entity type tabs work on the listening report screen?</p>
+
+<div class="cards">
+
+  <!-- Option A: Sticky double row -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;font-family:-apple-system,sans-serif;padding:0">
+      <!-- phone frame -->
+      <div style="max-width:220px;margin:0 auto;padding:12px 0 0">
+        <!-- sticky header -->
+        <div style="background:#111113;border-bottom:1px solid #27272a;padding:10px 12px 8px">
+          <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:10px">Listening Report</div>
+          <!-- range row -->
+          <div style="display:flex;gap:5px;margin-bottom:7px;overflow:hidden">
+            <div style="background:#10b981;color:#fff;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap">This week</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap">Month</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap">Year</div>
+          </div>
+          <!-- entity row -->
+          <div style="display:flex;gap:5px;overflow:hidden">
+            <div style="background:#7c3aed;color:#fff;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Artists</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Albums</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Tracks</div>
+          </div>
+        </div>
+        <!-- content below -->
+        <div style="padding:12px">
+          <!-- hero #1 -->
+          <div style="background:#18181b;border:1px solid #27272a;border-radius:10px;overflow:hidden;margin-bottom:8px">
+            <div style="display:flex;align-items:stretch">
+              <div style="width:56px;background:linear-gradient(135deg,#10b981,#065f46);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="font-size:22px;font-weight:900;color:rgba(255,255,255,.9)">#1</span>
+              </div>
+              <div style="padding:10px 12px">
+                <div style="font-size:9px;color:#10b981;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">This week · Artists</div>
+                <div style="font-size:14px;font-weight:700;color:#fff">Shashwat Sachdev</div>
+                <div style="font-size:11px;color:#71717a">40 plays</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1c1c1e">
+              <div style="width:18px;font-size:12px;font-weight:700;color:#71717a;text-align:center">2</div>
+              <div style="width:28px;height:28px;background:#27272a;border-radius:5px;flex-shrink:0"></div>
+              <div style="flex:1;font-size:12px;font-weight:600;color:#fff">Isaiah Rashad</div>
+              <div style="font-size:10px;color:#71717a">22</div>
+              <div style="font-size:10px;color:#10b981">↑ +3</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 0">
+              <div style="width:18px;font-size:12px;font-weight:700;color:#71717a;text-align:center">3</div>
+              <div style="width:28px;height:28px;background:#27272a;border-radius:5px;flex-shrink:0"></div>
+              <div style="flex:1;font-size:12px;font-weight:600;color:#fff">Drake</div>
+              <div style="font-size:10px;color:#71717a">21</div>
+              <div style="font-size:10px;color:#ef4444">↓ −1</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Two sticky rows</h3>
+      <p>Range chips + entity chips both pinned below the title. Always visible, scroll just the list. Simple, familiar.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Single row + bottom sheet -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;font-family:-apple-system,sans-serif;padding:0">
+      <div style="max-width:220px;margin:0 auto;padding:12px 0 0">
+        <!-- sticky header - single row with filter button -->
+        <div style="background:#111113;border-bottom:1px solid #27272a;padding:10px 12px 8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:15px;font-weight:700;color:#fff">Listening Report</div>
+            <div style="background:#27272a;border-radius:8px;padding:4px 10px;display:flex;align-items:center;gap:5px">
+              <span style="font-size:11px;color:#a1a1aa">⚙</span>
+              <span style="font-size:11px;color:#a1a1aa">Filter</span>
+            </div>
+          </div>
+          <!-- entity tabs - single scrollable row -->
+          <div style="display:flex;gap:0;background:#18181b;border-radius:8px;padding:2px">
+            <div style="flex:1;text-align:center;background:#7c3aed;color:#fff;font-size:10px;font-weight:600;padding:5px 4px;border-radius:6px">Artists</div>
+            <div style="flex:1;text-align:center;color:#71717a;font-size:10px;font-weight:600;padding:5px 4px">Albums</div>
+            <div style="flex:1;text-align:center;color:#71717a;font-size:10px;font-weight:600;padding:5px 4px">Tracks</div>
+            <div style="flex:1;text-align:center;color:#71717a;font-size:10px;font-weight:600;padding:5px 4px">Genres</div>
+          </div>
+        </div>
+        <!-- bottom sheet peek -->
+        <div style="position:relative">
+          <div style="padding:12px">
+            <div style="background:#18181b;border:1px solid #27272a;border-radius:10px;overflow:hidden;margin-bottom:8px">
+              <div style="display:flex;align-items:stretch">
+                <div style="width:56px;background:linear-gradient(135deg,#10b981,#065f46);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <span style="font-size:22px;font-weight:900;color:rgba(255,255,255,.9)">#1</span>
+                </div>
+                <div style="padding:10px 12px">
+                  <div style="font-size:9px;color:#10b981;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">This week · Artists</div>
+                  <div style="font-size:14px;font-weight:700;color:#fff">Shashwat Sachdev</div>
+                  <div style="font-size:11px;color:#71717a">40 plays</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1c1c1e">
+                <div style="width:18px;font-size:12px;font-weight:700;color:#71717a;text-align:center">2</div>
+                <div style="width:28px;height:28px;background:#27272a;border-radius:5px;flex-shrink:0"></div>
+                <div style="flex:1;font-size:12px;font-weight:600;color:#fff">Isaiah Rashad</div>
+                <div style="font-size:10px;color:#10b981">↑ +3</div>
+              </div>
+            </div>
+          </div>
+          <!-- bottom sheet overlay hint -->
+          <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(9,9,11,.95) 60%,transparent);height:80px;border-radius:0 0 12px 12px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:8px">
+            <div style="width:36px;height:4px;background:#3f3f46;border-radius:2px;margin-bottom:6px"></div>
+            <div style="font-size:10px;color:#71717a">Range: <span style="color:#10b981">This week</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Segmented + bottom sheet</h3>
+      <p>Entity tabs always visible. Range lives in a bottom sheet (tap Filter). Cleaner header, all 4 entity types fit without scrolling.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Scrolls with content -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#09090b;font-family:-apple-system,sans-serif;padding:0">
+      <div style="max-width:220px;margin:0 auto;padding:12px 0 0">
+        <!-- minimal sticky title only -->
+        <div style="background:#111113;border-bottom:1px solid #27272a;padding:10px 12px 10px">
+          <div style="font-size:15px;font-weight:700;color:#fff">Listening Report</div>
+        </div>
+        <!-- controls scroll with page -->
+        <div style="padding:12px">
+          <div style="display:flex;gap:5px;margin-bottom:6px;overflow:hidden">
+            <div style="background:#10b981;color:#fff;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Week</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Month</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Year</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Custom</div>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:12px;overflow:hidden">
+            <div style="background:#7c3aed;color:#fff;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Artists</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Albums</div>
+            <div style="background:#27272a;color:#a1a1aa;font-size:10px;font-weight:600;padding:4px 9px;border-radius:20px">Tracks</div>
+          </div>
+          <!-- hero -->
+          <div style="background:#18181b;border:1px solid #27272a;border-radius:10px;overflow:hidden;margin-bottom:8px">
+            <div style="display:flex;align-items:stretch">
+              <div style="width:56px;background:linear-gradient(135deg,#10b981,#065f46);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="font-size:22px;font-weight:900;color:rgba(255,255,255,.9)">#1</span>
+              </div>
+              <div style="padding:10px 12px">
+                <div style="font-size:14px;font-weight:700;color:#fff">Shashwat Sachdev</div>
+                <div style="font-size:11px;color:#71717a">40 plays</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;opacity:.7">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1c1c1e">
+              <div style="width:18px;font-size:12px;font-weight:700;color:#71717a;text-align:center">2</div>
+              <div style="width:28px;height:28px;background:#27272a;border-radius:5px;flex-shrink:0"></div>
+              <div style="flex:1;font-size:12px;font-weight:600;color:#fff">Isaiah Rashad</div>
+              <div style="font-size:10px;color:#10b981">↑ +3</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Inline controls</h3>
+      <p>Controls scroll with the page. Minimal sticky header. More vertical space for the list. Controls disappear once you're browsing.</p>
+    </div>
+  </div>
+
+</div>

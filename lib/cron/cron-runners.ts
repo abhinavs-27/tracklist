@@ -740,6 +740,21 @@ export async function runSpotifyEnrichmentRetry(
 
     await syncListensSpotifyTrackIdsFromSongs(admin, { limit: 800 });
 
+    // Clear flag for rows that can never be enriched — no LFM identity to search by.
+    // These accumulate silently and inflate the pending count.
+    await Promise.all([
+      admin
+        .from("tracks")
+        .update({ needs_spotify_enrichment: false })
+        .eq("needs_spotify_enrichment", true)
+        .is("lastfm_name", null),
+      admin
+        .from("artists")
+        .update({ needs_spotify_enrichment: false })
+        .eq("needs_spotify_enrichment", true)
+        .is("lastfm_name", null),
+    ]);
+
     const cappedSongs = Math.min(200, Math.max(1, batchSongs));
     const cappedArtists = Math.min(100, Math.max(1, batchArtists));
 

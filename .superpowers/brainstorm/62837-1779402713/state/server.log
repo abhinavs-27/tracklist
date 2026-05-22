@@ -1,1 +1,7 @@
 {"type":"server-started","port":64266,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:64266","screen_dir":"/Users/abhinav/tracklist/.superpowers/brainstorm/62837-1779402713/content","state_dir":"/Users/abhinav/tracklist/.superpowers/brainstorm/62837-1779402713/state"}
+{"type":"screen-added","file":"/Users/abhinav/tracklist/.superpowers/brainstorm/62837-1779402713/content/direction.html"}
+{"source":"user-event","type":"click","text":"#1\n          \n          \n            This week · Artists\n            Shashwat Sachdev\n            40 plays this period\n          \n        \n      \n      \n      \n        \n          2\n          \n          Isaiah Rashad\n          22\n          ↑ +3\n        \n        \n          3\n          \n          Drake\n          21\n          ↓ −1\n        \n        \n          4\n          \n          Stevie Wonder\n          19\n          —\n        \n      \n    \n    \n      B — Charts Magazine\n      #1 gets a big hero treatment. Rest are tight rows below. Editorial feel — like seeing your own chart.","choice":"b","id":null,"timestamp":1779402928347}
+{"type":"screen-added","file":"/Users/abhinav/tracklist/.superpowers/brainstorm/62837-1779402713/content/mobile-controls.html"}
+{"type":"screen-added","file":"/Users/abhinav/tracklist/.superpowers/brainstorm/62837-1779402713/content/date-filter.html"}
+{"type":"screen-added","file":"/Users/abhinav/tracklist/.superpowers/brainstorm/62837-1779402713/content/full-design.html"}
+{"type":"server-stopped","reason":"idle timeout"}
