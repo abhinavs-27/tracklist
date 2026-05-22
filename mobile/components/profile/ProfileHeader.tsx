@@ -52,8 +52,7 @@ export function ProfileHeader({
         ) : (
           <View style={s.bannerFallback} />
         )}
-        {/* Bottom fade */}
-        <View style={s.bannerFade} pointerEvents="none" />
+
       </View>
 
       {/* Body */}
@@ -133,10 +132,7 @@ const s = StyleSheet.create({
   bannerSlot: { flex: 1, height: BANNER_H },
   bannerSlotFill: { backgroundColor: "#27272a" },
   bannerFallback: { flex: 1, backgroundColor: "#18181b" },
-  bannerFade: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 16,
-    backgroundColor: "rgba(9,9,11,0.25)",
-  },
+  bannerFade: {},
 
   body: { paddingHorizontal: 16, paddingBottom: 4 },
 
