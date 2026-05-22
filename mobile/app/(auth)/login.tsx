@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -26,6 +25,11 @@ export default function LoginScreen() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [appleBusy, setAppleBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    void AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => setAppleAvailable(false));
+  }, []);
 
   const busy = googleBusy || appleBusy;
 
@@ -84,8 +88,8 @@ export default function LoginScreen() {
 
         {error ? <Text style={s.error}>{error}</Text> : null}
 
-        {/* Apple Sign-in — iOS only, shown first per Apple HIG */}
-        {Platform.OS === "ios" ? (
+        {/* Apple Sign-in — only when native module is available (signed-in iCloud + correct entitlement) */}
+        {appleAvailable ? (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
