@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { ReviewsSectionWithData } from "@/components/reviews-section-with-data";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
+import { SongInfoTab } from "@/components/info-tab/SongInfoTab";
 import type { ReviewsResponse } from "@/lib/hooks/use-reviews";
 import type { ListenLogWithUser } from "@/types";
 import type { AlbumLeaderboardEntry } from "@/lib/queries";
 import { formatStarDisplay } from "@/lib/ratings";
 import { formatRelativeTime } from "@/lib/time";
 
-type Tab = "reviews" | "recommendations" | "social";
+type Tab = "reviews" | "info" | "recommendations" | "social";
 
 function TabNav({
   active, onChange, hasSocial, hasRecommendations,
@@ -22,6 +23,7 @@ function TabNav({
 }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "reviews", label: "Reviews" },
+    { id: "info", label: "Info" },
     ...(hasRecommendations ? [{ id: "recommendations" as Tab, label: "Recommended" }] : []),
     ...(hasSocial ? [{ id: "social" as Tab, label: "Social" }] : []),
   ];
@@ -47,6 +49,12 @@ export function SongPageTabs({
   hasSocial,
   albumImageUrl,
   relatedTracks = [],
+  producers = [],
+  songwriters = [],
+  featuring = [],
+  samples = [],
+  sampledBy = [],
+  covers = [],
 }: {
   entityId: string;
   trackName: string;
@@ -56,6 +64,12 @@ export function SongPageTabs({
   hasSocial: boolean;
   albumImageUrl: string | null;
   relatedTracks?: SpotifyApi.TrackObjectFull[];
+  producers?: any[];
+  songwriters?: any[];
+  featuring?: any[];
+  samples?: any[];
+  sampledBy?: any[];
+  covers?: any[];
 }) {
   const [active, setActive] = useState<Tab>("reviews");
   const max = leaderboard?.[0]?.playCount ?? 1;
@@ -74,6 +88,20 @@ export function SongPageTabs({
           initialData={reviewsInitialData}
         />
       </div>
+
+      {/* Info */}
+      {active === "info" && (
+        <div className="mt-6">
+          <SongInfoTab
+            producers={producers}
+            songwriters={songwriters}
+            featuring={featuring}
+            samples={samples}
+            sampledBy={sampledBy}
+            covers={covers}
+          />
+        </div>
+      )}
 
       {/* Recommendations */}
       {hasRecommendations && (

@@ -19,6 +19,8 @@ import {
 } from "@/lib/validation";
 import { isSocialInboxAndMusicRecUiEnabled } from "@/lib/feature-social-music-rec-ui";
 import { withAlbumPagePhaseLog } from "@/lib/album-page-load-log";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getAlbumInfoTabData } from "@/lib/musicbrainz/db-queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -125,6 +127,9 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const viewerId = session?.user?.id ?? null;
   const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();
 
+  const supabase = await createSupabaseServerClient();
+  const albumInfoData = await getAlbumInfoTabData(supabase, entityId).catch(() => ({ producers: [], songwriters: [], labels: [] }));
+
   const recommendationsNode = showAlbumRecUi ? (
     <Suspense fallback={
       <div>
@@ -156,6 +161,9 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         viewerTrackRatings={viewerTrackRatings}
         recommendationsNode={recommendationsNode}
         leaderboardNode={leaderboardNode}
+        producers={albumInfoData.producers}
+        songwriters={albumInfoData.songwriters}
+        labels={albumInfoData.labels}
       />
     </AlbumReviewsProvider>
   );

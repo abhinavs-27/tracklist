@@ -20,6 +20,8 @@ import { redirectToCanonicalEntityIfNeeded } from "@/lib/catalog/redirect-to-can
 import { formatStarDisplay } from "@/lib/ratings";
 import { isUUID, isValidSpotifyId, normalizeReviewEntityId } from "@/lib/validation";
 import { SongPageTabs } from "@/app/song/[id]/song-page-tabs";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSongInfoTabData } from "@/lib/musicbrainz/db-queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -39,6 +41,7 @@ function SongPageTabsLoader({
   listensPromise,
   relatedPromise,
   leaderboardPromise,
+  songInfoPromise,
 }: {
   entityId: string;
   trackName: string;
@@ -48,11 +51,13 @@ function SongPageTabsLoader({
   listensPromise: Promise<ListenLogWithUser[]>;
   relatedPromise: Promise<SpotifyApi.TrackObjectFull[]>;
   leaderboardPromise: Promise<AlbumLeaderboardEntry[] | null>;
+  songInfoPromise: Promise<{ producers: any[]; songwriters: any[]; featuring: any[]; samples: any[]; sampledBy: any[]; covers: any[] }>;
 }) {
   const reviewsData = use(reviewsPromise);
   const recentListens = use(listensPromise);
   const relatedTracks = use(relatedPromise);
   const leaderboard = use(leaderboardPromise);
+  const songInfo = use(songInfoPromise);
 
   return (
     <SongPageTabs
@@ -64,6 +69,12 @@ function SongPageTabsLoader({
       hasSocial={!!viewerId}
       albumImageUrl={image}
       relatedTracks={relatedTracks}
+      producers={songInfo.producers}
+      songwriters={songInfo.songwriters}
+      featuring={songInfo.featuring}
+      samples={songInfo.samples}
+      sampledBy={songInfo.sampledBy}
+      covers={songInfo.covers}
     />
   );
 }
@@ -119,6 +130,10 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const leaderboardPromise = viewerId
     ? getSongFriendLeaderboard(viewerId, entityId).catch(() => null)
     : Promise.resolve(null);
+  const songInfoPromise = (async () => {
+    const supabase = await createSupabaseServerClient();
+    return getSongInfoTabData(supabase, entityId);
+  })().catch(() => ({ producers: [], songwriters: [], featuring: [], samples: [], sampledBy: [], covers: [] }));
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
@@ -204,6 +219,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
           listensPromise={listensPromise}
           relatedPromise={relatedPromise}
           leaderboardPromise={leaderboardPromise}
+          songInfoPromise={songInfoPromise}
         />
       </Suspense>
     </div>

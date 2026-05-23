@@ -25,6 +25,8 @@ import { ArtistPopularTracks } from "@/app/artist/[id]/artist-popular-tracks";
 import { RecentListensSection } from "./recent-listens-section";
 import { ArtistFriendLeaderboard } from "./artist-friend-leaderboard";
 import { ArtistTabs } from "./artist-tabs";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getArtistInfoTabData } from "@/lib/musicbrainz/db-queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -73,6 +75,14 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const showAlbumsViewMore = popularAlbumsResult.hasMoreAlbums;
   const heroTrack = topTracks[0]?.track ?? null;
   const image = artist.images?.[0]?.url;
+
+  // Fetch info tab data (bio, members, label history, external links)
+  const supabase = await createSupabaseServerClient();
+  const [infoTabData, artistMetaResult] = await Promise.all([
+    getArtistInfoTabData(supabase, entityId).catch(() => ({ members: [], labelHistory: [] })),
+    supabase.from("artists").select("bio, external_links").eq("id", entityId).maybeSingle(),
+  ]);
+  const artistMeta = artistMetaResult.data;
 
   // Derive community stats from albums already fetched
   const totalCommunityPlays = popularAlbums.reduce((s, a) => s + (a.listen_count ?? 0), 0);
@@ -207,6 +217,10 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
       <ArtistTabs
         hasSocial={!!viewerId}
+        bio={artistMeta?.bio ?? null}
+        members={infoTabData.members}
+        labelHistory={infoTabData.labelHistory}
+        externalLinks={(artistMeta?.external_links as Record<string, string> | null) ?? null}
         generalContent={
           <div className="space-y-8">
             {topTracks?.length ? <ArtistPopularTracks tracks={topTracks} /> : null}
