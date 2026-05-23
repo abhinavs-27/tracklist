@@ -97,7 +97,8 @@ export async function enrichArtist(artistUuid: string): Promise<void> {
   }
 
   // ── Credits ────────────────────────────────────────────────────────────────
-  if (!needsCredits || !mbid) {
+  if (!needsCredits) return;
+  if (!mbid) {
     await supabase
       .from("artists")
       .update({ credits_enriched_at: new Date().toISOString() })

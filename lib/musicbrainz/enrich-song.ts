@@ -70,14 +70,14 @@ export async function enrichSong(songUuid: string): Promise<void> {
       if (rel.type === "producer") {
         const artistId = await upsertCreditArtist(supabase, rel.artist, { isProducer: true });
         const { error } = await supabase.from("song_producers").insert({ song_id: songUuid, artist_id: artistId });
-        if (error && !error.message.includes("duplicate")) {
+        if (error && error.code !== "23505") {
           console.warn("[enrich-song] song_producers insert error", error.message);
         }
       }
       if (rel.type === "lyricist" || rel.type === "composer" || rel.type === "writer") {
         const artistId = await upsertCreditArtist(supabase, rel.artist, { isSongwriter: true });
         const { error } = await supabase.from("song_songwriters").insert({ song_id: songUuid, artist_id: artistId });
-        if (error && !error.message.includes("duplicate")) {
+        if (error && error.code !== "23505") {
           console.warn("[enrich-song] song_songwriters insert error", error.message);
         }
       }
@@ -88,7 +88,7 @@ export async function enrichSong(songUuid: string): Promise<void> {
       const sampledId = await findTrackByMbid(supabase, rel.recording.id);
       if (sampledId) {
         const { error } = await supabase.from("song_samples").insert({ song_id: songUuid, sampled_song_id: sampledId });
-        if (error && !error.message.includes("duplicate")) {
+        if (error && error.code !== "23505") {
           console.warn("[enrich-song] song_samples insert error", error.message);
         }
       }
@@ -97,7 +97,7 @@ export async function enrichSong(songUuid: string): Promise<void> {
       const originalId = await findTrackByMbid(supabase, rel.recording.id);
       if (originalId) {
         const { error } = await supabase.from("song_covers").insert({ song_id: songUuid, original_song_id: originalId });
-        if (error && !error.message.includes("duplicate")) {
+        if (error && error.code !== "23505") {
           console.warn("[enrich-song] song_covers insert error", error.message);
         }
       }

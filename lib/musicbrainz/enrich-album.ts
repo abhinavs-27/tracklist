@@ -96,7 +96,7 @@ export async function enrichAlbum(albumUuid: string): Promise<void> {
     const { error: labelErr } = await supabase
       .from("album_labels")
       .insert({ album_id: albumUuid, label_id: labelId });
-    if (labelErr && !labelErr.message.includes("duplicate")) {
+    if (labelErr && labelErr.code !== "23505") {
       console.warn("[enrich-album] album_labels insert error", albumUuid, labelErr.message);
     }
   }
@@ -108,14 +108,14 @@ export async function enrichAlbum(albumUuid: string): Promise<void> {
     if (rel.type === "producer") {
       const artistId = await upsertCreditArtist(supabase, rel.artist, { isProducer: true });
       const { error } = await supabase.from("album_producers").insert({ album_id: albumUuid, artist_id: artistId });
-      if (error && !error.message.includes("duplicate")) {
+      if (error && error.code !== "23505") {
         console.warn("[enrich-album] album_producers insert error", error.message);
       }
     }
     if (rel.type === "lyricist" || rel.type === "composer" || rel.type === "writer") {
       const artistId = await upsertCreditArtist(supabase, rel.artist, { isSongwriter: true });
       const { error } = await supabase.from("album_songwriters").insert({ album_id: albumUuid, artist_id: artistId });
-      if (error && !error.message.includes("duplicate")) {
+      if (error && error.code !== "23505") {
         console.warn("[enrich-album] album_songwriters insert error", error.message);
       }
     }
