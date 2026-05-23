@@ -11,10 +11,13 @@ import {
   getTrackStatsForTrackIds,
 } from "@/lib/queries";
 import { isValidSpotifyId } from "@/lib/validation";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export const GET = withHandler(async (_request, { user, params }) => {
     const { id } = params;
     if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
+
+    const supabase = await createSupabaseServerClient();
 
     let albumResp: Awaited<ReturnType<typeof getOrFetchAlbum>>;
     try {
@@ -53,6 +56,28 @@ export const GET = withHandler(async (_request, { user, params }) => {
 
     const review_count = reviewsResult?.count ?? engagement.review_count;
 
+    // Info tab: fetch enrichment data + trigger re-enrichment if stale
+    const { data: albumMeta } = await supabase
+      .from("albums")
+      .select("bio, bio_source, mbid, release_type, credits_enriched_at, bio_enriched_at")
+      .eq("id", entityId)
+      .maybeSingle();
+
+    const creditsStale =
+      !albumMeta?.credits_enriched_at ||
+      Date.now() - new Date(albumMeta?.credits_enriched_at as string).getTime() > 365 * 24 * 60 * 60 * 1000;
+
+    if (creditsStale) {
+      void import("@/lib/jobs/musicbrainzQueue")
+        .then(({ enqueueMusicBrainzEnrich }) =>
+          enqueueMusicBrainzEnrich({ name: "enrich_album", albumId: entityId }),
+        )
+        .catch(() => null);
+    }
+
+    const { getAlbumInfoTabData } = await import("@/lib/musicbrainz/db-queries");
+    const infoTabData = await getAlbumInfoTabData(supabase, entityId);
+
     return apiOk({
       metadata_complete,
       album: {
@@ -87,6 +112,13 @@ export const GET = withHandler(async (_request, { user, params }) => {
       reviews: {
         items: reviews,
       },
+      bio: albumMeta?.bio ?? null,
+      bio_source: albumMeta?.bio_source ?? null,
+      release_type: albumMeta?.release_type ?? null,
+      credits_enriched_at: albumMeta?.credits_enriched_at ?? null,
+      producers: infoTabData.producers,
+      songwriters: infoTabData.songwriters,
+      labels: infoTabData.labels,
     });
 });
 
