@@ -142,6 +142,47 @@ songsRouter.get("/:id", async (req, res) => {
       })(),
     ]);
 
+    // Info tab data — credits, samples, covers
+    const [
+      producersResult,
+      songwritersResult,
+      featResult,
+      samplesResult,
+      sampledByResult,
+      coversResult,
+      creditsMetaResult,
+    ] = await Promise.all([
+      supabase.from("song_producers").select("artists(id, name, mbid)").eq("song_id", canonicalId),
+      supabase.from("song_songwriters").select("artists(id, name, mbid)").eq("song_id", canonicalId),
+      supabase.from("track_featuring_artists").select("artists(id, name, mbid)").eq("track_id", canonicalId),
+      supabase.from("song_samples").select("tracks!song_samples_sampled_song_id_fkey(id, name, albums(release_date, image_url), artists(id, name))").eq("song_id", canonicalId).limit(10),
+      supabase.from("song_samples").select("tracks!song_samples_song_id_fkey(id, name, albums(release_date, image_url), artists(id, name))").eq("sampled_song_id", canonicalId).limit(10),
+      supabase.from("song_covers").select("tracks!song_covers_original_song_id_fkey(id, name, albums(release_date, image_url), artists(id, name))").eq("song_id", canonicalId).limit(10),
+      supabase.from("tracks").select("credits_enriched_at").eq("id", canonicalId).maybeSingle(),
+    ]);
+
+    function toSongRef(r: any, trackKey: string) {
+      const t = r[trackKey];
+      if (!t) return null;
+      const releaseDate: string | null = (t as any).albums?.release_date ?? null;
+      return {
+        id: (t as any).id,
+        name: (t as any).name,
+        artist_name: (t as any).artists?.name ?? "",
+        artist_id: (t as any).artists?.id ?? "",
+        album_image_url: (t as any).albums?.image_url ?? null,
+        release_year: releaseDate ? parseInt(releaseDate.slice(0, 4), 10) : null,
+      };
+    }
+
+    const producers = (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    const songwriters = (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    const featuring = (featResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    const samples = (samplesResult.data ?? []).map((r: any) => toSongRef(r, "tracks")).filter(Boolean);
+    const sampled_by = (sampledByResult.data ?? []).map((r: any) => toSongRef(r, "tracks")).filter(Boolean);
+    const covers = (coversResult.data ?? []).map((r: any) => toSongRef(r, "tracks")).filter(Boolean);
+    const credits_enriched_at = (creditsMetaResult.data as any)?.credits_enriched_at ?? null;
+
     const reviews = (reviewsResult?.reviews ?? []).map((r) => ({
       id: r.id,
       user_id: r.user_id,
@@ -184,6 +225,13 @@ songsRouter.get("/:id", async (req, res) => {
           ? { id: reviewsResult.my_review.id, rating: reviewsResult.my_review.rating, review_text: reviewsResult.my_review.review_text }
           : null,
       },
+      producers,
+      songwriters,
+      featuring,
+      samples,
+      sampled_by,
+      covers,
+      credits_enriched_at,
     });
   } catch (e) {
     return internalError(res, e);
