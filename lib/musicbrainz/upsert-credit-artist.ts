@@ -25,7 +25,8 @@ export async function upsertCreditArtist(
     if (flags.isProducer && !byMbid.is_producer) updates.is_producer = true;
     if (flags.isSongwriter && !byMbid.is_songwriter) updates.is_songwriter = true;
     if (Object.keys(updates).length) {
-      await supabase.from("artists").update(updates).eq("id", byMbid.id);
+      const { error: updateErr } = await supabase.from("artists").update(updates).eq("id", byMbid.id);
+      if (updateErr) console.warn("[upsert-credit-artist] byMbid update failed", byMbid.id, updateErr.message);
     }
     return byMbid.id as string;
   }
@@ -38,7 +39,7 @@ export async function upsertCreditArtist(
     .maybeSingle();
 
   if (byName) {
-    await supabase
+    const { error: updateErr } = await supabase
       .from("artists")
       .update({
         mbid: mb.id,
@@ -46,19 +47,23 @@ export async function upsertCreditArtist(
         ...(flags.isSongwriter ? { is_songwriter: true } : {}),
       })
       .eq("id", byName.id);
+    if (updateErr) console.warn("[upsert-credit-artist] byName update failed", byName.id, updateErr.message);
     return byName.id as string;
   }
 
-  // Create minimal artist record
+  // Create minimal artist record — use upsert to handle concurrent enrichment of the same producer
   const { data, error } = await supabase
     .from("artists")
-    .insert({
-      name: mb.name,
-      mbid: mb.id,
-      data_source: "musicbrainz",
-      is_producer: flags.isProducer ?? false,
-      is_songwriter: flags.isSongwriter ?? false,
-    })
+    .upsert(
+      {
+        name: mb.name,
+        mbid: mb.id,
+        data_source: "musicbrainz",
+        is_producer: flags.isProducer ?? false,
+        is_songwriter: flags.isSongwriter ?? false,
+      },
+      { onConflict: "mbid", ignoreDuplicates: false },
+    )
     .select("id")
     .single();
 

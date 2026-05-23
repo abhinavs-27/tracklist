@@ -13,17 +13,20 @@ export async function upsertLabel(
     : null;
 
   // Try match by MBID first, then normalized name
+  const orParts = [`name_normalized.eq.${nameNorm}`];
+  if (mb.id) orParts.unshift(`mbid.eq.${mb.id}`);
   const { data: existing } = await supabase
     .from("labels")
     .select("id")
-    .or(`mbid.eq.${mb.id},name_normalized.eq.${nameNorm}`)
+    .or(orParts.join(","))
     .maybeSingle();
 
   if (existing) {
-    await supabase
+    const { error: updateErr } = await supabase
       .from("labels")
       .update({ mbid: mb.id, name: mb.name, founded_year: foundedYear, country: mb.country ?? null })
       .eq("id", existing.id);
+    if (updateErr) console.warn("[upsert-label] update failed", existing.id, updateErr.message);
     return existing.id as string;
   }
 
