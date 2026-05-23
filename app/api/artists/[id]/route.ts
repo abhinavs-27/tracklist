@@ -96,7 +96,29 @@ export const GET = withHandler(async (_request, ctx) => {
       });
     }
 
-    return apiOk<ArtistResponse>({
+    // Fetch Info tab data (non-blocking enrichment trigger + DB read)
+    const { data: artistMeta } = await supabase
+      .from("artists")
+      .select("bio, bio_source, external_links, mbid, credits_enriched_at, bio_enriched_at, is_producer, is_songwriter")
+      .eq("id", lookupId)
+      .maybeSingle();
+
+    const creditsStale =
+      !artistMeta?.credits_enriched_at ||
+      Date.now() - new Date(artistMeta.credits_enriched_at as string).getTime() > 365 * 24 * 60 * 60 * 1000;
+
+    if (creditsStale) {
+      void import("@/lib/jobs/musicbrainzQueue")
+        .then(({ enqueueMusicBrainzEnrich }) =>
+          enqueueMusicBrainzEnrich({ name: "enrich_artist", artistId: lookupId }),
+        )
+        .catch(() => null);
+    }
+
+    const { getArtistInfoTabData } = await import("@/lib/musicbrainz/db-queries");
+    const infoTabData = await getArtistInfoTabData(supabase, lookupId);
+
+    return apiOk({
       metadata_complete,
       artist: {
         id: artist.id,
@@ -113,6 +135,14 @@ export const GET = withHandler(async (_request, ctx) => {
         favorite_count: 0,
         review_count: 0,
       },
+      bio: artistMeta?.bio ?? null,
+      bio_source: artistMeta?.bio_source ?? null,
+      external_links: artistMeta?.external_links ?? null,
+      is_producer: artistMeta?.is_producer ?? false,
+      is_songwriter: artistMeta?.is_songwriter ?? false,
+      credits_enriched_at: artistMeta?.credits_enriched_at ?? null,
+      members: infoTabData.members,
+      label_history: infoTabData.labelHistory,
     });
   } catch (e) {
     return apiInternalError(e);

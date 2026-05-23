@@ -34,11 +34,39 @@ export const GET = withHandler(
         getReviewsForArtist(canonicalId, 6),
       ]);
 
+    const { data: artistMeta } = await supabase
+      .from("artists")
+      .select("bio, bio_source, external_links, mbid, credits_enriched_at, is_producer, is_songwriter")
+      .eq("id", canonicalId)
+      .maybeSingle();
+
+    const creditsStale =
+      !artistMeta?.credits_enriched_at ||
+      Date.now() - new Date(artistMeta.credits_enriched_at as string).getTime() > 365 * 24 * 60 * 60 * 1000;
+
+    if (creditsStale) {
+      void import("@/lib/jobs/musicbrainzQueue")
+        .then(({ enqueueMusicBrainzEnrich }) =>
+          enqueueMusicBrainzEnrich({ name: "enrich_artist", artistId: canonicalId }),
+        )
+        .catch(() => null);
+    }
+
+    const { getArtistInfoTabData } = await import("@/lib/musicbrainz/db-queries");
+    const infoTabData = await getArtistInfoTabData(supabase, canonicalId);
+
     return apiOk({
       viewerStats: viewerStatsRes.status === "fulfilled" ? viewerStatsRes.value : null,
       recentListens: recentListensRes.status === "fulfilled" ? recentListensRes.value : [],
       leaderboard: leaderboardRes.status === "fulfilled" ? (leaderboardRes.value ?? []) : [],
       reviews: reviewsRes.status === "fulfilled" ? reviewsRes.value : [],
+      bio: artistMeta?.bio ?? null,
+      bio_source: artistMeta?.bio_source ?? null,
+      external_links: artistMeta?.external_links ?? null,
+      is_producer: artistMeta?.is_producer ?? false,
+      is_songwriter: artistMeta?.is_songwriter ?? false,
+      members: infoTabData.members,
+      label_history: infoTabData.labelHistory,
     });
   },
   { requireAuth: false },
