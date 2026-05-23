@@ -41,9 +41,9 @@ export async function enrichAlbum(albumUuid: string): Promise<void> {
   let mbid = album.mbid as string | null;
   if (!mbid && needsCredits) {
     const { data: extId } = await supabase
-      .from("external_ids")
+      .from("album_external_ids")
       .select("external_id")
-      .eq("entity_id", albumUuid)
+      .eq("album_id", albumUuid)
       .eq("source", "spotify")
       .maybeSingle();
 

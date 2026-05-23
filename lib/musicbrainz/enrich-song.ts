@@ -40,9 +40,9 @@ export async function enrichSong(songUuid: string): Promise<void> {
   let mbid = track.mbid as string | null;
   if (!mbid) {
     const { data: extId } = await supabase
-      .from("external_ids")
+      .from("track_external_ids")
       .select("external_id")
-      .eq("entity_id", songUuid)
+      .eq("track_id", songUuid)
       .eq("source", "spotify")
       .maybeSingle();
 
