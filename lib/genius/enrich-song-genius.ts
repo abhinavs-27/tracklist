@@ -27,6 +27,7 @@ export function isTitleMatch(trackTitle: string, geniusTitle: string): boolean {
 export function isArtistMatch(trackArtist: string, geniusArtist: string): boolean {
   const a = trackArtist.toLowerCase().trim();
   const b = geniusArtist.toLowerCase().trim();
+  if (!a || !b) return false;
   return a.includes(b) || b.includes(a);
 }
 
@@ -77,25 +78,29 @@ export async function enrichSongGenius(
 
   let foundCredits = false;
 
-  for (const a of song.producer_artists ?? []) {
-    const artistId = await upsertCreditArtist(supabase, { id: null, name: a.name }, { isProducer: true });
-    const { error } = await supabase.from("song_producers").insert({ song_id: songUuid, artist_id: artistId });
-    if (!error) foundCredits = true;
-    else if (error.code !== "23505") console.warn("[enrich-song-genius] song_producers insert error", error.message);
-  }
+  try {
+    for (const a of song.producer_artists ?? []) {
+      const artistId = await upsertCreditArtist(supabase, { id: null, name: a.name }, { isProducer: true });
+      const { error } = await supabase.from("song_producers").insert({ song_id: songUuid, artist_id: artistId });
+      if (!error) foundCredits = true;
+      else if (error.code !== "23505") console.warn("[enrich-song-genius] song_producers insert error", error.message);
+    }
 
-  for (const a of song.writer_artists ?? []) {
-    const artistId = await upsertCreditArtist(supabase, { id: null, name: a.name }, { isSongwriter: true });
-    const { error } = await supabase.from("song_songwriters").insert({ song_id: songUuid, artist_id: artistId });
-    if (!error) foundCredits = true;
-    else if (error.code !== "23505") console.warn("[enrich-song-genius] song_songwriters insert error", error.message);
-  }
+    for (const a of song.writer_artists ?? []) {
+      const artistId = await upsertCreditArtist(supabase, { id: null, name: a.name }, { isSongwriter: true });
+      const { error } = await supabase.from("song_songwriters").insert({ song_id: songUuid, artist_id: artistId });
+      if (!error) foundCredits = true;
+      else if (error.code !== "23505") console.warn("[enrich-song-genius] song_songwriters insert error", error.message);
+    }
 
-  for (const a of song.featured_artists ?? []) {
-    const artistId = await upsertCreditArtist(supabase, { id: null, name: a.name }, {});
-    const { error } = await supabase.from("track_featuring_artists").insert({ track_id: songUuid, artist_id: artistId });
-    if (!error) foundCredits = true;
-    else if (error.code !== "23505") console.warn("[enrich-song-genius] track_featuring_artists insert error", error.message);
+    for (const a of song.featured_artists ?? []) {
+      const artistId = await upsertCreditArtist(supabase, { id: null, name: a.name }, {});
+      const { error } = await supabase.from("track_featuring_artists").insert({ track_id: songUuid, artist_id: artistId });
+      if (!error) foundCredits = true;
+      else if (error.code !== "23505") console.warn("[enrich-song-genius] track_featuring_artists insert error", error.message);
+    }
+  } catch (err) {
+    console.warn("[enrich-song-genius] credit insert error", (err as Error).message);
   }
 
   return foundCredits;

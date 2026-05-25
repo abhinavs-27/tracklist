@@ -44,6 +44,14 @@ describe("isTitleMatch", () => {
     // "god" is a substring of "gods plan" — but too short to be a reliable match
     expect(isTitleMatch("God", "God's Plan")).toBe(false);
   });
+
+  it("matches two short identical titles", () => {
+    expect(isTitleMatch("Hi", "Hi")).toBe(true);
+  });
+
+  it("does not match short title that is substring of different short title", () => {
+    expect(isTitleMatch("Run", "Run Run")).toBe(false);
+  });
 });
 
 describe("isArtistMatch", () => {
@@ -61,5 +69,9 @@ describe("isArtistMatch", () => {
 
   it("does not match different artists", () => {
     expect(isArtistMatch("Drake", "Kendrick Lamar")).toBe(false);
+  });
+
+  it("does not match when Genius returns empty artist name", () => {
+    expect(isArtistMatch("Drake", "")).toBe(false);
   });
 });
