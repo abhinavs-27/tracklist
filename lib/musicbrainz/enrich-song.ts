@@ -50,11 +50,15 @@ export async function enrichSong(songUuid: string): Promise<void> {
 
   // Try Genius first — faster resolution, better coverage for recent releases
   if (process.env.GENIUS_ACCESS_TOKEN) {
-    const { enrichSongGenius } = await import("@/lib/genius/enrich-song-genius");
-    const foundViaGenius = await enrichSongGenius(supabase, songUuid);
-    if (foundViaGenius) {
-      await supabase.from("tracks").update({ credits_enriched_at: new Date().toISOString() }).eq("id", songUuid);
-      return;
+    try {
+      const { enrichSongGenius } = await import("@/lib/genius/enrich-song-genius");
+      const foundViaGenius = await enrichSongGenius(supabase, songUuid);
+      if (foundViaGenius) {
+        await supabase.from("tracks").update({ credits_enriched_at: new Date().toISOString() }).eq("id", songUuid);
+        return;
+      }
+    } catch (err) {
+      console.warn("[enrich-song] Genius enrichment failed, falling through to MB", (err as Error).message);
     }
   }
 
