@@ -30,6 +30,13 @@ export function previousWeekStart(): string {
   return cur.toISOString().slice(0, 10);
 }
 
+/** Two Mondays before the current week start. */
+export function twoWeeksAgoStart(): string {
+  const cur = new Date(currentWeekStart());
+  cur.setUTCDate(cur.getUTCDate() - 14);
+  return cur.toISOString().slice(0, 10);
+}
+
 // ─── Per-week queries (use the partial index on week_start) ──────────────────
 
 export async function getWeeklyAgg(

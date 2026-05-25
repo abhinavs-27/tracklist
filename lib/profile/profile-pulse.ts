@@ -244,10 +244,31 @@ export async function getProfilePulseInsights(
   if (!uid) return null;
 
   // Play-volume counts use the rolling 7-day window (fair comparison regardless
-  // of day-of-week). Artist/genre movers come from calendar-week aggregates.
+  // of day-of-week). Artist/genre movers and soundShift come from calendar-week
+  // aggregates, but on Mondays the current-week bucket is empty.  A pre-flight
+  // count decides whether to compare current vs previous, or previous vs two-weeks-ago.
   const { current, previous } = getRolling7dVsPrior7dBounds();
   const rangeCaption = "This week · vs last week";
   const admin = createSupabaseAdminClient();
+
+  // Find the two most recent calendar weeks that have artist aggregate data.
+  // On Mondays the current-week bucket is empty, and some weeks may be missing
+  // artist rows entirely (tracks logged before Spotify enrichment ran).
+  const { data: weekRows } = await admin
+    .from("user_listening_aggregates")
+    .select("week_start")
+    .eq("user_id", uid)
+    .eq("entity_type", "artist")
+    .not("week_start", "is", null)
+    .order("week_start", { ascending: false })
+    .limit(20);
+
+  const artistWeeks = [
+    ...new Set((weekRows ?? []).map((r) => r.week_start as string)),
+  ].filter(Boolean).slice(0, 2);
+
+  const effectiveCurWeek = artistWeeks[0] ?? currentWeekStart();
+  const effectivePrevWeek = artistWeeks[1] ?? previousWeekStart();
 
   const [artistCmp, genreCmp, curIds, curWindow, prevWindow] =
     await Promise.all([
@@ -265,8 +286,8 @@ export async function getProfilePulseInsights(
         current.endExclusiveIso,
         24,
       ),
-      listeningWindowStats(uid, currentWeekStart()),
-      listeningWindowStats(uid, previousWeekStart()),
+      listeningWindowStats(uid, effectiveCurWeek),
+      listeningWindowStats(uid, effectivePrevWeek),
     ]);
 
   const firstListenMap = await getFirstListenAtForArtists(uid, curIds);

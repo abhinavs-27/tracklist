@@ -121,6 +121,27 @@ async function fetchListeningReportsRollingCompareUncached(args: {
       ? fetchArtistAggFromLogs
       : fetchGenreAggFromLogs;
 
+  // Find the two most recent weeks with entity data for this user.  On Mondays
+  // the current-week bucket is empty, and some weeks may be missing aggregates
+  // entirely (tracks logged before Spotify enrichment ran).  Fetching the two
+  // most recent populated weeks keeps movers stable regardless of day-of-week.
+  const admin = createSupabaseAdminClient();
+  const { data: weekRows } = await admin
+    .from("user_listening_aggregates")
+    .select("week_start")
+    .eq("user_id", args.userId)
+    .eq("entity_type", args.entityType)
+    .not("week_start", "is", null)
+    .order("week_start", { ascending: false })
+    .limit(20);
+
+  const entityWeeks = [
+    ...new Set((weekRows ?? []).map((r) => r.week_start as string)),
+  ].filter(Boolean).slice(0, 2);
+
+  const effectiveCurWeek = entityWeeks[0] ?? curWeek;
+  const effectivePrevWeek = entityWeeks[1] ?? prevWeek;
+
   const [
     totalPlaysCurrent,
     totalPlaysPrevious,
@@ -137,8 +158,8 @@ async function fetchListeningReportsRollingCompareUncached(args: {
       startIso: previous.startIso,
       endExclusiveIso: previous.endExclusiveIso,
     }),
-    fetchAgg(args.userId, current.startIso, current.endExclusiveIso, curWeek),
-    fetchAgg(args.userId, previous.startIso, previous.endExclusiveIso, prevWeek),
+    fetchAgg(args.userId, current.startIso, current.endExclusiveIso, effectiveCurWeek),
+    fetchAgg(args.userId, previous.startIso, previous.endExclusiveIso, effectivePrevWeek),
   ]);
 
   const percentChange =

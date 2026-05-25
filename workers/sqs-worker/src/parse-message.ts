@@ -75,6 +75,27 @@ export function parseCronJob(body: string): CronJobMessage {
         scan: typeof o.scan === "number" ? o.scan : undefined,
         gapMs: typeof o.gapMs === "number" ? o.gapMs : undefined,
       };
+    case "SNAPSHOT_TASTE_MONTHLY":
+    case "REFRESH_BLIND_SPOTS":
+    case "DRAIN_ENRICH_BACKLOG":
+      return { type: t };
+    case "ENRICH_ARTIST":
+      if (typeof o.artistId !== "string") throw new Error("ENRICH_ARTIST requires artistId");
+      return { type: "ENRICH_ARTIST" as const, artistId: o.artistId };
+    case "ENRICH_ALBUM":
+      if (typeof o.albumId !== "string") throw new Error("ENRICH_ALBUM requires albumId");
+      return { type: "ENRICH_ALBUM" as const, albumId: o.albumId };
+    case "SPOTIFY_ENRICHMENT_RETRY":
+      return {
+        type: "SPOTIFY_ENRICHMENT_RETRY" as const,
+        batchSongs: typeof o.batchSongs === "number" ? o.batchSongs : undefined,
+        batchArtists: typeof o.batchArtists === "number" ? o.batchArtists : undefined,
+      };
+    case "ARCHIVE_OLD_LOGS":
+      return {
+        type: "ARCHIVE_OLD_LOGS" as const,
+        cutoff_days: typeof o.cutoff_days === "number" ? o.cutoff_days : undefined,
+      };
     default:
       throw new Error(`Unknown cron job type: ${t}`);
   }
