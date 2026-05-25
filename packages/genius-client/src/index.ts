@@ -12,9 +12,9 @@ export interface GeniusSong {
   id: number;
   title: string;
   primary_artist: GeniusArtist;
-  producer_artists: GeniusArtist[];
-  writer_artists: GeniusArtist[];
-  featured_artists: GeniusArtist[];
+  producer_artists?: GeniusArtist[];
+  writer_artists?: GeniusArtist[];
+  featured_artists?: GeniusArtist[];
 }
 
 export interface GeniusSearchHit {
