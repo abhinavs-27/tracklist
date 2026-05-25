@@ -25,7 +25,7 @@ export function ExploreDiscoverSection({ userId }: Props) {
               href={link.href}
               className={
                 isPrimary
-                  ? "inline-flex rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"
+                  ? "inline-flex rounded-xl bg-gold-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gold-500"
                   : "inline-flex rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-200 ring-1 ring-white/[0.08] transition hover:bg-zinc-700"
               }
             >

@@ -73,7 +73,7 @@ function CommunityListenSessionsSummaryCard(props: {
               <Link
                 href={`/profile/${item.user_id}`}
                 onClick={(e) => e.stopPropagation()}
-                className="font-semibold text-white hover:text-emerald-400 hover:underline"
+                className="font-semibold text-white hover:text-gold-400 hover:underline"
               >
                 {item.username}
               </Link>
@@ -97,7 +97,7 @@ function CommunityListenSessionsSummaryCard(props: {
           <img
             src={item.artwork_url}
             alt=""
-            className={`h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-white/10 sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-emerald-500/30" : ""}`}
+            className={`h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-white/10 sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-gold-500/30" : ""}`}
           />
         ) : null}
       </div>
@@ -153,18 +153,18 @@ function AlbumListenClusterCard(props: {
             </div>
           )}
           <span
-            className={`absolute -bottom-1 -right-1 rounded-full bg-emerald-600 px-2 py-0.5 font-semibold uppercase tracking-wide text-white shadow-md ${communityMeta}`}
+            className={`absolute -bottom-1 -right-1 rounded-full bg-gold-600 px-2 py-0.5 font-semibold uppercase tracking-wide text-white shadow-md ${communityMeta}`}
           >
             Live
           </span>
         </div>
         <div className="min-w-0 flex-1 space-y-3">
           <p className={`font-semibold leading-snug text-white ${communityHeadline}`}>
-            <span className="text-emerald-400/95">{uniqueUserCount}</span>{" "}
+            <span className="text-gold-400/95">{uniqueUserCount}</span>{" "}
             {uniqueUserCount === 1 ? "person is" : "people are"} listening to{" "}
             <Link
               href={`/album/${albumId}`}
-              className="text-white underline decoration-emerald-500/50 underline-offset-2 transition hover:text-emerald-300"
+              className="text-white underline decoration-gold-500/50 underline-offset-2 transition hover:text-gold-300"
             >
               this album
             </Link>
@@ -228,7 +228,7 @@ function LiveFeedItemCard(props: {
       className={`${trending ? communityFeedCardTrending : communityFeedCard} hover:bg-zinc-900/70`}
     >
       {trending ? (
-        <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-semibold uppercase tracking-[0.12em] text-emerald-400/95 ring-1 ring-emerald-500/25">
+        <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-gold-500/10 px-2.5 py-0.5 font-semibold uppercase tracking-[0.12em] text-gold-400/95 ring-1 ring-gold-500/25">
           Trending
         </div>
       ) : null}
@@ -254,7 +254,7 @@ function LiveFeedItemCard(props: {
             <p className={`${communityBody} text-zinc-200`}>
               <Link
                 href={`/profile/${item.user_id}`}
-                className="font-semibold text-white hover:text-emerald-400 hover:underline"
+                className="font-semibold text-white hover:text-gold-400 hover:underline"
               >
                 {item.username}
               </Link>
@@ -262,7 +262,7 @@ function LiveFeedItemCard(props: {
               <span>Rated </span>
               <Link
                 href={item.entity_href!}
-                className="font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+                className="font-medium text-gold-400 hover:text-gold-300 hover:underline"
               >
                 {item.entity_name}
               </Link>
@@ -274,7 +274,7 @@ function LiveFeedItemCard(props: {
             <p className={`${communityBody} text-zinc-200`}>
               <Link
                 href={`/profile/${item.user_id}`}
-                className="font-semibold text-white hover:text-emerald-400 hover:underline"
+                className="font-semibold text-white hover:text-gold-400 hover:underline"
               >
                 {item.username}
               </Link>
@@ -301,7 +301,7 @@ function LiveFeedItemCard(props: {
               <img
                 src={item.artwork_url}
                 alt=""
-                className={`h-20 w-20 rounded-xl object-cover ring-1 ring-white/10 transition hover:opacity-90 sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-emerald-500/35" : ""}`}
+                className={`h-20 w-20 rounded-xl object-cover ring-1 ring-white/10 transition hover:opacity-90 sm:h-[5.5rem] sm:w-[5.5rem] ${trending ? "ring-gold-500/35" : ""}`}
               />
             </Link>
           ) : (
@@ -488,7 +488,7 @@ export function CommunityFeedClient(props: {
             onClick={() => setFilter(f.value)}
             className={`rounded-full px-3.5 py-2 font-medium transition ${communityBody} ${
               filter === f.value
-                ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/30"
+                ? "bg-gold-600 text-white shadow-md shadow-gold-950/30"
                 : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
             }`}
           >
@@ -533,7 +533,7 @@ export function CommunityFeedClient(props: {
                       props.ultrawideTwoColumn ? "3xl:col-span-full" : undefined
                     }
                   >
-                    <h3 className={`${communityMetaLabel} pb-1 text-emerald-500/90`}>
+                    <h3 className={`${communityMetaLabel} pb-1 text-gold-500/90`}>
                       {row.title}
                     </h3>
                   </motion.li>

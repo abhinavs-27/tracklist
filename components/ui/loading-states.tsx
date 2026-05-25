@@ -91,7 +91,7 @@ function SpinningRecord({
       className={`relative inline-block shrink-0 ${dim} ${className ?? ""}`}
       aria-hidden
     >
-      <span className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-950/85 via-teal-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_12px_40px_-12px_rgb(0_0_0/0.65)] ring-1 ring-inset ring-emerald-400/30" />
+      <span className="absolute inset-0 rounded-full bg-gradient-to-br from-gold-950/85 via-teal-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_12px_40px_-12px_rgb(0_0_0/0.65)] ring-1 ring-inset ring-gold-400/30" />
       <span
         className="absolute inset-0 rounded-full opacity-[0.85]"
         style={{

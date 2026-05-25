@@ -9,12 +9,17 @@ import { upsertLabel } from "./upsert-label";
 import { upsertCreditArtist } from "./upsert-credit-artist";
 import { fetchArtistBioLastfm, fetchBioWikipedia } from "./fetch-bio";
 
-const BIO_TTL_MS = 90 * 24 * 60 * 60 * 1000;    // 90 days
-const CREDIT_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+const BIO_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const CREDIT_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const MBID_RETRY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isStale(ts: string | null, ttlMs: number): boolean {
   if (!ts) return true;
   return Date.now() - new Date(ts).getTime() > ttlMs;
+}
+
+function staleSoonTimestamp(retryInMs: number): string {
+  return new Date(Date.now() - CREDIT_TTL_MS + retryInMs).toISOString();
 }
 
 // External link URL patterns → canonical key
@@ -56,24 +61,23 @@ export async function enrichArtist(artistUuid: string): Promise<void> {
 
   if (!artist) return;
 
-  const needsCredits = isStale(artist.credits_enriched_at as string | null, CREDIT_TTL_MS);
+  let needsCredits = isStale(artist.credits_enriched_at as string | null, CREDIT_TTL_MS);
   const needsBio = isStale(artist.bio_enriched_at as string | null, BIO_TTL_MS);
+
+  // Force retry if previously stamped but MBID was never resolved
+  if (!needsCredits && !artist.mbid && artist.credits_enriched_at) needsCredits = true;
 
   if (!needsCredits && !needsBio) return;
 
   // Resolve MBID if we don't have it
   let mbid = artist.mbid as string | null;
   if (!mbid && needsCredits) {
-    // Get Spotify ID from artist_external_ids table
-    const { data: extId } = await supabase
-      .from("artist_external_ids")
-      .select("external_id")
-      .eq("artist_id", artistUuid)
-      .eq("source", "spotify")
-      .maybeSingle();
-
-    if (extId?.external_id) {
-      mbid = await resolveArtistMbid(extId.external_id as string);
+    // resolveCanonicalArtistSpotifyInWorker checks artist_external_ids first,
+    // then falls back to Spotify search + links — handles Last.fm imports
+    const { resolveCanonicalArtistSpotifyInWorker } = await import("@/lib/jobs/resolve-canonical-spotify");
+    const spotifyId = await resolveCanonicalArtistSpotifyInWorker(artistUuid);
+    if (spotifyId) {
+      mbid = await resolveArtistMbid(spotifyId);
       if (mbid) {
         await supabase.from("artists").update({ mbid }).eq("id", artistUuid);
       }
@@ -101,7 +105,7 @@ export async function enrichArtist(artistUuid: string): Promise<void> {
   if (!mbid) {
     await supabase
       .from("artists")
-      .update({ credits_enriched_at: new Date().toISOString() })
+      .update({ credits_enriched_at: staleSoonTimestamp(MBID_RETRY_TTL_MS) })
       .eq("id", artistUuid);
     return;
   }
@@ -110,7 +114,7 @@ export async function enrichArtist(artistUuid: string): Promise<void> {
   if (!mbArtist) {
     await supabase
       .from("artists")
-      .update({ credits_enriched_at: new Date().toISOString() })
+      .update({ credits_enriched_at: staleSoonTimestamp(MBID_RETRY_TTL_MS) })
       .eq("id", artistUuid);
     return;
   }

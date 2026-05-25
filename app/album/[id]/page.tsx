@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { getSession } from "@/lib/auth";
 import { AlbumPageClient } from "@/app/album/[id]/album-page-client";
 import { AlbumRecommendationsLoader } from "@/app/album/[id]/album-recommendations-loader";
@@ -128,7 +129,20 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
   const showAlbumRecUi = isSocialInboxAndMusicRecUiEnabled();
 
   const supabase = await createSupabaseServerClient();
-  const albumInfoData = await getAlbumInfoTabData(supabase, entityId).catch(() => ({ producers: [], songwriters: [], labels: [] }));
+  const [albumInfoData, albumMetaResult] = await Promise.all([
+    getAlbumInfoTabData(supabase, entityId).catch(() => ({ producers: [], songwriters: [], labels: [] })),
+    supabase.from("albums").select("bio, credits_enriched_at").eq("id", entityId).maybeSingle(),
+  ]);
+  const creditsEnrichedAt = (albumMetaResult.data?.credits_enriched_at as string | null) ?? null;
+  const albumBio = (albumMetaResult.data?.bio as string | null) ?? null;
+
+  // Trigger enrichment immediately, non-blocking — enrichAlbum returns early if already done
+  after(async () => {
+    try {
+      const { enqueueMusicBrainzEnrich } = await import("@/lib/jobs/musicbrainzQueue");
+      await enqueueMusicBrainzEnrich({ name: "enrich_album", albumId: entityId });
+    } catch { /* swallow */ }
+  });
 
   const recommendationsNode = showAlbumRecUi ? (
     <Suspense fallback={
@@ -161,9 +175,11 @@ export default async function AlbumPage({ params }: { params: PageParams }) {
         viewerTrackRatings={viewerTrackRatings}
         recommendationsNode={recommendationsNode}
         leaderboardNode={leaderboardNode}
+        bio={albumBio}
         producers={albumInfoData.producers}
         songwriters={albumInfoData.songwriters}
         labels={albumInfoData.labels}
+        creditsEnrichedAt={creditsEnrichedAt}
       />
     </AlbumReviewsProvider>
   );

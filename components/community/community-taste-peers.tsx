@@ -28,13 +28,13 @@ function TasteNeighborsBody({
       </p>
       {similar.length > 0 ? (
         <div className="mt-3">
-          <p className="text-xs font-medium text-emerald-400/90">Most similar to you</p>
+          <p className="text-xs font-medium text-gold-400/90">Most similar to you</p>
           <ul className="mt-2 space-y-2">
             {similar.map((p) => (
               <li key={p.userId} className="flex items-center gap-2 text-sm">
                 <Link
                   href={`/profile/${p.userId}`}
-                  className="font-medium text-white hover:text-emerald-400 hover:underline"
+                  className="font-medium text-white hover:text-gold-400 hover:underline"
                 >
                   {p.username}
                 </Link>
@@ -52,7 +52,7 @@ function TasteNeighborsBody({
               <li key={p.userId} className="flex items-center gap-2 text-sm">
                 <Link
                   href={`/profile/${p.userId}`}
-                  className="font-medium text-white hover:text-emerald-400 hover:underline"
+                  className="font-medium text-white hover:text-gold-400 hover:underline"
                 >
                   {p.username}
                 </Link>

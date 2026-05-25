@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Background + Color Options</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #080810;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 40px 80px;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+.row { display: flex; gap: 28px; align-items: flex-start; }
+.col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.col-label {
+  font-size: 10px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: rgba(255,255,255,.35);
+}
+.col-sub {
+  font-size: 9px; color: rgba(255,255,255,.18);
+  letter-spacing: .06em; text-transform: uppercase; margin-top: -8px;
+}
+
+/* ── Phone shell ── */
+.phone {
+  width: 290px;
+  border-radius: 40px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.07);
+  box-shadow: 0 32px 90px rgba(0,0,0,.9);
+  position: relative;
+  /* The background is just the phone's own --bg, grain is overlaid via ::after */
+  background: var(--bg);
+}
+
+/* Full-page grain overlay — sits above background layers, below content */
+.phone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: 40px;
+  opacity: .075;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* Extended bg pattern canvas/SVG — z-index 1, below everything */
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* All phone content lives at z-index 10+ */
+.content-wrap { position: relative; z-index: 10; }
+
+/* ── Status bar ── */
+.sb { padding: 13px 22px 4px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #fff; }
+
+/* ── App header ── */
+.ah { padding: 3px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+.wordmark { font-size: 19px; font-weight: 800; color: #fff; letter-spacing: -.02em; }
+
+/* ── 4-tab row ── */
+.tabs { display: flex; padding: 10px 18px 0; border-bottom: 1px solid rgba(255,255,255,.07); margin-top: 7px; }
+.tab { padding: 7px 9px; font-size: 12px; font-weight: 500; color: rgba(255,255,255,.3); position: relative; }
+.tab.on { color: #fff; font-weight: 700; }
+.tab.on::after {
+  content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px;
+  background: var(--a); border-radius: 2px 2px 0 0;
+}
+
+/* ── Filter row — plain text only ── */
+.filters { display: flex; gap: 20px; padding: 11px 20px 0; }
+.fi { font-size: 13px; font-weight: 500; color: rgba(255,255,255,.3); }
+.fi.on { color: #fff; font-weight: 700; }
+
+/* ── Week nav ── */
+.ww { padding: 11px 18px 0; }
+.wn { display: flex; align-items: center; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); border-radius: 9px; padding: 8px 0; }
+.wa { padding: 0 12px; font-size: 13px; color: rgba(255,255,255,.22); }
+.wt { flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: #fff; }
+
+/* ── Section heading ── */
+.sh { display: flex; align-items: center; gap: 6px; padding: 13px 18px 7px; font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: rgba(255,255,255,.7); }
+.sh svg { color: var(--a); flex-shrink: 0; }
+
+/* ── Hero card — no pills, stat as plain text ── */
+.hc { margin: 0 16px; border-radius: 16px; overflow: hidden; position: relative; height: 148px; border: 1px solid rgba(255,255,255,.06); }
+.hc-bg { position: absolute; inset: -6px; }
+.hc-ov { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(6,4,12,.25) 0%, rgba(6,4,12,.60) 100%); }
+.hc-body { position: relative; z-index: 1; padding: 16px; height: 100%; display: flex; align-items: center; gap: 14px; }
+.art {
+  width: 96px; height: 96px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(160deg, #3e2e2a 0%, #231b20 50%, #161218 100%);
+  box-shadow: 0 10px 32px rgba(0,0,0,.65);
+  position: relative; overflow: hidden;
+}
+.art::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 44% 55%, rgba(80,58,54,.5) 0%, transparent 55%); }
+.hm { flex: 1; }
+/* Rank label — just colored text, no background */
+.rl { font-size: 9px; font-weight: 800; color: var(--a); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.ht { font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -.02em; line-height: 1.05; margin-bottom: 3px; }
+.har { font-size: 12px; color: rgba(255,255,255,.5); margin-bottom: 10px; }
+/* Stats — plain text, no chips/pills/backgrounds */
+.stats { font-size: 11px; color: rgba(255,255,255,.35); font-weight: 500; }
+
+/* ── Insights ── */
+.ins { margin: 0 16px; border-radius: 13px; border: 1px solid rgba(255,255,255,.055); background: rgba(255,255,255,.025); overflow: hidden; }
+.ir { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 11.5px; color: rgba(255,255,255,.5); line-height: 1.4; }
+.ir:last-child { border-bottom: none; }
+.ic { width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0; background: rgba(var(--ar),.12); border: 1px solid rgba(var(--ar),.2); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+.ic svg { color: var(--a); }
+.it { flex: 1; padding-top: 3px; }
+.hl { color: #fff; font-weight: 700; }
+
+/* ── Chart rows ── */
+.cs { margin: 10px 16px 0; }
+.cr { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.crk { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.22); width: 16px; text-align: right; }
+.cra { width: 34px; height: 34px; border-radius: 6px; flex-shrink: 0; }
+.cri { flex: 1; }
+.crt { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 1px; }
+.crs { font-size: 10px; color: rgba(255,255,255,.35); }
+.mv { font-size: 10px; font-weight: 700; color: #4ade80; }
+.mvd { color: #f87171; }
+
+/* ── Floating pill nav ── */
+.sp { height: 68px; }
+.pn {
+  position: absolute; bottom: 14px; left: 12px; right: 12px;
+  background: rgba(8,4,18,.97);
+  border: 1px solid rgba(var(--ar),.2);
+  border-radius: 100px; padding: 9px 5px;
+  display: flex; justify-content: space-around; align-items: center;
+  box-shadow: 0 10px 32px rgba(0,0,0,.7);
+  backdrop-filter: blur(20px);
+  z-index: 30;
+}
+.ni { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+.nicon { font-size: 17px; color: rgba(255,255,255,.25); line-height: 1; }
+.ntxt { font-size: 9px; color: rgba(255,255,255,.2); font-weight: 500; }
+.ni.on .nicon { color: var(--a); }
+.ni.on .ntxt { color: var(--a); font-weight: 700; }
+
+/* Art swatches */
+.sw-b { background: linear-gradient(150deg,#1a2535,#0f1a22); }
+.sw-c { background: linear-gradient(150deg,#1a2520,#0f1a15); }
+
+/* ── TOP BAND POSITIONING ── */
+/* All bands are 80px, status bar overlaps them via negative margin */
+.band { height: 80px; position: relative; overflow: hidden; }
+.overtop { margin-top: -80px; }
+
+/* Soundwave canvas band — bg and visible treated separately */
+/* Groove SVG band */
+.band::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 42px;
+  background: linear-gradient(transparent, var(--bg));
+  pointer-events: none; z-index: 2;
+}
+
+</style>
+</head>
+<body>
+
+<div class="row">
+
+  <!-- ════════════════════════════
+       A: CRIMSON + SOUNDWAVE
+       Background: faint extended wave + grain
+  ════════════════════════════ -->
+  <div class="col">
+    <div class="col-label">A — Crimson</div>
+    <div class="col-sub">Soundwave</div>
+    <div class="phone" style="--bg:#0d0708;--a:#e11d48;--ar:225,29,72;">
+
+      <!-- Full-height faint background wave -->
+      <canvas class="bg-layer" id="bg-a"></canvas>
+
+      <div class="content-wrap">
+        <!-- Visible top soundwave -->
+        <div class="band">
+          <canvas id="top-a" width="290" height="80" style="display:block;position:relative;z-index:1;"></canvas>
+        </div>
+
+        <div class="sb overtop"><span>9:41</span><span>●●●</span></div>
+        <div class="ah">
+          <div class="wordmark">Tracklist</div>
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.38)" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="tabs">
+          <div class="tab on">Billboard</div><div class="tab">Pulse</div>
+          <div class="tab">History</div><div class="tab">Activity</div>
+        </div>
+        <div class="filters">
+          <div class="fi on">Tracks</div><div class="fi">Artists</div><div class="fi">Albums</div>
+        </div>
+        <div class="ww"><div class="wn">
+          <div class="wa">‹</div><div class="wt">May 10–16, 2026 · latest</div><div class="wa">›</div>
+        </div></div>
+        <div class="sh">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="0" y="5" width="2" height="7" rx=".8"/><rect x="3" y="2.5" width="2" height="9.5" rx=".8"/><rect x="6" y="0" width="2" height="12" rx=".8"/><rect x="9" y="3.5" width="2" height="8.5" rx=".8"/></svg>
+          This Week's Billboard
+        </div>
+        <div class="hc">
+          <div class="hc-bg" style="background:linear-gradient(145deg,#3a1820 0%,#1c1018 60%,#100d12 100%);"></div>
+          <div class="hc-ov"></div>
+          <div class="hc-body">
+            <div class="art"></div>
+            <div class="hm">
+              <div class="rl">#1 This Week</div>
+              <div class="ht">Gaslight 101</div>
+              <div class="har">Odeal</div>
+              <!-- No chips/pills — plain text -->
+              <div class="stats">3 plays · 1w at #1 · 1w top 10</div>
+            </div>
+          </div>
+        </div>
+        <div class="sh" style="padding-top:11px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          This Week
+        </div>
+        <div class="ins">
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 1v8M1 5h8"/></svg></div>
+            <div class="it"><span class="hl">9 new entries</span> this week</div>
+          </div>
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="5" cy="5" r="1.5"/></svg></div>
+            <div class="it"><span class="hl">Stevie Wonder</span> took over your week</div>
+          </div>
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 9V1M1 5l4-4 4 4"/></svg></div>
+            <div class="it"><span class="hl">Gaslight 101</span> jumped 10 spots</div>
+          </div>
+        </div>
+        <div class="cs">
+          <div class="cr"><div class="crk">2</div><div class="cra sw-b"></div><div class="cri"><div class="crt">Superstition</div><div class="crs">Stevie Wonder</div></div><div class="mv">↑5</div></div>
+          <div class="cr"><div class="crk">3</div><div class="cra sw-c"></div><div class="cri"><div class="crt">Higher Ground</div><div class="crs">Stevie Wonder</div></div><div class="mv">↑2</div></div>
+          <div class="cr"><div class="crk">4</div><div class="cra" style="background:linear-gradient(150deg,#25181a,#150f12);border-radius:6px;width:34px;height:34px;flex-shrink:0;"></div><div class="cri"><div class="crt">I Wish</div><div class="crs">Stevie Wonder</div></div><div class="mv mvd">↓1</div></div>
+        </div>
+        <div class="sp"></div>
+      </div><!-- /content-wrap -->
+
+      <div class="pn">
+        <div class="ni on"><div style="width:24px;height:24px;border-radius:50%;background:rgba(225,29,72,.18);border:2px solid rgba(225,29,72,.45);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fda4af;">N</div><div class="ntxt">Home</div></div>
+        <div class="ni"><div class="nicon">⊙</div><div class="ntxt">Explore</div></div>
+        <div class="ni"><div class="nicon">○</div><div class="ntxt">Search</div></div>
+        <div class="ni"><div class="nicon">◫</div><div class="ntxt">Community</div></div>
+        <div class="ni"><div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div><div class="ntxt">You</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════
+       B: GOLD + SOUNDWAVE
+       Background: faint extended wave + grain
+  ════════════════════════════ -->
+  <div class="col">
+    <div class="col-label">B — Gold</div>
+    <div class="col-sub">Soundwave</div>
+    <div class="phone" style="--bg:#0c0a05;--a:#f59e0b;--ar:245,158,11;">
+
+      <canvas class="bg-layer" id="bg-b"></canvas>
+
+      <div class="content-wrap">
+        <div class="band">
+          <canvas id="top-b" width="290" height="80" style="display:block;position:relative;z-index:1;"></canvas>
+        </div>
+
+        <div class="sb overtop"><span>9:41</span><span>●●●</span></div>
+        <div class="ah">
+          <div class="wordmark">Tracklist</div>
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.38)" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="tabs">
+          <div class="tab on">Billboard</div><div class="tab">Pulse</div>
+          <div class="tab">History</div><div class="tab">Activity</div>
+        </div>
+        <div class="filters">
+          <div class="fi on">Tracks</div><div class="fi">Artists</div><div class="fi">Albums</div>
+        </div>
+        <div class="ww"><div class="wn">
+          <div class="wa">‹</div><div class="wt">May 10–16, 2026 · latest</div><div class="wa">›</div>
+        </div></div>
+        <div class="sh">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="0" y="5" width="2" height="7" rx=".8"/><rect x="3" y="2.5" width="2" height="9.5" rx=".8"/><rect x="6" y="0" width="2" height="12" rx=".8"/><rect x="9" y="3.5" width="2" height="8.5" rx=".8"/></svg>
+          This Week's Billboard
+        </div>
+        <div class="hc">
+          <div class="hc-bg" style="background:linear-gradient(145deg,#3a2a10 0%,#1c1508 60%,#100e06 100%);"></div>
+          <div class="hc-ov"></div>
+          <div class="hc-body">
+            <div class="art"></div>
+            <div class="hm">
+              <div class="rl">#1 This Week</div>
+              <div class="ht">Gaslight 101</div>
+              <div class="har">Odeal</div>
+              <div class="stats">3 plays · 1w at #1 · 1w top 10</div>
+            </div>
+          </div>
+        </div>
+        <div class="sh" style="padding-top:11px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          This Week
+        </div>
+        <div class="ins">
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 1v8M1 5h8"/></svg></div>
+            <div class="it"><span class="hl">9 new entries</span> this week</div>
+          </div>
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="5" cy="5" r="1.5"/></svg></div>
+            <div class="it"><span class="hl">Stevie Wonder</span> took over your week</div>
+          </div>
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 9V1M1 5l4-4 4 4"/></svg></div>
+            <div class="it"><span class="hl">Gaslight 101</span> jumped 10 spots</div>
+          </div>
+        </div>
+        <div class="cs">
+          <div class="cr"><div class="crk">2</div><div class="cra sw-b"></div><div class="cri"><div class="crt">Superstition</div><div class="crs">Stevie Wonder</div></div><div class="mv">↑5</div></div>
+          <div class="cr"><div class="crk">3</div><div class="cra sw-c"></div><div class="cri"><div class="crt">Higher Ground</div><div class="crs">Stevie Wonder</div></div><div class="mv">↑2</div></div>
+          <div class="cr"><div class="crk">4</div><div class="cra" style="background:linear-gradient(150deg,#251a0a,#150f05);border-radius:6px;width:34px;height:34px;flex-shrink:0;"></div><div class="cri"><div class="crt">I Wish</div><div class="crs">Stevie Wonder</div></div><div class="mv mvd">↓1</div></div>
+        </div>
+        <div class="sp"></div>
+      </div>
+
+      <div class="pn">
+        <div class="ni on"><div style="width:24px;height:24px;border-radius:50%;background:rgba(245,158,11,.18);border:2px solid rgba(245,158,11,.45);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fcd34d;">N</div><div class="ntxt">Home</div></div>
+        <div class="ni"><div class="nicon">⊙</div><div class="ntxt">Explore</div></div>
+        <div class="ni"><div class="nicon">○</div><div class="ntxt">Search</div></div>
+        <div class="ni"><div class="nicon">◫</div><div class="ntxt">Community</div></div>
+        <div class="ni"><div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div><div class="ntxt">You</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════
+       C: BLUE + RECORD GROOVES
+       Background: faint extended arcs + grain
+  ════════════════════════════ -->
+  <div class="col">
+    <div class="col-label">C — Blue</div>
+    <div class="col-sub">Record grooves</div>
+    <div class="phone" style="--bg:#060810;--a:#38bdf8;--ar:56,189,248;" id="phone-c">
+
+      <!-- Full-height faint groove background (SVG, sized by JS) -->
+      <svg class="bg-layer" id="bg-c-svg" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;z-index:1;pointer-events:none;"></svg>
+
+      <div class="content-wrap">
+        <!-- Visible top band — concentric arcs, bold -->
+        <div class="band">
+          <svg width="290" height="80" viewBox="0 0 290 80" xmlns="http://www.w3.org/2000/svg" style="display:block;position:relative;z-index:1;">
+            <defs><clipPath id="cp-top"><rect width="290" height="80"/></clipPath></defs>
+            <g clip-path="url(#cp-top)" stroke="#38bdf8" fill="none">
+              <circle cx="145" cy="-6" r="26"  stroke-opacity=".55" stroke-width="1.1"/>
+              <circle cx="145" cy="-6" r="41"  stroke-opacity=".46" stroke-width="1"/>
+              <circle cx="145" cy="-6" r="56"  stroke-opacity=".38" stroke-width=".95"/>
+              <circle cx="145" cy="-6" r="71"  stroke-opacity=".30" stroke-width=".9"/>
+              <circle cx="145" cy="-6" r="86"  stroke-opacity=".22" stroke-width=".85"/>
+              <circle cx="145" cy="-6" r="101" stroke-opacity=".15" stroke-width=".8"/>
+              <circle cx="145" cy="-6" r="116" stroke-opacity=".10" stroke-width=".75"/>
+              <circle cx="145" cy="-6" r="131" stroke-opacity=".06" stroke-width=".7"/>
+              <circle cx="145" cy="-6" r="150" stroke-opacity=".03" stroke-width=".6"/>
+            </g>
+          </svg>
+        </div>
+
+        <div class="sb overtop"><span>9:41</span><span>●●●</span></div>
+        <div class="ah">
+          <div class="wordmark">Tracklist</div>
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.38)" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="tabs">
+          <div class="tab on">Billboard</div><div class="tab">Pulse</div>
+          <div class="tab">History</div><div class="tab">Activity</div>
+        </div>
+        <div class="filters">
+          <div class="fi on">Tracks</div><div class="fi">Artists</div><div class="fi">Albums</div>
+        </div>
+        <div class="ww"><div class="wn">
+          <div class="wa">‹</div><div class="wt">May 10–16, 2026 · latest</div><div class="wa">›</div>
+        </div></div>
+        <div class="sh">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="0" y="5" width="2" height="7" rx=".8"/><rect x="3" y="2.5" width="2" height="9.5" rx=".8"/><rect x="6" y="0" width="2" height="12" rx=".8"/><rect x="9" y="3.5" width="2" height="8.5" rx=".8"/></svg>
+          This Week's Billboard
+        </div>
+        <div class="hc">
+          <div class="hc-bg" style="background:linear-gradient(145deg,#0a2638 0%,#071420 60%,#060c18 100%);"></div>
+          <div class="hc-ov"></div>
+          <div class="hc-body">
+            <div class="art"></div>
+            <div class="hm">
+              <div class="rl">#1 This Week</div>
+              <div class="ht">Gaslight 101</div>
+              <div class="har">Odeal</div>
+              <div class="stats">3 plays · 1w at #1 · 1w top 10</div>
+            </div>
+          </div>
+        </div>
+        <div class="sh" style="padding-top:11px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          This Week
+        </div>
+        <div class="ins">
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 1v8M1 5h8"/></svg></div>
+            <div class="it"><span class="hl">9 new entries</span> this week</div>
+          </div>
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="5" cy="5" r="1.5"/></svg></div>
+            <div class="it"><span class="hl">Stevie Wonder</span> took over your week</div>
+          </div>
+          <div class="ir">
+            <div class="ic"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 9V1M1 5l4-4 4 4"/></svg></div>
+            <div class="it"><span class="hl">Gaslight 101</span> jumped 10 spots</div>
+          </div>
+        </div>
+        <div class="cs">
+          <div class="cr"><div class="crk">2</div><div class="cra sw-b"></div><div class="cri"><div class="crt">Superstition</div><div class="crs">Stevie Wonder</div></div><div class="mv">↑5</div></div>
+          <div class="cr"><div class="crk">3</div><div class="cra sw-c"></div><div class="cri"><div class="crt">Higher Ground</div><div class="crs">Stevie Wonder</div></div><div class="mv">↑2</div></div>
+          <div class="cr"><div class="crk">4</div><div class="cra" style="background:linear-gradient(150deg,#0a1a25,#060f18);border-radius:6px;width:34px;height:34px;flex-shrink:0;"></div><div class="cri"><div class="crt">I Wish</div><div class="crs">Stevie Wonder</div></div><div class="mv mvd">↓1</div></div>
+        </div>
+        <div class="sp"></div>
+      </div>
+
+      <div class="pn">
+        <div class="ni on"><div style="width:24px;height:24px;border-radius:50%;background:rgba(56,189,248,.18);border:2px solid rgba(56,189,248,.45);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#7dd3fc;">N</div><div class="ntxt">Home</div></div>
+        <div class="ni"><div class="nicon">⊙</div><div class="ntxt">Explore</div></div>
+        <div class="ni"><div class="nicon">○</div><div class="ntxt">Search</div></div>
+        <div class="ni"><div class="nicon">◫</div><div class="ntxt">Community</div></div>
+        <div class="ni"><div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div><div class="ntxt">You</div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /row -->
+
+<script>
+// ── Draw a wave on a canvas with given color and opacity ──
+function drawWave(canvas, r, g, b, alpha, seed) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0,   `rgba(${r},${g},${b},${alpha})`);
+  grad.addColorStop(0.65, `rgba(${r},${g},${b},${alpha * .5})`);
+  grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+
+  const bars = 58, bw = 3.2, gap = 1.6;
+  const totalW = bars * (bw + gap);
+  const ox = (W - totalW) / 2;
+
+  for (let i = 0; i < bars; i++) {
+    const t = i / bars;
+    const ph = seed || 0;
+    const h = H * (
+      0.10 +
+      0.40 * Math.abs(Math.sin(t * Math.PI * 5.2 + ph + 0.3)) +
+      0.28 * Math.abs(Math.sin(t * Math.PI * 9.8 + ph + 1.2)) +
+      0.12 * Math.abs(Math.sin(t * Math.PI * 17.1 + ph + 0.6))
+    );
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(ox + i*(bw+gap), H - h, bw, h, 1.5);
+    else ctx.rect(ox + i*(bw+gap), H - h, bw, h);
+    ctx.fill();
+  }
+}
+
+// ── Draw concentric arc background ──
+function drawArcBg(svgEl, W, H, r, g, b) {
+  svgEl.setAttribute('width', W);
+  svgEl.setAttribute('height', H);
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const cx = W / 2, cy = -8;
+  const startR = 28, step = 16;
+  const count = Math.ceil((Math.sqrt(W*W + H*H) + Math.abs(cy)) / step) + 2;
+
+  let html = `<defs><clipPath id="cp-bg"><rect width="${W}" height="${H}"/></clipPath></defs>`;
+  html += `<g clip-path="url(#cp-bg)" stroke="rgb(${r},${g},${b})" fill="none">`;
+
+  for (let i = 0; i < count; i++) {
+    const radius = startR + i * step;
+    // Fade: strong near top, very faint by 60% of height
+    const distPct = (radius + Math.abs(cy)) / (H * 0.85);
+    const op = Math.max(0, 0.09 * (1 - distPct));
+    if (op < 0.005) continue;
+    html += `<circle cx="${cx}" cy="${cy}" r="${radius}" stroke-opacity="${op.toFixed(3)}" stroke-width=".7"/>`;
+  }
+  html += '</g>';
+  svgEl.innerHTML = html;
+}
+
+// ── After DOM is ready, measure phones and draw backgrounds ──
+window.addEventListener('load', () => {
+  // ── Phone A: Crimson soundwave ──
+  const topA = document.getElementById('top-a');
+  if (topA) drawWave(topA, 225, 29, 72, 0.72, 0);
+
+  const bgA = document.getElementById('bg-a');
+  if (bgA) {
+    const phoneA = bgA.closest('.phone');
+    const H = phoneA.scrollHeight || 780;
+    bgA.width  = 290;
+    bgA.height = H;
+    bgA.style.width  = '290px';
+    bgA.style.height = H + 'px';
+    drawWave(bgA, 225, 29, 72, 0.055, 1.4);
+  }
+
+  // ── Phone B: Gold soundwave ──
+  const topB = document.getElementById('top-b');
+  if (topB) drawWave(topB, 245, 158, 11, 0.72, 0);
+
+  const bgB = document.getElementById('bg-b');
+  if (bgB) {
+    const phoneB = bgB.closest('.phone');
+    const H = phoneB.scrollHeight || 780;
+    bgB.width  = 290;
+    bgB.height = H;
+    bgB.style.width  = '290px';
+    bgB.style.height = H + 'px';
+    drawWave(bgB, 245, 158, 11, 0.055, 1.8);
+  }
+
+  // ── Phone C: Blue grooves ──
+  const bgCSvg = document.getElementById('bg-c-svg');
+  if (bgCSvg) {
+    const phoneC = document.getElementById('phone-c');
+    const H = phoneC.scrollHeight || 780;
+    bgCSvg.style.height = H + 'px';
+    drawArcBg(bgCSvg, 290, H, 56, 189, 248);
+  }
+});
+</script>
+</body>
+</html>

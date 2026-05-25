@@ -102,7 +102,7 @@ export function CommunityJoinClient({ token, initialPreview, viewer }: Props) {
   return (
     <div className={`${contentMax2xl} space-y-8`}>
       <header className="text-center">
-        <p className="text-xs font-medium uppercase tracking-wide text-emerald-500/90">
+        <p className="text-xs font-medium uppercase tracking-wide text-gold-500/90">
           Community invite
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">
@@ -208,8 +208,8 @@ export function CommunityJoinClient({ token, initialPreview, viewer }: Props) {
             </p>
           </div>
         ) : viewer.joinOk && !viewer.hasLastfm ? (
-          <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-emerald-900/35 bg-emerald-950/25 p-5">
-            <p className="text-center text-sm font-medium text-emerald-100/95">
+          <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-gold-900/35 bg-gold-950/25 p-5">
+            <p className="text-center text-sm font-medium text-gold-100/95">
               You're in — nice.
             </p>
             <p className="text-center text-sm leading-relaxed text-zinc-300">
@@ -224,7 +224,7 @@ export function CommunityJoinClient({ token, initialPreview, viewer }: Props) {
             <button
               type="button"
               onClick={() => setShowLastfmModal(true)}
-              className="flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-950/40 hover:bg-emerald-500"
+              className="flex w-full items-center justify-center rounded-xl bg-gold-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-gold-950/40 hover:bg-gold-500"
             >
               Set up Last.fm now
             </button>

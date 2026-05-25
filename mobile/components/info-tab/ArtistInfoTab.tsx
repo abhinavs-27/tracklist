@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { MembersGrid } from "./MembersGrid";
 
 interface MemberEntry { id: string; name: string; role: string | null; is_active: boolean; }
@@ -9,14 +9,23 @@ interface Props {
   bio: string | null;
   members: MemberEntry[];
   labelHistory: LabelHistoryEntry[];
+  externalLinks?: Record<string, string> | null;
+  isEnriching?: boolean;
 }
 
-export function ArtistInfoTab({ bio, members, labelHistory }: Props) {
+export function ArtistInfoTab({ bio, members, labelHistory, isEnriching }: Props) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const BIO_TRUNCATE = 300;
+  const hasContent = bio || members.length > 0 || labelHistory.length > 0;
 
   return (
     <View>
+      {isEnriching && !hasContent && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 }}>
+          <ActivityIndicator size="small" color="#10B981" />
+          <Text style={{ fontSize: 13, color: "#71717A" }}>Fetching info…</Text>
+        </View>
+      )}
       {bio && (
         <View style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", color: "#52525B", marginBottom: 8 }}>About</Text>

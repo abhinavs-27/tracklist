@@ -91,7 +91,7 @@ export function CommunityInsights({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className={`p-4 ${communityInset}`}>
           <h3 className={communityMetaLabel}>Exploration</h3>
-          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-emerald-400">
+          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-gold-400">
             {pct(explorationScore)}
           </p>
           <p className={`mt-1 ${communityBody} text-zinc-400`}>{explorationLabel}</p>

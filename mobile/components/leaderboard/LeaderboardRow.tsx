@@ -71,7 +71,7 @@ export function LeaderboardRow({ entry, rank, metric }: Props) {
                 <Text
                   style={{
                     fontSize: 12,
-                    color: theme.colors.emerald,
+                    color: theme.colors.gold,
                     fontWeight: "700",
                   }}
                 >

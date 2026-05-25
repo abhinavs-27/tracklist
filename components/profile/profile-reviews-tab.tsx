@@ -59,7 +59,7 @@ export function ProfileReviewsTab({ username, isOwnProfile, hasLastfm, initialRe
           <button
             type="button"
             onClick={() => setLastfmModalOpen(true)}
-            className="shrink-0 text-emerald-400 hover:text-emerald-300"
+            className="shrink-0 text-gold-400 hover:text-gold-300"
           >
             Connect →
           </button>

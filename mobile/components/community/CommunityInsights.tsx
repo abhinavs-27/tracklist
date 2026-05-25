@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 26,
     fontWeight: "800",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   metricValAmber: {
     marginTop: 6,

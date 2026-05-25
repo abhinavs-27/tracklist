@@ -116,7 +116,7 @@ export const ListenSessionSingleStoryCard = memo(function ListenSessionSingleSto
             <span className="text-zinc-400"> listened to</span>
           </p>
           {album && (
-            <Link href={albumHref} className="mt-1 block text-sm font-medium text-white hover:text-emerald-400 hover:underline">
+            <Link href={albumHref} className="mt-1 block text-sm font-medium text-white hover:text-gold-400 hover:underline">
               {album}
             </Link>
           )}
@@ -169,7 +169,7 @@ export const ListenSessionGroupStoryCard = memo(function ListenSessionGroupStory
             <span className="font-medium text-white">{n} tracks</span>
           </p>
           {album && (
-            <Link href={albumHref} className="mt-1 block text-sm font-medium text-white hover:text-emerald-400 hover:underline">
+            <Link href={albumHref} className="mt-1 block text-sm font-medium text-white hover:text-gold-400 hover:underline">
               {album}
             </Link>
           )}

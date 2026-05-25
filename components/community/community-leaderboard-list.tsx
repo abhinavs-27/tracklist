@@ -87,7 +87,7 @@ export function CommunityLeaderboardList({
                 {isSidebar ? (
                   <Link
                     href={`/profile/${row.userId}`}
-                    className={`block min-w-0 truncate font-medium text-white hover:text-emerald-400 hover:underline ${communityBody}`}
+                    className={`block min-w-0 truncate font-medium text-white hover:text-gold-400 hover:underline ${communityBody}`}
                   >
                     {row.username}
                   </Link>
@@ -96,7 +96,7 @@ export function CommunityLeaderboardList({
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/profile/${row.userId}`}
-                        className={`font-medium text-white hover:text-emerald-400 hover:underline ${communityBody}`}
+                        className={`font-medium text-white hover:text-gold-400 hover:underline ${communityBody}`}
                       >
                         {row.username}
                       </Link>
@@ -149,7 +149,7 @@ export function CommunityLeaderboardList({
               <div className="min-w-0 flex-1 overflow-hidden">
                 <Link
                   href={`/profile/${row.userId}`}
-                  className={`block min-w-0 font-medium text-white hover:text-emerald-400 hover:underline ${communityBody} ${isSidebar ? "truncate" : ""}`}
+                  className={`block min-w-0 font-medium text-white hover:text-gold-400 hover:underline ${communityBody} ${isSidebar ? "truncate" : ""}`}
                 >
                   {row.username}
                 </Link>

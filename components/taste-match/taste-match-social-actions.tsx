@@ -317,7 +317,7 @@ export function TasteMatchSocialActions({
   const { toast } = useToast();
 
   const btn =
-    "inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700/70 bg-zinc-950/60 px-3 py-2.5 text-center text-xs font-medium text-zinc-200 shadow-sm shadow-black/20 transition-colors hover:border-emerald-500/45 hover:bg-zinc-900/90 hover:text-white sm:text-sm min-h-[44px] sm:min-h-0";
+    "inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700/70 bg-zinc-950/60 px-3 py-2.5 text-center text-xs font-medium text-zinc-200 shadow-sm shadow-black/20 transition-colors hover:border-gold-500/45 hover:bg-zinc-900/90 hover:text-white sm:text-sm min-h-[44px] sm:min-h-0";
 
   const shareTasteMatch = useCallback(async () => {
     const origin =

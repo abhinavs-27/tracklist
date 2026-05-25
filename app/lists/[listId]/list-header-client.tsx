@@ -114,14 +114,14 @@ export function ListHeaderClient({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={100}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
                 placeholder="List title"
               />
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
                 placeholder="Description (optional)"
               />
             </div>
@@ -166,7 +166,7 @@ export function ListHeaderClient({
                   type="button"
                   onClick={save}
                   disabled={saveMutation.isPending}
-                  className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-gold-600 px-3 py-2 text-xs font-medium text-white hover:bg-gold-500 disabled:opacity-50"
                 >
                   {saveMutation.isPending ? "Saving…" : "Save changes"}
                 </button>

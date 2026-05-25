@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   artist: {
     fontSize: 14,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   chev: {
     fontSize: 22,

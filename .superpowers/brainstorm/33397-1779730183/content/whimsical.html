@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whimsical Directions</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #07060e;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 32px 20px 80px;
+}
+h1 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; letter-spacing: -0.02em; }
+.page-sub { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 36px; line-height: 1.5; max-width: 600px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px;
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+.card {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.07);
+  cursor: pointer;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.card:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-4px); box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+.card.selected { border-color: #a78bfa; box-shadow: 0 0 0 4px rgba(167,139,250,0.15), 0 24px 60px rgba(0,0,0,0.5); }
+
+.mockup { height: 480px; position: relative; overflow: hidden; }
+.desc { padding: 18px 20px 20px; background: #111118; }
+.desc h3 { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 5px; letter-spacing: -0.01em; }
+.desc p { font-size: 12.5px; color: rgba(255,255,255,0.48); line-height: 1.55; }
+
+/* ════════════════════════════
+   A — AURORA GRADIENT + GLASS
+════════════════════════════ */
+.mock-a {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(109,40,217,0.65) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 80%, rgba(67,20,180,0.5) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 55% 45%, rgba(139,92,246,0.2) 0%, transparent 50%),
+    #07060e;
+  height: 100%; position: relative;
+}
+
+/* scattered sparkles */
+.sparkle {
+  position: absolute;
+  color: rgba(196,181,253,0.6);
+  font-size: 10px;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.mock-a .nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  position: relative; z-index: 2;
+}
+.mock-a .logo { font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+.mock-a .logo span { color: #a78bfa; }
+.mock-a .nav-pills { display: flex; gap: 4px; }
+.mock-a .nav-pill {
+  font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.4);
+  padding: 4px 9px; border-radius: 100px;
+}
+.mock-a .nav-pill.active {
+  background: rgba(139,92,246,0.2);
+  border: 1px solid rgba(139,92,246,0.3);
+  color: #c4b5fd;
+}
+
+/* glass card */
+.glass {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+}
+
+.mock-a .hero-card {
+  margin: 0 12px 10px;
+  padding: 14px;
+  position: relative; z-index: 2;
+}
+.mock-a .hero-inner { display: flex; gap: 12px; align-items: flex-start; }
+
+.mock-a .art {
+  width: 80px; height: 80px; flex-shrink: 0; border-radius: 12px;
+  background: linear-gradient(135deg, #4c1d95, #8B5CF6, #c4b5fd);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 12px 40px rgba(109,40,217,0.6);
+  position: relative;
+}
+/* ambient bloom behind art */
+.mock-a .art::before {
+  content: '';
+  position: absolute; inset: -16px;
+  background: radial-gradient(ellipse, rgba(139,92,246,0.55) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(10px);
+  z-index: -1;
+}
+
+.mock-a .album-title {
+  font-size: 19px; font-weight: 800; color: #fff;
+  line-height: 1.1; letter-spacing: -0.025em;
+  background: linear-gradient(135deg, #fff 40%, #c4b5fd);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.mock-a .album-artist { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+.mock-a .pill-row { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.mock-a .pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 9px; border-radius: 100px; font-size: 10px; font-weight: 600;
+  background: rgba(139,92,246,0.18); border: 1px solid rgba(139,92,246,0.28);
+  color: #c4b5fd;
+}
+.mock-a .pill.neutral {
+  background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.45);
+}
+
+.mock-a .rating-row {
+  display: flex; align-items: center; gap: 3px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.mock-a .rating-label { font-size: 9px; color: rgba(255,255,255,0.3); font-weight: 600; margin-right: 5px; text-transform: uppercase; letter-spacing: .07em; }
+.mock-a .star { font-size: 18px; line-height: 1; }
+.mock-a .star.on { color: #a78bfa; }
+.mock-a .star.off { color: rgba(139,92,246,0.18); }
+
+.mock-a .feed-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+  color: rgba(255,255,255,0.25); margin: 0 12px 6px; position: relative; z-index: 2;
+}
+.mock-a .feed-card {
+  margin: 0 12px 8px; padding: 10px 12px; position: relative; z-index: 2;
+}
+.mock-a .feed-row { display: flex; align-items: flex-start; gap: 9px; }
+.mock-a .avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #5b21b6, #8B5CF6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff;
+  box-shadow: 0 0 0 2px rgba(139,92,246,0.3);
+}
+.mock-a .feed-text { font-size: 11px; color: rgba(255,255,255,0.8); line-height: 1.4; flex: 1; }
+.mock-a .feed-text strong { color: #fff; }
+.mock-a .feed-text .hi { color: #c4b5fd; }
+.mock-a .feed-mini-art {
+  width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;
+  background: linear-gradient(135deg, #4c1d95, #8B5CF6);
+  box-shadow: 0 4px 12px rgba(109,40,217,0.4);
+}
+.mock-a .feed-stars { font-size: 11px; color: #a78bfa; margin-top: 2px; }
+.mock-a .feed-time { font-size: 9px; color: rgba(255,255,255,0.25); margin-top: 2px; }
+.mock-a .feed-actions { display: flex; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,0.05); }
+.mock-a .feed-action { font-size: 9px; color: rgba(255,255,255,0.3); font-weight: 600; }
+.mock-a .feed-action.active { color: #a78bfa; }
+
+
+/* ════════════════════════════
+   B — WARM ILLUSTRATED
+════════════════════════════ */
+.mock-b {
+  background:
+    radial-gradient(ellipse 90% 50% at 10% 0%, rgba(180,83,9,0.4) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 60% at 90% 90%, rgba(146,64,14,0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(120,53,15,0.15) 0%, transparent 60%),
+    #0c0804;
+  height: 100%; position: relative; font-family: system-ui, sans-serif;
+}
+
+.mock-b .nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 16px; position: relative; z-index: 2;
+}
+.mock-b .logo {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.01em;
+}
+.mock-b .logo-icon {
+  width: 26px; height: 26px; border-radius: 8px;
+  background: linear-gradient(135deg, #ea580c, #f97316, #fbbf24);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; box-shadow: 0 4px 12px rgba(234,88,12,0.5);
+}
+.mock-b .nav-search {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 100px; padding: 5px 12px; font-size: 10px;
+  color: rgba(255,255,255,0.3);
+}
+
+/* floating music note decorations */
+.note { position: absolute; pointer-events: none; z-index: 1; }
+
+.mock-b .hero {
+  margin: 4px 14px 10px; border-radius: 18px; overflow: hidden;
+  position: relative; z-index: 2;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+.mock-b .hero-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(180,83,9,0.35), rgba(234,88,12,0.15), transparent);
+}
+.mock-b .hero-body {
+  position: relative; z-index: 1;
+  display: flex; gap: 12px; padding: 14px; align-items: flex-start;
+}
+.mock-b .art {
+  width: 72px; height: 72px; flex-shrink: 0; border-radius: 12px;
+  background: linear-gradient(135deg, #92400e, #ea580c, #fbbf24);
+  box-shadow: 0 8px 28px rgba(234,88,12,0.55), 0 0 0 1px rgba(255,255,255,0.12);
+}
+.mock-b .album-title {
+  font-size: 18px; font-weight: 800; color: #fff; line-height: 1.1; letter-spacing: -0.02em;
+}
+.mock-b .album-artist { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+.mock-b .tag-row { display: flex; gap: 5px; margin-top: 7px; }
+.mock-b .tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 9px; border-radius: 100px; font-size: 10px; font-weight: 600;
+}
+.mock-b .tag.orange { background: rgba(234,88,12,0.2); border: 1px solid rgba(234,88,12,0.3); color: #fb923c; }
+.mock-b .tag.dim { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); color: rgba(255,255,255,0.4); }
+
+.mock-b .hero-footer {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.mock-b .stars { font-size: 16px; color: #f97316; letter-spacing: 1px; }
+.mock-b .log-btn {
+  margin-left: auto;
+  background: linear-gradient(90deg, #ea580c, #f97316);
+  color: #fff; font-size: 9px; font-weight: 800;
+  padding: 5px 12px; border-radius: 100px;
+  border: none; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(234,88,12,0.45);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* genre/mood tags floating section */
+.mock-b .tags-section {
+  margin: 0 14px 10px; position: relative; z-index: 2;
+}
+.mock-b .section-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+  color: rgba(255,255,255,0.25); margin-bottom: 7px;
+}
+.mock-b .tags-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.mock-b .genre-tag {
+  padding: 5px 12px; border-radius: 100px; font-size: 10px; font-weight: 600;
+  border: 1px solid; cursor: pointer;
+}
+
+.mock-b .feed-item {
+  margin: 0 14px 8px; padding: 10px 12px; border-radius: 12px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  position: relative; z-index: 2;
+}
+.mock-b .feed-row { display: flex; align-items: flex-start; gap: 9px; }
+.mock-b .avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #92400e, #f97316);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff;
+}
+.mock-b .feed-mini-art {
+  width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #92400e, #f97316);
+  box-shadow: 0 4px 10px rgba(234,88,12,0.4);
+}
+.mock-b .feed-text { flex: 1; font-size: 11px; color: rgba(255,255,255,0.75); line-height: 1.4; }
+.mock-b .feed-text strong { color: #fff; }
+.mock-b .feed-text .hi { color: #fb923c; }
+
+
+/* ════════════════════════════
+   C — COSMIC NIGHT GRADIENT
+════════════════════════════ */
+.mock-c {
+  background:
+    radial-gradient(ellipse 100% 70% at 50% 0%, rgba(79,20,180,0.7) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgba(16,180,180,0.25) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 100% 50%, rgba(139,92,246,0.2) 0%, transparent 50%),
+    #040412;
+  height: 100%; position: relative;
+}
+
+/* starfield */
+.star-dot {
+  position: absolute; border-radius: 50%; background: #fff; pointer-events: none;
+}
+
+.mock-c .nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; position: relative; z-index: 2;
+}
+.mock-c .logo { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.01em; }
+.mock-c .logo em { font-style: normal; color: #7dd3fc; }
+.mock-c .nav-icon {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+}
+
+/* large album art spotlight */
+.mock-c .spotlight {
+  position: relative; z-index: 2; text-align: center; padding: 16px 16px 8px;
+}
+.mock-c .art-wrap {
+  display: inline-block; position: relative; margin-bottom: 10px;
+}
+/* orbit rings */
+.mock-c .ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(139,92,246,0.2);
+  pointer-events: none;
+}
+.mock-c .art {
+  width: 96px; height: 96px; border-radius: 16px;
+  background: linear-gradient(135deg, #312e81, #7c3aed, #a78bfa);
+  box-shadow: 0 0 60px rgba(109,40,217,0.7), 0 0 120px rgba(109,40,217,0.3), 0 0 0 1px rgba(255,255,255,0.15);
+  position: relative; z-index: 1;
+}
+/* floating small art pieces */
+.mock-c .float-art {
+  position: absolute; border-radius: 8px;
+  background: linear-gradient(135deg, #1e1b4b, #4338ca);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 4px 16px rgba(67,56,202,0.5);
+}
+
+.mock-c .album-title {
+  font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.025em; line-height: 1.1;
+}
+.mock-c .album-artist { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+.mock-c .stat-row {
+  display: flex; justify-content: center; gap: 16px;
+  margin-top: 10px;
+}
+.mock-c .stat { text-align: center; }
+.mock-c .stat-n { font-size: 18px; font-weight: 800; color: #c4b5fd; line-height: 1; }
+.mock-c .stat-l { font-size: 8px; text-transform: uppercase; letter-spacing: .09em; color: rgba(255,255,255,0.3); margin-top: 1px; font-weight: 600; }
+
+.mock-c .action-row {
+  display: flex; gap: 8px; padding: 10px 14px; position: relative; z-index: 2;
+}
+.mock-c .action-btn {
+  flex: 1; padding: 8px; border-radius: 10px; text-align: center;
+  font-size: 10px; font-weight: 700; cursor: pointer;
+  background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa;
+}
+.mock-c .action-btn.primary {
+  background: #7c3aed; border-color: #8B5CF6; color: #fff;
+  box-shadow: 0 4px 18px rgba(109,40,217,0.5);
+}
+
+.mock-c .tracks-glass {
+  margin: 0 14px; border-radius: 14px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+  overflow: hidden; position: relative; z-index: 2;
+}
+.mock-c .track {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.mock-c .track:last-child { border-bottom: none; }
+.mock-c .track-n { font-size: 9px; color: rgba(255,255,255,0.2); width: 14px; }
+.mock-c .track-name { flex: 1; font-size: 11px; color: rgba(255,255,255,0.85); }
+.mock-c .track-plays { font-size: 9px; color: rgba(139,92,246,0.7); }
+.mock-c .track-dur { font-size: 9px; color: rgba(255,255,255,0.2); }
+
+/* selection bar */
+.sel-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(7,6,14,0.95); backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 14px 24px; display: flex; align-items: center;
+  justify-content: space-between; z-index: 999;
+  transform: translateY(100%); transition: transform .25s ease;
+}
+.sel-bar.on { transform: translateY(0); }
+.sel-bar span { font-size: 13px; color: rgba(255,255,255,0.6); }
+.sel-bar strong { color: #fff; }
+.sel-btn { background: #8B5CF6; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Three whimsical directions — with real backgrounds</h1>
+<p class="page-sub">Each one uses the background as a design feature, not just a color. Click to select your favorite.</p>
+
+<div class="grid">
+
+  <!-- ══════ A: AURORA + GLASS ══════ -->
+  <div class="card" onclick="pick(this,'A — Aurora Gradient + Glass')">
+    <div class="mockup">
+      <div class="mock-a">
+        <!-- sparkles -->
+        <div class="sparkle" style="top:18px;right:24px;font-size:12px;opacity:.7">✦</div>
+        <div class="sparkle" style="top:55px;right:58px;font-size:7px;opacity:.5">✧</div>
+        <div class="sparkle" style="top:30px;right:80px;font-size:9px;opacity:.4">✦</div>
+        <div class="sparkle" style="bottom:120px;left:18px;font-size:8px;opacity:.45">✧</div>
+        <div class="sparkle" style="bottom:200px;right:16px;font-size:11px;opacity:.5">✦</div>
+        <div class="sparkle" style="top:110px;left:22px;font-size:7px;opacity:.35">✦</div>
+
+        <div class="mock-a nav">
+          <span class="logo">track<span>list</span></span>
+          <div class="nav-pills">
+            <span class="nav-pill">Home</span>
+            <span class="nav-pill active">Album</span>
+            <span class="nav-pill">You</span>
+          </div>
+        </div>
+
+        <div class="mock-a hero-card glass">
+          <div class="mock-a hero-inner">
+            <div class="mock-a art"></div>
+            <div>
+              <div class="mock-a album-title">Radical<br>Optimism</div>
+              <div class="mock-a album-artist">Dua Lipa · 2024</div>
+              <div class="mock-a pill-row">
+                <span class="mock-a pill">★ 4.1</span>
+                <span class="mock-a pill neutral">2.4k plays</span>
+                <span class="mock-a pill neutral">89 reviews</span>
+              </div>
+            </div>
+          </div>
+          <div class="mock-a rating-row">
+            <span class="mock-a rating-label">Your rating</span>
+            <span class="mock-a star on">★</span>
+            <span class="mock-a star on">★</span>
+            <span class="mock-a star on">★</span>
+            <span class="mock-a star on">★</span>
+            <span class="mock-a star off">★</span>
+            <span style="font-size:9px;color:rgba(255,255,255,0.25);margin-left:8px;">tap to rate</span>
+          </div>
+        </div>
+
+        <div class="mock-a feed-label">Friends' activity</div>
+
+        <div class="mock-a feed-card glass">
+          <div class="mock-a feed-row">
+            <div class="mock-a avatar">M</div>
+            <div class="mock-a feed-mini-art"></div>
+            <div style="flex:1;min-width:0;">
+              <div class="mock-a feed-text"><strong>maya</strong> <span class="hi">reviewed</span> Radical Optimism</div>
+              <div class="mock-a feed-stars">★★★★</div>
+              <div class="mock-a feed-time">2 hours ago</div>
+            </div>
+          </div>
+          <div class="mock-a feed-actions">
+            <span class="mock-a feed-action active">♥ 12</span>
+            <span class="mock-a feed-action">Comment</span>
+            <span class="mock-a feed-action">+ Add to list</span>
+          </div>
+        </div>
+
+        <div class="mock-a feed-card glass">
+          <div class="mock-a feed-row">
+            <div class="mock-a avatar" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);">J</div>
+            <div style="flex:1;min-width:0;">
+              <div class="mock-a feed-text"><strong>james</strong> logged <span class="hi">3 albums</span> today</div>
+              <div style="display:flex;gap:5px;margin-top:5px;">
+                <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#1e1b4b,#4338ca);box-shadow:0 3px 10px rgba(67,56,202,0.4);"></div>
+                <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#701a75,#a21caf);box-shadow:0 3px 10px rgba(162,28,175,0.4);"></div>
+                <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#134e4a,#0d9488);box-shadow:0 3px 10px rgba(13,148,136,0.4);"></div>
+              </div>
+              <div class="mock-a feed-time" style="margin-top:4px;">5 hours ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <h3>A — Aurora Gradient + Glass Cards</h3>
+      <p>Rich purple gradient mesh floats behind everything. Glass cards sit on top with blur and a subtle border. Sparkle elements scattered across the bg. Album art glows outward. Gradient text on titles. Feels premium and alive — like Apple Music met a music zine.</p>
+    </div>
+  </div>
+
+  <!-- ══════ B: WARM ILLUSTRATED ══════ -->
+  <div class="card" onclick="pick(this,'B — Warm Illustrated')">
+    <div class="mockup">
+      <div class="mock-b">
+        <!-- floating music notes -->
+        <div class="note" style="top:22px;right:20px;font-size:22px;color:rgba(251,146,60,0.2);transform:rotate(15deg)">♪</div>
+        <div class="note" style="top:60px;right:50px;font-size:14px;color:rgba(251,146,60,0.15);transform:rotate(-10deg)">♫</div>
+        <div class="note" style="bottom:160px;left:12px;font-size:18px;color:rgba(251,146,60,0.12);transform:rotate(5deg)">♩</div>
+        <div class="note" style="bottom:240px;right:14px;font-size:12px;color:rgba(251,146,60,0.18);transform:rotate(-20deg)">♪</div>
+        <div class="note" style="top:160px;left:18px;font-size:16px;color:rgba(251,146,60,0.1)">♬</div>
+
+        <div class="mock-b nav">
+          <div class="mock-b logo">
+            <div class="mock-b logo-icon">🎵</div>
+            tracklist
+          </div>
+          <div class="mock-b nav-search">Search...</div>
+        </div>
+
+        <div class="mock-b hero">
+          <div class="mock-b hero-bg"></div>
+          <div class="mock-b hero-body">
+            <div class="mock-b art"></div>
+            <div>
+              <div class="mock-b album-title">Radical<br>Optimism</div>
+              <div class="mock-b album-artist">Dua Lipa · 2024</div>
+              <div class="mock-b tag-row">
+                <span class="mock-b tag orange">★ 4.1</span>
+                <span class="mock-b tag dim">Pop · Dance</span>
+              </div>
+            </div>
+          </div>
+          <div class="mock-b hero-footer">
+            <div class="mock-b stars">★★★★☆</div>
+            <span style="font-size:10px;color:rgba(255,255,255,0.3);">Your rating</span>
+            <button class="mock-b log-btn">+ Log Listen</button>
+          </div>
+        </div>
+
+        <div class="mock-b tags-section">
+          <div class="mock-b section-label">Mood tags</div>
+          <div class="mock-b tags-row">
+            <span class="mock-b genre-tag" style="background:rgba(234,88,12,.12);border-color:rgba(234,88,12,.25);color:#fb923c;">🔥 energetic</span>
+            <span class="mock-b genre-tag" style="background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.25);color:#c4b5fd;">✨ euphoric</span>
+            <span class="mock-b genre-tag" style="background:rgba(20,184,166,.1);border-color:rgba(20,184,166,.2);color:#5eead4;">🌊 dreamy</span>
+          </div>
+        </div>
+
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,0.25);margin:0 14px 6px;position:relative;z-index:2;">Friends' Activity</div>
+
+        <div class="mock-b feed-item">
+          <div class="mock-b feed-row">
+            <div class="mock-b avatar">M</div>
+            <div style="flex:1;min-width:0;">
+              <div class="mock-b feed-text"><strong>maya</strong> <span class="hi">loved</span> this one — gave it 4 stars</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+                <div class="mock-b feed-mini-art"></div>
+                <span style="font-size:10px;color:rgba(255,255,255,0.35);font-style:italic;">"Houdini is everything"</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mock-b feed-item">
+          <div class="mock-b feed-row">
+            <div class="mock-b avatar" style="background:linear-gradient(135deg,#78350f,#d97706);">K</div>
+            <div class="mock-b feed-text"><strong>kai</strong> <span class="hi">added</span> Training Season to their <span class="hi">Summer 2024</span> list</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <h3>B — Warm Illustrated</h3>
+      <p>Deep amber-brown gradient bg with floating music notes as decoration. Emoji-infused mood tags. Orange glow on art. Warm and inviting — feels like a record store, not a tech app. Most similar to Tapehead's energy. Friendly and approachable for casual listeners.</p>
+    </div>
+  </div>
+
+  <!-- ══════ C: COSMIC NIGHT ══════ -->
+  <div class="card" onclick="pick(this,'C — Cosmic Night')">
+    <div class="mockup">
+      <div class="mock-c">
+        <!-- starfield -->
+        <div class="star-dot" style="width:1.5px;height:1.5px;top:20px;left:40px;opacity:.6"></div>
+        <div class="star-dot" style="width:1px;height:1px;top:35px;left:120px;opacity:.4"></div>
+        <div class="star-dot" style="width:2px;height:2px;top:15px;right:30px;opacity:.7"></div>
+        <div class="star-dot" style="width:1px;height:1px;top:55px;right:70px;opacity:.5"></div>
+        <div class="star-dot" style="width:1.5px;height:1.5px;top:80px;left:60px;opacity:.35"></div>
+        <div class="star-dot" style="width:1px;height:1px;top:50px;right:110px;opacity:.45"></div>
+        <div class="star-dot" style="width:2px;height:2px;top:25px;left:200px;opacity:.5"></div>
+        <div class="star-dot" style="width:1px;height:1px;bottom:200px;left:30px;opacity:.4"></div>
+        <div class="star-dot" style="width:1.5px;height:1.5px;bottom:260px;right:40px;opacity:.55"></div>
+        <div class="star-dot" style="width:1px;height:1px;bottom:180px;right:90px;opacity:.3"></div>
+
+        <div class="mock-c nav">
+          <span class="mock-c logo">track<em>list</em></span>
+          <div class="mock-c nav-icon">🔔</div>
+        </div>
+
+        <div class="mock-c spotlight">
+          <div class="mock-c art-wrap">
+            <!-- orbit rings -->
+            <div class="mock-c ring" style="width:140px;height:140px;top:-22px;left:-22px;"></div>
+            <div class="mock-c ring" style="width:180px;height:180px;top:-42px;left:-42px;opacity:.5;"></div>
+            <!-- floating small albums -->
+            <div class="mock-c float-art" style="width:28px;height:28px;top:-8px;right:-20px;transform:rotate(8deg);"></div>
+            <div class="mock-c float-art" style="width:22px;height:22px;bottom:-4px;left:-18px;transform:rotate(-6deg);background:linear-gradient(135deg,#701a75,#a21caf);box-shadow:0 4px 16px rgba(162,28,175,0.5);"></div>
+            <div class="mock-c art"></div>
+          </div>
+          <div class="mock-c album-title">Radical Optimism</div>
+          <div class="mock-c album-artist">Dua Lipa · 2024 · 11 tracks</div>
+          <div class="mock-c stat-row">
+            <div class="mock-c stat"><div class="mock-c stat-n">4.1</div><div class="mock-c stat-l">Avg</div></div>
+            <div class="mock-c stat"><div class="mock-c stat-n">2.4k</div><div class="mock-c stat-l">Plays</div></div>
+            <div class="mock-c stat"><div class="mock-c stat-n">89</div><div class="mock-c stat-l">Reviews</div></div>
+          </div>
+        </div>
+
+        <div class="mock-c action-row">
+          <div class="mock-c action-btn primary">★ Rate</div>
+          <div class="mock-c action-btn">+ Log</div>
+          <div class="mock-c action-btn">♥ Save</div>
+        </div>
+
+        <div class="mock-c tracks-glass">
+          <div class="mock-c track">
+            <span class="mock-c track-n">1</span>
+            <span class="mock-c track-name">Houdini</span>
+            <span class="mock-c track-plays">481 plays</span>
+            <span class="mock-c track-dur">3:06</span>
+          </div>
+          <div class="mock-c track">
+            <span class="mock-c track-n">2</span>
+            <span class="mock-c track-name">Training Season</span>
+            <span class="mock-c track-plays">362 plays</span>
+            <span class="mock-c track-dur">3:20</span>
+          </div>
+          <div class="mock-c track">
+            <span class="mock-c track-n">3</span>
+            <span class="mock-c track-name">These Walls</span>
+            <span class="mock-c track-plays">210 plays</span>
+            <span class="mock-c track-dur">3:44</span>
+          </div>
+          <div class="mock-c track">
+            <span class="mock-c track-n">4</span>
+            <span class="mock-c track-name">End of an Era</span>
+            <span class="mock-c track-plays">198 plays</span>
+            <span class="mock-c track-dur">3:51</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <h3>C — Cosmic Night</h3>
+      <p>Deep space gradient sky with a starfield. Album art is centred and glowing like a sun with orbit rings around it and small floating album thumbnails nearby. Stats shown below like celestial data. Glass track list. Feels cinematic and otherworldly — every album has its own galaxy.</p>
+    </div>
+  </div>
+
+</div>
+
+<div id="sel" class="sel-bar">
+  <span>Selected: <strong id="sel-text">—</strong></span>
+  <button class="sel-btn" onclick="document.getElementById('sel').innerHTML='<span style=\'color:rgba(255,255,255,0.6)\'>✓ Recorded — tell me in terminal</span>'">Looks good →</button>
+</div>
+
+<script>
+function pick(el, name) {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('sel-text').textContent = name;
+  document.getElementById('sel').classList.add('on');
+  try { fetch('/__event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'click',choice:name.charAt(0),text:name,timestamp:Date.now()})}).catch(()=>{}); } catch(e){}
+}
+</script>
+</body>
+</html>

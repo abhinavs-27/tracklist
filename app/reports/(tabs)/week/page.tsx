@@ -60,7 +60,7 @@ export default async function WeeklyReportPage({
         <PeriodSelector basePath="/reports/week" period={period} />
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
           <p className="text-zinc-400">No listening data for this period.</p>
-          <Link href="/search" className="mt-3 inline-block text-emerald-400 hover:underline">
+          <Link href="/search" className="mt-3 inline-block text-gold-400 hover:underline">
             Search for music
           </Link>
         </div>
@@ -124,7 +124,7 @@ export default async function WeeklyReportPage({
 function PeriodSelector({ basePath, period }: { basePath: string; period: PeriodType }) {
   const btn = (p: PeriodType, label: string) =>
     `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-      period === p ? "bg-emerald-600 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+      period === p ? "bg-gold-600 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
     }`;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -160,7 +160,7 @@ function TopBox({ label, entity, hrefPrefix, rounded }: { label: string; entity:
                 <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">♪</div>
               )}
             </Link>
-            <Link href={`${hrefPrefix}/${entity.id}`} className="text-base font-medium text-white hover:text-emerald-400 hover:underline">
+            <Link href={`${hrefPrefix}/${entity.id}`} className="text-base font-medium text-white hover:text-gold-400 hover:underline">
               {entity.name}
             </Link>
           </>
@@ -237,7 +237,7 @@ function WeeklyStoryPage({
           <ul className="space-y-2">
             {insights.map((line) => (
               <li key={line} className="flex gap-2 text-sm leading-relaxed text-zinc-300">
-                <span className="text-emerald-500/90">·</span>
+                <span className="text-gold-500/90">·</span>
                 <span>{line}</span>
               </li>
             ))}
@@ -286,7 +286,7 @@ function TopCard({
                 <div className="flex h-full w-full items-center justify-center text-lg text-zinc-500">♪</div>
               )}
             </Link>
-            <Link href={`${hrefPrefix}/${entity.id}`} className="min-w-0 text-base font-medium text-white hover:text-emerald-400 hover:underline">
+            <Link href={`${hrefPrefix}/${entity.id}`} className="min-w-0 text-base font-medium text-white hover:text-gold-400 hover:underline">
               {entity.name ?? "—"}
             </Link>
           </>

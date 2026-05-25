@@ -78,7 +78,7 @@ export function MediaGridItem({
             <span>{item.totalPlays.toLocaleString()} plays</span>
           )}
           {item.favoriteCount != null && (
-            <span className="text-emerald-400">
+            <span className="text-gold-400">
               {item.favoriteCount.toLocaleString()} favorited
             </span>
           )}

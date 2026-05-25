@@ -122,7 +122,7 @@ export function ImageCropModal({
             step={0.01}
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
-            className="h-2 flex-1 accent-emerald-500"
+            className="h-2 flex-1 accent-gold-500"
             aria-label="Zoom"
           />
           <span className="tabular-nums text-xs text-zinc-400">
@@ -147,7 +147,7 @@ export function ImageCropModal({
             type="button"
             onClick={() => void handleConfirm()}
             disabled={working || !croppedAreaPixels}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gold-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gold-500 disabled:opacity-50"
           >
             {working ? (
               <span className="inline-flex items-center gap-2">

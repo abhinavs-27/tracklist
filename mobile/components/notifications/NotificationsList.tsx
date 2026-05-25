@@ -133,8 +133,8 @@ export function NotificationsList({
         <RefreshControl
           refreshing={isRefetching && !isLoading}
           onRefresh={onRefresh}
-          tintColor={theme.colors.emerald}
-          colors={[theme.colors.emerald]}
+          tintColor={theme.colors.gold}
+          colors={[theme.colors.gold]}
         />
       }
       ListEmptyComponent={
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   retry: {
     fontSize: 14,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
     marginTop: 8,
   },
   listContent: {

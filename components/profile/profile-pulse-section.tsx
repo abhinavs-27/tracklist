@@ -30,7 +30,7 @@ function PulseArrow({
   return (
     <span
       className={`${base} inline-flex h-6 w-6 items-center justify-center ${
-        up ? "text-emerald-400" : "text-rose-400"
+        up ? "text-gold-400" : "text-rose-400"
       }`}
       title={up ? "Up" : "Down"}
       aria-hidden

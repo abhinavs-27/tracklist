@@ -1,0 +1,238 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #09090B; color: #F4F4F5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #F4F4F5; }
+  .subtitle { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  /* Phone frame */
+  .phones { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .phone { width: 375px; background: #09090B; border: 1.5px solid #27272A; border-radius: 40px; overflow: hidden; padding: 16px 0 0; box-shadow: 0 32px 80px rgba(0,0,0,0.8); }
+  .phone-inner { padding: 0 16px; }
+  .phone-notch { width: 120px; height: 24px; background: #111; border-radius: 12px; margin: 0 auto 20px; }
+
+  /* Nav bar */
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .nav-back { font-size: 14px; color: #10B981; }
+  .nav-title { font-size: 14px; font-weight: 700; color: #F4F4F5; opacity: 0; }
+
+  /* Hero */
+  .hero { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .album-art { width: 224px; height: 224px; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, #1a1035, #0d1f35, #0a2212); box-shadow: 0 16px 48px -8px rgba(0,0,0,0.7); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 72px; }
+  .hero-meta { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .hero-type { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #71717A; margin-bottom: 2px; }
+  .hero-title { font-size: 26px; font-weight: 800; color: #F4F4F5; text-align: center; letter-spacing: -0.3px; line-height: 1.15; }
+  .hero-artist { font-size: 16px; font-weight: 600; color: #D4D4D8; text-align: center; margin-top: 2px; }
+  .hero-detail { font-size: 13px; color: #A1A1AA; text-align: center; margin-top: 2px; }
+
+  /* Stats row */
+  .stats { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; justify-content: center; margin: 4px 0 0; }
+  .stat-amber { color: #F59E0B; font-size: 14px; font-weight: 800; }
+  .stat-muted { color: #A1A1AA; font-size: 14px; font-weight: 700; }
+  .stat-val { color: #F4F4F5; font-size: 14px; font-weight: 700; }
+
+  /* Divider */
+  .divider { height: 1px; background: #27272A; margin: 16px 0; }
+
+  /* NEW: Credits block */
+  .credits-block { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: #18181B; border: 1px solid #27272A; border-radius: 14px; margin-bottom: 14px; }
+  .credit-row { display: flex; align-items: baseline; gap: 10px; }
+  .credit-type { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; min-width: 64px; flex-shrink: 0; }
+  .credit-names { font-size: 13px; color: #A1A1AA; flex: 1; line-height: 1.4; }
+  .credit-names a { color: #10B981; text-decoration: none; }
+  .credit-more { color: #52525B; font-size: 12px; }
+  .credit-badge { display: inline-block; background: #1A2920; border: 1px solid #10B98130; color: #10B981; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 10px; text-transform: uppercase; vertical-align: middle; margin-left: 6px; }
+
+  /* NEW: About section */
+  .about-block { margin-bottom: 14px; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; margin-bottom: 8px; }
+  .about-text { font-size: 13px; line-height: 1.6; color: #71717A; }
+  .about-text em { color: #A1A1AA; font-style: italic; }
+  .show-more { color: #10B981; font-size: 12px; font-weight: 500; margin-top: 4px; display: block; cursor: pointer; }
+
+  /* NEW: External links */
+  .links-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .ext-link { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #71717A; padding: 5px 10px; border: 1px solid #27272A; border-radius: 20px; background: #18181B; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid #27272A; margin: 0 -16px; padding: 0 16px; }
+  .tab { flex: 1; text-align: center; padding: 12px 0; font-size: 14px; font-weight: 600; color: #71717A; position: relative; }
+  .tab.active { color: #F4F4F5; }
+  .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #10B981; border-radius: 1px; }
+
+  /* Track rows */
+  .track { padding: 10px 0; border-bottom: 1px solid #27272A22; }
+  .track-top { display: flex; align-items: center; gap: 10px; }
+  .track-num { width: 22px; text-align: right; font-size: 12px; color: #52525B; flex-shrink: 0; }
+  .track-name { flex: 1; font-size: 14px; font-weight: 500; color: #F4F4F5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track-dur { font-size: 12px; color: #52525B; flex-shrink: 0; }
+  .track-stats { margin-top: 3px; padding-left: 32px; font-size: 11px; color: #71717A; }
+
+  /* Samples section */
+  .samples-block { margin-bottom: 14px; }
+  .sample-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #18181B; border: 1px solid #27272A; border-radius: 12px; margin-bottom: 6px; }
+  .sample-art { width: 36px; height: 36px; border-radius: 6px; background: #2a1a3e; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .sample-info { flex: 1; min-width: 0; }
+  .sample-title { font-size: 13px; font-weight: 500; color: #F4F4F5; }
+  .sample-artist { font-size: 11px; color: #71717A; margin-top: 1px; }
+  .sample-arrow { font-size: 12px; color: #3F3F46; }
+
+  /* Release type badge */
+  .release-badge { display: inline-block; background: #18181B; border: 1px solid #27272A; color: #71717A; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; margin-left: 8px; vertical-align: middle; }
+
+  .bottom-spacer { height: 40px; }
+
+  /* Selector */
+  .option-wrap { border: 2px solid #27272A; border-radius: 16px; overflow: hidden; cursor: pointer; transition: border-color 0.2s; margin-bottom: 0; }
+  .option-wrap:hover { border-color: #10B98150; }
+  .option-wrap.selected { border-color: #10B981; }
+  .option-wrap.selected .option-header-bar { background: #10B98115; }
+  .option-header-bar { padding: 10px 16px; background: #111; border-bottom: 1px solid #27272A; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; color: #A1A1AA; }
+  .option-tag { font-size: 11px; color: #52525B; font-weight: 400; }
+</style>
+
+<h2 style="text-align:center">Album page — mobile</h2>
+<p class="subtitle" style="text-align:center">Showing the new credits, bio, and links sections in the actual app design. Left = current page, Right = with new sections added.</p>
+
+<div class="phones">
+
+  <!-- CURRENT: existing page -->
+  <div class="phone-wrap">
+    <div class="phone-label">Current</div>
+    <div class="phone" data-choice="current" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="nav">
+          <span class="nav-back">← Albums</span>
+          <span class="nav-title">GKMC</span>
+        </div>
+
+        <div class="hero">
+          <div class="album-art">🎵</div>
+          <div class="hero-meta">
+            <div class="hero-type">Album</div>
+            <div class="hero-title">good kid, m.A.A.d city</div>
+            <div class="hero-artist">Kendrick Lamar</div>
+            <div class="hero-detail">2012 · 12 tracks · 68 min</div>
+            <div class="stats">
+              <span class="stat-amber">★ 4.6</span>
+              <span class="stat-muted"> avg</span>
+              <span class="stat-val">48.2k</span><span class="stat-muted"> plays</span>
+              <span class="stat-val">9.4k</span><span class="stat-muted"> favorites</span>
+              <span class="stat-val">3.1k</span><span class="stat-muted"> reviews</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab active">Tracks</div>
+          <div class="tab">Reviews</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="track"><div class="track-top"><span class="track-num">1</span><span class="track-name">Sherane a.k.a Master Splinter's Daughter</span><span class="track-dur">4:55</span></div><div class="track-stats">6.2k plays · ★ 4.3</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">2</span><span class="track-name">Bitch, Don't Kill My Vibe</span><span class="track-dur">5:10</span></div><div class="track-stats">18.4k plays · ★ 4.7</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">3</span><span class="track-name">Backseat Freestyle</span><span class="track-dur">3:32</span></div><div class="track-stats">14.1k plays · ★ 4.5</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">4</span><span class="track-name">The Art of Peer Pressure</span><span class="track-dur">5:25</span></div><div class="track-stats">9.8k plays · ★ 4.8</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">5</span><span class="track-name">Money Trees</span><span class="track-dur">6:26</span></div><div class="track-stats">22.1k plays · ★ 4.9</div></div>
+        </div>
+
+        <div style="color:#3F3F46;font-size:12px;text-align:center;padding:16px 0">+ 7 more tracks</div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- NEW: with credits + bio + links -->
+  <div class="phone-wrap">
+    <div class="phone-label">With new sections</div>
+    <div class="phone" data-choice="new" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="nav">
+          <span class="nav-back">← Albums</span>
+          <span class="nav-title">GKMC</span>
+        </div>
+
+        <!-- Hero stays exactly the same -->
+        <div class="hero">
+          <div class="album-art">🎵</div>
+          <div class="hero-meta">
+            <div class="hero-type">Album <span class="release-badge">Studio</span></div>
+            <div class="hero-title">good kid, m.A.A.d city</div>
+            <div class="hero-artist">Kendrick Lamar</div>
+            <div class="hero-detail">2012 · 12 tracks · 68 min</div>
+            <div class="stats">
+              <span class="stat-amber">★ 4.6</span>
+              <span class="stat-muted"> avg</span>
+              <span class="stat-val">48.2k</span><span class="stat-muted"> plays</span>
+              <span class="stat-val">9.4k</span><span class="stat-muted"> favorites</span>
+              <span class="stat-val">3.1k</span><span class="stat-muted"> reviews</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- NEW: Credits block -->
+        <div class="credits-block">
+          <div class="credit-row">
+            <div class="credit-type">Label</div>
+            <div class="credit-names"><a href="#">Aftermath</a> · <a href="#">Interscope</a></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Produced</div>
+            <div class="credit-names"><a href="#">Sounwave</a>, <a href="#">THC</a>, <a href="#">Just Blaze</a> <span class="credit-more">+4</span></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Written</div>
+            <div class="credit-names"><a href="#">Kendrick Lamar</a> <span class="credit-more">+8</span></div>
+          </div>
+        </div>
+
+        <!-- NEW: About -->
+        <div class="about-block">
+          <div class="section-label">About</div>
+          <div class="about-text">
+            <em>good kid, m.A.A.d city</em> is the major-label debut by Kendrick Lamar, a semi-autobiographical portrait of growing up in Compton, CA. Recorded across LA in 2011–12, it blends West Coast hip-hop with jazz and soul.
+            <span class="show-more">Show more</span>
+          </div>
+        </div>
+
+        <!-- NEW: Links -->
+        <div class="links-row">
+          <span class="ext-link">🌐 Wikipedia</span>
+          <span class="ext-link">💿 Discogs</span>
+          <span class="ext-link">🎸 AllMusic</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab active">Tracks</div>
+          <div class="tab">Reviews</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="track"><div class="track-top"><span class="track-num">1</span><span class="track-name">Sherane a.k.a Master Splinter's Daughter</span><span class="track-dur">4:55</span></div><div class="track-stats">6.2k plays · ★ 4.3</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">2</span><span class="track-name">Bitch, Don't Kill My Vibe</span><span class="track-dur">5:10</span></div><div class="track-stats">18.4k plays · ★ 4.7</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">3</span><span class="track-name">Backseat Freestyle</span><span class="track-dur">3:32</span></div><div class="track-stats">14.1k plays · ★ 4.5</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">4</span><span class="track-name">The Art of Peer Pressure</span><span class="track-dur">5:25</span></div><div class="track-stats">9.8k plays · ★ 4.8</div></div>
+        </div>
+
+        <div style="color:#3F3F46;font-size:12px;text-align:center;padding:16px 0">+ 8 more tracks</div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:24px;font-size:13px;color:#52525B">
+  The hero is untouched. New sections sit between the stats and the tabs — credits, a short bio (collapsible), and external links. Click either phone to select it.
+</div>

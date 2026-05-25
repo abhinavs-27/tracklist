@@ -70,7 +70,7 @@ export function MusicRecommendationNotificationFooter({
           <button
             type="button"
             onClick={() => setRecOpen(true)}
-            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500"
+            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-gold-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-gold-500"
           >
             Send a recommendation
           </button>

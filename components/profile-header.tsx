@@ -207,7 +207,7 @@ export function ProfileHeader({
         )}
         {keyStatLine ? (
           <p
-            className={`text-sm text-emerald-400/90 ${isHero ? "mt-2 text-center sm:text-left" : "mt-1.5 font-medium sm:text-base"}`}
+            className={`text-sm text-gold-400/90 ${isHero ? "mt-2 text-center sm:text-left" : "mt-1.5 font-medium sm:text-base"}`}
           >
             {keyStatLine}
           </p>

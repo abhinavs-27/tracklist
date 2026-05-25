@@ -279,7 +279,7 @@ export function FollowNetworkModal({
                 hasMore && loading ? (
                   <ActivityIndicator
                     size="small"
-                    color={theme.colors.emerald}
+                    color={theme.colors.gold}
                     style={{ paddingVertical: 12 }}
                   />
                 ) : null

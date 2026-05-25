@@ -30,7 +30,7 @@ export function RisingArtistsSection({ artists }: { artists: RisingArtist[] }) {
                 )}
               </div>
               <div className="mt-2">
-                <p className="truncate text-xs font-semibold text-white group-hover:text-emerald-400">{a.name}</p>
+                <p className="truncate text-xs font-semibold text-white group-hover:text-gold-400">{a.name}</p>
                 <p className="truncate text-[0.65rem] text-zinc-500">+{a.growth} this week</p>
               </div>
             </Link>

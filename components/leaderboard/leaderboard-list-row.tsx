@@ -52,7 +52,7 @@ export function LeaderboardListRow({
           <span className="text-zinc-500">—</span>
         )}
         {showFavoriteCount && (
-          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400 tabular-nums sm:text-xs">
+          <span className="rounded-full bg-gold-500/10 px-2 py-0.5 text-[11px] text-gold-400 tabular-nums sm:text-xs">
             {(entry.favorite_count ?? 0).toLocaleString()} favorited
           </span>
         )}

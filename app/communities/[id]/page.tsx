@@ -186,7 +186,7 @@ export default async function CommunityDetailPage({
               <Link
                 prefetch={false}
                 href={`/auth/signin?callbackUrl=${encodeURIComponent(`/communities/${id}`)}`}
-                className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500"
+                className="inline-flex items-center justify-center rounded-full bg-gold-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-gold-950/30 transition hover:bg-gold-500"
               >
                 Sign in to join
               </Link>

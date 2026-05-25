@@ -11,7 +11,7 @@ function formatMovement(m: number | null, isNew: boolean): string {
 
 function movementColor(m: number | null, isNew: boolean): string {
   if (isNew) return "text-violet-400";
-  if (m != null && m > 0) return "text-emerald-400";
+  if (m != null && m > 0) return "text-gold-400";
   if (m != null && m < 0) return "text-red-400";
   return "text-zinc-600";
 }

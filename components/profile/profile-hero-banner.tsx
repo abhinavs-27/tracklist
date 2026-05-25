@@ -41,7 +41,7 @@ export function ProfileHeroBanner({
           </div>
         ) : (
           <div className="h-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950">
-            <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-emerald-500/[0.12] blur-2xl" />
+            <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-gold-500/[0.12] blur-2xl" />
           </div>
         )}
 

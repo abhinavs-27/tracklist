@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Accent Color Directions</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #05050a;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 32px;
+  padding: 52px 40px 80px;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+.col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+.col-label {
+  font-size: 10px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: rgba(255,255,255,.35);
+}
+.col-sub {
+  font-size: 9px; color: rgba(255,255,255,.18);
+  letter-spacing: .05em; text-transform: uppercase;
+  margin-top: -10px;
+}
+
+/* Phone shell — bg color comes from --bg CSS var */
+.phone {
+  width: 286px;
+  border-radius: 40px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.07);
+  box-shadow: 0 32px 90px rgba(0,0,0,.9);
+  background: var(--bg);
+}
+
+/* ── Shared structural atoms ── */
+.sb { padding: 13px 22px 5px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #fff; }
+.ah { padding: 3px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+.wm { font-size: 19px; font-weight: 800; color: #fff; letter-spacing: -.025em; }
+
+/* Tabs — active has colored underline */
+.tabs { display: flex; padding: 10px 18px 0; border-bottom: 1px solid rgba(255,255,255,.06); margin-top: 7px; }
+.tab { padding: 7px 10px; font-size: 12px; font-weight: 500; color: rgba(255,255,255,.28); position: relative; }
+.tab.on { color: #fff; font-weight: 700; }
+.tab.on::after {
+  content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px;
+  background: var(--a); border-radius: 2px 2px 0 0;
+}
+
+/* Filters — plain text only */
+.filters { display: flex; gap: 18px; padding: 11px 20px 0; }
+.fi { font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,.28); }
+.fi.on { color: #fff; font-weight: 700; }
+
+/* Week nav */
+.ww { padding: 11px 16px 0; }
+.wn { display: flex; align-items: center; background: var(--card); border: 1px solid rgba(255,255,255,.07); border-radius: 9px; padding: 8px 0; }
+.wa { padding: 0 12px; font-size: 13px; color: rgba(255,255,255,.2); }
+.wt { flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: #fff; }
+
+/* Section header — editorial rule */
+.sh { padding: 15px 18px 8px; display: flex; align-items: center; gap: 10px; }
+.sh-text { font-size: 9.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.4); white-space: nowrap; }
+.sh-rule { flex: 1; height: 1px; background: rgba(255,255,255,.07); }
+
+/* ── Hero card ── */
+.hc { margin: 0 14px; border-radius: 16px; overflow: hidden; position: relative; height: 156px; border: 1px solid rgba(255,255,255,.07); }
+.hc-bg { position: absolute; inset: -6px; }
+.hc-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,4,12,.15) 0%, rgba(6,4,12,.55) 55%, rgba(6,4,12,.78) 100%); }
+.hc-body { position: relative; z-index: 1; padding: 16px; height: 100%; display: flex; align-items: center; gap: 14px; }
+
+/* Large album art */
+.art {
+  width: 116px; height: 116px; border-radius: 11px; flex-shrink: 0;
+  background: linear-gradient(160deg, #3e2e2a 0%, #231b20 50%, #161218 100%);
+  box-shadow: 0 10px 36px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07);
+  position: relative; overflow: hidden;
+}
+.art::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 44% 55%, rgba(80,58,54,.5) 0%, transparent 58%); }
+
+.hm { flex: 1; }
+/* Rank label in the accent color */
+.rl { font-size: 9px; font-weight: 800; color: var(--a); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 6px; opacity: .9; }
+/* Title is the moment */
+.ht { font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -.03em; line-height: 1; margin-bottom: 4px; }
+.har { font-size: 12px; font-weight: 400; color: rgba(255,255,255,.48); margin-bottom: 12px; }
+/* Stats — plain muted text, no pill */
+.stats { font-size: 10.5px; font-weight: 500; color: rgba(255,255,255,.26); line-height: 1.7; }
+
+/* ── Insights ── */
+.ins { margin: 0 14px; background: var(--card); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; overflow: hidden; }
+.ir { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid rgba(255,255,255,.045); font-size: 11.5px; color: rgba(255,255,255,.46); line-height: 1.4; }
+.ir:last-child { border-bottom: none; }
+.iico { flex-shrink: 0; color: rgba(255,255,255,.2); width: 14px; display: flex; align-items: center; justify-content: center; }
+.hl { color: #fff; font-weight: 700; }
+
+/* ── Chart section ── */
+.cs { margin: 0 14px; }
+.cr { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.045); }
+.cr:last-child { border-bottom: none; }
+.crk { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.18); width: 16px; text-align: right; flex-shrink: 0; }
+.cra { width: 38px; height: 38px; border-radius: 7px; flex-shrink: 0; border: 1px solid rgba(255,255,255,.06); }
+.cri { flex: 1; }
+.crt { font-size: 12.5px; font-weight: 600; color: #fff; margin-bottom: 1px; }
+.crs { font-size: 10.5px; color: rgba(255,255,255,.35); }
+/* Mover uses accent for up, muted red for down */
+.mvu { font-size: 10.5px; font-weight: 700; color: var(--a); }
+.mvd { font-size: 10.5px; font-weight: 700; color: #f87171; }
+.mve { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.18); }
+
+/* ── Floating pill nav ── */
+.pn {
+  margin: 14px 14px 18px;
+  background: color-mix(in srgb, var(--bg) 80%, #000 20%);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 100px; padding: 9px 5px;
+  display: flex; justify-content: space-around; align-items: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,.7);
+}
+.ni { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+.nicon { font-size: 17px; color: rgba(255,255,255,.22); line-height: 1; }
+.ntxt { font-size: 9px; color: rgba(255,255,255,.2); font-weight: 500; }
+.ni.on .nicon { color: var(--a); }
+.ni.on .ntxt { color: var(--a); font-weight: 700; }
+
+/* Art swatches */
+.sw-b { background: linear-gradient(150deg,#1a2535,#0f1a22); }
+.sw-c { background: linear-gradient(150deg,#1a2520,#0f1a15); }
+.sw-d { background: linear-gradient(150deg,#1a1a2a,#0f0f1a); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     A — GOLD
+     Base: very dark warm brown
+     Accent: #C8973A — gold record energy
+══════════════════════════════════ -->
+<div class="col">
+  <div class="col-label">A — Gold</div>
+  <div class="col-sub">Warm, earned, premium</div>
+  <div class="phone" style="--bg:#0c0902;--card:#16120a;--a:#C8973A;">
+    <div class="sb"><span>9:41</span><span style="letter-spacing:2px">●●●</span></div>
+    <div class="ah">
+      <div class="wm">Tracklist</div>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div class="tabs">
+      <div class="tab on">Billboard</div><div class="tab">Pulse</div>
+      <div class="tab">History</div><div class="tab">Activity</div>
+    </div>
+    <div class="filters">
+      <div class="fi on">Tracks</div><div class="fi">Artists</div><div class="fi">Albums</div>
+    </div>
+    <div class="ww"><div class="wn"><div class="wa">‹</div><div class="wt">May 10–16, 2026 · latest</div><div class="wa">›</div></div></div>
+    <div class="sh"><div class="sh-text">This Week's Billboard</div><div class="sh-rule"></div></div>
+    <div class="hc">
+      <div class="hc-bg" style="background:linear-gradient(145deg,#3a2a10 0%,#1e150a 45%,#12100a 100%);"></div>
+      <div class="hc-scrim"></div>
+      <div class="hc-body">
+        <div class="art"></div>
+        <div class="hm">
+          <div class="rl">#1 This Week</div>
+          <div class="ht">Gaslight 101</div>
+          <div class="har">Odeal</div>
+          <div class="stats">3 plays<br>1 week at #1<br>1 week in top 10</div>
+        </div>
+      </div>
+    </div>
+    <div class="sh" style="padding-top:14px;"><div class="sh-text">This Week</div><div class="sh-rule"></div></div>
+    <div class="ins">
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg></div><div><span class="hl">9 new entries</span> this week</div></div>
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="6" cy="6" r="1.8"/></svg></div><div><span class="hl">Stevie Wonder</span> took over</div></div>
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 11V1M2 5l4-4 4 4"/></svg></div><div><span class="hl">Gaslight 101</span> jumped 10 spots</div></div>
+    </div>
+    <div class="sh" style="padding-top:12px;"><div class="sh-text">The Full Chart</div><div class="sh-rule"></div></div>
+    <div class="cs">
+      <div class="cr"><div class="crk">2</div><div class="cra sw-b"></div><div class="cri"><div class="crt">Superstition</div><div class="crs">Stevie Wonder</div></div><div class="mvu">↑ 5</div></div>
+      <div class="cr"><div class="crk">3</div><div class="cra sw-c"></div><div class="cri"><div class="crt">Higher Ground</div><div class="crs">Stevie Wonder</div></div><div class="mvu">↑ 2</div></div>
+      <div class="cr"><div class="crk">4</div><div class="cra sw-d"></div><div class="cri"><div class="crt">Knocks Me Off My Feet</div><div class="crs">Stevie Wonder</div></div><div class="mvd">↓ 1</div></div>
+      <div class="cr"><div class="crk">5</div><div class="cra" style="background:linear-gradient(150deg,#251a0a,#150f05);border-radius:7px;width:38px;height:38px;flex-shrink:0;border:1px solid rgba(255,255,255,.06);"></div><div class="cri"><div class="crt">I Wish</div><div class="crs">Stevie Wonder</div></div><div class="mve">—</div></div>
+    </div>
+    <div class="pn">
+      <div class="ni on">
+        <div style="width:24px;height:24px;border-radius:50%;background:rgba(200,151,58,.18);border:1.5px solid rgba(200,151,58,.45);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#e8c472;">N</div>
+        <div class="ntxt">Home</div>
+      </div>
+      <div class="ni"><div class="nicon">⊙</div><div class="ntxt">Explore</div></div>
+      <div class="ni"><div class="nicon">○</div><div class="ntxt">Search</div></div>
+      <div class="ni"><div class="nicon">◫</div><div class="ntxt">Community</div></div>
+      <div class="ni"><div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div><div class="ntxt">You</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     B — CRIMSON
+     Base: very dark wine
+     Accent: #C0392B — bold, passionate
+══════════════════════════════════ -->
+<div class="col">
+  <div class="col-label">B — Crimson</div>
+  <div class="col-sub">Bold, passionate, intense</div>
+  <div class="phone" style="--bg:#0c0404;--card:#160808;--a:#E0312A;">
+    <div class="sb"><span>9:41</span><span style="letter-spacing:2px">●●●</span></div>
+    <div class="ah">
+      <div class="wm">Tracklist</div>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div class="tabs">
+      <div class="tab on">Billboard</div><div class="tab">Pulse</div>
+      <div class="tab">History</div><div class="tab">Activity</div>
+    </div>
+    <div class="filters">
+      <div class="fi on">Tracks</div><div class="fi">Artists</div><div class="fi">Albums</div>
+    </div>
+    <div class="ww"><div class="wn"><div class="wa">‹</div><div class="wt">May 10–16, 2026 · latest</div><div class="wa">›</div></div></div>
+    <div class="sh"><div class="sh-text">This Week's Billboard</div><div class="sh-rule"></div></div>
+    <div class="hc">
+      <div class="hc-bg" style="background:linear-gradient(145deg,#3a1010 0%,#1e0a0a 45%,#120808 100%);"></div>
+      <div class="hc-scrim"></div>
+      <div class="hc-body">
+        <div class="art"></div>
+        <div class="hm">
+          <div class="rl">#1 This Week</div>
+          <div class="ht">Gaslight 101</div>
+          <div class="har">Odeal</div>
+          <div class="stats">3 plays<br>1 week at #1<br>1 week in top 10</div>
+        </div>
+      </div>
+    </div>
+    <div class="sh" style="padding-top:14px;"><div class="sh-text">This Week</div><div class="sh-rule"></div></div>
+    <div class="ins">
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg></div><div><span class="hl">9 new entries</span> this week</div></div>
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="6" cy="6" r="1.8"/></svg></div><div><span class="hl">Stevie Wonder</span> took over</div></div>
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 11V1M2 5l4-4 4 4"/></svg></div><div><span class="hl">Gaslight 101</span> jumped 10 spots</div></div>
+    </div>
+    <div class="sh" style="padding-top:12px;"><div class="sh-text">The Full Chart</div><div class="sh-rule"></div></div>
+    <div class="cs">
+      <div class="cr"><div class="crk">2</div><div class="cra sw-b"></div><div class="cri"><div class="crt">Superstition</div><div class="crs">Stevie Wonder</div></div><div class="mvu">↑ 5</div></div>
+      <div class="cr"><div class="crk">3</div><div class="cra sw-c"></div><div class="cri"><div class="crt">Higher Ground</div><div class="crs">Stevie Wonder</div></div><div class="mvu">↑ 2</div></div>
+      <div class="cr"><div class="crk">4</div><div class="cra sw-d"></div><div class="cri"><div class="crt">Knocks Me Off My Feet</div><div class="crs">Stevie Wonder</div></div><div class="mvd">↓ 1</div></div>
+      <div class="cr"><div class="crk">5</div><div class="cra" style="background:linear-gradient(150deg,#251010,#150808);border-radius:7px;width:38px;height:38px;flex-shrink:0;border:1px solid rgba(255,255,255,.06);"></div><div class="cri"><div class="crt">I Wish</div><div class="crs">Stevie Wonder</div></div><div class="mve">—</div></div>
+    </div>
+    <div class="pn">
+      <div class="ni on">
+        <div style="width:24px;height:24px;border-radius:50%;background:rgba(224,49,42,.18);border:1.5px solid rgba(224,49,42,.45);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#f87171;">N</div>
+        <div class="ntxt">Home</div>
+      </div>
+      <div class="ni"><div class="nicon">⊙</div><div class="ntxt">Explore</div></div>
+      <div class="ni"><div class="nicon">○</div><div class="ntxt">Search</div></div>
+      <div class="ni"><div class="nicon">◫</div><div class="ntxt">Community</div></div>
+      <div class="ni"><div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div><div class="ntxt">You</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     C — ROSE
+     Base: very dark berry
+     Accent: #E8306A — modern, fun, alive
+══════════════════════════════════ -->
+<div class="col">
+  <div class="col-label">C — Rose</div>
+  <div class="col-sub">Modern, alive, personality</div>
+  <div class="phone" style="--bg:#0c0308;--card:#160511;--a:#E8306A;">
+    <div class="sb"><span>9:41</span><span style="letter-spacing:2px">●●●</span></div>
+    <div class="ah">
+      <div class="wm">Tracklist</div>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div class="tabs">
+      <div class="tab on">Billboard</div><div class="tab">Pulse</div>
+      <div class="tab">History</div><div class="tab">Activity</div>
+    </div>
+    <div class="filters">
+      <div class="fi on">Tracks</div><div class="fi">Artists</div><div class="fi">Albums</div>
+    </div>
+    <div class="ww"><div class="wn"><div class="wa">‹</div><div class="wt">May 10–16, 2026 · latest</div><div class="wa">›</div></div></div>
+    <div class="sh"><div class="sh-text">This Week's Billboard</div><div class="sh-rule"></div></div>
+    <div class="hc">
+      <div class="hc-bg" style="background:linear-gradient(145deg,#3a1025 0%,#1e0a14 45%,#120810 100%);"></div>
+      <div class="hc-scrim"></div>
+      <div class="hc-body">
+        <div class="art"></div>
+        <div class="hm">
+          <div class="rl">#1 This Week</div>
+          <div class="ht">Gaslight 101</div>
+          <div class="har">Odeal</div>
+          <div class="stats">3 plays<br>1 week at #1<br>1 week in top 10</div>
+        </div>
+      </div>
+    </div>
+    <div class="sh" style="padding-top:14px;"><div class="sh-text">This Week</div><div class="sh-rule"></div></div>
+    <div class="ins">
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg></div><div><span class="hl">9 new entries</span> this week</div></div>
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="6" cy="6" r="1.8"/></svg></div><div><span class="hl">Stevie Wonder</span> took over</div></div>
+      <div class="ir"><div class="iico"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 11V1M2 5l4-4 4 4"/></svg></div><div><span class="hl">Gaslight 101</span> jumped 10 spots</div></div>
+    </div>
+    <div class="sh" style="padding-top:12px;"><div class="sh-text">The Full Chart</div><div class="sh-rule"></div></div>
+    <div class="cs">
+      <div class="cr"><div class="crk">2</div><div class="cra sw-b"></div><div class="cri"><div class="crt">Superstition</div><div class="crs">Stevie Wonder</div></div><div class="mvu">↑ 5</div></div>
+      <div class="cr"><div class="crk">3</div><div class="cra sw-c"></div><div class="cri"><div class="crt">Higher Ground</div><div class="crs">Stevie Wonder</div></div><div class="mvu">↑ 2</div></div>
+      <div class="cr"><div class="crk">4</div><div class="cra sw-d"></div><div class="cri"><div class="crt">Knocks Me Off My Feet</div><div class="crs">Stevie Wonder</div></div><div class="mvd">↓ 1</div></div>
+      <div class="cr"><div class="crk">5</div><div class="cra" style="background:linear-gradient(150deg,#251020,#150810);border-radius:7px;width:38px;height:38px;flex-shrink:0;border:1px solid rgba(255,255,255,.06);"></div><div class="cri"><div class="crt">I Wish</div><div class="crs">Stevie Wonder</div></div><div class="mve">—</div></div>
+    </div>
+    <div class="pn">
+      <div class="ni on">
+        <div style="width:24px;height:24px;border-radius:50%;background:rgba(232,48,106,.18);border:1.5px solid rgba(232,48,106,.45);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fb7185;">N</div>
+        <div class="ntxt">Home</div>
+      </div>
+      <div class="ni"><div class="nicon">⊙</div><div class="ntxt">Explore</div></div>
+      <div class="ni"><div class="nicon">○</div><div class="ntxt">Search</div></div>
+      <div class="ni"><div class="nicon">◫</div><div class="ntxt">Community</div></div>
+      <div class="ni"><div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div><div class="ntxt">You</div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginTop: 6,
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
   },
   secondary: {
     fontSize: 13,

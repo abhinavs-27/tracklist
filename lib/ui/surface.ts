@@ -30,7 +30,7 @@ export const cardElevatedInteractive = `${cardElevated} transition-all duration-
 export const cardOutlined = `${cardRadius} border border-zinc-800/75 bg-zinc-900/54 ${cardPadding} shadow-[0_8px_28px_-12px_rgba(0,0,0,0.48)] ring-1 ring-inset ring-white/[0.06] transition-all duration-300 ease-out motion-safe:hover:scale-[1.01] hover:border-zinc-700/65 hover:bg-zinc-900/72 hover:shadow-[0_12px_36px_-14px_rgba(0,0,0,0.5)] hover:ring-white/[0.09] motion-safe:active:scale-[0.99]`;
 
 /** Media grid tiles: compact padding, same radius family. */
-export const mediaGridTileCard = `${cardRadius} border border-zinc-800/75 bg-zinc-900/58 p-3 shadow-[0_6px_22px_-10px_rgba(0,0,0,0.42)] ring-1 ring-inset ring-white/[0.05] transition-all duration-300 ease-out motion-safe:hover:scale-[1.01] hover:border-emerald-500/35 hover:bg-zinc-900/76 hover:shadow-[0_10px_32px_-12px_rgba(0,0,0,0.45)] hover:ring-emerald-500/12`;
+export const mediaGridTileCard = `${cardRadius} border border-zinc-800/75 bg-zinc-900/58 p-3 shadow-[0_6px_22px_-10px_rgba(0,0,0,0.42)] ring-1 ring-inset ring-white/[0.05] transition-all duration-300 ease-out motion-safe:hover:scale-[1.01] hover:border-gold-500/35 hover:bg-zinc-900/76 hover:shadow-[0_10px_32px_-12px_rgba(0,0,0,0.45)] hover:ring-gold-500/12`;
 
 /** Static panel (alerts, empty copy) — same radius/padding family, no hover scale. */
 export const cardMuted = `${cardRadius} border border-zinc-800/75 bg-zinc-900/52 ${cardPadding} shadow-[0_8px_28px_-12px_rgba(0,0,0,0.45)] ring-1 ring-inset ring-white/[0.06]`;
@@ -101,4 +101,4 @@ export const communityButton =
 export const communityFeedCard = `${communityCard} transition-all duration-300 ease-out motion-safe:hover:scale-[1.01] hover:bg-zinc-900/70 hover:shadow-[0_14px_44px_-14px_rgba(0,0,0,0.5)] hover:ring-white/[0.09]`;
 
 /** Trending emphasis for feed rows (replaces default ring). */
-export const communityFeedCardTrending = `${cardRadius} bg-zinc-900/58 ${cardPadding} shadow-[0_0_48px_-14px_rgba(16,185,129,0.18)] ring-2 ring-emerald-500/20 transition-all duration-300 ease-out motion-safe:hover:scale-[1.01] hover:bg-zinc-900/70 hover:shadow-[0_0_52px_-12px_rgba(16,185,129,0.22)] hover:ring-emerald-500/28`;
+export const communityFeedCardTrending = `${cardRadius} bg-zinc-900/58 ${cardPadding} shadow-[0_0_48px_-14px_rgba(200,151,58,0.18)] ring-2 ring-gold-500/20 transition-all duration-300 ease-out motion-safe:hover:scale-[1.01] hover:bg-zinc-900/70 hover:shadow-[0_0_52px_-12px_rgba(200,151,58,0.22)] hover:ring-gold-500/28`;

@@ -56,7 +56,7 @@ export function ListsSearchContent() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search lists by title..."
-        className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
         aria-label="Search lists by title"
       />
       {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH && (

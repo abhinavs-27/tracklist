@@ -266,8 +266,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   radioOn: {
-    borderColor: theme.colors.emerald,
-    backgroundColor: theme.colors.emerald,
+    borderColor: theme.colors.gold,
+    backgroundColor: theme.colors.gold,
   },
   visText: {
     fontSize: 14,
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   btnPrimary: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,

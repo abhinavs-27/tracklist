@@ -24,7 +24,7 @@ export async function YourCommunitiesSection({ userId }: { userId: string }) {
         </p>
         <Link
           href="/communities/new"
-          className="mt-6 inline-block font-medium text-emerald-400 transition hover:text-emerald-300 hover:underline"
+          className="mt-6 inline-block font-medium text-gold-400 transition hover:text-gold-300 hover:underline"
         >
           Create a community →
         </Link>

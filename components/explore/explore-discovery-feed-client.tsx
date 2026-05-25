@@ -41,7 +41,7 @@ function MovementBadges({ movement }: { movement: ExploreMovement }) {
         <span
           className={
             movement.rank_delta > 0
-              ? "text-[11px] font-semibold text-emerald-400"
+              ? "text-[11px] font-semibold text-gold-400"
               : "text-[11px] font-medium text-zinc-500"
           }
         >
@@ -264,7 +264,7 @@ function CommunityRow({ row }: { row: ExploreCommunityContrastRow }) {
       </div>
       <Link
         href={row.href}
-        className="flex shrink-0 items-center gap-3 rounded-xl bg-zinc-950/50 p-2 ring-1 ring-white/[0.05] transition hover:ring-emerald-500/30"
+        className="flex shrink-0 items-center gap-3 rounded-xl bg-zinc-950/50 p-2 ring-1 ring-white/[0.05] transition hover:ring-gold-500/30"
       >
         {row.top_track_image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -282,7 +282,7 @@ function CommunityRow({ row }: { row: ExploreCommunityContrastRow }) {
           <p className="line-clamp-1 text-sm font-medium text-white">
             {row.top_track_name}
           </p>
-          <span className="text-xs font-medium text-emerald-400/90">
+          <span className="text-xs font-medium text-gold-400/90">
             Open community →
           </span>
         </div>
@@ -558,12 +558,12 @@ export function ExploreDiscoveryFeedClient({
       >
         <Link
           href="/browse"
-          className="block rounded-2xl bg-gradient-to-br from-emerald-950/40 to-zinc-900/60 p-5 ring-1 ring-emerald-500/15 transition hover:ring-emerald-500/35 sm:p-6"
+          className="block rounded-2xl bg-gradient-to-br from-gold-950/40 to-zinc-900/60 p-5 ring-1 ring-gold-500/15 transition hover:ring-gold-500/35 sm:p-6"
         >
           <p className="text-sm text-zinc-300">
             Most played, highest rated, most favorited — filter by decade or custom year range.
           </p>
-          <span className="mt-3 inline-flex text-sm font-semibold text-emerald-400">
+          <span className="mt-3 inline-flex text-sm font-semibold text-gold-400">
             Browse albums & tracks →
           </span>
         </Link>

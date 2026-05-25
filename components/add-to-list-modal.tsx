@@ -153,7 +153,7 @@ export function AddToListModal({
               ? "Search albums..."
               : "Search tracks..."
           }
-          className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
           autoFocus
         />
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
@@ -196,7 +196,7 @@ export function AddToListModal({
                             <p className="truncate text-sm font-medium text-white">{album.name}</p>
                             <p className="truncate text-xs text-zinc-500">{artists}</p>
                             {adding === album.id && (
-                              <p className="mt-1 text-xs text-emerald-400">Adding…</p>
+                              <p className="mt-1 text-xs text-gold-400">Adding…</p>
                             )}
                           </div>
                         </button>
@@ -225,7 +225,7 @@ export function AddToListModal({
                               showThumbnail={true}
                             />
                             {adding === track.id && (
-                              <p className="mt-1 text-xs text-emerald-400">Adding…</p>
+                              <p className="mt-1 text-xs text-gold-400">Adding…</p>
                             )}
                           </div>
                         </button>

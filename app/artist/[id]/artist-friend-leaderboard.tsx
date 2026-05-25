@@ -40,7 +40,7 @@ function LeaderboardRow({
   return (
     <li className={`group relative rounded-2xl px-4 py-3 transition ${
       isViewer
-        ? "bg-emerald-950/40 ring-1 ring-emerald-500/20"
+        ? "bg-gold-950/40 ring-1 ring-gold-500/20"
         : "bg-zinc-900/40 ring-1 ring-white/[0.04]"
     }`}>
       <div className="flex items-center gap-3">
@@ -73,13 +73,13 @@ function LeaderboardRow({
             <Link
               href={`/profile/${entry.userId}`}
               className={`truncate text-sm font-medium hover:underline ${
-                isViewer ? "text-emerald-300" : "text-zinc-200"
+                isViewer ? "text-gold-300" : "text-zinc-200"
               }`}
             >
               {isViewer ? "You" : entry.username}
             </Link>
             <span className={`shrink-0 text-xs tabular-nums font-medium ${
-              isViewer ? "text-emerald-400" : "text-zinc-500"
+              isViewer ? "text-gold-400" : "text-zinc-500"
             }`}>
               {entry.playCount.toLocaleString()} {entry.playCount === 1 ? "play" : "plays"}
             </span>
@@ -89,7 +89,7 @@ function LeaderboardRow({
           <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-800/60">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
-                isViewer ? "bg-emerald-500" : "bg-zinc-500"
+                isViewer ? "bg-gold-500" : "bg-zinc-500"
               }`}
               style={{ width: `${pct}%` }}
             />

@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   short: {
     fontSize: 15,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   label: {
     marginTop: 6,

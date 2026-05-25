@@ -97,7 +97,7 @@ export default function CommunitiesTabScreen() {
       <Text style={styles.sectionLabel}>Pending Invites</Text>
       {invitesPending ? (
         <View style={styles.invitesLoading}>
-          <ActivityIndicator color={theme.colors.emerald} />
+          <ActivityIndicator color={theme.colors.gold} />
         </View>
       ) : invites.length === 0 ? (
         <Text style={styles.invitesEmpty}>No pending invites.</Text>
@@ -155,7 +155,7 @@ export default function CommunitiesTabScreen() {
 
       {isPending && !communities ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.emerald} />
+          <ActivityIndicator color={theme.colors.gold} />
         </View>
       ) : error ? (
         <View style={styles.pad}>
@@ -175,10 +175,12 @@ export default function CommunitiesTabScreen() {
             communities?.length === 0 ? styles.emptyContainer : styles.listPad
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>
-              You're not in a community yet. Create one to compete with
-              friends.
-            </Text>
+            <View style={styles.emptyState}>
+              <Ionicons name="people-outline" size={48} color={theme.colors.muted} />
+              <Text style={styles.empty}>
+                You're not in a community yet.{"\n"}Create one or ask a friend for an invite.
+              </Text>
+            </View>
           }
           renderItem={({ item }: { item: CommunityWithMeta }) => (
             <Pressable
@@ -225,14 +227,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 42,
     fontWeight: "800",
-    color: "#ffffff",
+    color: theme.colors.text,
     letterSpacing: -1.5,
     paddingRight: NOTIFICATION_BELL_GUTTER,
   },
   subtitle: {
     fontSize: 15,
     fontWeight: "400",
-    color: "#71717a",
+    color: theme.colors.muted,
     lineHeight: 22,
     marginBottom: 4,
   },
@@ -287,27 +289,33 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 11,
     borderRadius: 8,
+    minHeight: 44,
+    justifyContent: "center",
   },
   declineBtnText: { color: theme.colors.text, fontWeight: "600" },
   acceptBtn: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 11,
     borderRadius: 8,
+    minHeight: 44,
+    justifyContent: "center",
   },
   acceptBtnText: { color: "#fff", fontWeight: "700" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   pad: { padding: 18 },
   listPad: { paddingHorizontal: 0, paddingBottom: 100, gap: 0 },
   emptyContainer: { flexGrow: 1, padding: 24, justifyContent: "center" },
+  emptyState: { alignItems: "center", gap: 16, paddingVertical: 32 },
   err: { color: theme.colors.danger, fontWeight: "600" },
-  link: { color: theme.colors.emerald, marginTop: 8, fontWeight: "600" },
+  link: { color: theme.colors.gold, marginTop: 8, fontWeight: "600" },
   empty: {
     color: theme.colors.muted,
     fontSize: 15,
     lineHeight: 22,
+    textAlign: "center",
     paddingHorizontal: 18,
   },
   card: {

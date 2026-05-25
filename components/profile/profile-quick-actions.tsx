@@ -147,7 +147,7 @@ function ShareProfileButton({
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
       ) : (
-        <ShareIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+        <ShareIcon className="h-4 w-4 shrink-0 text-gold-400/90" />
       )}
       <span>{label}</span>
     </button>
@@ -203,10 +203,10 @@ export function ProfileQuickActions({
           username={username}
           bio={bio}
           avatarUrl={avatarUrl}
-          triggerClassName="inline-flex min-h-11 min-w-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700/90 bg-zinc-900/60 px-3 py-2.5 text-sm font-medium text-zinc-200 shadow-sm ring-1 ring-white/[0.04] transition hover:border-emerald-500/40 hover:bg-emerald-950/20 sm:flex-none sm:px-4"
+          triggerClassName="inline-flex min-h-11 min-w-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700/90 bg-zinc-900/60 px-3 py-2.5 text-sm font-medium text-zinc-200 shadow-sm ring-1 ring-white/[0.04] transition hover:border-gold-500/40 hover:bg-gold-950/20 sm:flex-none sm:px-4"
           triggerLabel={
             <>
-              <PencilIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+              <PencilIcon className="h-4 w-4 shrink-0 text-gold-400/90" />
               Edit
             </>
           }
@@ -222,7 +222,7 @@ export function ProfileQuickActions({
           className={quickBtn}
           aria-label="Send a music recommendation"
         >
-          <GiftIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+          <GiftIcon className="h-4 w-4 shrink-0 text-gold-400/90" />
           Send rec
         </button>
       ) : null}
@@ -230,10 +230,10 @@ export function ProfileQuickActions({
       {isOwnProfile ? (
         <Link
           href="/reports/listening"
-          className={`${quickBtn} text-emerald-50/95 hover:border-emerald-500/35 hover:bg-emerald-950/25`}
+          className={`${quickBtn} text-gold-50/95 hover:border-gold-500/35 hover:bg-gold-950/25`}
           aria-label="View listening report"
         >
-          <ChartIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+          <ChartIcon className="h-4 w-4 shrink-0 text-gold-400/90" />
           Report
         </Link>
       ) : null}
@@ -244,7 +244,7 @@ export function ProfileQuickActions({
           className={`${quickBtn} text-zinc-200 hover:border-zinc-500/50 hover:bg-zinc-800/80`}
           aria-label="Social inbox"
         >
-          <InboxIcon className="h-4 w-4 shrink-0 text-emerald-400/90" />
+          <InboxIcon className="h-4 w-4 shrink-0 text-gold-400/90" />
           Inbox
         </Link>
       ) : null}

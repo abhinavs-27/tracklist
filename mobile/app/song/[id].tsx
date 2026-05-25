@@ -72,7 +72,7 @@ export default function SongDetailScreen() {
           {/* Nav */}
           <View style={s.nav}>
             <Pressable onPress={() => router.back()} hitSlop={16}>
-              <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+              <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
             </Pressable>
             <SkeletonLine width="50%" style={{ marginHorizontal: 12 }} />
             <View style={{ width: 26 }} />
@@ -133,7 +133,7 @@ export default function SongDetailScreen() {
       {/* Nav bar — matches album page */}
       <View style={s.nav}>
         <Pressable onPress={() => router.back()} hitSlop={16} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
-          <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
         </Pressable>
         <Text style={s.navTitle} numberOfLines={1}>{song.name}</Text>
         <View style={{ width: 26 }} />
@@ -334,7 +334,7 @@ const s = StyleSheet.create({
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
   tabLabel: { fontSize: 14, fontWeight: "600", color: theme.colors.muted },
   tabLabelActive: { color: theme.colors.text },
-  tabLine: { position: "absolute", bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1, backgroundColor: theme.colors.emerald },
+  tabLine: { position: "absolute", bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1, backgroundColor: theme.colors.gold },
   tabContent: { gap: 16, paddingTop: 4 },
   sectionTitle: { fontSize: 17, fontWeight: "700", color: theme.colors.text },
   // Social recently played

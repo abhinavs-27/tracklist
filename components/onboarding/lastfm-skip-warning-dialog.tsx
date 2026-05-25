@@ -93,7 +93,7 @@ export function LastfmSkipWarningDialog({
           <button
             type="button"
             onClick={() => onCancel()}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-500 sm:order-1"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gold-600 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-gold-500 sm:order-1"
           >
             Go back
           </button>

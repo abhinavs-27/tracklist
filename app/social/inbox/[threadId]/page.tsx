@@ -129,7 +129,7 @@ export default async function SocialThreadPage({
           className="group inline-flex w-fit items-center gap-2 text-sm text-zinc-400 transition hover:text-white"
         >
           <span
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-300 ring-1 ring-white/[0.06] transition group-hover:bg-zinc-800 group-hover:text-emerald-400"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-300 ring-1 ring-white/[0.06] transition group-hover:bg-zinc-800 group-hover:text-gold-400"
             aria-hidden
           >
             ←
@@ -153,7 +153,7 @@ export default async function SocialThreadPage({
                 with{" "}
                 <Link
                   href={`/profile/${counterpart_user_id}`}
-                  className="font-medium text-zinc-300 hover:text-emerald-400 hover:underline"
+                  className="font-medium text-zinc-300 hover:text-gold-400 hover:underline"
                 >
                   {counterpart_username
                     ? `@${counterpart_username}`
@@ -173,8 +173,8 @@ export default async function SocialThreadPage({
             recommendation_recipient_id &&
             recommendation_sender_id !== recommendation_recipient_id ? (
               <div className="mb-8 grid gap-3 sm:grid-cols-2 sm:gap-4">
-                <div className="min-w-0 rounded-xl bg-emerald-950/25 px-4 py-3 ring-1 ring-emerald-500/20">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-400/90">
+                <div className="min-w-0 rounded-xl bg-gold-950/25 px-4 py-3 ring-1 ring-gold-500/20">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gold-400/90">
                     To
                   </p>
                   <p className="mt-1.5 text-lg font-semibold tracking-tight text-white">
@@ -183,7 +183,7 @@ export default async function SocialThreadPage({
                     ) : (
                       <Link
                         href={`/profile/${recommendation_recipient_id}`}
-                        className="hover:text-emerald-200 hover:underline"
+                        className="hover:text-gold-200 hover:underline"
                       >
                         @{recommendation_recipient_username ?? "recipient"}
                       </Link>
@@ -224,7 +224,7 @@ export default async function SocialThreadPage({
                 {musicHref ? (
                   <Link
                     href={musicHref}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/25"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gold-500/15 px-4 py-2.5 text-sm font-medium text-gold-300 ring-1 ring-gold-500/30 transition hover:bg-gold-500/25"
                   >
                     Open in catalog
                     <span aria-hidden>→</span>
@@ -293,7 +293,7 @@ export default async function SocialThreadPage({
                 {musicHref ? (
                   <Link
                     href={musicHref}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/25"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gold-500/15 px-4 py-2.5 text-sm font-medium text-gold-300 ring-1 ring-gold-500/30 transition hover:bg-gold-500/25"
                   >
                     View in catalog
                     <span aria-hidden>→</span>
@@ -349,7 +349,7 @@ export default async function SocialThreadPage({
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                         <span
                           className={`text-sm font-medium ${
-                            me ? "text-emerald-400/95" : "text-zinc-300"
+                            me ? "text-gold-400/95" : "text-zinc-300"
                           }`}
                         >
                           {me ? "You" : `@${who}`}

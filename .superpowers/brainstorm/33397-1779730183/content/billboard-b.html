@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Billboard — Before vs Approach B</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #111018;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 32px;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+.comparison {
+  display: flex;
+  gap: 48px;
+  align-items: flex-start;
+}
+
+.phone-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.phone-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.phone {
+  width: 360px;
+  background: #09090b;
+  border-radius: 44px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.9);
+  position: relative;
+}
+
+/* ─── SHARED ATOMS ─── */
+.status-bar {
+  padding: 14px 24px 6px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.app-header {
+  padding: 4px 22px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wordmark {
+  font-size: 21px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.bell { font-size: 19px; color: rgba(255,255,255,0.4); }
+
+/* ─────────────────────────────────────
+   BEFORE
+───────────────────────────────────── */
+.before .tab-row {
+  display: flex;
+  padding: 12px 20px 0;
+  gap: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-top: 8px;
+}
+
+.before .tab {
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.35);
+  position: relative;
+}
+
+.before .tab.active {
+  color: #fff;
+  font-weight: 600;
+}
+
+.before .tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: #34d399;
+}
+
+.before .pills {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px 0;
+}
+
+.before .pill {
+  padding: 7px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.4);
+}
+
+.before .pill.active {
+  background: #34d399;
+  color: #000;
+}
+
+.before .week-wrap {
+  padding: 14px 20px 0;
+}
+
+.before .week-label-micro {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 7px;
+}
+
+.before .week-nav {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 10px 0;
+}
+
+.before .week-arrow {
+  padding: 0 14px;
+  color: rgba(255,255,255,0.25);
+}
+
+.before .week-text {
+  flex: 1;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* The #1 card — current: small thumbnail in flat card */
+.before .number-one-card {
+  margin: 14px 20px 0;
+  background: rgba(255,255,255,0.05);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.before .card-date {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+.before .card-inner {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.before .art-thumb {
+  width: 78px;
+  height: 78px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: linear-gradient(150deg, #2e2520 0%, #1a1515 100%);
+}
+
+.before .card-meta { flex: 1; }
+
+.before .rank-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #f59e0b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+
+.before .track-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.before .track-artist {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 8px;
+}
+
+.before .track-stats {
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+}
+
+/* Insights — current */
+.before .insights {
+  margin: 12px 20px 0;
+  background: rgba(255,255,255,0.05);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.before .insights-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+.before .insight-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 11px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.4;
+}
+
+.before .insight-row:last-child { margin-bottom: 0; }
+
+.before .ins-icon {
+  color: rgba(255,255,255,0.3);
+  font-size: 14px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+/* Chart list rows — before */
+.before .chart-section {
+  margin: 12px 20px 0;
+}
+
+.before .chart-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+}
+
+.before .chart-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.before .chart-rank {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.25);
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.before .chart-art {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.before .chart-info { flex: 1; }
+.before .chart-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+.before .chart-artist { font-size: 11px; color: rgba(255,255,255,0.4); }
+.before .chart-plays { font-size: 12px; color: rgba(255,255,255,0.3); }
+
+/* Bottom nav — before */
+.before .bottom-nav {
+  margin-top: 18px;
+  padding: 12px 0 28px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: space-around;
+}
+
+.before .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.before .nav-icon { font-size: 20px; color: rgba(255,255,255,0.3); }
+.before .nav-txt { font-size: 10px; color: rgba(255,255,255,0.3); }
+.before .nav-item.active .nav-icon,
+.before .nav-item.active .nav-txt { color: #34d399; }
+
+/* ─────────────────────────────────────
+   AFTER — Approach B
+───────────────────────────────────── */
+.after .phone { background: #0c0a16; }
+
+/* Checkerboard band */
+.after .checker-band {
+  height: 88px;
+  position: relative;
+  background-color: #12102b;
+  background-image:
+    linear-gradient(45deg, #1c1940 25%, transparent 25%),
+    linear-gradient(-45deg, #1c1940 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1c1940 75%),
+    linear-gradient(-45deg, transparent 75%, #1c1940 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0px;
+}
+
+.after .checker-band::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: linear-gradient(transparent, #0c0a16);
+}
+
+/* Status + header on top of checker */
+.after .status-bar {
+  position: relative;
+  z-index: 2;
+  margin-top: -88px;
+}
+
+.after .app-header {
+  position: relative;
+  z-index: 2;
+  padding: 2px 22px 0;
+}
+
+.after .tab-row {
+  display: flex;
+  padding: 12px 20px 0;
+  gap: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-top: 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.after .tab {
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.3);
+  position: relative;
+}
+
+.after .tab.active {
+  color: #fff;
+  font-weight: 700;
+}
+
+.after .tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: #8B5CF6;
+  border-radius: 2px 2px 0 0;
+}
+
+.after .pills {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px 0;
+}
+
+.after .pill {
+  padding: 7px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.35);
+}
+
+.after .pill.active {
+  background: #8B5CF6;
+  color: #fff;
+}
+
+.after .week-wrap {
+  padding: 14px 20px 0;
+}
+
+.after .week-nav {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139,92,246,0.14);
+  border-radius: 10px;
+  padding: 9px 0;
+}
+
+.after .week-arrow {
+  padding: 0 14px;
+  color: rgba(255,255,255,0.2);
+}
+
+.after .week-text {
+  flex: 1;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Section heading */
+.after .section-heading {
+  padding: 16px 20px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+/* ★ THE HERO CARD ★ */
+.after .hero-card {
+  margin: 0 18px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  height: 178px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+/* Blurred art fills card — warm dark from monochrome photo */
+.after .hero-bg {
+  position: absolute;
+  inset: -8px;
+  background:
+    radial-gradient(ellipse at 30% 40%, rgba(58, 42, 36, 0.9) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(38, 28, 50, 0.8) 0%, transparent 50%),
+    linear-gradient(145deg, #241b22 0%, #15111e 60%, #0f0d18 100%);
+  filter: blur(0px);
+}
+
+/* Vignette overlay */
+.after .hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(10,8,20,0.25) 0%,
+    rgba(10,8,20,0.15) 40%,
+    rgba(10,8,20,0.65) 100%
+  );
+}
+
+/* Content on top */
+.after .hero-content {
+  position: relative;
+  z-index: 1;
+  padding: 18px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Big album art */
+.after .hero-art {
+  width: 118px;
+  height: 118px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
+  background: linear-gradient(160deg, #3e2e2a 0%, #231b20 50%, #161218 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle portrait suggestion inside art */
+.after .hero-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 45% 55%, rgba(80,60,56,0.5) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(50,40,36,0.3) 0%, rgba(0,0,0,0.5) 100%);
+}
+
+.after .hero-meta { flex: 1; }
+
+/* Purple badge instead of amber text */
+.after .rank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(139,92,246,0.2);
+  border: 1px solid rgba(139,92,246,0.4);
+  border-radius: 100px;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #c4b5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 9px;
+}
+
+.after .hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  margin-bottom: 4px;
+}
+
+.after .hero-artist {
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 14px;
+}
+
+.after .hero-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.after .hero-chip {
+  padding: 3px 9px;
+  border-radius: 100px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+}
+
+/* Insights — bold keywords */
+.after .insights {
+  margin: 0 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  overflow: hidden;
+}
+
+.after .insight-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.4;
+}
+
+.after .insight-row:last-child { border-bottom: none; }
+
+.after .ins-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(139,92,246,0.12);
+  border: 1px solid rgba(139,92,246,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.after .ins-text { flex: 1; padding-top: 5px; }
+
+.after .hl {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Chart rows */
+.after .chart-section {
+  margin: 12px 18px 0;
+}
+
+.after .section-heading-small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.after .chart-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.after .chart-rank {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.2);
+  width: 18px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.after .chart-art {
+  width: 40px;
+  height: 40px;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+
+.after .chart-info { flex: 1; }
+.after .chart-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+.after .chart-artist { font-size: 11px; color: rgba(255,255,255,0.38); }
+.after .chart-plays { font-size: 12px; color: rgba(255,255,255,0.28); }
+
+.after .chart-mover {
+  font-size: 11px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.after .chart-mover.down { color: #f87171; }
+
+/* Floating pill nav */
+.after .spacer { height: 84px; }
+
+.after .pill-nav {
+  position: absolute;
+  bottom: 18px;
+  left: 14px; right: 14px;
+  background: rgba(14, 10, 26, 0.96);
+  border: 1px solid rgba(139,92,246,0.18);
+  border-radius: 100px;
+  padding: 10px 6px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow:
+    0 12px 40px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(139,92,246,0.08);
+  backdrop-filter: blur(24px);
+}
+
+.after .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+}
+
+.after .nav-icon { font-size: 19px; color: rgba(255,255,255,0.28); line-height: 1; }
+.after .nav-txt { font-size: 9.5px; color: rgba(255,255,255,0.22); font-weight: 500; }
+.after .nav-item.active .nav-icon { color: #8B5CF6; }
+.after .nav-item.active .nav-txt { color: #8B5CF6; font-weight: 700; }
+
+/* Color swatches as mini album art */
+.swatch-a { background: linear-gradient(150deg, #2e2520 0%, #1a1515 100%); }
+.swatch-b { background: linear-gradient(150deg, #1a2535 0%, #0f1a22 100%); }
+.swatch-c { background: linear-gradient(150deg, #251a35 0%, #160f22 100%); }
+.swatch-d { background: linear-gradient(150deg, #1a2520 0%, #0f1a15 100%); }
+.swatch-e { background: linear-gradient(150deg, #352015 0%, #221308 100%); }
+
+</style>
+</head>
+<body>
+
+<div class="comparison">
+
+  <!-- ─── BEFORE ─── -->
+  <div class="phone-col before">
+    <div class="phone-label">Current</div>
+    <div class="phone">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span style="letter-spacing:2px;">●●●</span>
+      </div>
+      <div class="app-header">
+        <div class="wordmark">Tracklist</div>
+        <div class="bell">🔔</div>
+      </div>
+      <div class="tab-row">
+        <div class="tab active">Billboard</div>
+        <div class="tab">Pulse</div>
+        <div class="tab">History</div>
+        <div class="tab">Activity</div>
+      </div>
+      <div class="pills">
+        <div class="pill active">Tracks</div>
+        <div class="pill">Artists</div>
+        <div class="pill">Albums</div>
+      </div>
+      <div class="week-wrap">
+        <div class="week-label-micro">Week</div>
+        <div class="week-nav">
+          <div class="week-arrow">‹</div>
+          <div class="week-text">May 10–16, 2026 · latest</div>
+          <div class="week-arrow">›</div>
+        </div>
+      </div>
+
+      <!-- #1 card — current -->
+      <div class="number-one-card">
+        <div class="card-date">May 10–16, 2026</div>
+        <div class="card-inner">
+          <div class="art-thumb swatch-a"></div>
+          <div class="card-meta">
+            <div class="rank-label">#1 This Week</div>
+            <div class="track-title">Gaslight 101</div>
+            <div class="track-artist">Odeal</div>
+            <div class="track-stats">3 plays · 1w at #1 · 1w in top 10</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insights — current -->
+      <div class="insights">
+        <div class="insights-label">This Week</div>
+        <div class="insight-row">
+          <div class="ins-icon">✦</div>
+          <div>You had 9 new entries this week.</div>
+        </div>
+        <div class="insight-row">
+          <div class="ins-icon">↗</div>
+          <div>Stevie Wonder took over your week.</div>
+        </div>
+        <div class="insight-row">
+          <div class="ins-icon">↑</div>
+          <div>Biggest mover: Gaslight 101 jumped up 10 spots.</div>
+        </div>
+      </div>
+
+      <!-- Chart list -->
+      <div class="chart-section">
+        <div class="chart-label">The Full Chart</div>
+        <div class="chart-row">
+          <div class="chart-rank">2</div>
+          <div class="chart-art swatch-b" style="border-radius:6px;"></div>
+          <div class="chart-info">
+            <div class="chart-title">Superstition</div>
+            <div class="chart-artist">Stevie Wonder</div>
+          </div>
+          <div class="chart-plays">5 plays</div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-rank">3</div>
+          <div class="chart-art swatch-c" style="border-radius:6px;"></div>
+          <div class="chart-info">
+            <div class="chart-title">Higher Ground</div>
+            <div class="chart-artist">Stevie Wonder</div>
+          </div>
+          <div class="chart-plays">4 plays</div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-rank">4</div>
+          <div class="chart-art swatch-d" style="border-radius:6px;"></div>
+          <div class="chart-info">
+            <div class="chart-title">Knocks Me Off My Feet</div>
+            <div class="chart-artist">Stevie Wonder</div>
+          </div>
+          <div class="chart-plays">3 plays</div>
+        </div>
+      </div>
+
+      <!-- Bottom nav -->
+      <div class="bottom-nav">
+        <div class="nav-item active">
+          <div style="width:26px;height:26px;border-radius:50%;background:#1c1c1c;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;">N</div>
+          <div class="nav-txt" style="color:#34d399;">Home</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon">⊙</div>
+          <div class="nav-txt">Explore</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon">○</div>
+          <div class="nav-txt">Search</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon">◫</div>
+          <div class="nav-txt">Community</div>
+        </div>
+        <div class="nav-item">
+          <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div>
+          <div class="nav-txt">You</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── AFTER ─── -->
+  <div class="phone-col after">
+    <div class="phone-label">Approach B</div>
+    <div class="phone">
+
+      <!-- Checkerboard band at top -->
+      <div class="checker-band"></div>
+
+      <!-- Status bar overlaps checker band -->
+      <div class="status-bar">
+        <span>9:41</span>
+        <span style="letter-spacing:2px;">●●●</span>
+      </div>
+
+      <div class="app-header">
+        <div class="wordmark">Tracklist</div>
+        <div class="bell">🔔</div>
+      </div>
+
+      <div class="tab-row">
+        <div class="tab active">Billboard</div>
+        <div class="tab">Pulse</div>
+        <div class="tab">History</div>
+        <div class="tab">Activity</div>
+      </div>
+
+      <div class="pills">
+        <div class="pill active">Tracks</div>
+        <div class="pill">Artists</div>
+        <div class="pill">Albums</div>
+      </div>
+
+      <div class="week-wrap">
+        <div class="week-nav">
+          <div class="week-arrow">‹</div>
+          <div class="week-text">May 10–16, 2026 · latest</div>
+          <div class="week-arrow">›</div>
+        </div>
+      </div>
+
+      <!-- Section heading -->
+      <div class="section-heading">
+        <span>📊</span><span>This Week's Billboard</span>
+      </div>
+
+      <!-- ★ HERO CARD ★ -->
+      <div class="hero-card">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <div class="hero-art"></div>
+          <div class="hero-meta">
+            <div class="rank-badge">🏆 #1 This Week</div>
+            <div class="hero-title">Gaslight 101</div>
+            <div class="hero-artist">Odeal</div>
+            <div class="hero-chips">
+              <div class="hero-chip">3 plays</div>
+              <div class="hero-chip">1w at #1</div>
+              <div class="hero-chip">1w top 10</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insights — bold keywords -->
+      <div class="section-heading" style="padding-top:14px;">
+        <span>✨</span><span>This Week</span>
+      </div>
+
+      <div class="insights">
+        <div class="insight-row">
+          <div class="ins-icon">🆕</div>
+          <div class="ins-text"><span class="hl">9 new entries</span> this week</div>
+        </div>
+        <div class="insight-row">
+          <div class="ins-icon">🎤</div>
+          <div class="ins-text"><span class="hl">Stevie Wonder</span> took over your week</div>
+        </div>
+        <div class="insight-row">
+          <div class="ins-icon">🚀</div>
+          <div class="ins-text"><span class="hl">Gaslight 101</span> jumped <span class="hl">10 spots</span></div>
+        </div>
+      </div>
+
+      <!-- Chart list -->
+      <div class="chart-section">
+        <div class="section-heading-small">
+          <span>🎵</span><span>The Full Chart</span>
+        </div>
+        <div class="chart-row">
+          <div class="chart-rank">2</div>
+          <div class="chart-art swatch-b"></div>
+          <div class="chart-info">
+            <div class="chart-title">Superstition</div>
+            <div class="chart-artist">Stevie Wonder</div>
+          </div>
+          <div class="chart-mover">↑5</div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-rank">3</div>
+          <div class="chart-art swatch-c"></div>
+          <div class="chart-info">
+            <div class="chart-title">Higher Ground</div>
+            <div class="chart-artist">Stevie Wonder</div>
+          </div>
+          <div class="chart-mover">↑2</div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-rank">4</div>
+          <div class="chart-art swatch-d"></div>
+          <div class="chart-info">
+            <div class="chart-title">Knocks Me Off My Feet</div>
+            <div class="chart-artist">Stevie Wonder</div>
+          </div>
+          <div class="chart-mover down">↓1</div>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <!-- Floating pill nav -->
+      <div class="pill-nav">
+        <div class="nav-item active">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,0.18);border:2px solid rgba(139,92,246,0.45);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#c4b5fd;">N</div>
+          <div class="nav-txt" style="color:#8B5CF6;font-weight:700;">Home</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon">⊙</div>
+          <div class="nav-txt">Explore</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon">○</div>
+          <div class="nav-txt">Search</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-icon">◫</div>
+          <div class="nav-txt">Community</div>
+        </div>
+        <div class="nav-item">
+          <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#06b6d4);"></div>
+          <div class="nav-txt">You</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

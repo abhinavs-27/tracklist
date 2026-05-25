@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
   action: {
     fontSize: 14,
     fontWeight: "600",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
 });

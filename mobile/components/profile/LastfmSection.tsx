@@ -368,7 +368,7 @@ export function LastfmSection({
           opacity: pressed ? 0.85 : 1,
         })}
       >
-        <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.emerald }}>
+        <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.gold }}>
           {manualOpen ? "▼" : "▶"} Manual preview & import (optional)
         </Text>
       </Pressable>
@@ -389,7 +389,7 @@ export function LastfmSection({
               })}
             >
               {previewQuery.isFetching ? (
-                <ActivityIndicator size="small" color={theme.colors.emerald} />
+                <ActivityIndicator size="small" color={theme.colors.gold} />
               ) : (
                 <Text style={{ fontWeight: "700", color: theme.colors.text }}>Load preview</Text>
               )}
@@ -438,7 +438,7 @@ export function LastfmSection({
                 <Text style={{ color: "#fbbf24", fontSize: 13 }}>{preview.error}</Text>
               ) : (
                 <Text style={{ fontSize: 13, color: theme.colors.muted }}>
-                  <Text style={{ fontWeight: "700", color: theme.colors.emerald }}>
+                  <Text style={{ fontWeight: "700", color: theme.colors.gold }}>
                     {preview.matchedCount} matched
                   </Text>
                   {" · "}
@@ -503,7 +503,7 @@ export function LastfmSection({
               onPress={() => importMutation.mutate()}
               disabled={importMutation.isPending || selectedKeys.size === 0}
               style={{
-                backgroundColor: theme.colors.emerald,
+                backgroundColor: theme.colors.gold,
                 paddingVertical: 12,
                 borderRadius: 10,
                 alignItems: "center",
@@ -586,7 +586,7 @@ export function LastfmSection({
                   router.push("/(tabs)");
                 }}
                 style={{
-                  backgroundColor: theme.colors.emerald,
+                  backgroundColor: theme.colors.gold,
                   paddingHorizontal: 16,
                   paddingVertical: 10,
                   borderRadius: 10,
@@ -669,7 +669,7 @@ export function LastfmSection({
                 onPress={() => void addTracksToList()}
                 style={{ opacity: listAddBusy || !listPickId ? 0.5 : 1 }}
               >
-                <Text style={{ color: theme.colors.emerald, fontWeight: "800" }}>
+                <Text style={{ color: theme.colors.gold, fontWeight: "800" }}>
                   {listAddBusy ? "Adding…" : "Add tracks"}
                 </Text>
               </Pressable>

@@ -485,7 +485,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Total plays</p>
           <p className="mt-1.5 text-2xl font-bold text-white">{compare.totalPlaysCurrent.toLocaleString()}</p>
           {compare.percentChange != null && (
-            <p className={`mt-0.5 text-xs font-medium ${compare.percentChange >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            <p className={`mt-0.5 text-xs font-medium ${compare.percentChange >= 0 ? "text-gold-400" : "text-red-400"}`}>
               {compare.percentChange >= 0 ? "↑" : "↓"} {compare.percentChange >= 0 ? "+" : ""}{compare.percentChange.toFixed(0)}% vs prior
             </p>
           )}
@@ -496,7 +496,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
           {compare.topGainer ? (
             <>
               <p className="mt-1.5 text-sm font-bold leading-tight text-white">{compare.topGainer.name}</p>
-              <p className="mt-0.5 text-xs font-medium text-emerald-400">+{compare.topGainer.movement} spots</p>
+              <p className="mt-0.5 text-xs font-medium text-gold-400">+{compare.topGainer.movement} spots</p>
             </>
           ) : (
             <p className="mt-1.5 text-sm text-zinc-500">—</p>
@@ -540,7 +540,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
               onClick={() => selectRange(r.value)}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                 range === r.value
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-gold-600 text-white"
                   : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
               }`}
             >
@@ -614,7 +614,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
             type="button"
             onClick={() => applyCustom()}
             disabled={!startDate || !endDate || loading}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="rounded-lg bg-gold-600 px-3 py-1.5 text-sm text-white hover:bg-gold-500 disabled:opacity-50"
           >
             Apply
           </button>
@@ -635,12 +635,12 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/reports/shared/${s.id}`}
-                    className="text-emerald-400 hover:underline"
+                    className="text-gold-400 hover:underline"
                   >
                     {s.name}
                   </Link>
                   {s.is_public ? (
-                    <span className="ml-1.5 inline-block align-middle rounded-md border border-emerald-800/60 bg-emerald-950/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400/95">
+                    <span className="ml-1.5 inline-block align-middle rounded-md border border-gold-800/60 bg-gold-950/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-400/95">
                       Link
                     </span>
                   ) : null}
@@ -653,7 +653,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
                   type="button"
                   onClick={() => void openShareFromSaved(s)}
                   disabled={sharingSavedId === s.id || deletingId === s.id}
-                  className="shrink-0 rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-emerald-400 disabled:opacity-40"
+                  className="shrink-0 rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-gold-400 disabled:opacity-40"
                   title="Share image"
                   aria-label={`Share image for ${s.name}`}
                 >
@@ -756,7 +756,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
           <div className="space-y-2">
             {heroRow && (
               <div className="flex overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
-                <div className="flex w-16 shrink-0 items-center justify-center bg-gradient-to-b from-emerald-600 to-emerald-800">
+                <div className="flex w-16 shrink-0 items-center justify-center bg-gradient-to-b from-gold-600 to-gold-800">
                   <span className="text-2xl font-black text-white/90">#1</span>
                 </div>
                 <div className="relative my-3 ml-4 h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
@@ -767,7 +767,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
                   )}
                 </div>
                 <div className="min-w-0 flex-1 py-3 pl-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-400">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gold-400">
                     {RANGES.find((r) => r.value === range)?.label ?? range} · {TYPES.find((t) => t.value === entityType)?.label ?? entityType}
                   </p>
                   <p className="mt-1 truncate text-lg font-bold text-white">{heroRow.name}</p>
@@ -778,7 +778,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
                     <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">New</span>
                   ) : (
                     <span className={`text-sm font-semibold tabular-nums ${
-                      heroRow.movement != null && heroRow.movement > 0 ? "text-emerald-400"
+                      heroRow.movement != null && heroRow.movement > 0 ? "text-gold-400"
                       : heroRow.movement != null && heroRow.movement < 0 ? "text-red-400"
                       : "text-zinc-500"
                     }`}>
@@ -849,7 +849,7 @@ export function ListeningReportsClient(props: { userId: string; username?: strin
                             <span
                               className={`shrink-0 text-sm tabular-nums ${
                                 row.movement != null && row.movement > 0
-                                  ? "text-emerald-400"
+                                  ? "text-gold-400"
                                   : row.movement != null && row.movement < 0
                                     ? "text-red-400"
                                     : "text-zinc-500"

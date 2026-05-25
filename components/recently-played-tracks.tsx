@@ -119,7 +119,7 @@ export function RecentlyPlayedTracks({
       {(hasMore || items.length >= PROFILE_LIMIT) && (
         <Link
           href="/recently-played"
-          className="text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+          className="text-xs font-medium text-gold-400 hover:text-gold-300 hover:underline"
         >
           View all
         </Link>

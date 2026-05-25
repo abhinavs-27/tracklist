@@ -12,9 +12,10 @@ interface Props {
   labelHistory: LabelHistoryEntry[];
   externalLinks?: Record<string, string> | null;
   isLoading?: boolean;
+  isEnriching?: boolean;
 }
 
-export function ArtistInfoTab({ bio, members, labelHistory, externalLinks, isLoading }: Props) {
+export function ArtistInfoTab({ bio, members, labelHistory, externalLinks, isLoading, isEnriching }: Props) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const BIO_TRUNCATE = 300;
 
@@ -27,8 +28,16 @@ export function ArtistInfoTab({ bio, members, labelHistory, externalLinks, isLoa
     );
   }
 
+  const hasContent = bio || members.length > 0 || labelHistory.length > 0 || externalLinks;
+
   return (
     <div className="space-y-6 py-4">
+      {isEnriching && !hasContent && (
+        <div className="flex items-center gap-2 text-zinc-500 text-sm">
+          <span className="inline-block h-3 w-3 rounded-full border-2 border-zinc-600 border-t-gold-500 animate-spin" />
+          Fetching info…
+        </div>
+      )}
       {bio && (
         <section>
           <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-3">About</p>
@@ -36,7 +45,7 @@ export function ArtistInfoTab({ bio, members, labelHistory, externalLinks, isLoa
             {bioExpanded || bio.length <= BIO_TRUNCATE ? bio : bio.slice(0, BIO_TRUNCATE) + "…"}
           </p>
           {bio.length > BIO_TRUNCATE && (
-            <button type="button" onClick={() => setBioExpanded(!bioExpanded)} className="text-[13px] text-emerald-500 font-medium mt-2 block">
+            <button type="button" onClick={() => setBioExpanded(!bioExpanded)} className="text-[13px] text-gold-500 font-medium mt-2 block">
               {bioExpanded ? "Show less" : "Show more"}
             </button>
           )}
@@ -50,8 +59,8 @@ export function ArtistInfoTab({ bio, members, labelHistory, externalLinks, isLoa
             {labelHistory.map((l) => (
               <div key={`${l.id}-${l.start_year}`} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${l.is_current ? "bg-emerald-500" : "bg-zinc-600"}`} />
-                  <span className={`text-sm font-medium ${l.is_current ? "text-emerald-400" : "text-zinc-400"}`}>{l.name}</span>
+                  <div className={`w-1.5 h-1.5 rounded-full ${l.is_current ? "bg-gold-500" : "bg-zinc-600"}`} />
+                  <span className={`text-sm font-medium ${l.is_current ? "text-gold-400" : "text-zinc-400"}`}>{l.name}</span>
                 </div>
                 <span className="text-[12px] text-zinc-600">
                   {l.start_year ?? ""}{l.end_year ? `–${l.end_year}` : l.is_current ? "–present" : ""}

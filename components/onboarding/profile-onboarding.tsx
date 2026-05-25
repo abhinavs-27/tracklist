@@ -401,7 +401,7 @@ export function ProfileOnboarding({
   const stepperRow =
     "flex flex-wrap items-center gap-2 text-sm font-medium text-zinc-500 sm:text-base";
   const primaryBtn =
-    "inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white hover:bg-emerald-500 disabled:opacity-50";
+    "inline-flex items-center gap-2 rounded-xl bg-gold-600 px-5 py-3 text-base font-semibold text-white hover:bg-gold-500 disabled:opacity-50";
   const secondaryBtn =
     "rounded-xl border border-zinc-600 px-5 py-3 text-base text-zinc-300 hover:bg-zinc-800 disabled:opacity-50";
   const ghostBtn =
@@ -446,8 +446,8 @@ export function ProfileOnboarding({
 
       <div className="mx-auto w-full max-w-2xl py-4 sm:py-10">
         {inviteFlow ? (
-          <div className="mb-10 rounded-2xl bg-emerald-950/45 px-5 py-5 text-center shadow-[0_12px_40px_-12px_rgba(6,78,59,0.35)] ring-1 ring-inset ring-emerald-400/20 sm:px-6">
-            <p className="text-sm font-medium text-emerald-100 sm:text-base">
+          <div className="mb-10 rounded-2xl bg-gold-950/45 px-5 py-5 text-center shadow-[0_12px_40px_-12px_rgba(6,78,59,0.35)] ring-1 ring-inset ring-gold-400/20 sm:px-6">
+            <p className="text-sm font-medium text-gold-100 sm:text-base">
               You&apos;re joining{" "}
               <span className="text-white">
                 {communityInviteName ?? "a community"}
@@ -455,7 +455,7 @@ export function ProfileOnboarding({
               — finish setup and we&apos;ll add you and open it when you&apos;re
               done.
             </p>
-            <p className="mt-2 text-sm text-emerald-200/75">
+            <p className="mt-2 text-sm text-gold-200/75">
               Username, optional profile photo, favorite albums, your listening
               chart, then meet members — same steps as everyone else.
             </p>
@@ -464,7 +464,7 @@ export function ProfileOnboarding({
 
         <div
           id="profile-onboarding"
-          className="rounded-2xl bg-emerald-950/20 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-emerald-500/15 sm:p-10"
+          className="rounded-2xl bg-gold-950/20 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-gold-500/15 sm:p-10"
         >
           {/* Visual step indicator */}
           <div className="flex items-center">
@@ -479,9 +479,9 @@ export function ProfileOnboarding({
                       <div
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                           active
-                            ? "bg-emerald-500 text-zinc-950"
+                            ? "bg-gold-500 text-zinc-950"
                             : done
-                              ? "bg-emerald-950 text-emerald-400 ring-1 ring-emerald-600/40"
+                              ? "bg-gold-950 text-gold-400 ring-1 ring-gold-600/40"
                               : "bg-zinc-800 text-zinc-600"
                         }`}
                       >
@@ -498,7 +498,7 @@ export function ProfileOnboarding({
                     {i < 4 && (
                       <div
                         className={`mx-2 h-px w-4 shrink-0 sm:mx-3 sm:w-6 ${
-                          step > num ? "bg-emerald-800/80" : "bg-zinc-800"
+                          step > num ? "bg-gold-800/80" : "bg-zinc-800"
                         }`}
                       />
                     )}
@@ -532,7 +532,7 @@ export function ProfileOnboarding({
                 />
               </label>
 
-              <div className="border-t border-emerald-900/25 pt-6">
+              <div className="border-t border-gold-900/25 pt-6">
                 <p className={labelClass}>
                   Profile photo{" "}
                   <span className="font-normal text-zinc-500">(optional)</span>
@@ -557,7 +557,7 @@ export function ProfileOnboarding({
                     )}
                     {pictureMutation.isPending ? (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-[10px] font-medium text-white">
-                        <InlineSpinner tone="emerald" />
+                        <InlineSpinner tone="gold" />
                       </div>
                     ) : null}
                   </div>
@@ -600,7 +600,7 @@ export function ProfileOnboarding({
                 >
                   {stepBusy ? (
                     <>
-                      <InlineSpinner tone="emerald" />
+                      <InlineSpinner tone="gold" />
                       Saving…
                     </>
                   ) : (
@@ -642,7 +642,7 @@ export function ProfileOnboarding({
                   className={primaryBtn}
                 >
                   {stepBusy ? (
-                    <><InlineSpinner tone="emerald" /> Saving…</>
+                    <><InlineSpinner tone="gold" /> Saving…</>
                   ) : (
                     "Continue"
                   )}
@@ -676,7 +676,7 @@ export function ProfileOnboarding({
                       className={primaryBtn}
                     >
                       {albumSuggestionsLoading ? (
-                        <><InlineSpinner tone="emerald" /> Loading…</>
+                        <><InlineSpinner tone="gold" /> Loading…</>
                       ) : (
                         "See albums →"
                       )}
@@ -717,7 +717,7 @@ export function ProfileOnboarding({
                       className={primaryBtn}
                     >
                       {stepBusy ? (
-                        <><InlineSpinner tone="emerald" /> Saving…</>
+                        <><InlineSpinner tone="gold" /> Saving…</>
                       ) : ratedAlbums.length > 0 ? (
                         `Save ${ratedAlbums.length} rating${ratedAlbums.length === 1 ? "" : "s"} →`
                       ) : (
@@ -743,7 +743,7 @@ export function ProfileOnboarding({
                   <button type="button" onClick={advanceFromLastfm} className={primaryBtn}>
                     Continue
                   </button>
-                  <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
+                  <div className="flex flex-wrap gap-2 border-t border-gold-900/30 pt-4">
                     <button type="button" onClick={() => setStep(3)} className={backSmall}>Back</button>
                   </div>
                 </>
@@ -809,7 +809,7 @@ export function ProfileOnboarding({
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 border-t border-emerald-900/30 pt-4">
+                  <div className="flex flex-wrap gap-2 border-t border-gold-900/30 pt-4">
                     <button type="button" onClick={() => setStep(3)} className={backSmall}>Back</button>
                   </div>
                 </>
@@ -910,7 +910,7 @@ export function ProfileOnboarding({
                 >
                   {stepBusy ? (
                     <>
-                      <InlineSpinner tone="emerald" />
+                      <InlineSpinner tone="gold" />
                       Finishing setup…
                     </>
                   ) : inviteFlow ? (

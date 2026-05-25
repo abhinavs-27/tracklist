@@ -1,0 +1,208 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #09090B; color: #F4F4F5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #F4F4F5; }
+  .subtitle { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  .phones { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .phone { width: 375px; background: #09090B; border: 1.5px solid #27272A; border-radius: 40px; overflow: hidden; padding: 16px 0 0; box-shadow: 0 32px 80px rgba(0,0,0,0.8); cursor: pointer; transition: border-color 0.2s; }
+  .phone:hover { border-color: #10B98150; }
+  .phone.selected { border-color: #10B981; }
+  .phone-inner { padding: 0 16px; }
+  .phone-notch { width: 120px; height: 24px; background: #111; border-radius: 12px; margin: 0 auto 20px; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .nav-back { font-size: 14px; color: #10B981; font-weight: 500; }
+
+  .hero { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .album-art { width: 224px; height: 224px; border-radius: 16px; background: linear-gradient(135deg, #1a1035, #0d1f35, #0a2212); box-shadow: 0 16px 48px -8px rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 72px; }
+  .hero-meta { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .hero-type { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #71717A; }
+  .release-badge { display: inline-block; background: #18181B; border: 1px solid #27272A; color: #52525B; font-size: 9px; font-weight: 600; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; margin-left: 6px; vertical-align: middle; }
+  .hero-title { font-size: 26px; font-weight: 800; color: #F4F4F5; text-align: center; letter-spacing: -0.3px; line-height: 1.15; }
+  .hero-artist { font-size: 16px; font-weight: 600; color: #D4D4D8; text-align: center; }
+  .hero-detail { font-size: 13px; color: #A1A1AA; text-align: center; }
+  .stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; justify-content: center; margin-top: 4px; }
+  .stat-amber { color: #F59E0B; font-size: 14px; font-weight: 800; }
+  .stat-muted { color: #A1A1AA; font-size: 14px; font-weight: 700; }
+  .stat-val { color: #F4F4F5; font-size: 14px; font-weight: 700; }
+
+  .divider { height: 1px; background: #27272A; margin: 16px 0; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid #27272A; margin: 0 -16px; padding: 0 16px; }
+  .tab { flex: 1; text-align: center; padding: 11px 0; font-size: 13px; font-weight: 600; color: #71717A; position: relative; }
+  .tab.active { color: #F4F4F5; }
+  .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #10B981; border-radius: 1px; }
+
+  /* Track rows */
+  .track { padding: 10px 0; border-bottom: 1px solid #1f1f1f; }
+  .track-top { display: flex; align-items: center; gap: 10px; }
+  .track-num { width: 22px; text-align: right; font-size: 12px; color: #52525B; flex-shrink: 0; }
+  .track-name { flex: 1; font-size: 14px; font-weight: 500; color: #F4F4F5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track-dur { font-size: 12px; color: #52525B; flex-shrink: 0; }
+  .track-stats { margin-top: 3px; padding-left: 32px; font-size: 11px; color: #71717A; }
+
+  /* Info tab content */
+  .info-section { padding: 16px 0; border-bottom: 1px solid #27272A; }
+  .info-section:last-child { border-bottom: none; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; margin-bottom: 10px; }
+
+  /* Credits */
+  .credit-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .credit-row:last-child { margin-bottom: 0; }
+  .credit-type { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #52525B; min-width: 60px; flex-shrink: 0; padding-top: 1px; }
+  .credit-names { font-size: 14px; color: #A1A1AA; flex: 1; line-height: 1.5; }
+  .credit-names a { color: #10B981; text-decoration: none; font-weight: 500; }
+  .credit-more { color: #52525B; font-size: 12px; margin-left: 2px; }
+
+  /* About */
+  .about-text { font-size: 14px; line-height: 1.65; color: #A1A1AA; }
+  .about-text em { color: #D4D4D8; font-style: italic; }
+  .show-more { color: #10B981; font-size: 13px; font-weight: 500; margin-top: 8px; display: block; }
+
+  /* Links */
+  .links-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ext-link { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: #71717A; padding: 6px 12px; border: 1px solid #27272A; border-radius: 20px; background: #18181B; }
+
+  /* Featuring strip on tracks tab */
+  .feat-strip { display: flex; align-items: center; gap: 8px; padding: 10px 0 14px; border-bottom: 1px solid #1f1f1f; }
+  .feat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .feat-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .feat-chip { font-size: 12px; color: #10B981; background: #10B98115; border: 1px solid #10B98130; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
+
+  .more-tracks { color: #3F3F46; font-size: 12px; text-align: center; padding: 14px 0; }
+  .bottom-spacer { height: 40px; }
+</style>
+
+<h2 style="text-align:center">Info tab approach</h2>
+<p class="subtitle" style="text-align:center">All new content moves into a dedicated "Info" tab — hero and Tracks tab stay exactly as they are today. No cramping.</p>
+
+<div class="phones">
+
+  <!-- Tracks tab (unchanged) -->
+  <div class="phone-wrap">
+    <div class="phone-label">Tracks tab — unchanged</div>
+    <div class="phone" data-choice="tracks" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="nav"><span class="nav-back">← Albums</span></div>
+
+        <div class="hero">
+          <div class="album-art">🎵</div>
+          <div class="hero-meta">
+            <div class="hero-type">Album <span class="release-badge">Studio</span></div>
+            <div class="hero-title">good kid, m.A.A.d city</div>
+            <div class="hero-artist">Kendrick Lamar</div>
+            <div class="hero-detail">2012 · 12 tracks · 68 min</div>
+            <div class="stats">
+              <span class="stat-amber">★ 4.6</span><span class="stat-muted"> avg</span>
+              <span class="stat-val">48.2k</span><span class="stat-muted"> plays</span>
+              <span class="stat-val">9.4k</span><span class="stat-muted"> favorites</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab active">Tracks</div>
+          <div class="tab">Info</div>
+          <div class="tab">Reviews</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="track"><div class="track-top"><span class="track-num">1</span><span class="track-name">Sherane a.k.a Master Splinter's Daughter</span><span class="track-dur">4:55</span></div><div class="track-stats">6.2k plays · ★ 4.3</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">2</span><span class="track-name">Bitch, Don't Kill My Vibe</span><span class="track-dur">5:10</span></div><div class="track-stats">18.4k plays · ★ 4.7</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">3</span><span class="track-name">Backseat Freestyle</span><span class="track-dur">3:32</span></div><div class="track-stats">14.1k plays · ★ 4.5</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">4</span><span class="track-name">The Art of Peer Pressure</span><span class="track-dur">5:25</span></div><div class="track-stats">9.8k plays · ★ 4.8</div></div>
+          <div class="track"><div class="track-top"><span class="track-num">5</span><span class="track-name">Money Trees</span><span class="track-dur">6:26</span></div><div class="track-stats">22.1k plays · ★ 4.9</div></div>
+        </div>
+        <div class="more-tracks">+ 7 more tracks</div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- Info tab -->
+  <div class="phone-wrap">
+    <div class="phone-label">Info tab — all new content</div>
+    <div class="phone" data-choice="info" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="nav"><span class="nav-back">← Albums</span></div>
+
+        <div class="hero">
+          <div class="album-art">🎵</div>
+          <div class="hero-meta">
+            <div class="hero-type">Album <span class="release-badge">Studio</span></div>
+            <div class="hero-title">good kid, m.A.A.d city</div>
+            <div class="hero-artist">Kendrick Lamar</div>
+            <div class="hero-detail">2012 · 12 tracks · 68 min</div>
+            <div class="stats">
+              <span class="stat-amber">★ 4.6</span><span class="stat-muted"> avg</span>
+              <span class="stat-val">48.2k</span><span class="stat-muted"> plays</span>
+              <span class="stat-val">9.4k</span><span class="stat-muted"> favorites</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab">Tracks</div>
+          <div class="tab active">Info</div>
+          <div class="tab">Reviews</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <!-- Info tab content -->
+        <div class="info-section">
+          <div class="section-label">About</div>
+          <div class="about-text">
+            <em>good kid, m.A.A.d city</em> is the major-label debut by Kendrick Lamar — a semi-autobiographical portrait of growing up in Compton, CA. Recorded across LA studios in 2011–12, it blends West Coast hip-hop with jazz, soul, and spoken word interludes.
+            <span class="show-more">Show more</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">Credits</div>
+          <div class="credit-row">
+            <div class="credit-type">Label</div>
+            <div class="credit-names"><a href="#">Aftermath Entertainment</a> · <a href="#">Interscope</a></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Produced</div>
+            <div class="credit-names"><a href="#">Sounwave</a>, <a href="#">THC</a>, <a href="#">Just Blaze</a>, <a href="#">Hit-Boy</a><span class="credit-more"> +3</span></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Written</div>
+            <div class="credit-names"><a href="#">Kendrick Lamar</a><span class="credit-more"> +8</span></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Featuring</div>
+            <div class="credit-names"><a href="#">Drake</a>, <a href="#">Jay Rock</a>, <a href="#">MC Eiht</a></div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">Links</div>
+          <div class="links-row">
+            <span class="ext-link">🌐 Wikipedia</span>
+            <span class="ext-link">💿 Discogs</span>
+            <span class="ext-link">🎸 AllMusic</span>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;margin-top:24px;font-size:13px;color:#52525B;max-width:700px;margin-left:auto;margin-right:auto;line-height:1.6">
+  Hero is identical on both. Tracks tab is completely unchanged — tracks start right below the tabs with no new sections above them. All the new depth lives in Info. Click to select.
+</div>

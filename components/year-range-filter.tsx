@@ -80,7 +80,7 @@ export function YearRangeFilter({ value, onChange, className }: Props) {
         onClick={() => setOpen((v) => !v)}
         className="inline-flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 shadow-sm transition hover:border-zinc-500 hover:text-white touch-manipulation sm:inline-flex sm:w-auto sm:justify-start"
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        <span className="h-1.5 w-1.5 rounded-full bg-gold-500" />
         <span>{label}</span>
       </button>
 
@@ -105,7 +105,7 @@ export function YearRangeFilter({ value, onChange, className }: Props) {
                 placeholder="e.g. 1990"
                 value={startInput}
                 onChange={(e) => setStartInput(e.target.value)}
-                className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900/70 px-2 py-1 text-sm text-white outline-none focus:border-emerald-500"
+                className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900/70 px-2 py-1 text-sm text-white outline-none focus:border-gold-500"
               />
             </div>
             <span className="mt-5 text-xs text-zinc-500">to</span>
@@ -124,7 +124,7 @@ export function YearRangeFilter({ value, onChange, className }: Props) {
                 placeholder="e.g. 1999"
                 value={endInput}
                 onChange={(e) => setEndInput(e.target.value)}
-                className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900/70 px-2 py-1 text-sm text-white outline-none focus:border-emerald-500"
+                className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900/70 px-2 py-1 text-sm text-white outline-none focus:border-gold-500"
               />
             </div>
           </div>
@@ -144,7 +144,7 @@ export function YearRangeFilter({ value, onChange, className }: Props) {
             <button
               type="button"
               onClick={handleApply}
-              className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
+              className="rounded-md bg-gold-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gold-500"
             >
               Apply
             </button>

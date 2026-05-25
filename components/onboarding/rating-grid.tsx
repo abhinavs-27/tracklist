@@ -138,7 +138,7 @@ export function RatingGrid({ suggestions, onRatingsChange }: Props) {
                           placeholder="What do you think? (optional)"
                           value={reviewTexts.get(album.id) ?? ""}
                           onChange={(e) => handleReviewText(album.id, e.target.value)}
-                          className="mt-2 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:border-emerald-600 focus:outline-none"
+                          className="mt-2 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:border-gold-600 focus:outline-none"
                         />
                       ) : null}
                     </div>

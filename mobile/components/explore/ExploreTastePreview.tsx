@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 13,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   insight: {
     fontSize: 14,

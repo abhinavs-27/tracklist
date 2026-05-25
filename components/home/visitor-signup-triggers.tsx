@@ -86,7 +86,7 @@ export function VisitorSignupTriggers() {
           <Link
             href="/auth/signin?callbackUrl=%2F"
             onClick={markInteraction}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gold-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-gold-950/30 transition hover:bg-gold-500"
           >
             Sign in
           </Link>

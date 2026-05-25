@@ -45,7 +45,7 @@ export function HomeWelcomeOverlay({
       {visible ? (
         <motion.div
           key="welcome"
-          className="pointer-events-none fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-emerald-950/95 via-zinc-950/98 to-zinc-950"
+          className="pointer-events-none fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-gold-950/95 via-zinc-950/98 to-zinc-950"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

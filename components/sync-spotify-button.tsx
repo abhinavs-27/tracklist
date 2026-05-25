@@ -50,7 +50,7 @@ function SyncSpotifyButton({ onSynced }: SyncSpotifyButtonProps) {
         type="button"
         onClick={handleSync}
         disabled={loading}
-        className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center justify-center rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-black hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? 'Syncing…' : 'Sync Spotify Listening'}
       </button>

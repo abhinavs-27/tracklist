@@ -16,7 +16,7 @@ export default async function NewCommunityPage() {
     <div className={`${contentMaxMd} py-6 sm:py-8 ${sectionGap}`}>
       <Link
         href="/communities"
-        className="inline-block text-sm font-medium text-emerald-400 transition hover:text-emerald-300 hover:underline"
+        className="inline-block text-sm font-medium text-gold-400 transition hover:text-gold-300 hover:underline"
       >
         ← Communities
       </Link>

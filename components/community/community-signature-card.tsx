@@ -3,7 +3,7 @@ import type { CommunitySignatureResult, SignatureRole } from "@/lib/community/co
 
 const ROLE_COLOR: Record<SignatureRole, string> = {
   pioneer:      "bg-violet-500/15 text-violet-400 ring-1 ring-violet-500/20",
-  "deep-diver": "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20",
+  "deep-diver": "bg-gold-500/15 text-gold-400 ring-1 ring-gold-500/20",
   wildcard:     "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/20",
   backbone:     "bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/20",
   curator:      "bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/20",

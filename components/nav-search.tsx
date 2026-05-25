@@ -100,7 +100,7 @@ export function NavSearch() {
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
             {loading ? (
               <svg
-                className="h-4 w-4 animate-spin text-emerald-500"
+                className="h-4 w-4 animate-spin text-gold-500"
                 fill="none"
                 viewBox="0 0 24 24"
                 aria-hidden
@@ -121,7 +121,7 @@ export function NavSearch() {
               </svg>
             ) : (
               <svg
-                className="h-4 w-4 text-emerald-500"
+                className="h-4 w-4 text-gold-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -154,7 +154,7 @@ export function NavSearch() {
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
-            className="w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 py-2 pl-9 pr-3 text-sm text-white placeholder-zinc-500 transition focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+            className="w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 py-2 pl-9 pr-3 text-sm text-white placeholder-zinc-500 transition focus:border-gold-500/50 focus:outline-none focus:ring-1 focus:ring-gold-500/30"
           />
           {query && (
             <button
@@ -321,7 +321,7 @@ export function NavSearch() {
             <Link
               href={`/search?q=${encodeURIComponent(query.trim())}`}
               onClick={handleResultClick}
-              className="text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
+              className="text-sm font-medium text-gold-400 transition hover:text-gold-300"
             >
               See all results for &ldquo;{query.trim()}&rdquo; →
             </Link>

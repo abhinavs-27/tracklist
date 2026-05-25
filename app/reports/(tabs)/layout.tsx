@@ -11,7 +11,7 @@ export default function ReportsTabsLayout({
     <div className={`${contentMax2xl} py-8`}>
       <Link
         href="/you"
-        className="text-sm text-emerald-400 hover:underline"
+        className="text-sm text-gold-400 hover:underline"
       >
         ← You
       </Link>

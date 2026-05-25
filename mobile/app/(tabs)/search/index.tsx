@@ -316,7 +316,7 @@ export default function SearchScreen() {
             <Ionicons
               name={loading ? "sync" : "search"}
               size={18}
-              color={theme.colors.emerald}
+              color={theme.colors.gold}
               style={styles.searchIcon}
             />
             <TextInput
@@ -515,11 +515,13 @@ const styles = StyleSheet.create({
   filters: { paddingHorizontal: 16, paddingVertical: 6, gap: 8, alignItems: "center" },
   pill: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 10,
     borderRadius: 999,
     backgroundColor: theme.colors.panel,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    minHeight: 44,
+    justifyContent: "center",
   },
   pillActive: { backgroundColor: "#059669", borderColor: "#059669" },
   pillText: { fontSize: 13, fontWeight: "600", color: theme.colors.muted },
@@ -540,9 +542,9 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   sectionHeader: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     color: theme.colors.muted,
     marginTop: 16,
     marginBottom: 6,
@@ -635,6 +637,6 @@ const styles = StyleSheet.create({
   browsePeopleText: {
     fontSize: 13,
     fontWeight: "600",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
 });

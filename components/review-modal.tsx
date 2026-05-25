@@ -71,7 +71,7 @@ export function ReviewModal({ spotifyName, onClose, onSuccess, createReview }: R
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
               placeholder="What did you think?"
             />
           </div>
@@ -87,7 +87,7 @@ export function ReviewModal({ spotifyName, onClose, onSuccess, createReview }: R
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              className="flex-1 rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-black hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
             >
               {loading ? 'Saving...' : 'Save review'}
             </button>

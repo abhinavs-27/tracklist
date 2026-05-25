@@ -1,0 +1,260 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #09090B; color: #F4F4F5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #F4F4F5; }
+  .subtitle { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  .phones { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .phone { width: 340px; background: #09090B; border: 1.5px solid #27272A; border-radius: 38px; overflow: hidden; padding: 14px 0 0; box-shadow: 0 32px 80px rgba(0,0,0,0.8); cursor: pointer; transition: border-color 0.2s; }
+  .phone:hover { border-color: #10B98150; }
+  .phone.selected { border-color: #10B981; }
+  .phone-inner { padding: 0 16px; }
+  .phone-notch { width: 100px; height: 20px; background: #111; border-radius: 10px; margin: 0 auto 14px; }
+  .nav-back { font-size: 13px; color: #10B981; font-weight: 500; margin-bottom: 14px; display: block; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; margin-bottom: 10px; }
+  .credit-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #3F3F46; margin-bottom: 8px; }
+  .divider { height: 1px; background: #27272A; margin: 14px 0; }
+  .bottom-spacer { height: 36px; }
+  .about-text { font-size: 14px; line-height: 1.65; color: #A1A1AA; margin-bottom: 4px; }
+  .show-more { color: #10B981; font-size: 13px; font-weight: 500; display: block; margin-top: 5px; }
+  .tabs { display: flex; border-bottom: 1px solid #27272A; margin: 0 -16px 16px; padding: 0 16px; }
+  .tab { flex: 1; text-align: center; padding: 10px 0; font-size: 12px; font-weight: 600; color: #71717A; position: relative; }
+  .tab.active { color: #F4F4F5; }
+  .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #10B981; border-radius: 1px; }
+  .credit-group { margin-bottom: 14px; }
+  .credit-group:last-child { margin-bottom: 0; }
+
+
+  /* ── OPTION A: Full-width rows, chevron ── */
+  .row-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #131316; cursor: pointer; transition: opacity 0.15s; }
+  .row-item:last-child { border-bottom: none; }
+  .row-item:hover { opacity: 0.75; }
+  .row-init { width: 30px; height: 30px; border-radius: 15px; background: #18181B; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #10B981; flex-shrink: 0; }
+  .row-init-feat { color: #F59E0B; }
+  .row-init-label { color: #A78BFA; }
+  .row-name { flex: 1; font-size: 14px; font-weight: 500; color: #E4E4E7; }
+  .row-chevron { font-size: 16px; color: #3F3F46; font-weight: 300; }
+  .row-more { display: flex; align-items: center; padding: 8px 0; cursor: pointer; }
+  .row-more-text { font-size: 13px; color: #52525B; padding-left: 40px; }
+  .row-more-text:hover { color: #10B981; }
+
+
+  /* ── OPTION B: Person grid (same as artist members) ── */
+  .person-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .person { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 52px; cursor: pointer; }
+  .person-init { width: 44px; height: 44px; border-radius: 22px; background: #18181B; border: 1px solid #27272A; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #10B981; transition: border-color 0.15s; }
+  .person:hover .person-init { border-color: #10B981; }
+  .person-init-feat { color: #F59E0B; }
+  .person-init-label { color: #A78BFA; width: 44px; height: 44px; border-radius: 10px; background: #18181B; border: 1px solid #27272A; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+  .person-name { font-size: 10px; color: #71717A; text-align: center; line-height: 1.3; font-weight: 500; }
+  .person-more { width: 44px; height: 44px; border-radius: 22px; background: transparent; border: 1px dashed #2E2E35; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #52525B; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+  .person-more:hover { border-color: #10B981; color: #10B981; }
+
+
+  /* ── OPTION C: Inline names, color = clickable ── */
+  .inline-group { margin-bottom: 13px; }
+  .inline-group:last-child { margin-bottom: 0; }
+  .inline-names { display: flex; flex-wrap: wrap; gap: 2px 0; line-height: 1.9; }
+  .inline-name { font-size: 14px; font-weight: 500; color: #10B981; cursor: pointer; border-bottom: 1px solid #10B98130; margin-right: 2px; transition: border-color 0.15s; }
+  .inline-name:hover { border-bottom-color: #10B981; }
+  .inline-name-feat { color: #F59E0B; border-bottom-color: #F59E0B30; }
+  .inline-name-feat:hover { border-bottom-color: #F59E0B; }
+  .inline-name-label { color: #A78BFA; border-bottom-color: #A78BFA30; }
+  .inline-name-label:hover { border-bottom-color: #A78BFA; }
+  .inline-sep { color: #3F3F46; font-size: 14px; margin-right: 6px; }
+  .inline-more { font-size: 13px; color: #52525B; cursor: pointer; border-bottom: 1px solid transparent; }
+  .inline-more:hover { color: #10B981; }
+</style>
+
+<h2 style="text-align:center">Album credits — 3 directions</h2>
+<p class="subtitle" style="text-align:center">No chips. Each approach makes clickability clear differently. Artist Info tab stays unchanged.</p>
+
+<div class="phones">
+
+  <!-- OPTION A: Full-width rows -->
+  <div class="phone-wrap">
+    <div class="phone-label">A — Tappable rows</div>
+    <div class="phone" data-choice="a" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Albums</span>
+        <div class="tabs">
+          <div class="tab">Tracks</div><div class="tab active">Info</div>
+          <div class="tab">Reviews</div><div class="tab">Social</div>
+        </div>
+
+        <div class="section-label">About</div>
+        <div class="about-text">A semi-autobiographical portrait of growing up in Compton, CA. Blends West Coast hip-hop with jazz and soul.<span class="show-more">Show more</span></div>
+        <div class="divider"></div>
+
+        <div class="section-label">Credits</div>
+
+        <div class="credit-group">
+          <div class="credit-group-label">Label</div>
+          <div class="row-item"><div class="row-init row-init-label">Af</div><span class="row-name">Aftermath Entertainment</span><span class="row-chevron">›</span></div>
+          <div class="row-item"><div class="row-init row-init-label">In</div><span class="row-name">Interscope Records</span><span class="row-chevron">›</span></div>
+        </div>
+
+        <div class="credit-group" style="margin-top:14px">
+          <div class="credit-group-label">Produced by</div>
+          <div class="row-item"><div class="row-init">SW</div><span class="row-name">Sounwave</span><span class="row-chevron">›</span></div>
+          <div class="row-item"><div class="row-init">TC</div><span class="row-name">THC</span><span class="row-chevron">›</span></div>
+          <div class="row-item"><div class="row-init">JB</div><span class="row-name">Just Blaze</span><span class="row-chevron">›</span></div>
+          <div class="row-more"><span class="row-more-text">+ 4 more</span></div>
+        </div>
+
+        <div class="credit-group">
+          <div class="credit-group-label">Featuring</div>
+          <div class="row-item"><div class="row-init row-init-feat">Dr</div><span class="row-name">Drake</span><span class="row-chevron">›</span></div>
+          <div class="row-item"><div class="row-init row-init-feat">JR</div><span class="row-name">Jay Rock</span><span class="row-chevron">›</span></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Links</div>
+        <div style="display:flex;gap:7px;padding-bottom:4px;flex-wrap:wrap">
+          <span style="font-size:12px;color:#71717A;padding:6px 12px;border:1px solid #27272A;border-radius:20px">Wikipedia</span>
+          <span style="font-size:12px;color:#71717A;padding:6px 12px;border:1px solid #27272A;border-radius:20px">Discogs</span>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- OPTION B: Person grid -->
+  <div class="phone-wrap">
+    <div class="phone-label">B — Person grid</div>
+    <div class="phone" data-choice="b" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Albums</span>
+        <div class="tabs">
+          <div class="tab">Tracks</div><div class="tab active">Info</div>
+          <div class="tab">Reviews</div><div class="tab">Social</div>
+        </div>
+
+        <div class="section-label">About</div>
+        <div class="about-text">A semi-autobiographical portrait of growing up in Compton, CA. Blends West Coast hip-hop with jazz and soul.<span class="show-more">Show more</span></div>
+        <div class="divider"></div>
+
+        <div class="section-label">Credits</div>
+
+        <div class="credit-group">
+          <div class="credit-group-label">Label</div>
+          <div class="person-grid">
+            <div class="person"><div class="person-init-label">Af</div><div class="person-name">Aftermath</div></div>
+            <div class="person"><div class="person-init-label">In</div><div class="person-name">Interscope</div></div>
+          </div>
+        </div>
+
+        <div class="credit-group" style="margin-top:14px">
+          <div class="credit-group-label">Produced by</div>
+          <div class="person-grid">
+            <div class="person"><div class="person-init">SW</div><div class="person-name">Sounwave</div></div>
+            <div class="person"><div class="person-init">TC</div><div class="person-name">THC</div></div>
+            <div class="person"><div class="person-init">JB</div><div class="person-name">Just Blaze</div></div>
+            <div class="person"><div class="person-init">HB</div><div class="person-name">Hit-Boy</div></div>
+            <div class="person"><div class="person-more">+3</div><div class="person-name"> </div></div>
+          </div>
+        </div>
+
+        <div class="credit-group" style="margin-top:14px">
+          <div class="credit-group-label">Written by</div>
+          <div class="person-grid">
+            <div class="person"><div class="person-init">KL</div><div class="person-name">Kendrick Lamar</div></div>
+            <div class="person"><div class="person-more">+8</div><div class="person-name"> </div></div>
+          </div>
+        </div>
+
+        <div class="credit-group" style="margin-top:14px">
+          <div class="credit-group-label">Featuring</div>
+          <div class="person-grid">
+            <div class="person"><div class="person-init person-init-feat">Dr</div><div class="person-name">Drake</div></div>
+            <div class="person"><div class="person-init person-init-feat">JR</div><div class="person-name">Jay Rock</div></div>
+            <div class="person"><div class="person-init person-init-feat">ME</div><div class="person-name">MC Eiht</div></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Links</div>
+        <div style="display:flex;gap:7px;padding-bottom:4px;flex-wrap:wrap">
+          <span style="font-size:12px;color:#71717A;padding:6px 12px;border:1px solid #27272A;border-radius:20px">Wikipedia</span>
+          <span style="font-size:12px;color:#71717A;padding:6px 12px;border:1px solid #27272A;border-radius:20px">Discogs</span>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- OPTION C: Inline colored names -->
+  <div class="phone-wrap">
+    <div class="phone-label">C — Inline names</div>
+    <div class="phone" data-choice="c" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Albums</span>
+        <div class="tabs">
+          <div class="tab">Tracks</div><div class="tab active">Info</div>
+          <div class="tab">Reviews</div><div class="tab">Social</div>
+        </div>
+
+        <div class="section-label">About</div>
+        <div class="about-text">A semi-autobiographical portrait of growing up in Compton, CA. Blends West Coast hip-hop with jazz and soul.<span class="show-more">Show more</span></div>
+        <div class="divider"></div>
+
+        <div class="section-label">Credits</div>
+
+        <div class="inline-group">
+          <div class="credit-group-label">Label</div>
+          <div class="inline-names">
+            <span class="inline-name inline-name-label">Aftermath Entertainment</span>
+            <span class="inline-sep">, </span>
+            <span class="inline-name inline-name-label">Interscope Records</span>
+          </div>
+        </div>
+
+        <div class="inline-group" style="margin-top:12px">
+          <div class="credit-group-label">Produced by</div>
+          <div class="inline-names">
+            <span class="inline-name">Sounwave</span><span class="inline-sep">, </span>
+            <span class="inline-name">THC</span><span class="inline-sep">, </span>
+            <span class="inline-name">Just Blaze</span><span class="inline-sep">, </span>
+            <span class="inline-name">Hit-Boy</span>
+            <span class="inline-sep"> </span><span class="inline-more">+3 more</span>
+          </div>
+        </div>
+
+        <div class="inline-group" style="margin-top:12px">
+          <div class="credit-group-label">Written by</div>
+          <div class="inline-names">
+            <span class="inline-name">Kendrick Lamar</span>
+            <span class="inline-sep"> </span><span class="inline-more">+8 more</span>
+          </div>
+        </div>
+
+        <div class="inline-group" style="margin-top:12px">
+          <div class="credit-group-label">Featuring</div>
+          <div class="inline-names">
+            <span class="inline-name inline-name-feat">Drake</span><span class="inline-sep">, </span>
+            <span class="inline-name inline-name-feat">Jay Rock</span><span class="inline-sep">, </span>
+            <span class="inline-name inline-name-feat">MC Eiht</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Links</div>
+        <div style="display:flex;gap:7px;padding-bottom:4px;flex-wrap:wrap">
+          <span style="font-size:12px;color:#71717A;padding:6px 12px;border:1px solid #27272A;border-radius:20px">Wikipedia</span>
+          <span style="font-size:12px;color:#71717A;padding:6px 12px;border:1px solid #27272A;border-radius:20px">Discogs</span>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;margin-top:24px;font-size:13px;color:#52525B;max-width:760px;margin-left:auto;margin-right:auto;line-height:1.6">
+  A: rows with chevrons — most explicit, feels like a native list · B: same grid as artist members — consistent, visual · C: inline colored names — most editorial, most compact, underline on hover signals tappable
+</div>

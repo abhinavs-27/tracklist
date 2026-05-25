@@ -67,7 +67,7 @@ export const ListeningReportShareCard = forwardRef<
           </span>
         ) : (
           <span
-            className="font-semibold tracking-tight text-emerald-400"
+            className="font-semibold tracking-tight text-gold-400"
             style={{ fontSize: 36 }}
           >
             Tracklist
@@ -76,7 +76,7 @@ export const ListeningReportShareCard = forwardRef<
         <div className="flex flex-col items-end gap-1">
           {ownerHandle ? (
             <span
-              className="font-semibold tracking-tight text-emerald-400"
+              className="font-semibold tracking-tight text-gold-400"
               style={{ fontSize: 22 }}
             >
               Tracklist
@@ -146,7 +146,7 @@ export const ListeningReportShareCard = forwardRef<
         style={{ fontSize: 20 }}
       >
         {shareUrl ? (
-          <p className="break-all text-emerald-500/90">{shareUrl}</p>
+          <p className="break-all text-gold-500/90">{shareUrl}</p>
         ) : (
           <p>tracklistsocial.com</p>
         )}

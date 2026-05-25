@@ -34,7 +34,7 @@ export function GenrePicker({ selected, onChange, maxSelections = 5 }: Props) {
               disabled={disabled}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
                 active
-                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+                  ? "border-gold-500 bg-gold-500/10 text-gold-300"
                   : disabled
                   ? "cursor-not-allowed border-zinc-800 text-zinc-700"
                   : "border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"

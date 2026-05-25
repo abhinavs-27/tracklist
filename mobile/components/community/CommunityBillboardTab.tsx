@@ -115,7 +115,7 @@ export function CommunityBillboardTab({ communityId }: { communityId: string }) 
       />
 
       {loading ? (
-        <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 32 }} />
+        <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 32 }} />
       ) : error ? (
         <View style={s.errorCard}>
           <Text style={s.errorText}>{error}</Text>

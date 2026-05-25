@@ -285,7 +285,7 @@ export function ProfileEditModal({
                   type="text"
                   value={formUsername}
                   onChange={(e) => setFormUsername(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
                 />
               </div>
               <div>
@@ -294,7 +294,7 @@ export function ProfileEditModal({
                   value={formBio}
                   onChange={(e) => setFormBio(e.target.value)}
                   rows={3}
-                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
                 />
               </div>
               {error && <p className="text-sm text-red-400">{error}</p>}
@@ -309,7 +309,7 @@ export function ProfileEditModal({
                 <button
                   type="submit"
                   disabled={updateMutation.isPending || pictureMutation.isPending}
-                  className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
                 >
                   {updateMutation.isPending ? 'Saving...' : 'Save'}
                 </button>

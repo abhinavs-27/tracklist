@@ -24,7 +24,7 @@ export function SharedReportViewerCta({ viewerIsLoggedIn, callbackPath }: Props)
       <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <Link
           href={signInHref}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-gold-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-gold-500"
         >
           Get started free
         </Link>

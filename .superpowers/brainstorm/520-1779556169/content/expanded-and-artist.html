@@ -1,0 +1,265 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #09090B; color: #F4F4F5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #F4F4F5; }
+  .subtitle { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  .phones { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .phone { width: 375px; background: #09090B; border: 1.5px solid #27272A; border-radius: 40px; overflow: hidden; padding: 16px 0 0; box-shadow: 0 32px 80px rgba(0,0,0,0.8); }
+  .phone-inner { padding: 0 16px; }
+  .phone-notch { width: 120px; height: 24px; background: #111; border-radius: 12px; margin: 0 auto 20px; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .nav-back { font-size: 14px; color: #10B981; font-weight: 500; }
+
+  /* Album hero (compact for left phone) */
+  .hero-compact { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .album-art-sm { width: 160px; height: 160px; border-radius: 14px; background: linear-gradient(135deg, #1a1035, #0d1f35, #0a2212); box-shadow: 0 12px 36px -8px rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 52px; }
+  .hero-meta { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .hero-type { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #71717A; }
+  .hero-title-sm { font-size: 20px; font-weight: 800; color: #F4F4F5; text-align: center; letter-spacing: -0.3px; line-height: 1.15; }
+  .hero-artist { font-size: 14px; font-weight: 600; color: #D4D4D8; text-align: center; }
+  .stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; justify-content: center; margin-top: 2px; }
+  .stat-amber { color: #F59E0B; font-size: 13px; font-weight: 800; }
+  .stat-muted { color: #A1A1AA; font-size: 13px; font-weight: 700; }
+  .stat-val { color: #F4F4F5; font-size: 13px; font-weight: 700; }
+
+  /* Artist hero */
+  .artist-hero { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 18px; position: relative; }
+  .artist-art { width: 120px; height: 120px; border-radius: 60px; background: linear-gradient(135deg, #2d1a1a, #1a2035); box-shadow: 0 12px 36px -8px rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; font-size: 48px; border: 1px solid #27272A; }
+  .artist-title { font-size: 24px; font-weight: 800; color: #F4F4F5; text-align: center; }
+  .genre-chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 2px; }
+  .genre-chip { font-size: 11px; color: #71717A; background: #18181B; border: 1px solid #27272A; padding: 3px 9px; border-radius: 10px; }
+
+  .divider { height: 1px; background: #27272A; margin: 14px 0; }
+
+  .tabs { display: flex; border-bottom: 1px solid #27272A; margin: 0 -16px; padding: 0 16px; }
+  .tab { flex: 1; text-align: center; padding: 11px 0; font-size: 13px; font-weight: 600; color: #71717A; position: relative; }
+  .tab.active { color: #F4F4F5; }
+  .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #10B981; border-radius: 1px; }
+
+  /* Info sections */
+  .info-section { padding: 14px 0; border-bottom: 1px solid #27272A; }
+  .info-section:last-child { border-bottom: none; padding-bottom: 0; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; margin-bottom: 10px; }
+
+  /* Credits */
+  .credit-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .credit-row:last-child { margin-bottom: 0; }
+  .credit-type { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #52525B; min-width: 58px; flex-shrink: 0; padding-top: 2px; }
+  .credit-names { font-size: 14px; color: #A1A1AA; flex: 1; line-height: 1.6; }
+  .credit-names a { color: #10B981; text-decoration: none; font-weight: 500; }
+  .credit-more { color: #10B981; font-size: 13px; font-weight: 500; cursor: pointer; background: #10B98115; border: 1px solid #10B98130; padding: 1px 8px; border-radius: 10px; display: inline-block; margin-left: 4px; }
+
+  /* Expanded writers */
+  .writers-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .writer-chip { font-size: 12px; color: #10B981; background: #10B98110; border: 1px solid #10B98125; padding: 4px 10px; border-radius: 10px; font-weight: 500; }
+  .collapse-btn { color: #52525B; font-size: 12px; font-weight: 500; cursor: pointer; margin-top: 6px; display: block; }
+
+  /* About */
+  .about-text { font-size: 14px; line-height: 1.65; color: #A1A1AA; }
+  .about-text em { color: #D4D4D8; font-style: italic; }
+  .show-more { color: #10B981; font-size: 13px; font-weight: 500; margin-top: 8px; display: block; }
+
+  /* Members */
+  .members-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+  .member-card { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 64px; }
+  .member-avatar { width: 52px; height: 52px; border-radius: 26px; background: #18181B; border: 1px solid #27272A; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .member-name { font-size: 11px; color: #A1A1AA; text-align: center; line-height: 1.3; font-weight: 500; }
+
+  /* Label history */
+  .label-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1f1f1f; }
+  .label-row:last-child { border-bottom: none; }
+  .label-dot { width: 6px; height: 6px; border-radius: 3px; background: #10B981; flex-shrink: 0; }
+  .label-name { font-size: 14px; color: #10B981; font-weight: 500; flex: 1; }
+  .label-years { font-size: 12px; color: #52525B; }
+
+  /* Links */
+  .links-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ext-link { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: #71717A; padding: 6px 12px; border: 1px solid #27272A; border-radius: 20px; background: #18181B; }
+
+  .bottom-spacer { height: 40px; }
+  .release-badge { display: inline-block; background: #18181B; border: 1px solid #27272A; color: #52525B; font-size: 9px; font-weight: 600; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; margin-left: 6px; vertical-align: middle; }
+</style>
+
+<h2 style="text-align:center">Expanded credits + Artist Info tab</h2>
+<p class="subtitle" style="text-align:center">Left: album Info tab with "Written by" fully expanded. Right: artist Info tab with bio, members, label history, and links.</p>
+
+<div class="phones">
+
+  <!-- LEFT: Album Info — expanded written credits -->
+  <div class="phone-wrap">
+    <div class="phone-label">Album — written credits expanded</div>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="nav"><span class="nav-back">← Albums</span></div>
+
+        <div class="hero-compact">
+          <div class="album-art-sm">🎵</div>
+          <div class="hero-meta">
+            <div class="hero-type">Album <span class="release-badge">Studio</span></div>
+            <div class="hero-title-sm">good kid, m.A.A.d city</div>
+            <div class="hero-artist">Kendrick Lamar</div>
+            <div class="stats">
+              <span class="stat-amber">★ 4.6</span><span class="stat-muted"> avg</span>
+              <span class="stat-val">48.2k</span><span class="stat-muted"> plays</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab">Tracks</div>
+          <div class="tab active">Info</div>
+          <div class="tab">Reviews</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">About</div>
+          <div class="about-text">A semi-autobiographical portrait of growing up in Compton, CA. Blends West Coast hip-hop with jazz, soul, and spoken word.<span class="show-more">Show more</span></div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">Credits</div>
+          <div class="credit-row">
+            <div class="credit-type">Label</div>
+            <div class="credit-names"><a href="#">Aftermath</a> · <a href="#">Interscope</a></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Produced</div>
+            <div class="credit-names"><a href="#">Sounwave</a>, <a href="#">THC</a>, <a href="#">Just Blaze</a><span class="credit-more">+4</span></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Featuring</div>
+            <div class="credit-names"><a href="#">Drake</a>, <a href="#">Jay Rock</a>, <a href="#">MC Eiht</a></div>
+          </div>
+          <!-- Written — expanded -->
+          <div class="credit-row">
+            <div class="credit-type">Written</div>
+            <div class="credit-names">
+              <div class="writers-grid">
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">Kendrick Lamar</a></span>
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">Sounwave</a></span>
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">THC</a></span>
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">Just Blaze</a></span>
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">Hit-Boy</a></span>
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">Drake</a></span>
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">Jay Rock</a></span>
+                <span class="writer-chip"><a href="#" style="color:inherit;text-decoration:none">Schoolboy Q</a></span>
+              </div>
+              <span class="collapse-btn">Show less</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">Links</div>
+          <div class="links-row">
+            <span class="ext-link">🌐 Wikipedia</span>
+            <span class="ext-link">💿 Discogs</span>
+            <span class="ext-link">🎸 AllMusic</span>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Artist Info tab -->
+  <div class="phone-wrap">
+    <div class="phone-label">Artist — Info tab</div>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <div class="nav"><span class="nav-back">← Artists</span></div>
+
+        <div class="artist-hero">
+          <div class="artist-art">🎤</div>
+          <div class="hero-meta">
+            <div class="hero-type">Artist</div>
+            <div class="artist-title">Radiohead</div>
+            <div class="genre-chips">
+              <span class="genre-chip">Art Rock</span>
+              <span class="genre-chip">Alternative</span>
+              <span class="genre-chip">Electronic</span>
+            </div>
+            <div class="stats" style="margin-top:6px">
+              <span class="stat-val">9</span><span class="stat-muted"> albums</span>
+              <span class="stat-val">214k</span><span class="stat-muted"> plays</span>
+              <span class="stat-amber">★ 4.5</span><span class="stat-muted"> avg</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab">General</div>
+          <div class="tab active">Info</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <!-- Artist Info tab -->
+        <div class="info-section">
+          <div class="section-label">About</div>
+          <div class="about-text">Radiohead are an English rock band formed in Abingdon, Oxfordshire in 1985. Their sound evolved from guitar-driven alt-rock to experimental electronic and orchestral textures, earning critical acclaim across nine studio albums.
+            <span class="show-more">Show more</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">Members</div>
+          <div class="members-grid">
+            <div class="member-card">
+              <div class="member-avatar">🎤</div>
+              <div class="member-name">Thom Yorke</div>
+            </div>
+            <div class="member-card">
+              <div class="member-avatar">🎸</div>
+              <div class="member-name">Jonny Greenwood</div>
+            </div>
+            <div class="member-card">
+              <div class="member-avatar">🎸</div>
+              <div class="member-name">Ed O'Brien</div>
+            </div>
+            <div class="member-card">
+              <div class="member-avatar">🥁</div>
+              <div class="member-name">Philip Selway</div>
+            </div>
+            <div class="member-card">
+              <div class="member-avatar">🎸</div>
+              <div class="member-name">Colin Greenwood</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">Labels</div>
+          <div class="label-row"><div class="label-dot"></div><div class="label-name"><a href="#" style="color:#10B981;text-decoration:none">Parlophone</a></div><div class="label-years">1992 – 2013</div></div>
+          <div class="label-row"><div class="label-dot" style="background:#71717A"></div><div class="label-name" style="color:#A1A1AA">XL Recordings</div><div class="label-years">2016 – present</div></div>
+        </div>
+
+        <div class="info-section">
+          <div class="section-label">Links</div>
+          <div class="links-row">
+            <span class="ext-link">🌐 Wikipedia</span>
+            <span class="ext-link">🌍 Official site</span>
+            <span class="ext-link">💿 Discogs</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;margin-top:24px;font-size:13px;color:#52525B;max-width:700px;margin-left:auto;margin-right:auto;line-height:1.6">
+  Left: "+8" expands into a chip grid — every writer is tappable, "Show less" collapses it back. Right: artist Info tab with bio, clickable member cards (each goes to their solo artist page), label history, and links.
+</div>

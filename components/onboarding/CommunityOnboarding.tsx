@@ -191,7 +191,7 @@ export function CommunityOnboarding() {
                       </>
                     ) : (
                       <>
-                        <span className="font-semibold text-emerald-400">
+                        <span className="font-semibold text-gold-400">
                           {pct}%
                         </span>
                         {" · "}
@@ -211,7 +211,7 @@ export function CommunityOnboarding() {
                     type="button"
                     disabled={joining === c.communityId}
                     onClick={() => join(c.communityId)}
-                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                    className="rounded-lg bg-gold-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
                   >
                     {joining === c.communityId ? "…" : "Join"}
                   </button>

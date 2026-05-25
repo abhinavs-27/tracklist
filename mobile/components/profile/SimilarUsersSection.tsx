@@ -68,6 +68,6 @@ const s = StyleSheet.create({
   avatarPh: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.panel, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.colors.border },
   avatarPhText: { fontSize: 24, fontWeight: "700", color: theme.colors.text },
   name: { fontSize: 11, fontWeight: "600", color: theme.colors.text, textAlign: "center", width: "100%" },
-  pct: { fontSize: 11, fontWeight: "700", color: theme.colors.emerald, textAlign: "center" },
+  pct: { fontSize: 11, fontWeight: "700", color: theme.colors.gold, textAlign: "center" },
   label: { fontSize: 10, color: theme.colors.muted, textAlign: "center", width: "100%" },
 });

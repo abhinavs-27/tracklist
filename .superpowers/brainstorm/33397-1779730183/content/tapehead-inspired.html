@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracklist — Tapehead-Inspired Redesign</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0a0a0e;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 28px 16px 60px;
+}
+
+h1 { font-size: 19px; font-weight: 700; color: #fff; margin-bottom: 6px; letter-spacing: -0.02em; }
+.page-sub { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 28px; line-height: 1.5; max-width: 600px; }
+
+.note-box {
+  background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 28px; max-width: 800px;
+  font-size: 12.5px; color: rgba(255,255,255,0.55); line-height: 1.55;
+}
+.note-box strong { color: #a78bfa; }
+
+.phones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 340px));
+  gap: 24px;
+  justify-content: center;
+}
+
+.phone-wrap {
+  cursor: pointer; border-radius: 36px; overflow: hidden;
+  border: 3px solid rgba(255,255,255,0.07);
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+  max-width: 340px;
+}
+.phone-wrap:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-3px); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.phone-wrap.selected { border-color: #8B5CF6; box-shadow: 0 0 0 4px rgba(139,92,246,0.15); }
+
+.phone-screen { border-radius: 33px; overflow: hidden; position: relative; }
+.desc { padding: 16px 4px 4px; }
+.desc h3 { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.desc p { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+
+/* ══════════════════════════════════════════
+   PHONE A — CHECKERBOARD + PIXEL ICONS
+══════════════════════════════════════════ */
+.pa {
+  background: #0e0e12;
+  font-family: system-ui, sans-serif;
+}
+
+/* checkerboard header band */
+.pa-checker {
+  height: 80px;
+  background-image:
+    linear-gradient(45deg, #2a2040 25%, transparent 25%),
+    linear-gradient(-45deg, #2a2040 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #2a2040 75%),
+    linear-gradient(-45deg, transparent 75%, #2a2040 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  background-color: #1a1425;
+  position: relative;
+}
+/* fade checker into body */
+.pa-checker::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+  background: linear-gradient(to bottom, transparent, #0e0e12);
+}
+
+/* nav sitting over checker */
+.pa-nav {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 0;
+  margin-top: -76px;
+}
+.pa-logo {
+  display: flex; align-items: center; gap: 8px;
+}
+.pa-logo-icon {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: #8B5CF6;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  box-shadow: 0 4px 14px rgba(139,92,246,0.5);
+}
+.pa-logo-text { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+
+/* pill tab switcher */
+.pa-tabs {
+  display: flex; gap: 0;
+  background: rgba(255,255,255,0.08);
+  border-radius: 100px; padding: 3px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.pa-tab {
+  font-size: 11px; font-weight: 700; padding: 5px 14px; border-radius: 100px;
+  color: rgba(255,255,255,0.45);
+}
+.pa-tab.active { background: #8B5CF6; color: #fff; box-shadow: 0 2px 8px rgba(139,92,246,0.4); }
+
+/* section headers */
+.pa-section {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 900; color: #fff;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 14px 16px 8px;
+}
+
+/* horizontal art scroll */
+.pa-scroll {
+  display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 10px;
+  scrollbar-width: none;
+}
+.pa-scroll::-webkit-scrollbar { display: none; }
+
+.pa-album {
+  flex-shrink: 0; width: 110px;
+}
+.pa-art {
+  width: 110px; height: 110px; border-radius: 8px;
+  background: #333; overflow: hidden;
+  margin-bottom: 6px;
+}
+.pa-art img { width: 100%; height: 100%; object-fit: cover; }
+.pa-art-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+}
+.pa-album-name { font-size: 11px; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pa-album-artist { font-size: 10px; color: rgba(255,255,255,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* feed / activity items */
+.pa-feed-item {
+  margin: 0 14px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.pa-feed-art {
+  width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0;
+  background: #333; overflow: hidden;
+}
+.pa-feed-art div { width: 100%; height: 100%; }
+.pa-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  background: #8B5CF6; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: #fff;
+}
+.pa-feed-text { flex: 1; min-width: 0; font-size: 12px; color: rgba(255,255,255,0.75); line-height: 1.4; }
+.pa-feed-text strong { color: #fff; }
+.pa-feed-text .hi { color: #a78bfa; }
+.pa-feed-stars { font-size: 11px; color: #a78bfa; margin-top: 2px; }
+.pa-feed-time { font-size: 10px; color: rgba(255,255,255,0.28); margin-top: 2px; }
+
+/* floating pill bottom nav */
+.pa-bottom-nav {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-around;
+  background: rgba(30,24,46,0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 100px;
+  margin: 12px 16px 0;
+  padding: 10px 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+}
+.pa-nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 14px; border-radius: 100px;
+}
+.pa-nav-item.active { background: rgba(139,92,246,0.2); }
+.pa-nav-icon { font-size: 18px; line-height: 1; }
+.pa-nav-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,0.35); }
+.pa-nav-item.active .pa-nav-label { color: #a78bfa; }
+
+
+/* ══════════════════════════════════════════
+   PHONE B — DOTS PATTERN + PILL ICONS
+══════════════════════════════════════════ */
+.pb {
+  background: #09090d;
+  font-family: system-ui, sans-serif;
+}
+
+/* dot-pattern header */
+.pb-dots {
+  height: 90px;
+  background-image: radial-gradient(circle, rgba(139,92,246,0.55) 1.5px, transparent 1.5px);
+  background-size: 14px 14px;
+  background-color: #100e1a;
+  position: relative;
+}
+.pb-dots::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 50px;
+  background: linear-gradient(to bottom, transparent, #09090d);
+}
+
+.pb-nav {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 0;
+  margin-top: -82px;
+}
+.pb-wordmark { font-size: 18px; font-weight: 900; color: #fff; letter-spacing: -0.03em; }
+.pb-wordmark span { color: #8B5CF6; }
+.pb-bell {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+
+.pb-tab-row {
+  display: flex; gap: 6px; padding: 12px 16px 0;
+}
+.pb-chip {
+  font-size: 11px; font-weight: 700; padding: 5px 14px; border-radius: 100px;
+  color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.pb-chip.active {
+  background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.35); color: #c4b5fd;
+}
+
+.pb-section {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 14px 16px 8px;
+}
+.pb-section-emoji { font-size: 18px; line-height: 1; }
+.pb-section-text { font-size: 14px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* big full-width art cards (horizontal scroll) */
+.pb-scroll {
+  display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 12px;
+  scrollbar-width: none;
+}
+.pb-scroll::-webkit-scrollbar { display: none; }
+.pb-big-card { flex-shrink: 0; width: 140px; }
+.pb-big-art {
+  width: 140px; height: 140px; border-radius: 10px;
+  background: #2a2a3a; overflow: hidden; margin-bottom: 7px;
+}
+.pb-big-art div { width: 100%; height: 100%; }
+.pb-album-name { font-size: 12px; font-weight: 700; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-album-artist { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+/* review card */
+.pb-review-card {
+  margin: 0 14px 8px; border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  overflow: hidden;
+}
+.pb-review-top {
+  display: flex; align-items: stretch; gap: 0;
+}
+.pb-review-art {
+  width: 72px; height: 72px; flex-shrink: 0;
+  background: #2a2a3a;
+}
+.pb-review-art div { width: 100%; height: 100%; }
+.pb-review-meta { padding: 10px 12px; flex: 1; }
+.pb-review-title { font-size: 13px; font-weight: 700; color: #fff; }
+.pb-review-artist { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+.pb-review-stars { font-size: 13px; color: #8B5CF6; margin-top: 5px; }
+.pb-review-body { padding: 8px 12px 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+.pb-review-text { font-size: 11px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+.pb-review-user { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.pb-review-avatar {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #8B5CF6; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.pb-review-username { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5); }
+
+/* pill bottom nav */
+.pb-bottom-nav {
+  display: flex; align-items: center; justify-content: space-around;
+  background: rgba(20,16,32,0.97);
+  border: 1px solid rgba(139,92,246,0.15);
+  border-radius: 100px;
+  margin: 14px 14px 0;
+  padding: 9px 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.pb-nav-item { font-size: 20px; padding: 4px 16px; border-radius: 100px; }
+.pb-nav-item.active { background: rgba(139,92,246,0.18); font-size: 22px; }
+
+
+/* ══════════════════════════════════════════
+   PHONE C — ALBUM ART BLEEDS INTO BG
+   (like the Tapehead onboarding with teal)
+══════════════════════════════════════════ */
+.pc {
+  background: #0c0c14;
+  font-family: system-ui, sans-serif;
+  position: relative;
+}
+
+/* blurred art bleed at top */
+.pc-art-bleed {
+  position: absolute; top: 0; left: 0; right: 0; height: 220px;
+  overflow: hidden; z-index: 0;
+}
+.pc-art-bleed-inner {
+  position: absolute; inset: -30px;
+  background: linear-gradient(135deg, #312e81, #4c1d95, #7c3aed, #a78bfa, #ddd6fe);
+  filter: blur(40px);
+  opacity: 0.55;
+}
+.pc-art-bleed::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 100px;
+  background: linear-gradient(to bottom, transparent, #0c0c14);
+}
+
+.pc-nav {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+}
+.pc-back { font-size: 14px; color: rgba(255,255,255,0.6); }
+.pc-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+.pc-action { font-size: 14px; color: rgba(255,255,255,0.6); }
+
+/* large centered art */
+.pc-art-center {
+  position: relative; z-index: 2; text-align: center; padding: 4px 16px 14px;
+}
+.pc-art {
+  width: 140px; height: 140px; border-radius: 16px;
+  background: linear-gradient(135deg, #312e81, #7c3aed, #c4b5fd);
+  display: inline-block;
+  box-shadow: 0 16px 48px rgba(109,40,217,0.6), 0 0 0 1px rgba(255,255,255,0.12);
+}
+
+.pc-meta {
+  position: relative; z-index: 2; padding: 0 16px 8px; text-align: center;
+}
+.pc-album-title { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.025em; line-height: 1.1; }
+.pc-album-artist { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 5px; }
+
+.pc-stats {
+  position: relative; z-index: 2;
+  display: flex; justify-content: center; gap: 20px; margin: 8px 0 10px;
+}
+.pc-stat { text-align: center; }
+.pc-stat-n { font-size: 18px; font-weight: 800; color: #fff; line-height: 1; }
+.pc-stat-l { font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,0.3); margin-top: 1px; font-weight: 600; }
+
+/* pill action buttons */
+.pc-actions {
+  display: flex; gap: 8px; padding: 0 16px 12px; position: relative; z-index: 2;
+}
+.pc-btn {
+  flex: 1; padding: 9px 0; border-radius: 100px; text-align: center;
+  font-size: 11px; font-weight: 700;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+}
+.pc-btn.primary {
+  background: #8B5CF6; border-color: #7c3aed; color: #fff;
+  box-shadow: 0 4px 16px rgba(109,40,217,0.45);
+}
+
+/* tracklist below */
+.pc-tracks {
+  position: relative; z-index: 2; padding: 0 14px;
+}
+.pc-section {
+  display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px;
+}
+.pc-section-emoji { font-size: 16px; }
+.pc-section-text { font-size: 13px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: .04em; }
+.pc-track {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 10px; margin-bottom: 4px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+}
+.pc-track-n { font-size: 10px; color: rgba(255,255,255,0.25); width: 16px; }
+.pc-track-name { flex: 1; font-size: 12px; color: rgba(255,255,255,0.9); }
+.pc-track-plays { font-size: 10px; color: rgba(139,92,246,0.7); }
+.pc-track-dur { font-size: 10px; color: rgba(255,255,255,0.25); }
+
+.pc-bottom-nav {
+  display: flex; align-items: center; justify-content: space-around;
+  background: rgba(15,12,24,0.97);
+  border: 1px solid rgba(139,92,246,0.15);
+  border-radius: 100px;
+  margin: 14px 14px 0;
+  padding: 10px 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  position: relative; z-index: 2;
+}
+.pc-nav-icon { font-size: 20px; padding: 4px 18px; border-radius: 100px; }
+.pc-nav-icon.active { background: rgba(139,92,246,0.18); }
+
+/* selection bar */
+.sel-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(7,6,14,0.95); backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 14px 24px; display: flex; align-items: center;
+  justify-content: space-between; z-index: 999;
+  transform: translateY(100%); transition: transform .25s ease;
+}
+.sel-bar.on { transform: translateY(0); }
+.sel-bar span { font-size: 13px; color: rgba(255,255,255,0.6); }
+.sel-bar strong { color: #fff; }
+.sel-btn { background: #8B5CF6; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* fake album art fills */
+.art-fill-1 { background: linear-gradient(135deg, #1e3a5f, #2563eb, #60a5fa); }
+.art-fill-2 { background: linear-gradient(135deg, #3b0764, #7e22ce, #c084fc); }
+.art-fill-3 { background: linear-gradient(135deg, #134e4a, #0f766e, #5eead4); }
+.art-fill-4 { background: linear-gradient(135deg, #7f1d1d, #dc2626, #fca5a5); }
+.art-fill-5 { background: linear-gradient(135deg, #1c1917, #78350f, #d97706); }
+.art-fill-6 { background: linear-gradient(135deg, #0c4a6e, #0369a1, #38bdf8); }
+</style>
+</head>
+<body>
+
+<h1>Tapehead-inspired redesign — now showing actual Tracklist pages</h1>
+<p class="page-sub">Inspired by what you shared: checkerboard/dot pattern header, emoji section titles in ALL CAPS, pixel-style icon elements, full-bleed art, floating pill bottom nav, and album art bleeding into the background.</p>
+
+<div class="note-box">
+  <strong>What I'm taking from Tapehead:</strong> Pattern at the top that fades into dark bg · "🔥 TRENDING RELEASES" style ALL CAPS emoji section headers · Large full-bleed album art cards · Floating pill-shaped bottom nav · Art color bleeding into the page background. The mockups below apply these to real Tracklist page structures (Home feed, Album page).
+</div>
+
+<div class="phones">
+
+  <!-- ══ PHONE A: CHECKERBOARD HOME ══ -->
+  <div class="phone-wrap" onclick="pick(this,'A — Checkerboard + Home Feed')">
+    <div class="phone-screen">
+      <div class="pa">
+        <div class="pa-checker"></div>
+        <div class="pa-nav">
+          <div class="pa-logo">
+            <div class="pa-logo-icon">🎵</div>
+            <span class="pa-logo-text">tracklist</span>
+          </div>
+          <div class="pa-tabs">
+            <div class="pa-tab active">Discover</div>
+            <div class="pa-tab">Following</div>
+          </div>
+        </div>
+
+        <div class="pa-section">🔥 <span>Trending This Week</span></div>
+        <div class="pa-scroll">
+          <div class="pa-album">
+            <div class="pa-art"><div class="art-fill-1"></div></div>
+            <div class="pa-album-name">Eternal Sunshine</div>
+            <div class="pa-album-artist">Ariana Grande</div>
+          </div>
+          <div class="pa-album">
+            <div class="pa-art"><div class="art-fill-2"></div></div>
+            <div class="pa-album-name">GNX</div>
+            <div class="pa-album-artist">Kendrick Lamar</div>
+          </div>
+          <div class="pa-album">
+            <div class="pa-art"><div class="art-fill-3"></div></div>
+            <div class="pa-album-name">Short n' Sweet</div>
+            <div class="pa-album-artist">Sabrina Carpenter</div>
+          </div>
+        </div>
+
+        <div class="pa-section">🎧 <span>Friends' Activity</span></div>
+        <div class="pa-feed-item">
+          <div class="pa-avatar">M</div>
+          <div>
+            <div class="pa-feed-text"><strong>maya</strong> <span class="hi">reviewed</span> GNX</div>
+            <div class="pa-feed-stars">★★★★★</div>
+            <div class="pa-feed-time">2h ago</div>
+          </div>
+          <div style="width:40px;height:40px;border-radius:8px;flex-shrink:0;" class="art-fill-2"></div>
+        </div>
+        <div class="pa-feed-item">
+          <div class="pa-avatar" style="background:#6d28d9;">J</div>
+          <div class="pa-feed-text" style="flex:1;">
+            <strong>james</strong> logged <span class="hi">Short n' Sweet</span>
+            <div class="pa-feed-time">5h ago</div>
+          </div>
+        </div>
+
+        <div class="pa-bottom-nav">
+          <div class="pa-nav-item active">
+            <div class="pa-nav-icon">🏠</div>
+            <div class="pa-nav-label">Home</div>
+          </div>
+          <div class="pa-nav-item">
+            <div class="pa-nav-icon">🔍</div>
+            <div class="pa-nav-label">Search</div>
+          </div>
+          <div class="pa-nav-item">
+            <div class="pa-nav-icon">🎼</div>
+            <div class="pa-nav-label">Lists</div>
+          </div>
+          <div class="pa-nav-item">
+            <div class="pa-nav-icon">👤</div>
+            <div class="pa-nav-label">You</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <h3>A — Checkerboard Header + Home</h3>
+      <p>Purple-tinted checkerboard pattern at the top, fades to dark. Pill tab switcher. Emoji ALL CAPS section headers. Floating pill bottom nav. Directly inspired by Tapehead's home page structure.</p>
+    </div>
+  </div>
+
+  <!-- ══ PHONE B: DOT PATTERN HOME ══ -->
+  <div class="phone-wrap" onclick="pick(this,'B — Dot Pattern + Reviews Feed')">
+    <div class="phone-screen">
+      <div class="pb">
+        <div class="pb-dots"></div>
+        <div class="pb-nav">
+          <div class="pb-wordmark">track<span>list</span></div>
+          <div class="pb-bell">🔔</div>
+        </div>
+        <div class="pb-tab-row">
+          <span class="pb-chip active">Discover</span>
+          <span class="pb-chip">Following</span>
+          <span class="pb-chip">Charts</span>
+        </div>
+
+        <div class="pb-section">
+          <span class="pb-section-emoji">🔥</span>
+          <span class="pb-section-text">Trending Releases</span>
+        </div>
+        <div class="pb-scroll">
+          <div class="pb-big-card">
+            <div class="pb-big-art"><div class="art-fill-1"></div></div>
+            <div class="pb-album-name">Eternal Sunshine</div>
+            <div class="pb-album-artist">Ariana Grande</div>
+          </div>
+          <div class="pb-big-card">
+            <div class="pb-big-art"><div class="art-fill-4"></div></div>
+            <div class="pb-album-name">GNX</div>
+            <div class="pb-album-artist">Kendrick Lamar</div>
+          </div>
+          <div class="pb-big-card">
+            <div class="pb-big-art"><div class="art-fill-3"></div></div>
+            <div class="pb-album-name">Short n' Sweet</div>
+            <div class="pb-album-artist">Sabrina Carpenter</div>
+          </div>
+        </div>
+
+        <div class="pb-section">
+          <span class="pb-section-emoji">🍕</span>
+          <span class="pb-section-text">Latest Reviews</span>
+        </div>
+        <div class="pb-review-card">
+          <div class="pb-review-top">
+            <div class="pb-review-art"><div class="art-fill-2"></div></div>
+            <div class="pb-review-meta">
+              <div class="pb-review-title">GNX</div>
+              <div class="pb-review-artist">Kendrick Lamar · 2024</div>
+              <div class="pb-review-stars">★★★★★</div>
+            </div>
+          </div>
+          <div class="pb-review-body">
+            <div class="pb-review-text">"Not like us was just a warm-up. This album is a statement."</div>
+            <div class="pb-review-user">
+              <div class="pb-review-avatar">M</div>
+              <div class="pb-review-username">@maya · 1h ago</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pb-bottom-nav">
+          <div class="pb-nav-item active">🏠</div>
+          <div class="pb-nav-item">🔍</div>
+          <div class="pb-nav-item">🎼</div>
+          <div class="pb-nav-item">👤</div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <h3>B — Dot Pattern Header + Reviews</h3>
+      <p>Purple dot-grid pattern fades from the top. Bigger album art cards. Full review cards below the scroll. Emoji section labels. More visual weight on the reviews — closer to Letterboxd for music.</p>
+    </div>
+  </div>
+
+  <!-- ══ PHONE C: ART BLEED ALBUM PAGE ══ -->
+  <div class="phone-wrap" onclick="pick(this,'C — Art-Bleed Album Page')">
+    <div class="phone-screen">
+      <div class="pc">
+        <div class="pc-art-bleed">
+          <div class="pc-art-bleed-inner"></div>
+        </div>
+
+        <div class="pc-nav">
+          <span class="pc-back">← Back</span>
+          <span class="pc-title">Album</span>
+          <span class="pc-action">···</span>
+        </div>
+
+        <div class="pc-art-center">
+          <div class="pc-art"></div>
+        </div>
+
+        <div class="pc-meta">
+          <div class="pc-album-title">Radical Optimism</div>
+          <div class="pc-album-artist">Dua Lipa · 2024</div>
+        </div>
+
+        <div class="pc-stats">
+          <div class="pc-stat"><div class="pc-stat-n">★ 4.1</div><div class="pc-stat-l">Avg rating</div></div>
+          <div class="pc-stat"><div class="pc-stat-n">2.4k</div><div class="pc-stat-l">Plays</div></div>
+          <div class="pc-stat"><div class="pc-stat-n">89</div><div class="pc-stat-l">Reviews</div></div>
+        </div>
+
+        <div class="pc-actions">
+          <div class="pc-btn primary">★ Rate</div>
+          <div class="pc-btn">+ Log</div>
+          <div class="pc-btn">♥ Save</div>
+        </div>
+
+        <div class="pc-tracks">
+          <div class="pc-section">
+            <span class="pc-section-emoji">🎵</span>
+            <span class="pc-section-text">Tracks</span>
+          </div>
+          <div class="pc-track">
+            <span class="pc-track-n">1</span>
+            <span class="pc-track-name">Houdini</span>
+            <span class="pc-track-plays">481 plays</span>
+            <span class="pc-track-dur">3:06</span>
+          </div>
+          <div class="pc-track">
+            <span class="pc-track-n">2</span>
+            <span class="pc-track-name">Training Season</span>
+            <span class="pc-track-plays">362 plays</span>
+            <span class="pc-track-dur">3:20</span>
+          </div>
+          <div class="pc-track">
+            <span class="pc-track-n">3</span>
+            <span class="pc-track-name">These Walls</span>
+            <span class="pc-track-plays">210 plays</span>
+            <span class="pc-track-dur">3:44</span>
+          </div>
+        </div>
+
+        <div class="pc-bottom-nav">
+          <div class="pc-nav-icon active">🏠</div>
+          <div class="pc-nav-icon">🔍</div>
+          <div class="pc-nav-icon">🎼</div>
+          <div class="pc-nav-icon">👤</div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <h3>C — Art Bleed Album Page</h3>
+      <p>Like the Tapehead onboarding: album art color bleeds into and tints the whole top half of the page. Large centered art. Stats + pill action buttons. Every album page has its own color vibe. Combined with A or B's home page.</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="max-width:1060px;margin:28px auto 0;padding:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">
+  <p style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;">
+    <strong style="color:rgba(255,255,255,0.8);">Likely direction:</strong> A or B for the home page, C for album/artist pages. These can be combined — pick the home page pattern you prefer, and C's art-bleed always applies to entity pages. Tell me what you think in the terminal.
+  </p>
+</div>
+
+<div id="sel" class="sel-bar">
+  <span>Selected: <strong id="sel-text">—</strong></span>
+  <button class="sel-btn" onclick="document.getElementById('sel').innerHTML='<span style=\'color:rgba(255,255,255,0.6)\'>✓ Recorded — respond in terminal</span>'">This direction →</button>
+</div>
+
+<script>
+function pick(el, name) {
+  document.querySelectorAll('.phone-wrap').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('sel-text').textContent = name;
+  document.getElementById('sel').classList.add('on');
+  try { fetch('/__event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'click',choice:name.charAt(0),text:name,timestamp:Date.now()})}).catch(()=>{}); } catch(e){}
+}
+</script>
+</body>
+</html>

@@ -117,7 +117,7 @@ export function SampleWeeklyChartPreview({
         <div className="border-t border-white/[0.06] bg-zinc-950/30 px-4 py-3 text-center sm:px-5">
           <Link
             href={signInHref}
-            className="text-sm font-medium text-emerald-400/95 hover:text-emerald-300 hover:underline"
+            className="text-sm font-medium text-gold-400/95 hover:text-gold-300 hover:underline"
           >
             Sign in to see your chart
           </Link>

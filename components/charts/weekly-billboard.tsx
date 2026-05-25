@@ -58,7 +58,7 @@ function CommunityRankMovementIndicator({
     }
     if (rm === "UP" && row.rank_delta != null && row.rank_delta > 0) {
       return (
-        <span className="inline-flex items-center gap-0.5 text-sm font-semibold text-emerald-400/95 tabular-nums">
+        <span className="inline-flex items-center gap-0.5 text-sm font-semibold text-gold-400/95 tabular-nums">
           <span aria-hidden>▲</span>
           <span>+{row.rank_delta}</span>
         </span>
@@ -135,7 +135,7 @@ function CommunityBreakdownPanel({ row }: { row: WeeklyChartRankingApiRow }) {
 
   return (
     <div
-      className={`hidden border-t border-zinc-800/80 md:block ${prominent ? "bg-emerald-950/10" : "bg-zinc-950/35"}`}
+      className={`hidden border-t border-zinc-800/80 md:block ${prominent ? "bg-gold-950/10" : "bg-zinc-950/35"}`}
     >
       <button
         type="button"
@@ -145,7 +145,7 @@ function CommunityBreakdownPanel({ row }: { row: WeeklyChartRankingApiRow }) {
       >
         <span>
           {prominent ? (
-            <span className="font-semibold text-emerald-400/95">
+            <span className="font-semibold text-gold-400/95">
               Why is this ranked?
             </span>
           ) : (
@@ -233,7 +233,7 @@ function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
   }
   if (row.is_reentry) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-sm font-bold text-emerald-400" title="Re-entry">
+      <span className="inline-flex items-center gap-0.5 text-sm font-bold text-gold-400" title="Re-entry">
         <span aria-hidden>▲</span>
       </span>
     );
@@ -245,7 +245,7 @@ function MovementIndicator({ row }: { row: WeeklyChartRankingApiRow }) {
   }
   if (row.movement > 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-sm font-bold text-emerald-400">
+      <span className="inline-flex items-center gap-0.5 text-sm font-bold text-gold-400">
         <span aria-hidden>▲</span>{row.movement}
       </span>
     );
@@ -271,7 +271,7 @@ const ChartRow = memo(function ChartRow({
   const rowAnim = communityMode ? communityMovementRowClass(row) : "";
   const leaderShell =
     communityMode && row.is_number_one
-      ? "ring-1 ring-emerald-500/25 shadow-md shadow-emerald-950/20"
+      ? "ring-1 ring-gold-500/25 shadow-md shadow-gold-950/20"
       : "";
 
   const catalogHref =
@@ -338,10 +338,10 @@ const ChartRow = memo(function ChartRow({
 
           {/* Art + name */}
           {catalogHref ? (
-            <Link href={catalogHref} prefetch={false} className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-emerald-500/45">
+            <Link href={catalogHref} prefetch={false} className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-gold-500/45">
               {imageEl}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-white group-hover:text-emerald-200/95 group-hover:underline">{row.name}</p>
+                <p className="truncate text-base font-semibold text-white group-hover:text-gold-200/95 group-hover:underline">{row.name}</p>
                 {row.artist_name ? <p className="truncate text-sm text-zinc-400">{row.artist_name}</p> : null}
               </div>
             </Link>
@@ -393,7 +393,7 @@ function moverMovementNode(row: MoverStripRow) {
   }
   if (r.rank_movement === "UP" && r.rank_delta != null && r.rank_delta > 0) {
     return (
-      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-400 tabular-nums">
+      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-gold-400 tabular-nums">
         <span aria-hidden>▲</span>
         +{r.rank_delta}
       </span>
@@ -422,7 +422,7 @@ function moverMovementNode(row: MoverStripRow) {
   }
   if (r.movement > 0) {
     return (
-      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-400">
+      <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-gold-400">
         <span aria-hidden>▲</span>
         {r.movement}
       </span>
@@ -480,7 +480,7 @@ const MoversGrid = memo(function MoversGrid({
                 <Link
                   href={href}
                   prefetch={false}
-                  className="block text-xl font-bold leading-tight text-white transition hover:text-emerald-200/95 hover:underline"
+                  className="block text-xl font-bold leading-tight text-white transition hover:text-gold-200/95 hover:underline"
                 >
                   {row.name}
                 </Link>
@@ -738,7 +738,7 @@ export function WeeklyBillboardView(props: {
             </span>
           ) : null}
           {props.viewerContributed ? (
-            <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-950/50 px-3 py-1 text-sm font-medium text-emerald-400/95">
+            <span className="inline-flex items-center rounded-full border border-gold-500/20 bg-gold-950/50 px-3 py-1 text-sm font-medium text-gold-400/95">
               You contributed
             </span>
           ) : null}
@@ -819,7 +819,7 @@ export function WeeklyBillboardView(props: {
           <button
             type="button"
             onClick={() => setShareOpen(true)}
-            className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-6 py-3.5 text-base font-bold text-black shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-400"
+            className="inline-flex w-full items-center justify-center rounded-full bg-gold-500 px-6 py-3.5 text-base font-bold text-black shadow-lg shadow-gold-950/30 transition hover:bg-gold-400"
           >
             {isCommunity ? "Share chart" : "Share this week"}
           </button>

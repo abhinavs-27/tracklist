@@ -135,7 +135,7 @@ export function ListeningReportShareImageModal(props: ListeningReportShareImageM
             type="button"
             onClick={() => void downloadPng()}
             disabled={exporting}
-            className="min-h-11 flex-1 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="min-h-11 flex-1 rounded-full bg-gold-600 px-4 py-2 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
           >
             {exporting ? "Working…" : "Download PNG"}
           </button>

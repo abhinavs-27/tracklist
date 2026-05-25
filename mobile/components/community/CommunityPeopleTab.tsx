@@ -59,7 +59,7 @@ export function CommunityPeopleTab({ communityId }: { communityId: string }) {
   if (isPending) {
     return (
       <View style={s.center}>
-        <ActivityIndicator color={theme.colors.emerald} />
+        <ActivityIndicator color={theme.colors.gold} />
       </View>
     );
   }

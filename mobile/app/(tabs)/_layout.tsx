@@ -82,20 +82,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Hidden routes — accessible via deep link / navigation but not in tab bar */}
-      <Tabs.Screen name="leaderboard" options={{ href: null }} />
-      <Tabs.Screen name="discover" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="artist/[id]" options={{ href: null }} />
-      <Tabs.Screen name="artist/[id]/index" options={{ href: null }} />
-      <Tabs.Screen name="artist/[id]/albums" options={{ href: null }} />
-      <Tabs.Screen name="song/[id]" options={{ href: null }} />
-      <Tabs.Screen name="album/[id]" options={{ href: null }} />
-      <Tabs.Screen name="list/[id]" options={{ href: null }} />
-      <Tabs.Screen name="reviews/[entityType]/[entityId]" options={{ href: null }} />
-      <Tabs.Screen name="user/[username]/index" options={{ href: null }} />
-      <Tabs.Screen name="user/[username]/lists" options={{ href: null }} />
-      <Tabs.Screen name="reports/listening" options={{ href: null }} />
     </Tabs>
   );
 }

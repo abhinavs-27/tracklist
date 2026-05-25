@@ -257,7 +257,7 @@ export function ChartShareModal(props: {
               {/* #1 */}
               {numberOne ? (
                 <>
-                  <p className="text-[8px] font-bold tracking-[3px] text-emerald-400 uppercase">Your #1 This Week</p>
+                  <p className="text-[8px] font-bold tracking-[3px] text-gold-400 uppercase">Your #1 This Week</p>
                   <p className="text-base font-black text-white text-center leading-tight truncate w-full text-center">{numberOne.name}</p>
                   {numberOne.artist_name ? (
                     <p className="text-[10px] text-zinc-500 truncate w-full text-center">{numberOne.artist_name}</p>
@@ -269,7 +269,7 @@ export function ChartShareModal(props: {
                 <div className="mt-2 w-full border-t border-white/[0.06] pt-2 flex flex-col gap-1">
                   {top5.slice(1, 5).map((row) => (
                     <div key={row.rank} className="flex items-center gap-1.5">
-                      <span className="text-[9px] font-bold text-emerald-500/60 w-3">{row.rank}</span>
+                      <span className="text-[9px] font-bold text-gold-500/60 w-3">{row.rank}</span>
                       <span className="text-[10px] text-zinc-400 truncate">{row.name}</span>
                     </div>
                   ))}
@@ -289,7 +289,7 @@ export function ChartShareModal(props: {
             type="button"
             onClick={() => void handlePrimaryAction()}
             disabled={busy}
-            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-emerald-600 px-5 py-4 text-base font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gold-600 px-5 py-4 text-base font-semibold text-white transition hover:bg-gold-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? (
               <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>

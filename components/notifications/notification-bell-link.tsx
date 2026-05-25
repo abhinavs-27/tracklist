@@ -68,7 +68,7 @@ export function NotificationBellLink({ unreadCount }: { unreadCount: number }) {
         />
       </svg>
       {unreadCount > 0 ? (
-        <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[10px] font-semibold text-zinc-950">
+        <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-gold-500 px-0.5 text-[10px] font-semibold text-zinc-950">
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       ) : null}

@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Directions A & B — Expanded</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0a0a0e;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 32px 20px 60px;
+}
+
+h1 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; letter-spacing: -0.02em; }
+.page-sub { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 36px; line-height: 1.5; }
+
+/* ── LAYOUT ── */
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+@media (max-width: 720px) { .comparison { grid-template-columns: 1fr; } }
+
+.col-header {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.col-header h2 { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+.col-header p { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 3px; line-height: 1.4; }
+
+.component-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.25);
+  margin-bottom: 8px;
+  margin-top: 18px;
+}
+
+/* phone frame */
+.phone {
+  background: #1a1a22;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 0;
+}
+
+/* ════════════════════════════════════════════════════════
+   DIRECTION A — ZINE / ANALOG REVIVAL (PURPLE)
+════════════════════════════════════════════════════════ */
+
+/* Purple palette */
+:root {
+  --a-bg: #0d0b12;
+  --a-surface: #13101a;
+  --a-border: rgba(255,255,255,0.055);
+  --a-accent: #8B5CF6;
+  --a-accent-light: #a78bfa;
+  --a-accent-glow: rgba(139,92,246,0.3);
+  --a-text: #f0eaf8;
+  --a-muted: rgba(240,234,248,0.45);
+  --a-dim: rgba(240,234,248,0.18);
+
+  --b-bg: #0c0c0c;
+  --b-accent: #8B5CF6;
+  --b-accent-light: #a78bfa;
+  --b-border: rgba(255,255,255,0.85);
+  --b-border-thin: rgba(255,255,255,0.12);
+}
+
+.dir-a-wrap { background: var(--a-bg); position: relative; overflow: hidden; }
+
+/* grain */
+.dir-a-wrap::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* ── A: NAV ── */
+.a-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--a-border);
+  position: relative; z-index: 1;
+}
+.a-wordmark {
+  font-size: 15px; font-weight: 900; color: var(--a-text);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: Georgia, serif;
+}
+.a-nav-links { display: flex; gap: 12px; }
+.a-nav-links span { font-size: 9px; color: var(--a-dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.a-nav-links span.active { color: var(--a-accent-light); }
+
+/* ── A: ALBUM HERO ── */
+.a-hero { padding: 14px 16px 0; position: relative; z-index: 1; }
+.a-eyebrow {
+  font-size: 8px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--a-accent); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.a-eyebrow::before {
+  content: ''; display: block; width: 16px; height: 1px; background: var(--a-accent);
+}
+.a-hero-body { display: flex; gap: 14px; align-items: flex-start; }
+.a-art {
+  width: 84px; height: 84px; flex-shrink: 0; border-radius: 5px;
+  background: linear-gradient(135deg, #3b1f6e, #8B5CF6, #c4b5fd);
+  box-shadow: 4px 4px 0 rgba(139,92,246,0.35), 0 16px 48px rgba(0,0,0,0.7);
+  position: relative;
+}
+.a-art::after {
+  content: '';
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.a-album-title {
+  font-size: 21px; font-weight: 900; color: var(--a-text); line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.a-album-artist { font-size: 10px; color: var(--a-muted); margin-top: 5px; letter-spacing: 0.02em; }
+
+/* ── A: STATS STRIP (editorial magazine style) ── */
+.a-stats {
+  display: flex; margin: 12px 0 0;
+  border-top: 1px solid var(--a-border);
+  position: relative; z-index: 1;
+}
+.a-stat {
+  flex: 1; padding: 8px 12px; border-right: 1px solid var(--a-border);
+  text-align: center;
+}
+.a-stat:last-child { border-right: none; }
+.a-stat-n { font-size: 22px; font-weight: 900; color: var(--a-accent-light); line-height: 1; font-family: Georgia, serif; }
+.a-stat-l { font-size: 7px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--a-dim); margin-top: 2px; font-weight: 700; }
+
+/* ── A: WAVEFORM DIVIDER ── */
+.a-wave { display: flex; align-items: center; gap: 1.5px; padding: 6px 16px; position: relative; z-index: 1; }
+.a-wave-bar { width: 2.5px; background: var(--a-accent); border-radius: 2px; opacity: 0.35; }
+
+/* ── A: TABS ── */
+.a-tabs {
+  display: flex; padding: 0 16px;
+  border-bottom: 1px solid var(--a-border);
+  position: relative; z-index: 1;
+}
+.a-tab {
+  font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 7px 10px 7px 0; margin-right: 10px;
+  color: var(--a-dim);
+}
+.a-tab.active { color: var(--a-accent-light); border-bottom: 2px solid var(--a-accent); margin-bottom: -1px; }
+
+/* ── A: TRACK ROWS ── */
+.a-tracks { padding: 4px 16px 8px; position: relative; z-index: 1; }
+.a-track {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.035);
+}
+.a-track-n { font-size: 9px; color: var(--a-dim); width: 14px; font-family: Georgia, serif; }
+.a-track-name { font-size: 11px; color: var(--a-text); flex: 1; opacity: 0.85; }
+.a-track-rating { font-size: 9px; color: var(--a-accent); }
+.a-track-dur { font-size: 9px; color: var(--a-dim); }
+
+/* ── A: FEED CARD ── */
+.a-feed-card {
+  margin: 0 16px 12px; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--a-border);
+  background: var(--a-surface);
+  position: relative; z-index: 1;
+}
+.a-feed-header {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--a-border);
+}
+.a-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, #4c1d95, #8B5CF6);
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 900; color: #fff; font-family: Georgia, serif;
+}
+.a-feed-text { flex: 1; font-size: 11px; color: var(--a-text); line-height: 1.4; }
+.a-feed-text strong { color: #fff; }
+.a-feed-text .accent { color: var(--a-accent-light); }
+.a-feed-time { font-size: 9px; color: var(--a-dim); }
+.a-feed-body {
+  display: flex; gap: 10px; padding: 8px 12px 10px; align-items: center;
+}
+.a-feed-art {
+  width: 38px; height: 38px; border-radius: 4px; flex-shrink: 0;
+  background: linear-gradient(135deg, #3b1f6e, #8B5CF6);
+  box-shadow: 3px 3px 0 rgba(139,92,246,0.25);
+}
+.a-feed-review { font-size: 10px; color: var(--a-muted); line-height: 1.5; flex: 1; font-family: Georgia, serif; font-style: italic; }
+.a-feed-stars { font-size: 12px; color: var(--a-accent); letter-spacing: 1px; }
+.a-feed-actions {
+  display: flex; align-items: center; gap: 10px; padding: 5px 12px;
+  border-top: 1px solid var(--a-border);
+}
+.a-feed-action { font-size: 9px; color: var(--a-dim); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+
+/* ── A: RATING MODAL ── */
+.a-rating-modal {
+  margin: 0 16px 12px; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--a-accent-glow);
+  background: rgba(139,92,246,0.07);
+  position: relative; z-index: 1;
+  padding: 12px 14px;
+}
+.a-rating-label { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--a-accent); margin-bottom: 8px; }
+.a-stars { display: flex; gap: 6px; margin-bottom: 8px; }
+.a-star { font-size: 22px; color: var(--a-accent); opacity: 1; line-height: 1; }
+.a-star.dim { opacity: 0.15; }
+.a-rating-sub { font-size: 9px; color: var(--a-muted); }
+
+/* ── A: LOG BUTTON ── */
+.a-log-btn {
+  margin: 0 16px 10px;
+  display: block; width: calc(100% - 0px);
+  background: transparent;
+  border: 1.5px solid var(--a-accent);
+  border-radius: 5px;
+  padding: 8px;
+  font-size: 10px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--a-accent-light);
+  text-align: center;
+  position: relative; z-index: 1;
+}
+
+
+/* ════════════════════════════════════════════════════════
+   DIRECTION B — NEO-BRUTALIST (PURPLE)
+════════════════════════════════════════════════════════ */
+
+.dir-b-wrap {
+  background: var(--b-bg);
+  position: relative; overflow: hidden;
+}
+
+/* subtle dot grid bg */
+.dir-b-wrap::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 18px 18px;
+  pointer-events: none; z-index: 0;
+}
+
+/* ── B: NAV ── */
+.b-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--b-border);
+  position: relative; z-index: 1;
+}
+.b-wordmark {
+  font-size: 14px; font-weight: 900; color: #fff;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.b-nav-pill {
+  background: var(--b-accent);
+  color: #fff; font-size: 8px; font-weight: 900;
+  padding: 3px 8px; border-radius: 2px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.b-nav-links { display: flex; gap: 0; }
+.b-nav-link {
+  font-size: 8px; color: rgba(255,255,255,0.3); font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 3px 8px; border-right: 1px solid rgba(255,255,255,0.1);
+}
+.b-nav-link:last-child { border-right: none; }
+.b-nav-link.active { color: var(--b-accent-light); }
+
+/* ── B: ALBUM HERO ── */
+.b-hero {
+  display: flex; position: relative; z-index: 1;
+  border-bottom: 2px solid var(--b-border);
+}
+.b-art-col {
+  width: 110px; flex-shrink: 0;
+  background: #111;
+  border-right: 2px solid var(--b-border);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.b-art {
+  width: 78px; height: 78px;
+  background: linear-gradient(135deg, #4c1d95, #8B5CF6, #c4b5fd);
+  border: 2px solid rgba(255,255,255,0.7);
+  position: relative;
+}
+/* offset shadow brutalist style */
+.b-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--b-accent);
+  transform: translate(5px, 5px);
+  z-index: -1;
+}
+.b-meta { flex: 1; padding: 12px 14px; }
+.b-type-tag {
+  display: inline-block;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  font-size: 7px; font-weight: 900;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.35); padding: 2px 6px;
+  margin-bottom: 6px;
+}
+.b-album-title {
+  font-size: 20px; font-weight: 900; color: #fff;
+  line-height: 0.95; letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+.b-album-artist {
+  font-size: 9px; color: rgba(255,255,255,0.4);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-top: 5px; font-weight: 700;
+}
+.b-rating-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 8px;
+  background: var(--b-accent);
+  color: #fff; font-size: 11px; font-weight: 900;
+  padding: 3px 8px; border-radius: 2px;
+}
+
+/* ── B: STATS ROW ── */
+.b-stats {
+  display: flex; position: relative; z-index: 1;
+  border-bottom: 2px solid var(--b-border);
+}
+.b-stat {
+  flex: 1; padding: 8px 10px;
+  border-right: 2px solid var(--b-border); text-align: center;
+}
+.b-stat:last-child { border-right: none; }
+.b-stat-n { font-size: 22px; font-weight: 900; color: #fff; line-height: 1; }
+.b-stat-l { font-size: 7px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.3); margin-top: 1px; font-weight: 800; }
+
+/* ── B: LOG BUTTON ── */
+.b-log-btn {
+  display: block; position: relative; z-index: 1;
+  margin: 0;
+  background: var(--b-accent);
+  border: none; border-bottom: 2px solid var(--b-border);
+  color: #fff; font-size: 10px; font-weight: 900;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 10px; text-align: center; width: 100%;
+  cursor: pointer;
+}
+
+/* ── B: TABS ── */
+.b-tabs {
+  display: flex; position: relative; z-index: 1;
+  border-bottom: 2px solid var(--b-border);
+}
+.b-tab {
+  flex: 1; text-align: center;
+  font-size: 7px; font-weight: 900;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 7px 0; color: rgba(255,255,255,0.25);
+  border-right: 2px solid var(--b-border);
+}
+.b-tab:last-child { border-right: none; }
+.b-tab.active { background: var(--b-accent); color: #fff; }
+
+/* ── B: TRACKS ── */
+.b-tracks { position: relative; z-index: 1; }
+.b-track {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.b-track-n { font-size: 10px; font-weight: 900; color: rgba(255,255,255,0.15); width: 18px; }
+.b-track-name {
+  font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.85);
+  flex: 1; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.b-track-tag {
+  font-size: 8px; font-weight: 900; color: var(--b-accent-light);
+  border: 1px solid rgba(139,92,246,0.4); border-radius: 2px;
+  padding: 1px 5px; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.b-track-dur { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.2); }
+
+/* ── B: FEED CARD ── */
+.b-feed-card {
+  position: relative; z-index: 1;
+  border-bottom: 2px solid var(--b-border);
+}
+.b-feed-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.b-avatar {
+  width: 26px; height: 26px;
+  background: var(--b-accent);
+  border: 1.5px solid rgba(255,255,255,0.5);
+  border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 900; color: #fff;
+  flex-shrink: 0;
+}
+.b-feed-text { flex: 1; font-size: 10px; color: rgba(255,255,255,0.7); line-height: 1.4; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.b-feed-text strong { color: #fff; }
+.b-feed-time { font-size: 8px; color: rgba(255,255,255,0.2); font-weight: 800; text-transform: uppercase; }
+.b-feed-body {
+  display: flex; gap: 12px; padding: 10px 14px 10px; align-items: flex-start;
+}
+.b-feed-art {
+  width: 44px; height: 44px; flex-shrink: 0;
+  background: linear-gradient(135deg, #4c1d95, #8B5CF6);
+  border: 2px solid rgba(255,255,255,0.6);
+  position: relative;
+}
+.b-feed-art::after {
+  content: '';
+  position: absolute; inset: 0;
+  border: 2px solid var(--b-accent);
+  transform: translate(4px, 4px);
+  z-index: -1;
+}
+.b-feed-review { font-size: 10px; color: rgba(255,255,255,0.6); line-height: 1.5; flex: 1; }
+.b-feed-rating {
+  display: flex; gap: 4px; align-items: center;
+  margin-bottom: 4px;
+}
+.b-feed-rating-badge {
+  background: var(--b-accent);
+  color: #fff; font-size: 10px; font-weight: 900;
+  padding: 1px 6px; border-radius: 2px;
+}
+.b-feed-actions {
+  display: flex; align-items: center; gap: 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.b-feed-action {
+  flex: 1; text-align: center;
+  font-size: 8px; font-weight: 900; text-transform: uppercase;
+  letter-spacing: 0.08em; color: rgba(255,255,255,0.25);
+  padding: 7px 0; border-right: 1px solid rgba(255,255,255,0.08);
+}
+.b-feed-action:last-child { border-right: none; }
+.b-feed-action.active { color: var(--b-accent-light); }
+
+/* ── B: RATING ── */
+.b-rating-section {
+  position: relative; z-index: 1;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--b-border);
+  background: rgba(139,92,246,0.06);
+}
+.b-rating-label {
+  font-size: 7px; font-weight: 900; text-transform: uppercase;
+  letter-spacing: 0.14em; color: var(--b-accent-light); margin-bottom: 8px;
+}
+.b-stars { display: flex; gap: 4px; margin-bottom: 8px; }
+.b-star {
+  width: 28px; height: 28px; border-radius: 2px;
+  border: 2px solid var(--b-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--b-accent);
+}
+.b-star.dim { border-color: rgba(139,92,246,0.2); color: rgba(139,92,246,0.2); }
+.b-star.filled { background: var(--b-accent); color: #fff; }
+.b-submit-btn {
+  display: block; width: 100%;
+  background: transparent; border: 2px solid var(--b-accent);
+  color: var(--b-accent-light); font-size: 9px; font-weight: 900;
+  text-transform: uppercase; letter-spacing: 0.1em; padding: 6px;
+  cursor: pointer; text-align: center;
+}
+
+</style>
+</head>
+<body>
+
+<h1>Directions A & B — Expanded with Purple</h1>
+<p class="page-sub">Both directions now shown across Album Page, Feed Card, and Rating UI. Purple replaces the previous accent colors throughout.</p>
+
+<div class="comparison">
+
+  <!-- ══════════════ COLUMN A ══════════════ -->
+  <div>
+    <div class="col-header">
+      <h2>A — Zine / Analog Revival</h2>
+      <p>Film grain · Serif display type · Waveform motif · Editorial stat numbers · Offset box-shadow on art</p>
+    </div>
+
+    <div class="component-label">Album Page</div>
+    <div class="phone">
+      <div class="dir-a-wrap">
+        <div class="a-nav">
+          <span class="a-wordmark">Tracklist</span>
+          <div class="a-nav-links">
+            <span>Home</span>
+            <span class="active">Album</span>
+            <span>You</span>
+          </div>
+        </div>
+
+        <div class="a-hero">
+          <div class="a-eyebrow">Album · 2024</div>
+          <div class="a-hero-body">
+            <div class="a-art"></div>
+            <div>
+              <div class="a-album-title">Radical<br>Optimism</div>
+              <div class="a-album-artist">Dua Lipa · 11 tracks · 38 min</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="a-stats">
+          <div class="a-stat">
+            <div class="a-stat-n">4.1</div>
+            <div class="a-stat-l">Avg</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-stat-n">2.4k</div>
+            <div class="a-stat-l">Plays</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-stat-n">89</div>
+            <div class="a-stat-l">Reviews</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-stat-n">47</div>
+            <div class="a-stat-l">Saved</div>
+          </div>
+        </div>
+
+        <div class="a-wave">
+          <div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:17px"></div><div class="a-wave-bar" style="height:8px"></div><div class="a-wave-bar" style="height:21px"></div><div class="a-wave-bar" style="height:13px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:15px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:23px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:14px"></div><div class="a-wave-bar" style="height:17px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:15px"></div><div class="a-wave-bar" style="height:21px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:17px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:13px"></div><div class="a-wave-bar" style="height:23px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:21px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:15px"></div><div class="a-wave-bar" style="height:13px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:17px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:23px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:15px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:21px"></div><div class="a-wave-bar" style="height:13px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:17px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:23px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:13px"></div><div class="a-wave-bar" style="height:15px"></div><div class="a-wave-bar" style="height:21px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:17px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:23px"></div><div class="a-wave-bar" style="height:13px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:21px"></div><div class="a-wave-bar" style="height:15px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:17px"></div><div class="a-wave-bar" style="height:5px"></div><div class="a-wave-bar" style="height:13px"></div><div class="a-wave-bar" style="height:23px"></div><div class="a-wave-bar" style="height:9px"></div><div class="a-wave-bar" style="height:21px"></div><div class="a-wave-bar" style="height:15px"></div><div class="a-wave-bar" style="height:7px"></div><div class="a-wave-bar" style="height:11px"></div><div class="a-wave-bar" style="height:19px"></div><div class="a-wave-bar" style="height:5px"></div>
+        </div>
+
+        <div class="a-rating-modal">
+          <div class="a-rating-label">Your Rating</div>
+          <div class="a-stars">
+            <span class="a-star">★</span>
+            <span class="a-star">★</span>
+            <span class="a-star">★</span>
+            <span class="a-star">★</span>
+            <span class="a-star dim">★</span>
+          </div>
+          <div class="a-rating-sub">4 of 5 — tap to adjust · ½ star steps</div>
+        </div>
+
+        <div class="a-tabs">
+          <div class="a-tab active">Tracks</div>
+          <div class="a-tab">Reviews</div>
+          <div class="a-tab">Info</div>
+          <div class="a-tab">Social</div>
+        </div>
+
+        <div class="a-tracks">
+          <div class="a-track">
+            <span class="a-track-n">I</span>
+            <span class="a-track-name">Houdini</span>
+            <span class="a-track-rating">★★★★</span>
+            <span class="a-track-dur">3:06</span>
+          </div>
+          <div class="a-track">
+            <span class="a-track-n">II</span>
+            <span class="a-track-name">Training Season</span>
+            <span class="a-track-rating">★★★½</span>
+            <span class="a-track-dur">3:20</span>
+          </div>
+          <div class="a-track">
+            <span class="a-track-n">III</span>
+            <span class="a-track-name">These Walls</span>
+            <span class="a-track-dur">3:44</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="component-label">Feed Card</div>
+    <div class="phone">
+      <div class="dir-a-wrap">
+        <div class="a-nav">
+          <span class="a-wordmark">Tracklist</span>
+          <div class="a-nav-links"><span class="active">Feed</span></div>
+        </div>
+        <div style="height:8px;"></div>
+        <div class="a-feed-card">
+          <div class="a-feed-header">
+            <div class="a-avatar">M</div>
+            <div>
+              <div class="a-feed-text"><strong>maya</strong> <span class="accent">reviewed</span> Radical Optimism</div>
+              <div class="a-feed-time">2 hours ago</div>
+            </div>
+          </div>
+          <div class="a-feed-body">
+            <div class="a-feed-art"></div>
+            <div style="flex:1;">
+              <div class="a-feed-stars">★★★★☆</div>
+              <div class="a-feed-review">"Sonically rich and surprisingly cohesive. Houdini alone is worth the price of admission."</div>
+            </div>
+          </div>
+          <div class="a-feed-actions">
+            <span class="a-feed-action">♥ 12</span>
+            <span class="a-feed-action">↩ Reply</span>
+            <span class="a-feed-action">+ Log</span>
+          </div>
+        </div>
+        <div class="a-feed-card">
+          <div class="a-feed-header">
+            <div class="a-avatar" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);">J</div>
+            <div>
+              <div class="a-feed-text"><strong>james</strong> logged <span class="accent">3 albums</span> today</div>
+              <div class="a-feed-time">5 hours ago</div>
+            </div>
+          </div>
+          <div class="a-feed-body" style="gap:6px;flex-wrap:wrap;padding:8px 12px;">
+            <div style="display:flex;gap:6px;">
+              <div class="a-feed-art" style="width:32px;height:32px;background:linear-gradient(135deg,#1e1b4b,#4338ca);"></div>
+              <div class="a-feed-art" style="width:32px;height:32px;background:linear-gradient(135deg,#701a75,#a21caf);"></div>
+              <div class="a-feed-art" style="width:32px;height:32px;background:linear-gradient(135deg,#134e4a,#0d9488);"></div>
+            </div>
+          </div>
+          <div class="a-feed-actions">
+            <span class="a-feed-action">♥ 4</span>
+            <span class="a-feed-action">↩ Reply</span>
+            <span class="a-feed-action">See all</span>
+          </div>
+        </div>
+        <div style="height:8px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ COLUMN B ══════════════ -->
+  <div>
+    <div class="col-header">
+      <h2>B — Neo-Brutalist</h2>
+      <p>Thick structural borders · Dot-grid texture · Uppercase bold type · Boxed stars · Offset art shadow · Pure graphic</p>
+    </div>
+
+    <div class="component-label">Album Page</div>
+    <div class="phone">
+      <div class="dir-b-wrap">
+        <div class="b-nav">
+          <span class="b-wordmark">Tracklist</span>
+          <div class="b-nav-links">
+            <span class="b-nav-link">Home</span>
+            <span class="b-nav-link active">Album</span>
+            <span class="b-nav-link">You</span>
+          </div>
+        </div>
+
+        <div class="b-hero">
+          <div class="b-art-col">
+            <div class="b-art"></div>
+          </div>
+          <div class="b-meta">
+            <div class="b-type-tag">LP · 2024</div>
+            <div class="b-album-title">Radical<br>Optimism</div>
+            <div class="b-album-artist">Dua Lipa</div>
+            <div class="b-rating-badge">★ 4.1</div>
+          </div>
+        </div>
+
+        <div class="b-stats">
+          <div class="b-stat">
+            <div class="b-stat-n">2.4k</div>
+            <div class="b-stat-l">Plays</div>
+          </div>
+          <div class="b-stat">
+            <div class="b-stat-n">89</div>
+            <div class="b-stat-l">Reviews</div>
+          </div>
+          <div class="b-stat">
+            <div class="b-stat-n">47</div>
+            <div class="b-stat-l">Saved</div>
+          </div>
+        </div>
+
+        <div class="b-log-btn">+ Log a Listen</div>
+
+        <div class="b-rating-section">
+          <div class="b-rating-label">Your Rating</div>
+          <div class="b-stars">
+            <div class="b-star filled">★</div>
+            <div class="b-star filled">★</div>
+            <div class="b-star filled">★</div>
+            <div class="b-star filled">★</div>
+            <div class="b-star dim">★</div>
+          </div>
+          <div class="b-submit-btn">Submit Rating</div>
+        </div>
+
+        <div class="b-tabs">
+          <div class="b-tab active">Tracks</div>
+          <div class="b-tab">Reviews</div>
+          <div class="b-tab">Info</div>
+          <div class="b-tab">Social</div>
+        </div>
+
+        <div class="b-tracks">
+          <div class="b-track">
+            <span class="b-track-n">01</span>
+            <span class="b-track-name">Houdini</span>
+            <span class="b-track-tag">#1</span>
+            <span class="b-track-dur">3:06</span>
+          </div>
+          <div class="b-track">
+            <span class="b-track-n">02</span>
+            <span class="b-track-name">Training Season</span>
+            <span class="b-track-dur">3:20</span>
+          </div>
+          <div class="b-track">
+            <span class="b-track-n">03</span>
+            <span class="b-track-name">These Walls</span>
+            <span class="b-track-dur">3:44</span>
+          </div>
+          <div class="b-track">
+            <span class="b-track-n">04</span>
+            <span class="b-track-name">End of an Era</span>
+            <span class="b-track-dur">3:51</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="component-label">Feed Card</div>
+    <div class="phone">
+      <div class="dir-b-wrap">
+        <div class="b-nav">
+          <span class="b-wordmark">Tracklist</span>
+          <span class="b-nav-pill">Feed</span>
+        </div>
+        <div class="b-feed-card">
+          <div class="b-feed-header">
+            <div class="b-avatar">M</div>
+            <div style="flex:1;">
+              <div class="b-feed-text"><strong>maya</strong> reviewed Radical Optimism</div>
+              <div class="b-feed-time">2h ago</div>
+            </div>
+          </div>
+          <div class="b-feed-body">
+            <div class="b-feed-art"></div>
+            <div style="flex:1;">
+              <div class="b-feed-rating">
+                <div class="b-feed-rating-badge">★ 4/5</div>
+              </div>
+              <div class="b-feed-review">"Sonically rich and surprisingly cohesive. Houdini alone is worth it."</div>
+            </div>
+          </div>
+          <div class="b-feed-actions">
+            <span class="b-feed-action active">♥ 12</span>
+            <span class="b-feed-action">Comment</span>
+            <span class="b-feed-action">+ Log</span>
+          </div>
+        </div>
+        <div class="b-feed-card">
+          <div class="b-feed-header">
+            <div class="b-avatar" style="background:#5b21b6;">J</div>
+            <div style="flex:1;">
+              <div class="b-feed-text"><strong>james</strong> logged 3 albums today</div>
+              <div class="b-feed-time">5h ago</div>
+            </div>
+          </div>
+          <div class="b-feed-body" style="gap:8px;align-items:center;">
+            <div class="b-feed-art" style="background:linear-gradient(135deg,#1e1b4b,#4338ca);"></div>
+            <div class="b-feed-art" style="background:linear-gradient(135deg,#701a75,#a21caf);"></div>
+            <div class="b-feed-art" style="background:linear-gradient(135deg,#134e4a,#0d9488);"></div>
+            <div style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.06em;">+2 more</div>
+          </div>
+          <div class="b-feed-actions">
+            <span class="b-feed-action">♥ 4</span>
+            <span class="b-feed-action">Comment</span>
+            <span class="b-feed-action">See All</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="max-width:1100px;margin:28px auto 0;padding:20px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:12px;">
+  <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:8px;">
+    <strong style="color:#a78bfa;">Note on combining:</strong> These aren't fully mutually exclusive. A's grain texture and waveform motif could be layered into B's structural system, or B's boxed rating stars could live inside A's editorial layout. Tell me in the terminal which resonates more — or what you'd take from each.
+  </p>
+</div>
+
+</body>
+</html>

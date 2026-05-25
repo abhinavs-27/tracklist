@@ -129,7 +129,7 @@ function CommunityMemberSocialCard(props: {
       <div className="flex w-full min-w-0 flex-col items-stretch text-center">
         <Link
           href={`/profile/${m.user_id}`}
-          className="relative mx-auto h-20 w-20 shrink-0 rounded-full ring-2 ring-emerald-500/30 transition hover:ring-emerald-500/50"
+          className="relative mx-auto h-20 w-20 shrink-0 rounded-full ring-2 ring-gold-500/30 transition hover:ring-gold-500/50"
         >
           {m.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- remote avatar URLs
@@ -146,7 +146,7 @@ function CommunityMemberSocialCard(props: {
         </Link>
         <Link
           href={`/profile/${m.user_id}`}
-          className={`mt-3 block w-full min-w-0 max-w-full truncate font-semibold text-white transition hover:text-emerald-400 hover:underline ${communityHeadline}`}
+          className={`mt-3 block w-full min-w-0 max-w-full truncate font-semibold text-white transition hover:text-gold-400 hover:underline ${communityHeadline}`}
           title={m.username}
         >
           {m.username}
@@ -163,7 +163,7 @@ function CommunityMemberSocialCard(props: {
           </span>
         ) : null}
         <p
-          className={`mt-2 min-h-[2.5rem] w-full min-w-0 max-w-full break-words text-center text-sm leading-snug text-emerald-400/95 line-clamp-2`}
+          className={`mt-2 min-h-[2.5rem] w-full min-w-0 max-w-full break-words text-center text-sm leading-snug text-gold-400/95 line-clamp-2`}
           title={line ?? undefined}
         >
           {line ?? "—"}
@@ -219,7 +219,7 @@ function CommunityMemberCard(props: {
       <div className="flex min-w-0 flex-1 gap-3">
         <Link
           href={`/profile/${m.user_id}`}
-          className="relative h-10 w-10 shrink-0 self-start rounded-full ring-1 ring-white/10 transition hover:ring-2 hover:ring-emerald-500/30"
+          className="relative h-10 w-10 shrink-0 self-start rounded-full ring-1 ring-white/10 transition hover:ring-2 hover:ring-gold-500/30"
         >
           {m.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- remote avatar URLs
@@ -239,7 +239,7 @@ function CommunityMemberCard(props: {
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <Link
               href={`/profile/${m.user_id}`}
-              className={`min-w-0 max-w-full flex-1 basis-0 truncate font-semibold text-white transition hover:text-emerald-400 hover:underline ${communityHeadline}`}
+              className={`min-w-0 max-w-full flex-1 basis-0 truncate font-semibold text-white transition hover:text-gold-400 hover:underline ${communityHeadline}`}
               title={m.username}
             >
               {m.username}
@@ -260,7 +260,7 @@ function CommunityMemberCard(props: {
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${communityMeta} ${
                   m.taste_neighbor.kind === "similar"
-                    ? "bg-emerald-950/80 text-emerald-200/95 ring-1 ring-emerald-500/25"
+                    ? "bg-gold-950/80 text-gold-200/95 ring-1 ring-gold-500/25"
                     : "bg-amber-950/60 text-amber-200/90 ring-1 ring-amber-500/20"
                 }`}
                 title={
@@ -299,7 +299,7 @@ function CommunityMemberCard(props: {
               {m.top_artists.slice(0, 2).map((a) => (
                 <span
                   key={a}
-                  className={`rounded-full bg-emerald-950/50 px-2 py-0.5 text-emerald-200/90 ${communityMeta}`}
+                  className={`rounded-full bg-gold-950/50 px-2 py-0.5 text-gold-200/90 ${communityMeta}`}
                 >
                   {a}
                 </span>

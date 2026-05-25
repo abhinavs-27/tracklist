@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AlbumReviews } from "@/app/album/[id]/album-reviews";
 import { TrackRating } from "@/app/album/[id]/track-rating";
 import { TrackCard } from "@/components/track-card";
@@ -58,7 +58,7 @@ function TabNav({ active, onChange, hasSocial }: { active: Tab; onChange: (t: Ta
         <button key={tab.id} type="button" onClick={() => onChange(tab.id)}
           className={`relative flex-1 py-3 text-sm font-medium capitalize transition-colors duration-150 ${active === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
           {tab.label}
-          {active === tab.id && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-emerald-400" />}
+          {active === tab.id && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-gold-400" />}
         </button>
       ))}
     </div>
@@ -93,6 +93,7 @@ export type AlbumPageClientProps = {
   producers?: any[];
   songwriters?: any[];
   labels?: any[];
+  creditsEnrichedAt?: string | null;
 };
 
 // ── Main component ────────────────────────────────────────────────────────
@@ -109,10 +110,11 @@ export function AlbumPageClient({
   viewerTrackRatings,
   recommendationsNode,
   leaderboardNode,
-  bio = null,
-  producers = [],
-  songwriters = [],
-  labels = [],
+  bio: initialBio = null,
+  producers: initialProducers = [],
+  songwriters: initialSongwriters = [],
+  labels: initialLabels = [],
+  creditsEnrichedAt: initialCreditsEnrichedAt = null,
 }: AlbumPageClientProps) {
   const image = album.images?.[0]?.url;
   const firstTrack = tracks.items?.[0];
@@ -120,6 +122,52 @@ export function AlbumPageClient({
   const [activeTab, setActiveTab] = useState<Tab>("tracks");
   const [trackStats, setTrackStats] = useState<Record<string, TrackStatRow>>({});
   const [trackStatsLoading, setTrackStatsLoading] = useState(true);
+
+  const initialHasContent = !!initialBio || initialProducers.length > 0 || initialSongwriters.length > 0 || initialLabels.length > 0;
+  const [bio, setBio] = useState(initialBio);
+  const [producers, setProducers] = useState(initialProducers);
+  const [songwriters, setSongwriters] = useState(initialSongwriters);
+  const [labels, setLabels] = useState(initialLabels);
+  const [creditsEnrichedAt, setCreditsEnrichedAt] = useState(initialCreditsEnrichedAt);
+  const [isPolling, setIsPolling] = useState(!initialHasContent && initialCreditsEnrichedAt === null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollAttemptsRef = useRef(0);
+
+  useEffect(() => {
+    if (initialHasContent || initialCreditsEnrichedAt !== null) return;
+    let cancelled = false;
+    setIsPolling(true);
+    pollAttemptsRef.current = 0;
+    const poll = async () => {
+      if (pollAttemptsRef.current >= 10) {
+        if (!cancelled) setIsPolling(false);
+        return;
+      }
+      pollAttemptsRef.current++;
+      try {
+        const res = await fetch(`/api/albums/${encodeURIComponent(id)}/info`);
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data.credits_enriched_at) {
+            setBio(data.bio ?? null);
+            setProducers(data.producers ?? []);
+            setSongwriters(data.songwriters ?? []);
+            setLabels(data.labels ?? []);
+            setCreditsEnrichedAt(data.credits_enriched_at);
+            if (!cancelled) setIsPolling(false);
+            return;
+          }
+        }
+      } catch { /* swallow */ }
+      if (!cancelled) pollRef.current = setTimeout(poll, 3000);
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: reviewData } = useReviews("album", id);
   const myReview = reviewData?.my_review ?? null;
@@ -155,7 +203,7 @@ export function AlbumPageClient({
     {/* Mobile fixed header — matches app nav bar style */}
     <header className="fixed left-0 right-0 top-0 z-[60] border-b border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl md:hidden">
       <div className="flex min-h-[3rem] items-center gap-3 px-4 py-2.5">
-        <button type="button" onClick={() => window.history.back()} className="shrink-0 text-emerald-400 touch-manipulation">
+        <button type="button" onClick={() => window.history.back()} className="shrink-0 text-gold-400 touch-manipulation">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <p className="min-w-0 flex-1 truncate text-center text-base font-bold tracking-tight text-white">{album.name}</p>
@@ -187,7 +235,7 @@ export function AlbumPageClient({
             {album.artists?.map((a, i) => (
               <span key={a.id}>
                 {i > 0 && <span className="text-zinc-600"> · </span>}
-                <Link href={`/artist/${a.id}`} className="hover:text-emerald-400 hover:underline">{a.name}</Link>
+                <Link href={`/artist/${a.id}`} className="hover:text-gold-400 hover:underline">{a.name}</Link>
               </span>
             ))}
           </p>
@@ -268,7 +316,7 @@ export function AlbumPageClient({
                   <div key={t.id} className="group border-b border-zinc-800/50 py-2 last:border-b-0">
                     <div className="flex items-center gap-2">
                       <span className="w-6 shrink-0 text-right text-xs text-zinc-600 tabular-nums">{i + 1}</span>
-                      <a href={href} className="min-w-0 flex-1 truncate text-sm font-medium text-white hover:text-emerald-400 transition-colors">
+                      <a href={href} className="min-w-0 flex-1 truncate text-sm font-medium text-white hover:text-gold-400 transition-colors">
                         {t.name}
                       </a>
                       <span className="shrink-0 text-xs tabular-nums text-zinc-600">{formatDuration(t.duration_ms) ?? "—"}</span>
@@ -306,6 +354,7 @@ export function AlbumPageClient({
               bio={bio}
               producers={producers}
               songwriters={songwriters}
+              isEnriching={isPolling}
               labels={labels}
             />
           </div>

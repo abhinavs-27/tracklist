@@ -38,7 +38,7 @@ export function SectionBlock({
           {action ? (
             <Link
               href={action.href}
-              className="shrink-0 text-sm font-medium text-emerald-400/95 transition hover:text-emerald-300"
+              className="shrink-0 text-sm font-medium text-gold-400/95 transition hover:text-gold-300"
             >
               {action.label}
             </Link>

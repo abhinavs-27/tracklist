@@ -63,7 +63,7 @@ export function UserSearchResult({ user, showFollowButton = true, onFollowChange
         <ul className="mt-3 space-y-1.5 border-t border-white/[0.06] pt-3">
           {user.reasons!.map((line, i) => (
             <li key={i} className="flex items-start gap-2 text-xs text-zinc-400">
-              <span className="mt-0.5 shrink-0 text-emerald-500/70">•</span>
+              <span className="mt-0.5 shrink-0 text-gold-500/70">•</span>
               <span>{line}</span>
             </li>
           ))}

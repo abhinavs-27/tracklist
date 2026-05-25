@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   playsViewer: {
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   barBg: {
     height: 3,
@@ -179,6 +179,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   barFillViewer: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
   },
 });

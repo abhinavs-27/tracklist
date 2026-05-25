@@ -160,7 +160,7 @@ export default function UserSearchScreen() {
             <Ionicons
               name="chevron-back"
               size={26}
-              color={theme.colors.emerald}
+              color={theme.colors.gold}
             />
           </Pressable>
           <View style={styles.titleBlock}>
@@ -199,7 +199,7 @@ export default function UserSearchScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Search results</Text>
               {searchLoading ? (
-                <ActivityIndicator color={theme.colors.emerald} />
+                <ActivityIndicator color={theme.colors.gold} />
               ) : results.length > 0 ? (
                 results.map((u) => (
                   <UserRow
@@ -225,7 +225,7 @@ export default function UserSearchScreen() {
                   as favorites (last 30 days).
                 </Text>
                 {authLoading || overlapLoading ? (
-                  <ActivityIndicator color={theme.colors.emerald} />
+                  <ActivityIndicator color={theme.colors.gold} />
                 ) : overlap.length === 0 ? (
                   <Text style={styles.muted}>
                     Add favorite albums on your profile to get overlap-based
@@ -252,7 +252,7 @@ export default function UserSearchScreen() {
                   Earliest signups first. Use Prev / Next to browse everyone.
                 </Text>
                 {authLoading || browseLoading ? (
-                  <ActivityIndicator color={theme.colors.emerald} />
+                  <ActivityIndicator color={theme.colors.gold} />
                 ) : browse.length === 0 ? (
                   <Text style={styles.muted}>No users yet.</Text>
                 ) : (

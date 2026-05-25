@@ -38,7 +38,7 @@ export async function VisitorProfilesStrip() {
       </div>
       <Link
         href="/search/users"
-        className="ml-auto text-sm font-medium text-emerald-400/95 hover:text-emerald-300"
+        className="ml-auto text-sm font-medium text-gold-400/95 hover:text-gold-300"
       >
         Browse everyone →
       </Link>

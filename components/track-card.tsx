@@ -50,7 +50,7 @@ function TrackCardInner({
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-white group-hover:text-emerald-400 sm:text-base">
+        <p className="truncate text-sm font-medium text-white group-hover:text-gold-400 sm:text-base">
           {track.name}
         </p>
         {showArtist && <p className="truncate text-xs text-zinc-500 sm:text-sm">{artistNames}</p>}

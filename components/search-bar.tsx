@@ -30,8 +30,8 @@ export function SearchBar({
   );
 
   const inputClass = compact
-    ? "w-full min-w-0 h-9 rounded-lg border border-zinc-700 bg-zinc-800/50 px-2.5 py-0 text-sm leading-9 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
-    : "w-full min-w-0 min-h-10 rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-base text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40";
+    ? "w-full min-w-0 h-9 rounded-lg border border-zinc-700 bg-zinc-800/50 px-2.5 py-0 text-sm leading-9 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/40"
+    : "w-full min-w-0 min-h-10 rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-base text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/40";
 
   return (
     <form onSubmit={handleSubmit} className="flex w-full min-w-0 items-center">

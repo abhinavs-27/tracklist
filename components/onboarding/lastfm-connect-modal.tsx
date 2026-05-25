@@ -162,7 +162,7 @@ export function LastfmConnectModal({
               href="https://www.last.fm/join"
               target="_blank"
               rel="noreferrer noopener"
-              className="text-emerald-400 underline hover:text-emerald-300"
+              className="text-gold-400 underline hover:text-gold-300"
             >
               last.fm/join
             </a>
@@ -220,7 +220,7 @@ export function LastfmConnectModal({
 
         {preview && !loading ? (
           <div className="mt-4 space-y-4 border-t border-zinc-800/80 pt-4">
-            <p className="text-xs font-medium text-emerald-400/90">
+            <p className="text-xs font-medium text-gold-400/90">
               Looks good — this is what we'll sync.
             </p>
             <div>
@@ -280,11 +280,11 @@ export function LastfmConnectModal({
               onClick={() => void saveUsername()}
               disabled={saving}
               aria-busy={saving}
-              className="order-1 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50 sm:order-3 sm:w-auto"
+              className="order-1 flex w-full items-center justify-center gap-2 rounded-xl bg-gold-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50 sm:order-3 sm:w-auto"
             >
               {saving ? (
                 <>
-                  <InlineSpinner tone="emerald" />
+                  <InlineSpinner tone="gold" />
                   <span>Connecting…</span>
                 </>
               ) : (

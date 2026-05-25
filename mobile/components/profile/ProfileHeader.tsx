@@ -124,7 +124,7 @@ export function ProfileHeader({
 
 const BANNER_H = 120;
 const AVATAR_SIZE = 84;
-const AVATAR_OVERLAP = 4;
+const AVATAR_OVERLAP = 36;
 
 const s = StyleSheet.create({
   banner: { height: BANNER_H, position: "relative" },
@@ -140,6 +140,7 @@ const s = StyleSheet.create({
   avatar: {
     width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
     backgroundColor: theme.colors.panel,
+    borderWidth: 3, borderColor: "#09090b",
   },
   avatarPh: { alignItems: "center", justifyContent: "center" },
   avatarGlyph: { fontSize: 28, fontWeight: "800", color: theme.colors.muted },

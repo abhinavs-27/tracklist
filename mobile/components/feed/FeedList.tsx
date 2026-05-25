@@ -113,15 +113,15 @@ export function FeedList({ listHeader, emptyComponent }: FeedListProps) {
         <RefreshControl
           refreshing={isFetching && !isFetchingNextPage && !isPending}
           onRefresh={() => refetch()}
-          tintColor={theme.colors.emerald}
-          colors={[theme.colors.emerald]}
+          tintColor={theme.colors.gold}
+          colors={[theme.colors.gold]}
         />
       }
       ListFooterComponent={
         isFetchingNextPage ? (
           <ActivityIndicator
             style={styles.footerSpinner}
-            color={theme.colors.emerald}
+            color={theme.colors.gold}
           />
         ) : null
       }
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   retry: {
     fontSize: 14,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   errorDetail: {
     marginTop: 8,

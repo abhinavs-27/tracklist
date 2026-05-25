@@ -22,7 +22,7 @@ export default async function RecommendedPage() {
   return (
     <div className="space-y-6">
       <header>
-        <Link href="/explore" className="text-sm text-emerald-400 hover:underline">
+        <Link href="/explore" className="text-sm text-gold-400 hover:underline">
           ← Explore
         </Link>
         <h1 className="mt-2 text-xl font-bold text-white sm:text-2xl">Recommended for you</h1>
@@ -36,7 +36,7 @@ export default async function RecommendedPage() {
           <p className="text-zinc-400">
             Log some albums to get personalized recommendations.
           </p>
-          <Link href="/search" className="mt-3 inline-block text-emerald-400 hover:underline">
+          <Link href="/search" className="mt-3 inline-block text-gold-400 hover:underline">
             Search for music
           </Link>
         </div>

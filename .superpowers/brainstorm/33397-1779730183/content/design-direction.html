@@ -1,0 +1,160 @@
+<h2>What direction should the redesign go?</h2>
+<p class="subtitle">Each option is a fundamentally different visual identity — not just colors, but the whole feel of the app. Pick the one that resonates most with where you want Tracklist to go.</p>
+
+<div class="cards">
+
+  <!-- Option A: Editorial Dark -->
+  <div class="card" data-choice="editorial" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;height:240px;position:relative;background:#0d0d0f;">
+      <!-- Nav bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="font-size:13px;font-weight:800;color:#fff;letter-spacing:0.04em;font-family:serif;">TRACKLIST</span>
+        <div style="display:flex;gap:10px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);">Home</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);">Explore</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);">You</span>
+        </div>
+      </div>
+      <!-- Album hero -->
+      <div style="display:flex;gap:12px;padding:14px;">
+        <div style="width:72px;height:72px;flex-shrink:0;border-radius:4px;background:linear-gradient(135deg,#8B0000,#C41E3A,#FF6B6B);"></div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:8px;font-weight:700;letter-spacing:0.12em;color:#C41E3A;text-transform:uppercase;margin:0 0 3px;">Album · 2024</p>
+          <p style="font-size:16px;font-weight:900;color:#fff;margin:0;font-family:Georgia,serif;line-height:1.1;letter-spacing:-0.02em;">Radical Optimism</p>
+          <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:4px 0 0;">Dua Lipa</p>
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:#C41E3A;font-weight:700;">★ 4.1</span>
+            <span style="font-size:9px;color:rgba(255,255,255,0.3);">· 2.4k plays · 89 reviews</span>
+          </div>
+        </div>
+      </div>
+      <!-- Tab bar -->
+      <div style="display:flex;border-bottom:1px solid rgba(255,255,255,0.06);margin:0 14px;">
+        <div style="font-size:9px;font-weight:700;color:#fff;padding:6px 0;margin-right:14px;border-bottom:2px solid #C41E3A;letter-spacing:0.06em;text-transform:uppercase;">Tracks</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);padding:6px 0;margin-right:14px;letter-spacing:0.06em;text-transform:uppercase;">Reviews</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);padding:6px 0;letter-spacing:0.06em;text-transform:uppercase;">Info</div>
+      </div>
+      <!-- Track rows -->
+      <div style="padding:0 14px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:8px;color:rgba(255,255,255,0.2);width:10px;">1</span>
+          <span style="font-size:9px;color:rgba(255,255,255,0.8);">Houdini</span>
+          <span style="margin-left:auto;font-size:8px;color:rgba(255,255,255,0.2);">3:06</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+          <span style="font-size:8px;color:rgba(255,255,255,0.2);width:10px;">2</span>
+          <span style="font-size:9px;color:rgba(255,255,255,0.8);">Training Season</span>
+          <span style="margin-left:auto;font-size:8px;color:rgba(255,255,255,0.2);">3:20</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Editorial Dark</h3>
+      <p>Bold serif headlines, magazine-style typography, rich accent color (crimson/deep red or another non-Spotify hue). Still dark, but feels like Pitchfork or a high-end music publication — not a streaming app. Identity comes from typography and color confidence, not brightness.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Art-Reactive -->
+  <div class="card" data-choice="art-reactive" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;height:240px;position:relative;background:#0a0a12;">
+      <!-- Ambient glow behind everything -->
+      <div style="position:absolute;top:0;left:0;right:0;height:140px;background:linear-gradient(180deg,rgba(120,60,200,0.45) 0%,rgba(80,30,160,0.15) 60%,transparent 100%);pointer-events:none;"></div>
+      <!-- Nav bar -->
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;">
+        <span style="font-size:13px;font-weight:700;color:#fff;letter-spacing:-0.01em;">Tracklist</span>
+        <div style="display:flex;gap:10px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Home</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Explore</span>
+        </div>
+      </div>
+      <!-- Album hero — art bleeds into bg -->
+      <div style="position:relative;display:flex;gap:12px;padding:10px 14px 10px;">
+        <div style="width:72px;height:72px;flex-shrink:0;border-radius:8px;background:linear-gradient(135deg,#6B3FA0,#9B59B6,#BDC3C7);box-shadow:0 12px 40px rgba(120,60,200,0.6);"></div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:16px;font-weight:700;color:#fff;margin:0;line-height:1.15;letter-spacing:-0.02em;">Radical Optimism</p>
+          <p style="font-size:10px;color:rgba(255,255,255,0.55);margin:3px 0 0;">Dua Lipa</p>
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
+            <span style="background:rgba(180,120,255,0.2);border:1px solid rgba(180,120,255,0.3);border-radius:20px;padding:2px 8px;font-size:9px;color:#c9a0ff;font-weight:600;">★ 4.1 avg</span>
+            <span style="font-size:9px;color:rgba(255,255,255,0.3);">2.4k plays</span>
+          </div>
+        </div>
+      </div>
+      <!-- Rating bar — uses art color -->
+      <div style="margin:0 14px 10px;background:rgba(120,60,200,0.15);border:1px solid rgba(120,60,200,0.2);border-radius:8px;padding:8px 10px;">
+        <p style="font-size:8px;color:rgba(255,255,255,0.4);margin:0 0 4px;">Your rating</p>
+        <div style="display:flex;gap:3px;">
+          <span style="font-size:14px;color:#9B59B6;">★</span>
+          <span style="font-size:14px;color:#9B59B6;">★</span>
+          <span style="font-size:14px;color:#9B59B6;">★</span>
+          <span style="font-size:14px;color:#9B59B6;">★</span>
+          <span style="font-size:14px;color:rgba(155,89,182,0.25);">★</span>
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:0;padding:0 14px;border-top:1px solid rgba(255,255,255,0.05);">
+        <div style="font-size:9px;font-weight:600;color:#c9a0ff;padding:6px 12px 6px 0;border-bottom:2px solid #9B59B6;">Tracks</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);padding:6px 12px;">Reviews</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.3);padding:6px 12px;">Info</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Art-Reactive</h3>
+      <p>Album art drives the whole page — extract its dominant colors and use them for ambient glows, accent colors, rating UI tinting, and tab indicators. Every album page feels unique. This is the biggest "wow" moment in modern music apps (similar to Apple Music's latest design). Requires a color-extraction library on the server.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Warm & Playful -->
+  <div class="card" data-choice="warm-playful" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;height:240px;position:relative;background:#111010;">
+      <!-- Nav bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <div style="width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,#FF6B35,#F7931E);"></div>
+          <span style="font-size:13px;font-weight:700;color:#fff;letter-spacing:-0.01em;">tracklist</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);">Home</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);">Explore</span>
+        </div>
+      </div>
+      <!-- Album hero -->
+      <div style="display:flex;gap:12px;padding:12px 14px 8px;">
+        <div style="width:72px;height:72px;flex-shrink:0;border-radius:10px;background:linear-gradient(135deg,#FF6B35,#F7931E,#FFD700);box-shadow:0 8px 24px rgba(255,107,53,0.4);"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,107,53,0.12);border:1px solid rgba(255,107,53,0.2);border-radius:20px;padding:2px 8px;margin-bottom:5px;">
+            <span style="font-size:8px;color:#FF6B35;font-weight:600;">🎵 Album</span>
+          </div>
+          <p style="font-size:15px;font-weight:700;color:#fff;margin:0;line-height:1.2;letter-spacing:-0.01em;">Radical Optimism</p>
+          <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:3px 0 6px;">Dua Lipa · 2024</p>
+          <!-- Rating stars — warm and satisfying -->
+          <div style="display:flex;gap:2px;align-items:center;">
+            <span style="font-size:16px;color:#FF6B35;">★</span>
+            <span style="font-size:16px;color:#FF6B35;">★</span>
+            <span style="font-size:16px;color:#FF6B35;">★</span>
+            <span style="font-size:16px;color:#FF6B35;">★</span>
+            <span style="font-size:16px;color:rgba(255,107,53,0.2);">★</span>
+            <span style="font-size:8px;color:rgba(255,255,255,0.3);margin-left:4px;">4.0 · 89 reviews</span>
+          </div>
+        </div>
+      </div>
+      <!-- Log button — warm primary -->
+      <div style="margin:0 14px 8px;">
+        <button style="width:100%;background:linear-gradient(90deg,#FF6B35,#F7931E);border:none;border-radius:8px;padding:7px;font-size:10px;font-weight:700;color:#fff;letter-spacing:0.02em;cursor:pointer;">+ Log Listen</button>
+      </div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:0;border-top:1px solid rgba(255,255,255,0.05);">
+        <div style="flex:1;text-align:center;font-size:9px;font-weight:700;color:#FF6B35;padding:7px 0;border-bottom:2px solid #FF6B35;">Tracks</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);padding:7px 0;">Reviews</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);padding:7px 0;">Info</div>
+        <div style="flex:1;text-align:center;font-size:9px;color:rgba(255,255,255,0.3);padding:7px 0;">Social</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Warm & Playful</h3>
+      <p>Replaces Spotify's green with a warm orange-amber palette. Adds subtle personality touches — small emoji labels, gradient CTA buttons, rounded pill tags. Stays dark but feels warmer, more human. Closest to Tapehead's vibe. Easiest to implement since it's mostly a color/personality shift without needing dynamic extraction.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:20px;">These aren't mutually exclusive — we can combine directions (e.g., B's art-reactive glow + C's warmth). But pick the one that feels most right as a starting point.</p>

@@ -164,7 +164,7 @@ export function ChartShareActions(props: {
     <div className={wrapClass}>
       <button
         type="button"
-        className={`${btnClass(layout)} border-emerald-700/60 bg-emerald-950/40 text-emerald-100 hover:border-emerald-500/80 hover:bg-emerald-950/60 ${layout === "stacked" ? "py-3.5 text-base font-semibold" : ""}`}
+        className={`${btnClass(layout)} border-gold-700/60 bg-gold-950/40 text-gold-100 hover:border-gold-500/80 hover:bg-gold-950/60 ${layout === "stacked" ? "py-3.5 text-base font-semibold" : ""}`}
         disabled={disabled}
         onClick={() => void share()}
       >

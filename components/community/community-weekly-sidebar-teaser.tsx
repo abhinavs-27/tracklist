@@ -52,7 +52,7 @@ export function CommunityWeeklySidebarTeaser({ payload }: Props) {
                 </div>
                 <div className="mt-1 h-1 overflow-hidden rounded-full bg-zinc-800">
                   <div
-                    className="h-full rounded-full bg-emerald-500"
+                    className="h-full rounded-full bg-gold-500"
                     style={{
                       width: `${Math.max(8, (g.weight / maxG) * 100)}%`,
                     }}

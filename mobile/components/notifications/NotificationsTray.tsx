@@ -143,7 +143,7 @@ export function NotificationsTray() {
 
             {isLoading && preview.length === 0 ? (
               <View style={styles.panelLoading}>
-                <ActivityIndicator color={theme.colors.emerald} />
+                <ActivityIndicator color={theme.colors.gold} />
               </View>
             ) : (
               <ScrollView
@@ -153,8 +153,8 @@ export function NotificationsTray() {
                   <RefreshControl
                     refreshing={isRefetching && !isLoading}
                     onRefresh={() => refetch()}
-                    tintColor={theme.colors.emerald}
-                    colors={[theme.colors.emerald]}
+                    tintColor={theme.colors.gold}
+                    colors={[theme.colors.gold]}
                   />
                 }
               >
@@ -186,7 +186,7 @@ export function NotificationsTray() {
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={theme.colors.emerald}
+                color={theme.colors.gold}
               />
             </Pressable>
           </View>
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     paddingHorizontal: 4,
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -292,6 +292,6 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 15,
     fontWeight: "800",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
 });

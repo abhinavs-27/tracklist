@@ -152,7 +152,7 @@ export function SendRecommendationModal({
             Pick something from Spotify — they’ll get a notification with a link.
           </p>
           {contextHint ? (
-            <p className="mt-2 rounded-lg bg-emerald-950/25 px-3 py-2 text-[13px] leading-snug text-emerald-100/90 ring-1 ring-emerald-500/20">
+            <p className="mt-2 rounded-lg bg-gold-950/25 px-3 py-2 text-[13px] leading-snug text-gold-100/90 ring-1 ring-gold-500/20">
               {contextHint}
             </p>
           ) : null}
@@ -169,7 +169,7 @@ export function SendRecommendationModal({
               }}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
                 kind === k
-                  ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
+                  ? "bg-gold-500/20 text-gold-300 ring-1 ring-gold-500/40"
                   : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
               }`}
             >
@@ -190,7 +190,7 @@ export function SendRecommendationModal({
             placeholder={`Search ${kindLabel[kind].toLowerCase()}s…`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950/80 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950/80 px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-gold-500/50 focus:outline-none focus:ring-1 focus:ring-gold-500/30"
           />
 
           {searchLoading ? (
@@ -324,7 +324,7 @@ function ResultRow({
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-zinc-100">{title}</p>
           <p className="truncate text-xs text-zinc-500">{subtitle}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-emerald-400/90">
+          <p className="mt-0.5 text-[11px] font-medium text-gold-400/90">
             Tap to send
           </p>
         </div>

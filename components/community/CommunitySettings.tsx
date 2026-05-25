@@ -150,7 +150,7 @@ export function CommunitySettings({
             type="checkbox"
             checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
-            className="h-4 w-4 rounded border border-zinc-600 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
+            className="h-4 w-4 rounded border border-zinc-600 bg-zinc-900 text-gold-600 focus:ring-gold-500"
           />
           <span className="text-sm text-zinc-200">
             Private community (invite-only)
@@ -166,7 +166,7 @@ export function CommunitySettings({
           type="button"
           onClick={() => void save()}
           disabled={saving || name.trim().length < 2}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
         </button>

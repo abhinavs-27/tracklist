@@ -120,12 +120,12 @@ export function CommunityFeedCommentThread(props: {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Add a community comment…"
-                className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={loading || !content.trim()}
-                className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="rounded bg-gold-600 px-3 py-1.5 text-sm text-white hover:bg-gold-500 disabled:opacity-50"
               >
                 Post
               </button>

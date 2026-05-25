@@ -96,7 +96,7 @@ function BrowseCard({ entry, sort, rank }: { entry: LeaderboardEntry; sort: Sort
         <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/30 to-transparent p-2 opacity-0 transition duration-200 group-hover:opacity-100">
           <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-white">{entry.name}</p>
           <p className="mt-0.5 line-clamp-1 text-[10px] text-zinc-300">{entry.artist}</p>
-          <p className="mt-1 text-[10px] font-medium text-emerald-400">{metaLabel(entry, sort)}</p>
+          <p className="mt-1 text-[10px] font-medium text-gold-400">{metaLabel(entry, sort)}</p>
         </div>
       </div>
     </Link>
@@ -313,7 +313,7 @@ export function BrowseGrid({
               placeholder="1990"
               min="1900"
               max={CURRENT_YEAR}
-              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-1.5 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-emerald-500/50"
+              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-1.5 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-gold-500/50"
             />
             <span className="text-sm text-zinc-500">to</span>
             <input
@@ -324,7 +324,7 @@ export function BrowseGrid({
               placeholder={String(CURRENT_YEAR)}
               min="1900"
               max={CURRENT_YEAR}
-              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-1.5 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-emerald-500/50"
+              className="w-24 rounded-lg bg-zinc-800/70 px-3 py-1.5 text-sm text-white ring-1 ring-white/[0.08] focus:outline-none focus:ring-gold-500/50"
             />
             <button
               type="button"

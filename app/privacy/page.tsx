@@ -145,7 +145,7 @@ export default function PrivacyPage() {
             Questions about this policy or your data? Email us at{" "}
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className="text-emerald-400 underline-offset-4 hover:underline"
+              className="text-gold-400 underline-offset-4 hover:underline"
             >
               {CONTACT_EMAIL}
             </a>

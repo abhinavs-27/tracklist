@@ -279,7 +279,7 @@ export function ChartsClient(props: {
 
       {!props.hideBackLink && (
         <p className="text-xs text-zinc-600">
-          <Link href="/you" className="text-emerald-500 hover:underline">
+          <Link href="/you" className="text-gold-500 hover:underline">
             ← You
           </Link>
         </p>

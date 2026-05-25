@@ -10,7 +10,7 @@ export function ArtistCard({ artist }: ArtistCardProps) {
   return (
     <PrefetchLink
       href={`/artist/${artist.id}`}
-      className="group flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition hover:border-zinc-600 hover:bg-zinc-800/50"
+      className="group flex flex-col overflow-hidden rounded-xl border border-white/[0.07] bg-zinc-900/50 transition hover:border-white/[0.13] hover:bg-zinc-800/50"
     >
       <div className="aspect-square w-full overflow-hidden bg-zinc-800">
         {image ? (
@@ -26,7 +26,7 @@ export function ArtistCard({ artist }: ArtistCardProps) {
         )}
       </div>
       <div className="p-3">
-        <p className="truncate font-medium text-white group-hover:text-emerald-400">{artist.name}</p>
+        <p className="truncate font-medium text-white group-hover:text-gold-400">{artist.name}</p>
         <p className="text-xs text-zinc-500">Artist</p>
       </div>
     </PrefetchLink>

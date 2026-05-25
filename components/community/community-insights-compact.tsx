@@ -46,7 +46,7 @@ export function CommunityInsightsCompact({ insights }: Props) {
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className={`p-3 ${communityInset}`}>
           <p className={communityMetaLabel}>Exploration</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-emerald-400">
+          <p className="mt-1 text-xl font-bold tabular-nums text-gold-400">
             {pct(explorationScore)}
           </p>
           <p className={`mt-1 text-xs ${communityBody} text-zinc-500`}>

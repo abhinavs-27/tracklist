@@ -18,7 +18,7 @@ export default function CommunityDetailLoading() {
         </div>
       </header>
 
-      <div className="rounded-xl border border-zinc-800 bg-gradient-to-br from-emerald-950/20 to-zinc-950/40 p-4">
+      <div className="rounded-xl border border-zinc-800 bg-gradient-to-br from-gold-950/20 to-zinc-950/40 p-4">
         <SkeletonBlock className="h-3 w-24" />
         <SkeletonBlock className="mt-2 h-10 w-36" />
         <SkeletonBlock className="mt-3 h-4 w-full max-w-md" />

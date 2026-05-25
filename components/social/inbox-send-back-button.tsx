@@ -22,8 +22,8 @@ export function InboxSendBackButton({
 
   const btn =
     variant === "prominent"
-      ? "inline-flex min-h-11 items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-600/90 to-emerald-500/85 px-5 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.45)] ring-1 ring-emerald-400/30 transition hover:from-emerald-500 hover:to-emerald-400/90 hover:ring-emerald-300/40"
-      : "inline-flex min-h-9 items-center justify-center rounded-xl bg-emerald-500/20 px-3.5 text-[13px] font-semibold text-emerald-100 ring-1 ring-emerald-500/40 transition hover:bg-emerald-500/30 hover:ring-emerald-400/50";
+      ? "inline-flex min-h-11 items-center justify-center rounded-2xl bg-gradient-to-r from-gold-600/90 to-gold-500/85 px-5 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.45)] ring-1 ring-gold-400/30 transition hover:from-gold-500 hover:to-gold-400/90 hover:ring-gold-300/40"
+      : "inline-flex min-h-9 items-center justify-center rounded-xl bg-gold-500/20 px-3.5 text-[13px] font-semibold text-gold-100 ring-1 ring-gold-500/40 transition hover:bg-gold-500/30 hover:ring-gold-400/50";
 
   return (
     <>

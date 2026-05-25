@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   action: {
     fontSize: 12,

@@ -21,7 +21,7 @@ export function RecommendedCommunitiesSection({
         {showBrowseAll ? (
           <Link
             href="/communities"
-            className="text-sm text-emerald-400 hover:underline"
+            className="text-sm text-gold-400 hover:underline"
           >
             All communities →
           </Link>
@@ -48,7 +48,7 @@ export function RecommendedCommunitiesSection({
                   </span>
                 ) : (
                   <>
-                    <span className="font-semibold tabular-nums text-emerald-400">
+                    <span className="font-semibold tabular-nums text-gold-400">
                       {pct}%
                     </span>
                     <span className="text-zinc-500">{c.label}</span>

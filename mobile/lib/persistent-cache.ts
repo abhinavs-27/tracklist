@@ -21,12 +21,14 @@ export const CACHE_KEYS = {
   homeHistoryBundle: "home:history-bundle",
   artistDetailBundle: (id: string) => `artist:detail-bundle:${id}`,
   albumSocialBundle: (id: string) => `album:social-bundle:${id}`,
+  welcomeDismissed: "welcome:dismissed",
 } as const;
 
 /** Static keys pre-warmed on every app start. Dynamic keys are warmed lazily on first write. */
 const STATIC_PRELOAD_KEYS: string[] = [
   CACHE_KEYS.homeBundle,
   CACHE_KEYS.homeHistoryBundle,
+  CACHE_KEYS.welcomeDismissed,
 ];
 
 // ─── In-memory mirror ─────────────────────────────────────────────────────────

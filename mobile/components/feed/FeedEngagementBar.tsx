@@ -55,7 +55,7 @@ export function FeedEngagementBar({
             <Ionicons
               name={commentOpen ? "chatbubble" : "chatbubble-outline"}
               size={17}
-              color={commentOpen ? theme.colors.emerald : theme.colors.muted}
+              color={commentOpen ? theme.colors.gold : theme.colors.muted}
             />
             {commentCount > 0 && (
               <Text style={[styles.btnCount, commentOpen && styles.btnCountActive]}>
@@ -103,6 +103,6 @@ const styles = StyleSheet.create({
     color: "#FB7185",
   },
   btnCountActive: {
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
 });

@@ -1,0 +1,171 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0d; color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  .page { max-width: 800px; margin: 0 auto; padding: 24px 20px; }
+
+  /* Hero */
+  .hero { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 28px; }
+  .album-art { width: 160px; height: 160px; background: linear-gradient(135deg, #2a1a3e, #1a2a3e); border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 48px; }
+  .hero-info { flex: 1; padding-top: 4px; }
+  .hero-info .album-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .hero-info .artist-name { font-size: 15px; color: #a78bfa; margin-bottom: 4px; }
+  .hero-info .meta { font-size: 13px; color: #666; margin-bottom: 16px; }
+  .badge { display: inline-block; background: #1f1f2e; border: 1px solid #333; color: #aaa; font-size: 11px; padding: 2px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle; }
+
+  /* Stats row */
+  .stats-row { display: flex; gap: 20px; margin-bottom: 0; }
+  .stat { text-align: center; }
+  .stat .value { font-size: 18px; font-weight: 700; }
+  .stat .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1px; }
+
+  /* Divider */
+  .divider { height: 1px; background: #1e1e1e; margin: 20px 0; }
+
+  /* Section label */
+  .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 10px; }
+
+  /* OPTION A: Inline credits row */
+  .credits-inline { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 14px 16px; background: #111; border: 1px solid #1e1e1e; border-radius: 8px; }
+  .credit-item { font-size: 13px; color: #888; }
+  .credit-item strong { color: #ccc; font-weight: 500; }
+  .credit-item a { color: #a78bfa; text-decoration: none; }
+  .credit-item a:hover { text-decoration: underline; }
+  .credit-more { color: #555; font-size: 12px; cursor: pointer; }
+
+  /* OPTION B: Stacked credits */
+  .credits-stacked { display: flex; flex-direction: column; gap: 10px; }
+  .credit-row { display: flex; align-items: baseline; gap: 10px; }
+  .credit-type { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.06em; min-width: 80px; flex-shrink: 0; }
+  .credit-names { font-size: 14px; }
+  .credit-names a { color: #a78bfa; text-decoration: none; }
+  .credit-names a:hover { text-decoration: underline; }
+  .credit-names .separator { color: #444; margin: 0 4px; }
+
+  /* About section */
+  .about-text { font-size: 14px; line-height: 1.65; color: #999; }
+  .about-text .expand { color: #a78bfa; cursor: pointer; font-size: 13px; margin-top: 6px; display: block; }
+
+  /* External links */
+  .ext-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  .ext-link { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #666; text-decoration: none; padding: 5px 10px; border: 1px solid #222; border-radius: 20px; transition: border-color 0.15s; }
+  .ext-link:hover { border-color: #444; color: #aaa; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid #1e1e1e; margin-bottom: 20px; }
+  .tab { padding: 10px 18px; font-size: 14px; color: #555; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.active { color: #e8e8e8; border-bottom-color: #a78bfa; }
+
+  /* Option cards */
+  .option-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 28px; }
+  .option-card { border: 2px solid #222; border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color 0.2s; }
+  .option-card:hover { border-color: #a78bfa44; }
+  .option-card.selected { border-color: #a78bfa; }
+  .option-header { padding: 12px 16px; background: #111; border-bottom: 1px solid #1e1e1e; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .option-tag { font-size: 11px; font-weight: 400; color: #666; }
+  .option-body { padding: 16px; background: #0d0d0d; }
+
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #666; margin-bottom: 24px; }
+</style>
+
+<div class="page">
+  <h2>Album page — credits section</h2>
+  <p class="subtitle">Two layout options for the new credits block. The rest of the album page (hero, stats, tabs) stays the same. Pick the one that feels less crowded.</p>
+
+  <!-- Shared hero for reference -->
+  <div class="hero">
+    <div class="album-art">🎵</div>
+    <div class="hero-info">
+      <div class="album-title">good kid, m.A.A.d city <span class="badge">Studio Album</span></div>
+      <div class="artist-name">Kendrick Lamar</div>
+      <div class="meta">2012 · 12 tracks · 68 min</div>
+      <div class="stats-row">
+        <div class="stat"><div class="value">4.6</div><div class="label">Avg Rating</div></div>
+        <div class="stat"><div class="value">48.2k</div><div class="label">Plays</div></div>
+        <div class="stat"><div class="value">3.1k</div><div class="label">Reviews</div></div>
+        <div class="stat"><div class="value">9.4k</div><div class="label">Favorites</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Option cards -->
+  <div class="option-cards">
+
+    <!-- Option A: Inline -->
+    <div class="option-card" data-choice="a" onclick="toggleSelect(this)">
+      <div class="option-header">
+        Option A — Compact inline
+        <span class="option-tag">single row</span>
+      </div>
+      <div class="option-body">
+        <div class="section-label" style="margin-bottom:10px">Credits</div>
+        <div class="credits-inline">
+          <div class="credit-item"><strong>Label:</strong> <a href="#">Aftermath · Interscope</a></div>
+          <div class="credit-item"><strong>Produced by:</strong> <a href="#">Sounwave</a>, <a href="#">THC</a>, <a href="#">Just Blaze</a> <span class="credit-more">+4</span></div>
+          <div class="credit-item"><strong>Written by:</strong> <a href="#">Kendrick Lamar</a> <span class="credit-more">+8</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: Stacked -->
+    <div class="option-card" data-choice="b" onclick="toggleSelect(this)">
+      <div class="option-header">
+        Option B — Stacked rows
+        <span class="option-tag">easier to scan</span>
+      </div>
+      <div class="option-body">
+        <div class="section-label" style="margin-bottom:10px">Credits</div>
+        <div class="credits-stacked">
+          <div class="credit-row">
+            <div class="credit-type">Label</div>
+            <div class="credit-names"><a href="#">Aftermath Entertainment</a><span class="separator">·</span><a href="#">Interscope Records</a></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Produced</div>
+            <div class="credit-names"><a href="#">Sounwave</a><span class="separator">,</span> <a href="#">THC</a><span class="separator">,</span> <a href="#">Just Blaze</a> <span style="color:#555;font-size:12px">+4 more</span></div>
+          </div>
+          <div class="credit-row">
+            <div class="credit-type">Written</div>
+            <div class="credit-names"><a href="#">Kendrick Lamar</a> <span style="color:#555;font-size:12px">+8 more</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider" style="margin-top:28px"></div>
+
+  <!-- About section (same for both) -->
+  <div style="margin-bottom:20px">
+    <div class="section-label">About this album</div>
+    <div class="about-text">
+      <em>good kid, m.A.A.d city</em> is the major-label debut studio album by rapper Kendrick Lamar. Released on October 22, 2012, through Top Dawg Entertainment, Aftermath Entertainment, and Interscope Records. The album is a loosely autobiographical portrayal of Lamar's life growing up in Compton, California.
+      <span class="expand">Show more</span>
+    </div>
+  </div>
+
+  <!-- External links -->
+  <div style="margin-bottom:20px">
+    <div class="section-label">Links</div>
+    <div class="ext-links">
+      <a class="ext-link" href="#">🌐 Wikipedia</a>
+      <a class="ext-link" href="#">🎵 Spotify</a>
+      <a class="ext-link" href="#">💿 Discogs</a>
+      <a class="ext-link" href="#">🎸 AllMusic</a>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Tabs (existing) -->
+  <div class="tabs">
+    <div class="tab active">Tracks</div>
+    <div class="tab">Reviews</div>
+    <div class="tab">Social</div>
+  </div>
+
+  <div style="color:#444;font-size:13px;text-align:center;padding:20px 0">[ existing tracks list continues below ]</div>
+</div>

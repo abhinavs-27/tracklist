@@ -79,8 +79,8 @@ export function PrivateLogsToggle({
             disabled={pending}
             onClick={() => void onChange(!value)}
             title="Private logs won’t appear in feeds or on your profile, but stats and taste match are unaffected."
-            className={`peer relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border border-zinc-600/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500/80 disabled:cursor-not-allowed disabled:opacity-50 ${
-              value ? "bg-emerald-600/90" : "bg-zinc-700/80"
+            className={`peer relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border border-zinc-600/90 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500/80 disabled:cursor-not-allowed disabled:opacity-50 ${
+              value ? "bg-gold-600/90" : "bg-zinc-700/80"
             }`}
           >
             <span

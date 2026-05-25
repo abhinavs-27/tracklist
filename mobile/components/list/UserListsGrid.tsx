@@ -105,7 +105,7 @@ export function UserListsGrid({
         <RefreshControl
           refreshing={isRefetching}
           onRefresh={onRefresh}
-          tintColor={theme.colors.emerald}
+          tintColor={theme.colors.gold}
         />
       }
     />

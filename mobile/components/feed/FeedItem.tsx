@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   entityLink: {
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
     fontWeight: "700",
   },
   ratingRow: {

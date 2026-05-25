@@ -83,7 +83,7 @@ export function TasteMatchSection({
           type="button"
           onClick={onCompare}
           disabled={loading || !canQuery}
-          className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-emerald-500/70"
+          className="inline-flex items-center justify-center rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gold-500/70"
         >
           {loading ? "Comparing…" : "Compare taste"}
         </button>

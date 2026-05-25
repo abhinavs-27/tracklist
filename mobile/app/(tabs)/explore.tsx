@@ -101,7 +101,7 @@ const moveStyles = StyleSheet.create({
   deltaUp: {
     fontSize: 11,
     fontWeight: "600",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   deltaDown: {
     fontSize: 11,
@@ -516,7 +516,7 @@ const comStyles = StyleSheet.create({
     marginTop: 4,
     fontSize: 13,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
 });
 
@@ -631,8 +631,8 @@ export default function ExploreScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.colors.emerald}
-            colors={[theme.colors.emerald]}
+            tintColor={theme.colors.gold}
+            colors={[theme.colors.gold]}
           />
         }
       >
@@ -731,7 +731,7 @@ export default function ExploreScreen() {
                       style={{
                         paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999,
                         borderWidth: 1,
-                        borderColor: talkMode === m ? theme.colors.emerald : "rgba(63,63,70,0.8)",
+                        borderColor: talkMode === m ? theme.colors.gold : "rgba(63,63,70,0.8)",
                         backgroundColor: talkMode === m ? "rgba(16,185,129,0.1)" : "rgba(24,24,27,0.5)",
                       }}
                     >
@@ -987,7 +987,7 @@ const styles = StyleSheet.create({
   findLink: {
     fontSize: 14,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   empty: {
     paddingHorizontal: 24,

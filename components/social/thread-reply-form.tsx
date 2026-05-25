@@ -58,7 +58,7 @@ export function ThreadReplyForm({
         rows={3}
         maxLength={MAX_NOTE_LEN}
         placeholder={ui.replyPlaceholder}
-        className="w-full resize-none rounded-xl border border-white/[0.08] bg-zinc-950/50 px-3.5 py-3 text-sm leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+        className="w-full resize-none rounded-xl border border-white/[0.08] bg-zinc-950/50 px-3.5 py-3 text-sm leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:border-gold-500/40 focus:outline-none focus:ring-2 focus:ring-gold-500/20"
         aria-label="Short note"
       />
       <div className="mt-3 flex items-center justify-between gap-3">
@@ -69,7 +69,7 @@ export function ThreadReplyForm({
           type="button"
           disabled={pending || !body.trim()}
           onClick={() => void submit()}
-          className="rounded-xl bg-emerald-600/90 px-4 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-emerald-400/30 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-xl bg-gold-600/90 px-4 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-gold-400/30 transition hover:bg-gold-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {pending ? "Sending…" : "Send note"}
         </button>

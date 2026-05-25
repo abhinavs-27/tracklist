@@ -48,13 +48,13 @@ export default function LabelScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#09090B" }} edges={["top"]}>
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, height: 48 }}>
         <Pressable onPress={() => router.back()} hitSlop={16}>
-          <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
         </Pressable>
       </View>
 
       {isLoading && (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={theme.colors.emerald} />
+          <ActivityIndicator color={theme.colors.gold} />
         </View>
       )}
 

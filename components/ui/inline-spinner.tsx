@@ -7,17 +7,17 @@ export function InlineSpinner({
   className?: string;
   /** Announced to screen readers when provided. */
   label?: string;
-  /** `light` = white/zinc-100 buttons; `emerald` = emerald primary; `white` = red/dark CTAs. */
-  tone?: "dark" | "light" | "emerald" | "white";
+  /** `light` = white/zinc-100 buttons; `gold` = gold primary; `white` = red/dark CTAs. */
+  tone?: "dark" | "light" | "gold" | "white";
 }) {
   const ring =
     tone === "light"
       ? "border-zinc-300 border-t-zinc-900"
-      : tone === "emerald"
-        ? "border-emerald-300/50 border-t-white"
+      : tone === "gold"
+        ? "border-gold-300/50 border-t-white"
         : tone === "white"
           ? "border-white/35 border-t-white"
-          : "border-zinc-500 border-t-emerald-400";
+          : "border-zinc-500 border-t-gold-400";
   return (
     <span
       className={`inline-flex items-center justify-center ${className}`}

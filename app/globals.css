@@ -9,7 +9,7 @@
 :root {
   /* Always dark — the design is dark-first and has no light-mode variant */
   color-scheme: dark;
-  --background: #09090b;
+  --background: #0c0a04;
   --foreground: #ededed;
   --surface-elevated: 0 8px 32px -8px rgb(0 0 0 / 0.55);
   --ring-subtle: rgb(255 255 255 / 0.07);
@@ -24,6 +24,26 @@
   --shadow-elevated: var(--surface-elevated);
   /* 1800px — ultra-wide community / dashboard layouts */
   --breakpoint-3xl: 112.5rem;
+
+  /* Warm zinc — shifts card backgrounds into the same warm family as --background */
+  --color-zinc-950: #0c0a04;
+  --color-zinc-900: #141108;
+  --color-zinc-800: #1f1a10;
+  --color-zinc-700: #2c2519;
+  --color-zinc-600: #3d3427;
+
+  /* Gold — primary accent, replaces emerald throughout */
+  --color-gold-50:  #fffce8;
+  --color-gold-100: #fef3c7;
+  --color-gold-200: #fde0a0;
+  --color-gold-300: #f4c858;
+  --color-gold-400: #e8a830;
+  --color-gold-500: #c8973a;
+  --color-gold-600: #a87828;
+  --color-gold-700: #8a5e1e;
+  --color-gold-800: #6a4414;
+  --color-gold-900: #4a2e0a;
+  --color-gold-950: #1e1204;
 }
 
 body {

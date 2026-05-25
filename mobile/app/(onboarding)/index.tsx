@@ -70,7 +70,7 @@ function SimpleStarPicker({
   return (
     <View style={{ flexDirection: "row", gap: 6 }}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Pressable key={i} onPress={() => onChange(value === i ? i - 0.5 : i)} hitSlop={6}>
+        <Pressable key={i} onPress={() => onChange(value === i ? i - 0.5 : i)} hitSlop={12}>
           <Text style={{ fontSize: 22, color: value >= i ? "#f59e0b" : value >= i - 0.5 ? "#f59e0b" : "#3f3f46" }}>
             {value >= i ? "★" : value >= i - 0.5 ? "½" : "☆"}
           </Text>
@@ -445,14 +445,14 @@ function FavoritesStep({
               autoCapitalize="none"
             />
             {searching ? (
-              <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />
+              <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 8 }} />
             ) : null}
             {searchResults.map((a: SearchAlbum) => (
               <Pressable key={a.id} onPress={() => addFavorite(a)} style={s.searchResult}>
                 {a.images[0]?.url ? (
-                  <Image source={{ uri: a.images[0].url }} style={{ width: 36, height: 36, borderRadius: 4 }} />
+                  <Image source={{ uri: a.images[0].url }} style={{ width: 44, height: 44, borderRadius: 6 }} />
                 ) : (
-                  <View style={{ width: 36, height: 36, borderRadius: 4, backgroundColor: "#27272a" }} />
+                  <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: "#27272a" }} />
                 )}
                 <Text style={{ fontSize: 14, color: theme.colors.text, flex: 1 }} numberOfLines={1}>{a.name}</Text>
               </Pressable>
@@ -495,14 +495,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
     borderWidth: 1, borderColor: "#3f3f46",
   },
-  genrePillActive: { borderColor: theme.colors.emerald, backgroundColor: "rgba(16,185,129,0.12)" },
+  genrePillActive: { borderColor: theme.colors.gold, backgroundColor: "rgba(16,185,129,0.12)" },
   genrePillDisabled: { borderColor: "#27272a" },
   genreLabel: { fontSize: 14, fontWeight: "600", color: theme.colors.text },
   genreLabelActive: { color: "#6ee7b7" },
-  genreLabelDisabled: { color: "#52525b" },
-  selectionCount: { marginTop: 12, fontSize: 12, color: "#52525b" },
+  genreLabelDisabled: { color: theme.colors.muted },
+  selectionCount: { marginTop: 12, fontSize: 12, color: theme.colors.muted },
   genreGroupLabel: {
-    fontSize: 11, fontWeight: "700", color: "#52525b",
+    fontSize: 12, fontWeight: "700", color: theme.colors.muted,
     letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10,
   },
   albumRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
@@ -515,12 +515,12 @@ const s = StyleSheet.create({
     gap: 10,
   },
   primaryBtn: {
-    backgroundColor: theme.colors.emerald, borderRadius: 14,
+    backgroundColor: theme.colors.gold, borderRadius: 14,
     paddingVertical: 15, alignItems: "center",
   },
   primaryBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-  skipBtn: { alignItems: "center", paddingVertical: 6 },
-  skipLabel: { fontSize: 14, color: "#52525b" },
+  skipBtn: { alignItems: "center", paddingVertical: 12 },
+  skipLabel: { fontSize: 14, color: theme.colors.muted },
   favItem: { position: "relative" },
   favArt: { width: 72, height: 72, borderRadius: 10 },
   favSlotEmpty: {

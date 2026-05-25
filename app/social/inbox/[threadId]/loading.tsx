@@ -20,7 +20,7 @@ export default function SocialThreadLoading() {
           <div
             key={i}
             className={`max-w-[80%] rounded-2xl p-4 ${
-              i % 2 === 0 ? "ml-auto bg-emerald-950/20" : "bg-zinc-900/40"
+              i % 2 === 0 ? "ml-auto bg-gold-950/20" : "bg-zinc-900/40"
             }`}
           >
             <SkeletonBlock className="h-4 w-full" />

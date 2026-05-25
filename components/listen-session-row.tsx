@@ -34,7 +34,7 @@ export const ListenSessionRow = memo(function ListenSessionRow({
         <CatalogArtworkPlaceholder size="sm" />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-white group-hover:text-emerald-400">
+        <p className="truncate font-medium text-white group-hover:text-gold-400">
           {trackName}
         </p>
         {artistName ? (

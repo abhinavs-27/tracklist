@@ -1,0 +1,209 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #09090B; color: #F4F4F5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #F4F4F5; }
+  .subtitle { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  .phones { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .phone { width: 360px; background: #09090B; border: 1.5px solid #27272A; border-radius: 38px; overflow: hidden; padding: 14px 0 0; box-shadow: 0 32px 80px rgba(0,0,0,0.8); }
+  .phone-inner { padding: 0 16px; }
+  .phone-notch { width: 100px; height: 20px; background: #111; border-radius: 10px; margin: 0 auto 14px; }
+  .nav-back { font-size: 13px; color: #10B981; font-weight: 500; margin-bottom: 14px; display: block; }
+
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; margin-bottom: 10px; }
+  .credit-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #3F3F46; margin-bottom: 7px; }
+  .divider { height: 1px; background: #27272A; margin: 14px 0; }
+  .bottom-spacer { height: 36px; }
+
+  .tabs { display: flex; border-bottom: 1px solid #27272A; margin: 0 -16px 16px; padding: 0 16px; }
+  .tab { flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 600; color: #71717A; position: relative; }
+  .tab.active { color: #F4F4F5; }
+  .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #10B981; border-radius: 1px; }
+
+  /* Hero */
+  .song-hero { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .song-art { width: 160px; height: 160px; border-radius: 14px; background: linear-gradient(135deg, #1a1035, #0d1f35, #0a2212); box-shadow: 0 12px 36px -6px rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 52px; }
+  .hero-type { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #71717A; }
+  .song-title { font-size: 22px; font-weight: 800; color: #F4F4F5; text-align: center; letter-spacing: -0.3px; }
+  .song-artist { font-size: 14px; font-weight: 600; color: #10B981; text-align: center; }
+  .song-album { font-size: 13px; color: #71717A; text-align: center; margin-top: 1px; }
+  .stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; justify-content: center; margin-top: 4px; }
+  .stat-amber { color: #F59E0B; font-size: 13px; font-weight: 800; }
+  .stat-muted { color: #A1A1AA; font-size: 13px; font-weight: 700; }
+  .stat-val { color: #F4F4F5; font-size: 13px; font-weight: 700; }
+
+  /* Option C: Inline colored names */
+  .inline-group { margin-bottom: 12px; }
+  .inline-group:last-child { margin-bottom: 0; }
+  .inline-names { line-height: 1.9; }
+  .inline-name { font-size: 14px; font-weight: 500; color: #10B981; cursor: pointer; border-bottom: 1px solid #10B98130; transition: border-color 0.15s; }
+  .inline-name:hover { border-bottom-color: #10B981; }
+  .inline-name-feat { color: #F59E0B; border-bottom-color: #F59E0B30; }
+  .inline-sep { color: #3F3F46; font-size: 14px; margin-right: 4px; }
+  .inline-more { font-size: 13px; color: #52525B; cursor: pointer; }
+  .inline-more:hover { color: #10B981; }
+
+  /* Song reference cards — for samples / sampled by / covers */
+  .song-card { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #131316; cursor: pointer; transition: opacity 0.15s; }
+  .song-card:last-child { border-bottom: none; }
+  .song-card:hover { opacity: 0.75; }
+  .song-card-art { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .art-brown { background: linear-gradient(135deg, #2e1f0a, #1a1205); }
+  .art-blue  { background: linear-gradient(135deg, #0a1a2e, #050d1a); }
+  .art-green { background: linear-gradient(135deg, #0a1f10, #050f08); }
+  .art-red   { background: linear-gradient(135deg, #2e0a0a, #1a0505); }
+  .song-card-info { flex: 1; min-width: 0; }
+  .song-card-title { font-size: 14px; font-weight: 500; color: #E4E4E7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-card-sub { font-size: 12px; color: #71717A; margin-top: 2px; }
+  .song-card-year { font-size: 12px; color: #3F3F46; flex-shrink: 0; }
+
+  .about-text { font-size: 14px; line-height: 1.65; color: #A1A1AA; }
+  .show-more { color: #10B981; font-size: 13px; font-weight: 500; margin-top: 5px; display: block; }
+
+  .links-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .ext-link { font-size: 12px; font-weight: 500; color: #71717A; padding: 6px 12px; border: 1px solid #27272A; border-radius: 20px; }
+
+  /* Section note — for "sampled by" count hint */
+  .section-note { font-size: 12px; color: #52525B; margin-bottom: 8px; }
+</style>
+
+<h2 style="text-align:center">Song — Info tab</h2>
+<p class="subtitle" style="text-align:center">Credits use Option C (inline colored names). Samples, sampled by, and covers get song reference cards.</p>
+
+<div class="phones">
+  <div class="phone-wrap">
+    <div class="phone-label">Song Info tab</div>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← good kid, m.A.A.d city</span>
+
+        <div class="song-hero">
+          <div class="song-art">🎵</div>
+          <div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:3px">
+            <div class="hero-type">Song · 6:26</div>
+            <div class="song-title">Money Trees</div>
+            <div class="song-artist">Kendrick Lamar</div>
+            <div class="song-album">good kid, m.A.A.d city</div>
+            <div class="stats">
+              <span class="stat-amber">★ 4.9</span><span class="stat-muted"> avg</span>
+              <span class="stat-val">22.1k</span><span class="stat-muted"> plays</span>
+              <span class="stat-val">841</span><span class="stat-muted"> reviews</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab">Reviews</div>
+          <div class="tab active">Info</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <!-- Credits -->
+        <div class="section-label">Credits</div>
+
+        <div class="inline-group">
+          <div class="credit-group-label">Produced by</div>
+          <div class="inline-names">
+            <span class="inline-name">DJ Dahi</span>
+          </div>
+        </div>
+
+        <div class="inline-group" style="margin-top:10px">
+          <div class="credit-group-label">Written by</div>
+          <div class="inline-names">
+            <span class="inline-name">Kendrick Lamar</span><span class="inline-sep">, </span>
+            <span class="inline-name">Jay Rock</span><span class="inline-sep">, </span>
+            <span class="inline-name">DJ Dahi</span>
+          </div>
+        </div>
+
+        <div class="inline-group" style="margin-top:10px">
+          <div class="credit-group-label">Featuring</div>
+          <div class="inline-names">
+            <span class="inline-name inline-name-feat">Jay Rock</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Samples -->
+        <div class="section-label">Samples</div>
+        <div class="section-note">This song samples 1 track</div>
+        <div class="song-card">
+          <div class="song-card-art art-brown">🎷</div>
+          <div class="song-card-info">
+            <div class="song-card-title">The Message</div>
+            <div class="song-card-sub">Cymande</div>
+          </div>
+          <div class="song-card-year">1972</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Sampled by -->
+        <div class="section-label">Sampled by</div>
+        <div class="section-note">3 songs have sampled Money Trees</div>
+        <div class="song-card">
+          <div class="song-card-art art-blue">🎵</div>
+          <div class="song-card-info">
+            <div class="song-card-title">Backstreet Freestyle (Remix)</div>
+            <div class="song-card-sub">Various Artists</div>
+          </div>
+          <div class="song-card-year">2013</div>
+        </div>
+        <div class="song-card">
+          <div class="song-card-art art-green">🎵</div>
+          <div class="song-card-info">
+            <div class="song-card-title">Money Trees Delight</div>
+            <div class="song-card-sub">ScHoolboy Q</div>
+          </div>
+          <div class="song-card-year">2014</div>
+        </div>
+        <div style="padding:8px 0;cursor:pointer">
+          <span style="font-size:13px;color:#52525B">+ 1 more</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Covers -->
+        <div class="section-label">Covers</div>
+        <div class="section-note">2 versions in the catalog</div>
+        <div class="song-card">
+          <div class="song-card-art art-red">🎵</div>
+          <div class="song-card-info">
+            <div class="song-card-title">Money Trees</div>
+            <div class="song-card-sub">SZA — live at Red Rocks</div>
+          </div>
+          <div class="song-card-year">2022</div>
+        </div>
+        <div class="song-card">
+          <div class="song-card-art art-blue">🎵</div>
+          <div class="song-card-info">
+            <div class="song-card-title">Money Trees</div>
+            <div class="song-card-sub">Isaiah Rashad</div>
+          </div>
+          <div class="song-card-year">2019</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="section-label">Links</div>
+        <div class="links-row" style="padding-bottom:4px">
+          <span class="ext-link">Wikipedia</span>
+          <span class="ext-link">WhoSampled</span>
+        </div>
+
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:24px;font-size:13px;color:#52525B;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.6">
+  Credits follow Option C. Samples, sampled by, and covers use song reference cards — art thumbnail, title, artist, year. Each card taps through to that song's page.
+</div>

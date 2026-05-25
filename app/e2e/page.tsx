@@ -10,7 +10,7 @@ export default function E2EIndexPage() {
       <p className="text-sm text-zinc-400">
         These routes exist only for Playwright. Set <code className="text-zinc-200">NEXT_PUBLIC_E2E=1</code> to enable.
       </p>
-      <ul className="list-disc pl-5 text-emerald-400">
+      <ul className="list-disc pl-5 text-gold-400">
         <li>
           <Link href="/e2e/social" className="hover:underline">
             Social (like/comment)

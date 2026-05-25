@@ -31,7 +31,7 @@ function WeeklyListeningContext({ data }: { data: TopThisWeekResult }) {
 
   return (
     <div className="mt-5 rounded-xl border border-zinc-700/80 bg-zinc-950/40 px-4 py-4">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/90">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-gold-500/90">
         Driven by your recent listening
       </p>
       <p className="mt-1 text-xs text-zinc-500">
@@ -124,7 +124,7 @@ function WeeklyListeningContext({ data }: { data: TopThisWeekResult }) {
       ) : null}
 
       <p className="mt-4 text-xs text-zinc-600">
-        <Link href="/reports/week" className="text-emerald-400/95 hover:underline">
+        <Link href="/reports/week" className="text-gold-400/95 hover:underline">
           Weekly report — tracks and full breakdown
         </Link>
       </p>
@@ -190,7 +190,7 @@ export function TasteIdentityDisplay({
                   href={`/artist/${a.id}`}
                   className="group flex flex-col items-center gap-1.5 text-center"
                 >
-                  <div className="relative h-[72px] w-[72px] overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 transition group-hover:border-emerald-500/50 sm:h-[88px] sm:w-[88px]">
+                  <div className="relative h-[72px] w-[72px] overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 transition group-hover:border-gold-500/50 sm:h-[88px] sm:w-[88px]">
                     {a.imageUrl ? (
                       <img
                         src={a.imageUrl}
@@ -203,7 +203,7 @@ export function TasteIdentityDisplay({
                       </div>
                     )}
                   </div>
-                  <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight text-zinc-200 group-hover:text-emerald-400 hover:underline">
+                  <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight text-zinc-200 group-hover:text-gold-400 hover:underline">
                     {a.name}
                   </span>
                   <span className="text-[10px] tabular-nums text-zinc-500">

@@ -80,7 +80,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
   const supabase = await createSupabaseServerClient();
   const [infoTabData, artistMetaResult] = await Promise.all([
     getArtistInfoTabData(supabase, entityId).catch(() => ({ members: [], labelHistory: [] })),
-    supabase.from("artists").select("bio, external_links").eq("id", entityId).maybeSingle(),
+    supabase.from("artists").select("bio, external_links, credits_enriched_at").eq("id", entityId).maybeSingle(),
   ]);
   const artistMeta = artistMetaResult.data;
 
@@ -191,7 +191,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
                 Favourite:{" "}
                 <Link
                   href={`/album/${viewerStats.topAlbumId}`}
-                  className="font-medium text-white hover:text-emerald-400 hover:underline"
+                  className="font-medium text-white hover:text-gold-400 hover:underline"
                 >
                   {viewerStats.topAlbumName}
                 </Link>
@@ -216,11 +216,13 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
       )}
 
       <ArtistTabs
+        artistId={entityId}
         hasSocial={!!viewerId}
         bio={artistMeta?.bio ?? null}
         members={infoTabData.members}
         labelHistory={infoTabData.labelHistory}
         externalLinks={(artistMeta?.external_links as Record<string, string> | null) ?? null}
+        creditsEnrichedAt={(artistMeta?.credits_enriched_at as string | null) ?? null}
         generalContent={
           <div className="space-y-8">
             {topTracks?.length ? <ArtistPopularTracks tracks={topTracks} /> : null}
@@ -232,7 +234,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
                   {showAlbumsViewMore && (
                     <Link
                       href={`/artist/${entityId}/albums`}
-                      className="text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+                      className="text-sm font-medium text-gold-400 hover:text-gold-300 hover:underline"
                     >
                       View all
                     </Link>
@@ -278,7 +280,7 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-zinc-600">♪</div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-white group-hover:text-emerald-400 group-hover:underline">
+                            <p className="truncate text-sm font-semibold text-white group-hover:text-gold-400 group-hover:underline">
                               {r.entity_name ?? (r.entity_type === "album" ? "Album" : "Track")}
                             </p>
                             <p className="mt-0.5 text-base text-amber-400 leading-none">

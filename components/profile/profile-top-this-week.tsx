@@ -55,7 +55,7 @@ export async function ProfileTopThisWeekSection({
         {!compact ? (
           <p className="mt-4 text-xs text-zinc-600">
             This section shows your last 7 days. Full reports let you pick any date range.{" "}
-            <Link href="/reports/listening" className="text-emerald-400/95 hover:underline">
+            <Link href="/reports/listening" className="text-gold-400/95 hover:underline">
               Pick a date range →
             </Link>
           </p>

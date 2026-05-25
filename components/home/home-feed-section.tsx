@@ -31,7 +31,7 @@ export async function HomeFeedSection({ userId }: { userId: string }) {
           </p>
           <Link
             href="/search/users"
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-gold-400 transition hover:text-gold-300"
           >
             Find people to follow →
           </Link>

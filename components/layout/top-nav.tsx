@@ -11,7 +11,7 @@ import { pageShell } from "@/lib/ui/layout";
 const linkBase =
   "rounded-xl px-4 py-2 text-sm font-medium transition touch-manipulation";
 const linkIdle = `${linkBase} text-zinc-400 hover:bg-zinc-800/90 hover:text-white`;
-const linkActive = `${linkBase} bg-zinc-800/80 text-emerald-400`;
+const linkActive = `${linkBase} bg-zinc-800/80 text-gold-400`;
 
 function desktopLinkClass(tab: PrimaryTab, active: PrimaryTab | null) {
   return active === tab ? linkActive : linkIdle;
@@ -49,7 +49,7 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
             <Link
               prefetch={false}
               href="/auth/signin"
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 touch-manipulation"
+              className="rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-white hover:bg-gold-500 touch-manipulation"
             >
               Sign in
             </Link>
@@ -115,7 +115,7 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
             <Link
               prefetch={false}
               href="/auth/signin"
-              className="rounded-lg bg-emerald-600 px-2.5 py-2 text-xs font-medium text-white touch-manipulation sm:px-3 sm:text-sm"
+              className="rounded-lg bg-gold-600 px-2.5 py-2 text-xs font-medium text-white touch-manipulation sm:px-3 sm:text-sm"
             >
               Sign in
             </Link>
@@ -172,7 +172,7 @@ export function TopNav({ unreadCount }: { unreadCount: number }) {
               <Link
                 prefetch={false}
                 href="/auth/signin"
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+                className="rounded-xl bg-gold-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-gold-500"
               >
                 Sign in
               </Link>

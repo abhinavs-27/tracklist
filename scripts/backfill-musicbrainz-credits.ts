@@ -16,6 +16,10 @@
  *   BACKFILL_TOP_N   Number of entities per type to enrich (default 100).
  */
 
+// Node.js 20 lacks native WebSocket; polyfill with undici (already a dep) for Supabase Realtime.
+import { WebSocket } from "undici";
+if (!("WebSocket" in globalThis)) (globalThis as any).WebSocket = WebSocket;
+
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { enrichArtist } from "@/lib/musicbrainz/enrich-artist";
 import { enrichAlbum } from "@/lib/musicbrainz/enrich-album";
@@ -25,6 +29,15 @@ const TOP_N = parseInt(process.env.BACKFILL_TOP_N ?? "100", 10);
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timed out after ${ms / 1000}s: ${label}`)), ms)
+    ),
+  ]);
 }
 
 async function main() {
@@ -41,12 +54,13 @@ async function main() {
     .limit(TOP_N);
 
   console.log(`[backfill] Enriching ${artists?.length ?? 0} artists…`);
-  for (const a of artists ?? []) {
-    console.log(`  → artist: ${a.name} (${a.id})`);
+  for (const [i, a] of (artists ?? []).entries()) {
+    console.log(`  [${i + 1}/${artists!.length}] artist: ${a.name}`);
     try {
-      await enrichArtist(a.id as string);
+      await withTimeout(enrichArtist(a.id as string), 90_000, `artist ${a.name}`);
+      console.log(`    ✓ done`);
     } catch (e) {
-      console.error(`  ✗ ${(e as Error).message}`);
+      console.error(`    ✗ ${(e as Error).message}`);
     }
     await sleep(1100);
   }
@@ -59,12 +73,13 @@ async function main() {
     .limit(TOP_N);
 
   console.log(`[backfill] Enriching ${albums?.length ?? 0} albums…`);
-  for (const a of albums ?? []) {
-    console.log(`  → album: ${a.name} (${a.id})`);
+  for (const [i, a] of (albums ?? []).entries()) {
+    console.log(`  [${i + 1}/${albums!.length}] album: ${a.name}`);
     try {
-      await enrichAlbum(a.id as string);
+      await withTimeout(enrichAlbum(a.id as string), 90_000, `album ${a.name}`);
+      console.log(`    ✓ done`);
     } catch (e) {
-      console.error(`  ✗ ${(e as Error).message}`);
+      console.error(`    ✗ ${(e as Error).message}`);
     }
     await sleep(1100);
   }
@@ -77,12 +92,13 @@ async function main() {
     .limit(TOP_N);
 
   console.log(`[backfill] Enriching ${tracks?.length ?? 0} tracks…`);
-  for (const t of tracks ?? []) {
-    console.log(`  → track: ${t.name} (${t.id})`);
+  for (const [i, t] of (tracks ?? []).entries()) {
+    console.log(`  [${i + 1}/${tracks!.length}] track: ${t.name}`);
     try {
-      await enrichSong(t.id as string);
+      await withTimeout(enrichSong(t.id as string), 90_000, `track ${t.name}`);
+      console.log(`    ✓ done`);
     } catch (e) {
-      console.error(`  ✗ ${(e as Error).message}`);
+      console.error(`    ✗ ${(e as Error).message}`);
     }
     await sleep(1100);
   }

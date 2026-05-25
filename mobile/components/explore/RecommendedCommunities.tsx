@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   browseLink: {
     fontSize: 14,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   desc: {
     fontSize: 14,
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   pct: {
     fontSize: 13,
     fontWeight: "700",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   labelNeutral: {
     fontSize: 12,

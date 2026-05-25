@@ -42,7 +42,7 @@ const SearchInput = forwardRef<
     <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
       {loading ? (
         <svg
-          className="h-5 w-5 animate-spin text-emerald-500"
+          className="h-5 w-5 animate-spin text-gold-500"
           fill="none"
           viewBox="0 0 24 24"
           aria-hidden
@@ -63,7 +63,7 @@ const SearchInput = forwardRef<
         </svg>
       ) : (
         <svg
-          className="h-5 w-5 text-emerald-500"
+          className="h-5 w-5 text-gold-500"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -87,7 +87,7 @@ const SearchInput = forwardRef<
       autoComplete="off"
       autoCorrect="off"
       spellCheck={false}
-      className="w-full rounded-2xl border border-zinc-700/60 bg-zinc-800/70 py-3.5 pl-12 pr-10 text-base text-white placeholder-zinc-500 transition focus:border-emerald-500/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+      className="w-full rounded-2xl border border-zinc-700/60 bg-zinc-800/70 py-3.5 pl-12 pr-10 text-base text-white placeholder-zinc-500 transition focus:border-gold-500/60 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
     />
     {value && (
       <button
@@ -168,7 +168,7 @@ function TopResultCard({ result }: { result: TopResult }) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xl font-bold text-white transition group-hover:text-emerald-300 sm:text-2xl">
+          <p className="truncate text-xl font-bold text-white transition group-hover:text-gold-300 sm:text-2xl">
             {data.name}
           </p>
           <p className="mt-1 truncate text-sm text-zinc-400">{subtitle}</p>
@@ -252,7 +252,7 @@ function AlbumsSection({
                 )}
               </div>
               <div className="mt-2">
-                <p className="truncate text-xs font-semibold text-white group-hover:text-emerald-400">{album.name}</p>
+                <p className="truncate text-xs font-semibold text-white group-hover:text-gold-400">{album.name}</p>
                 <p className="truncate text-[0.65rem] text-zinc-500">{artistNames}</p>
               </div>
             </Link>
@@ -290,7 +290,7 @@ function TracksSection({ tracks }: { tracks: SpotifyApi.TrackObjectFull[] }) {
                 )}
               </div>
               <div className="mt-2">
-                <p className="truncate text-xs font-semibold text-white group-hover:text-emerald-400">{track.name}</p>
+                <p className="truncate text-xs font-semibold text-white group-hover:text-gold-400">{track.name}</p>
                 <p className="truncate text-[0.65rem] text-zinc-500">{artistNames}</p>
               </div>
             </Link>
@@ -517,7 +517,7 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
               onClick={() => setActiveTab(tab.id)}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
                 activeTab === tab.id
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-gold-600 text-white"
                   : "bg-zinc-800/70 text-zinc-400 hover:text-white"
               }`}
             >

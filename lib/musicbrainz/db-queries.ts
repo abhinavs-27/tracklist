@@ -99,8 +99,8 @@ export async function getAlbumInfoTabData(supabase: SupabaseClient, albumId: str
 
 export async function getSongInfoTabData(supabase: SupabaseClient, songId: string) {
   const [producersResult, songwritersResult, samplesResult, sampledByResult, coversResult, featResult] = await Promise.all([
-    supabase.from("song_producers").select("artists(id, name, mbid)").eq("song_id", songId),
-    supabase.from("song_songwriters").select("artists(id, name, mbid)").eq("song_id", songId),
+    supabase.from("song_producers").select("artists(id, name, mbid, image_url)").eq("song_id", songId),
+    supabase.from("song_songwriters").select("artists(id, name, mbid, image_url)").eq("song_id", songId),
     supabase.from("song_samples").select(`
       tracks!song_samples_sampled_song_id_fkey(id, name,
         artists(id, name),
@@ -119,7 +119,7 @@ export async function getSongInfoTabData(supabase: SupabaseClient, songId: strin
         albums(release_date, image_url)
       )
     `).eq("song_id", songId).limit(10),
-    supabase.from("track_featuring_artists").select("artists(id, name, mbid)").eq("track_id", songId),
+    supabase.from("track_featuring_artists").select("artists(id, name, mbid, image_url)").eq("track_id", songId),
   ]);
 
   function toSongRef(r: any, trackKey: string): SongRef {

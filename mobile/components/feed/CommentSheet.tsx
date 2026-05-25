@@ -118,7 +118,7 @@ export function CommentSheet({ visible, target, onClose, onCountChange }: Props)
         {/* Comment list */}
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator color={theme.colors.emerald} />
+            <ActivityIndicator color={theme.colors.gold} />
           </View>
         ) : (
           <FlatList
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -135,7 +135,7 @@ export default async function SharedListeningReportPage({
 
   return (
     <div className={`${contentMax2xl} space-y-0 py-6`}>
-      <Link href="/reports/listening" className="mb-5 inline-block text-sm text-emerald-400 hover:underline">
+      <Link href="/reports/listening" className="mb-5 inline-block text-sm text-gold-400 hover:underline">
         ← Listening reports
       </Link>
 
@@ -188,7 +188,7 @@ export default async function SharedListeningReportPage({
               ) : (
                 <Link
                   href={`/auth/signin?callbackUrl=${encodeURIComponent(callbackPath)}`}
-                  className="inline-flex shrink-0 items-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                  className="inline-flex shrink-0 items-center rounded-full bg-gold-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gold-500"
                 >
                   Follow
                 </Link>
@@ -217,7 +217,7 @@ export default async function SharedListeningReportPage({
               </span>
             ) : null}
             {row.is_public ? (
-              <span className="rounded-full border border-emerald-800/50 bg-emerald-950/40 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+              <span className="rounded-full border border-gold-800/50 bg-gold-950/40 px-2.5 py-1 text-xs font-semibold text-gold-400">
                 Shared
               </span>
             ) : null}

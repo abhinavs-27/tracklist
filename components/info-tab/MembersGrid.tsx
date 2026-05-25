@@ -14,7 +14,7 @@ export function MembersGrid({ members }: { members: Member[] }) {
       <div className="flex flex-wrap gap-4">
         {members.map((m) => (
           <Link key={m.id} href={`/artist/${m.id}`} className="flex flex-col items-center gap-1.5 group">
-            <div className="w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center border border-transparent group-hover:border-emerald-500 transition-colors">
+            <div className="w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center border border-transparent group-hover:border-gold-500 transition-colors">
               <span className="text-[13px] font-semibold text-zinc-400">{initials(m.name)}</span>
             </div>
             <span className="text-[10px] text-zinc-500 max-w-[56px] text-center leading-tight">{m.name}</span>

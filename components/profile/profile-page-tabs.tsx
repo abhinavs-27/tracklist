@@ -86,7 +86,7 @@ export function ProfilePageTabs({ overview, activity, lists, reports }: Props) {
                 onClick={() => go(id)}
                 className={`shrink-0 snap-start rounded-full px-3.5 py-2 text-sm font-medium transition sm:px-4 ${
                   selected
-                    ? "bg-emerald-600/25 text-emerald-100 ring-1 ring-emerald-500/35"
+                    ? "bg-gold-600/25 text-gold-100 ring-1 ring-gold-500/35"
                     : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
                 }`}
               >

@@ -111,7 +111,7 @@ export default async function YearInReviewPage() {
       {!hasData ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-10 text-center">
           <p className="text-zinc-400">No listening data for {year} yet.</p>
-          <Link href="/search" className="mt-3 inline-block text-sm text-emerald-400 hover:underline">
+          <Link href="/search" className="mt-3 inline-block text-sm text-gold-400 hover:underline">
             Find music to log →
           </Link>
         </div>
@@ -154,7 +154,7 @@ export default async function YearInReviewPage() {
 
           {/* Entity grids */}
           <div className="grid gap-6 sm:grid-cols-2">
-            <EntityList title="Top Artists" items={topArtists} accentClass="text-emerald-500" />
+            <EntityList title="Top Artists" items={topArtists} accentClass="text-gold-500" />
             <EntityList title="Top Albums" items={topAlbums} accentClass="text-violet-400" />
             <EntityList title="Top Tracks" items={topTracks} accentClass="text-sky-400" />
             <EntityList title="Top Genres" items={topGenres} accentClass="text-amber-400" />
@@ -167,7 +167,7 @@ export default async function YearInReviewPage() {
             </p>
             <Link
               href="/reports/listening"
-              className="inline-flex items-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+              className="inline-flex items-center rounded-full bg-gold-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gold-500"
             >
               Go to Rankings →
             </Link>

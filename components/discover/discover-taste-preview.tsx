@@ -25,7 +25,7 @@ export async function DiscoverTastePreview({ userId }: { userId: string }) {
         </h2>
         <Link
           href={`/profile/${userId}`}
-          className="text-xs text-emerald-400 hover:underline"
+          className="text-xs text-gold-400 hover:underline"
         >
           Profile →
         </Link>

@@ -321,7 +321,7 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
       {isLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="small" color={theme.colors.emerald} />
+          <ActivityIndicator size="small" color={theme.colors.gold} />
         </View>
       ) : !chart || chart.rankings.length === 0 ? (
         <View style={styles.emptySection}>
@@ -331,7 +331,7 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
           <Text style={[styles.emptyText, { marginTop: 6 }]}>
             Connect Last.fm in{" "}
             <Text
-              style={{ color: theme.colors.emerald }}
+              style={{ color: theme.colors.gold }}
               onPress={() => router.push("/(tabs)/profile" as never)}
             >
               Settings
@@ -414,7 +414,7 @@ function PulseTab({
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
+        <ActivityIndicator size="small" color={theme.colors.gold} />
       </View>
     );
   }
@@ -850,7 +850,7 @@ function HistoryTab() {
   if (isLoading && !bundle) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
+        <ActivityIndicator size="small" color={theme.colors.gold} />
       </View>
     );
   }
@@ -1239,7 +1239,7 @@ const styles = StyleSheet.create({
   pulseArtistInitial: {
     fontSize: 28,
     fontWeight: "600",
-    color: "#52525b",
+    color: theme.colors.muted,
   },
   pulseArtistName: {
     fontSize: 14,
@@ -1249,8 +1249,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   pulseArtistPlays: {
-    fontSize: 11,
-    color: "#52525b",
+    fontSize: 12,
+    color: theme.colors.muted,
   },
   // ─── Pulse album cards (web: min(46vw,168px), square art) ───────────────────
   pulseAlbumCard: {
@@ -1293,8 +1293,8 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   playCount: {
-    fontSize: 11,
-    color: "#52525B",
+    fontSize: 12,
+    color: theme.colors.muted,
   },
   // ─── Pulse stats card ─────────────────────────────────────────────────────
   pulseCaption: {
@@ -1314,10 +1314,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   pulseGroupLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 0.8,
-    color: "#71717a",
+    color: theme.colors.muted,
     textTransform: "uppercase",
   },
   pulseGroupItems: {
@@ -1417,9 +1417,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   insightCardLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     color: theme.colors.muted,
     textTransform: "uppercase",
     flexShrink: 1,
@@ -1431,8 +1431,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   insightChipsLabel: {
-    fontSize: 10,
-    color: "#52525B",
+    fontSize: 12,
+    color: theme.colors.muted,
     marginBottom: 6,
   },
   insightChipsRow: {
@@ -1460,7 +1460,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   kindBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   // ─── Taste Timeline ─────────────────────────────────────────────────────────
@@ -1479,10 +1479,10 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(63,63,70,0.6)",
   },
   tlHeaderText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.6,
-    color: "#52525B",
+    color: theme.colors.muted,
     textTransform: "uppercase",
   },
   tlMonthCell: {
@@ -1503,13 +1503,13 @@ const styles = StyleSheet.create({
   tlPlaysCell: {
     width: 42,
     textAlign: "right",
-    fontSize: 11,
-    color: "#52525B",
+    fontSize: 12,
+    color: theme.colors.muted,
     flexShrink: 0,
   },
   tlDash: {
     fontSize: 11,
-    color: "#52525B",
+    color: theme.colors.muted,
   },
   tlShowMore: {
     alignItems: "center",
@@ -1541,9 +1541,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarStackInitial: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
-    color: "#a1a1aa",
+    color: theme.colors.muted,
   },
   // Genre pills row
   genrePillRow: {
@@ -1560,8 +1560,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.05)",
   },
   genrePillText: {
-    fontSize: 11,
-    color: "#a1a1aa",
+    fontSize: 12,
+    color: theme.colors.muted,
   },
   // Shift dividers
   shiftMajorRow: {
@@ -1595,15 +1595,15 @@ const styles = StyleSheet.create({
     borderColor: "rgba(245,158,11,0.2)",
   },
   shiftMajorText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     color: "rgba(245,158,11,0.8)",
     textTransform: "uppercase",
   },
   shiftMinorText: {
-    fontSize: 10,
-    color: "#52525B",
+    fontSize: 12,
+    color: theme.colors.muted,
   },
   // ─── Blind Spots (web-matched) ───────────────────────────────────────────────
   blindSpotsCard: {
@@ -1621,9 +1621,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   blindSpotsLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     color: theme.colors.muted,
     textTransform: "uppercase",
   },
@@ -1636,7 +1636,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.05)",
   },
   blindSpotsBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     color: theme.colors.muted,
   },
   blindSpotsIntro: {
@@ -1875,10 +1875,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   heroWeekLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
-    letterSpacing: 1.8,
-    color: "#52525b",
+    letterSpacing: 1.5,
+    color: theme.colors.muted,
     textTransform: "uppercase",
     marginBottom: 12,
   },
@@ -1906,10 +1906,10 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   heroRank: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     color: "rgba(251,191,36,0.9)",
-    letterSpacing: 1.8,
+    letterSpacing: 1.5,
     textTransform: "uppercase",
   },
   heroTitle: {

@@ -33,7 +33,7 @@ export function LastfmConnectPrompt({
         <p className="mt-1 text-sm leading-relaxed text-zinc-400">{body}</p>
         <Link
           href={`/profile/${userId}?tab=taste`}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-gold-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-gold-500"
         >
           Connect Last.fm →
         </Link>

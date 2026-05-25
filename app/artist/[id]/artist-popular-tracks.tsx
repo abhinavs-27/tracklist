@@ -35,7 +35,7 @@ export function ArtistPopularTracks({ tracks }: { tracks: ArtistPopularTrack[] }
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mt-3 text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+          className="mt-3 text-sm font-medium text-gold-400 hover:text-gold-300 hover:underline"
         >
           Load more
         </button>

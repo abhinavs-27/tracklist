@@ -62,7 +62,7 @@ function ReviewCardInner({
                 {username}
               </Link>
               <span className="text-zinc-400"> rated </span>
-              <Link href={entityHref} className="font-medium text-white hover:text-emerald-400 hover:underline">
+              <Link href={entityHref} className="font-medium text-white hover:text-gold-400 hover:underline">
                 {displayName}
               </Link>
               <span className="ml-1.5 text-amber-400/90">{formatStarDisplay(ratingNum)}</span>
@@ -85,7 +85,7 @@ function ReviewCardInner({
 
   // Default variant — used in the reviews list on album/song pages
   return (
-    <article className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+    <article className="rounded-2xl border border-white/[0.07] bg-zinc-900/40 p-4">
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <Link href={user?.id ? `/profile/${user.id}` : "#"} className="mt-0.5 shrink-0">

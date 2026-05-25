@@ -75,7 +75,7 @@ export function CommunityLeaderboardSection({ communityId }: { communityId: stri
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={`/profile/${person.userId}`}
-                    className={`font-medium text-white hover:text-emerald-400 hover:underline ${communityBody}`}
+                    className={`font-medium text-white hover:text-gold-400 hover:underline ${communityBody}`}
                   >
                     {person.username}
                   </Link>

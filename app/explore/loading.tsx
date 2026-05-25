@@ -71,7 +71,7 @@ export default function ExploreLoading() {
           <div className="h-4 w-full rounded bg-zinc-800/40" />
           <div className="mt-2 h-4 max-w-[92%] rounded bg-zinc-800/30" />
           <div className="mt-5 flex flex-wrap gap-3">
-            <div className="h-10 w-36 rounded-xl bg-emerald-900/40" />
+            <div className="h-10 w-36 rounded-xl bg-gold-900/40" />
             <div className="h-10 w-24 rounded-xl bg-zinc-800/50" />
           </div>
         </div>

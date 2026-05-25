@@ -67,7 +67,7 @@ export function SpotifyConnectionCard({
             {!known ? (
               "Checking connection…"
             ) : connected ? (
-              <span className="text-emerald-400">Connected to Spotify</span>
+              <span className="text-gold-400">Connected to Spotify</span>
             ) : (
               <span className="text-zinc-400">Not connected</span>
             )}
@@ -103,7 +103,7 @@ export function SpotifyConnectionCard({
             type="button"
             onClick={onSync}
             disabled={!connected || syncLoading}
-            className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-black hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {syncLoading ? 'Syncing…' : 'Sync recently played'}
           </button>

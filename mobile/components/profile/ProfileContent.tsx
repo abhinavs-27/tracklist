@@ -112,7 +112,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
           {showBack && (
             <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
               <Pressable onPress={() => router.back()} hitSlop={10}>
-                <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+                <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
               </Pressable>
             </View>
           )}
@@ -199,7 +199,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
           onPress={() => router.back()}
           style={({ pressed }) => ({ alignSelf: "flex-start", paddingVertical: 6, paddingHorizontal: 16, opacity: pressed ? 0.75 : 1 })}
         >
-          <Text style={{ fontSize: 15, fontWeight: "600", color: theme.colors.emerald }}>← Back</Text>
+          <Text style={{ fontSize: 15, fontWeight: "600", color: theme.colors.gold }}>← Back</Text>
         </Pressable>
       ) : null}
 
@@ -248,9 +248,9 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         {isOwn ? (
           <Pressable
             style={({ pressed }) => [ph.actionBtn, ph.actionBtnEmerald, pressed && { opacity: 0.75 }]}
-            onPress={() => router.push("/(tabs)/reports/listening" as never)}
+            onPress={() => router.push("/reports/listening" as never)}
           >
-            <Ionicons name="bar-chart-outline" size={15} color={theme.colors.emerald} />
+            <Ionicons name="bar-chart-outline" size={15} color={theme.colors.gold} />
             <Text style={[ph.actionBtnText, ph.actionBtnEmeraldText]}>Report</Text>
           </Pressable>
         ) : null}
@@ -267,8 +267,8 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>Music identity</Text>
           {isOwn ? (
-            <Pressable onPress={() => router.push("/(tabs)/reports/listening" as never)}>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.emerald }}>Full report →</Text>
+            <Pressable onPress={() => router.push("/reports/listening" as never)}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.gold }}>Full report →</Text>
             </Pressable>
           ) : null}
         </View>
@@ -383,8 +383,8 @@ const ph = StyleSheet.create({
   },
   actionBtnEmerald: { borderColor: "rgba(16,185,129,0.3)", backgroundColor: "rgba(6,46,37,0.3)" },
   actionBtnText: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
-  actionBtnEmeraldText: { color: theme.colors.emerald },
-  stickyTabWrap: { backgroundColor: theme.colors.bg },
+  actionBtnEmeraldText: { color: theme.colors.gold },
+  stickyTabWrap: { backgroundColor: theme.colors.bg, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   tabBar: {
     flexDirection: "row",
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -394,7 +394,7 @@ const ph = StyleSheet.create({
   tabBtn: { flex: 1, paddingVertical: 12, alignItems: "center", position: "relative" },
   tabLabel: { fontSize: 14, fontWeight: "600", color: theme.colors.muted },
   tabLabelActive: { color: theme.colors.text },
-  tabLine: { position: "absolute", bottom: 0, left: "15%", right: "15%", height: 2, borderRadius: 1, backgroundColor: theme.colors.emerald },
+  tabLine: { position: "absolute", bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1, backgroundColor: theme.colors.gold },
 });
 
 const sectionCard = {
@@ -457,7 +457,7 @@ function PrivateLogsToggleNative({ userId }: { userId: string }) {
           value={value}
           onValueChange={(v) => void onChange(v)}
           disabled={pending}
-          trackColor={{ false: theme.colors.border, true: theme.colors.emerald }}
+          trackColor={{ false: theme.colors.border, true: theme.colors.gold }}
           thumbColor={theme.colors.text}
         />
       </View>

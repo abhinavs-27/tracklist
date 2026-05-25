@@ -139,7 +139,7 @@ export function CommunityWeeklySummary(props: {
                 </div>
                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800">
                   <div
-                    className="h-full rounded-full bg-emerald-500"
+                    className="h-full rounded-full bg-gold-500"
                     style={{
                       width: `${Math.max(8, (g.weight / maxGenreWeight) * 100)}%`,
                     }}
@@ -201,7 +201,7 @@ export function CommunityWeeklySummary(props: {
                   return (
                     <div
                       key={b.id}
-                      className={`h-full min-w-[2px] ${SEGMENT_CLASS[b.id] ?? "bg-emerald-600/80"}`}
+                      className={`h-full min-w-[2px] ${SEGMENT_CLASS[b.id] ?? "bg-gold-600/80"}`}
                       style={{ width: `${pct}%` }}
                       title={`${b.label} (${b.rangeHint}): ${pct}%`}
                     />
@@ -243,7 +243,7 @@ export function CommunityWeeklySummary(props: {
       ) : null}
 
       {trend && (trend.genres.gained.length > 0 || trend.genres.lost.length > 0) ? (
-        <div className="mt-8 rounded-xl border border-emerald-500/20 bg-emerald-950/15 px-4 py-4 ring-1 ring-emerald-500/10">
+        <div className="mt-8 rounded-xl border border-gold-500/20 bg-gold-950/15 px-4 py-4 ring-1 ring-gold-500/10">
           <p className={communityMetaLabel}>
             {neutral ? "Genre momentum" : "This week's genre leaders"}
           </p>
@@ -252,14 +252,14 @@ export function CommunityWeeklySummary(props: {
           </p>
           {trend.genres.gained.length > 0 ? (
             <div className="mt-3">
-              <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-500/90 ${communityMeta}`}>
+              <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gold-500/90 ${communityMeta}`}>
                 Gaining
               </p>
               <div className="flex flex-wrap gap-2">
                 {trend.genres.gained.slice(0, 12).map((g) => (
                   <span
                     key={g}
-                    className="rounded-full border border-emerald-500/35 bg-emerald-950/50 px-3 py-1.5 text-sm font-medium text-emerald-200"
+                    className="rounded-full border border-gold-500/35 bg-gold-950/50 px-3 py-1.5 text-sm font-medium text-gold-200"
                   >
                     ↑ {g}
                   </span>

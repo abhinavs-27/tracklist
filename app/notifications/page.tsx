@@ -77,7 +77,7 @@ export default async function NotificationsPage() {
         <h1 className="text-2xl font-bold text-white">Notifications</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           {socialMusicUi ? (
-            <Link href="/social/inbox" className="text-emerald-400 hover:underline">
+            <Link href="/social/inbox" className="text-gold-400 hover:underline">
               Social inbox
             </Link>
           ) : null}
@@ -101,7 +101,7 @@ export default async function NotificationsPage() {
                 <span>
                   {n.type === "follow" && n.actor_user_id && (
                     <>
-                      <Link href={`/profile/${n.actor_user_id ?? ""}`} className="font-medium text-white hover:text-emerald-400 hover:underline">
+                      <Link href={`/profile/${n.actor_user_id ?? ""}`} className="font-medium text-white hover:text-gold-400 hover:underline">
                         {actorMap.get(n.actor_user_id ?? "") ?? "Someone"}
                       </Link>
                       {" started following you"}
@@ -112,13 +112,13 @@ export default async function NotificationsPage() {
                     n.entity_type === "community" &&
                     n.entity_id && (
                   <>
-                    <Link href={`/profile/${n.actor_user_id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">
+                    <Link href={`/profile/${n.actor_user_id}`} className="font-medium text-white hover:text-gold-400 hover:underline">
                       {actorMap.get(n.actor_user_id) ?? "Someone"}
                     </Link>
                     {" invited you to a "}
                     <Link
                       href={`/communities/${n.entity_id}`}
-                      className="font-medium text-emerald-400 hover:underline"
+                      className="font-medium text-gold-400 hover:underline"
                     >
                       community
                     </Link>
@@ -130,7 +130,7 @@ export default async function NotificationsPage() {
                       {n.actor_user_id ? (
                         <Link
                           href={`/profile/${n.actor_user_id}`}
-                          className="font-medium text-white hover:text-emerald-400 hover:underline"
+                          className="font-medium text-white hover:text-gold-400 hover:underline"
                         >
                           {actorMap.get(n.actor_user_id) ?? "Someone"}
                         </Link>
@@ -144,7 +144,7 @@ export default async function NotificationsPage() {
                         return href ? (
                           <Link
                             href={href}
-                            className="font-medium text-emerald-400 hover:underline"
+                            className="font-medium text-gold-400 hover:underline"
                           >
                             {label}
                           </Link>
@@ -156,7 +156,7 @@ export default async function NotificationsPage() {
                   )}
                   {n.type === "like" && n.actor_user_id && (
                     <>
-                      <Link href={`/profile/${n.actor_user_id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">
+                      <Link href={`/profile/${n.actor_user_id}`} className="font-medium text-white hover:text-gold-400 hover:underline">
                         {actorMap.get(n.actor_user_id) ?? "Someone"}
                       </Link>
                       {n.entity_type === "feed_review"

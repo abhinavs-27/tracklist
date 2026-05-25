@@ -205,7 +205,7 @@ export function BillboardDropModal({
                           className={
                             highlights.biggestMoverDelta != null &&
                             highlights.biggestMoverDelta > 0
-                              ? "text-emerald-400"
+                              ? "text-gold-400"
                               : highlights.biggestMoverDelta != null &&
                                   highlights.biggestMoverDelta < 0
                                 ? "text-rose-400"

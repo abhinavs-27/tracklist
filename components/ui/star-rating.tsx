@@ -53,14 +53,14 @@ export function StarRatingInput({
           <button
             type="button"
             disabled={disabled}
-            className="absolute left-0 top-0 z-10 h-full w-1/2 min-w-[2.25rem] cursor-pointer rounded-l-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 disabled:cursor-not-allowed disabled:opacity-50"
+            className="absolute left-0 top-0 z-10 h-full w-1/2 min-w-[2.25rem] cursor-pointer rounded-l-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/80 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={`${i - 0.5} out of 5 stars`}
             onClick={() => onChange(i - 0.5)}
           />
           <button
             type="button"
             disabled={disabled}
-            className="absolute right-0 top-0 z-10 h-full w-1/2 min-w-[2.25rem] cursor-pointer rounded-r-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 disabled:cursor-not-allowed disabled:opacity-50"
+            className="absolute right-0 top-0 z-10 h-full w-1/2 min-w-[2.25rem] cursor-pointer rounded-r-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/80 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={`${i} out of 5 stars`}
             onClick={() => onChange(i)}
           />

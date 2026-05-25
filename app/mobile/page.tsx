@@ -31,7 +31,7 @@ export default function MobilePage() {
           </p>
           <Link
             href="/"
-            className="mt-6 inline-block rounded-full bg-emerald-600 px-6 py-2 font-medium text-white transition hover:bg-emerald-500"
+            className="mt-6 inline-block rounded-full bg-gold-600 px-6 py-2 font-medium text-white transition hover:bg-gold-500"
           >
             Go to Web App
           </Link>

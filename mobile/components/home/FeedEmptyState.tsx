@@ -18,7 +18,7 @@ export function FeedEmptyState() {
         style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
       >
         <Text style={styles.btnText}>Find people to follow</Text>
-        <Ionicons name="arrow-forward" size={15} color={theme.colors.emerald} />
+        <Ionicons name="arrow-forward" size={15} color={theme.colors.gold} />
       </Pressable>
     </View>
   );
@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
   btnText: {
     fontSize: 14,
     fontWeight: "600",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
 });

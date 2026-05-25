@@ -86,7 +86,7 @@ export function CommunityInvitesClient({
               type="button"
               disabled={busyId === inv.id}
               onClick={() => accept(inv.id)}
-              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="rounded-lg bg-gold-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
             >
               {busyId === inv.id ? "…" : "Accept"}
             </button>

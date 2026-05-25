@@ -117,7 +117,7 @@ export function CommunityConsensusSection({
             }}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
               entity === t.value
-                ? "bg-emerald-600 text-white"
+                ? "bg-gold-600 text-white"
                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
             }`}
           >

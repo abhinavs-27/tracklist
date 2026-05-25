@@ -44,7 +44,7 @@ export function TasteBlindSpots({ data }: { data: TasteBlindSpotsResult }) {
 
               {/* Info */}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white group-hover:text-emerald-300">
+                <p className="truncate text-sm font-semibold text-white group-hover:text-gold-300">
                   {artist.name}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-zinc-500">

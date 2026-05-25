@@ -319,5 +319,5 @@ const s = StyleSheet.create({
   moveSame: { fontSize: 13, color: "#52525b" },
 
   showMoreBtn: { alignSelf: "center", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, backgroundColor: theme.colors.panelSoft },
-  showMoreText: { fontSize: 13, fontWeight: "600", color: theme.colors.emerald },
+  showMoreText: { fontSize: 13, fontWeight: "600", color: theme.colors.gold },
 });

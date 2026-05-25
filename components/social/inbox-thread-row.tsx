@@ -72,12 +72,12 @@ export function InboxThreadRow({
       <div
         className={`group pointer-events-none relative z-[1] overflow-hidden rounded-[1.35rem] ring-1 transition ${
           isUnread
-            ? "bg-gradient-to-br from-zinc-900/95 via-zinc-950/98 to-black ring-emerald-500/25 shadow-[0_0_0_1px_rgba(16,185,129,0.12)]"
+            ? "bg-gradient-to-br from-zinc-900/95 via-zinc-950/98 to-black ring-gold-500/25 shadow-[0_0_0_1px_rgba(16,185,129,0.12)]"
             : "bg-gradient-to-br from-zinc-900/80 via-zinc-950/95 to-black ring-white/[0.06]"
         }`}
       >
         <div
-          className="pointer-events-none absolute -right-16 -top-24 h-48 w-48 rounded-full bg-emerald-500/[0.06] blur-3xl"
+          className="pointer-events-none absolute -right-16 -top-24 h-48 w-48 rounded-full bg-gold-500/[0.06] blur-3xl"
           aria-hidden
         />
         <div
@@ -90,7 +90,7 @@ export function InboxThreadRow({
             <div className="relative shrink-0">
               {isUnread ? (
                 <span
-                  className="absolute -left-1 top-1/2 z-[2] h-2 w-2 -translate-y-1/2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]"
+                  className="absolute -left-1 top-1/2 z-[2] h-2 w-2 -translate-y-1/2 rounded-full bg-gold-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]"
                   aria-label="Unread"
                 />
               ) : null}
@@ -139,8 +139,8 @@ export function InboxThreadRow({
               {showRec ? (
                 <>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
-                    <div className="min-w-0 rounded-xl bg-emerald-950/30 px-2.5 py-2 ring-1 ring-emerald-500/15">
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-emerald-400/85">
+                    <div className="min-w-0 rounded-xl bg-gold-950/30 px-2.5 py-2 ring-1 ring-gold-500/15">
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-gold-400/85">
                         To
                       </p>
                       <p className="mt-0.5 truncate text-sm font-semibold text-white">
@@ -149,7 +149,7 @@ export function InboxThreadRow({
                         ) : (
                           <Link
                             href={`/profile/${rec.recipientId}`}
-                            className="pointer-events-auto hover:text-emerald-100 hover:underline"
+                            className="pointer-events-auto hover:text-gold-100 hover:underline"
                           >
                             @{rec.recipientName}
                           </Link>

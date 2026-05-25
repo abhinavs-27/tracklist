@@ -310,10 +310,10 @@ export function InviteMembersPanel({
 
         {justCopied && inviteUrl ? (
           <div
-            className={`mt-3 flex items-center gap-2 rounded-xl bg-emerald-950/40 px-3 py-2.5 text-emerald-200 ring-1 ring-emerald-500/25 ${communityBody}`}
+            className={`mt-3 flex items-center gap-2 rounded-xl bg-gold-950/40 px-3 py-2.5 text-gold-200 ring-1 ring-gold-500/25 ${communityBody}`}
             role="status"
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold-500/20 text-gold-400">
               <CheckIcon className="h-3.5 w-3.5" />
             </span>
             <span>Copied to clipboard — ready to paste.</span>
@@ -336,7 +336,7 @@ export function InviteMembersPanel({
               <button
                 type="button"
                 onClick={() => void copyAgain()}
-                className={`font-medium text-emerald-400/90 hover:text-emerald-300 ${communityMeta}`}
+                className={`font-medium text-gold-400/90 hover:text-gold-300 ${communityMeta}`}
               >
                 Copy again
               </button>
@@ -415,7 +415,7 @@ export function InviteMembersPanel({
         <p
           className={
             feedback.tone === "success"
-              ? `mt-3 ${communityMeta} text-emerald-400/90`
+              ? `mt-3 ${communityMeta} text-gold-400/90`
               : `mt-3 ${communityMeta} text-amber-400/90`
           }
         >

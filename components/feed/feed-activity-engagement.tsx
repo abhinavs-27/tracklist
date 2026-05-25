@@ -17,7 +17,7 @@ import {
 } from "@/lib/reactions/feed-target";
 
 const actionBtn =
-  "inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-zinc-600/90 bg-zinc-900/50 px-3 py-2 text-center text-xs font-medium text-zinc-200 transition hover:border-emerald-500/45 hover:bg-zinc-800/70 sm:flex-none sm:text-sm";
+  "inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-zinc-600/90 bg-zinc-900/50 px-3 py-2 text-center text-xs font-medium text-zinc-200 transition hover:border-gold-500/45 hover:bg-zinc-800/70 sm:flex-none sm:text-sm";
 
 type FooterProps = {
   viewerUserId: string;

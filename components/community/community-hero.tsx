@@ -35,7 +35,7 @@ function HeroBackground({ src }: { src: string | null }) {
   if (!src) {
     return (
       <div
-        className="absolute inset-0 bg-gradient-to-br from-emerald-950/50 via-zinc-900/90 to-zinc-950"
+        className="absolute inset-0 bg-gradient-to-br from-gold-950/50 via-zinc-900/90 to-zinc-950"
         aria-hidden
       />
     );
@@ -78,7 +78,7 @@ export function CommunityHero({
           {/* Back link */}
           <Link
             href="/communities"
-            className="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-emerald-400/95 transition hover:text-emerald-300"
+            className="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-gold-400/95 transition hover:text-gold-300"
           >
             <span aria-hidden className="text-base leading-none">←</span>
             Communities
@@ -109,7 +109,7 @@ export function CommunityHero({
                 </span>{" "}
                 member{memberCount !== 1 ? "s" : ""}
                 {membersJoinedThisWeek > 0 ? (
-                  <span className="ml-2 font-medium text-emerald-400/90">
+                  <span className="ml-2 font-medium text-gold-400/90">
                     +{membersJoinedThisWeek} new this week
                   </span>
                 ) : null}

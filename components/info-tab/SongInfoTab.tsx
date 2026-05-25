@@ -2,7 +2,7 @@ import { CreditsBlock } from "./CreditsBlock";
 import { SongCard } from "./SongCard";
 import { ExternalLinks } from "./ExternalLinks";
 
-interface CreditPerson { id: string; name: string; }
+interface CreditPerson { id: string; name: string; image_url?: string | null; }
 interface SongRef { id: string; name: string; artist_name: string; artist_id: string; album_image_url: string | null; release_year: number | null; }
 
 interface Props {
@@ -14,13 +14,15 @@ interface Props {
   covers: SongRef[];
   externalLinks?: Record<string, string> | null;
   isLoading?: boolean;
+  isEnriching?: boolean;
 }
 
-export function SongInfoTab({ producers, songwriters, featuring, samples, sampledBy, covers, externalLinks, isLoading }: Props) {
+export function SongInfoTab({ producers, songwriters, featuring, samples, sampledBy, covers, externalLinks, isLoading, isEnriching }: Props) {
   const hasCredits = producers.length > 0 || songwriters.length > 0 || featuring.length > 0;
   const hasSamples = samples.length > 0;
   const hasSampledBy = sampledBy.length > 0;
   const hasCovers = covers.length > 0;
+  const hasContent = hasCredits || hasSamples || hasSampledBy || hasCovers;
 
   if (isLoading) {
     return (
@@ -35,18 +37,28 @@ export function SongInfoTab({ producers, songwriters, featuring, samples, sample
     );
   }
 
-  if (!hasCredits && !hasSamples && !hasSampledBy && !hasCovers) {
-    return <p className="text-sm text-zinc-500 py-6">Credits will appear here once this song is indexed.</p>;
+  if (!hasContent) {
+    return (
+      <div className="py-6">
+        {isEnriching ? (
+          <div className="flex items-center gap-2 text-zinc-500 text-sm">
+            <span className="inline-block h-3 w-3 rounded-full border-2 border-zinc-600 border-t-gold-500 animate-spin" />
+            Fetching info…
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-500">No additional information found for this song.</p>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6 py-4">
       {hasCredits && (
         <section>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-3">Credits</p>
-          <CreditsBlock label="Produced by" people={producers} color="emerald" entityPath={(id) => `/artist/${id}`} />
-          <CreditsBlock label="Written by" people={songwriters} color="emerald" entityPath={(id) => `/artist/${id}`} />
-          <CreditsBlock label="Featuring" people={featuring} color="amber" entityPath={(id) => `/artist/${id}`} />
+          <CreditsBlock label="Produced by" people={producers} entityPath={(id) => `/artist/${id}`} />
+          <CreditsBlock label="Written by" people={songwriters} entityPath={(id) => `/artist/${id}`} />
+          <CreditsBlock label="Featuring" people={featuring} entityPath={(id) => `/artist/${id}`} />
         </section>
       )}
       {hasSamples && (

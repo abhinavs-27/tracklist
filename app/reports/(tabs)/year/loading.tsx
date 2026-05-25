@@ -53,7 +53,7 @@ export default function YearInReviewLoading() {
 
       {/* Entity grids */}
       <div className="grid gap-6 sm:grid-cols-2">
-        <EntityListSkel title="Top Artists" accentClass="text-emerald-500" />
+        <EntityListSkel title="Top Artists" accentClass="text-gold-500" />
         <EntityListSkel title="Top Albums" accentClass="text-violet-400" />
         <EntityListSkel title="Top Tracks" accentClass="text-sky-400" />
         <EntityListSkel title="Top Genres" accentClass="text-amber-400" />

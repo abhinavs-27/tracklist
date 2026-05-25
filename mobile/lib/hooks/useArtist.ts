@@ -64,6 +64,14 @@ type ArtistApiResponse = {
   stats: AlbumStats;
   communityStats?: ArtistCommunityStats;
   reviews?: ArtistReviewItem[];
+  bio?: string | null;
+  bio_source?: string | null;
+  external_links?: Record<string, string> | null;
+  is_producer?: boolean;
+  is_songwriter?: boolean;
+  credits_enriched_at?: string | null;
+  members?: Array<{ id: string; name: string; role: string | null; is_active: boolean }>;
+  label_history?: Array<{ id: string; name: string; mbid: string | null; start_year: number | null; end_year: number | null; is_current: boolean }>;
 };
 
 export type ArtistAlbumItem = {
@@ -96,6 +104,8 @@ export function useArtist(artistId: string) {
     queryFn: () => fetcher<ArtistApiResponse>(`/api/artists/${encodeURIComponent(artistId)}`),
     enabled: !!artistId,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: (query) =>
+      query.state.data?.credits_enriched_at == null ? 3000 : false,
   });
 
   const stats = data?.stats ?? ({
@@ -109,6 +119,11 @@ export function useArtist(artistId: string) {
     reviews: data?.reviews ?? [],
     stats,
     communityStats: data?.communityStats ?? null,
+    bio: data?.bio ?? null,
+    externalLinks: data?.external_links ?? null,
+    members: data?.members ?? [],
+    labelHistory: data?.label_history ?? [],
+    creditsEnrichedAt: data?.credits_enriched_at ?? null,
     isLoading,
     error,
   };

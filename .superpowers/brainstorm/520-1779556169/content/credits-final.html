@@ -1,0 +1,274 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #09090B; color: #F4F4F5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #F4F4F5; }
+  .subtitle { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  .phones { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .phone { width: 360px; background: #09090B; border: 1.5px solid #27272A; border-radius: 38px; overflow: hidden; padding: 14px 0 0; box-shadow: 0 32px 80px rgba(0,0,0,0.8); cursor: pointer; transition: border-color 0.2s; }
+  .phone:hover { border-color: #10B98150; }
+  .phone.selected { border-color: #10B981; }
+  .phone-inner { padding: 0 16px; }
+  .phone-notch { width: 100px; height: 20px; background: #111; border-radius: 10px; margin: 0 auto 16px; }
+  .nav-back { font-size: 13px; color: #10B981; font-weight: 500; margin-bottom: 18px; display: block; }
+
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; margin-bottom: 12px; }
+  .divider { height: 1px; background: #27272A; margin: 16px 0; }
+  .bottom-spacer { height: 36px; }
+
+  .about-text { font-size: 14px; line-height: 1.65; color: #A1A1AA; }
+  .show-more { color: #10B981; font-size: 13px; font-weight: 500; margin-top: 6px; display: block; }
+
+  /* Flat credits — no group cards */
+  .credit-group { margin-bottom: 14px; }
+  .credit-group:last-child { margin-bottom: 0; }
+  .credit-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #3F3F46; margin-bottom: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  /* Person chip — clearly tappable via border + init circle */
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #2E2E35; border-radius: 20px; padding: 5px 11px 5px 5px; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: transparent; }
+  .chip:hover { border-color: #10B981; background: #10B98108; }
+  .chip-init { width: 24px; height: 24px; border-radius: 12px; background: #1C1C23; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #10B981; flex-shrink: 0; letter-spacing: 0; }
+  .chip-init-feat { background: #231C0F; color: #F59E0B; }
+  .chip-init-label { background: #1A1A26; color: #A78BFA; font-size: 11px; }
+  .chip-name { font-size: 13px; font-weight: 500; color: #D4D4D8; }
+
+  /* More pill */
+  .chip-more { display: inline-flex; align-items: center; border: 1px dashed #2E2E35; border-radius: 20px; padding: 5px 11px; font-size: 12px; color: #52525B; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+  .chip-more:hover { border-color: #10B981; color: #10B981; }
+
+  /* Members row */
+  .members-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .member { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px; cursor: pointer; }
+  .member-init { width: 44px; height: 44px; border-radius: 22px; background: #18181B; border: 1px solid #27272A; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #A1A1AA; transition: border-color 0.15s; }
+  .member:hover .member-init { border-color: #10B981; color: #10B981; }
+  .member-name { font-size: 10px; color: #71717A; text-align: center; line-height: 1.3; font-weight: 500; }
+
+  /* Label history */
+  .label-history { display: flex; flex-direction: column; gap: 0; }
+  .label-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #1A1A1A; }
+  .label-row:last-child { border-bottom: none; }
+  .label-dot { width: 6px; height: 6px; border-radius: 3px; background: #10B981; flex-shrink: 0; }
+  .label-dot-past { background: #3F3F46; }
+  .label-link { font-size: 14px; font-weight: 500; color: #10B981; flex: 1; }
+  .label-link-past { color: #71717A; }
+  .label-years { font-size: 12px; color: #3F3F46; }
+
+  /* Links */
+  .links-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .ext-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: #71717A; padding: 6px 12px; border: 1px solid #27272A; border-radius: 20px; transition: border-color 0.15s, color 0.15s; }
+  .ext-link:hover { border-color: #52525B; color: #A1A1AA; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid #27272A; margin: 0 -16px; padding: 0 16px; }
+  .tab { flex: 1; text-align: center; padding: 11px 0; font-size: 13px; font-weight: 600; color: #71717A; position: relative; }
+  .tab.active { color: #F4F4F5; }
+  .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #10B981; border-radius: 1px; }
+
+  .hero { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .album-art { width: 180px; height: 180px; border-radius: 14px; background: linear-gradient(135deg, #1a1035, #0d1f35, #0a2212); box-shadow: 0 16px 48px -8px rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 60px; }
+  .hero-type { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #71717A; }
+  .hero-title { font-size: 22px; font-weight: 800; color: #F4F4F5; text-align: center; letter-spacing: -0.3px; }
+  .hero-artist { font-size: 15px; font-weight: 600; color: #D4D4D8; text-align: center; }
+  .stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; justify-content: center; margin-top: 2px; }
+  .stat-amber { color: #F59E0B; font-size: 13px; font-weight: 800; }
+  .stat-muted { color: #A1A1AA; font-size: 13px; font-weight: 700; }
+  .stat-val { color: #F4F4F5; font-size: 13px; font-weight: 700; }
+
+  /* Artist hero */
+  .artist-hero { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .artist-art { width: 96px; height: 96px; border-radius: 48px; background: linear-gradient(135deg, #1a1a2e, #0f1a1f); box-shadow: 0 10px 30px rgba(0,0,0,0.7); border: 1px solid #27272A; display: flex; align-items: center; justify-content: center; }
+  .artist-inits { font-size: 28px; font-weight: 800; color: #52525B; letter-spacing: -1px; }
+  .artist-title { font-size: 22px; font-weight: 800; color: #F4F4F5; text-align: center; }
+  .genre-chips { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
+  .genre-chip { font-size: 11px; color: #71717A; background: #18181B; border: 1px solid #27272A; padding: 3px 8px; border-radius: 8px; }
+</style>
+
+<h2 style="text-align:center">Info tab — final direction</h2>
+<p class="subtitle" style="text-align:center">Option B chips, no group cards — flat layout, border + initials make each name clearly tappable. Left: album. Right: artist.</p>
+
+<div class="phones">
+
+  <!-- Album Info tab -->
+  <div class="phone-wrap">
+    <div class="phone-label">Album — Info tab</div>
+    <div class="phone" data-choice="album" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Albums</span>
+
+        <div class="hero">
+          <div class="album-art">🎵</div>
+          <div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:3px">
+            <div class="hero-type">Album</div>
+            <div class="hero-title">good kid, m.A.A.d city</div>
+            <div class="hero-artist">Kendrick Lamar</div>
+            <div class="stats">
+              <span class="stat-amber">★ 4.6</span><span class="stat-muted"> avg</span>
+              <span class="stat-val">48.2k</span><span class="stat-muted"> plays</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab">Tracks</div>
+          <div class="tab active">Info</div>
+          <div class="tab">Reviews</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <div style="padding-top:16px">
+
+          <div class="section-label">About</div>
+          <div class="about-text" style="margin-bottom:16px">
+            A semi-autobiographical portrait of growing up in Compton, CA. Blends West Coast hip-hop with jazz, soul, and spoken word interludes recorded across LA in 2011–12.
+            <span class="show-more">Show more</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">Credits</div>
+
+          <div class="credit-group">
+            <div class="credit-group-label">Label</div>
+            <div class="chips">
+              <div class="chip"><div class="chip-init chip-init-label">Af</div><span class="chip-name">Aftermath</span></div>
+              <div class="chip"><div class="chip-init chip-init-label">In</div><span class="chip-name">Interscope</span></div>
+            </div>
+          </div>
+
+          <div class="credit-group">
+            <div class="credit-group-label">Produced by</div>
+            <div class="chips">
+              <div class="chip"><div class="chip-init">SW</div><span class="chip-name">Sounwave</span></div>
+              <div class="chip"><div class="chip-init">TC</div><span class="chip-name">THC</span></div>
+              <div class="chip"><div class="chip-init">JB</div><span class="chip-name">Just Blaze</span></div>
+              <div class="chip-more">+4</div>
+            </div>
+          </div>
+
+          <div class="credit-group">
+            <div class="credit-group-label">Written by</div>
+            <div class="chips">
+              <div class="chip"><div class="chip-init">KL</div><span class="chip-name">Kendrick Lamar</span></div>
+              <div class="chip-more">+8</div>
+            </div>
+          </div>
+
+          <div class="credit-group">
+            <div class="credit-group-label">Featuring</div>
+            <div class="chips">
+              <div class="chip"><div class="chip-init chip-init-feat">Dr</div><span class="chip-name">Drake</span></div>
+              <div class="chip"><div class="chip-init chip-init-feat">JR</div><span class="chip-name">Jay Rock</span></div>
+              <div class="chip"><div class="chip-init chip-init-feat">ME</div><span class="chip-name">MC Eiht</span></div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">Links</div>
+          <div class="links-row">
+            <span class="ext-link">Wikipedia</span>
+            <span class="ext-link">Discogs</span>
+            <span class="ext-link">AllMusic</span>
+          </div>
+
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- Artist Info tab -->
+  <div class="phone-wrap">
+    <div class="phone-label">Artist — Info tab</div>
+    <div class="phone" data-choice="artist" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Artists</span>
+
+        <div class="artist-hero">
+          <div class="artist-art"><div class="artist-inits">RH</div></div>
+          <div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div class="hero-type">Artist</div>
+            <div class="artist-title">Radiohead</div>
+            <div class="genre-chips">
+              <span class="genre-chip">Art Rock</span>
+              <span class="genre-chip">Alternative</span>
+              <span class="genre-chip">Electronic</span>
+            </div>
+            <div class="stats" style="margin-top:4px">
+              <span class="stat-val">9</span><span class="stat-muted"> albums</span>
+              <span class="stat-val">214k</span><span class="stat-muted"> plays</span>
+              <span class="stat-amber">★ 4.5</span><span class="stat-muted"> avg</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tabs">
+          <div class="tab">General</div>
+          <div class="tab active">Info</div>
+          <div class="tab">Social</div>
+        </div>
+
+        <div style="padding-top:16px">
+
+          <div class="section-label">About</div>
+          <div class="about-text" style="margin-bottom:16px">
+            English rock band formed in Abingdon in 1985. Their sound evolved from guitar-driven alt-rock to experimental electronic and orchestral textures across nine studio albums.
+            <span class="show-more">Show more</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">Members</div>
+          <div class="members-row" style="margin-bottom:16px">
+            <div class="member"><div class="member-init">TY</div><div class="member-name">Thom Yorke</div></div>
+            <div class="member"><div class="member-init">JG</div><div class="member-name">Jonny Greenwood</div></div>
+            <div class="member"><div class="member-init">EO</div><div class="member-name">Ed O'Brien</div></div>
+            <div class="member"><div class="member-init">PS</div><div class="member-name">Phil Selway</div></div>
+            <div class="member"><div class="member-init">CG</div><div class="member-name">Colin Greenwood</div></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">Labels</div>
+          <div class="label-history" style="margin-bottom:16px">
+            <div class="label-row">
+              <div class="label-dot label-dot-past"></div>
+              <div class="label-link label-link-past">Parlophone</div>
+              <div class="label-years">1992 – 2013</div>
+            </div>
+            <div class="label-row">
+              <div class="label-dot"></div>
+              <div class="label-link">XL Recordings</div>
+              <div class="label-years">2016 – present</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-label">Links</div>
+          <div class="links-row">
+            <span class="ext-link">Wikipedia</span>
+            <span class="ext-link">Official site</span>
+            <span class="ext-link">Discogs</span>
+          </div>
+
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;margin-top:24px;font-size:13px;color:#52525B;max-width:700px;margin-left:auto;margin-right:auto;line-height:1.6">
+  Chips have a border + initials circle to signal tappability — no card wrapping the groups. Featuring in amber, labels in purple, everyone else in emerald. Hover any chip to see the interaction state.
+</div>

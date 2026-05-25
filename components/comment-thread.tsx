@@ -43,7 +43,7 @@ export function CommentToggleButton({ open, onToggle, count }: {
       aria-label="Comments"
       aria-expanded={open}
       className={`flex items-center gap-1.5 transition-colors duration-150 ${
-        open ? 'text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'
+        open ? 'text-gold-400' : 'text-zinc-500 hover:text-zinc-300'
       }`}
     >
       <CommentIcon />
@@ -152,10 +152,10 @@ export function CommentThread(props: Props) {
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Add a comment…"
                 maxLength={500}
-                className="min-w-0 flex-1 rounded-lg bg-zinc-800/60 px-3 py-1.5 text-xs text-white placeholder-zinc-600 outline-none ring-1 ring-zinc-700/60 transition focus:ring-emerald-500/50"
+                className="min-w-0 flex-1 rounded-lg bg-zinc-800/60 px-3 py-1.5 text-xs text-white placeholder-zinc-600 outline-none ring-1 ring-zinc-700/60 transition focus:ring-gold-500/50"
               />
               <button type="submit" disabled={loading || !content.trim()}
-                className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40">
+                className="shrink-0 rounded-lg bg-gold-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gold-500 disabled:opacity-40">
                 Post
               </button>
             </form>

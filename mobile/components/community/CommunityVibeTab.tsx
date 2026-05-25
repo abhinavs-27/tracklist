@@ -30,7 +30,7 @@ function SignatureCard({ communityId }: { communityId: string }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  if (isPending) return <ActivityIndicator color={theme.colors.emerald} style={{ marginVertical: 16 }} />;
+  if (isPending) return <ActivityIndicator color={theme.colors.gold} style={{ marginVertical: 16 }} />;
   if (!data?.hasData) return null;
 
   const roleColor = ROLE_COLOR[data.role] ?? { bg: "rgba(255,255,255,0.06)", text: theme.colors.muted };
@@ -158,7 +158,7 @@ function ConsensusSection({ communityId }: { communityId: string }) {
       </View>
 
       {isPending ? (
-        <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 16 }} />
+        <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 16 }} />
       ) : items.length === 0 ? (
         <Text style={s.empty}>No consensus data yet — log music together.</Text>
       ) : (
@@ -269,7 +269,7 @@ const s = StyleSheet.create({
   tabBtn: { paddingHorizontal: 16, paddingBottom: 10, position: "relative", alignItems: "center" },
   tabLabel: { fontSize: 14, fontWeight: "600", color: theme.colors.muted },
   tabLabelActive: { color: theme.colors.text },
-  tabUnderline: { position: "absolute", bottom: 0, left: "10%", right: "10%", height: 2, borderRadius: 1, backgroundColor: theme.colors.emerald },
+  tabUnderline: { position: "absolute", bottom: 0, left: "10%", right: "10%", height: 2, borderRadius: 1, backgroundColor: theme.colors.gold },
   consensusList: { gap: 4 },
   consensusRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(63,63,70,0.4)" },
   consensusArt: { width: 44, height: 44, borderRadius: 6, flexShrink: 0 },
@@ -289,7 +289,7 @@ const s = StyleSheet.create({
   /* Taste match */
   tasteRow: { flexDirection: "row", alignItems: "baseline", gap: 10, marginTop: 10 },
   tasteScore: { fontSize: 36, fontWeight: "800" },
-  tasteHigh: { color: theme.colors.emerald },
+  tasteHigh: { color: theme.colors.gold },
   tasteMid: { color: "#fbbf24" },
   tasteLow: { color: "#f87171" },
   tasteLabel: { fontSize: 16, fontWeight: "600", color: theme.colors.text },

@@ -1,20 +1,18 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetcher } from "@/lib/api";
 import { theme } from "@/lib/theme";
+import { readCache, writeCache, CACHE_KEYS } from "@/lib/persistent-cache";
 import {
   LISTENING_STYLE_COPY,
   STYLE_ACCENT_COLOR,
   normalizeListeningStyle,
 } from "@repo/lib/taste/listening-style";
 import type { TasteIdentity } from "@repo/lib/taste/types";
-
-const DISMISSED_KEY = "tl:welcome-card-dismissed";
 
 function hexToRgb(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -25,21 +23,17 @@ function hexToRgb(hex: string, alpha: number): string {
 
 export function WelcomeCard() {
   const router = useRouter();
-  const [dismissed, setDismissed] = useState<boolean | null>(null); // null = loading
-
-  // Load dismiss state on mount
-  useEffect(() => {
-    AsyncStorage.getItem(DISMISSED_KEY)
-      .then((v) => setDismissed(v === "1"))
-      .catch(() => setDismissed(false));
-  }, []);
+  // Synchronous read — preloaded at app start, no loading state needed
+  const [dismissed, setDismissed] = useState<boolean>(
+    () => readCache<boolean>(CACHE_KEYS.welcomeDismissed) === true,
+  );
 
   // Fetch taste identity to get style label
   const { data: identity } = useQuery<TasteIdentity>({
     queryKey: ["taste-identity", "me"],
     queryFn: () => fetcher<TasteIdentity>("/api/taste-identity"),
     staleTime: 5 * 60 * 1000,
-    enabled: dismissed === false,
+    enabled: !dismissed,
   });
 
   // Fetch own profile to check Last.fm connection
@@ -47,33 +41,30 @@ export function WelcomeCard() {
     queryKey: ["me", "welcome"],
     queryFn: () => fetcher("/api/users/me"),
     staleTime: 5 * 60 * 1000,
-    enabled: dismissed === false,
+    enabled: !dismissed,
   });
 
-  const dismiss = useCallback(async () => {
+  const dismiss = useCallback(() => {
     setDismissed(true);
-    await AsyncStorage.setItem(DISMISSED_KEY, "1").catch(() => {});
+    writeCache(CACHE_KEYS.welcomeDismissed, true);
   }, []);
 
-  const handleCta = useCallback(async () => {
-    await dismiss();
+  const handleCta = useCallback(() => {
+    dismiss();
     if (!me?.lastfm_username) {
-      // No Last.fm — go to profile settings
       router.push("/(tabs)/profile" as never);
     } else {
-      // Has Last.fm — find people to follow
       router.push("/search/users" as never);
     }
   }, [dismiss, me?.lastfm_username, router]);
 
-  // Don't render while loading dismiss state or if dismissed
-  if (dismissed !== false) return null;
+  if (dismissed) return null;
 
   const styleKey = identity
     ? normalizeListeningStyle(identity.listeningStyle as string)
     : null;
   const hasStyle = styleKey && styleKey !== "still-forming" && identity?.styleResult;
-  const accent = hasStyle ? (STYLE_ACCENT_COLOR[styleKey] ?? theme.colors.emerald) : theme.colors.emerald;
+  const accent = hasStyle ? (STYLE_ACCENT_COLOR[styleKey] ?? theme.colors.gold) : theme.colors.gold;
   const copy = hasStyle ? LISTENING_STYLE_COPY[styleKey] : null;
 
   const ctaLabel = !me?.lastfm_username
@@ -104,7 +95,7 @@ export function WelcomeCard() {
       )}
 
       <Pressable
-        onPress={() => void handleCta()}
+        onPress={handleCta}
         style={({ pressed }) => [s.cta, { backgroundColor: hexToRgb(accent, 0.15) }, pressed && { opacity: 0.75 }]}
       >
         <Text style={[s.ctaText, { color: accent }]}>{ctaLabel}</Text>

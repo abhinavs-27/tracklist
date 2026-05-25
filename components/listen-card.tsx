@@ -36,7 +36,7 @@ export function ListenCard({ log, trackName }: ListenCardProps) {
           <p className="truncate text-sm text-zinc-200">
             <span className="font-medium text-white">{user?.username ?? 'Unknown'}</span>
             {' listened to '}
-            <Link href={`/song/${log.track_id}`} className="text-emerald-400 hover:underline">
+            <Link href={`/song/${log.track_id}`} className="text-gold-400 hover:underline">
               {displayName}
             </Link>
           </p>

@@ -22,7 +22,7 @@ export function CommunityDesktopLeftRail() {
           <li key={item.id}>
             <a
               href={`#${item.id}`}
-              className={`block rounded-md px-1 py-1.5 text-[0.6875rem] leading-snug text-zinc-400 transition hover:bg-zinc-800/55 hover:text-emerald-400/95 ${communityBody}`}
+              className={`block rounded-md px-1 py-1.5 text-[0.6875rem] leading-snug text-zinc-400 transition hover:bg-zinc-800/55 hover:text-gold-400/95 ${communityBody}`}
             >
               {item.label}
             </a>

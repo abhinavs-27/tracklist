@@ -34,7 +34,7 @@ export function VisitorFeed() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/auth/signin?callbackUrl=%2F"
-            className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-emerald-600 px-8 py-3 text-base font-medium text-white shadow-lg shadow-emerald-950/35 transition hover:bg-emerald-500 hover:shadow-xl hover:shadow-emerald-950/40"
+            className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-gold-600 px-8 py-3 text-base font-medium text-white shadow-lg shadow-gold-950/35 transition hover:bg-gold-500 hover:shadow-xl hover:shadow-gold-950/40"
           >
             Sign in with Google
           </Link>

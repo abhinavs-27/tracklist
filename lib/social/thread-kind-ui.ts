@@ -33,9 +33,9 @@ export function threadKindUi(kind: ThreadKindUiKey): ThreadKindUi {
         listHint: "Sender & recipient",
         detailSubhead: "",
         replyPlaceholder: "Short note (optional)",
-        accentBorder: "border-l-4 border-emerald-500/50",
+        accentBorder: "border-l-4 border-gold-500/50",
         badge:
-          "border border-emerald-800/50 bg-emerald-950/45 text-[10px] font-medium uppercase tracking-wide text-emerald-200/90",
+          "border border-gold-800/50 bg-gold-950/45 text-[10px] font-medium uppercase tracking-wide text-gold-200/90",
         iconPlaceholder: "♪",
         heroPanel: "",
       };

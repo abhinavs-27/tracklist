@@ -129,7 +129,7 @@ export function InviteMembersPanel({ communityId }: { communityId: string }) {
         autoCorrect={false}
       />
       {searching ? (
-        <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />
+        <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 8 }} />
       ) : results.length > 0 ? (
         <View style={{ marginTop: 10, gap: 8 }}>
           {results.map((u) => (
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 15, fontWeight: "700", color: theme.colors.text, marginBottom: 12 },
   shareBtn: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     borderRadius: 10,
     paddingVertical: 11,
     alignItems: "center",
@@ -228,5 +228,5 @@ const styles = StyleSheet.create({
   },
   inviteBtnText: { color: theme.colors.text, fontWeight: "600", fontSize: 13 },
   mutedSmall: { marginTop: 8, fontSize: 12, color: theme.colors.muted },
-  msg: { marginTop: 8, fontSize: 12, color: theme.colors.emerald },
+  msg: { marginTop: 8, fontSize: 12, color: theme.colors.gold },
 });

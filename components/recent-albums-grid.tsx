@@ -145,7 +145,7 @@ export function RecentAlbumsGrid({
               <Link
                 key={album.album_id}
                 href={`/album/${album.album_id}`}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/70"
+                className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 focus:outline-none focus:ring-2 focus:ring-gold-400/70"
                 aria-label={album.album_name ?? "Album"}
               >
                 {album.album_image ? (

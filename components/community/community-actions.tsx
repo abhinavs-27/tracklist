@@ -131,11 +131,11 @@ export function CommunityActions({
             aria-label="Membership"
           >
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-emerald-100/95 sm:text-[0.8125rem]"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-gold-100/95 sm:text-[0.8125rem]"
               role="status"
             >
               <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
                 aria-hidden
               />
               Joined
@@ -272,7 +272,7 @@ export function CommunityActions({
                   type="button"
                   disabled={leaveLoading}
                   onClick={() => setLeaveOpen(false)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-500 disabled:opacity-50 sm:order-1"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gold-600 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-gold-500 disabled:opacity-50 sm:order-1"
                 >
                   Stay in community
                 </button>
@@ -318,8 +318,8 @@ export function CommunityActions({
             disabled={loading}
             className={
               hero
-                ? "rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-emerald-950/30 transition hover:bg-emerald-500 disabled:opacity-50 sm:text-[0.8125rem]"
-                : "rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                ? "rounded-full bg-gold-600 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-gold-950/30 transition hover:bg-gold-500 disabled:opacity-50 sm:text-[0.8125rem]"
+                : "rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
             }
           >
             {loading ? "…" : "Accept invite"}
@@ -366,8 +366,8 @@ export function CommunityActions({
         disabled={loading}
         className={
           hero
-            ? "rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 disabled:opacity-50"
-            : "rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            ? "rounded-full bg-gold-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-gold-950/30 transition hover:bg-gold-500 disabled:opacity-50"
+            : "rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
         }
       >
         {loading ? "Joining…" : "Join community"}

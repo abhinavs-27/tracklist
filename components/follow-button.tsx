@@ -59,7 +59,7 @@ export function FollowButton({ userId, initialFollowing, onFollowChange }: Follo
       className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium transition touch-manipulation ${
         following
           ? 'border border-zinc-600 bg-transparent text-zinc-300 hover:border-zinc-500'
-          : 'bg-emerald-600 text-white hover:bg-emerald-500'
+          : 'bg-gold-600 text-white hover:bg-gold-500'
       } disabled:opacity-50`}
     >
       {followMutation.isPending ? '...' : following ? 'Following' : 'Follow'}

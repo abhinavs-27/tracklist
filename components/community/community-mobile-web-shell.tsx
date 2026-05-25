@@ -156,7 +156,7 @@ export function CommunityMobileWebShell({
 
           <div className="space-y-4">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-emerald-500">
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-gold-500">
                 Community vibe
               </p>
               <p
@@ -180,7 +180,7 @@ export function CommunityMobileWebShell({
             {insights ? (
               <>
                 <div
-                  className={`${cardRadius} border border-emerald-500/15 bg-emerald-950/25 px-3 py-3 ring-1 ring-emerald-500/12 transition-colors duration-300 hover:bg-emerald-950/30`}
+                  className={`${cardRadius} border border-gold-500/15 bg-gold-950/25 px-3 py-3 ring-1 ring-gold-500/12 transition-colors duration-300 hover:bg-gold-950/30`}
                 >
                   <p
                     className={`font-medium leading-relaxed text-zinc-100 ${communityBody}`}
@@ -192,7 +192,7 @@ export function CommunityMobileWebShell({
                   <div
                     className={`${cardRadius} border border-white/[0.08] bg-zinc-950/52 ${cardPaddingCompact} ring-1 ring-white/[0.06] transition-all duration-300 motion-safe:hover:scale-[1.01] hover:bg-zinc-900/40`}
                   >
-                    <p className="text-2xl font-extrabold tabular-nums text-emerald-400">
+                    <p className="text-2xl font-extrabold tabular-nums text-gold-400">
                       {pct(insights.explorationScore)}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-zinc-100">
@@ -288,7 +288,7 @@ export function CommunityMobileWebShell({
                       </p>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800">
                         <div
-                          className="h-full rounded-full bg-emerald-500"
+                          className="h-full rounded-full bg-gold-500"
                           style={{
                             width: `${Math.max(8, (g.weight / maxG) * 100)}%`,
                           }}

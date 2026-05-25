@@ -67,7 +67,7 @@ export async function RecentListensSection({ artistId, viewerId }: RecentListens
                 <p className="truncate text-sm font-medium text-white">
                   <Link
                     href={albumId ? `/album/${albumId}` : `/song/${log.track_id}`}
-                    className="hover:text-emerald-400 hover:underline"
+                    className="hover:text-gold-400 hover:underline"
                   >
                     {trackName}
                   </Link>

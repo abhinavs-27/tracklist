@@ -10,12 +10,12 @@ import {
   getReviewsForEntity,
   getTrackStatsForTrackIds,
 } from "@/lib/queries";
-import { isValidSpotifyId } from "@/lib/validation";
+import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export const GET = withHandler(async (_request, { user, params }) => {
     const { id } = params;
-    if (!isValidSpotifyId(id)) return apiBadRequest("Invalid Spotify album id");
+    if (!isValidSpotifyId(id) && !isValidUuid(id)) return apiBadRequest("Invalid album id");
 
     const supabase = await createSupabaseServerClient();
 
@@ -27,7 +27,8 @@ export const GET = withHandler(async (_request, { user, params }) => {
     }
 
     const { album, tracks, canonicalAlbumId } = albumResp;
-    const entityId = canonicalAlbumId ?? id;
+    // When UUID is passed, use it as entity ID fallback if canonical lookup returns null
+    const entityId = canonicalAlbumId ?? (isValidUuid(id) ? id : null) ?? id;
     const metadata_complete = albumDisplayMetadataComplete(album, tracks);
     if (!metadata_complete) {
       scheduleAlbumEnrichment(id);

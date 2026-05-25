@@ -37,6 +37,12 @@ export interface MbRecording {
   relations?: MbRelation[];
 }
 
+export interface MbWork {
+  id: string;
+  title: string;
+  relations?: MbRelation[];
+}
+
 export interface MbTrack {
   recording: MbRecording;
 }
@@ -48,6 +54,7 @@ export interface MbRelation {
   label?: MbLabel;
   recording?: MbRecording;
   release?: MbRelease;
+  work?: MbWork;
   url?: { id: string; resource: string };
   begin?: string | null;
   end?: string | null;

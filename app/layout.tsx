@@ -63,7 +63,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className="overflow-x-clip" style={{ colorScheme: "dark" }}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen overflow-x-clip bg-zinc-950 font-sans text-zinc-100 antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen overflow-x-clip bg-background font-sans text-zinc-100 antialiased`}
       >
         <Suspense
           fallback={

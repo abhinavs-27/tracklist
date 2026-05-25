@@ -264,7 +264,7 @@ export function CreateListModal({ visible, onClose }: Props) {
             style={styles.input}
           />
           {searching ? (
-            <ActivityIndicator color={theme.colors.emerald} />
+            <ActivityIndicator color={theme.colors.gold} />
           ) : searchResults.length > 0 ? (
             <View style={styles.searchList}>
               {searchResults.map((item) => {
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   chipOn: {
-    borderColor: theme.colors.emerald,
+    borderColor: theme.colors.gold,
     backgroundColor: theme.colors.panel,
   },
   chipText: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   chipTextOn: {
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   visRow: {
     flexDirection: "row",
@@ -436,8 +436,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   radioOn: {
-    borderColor: theme.colors.emerald,
-    backgroundColor: theme.colors.emerald,
+    borderColor: theme.colors.gold,
+    backgroundColor: theme.colors.gold,
   },
   visText: {
     fontSize: 14,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   addedBadgeText: {
     fontSize: 11,
     fontWeight: "800",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   },
   check: {
     fontSize: 16,
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
     fontWeight: "800",
   },
   err: {
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   btnPrimary: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,

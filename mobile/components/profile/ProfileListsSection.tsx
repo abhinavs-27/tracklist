@@ -115,7 +115,7 @@ const s = StyleSheet.create({
   headerActions: { flexDirection: "row", gap: 8, alignItems: "center" },
   createBtn: {
     borderRadius: 10,
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },

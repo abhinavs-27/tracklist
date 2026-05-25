@@ -78,7 +78,7 @@ export default async function ExploreHubPage() {
           <p className="mt-1 text-sm text-zinc-400">
             Search by username or browse members with similar taste.
           </p>
-          <span className="mt-4 text-sm font-medium text-emerald-400 transition group-hover:text-emerald-300">
+          <span className="mt-4 text-sm font-medium text-gold-400 transition group-hover:text-gold-300">
             Find people →
           </span>
         </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ReviewsSectionWithData } from "@/components/reviews-section-with-data";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import { SongInfoTab } from "@/components/info-tab/SongInfoTab";
@@ -33,7 +33,7 @@ function TabNav({
         <button key={tab.id} type="button" onClick={() => onChange(tab.id)}
           className={`relative px-5 py-3 text-sm font-medium transition-colors duration-150 ${active === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
           {tab.label}
-          {active === tab.id && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-emerald-400" />}
+          {active === tab.id && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-gold-400" />}
         </button>
       ))}
     </div>
@@ -55,6 +55,7 @@ export function SongPageTabs({
   samples = [],
   sampledBy = [],
   covers = [],
+  creditsEnrichedAt: initialCreditsEnrichedAt = null,
 }: {
   entityId: string;
   trackName: string;
@@ -70,8 +71,60 @@ export function SongPageTabs({
   samples?: any[];
   sampledBy?: any[];
   covers?: any[];
+  creditsEnrichedAt?: string | null;
 }) {
   const [active, setActive] = useState<Tab>("reviews");
+  const initialHasContent = producers.length > 0 || songwriters.length > 0 || featuring.length > 0 || samples.length > 0 || sampledBy.length > 0 || covers.length > 0;
+  const [producersState, setProducers] = useState(producers ?? []);
+  const [songwritersState, setSongwriters] = useState(songwriters ?? []);
+  const [featuringState, setFeaturing] = useState(featuring ?? []);
+  const [samplesState, setSamples] = useState(samples ?? []);
+  const [sampledByState, setSampledBy] = useState(sampledBy ?? []);
+  const [coversState, setCovers] = useState(covers ?? []);
+  const [creditsEnrichedAtState, setCreditsEnrichedAt] = useState(initialCreditsEnrichedAt ?? null);
+  // Only poll when enrichment hasn't run yet (null timestamp at page load).
+  // If the timestamp is already set, enrichment already ran — show the result immediately.
+  const [isPolling, setIsPolling] = useState(!initialHasContent && initialCreditsEnrichedAt === null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollAttemptsRef = useRef(0);
+
+  useEffect(() => {
+    if (initialHasContent || initialCreditsEnrichedAt !== null) return;
+    let cancelled = false;
+    setIsPolling(true);
+    pollAttemptsRef.current = 0;
+    const poll = async () => {
+      if (pollAttemptsRef.current >= 10) {
+        if (!cancelled) setIsPolling(false);
+        return;
+      }
+      pollAttemptsRef.current++;
+      try {
+        const res = await fetch(`/api/songs/${encodeURIComponent(entityId)}`);
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data.credits_enriched_at) {
+            setProducers(data.producers ?? []);
+            setSongwriters(data.songwriters ?? []);
+            setFeaturing(data.featuring ?? []);
+            setSamples(data.samples ?? []);
+            setSampledBy(data.sampled_by ?? []);
+            setCovers(data.covers ?? []);
+            setCreditsEnrichedAt(data.credits_enriched_at);
+            if (!cancelled) setIsPolling(false);
+            return;
+          }
+        }
+      } catch { /* swallow */ }
+      if (!cancelled) pollRef.current = setTimeout(poll, 3000);
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [entityId]); // eslint-disable-line react-hooks/exhaustive-deps
   const max = leaderboard?.[0]?.playCount ?? 1;
   const hasRecommendations = relatedTracks.length > 0;
 
@@ -93,12 +146,13 @@ export function SongPageTabs({
       {active === "info" && (
         <div className="mt-6">
           <SongInfoTab
-            producers={producers}
-            songwriters={songwriters}
-            featuring={featuring}
-            samples={samples}
-            sampledBy={sampledBy}
-            covers={covers}
+            producers={producersState}
+            songwriters={songwritersState}
+            featuring={featuringState}
+            samples={samplesState}
+            sampledBy={sampledByState}
+            covers={coversState}
+            isEnriching={isPolling}
           />
         </div>
       )}
@@ -132,7 +186,7 @@ export function SongPageTabs({
                     <li key={entry.userId}
                       className={`rounded-2xl px-4 py-3 transition ${
                         entry.isViewer
-                          ? "bg-emerald-950/40 ring-1 ring-emerald-500/20"
+                          ? "bg-gold-950/40 ring-1 ring-gold-500/20"
                           : "bg-zinc-900/40 ring-1 ring-white/[0.04]"
                       }`}>
                       <div className="flex items-center gap-3">
@@ -152,16 +206,16 @@ export function SongPageTabs({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2 mb-1.5">
                             <Link href={`/profile/${entry.userId}`}
-                              className={`truncate text-sm font-medium hover:underline ${entry.isViewer ? "text-emerald-300" : "text-zinc-200"}`}>
+                              className={`truncate text-sm font-medium hover:underline ${entry.isViewer ? "text-gold-300" : "text-zinc-200"}`}>
                               {entry.isViewer ? "You" : entry.username}
                             </Link>
-                            <span className={`shrink-0 text-xs tabular-nums font-medium ${entry.isViewer ? "text-emerald-400" : "text-zinc-500"}`}>
+                            <span className={`shrink-0 text-xs tabular-nums font-medium ${entry.isViewer ? "text-gold-400" : "text-zinc-500"}`}>
                               {entry.playCount.toLocaleString()} {entry.playCount === 1 ? "play" : "plays"}
                             </span>
                           </div>
                           <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-800/60">
                             <div
-                              className={`h-full rounded-full transition-all duration-500 ${entry.isViewer ? "bg-emerald-500" : "bg-zinc-500"}`}
+                              className={`h-full rounded-full transition-all duration-500 ${entry.isViewer ? "bg-gold-500" : "bg-zinc-500"}`}
                               style={{ width: `${pct}%` }}
                             />
                           </div>

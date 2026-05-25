@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { Suspense, use } from "react";
 import { getSession } from "@/lib/auth";
 import { getOrFetchTrack, getOrFetchTracksBatch } from "@/lib/spotify-cache";
@@ -51,7 +52,7 @@ function SongPageTabsLoader({
   listensPromise: Promise<ListenLogWithUser[]>;
   relatedPromise: Promise<SpotifyApi.TrackObjectFull[]>;
   leaderboardPromise: Promise<AlbumLeaderboardEntry[] | null>;
-  songInfoPromise: Promise<{ producers: any[]; songwriters: any[]; featuring: any[]; samples: any[]; sampledBy: any[]; covers: any[] }>;
+  songInfoPromise: Promise<{ producers: any[]; songwriters: any[]; featuring: any[]; samples: any[]; sampledBy: any[]; covers: any[]; creditsEnrichedAt: string | null }>;
 }) {
   const reviewsData = use(reviewsPromise);
   const recentListens = use(listensPromise);
@@ -75,6 +76,7 @@ function SongPageTabsLoader({
       samples={songInfo.samples}
       sampledBy={songInfo.sampledBy}
       covers={songInfo.covers}
+      creditsEnrichedAt={songInfo.creditsEnrichedAt}
     />
   );
 }
@@ -109,6 +111,14 @@ export default async function SongPage({ params }: { params: PageParams }) {
   const track = fetched.track;
   const viewerId = session?.user?.id ?? null;
 
+  // Trigger enrichment immediately, non-blocking — enrichSong returns early if already done
+  after(async () => {
+    try {
+      const { enqueueMusicBrainzEnrich } = await import("@/lib/jobs/musicbrainzQueue");
+      await enqueueMusicBrainzEnrich({ name: "enrich_song", songId: entityId });
+    } catch { /* swallow */ }
+  });
+
   // Start secondary fetches immediately after we have the canonical ID and session.
   // These are passed as promises to the loader component which resolves them.
   const reviewsPromise = getReviewsForEntity("song", entityId, 20, viewerId).catch(() => ({
@@ -132,8 +142,12 @@ export default async function SongPage({ params }: { params: PageParams }) {
     : Promise.resolve(null);
   const songInfoPromise = (async () => {
     const supabase = await createSupabaseServerClient();
-    return getSongInfoTabData(supabase, entityId);
-  })().catch(() => ({ producers: [], songwriters: [], featuring: [], samples: [], sampledBy: [], covers: [] }));
+    const [info, metaResult] = await Promise.all([
+      getSongInfoTabData(supabase, entityId),
+      supabase.from("tracks").select("credits_enriched_at").eq("id", entityId).maybeSingle(),
+    ]);
+    return { ...info, creditsEnrichedAt: (metaResult.data?.credits_enriched_at as string | null) ?? null };
+  })().catch(() => ({ producers: [], songwriters: [], featuring: [], samples: [], sampledBy: [], covers: [], creditsEnrichedAt: null }));
 
   const album = track.album;
   const image = album?.images?.[0]?.url;
@@ -163,7 +177,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
             {track.artists?.map((a, i) => (
               <span key={a.id}>
                 {i > 0 && <span className="text-zinc-600"> · </span>}
-                <Link href={`/artist/${a.id}`} className="hover:text-emerald-400 hover:underline">
+                <Link href={`/artist/${a.id}`} className="hover:text-gold-400 hover:underline">
                   {a.name}
                 </Link>
               </span>
@@ -172,7 +186,7 @@ export default async function SongPage({ params }: { params: PageParams }) {
           {album && (
             <p className="mt-1 text-sm text-zinc-500">
               From{" "}
-              <Link href={`/album/${album.id}`} className="text-zinc-400 hover:text-emerald-400 hover:underline">
+              <Link href={`/album/${album.id}`} className="text-zinc-400 hover:text-gold-400 hover:underline">
                 {album.name}
               </Link>
             </p>

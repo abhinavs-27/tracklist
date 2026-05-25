@@ -212,7 +212,7 @@ export default function ArtistDetailScreen() {
   const [tracksExpanded, setTracksExpanded] = useState(false);
   const artistId = useMemo(() => (Array.isArray(id) ? id[0] : id) ?? "", [id]);
 
-  const { artist, albums, topTracks, reviews, communityStats, isLoading, error } = useArtist(artistId);
+  const { artist, albums, topTracks, reviews, communityStats, bio, externalLinks, members, labelHistory, creditsEnrichedAt, isLoading, error } = useArtist(artistId);
   const { data: bundle, isPending: bundlePending } = useArtistDetailBundle(artistId);
   const prefetchAlbum = usePrefetchAlbum();
   const prefetchSong = usePrefetchSong(); // used for TrackRow onPressIn
@@ -224,7 +224,7 @@ export default function ArtistDetailScreen() {
           {/* Nav */}
           <View style={s.nav}>
             <Pressable onPress={() => router.back()} hitSlop={10}>
-              <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+              <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
             </Pressable>
             <SkeletonLine width="45%" style={{ marginHorizontal: 12 }} />
             <View style={{ width: 26 }} />
@@ -276,7 +276,7 @@ export default function ArtistDetailScreen() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <View style={s.nav}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-          <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
         </Pressable>
         <Text style={s.navTitle} numberOfLines={1}>{artist.name}</Text>
         <View style={{ width: 26 }} />
@@ -346,9 +346,11 @@ export default function ArtistDetailScreen() {
           <View style={tab !== "info" ? s.hidden : undefined}>
             <View style={s.tabContent}>
               <ArtistInfoTab
-                bio={(artist as any)?.bio ?? null}
-                members={(artist as any)?.members ?? []}
-                labelHistory={(artist as any)?.label_history ?? []}
+                bio={bio}
+                members={members}
+                labelHistory={labelHistory}
+                externalLinks={externalLinks}
+                isEnriching={creditsEnrichedAt == null}
               />
             </View>
           </View>
@@ -387,15 +389,15 @@ const s = StyleSheet.create({
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
   tabTxt: { fontSize: 14, fontWeight: "600", color: theme.colors.muted },
   tabActive: { color: theme.colors.text },
-  tabLine: { position: "absolute", bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1, backgroundColor: theme.colors.emerald },
+  tabLine: { position: "absolute", bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1, backgroundColor: theme.colors.gold },
   tabContent: { paddingHorizontal: 16, paddingTop: 4 },
   hidden: { display: "none" },
   section: { paddingTop: 24, gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   h2: { fontSize: 18, fontWeight: "800", color: theme.colors.text },
   loadMoreBtn: { paddingTop: 8 },
-  loadMoreText: { fontSize: 13, fontWeight: "600", color: theme.colors.emerald },
-  viewAllText: { fontSize: 13, fontWeight: "600", color: theme.colors.emerald },
+  loadMoreText: { fontSize: 13, fontWeight: "600", color: theme.colors.gold },
+  viewAllText: { fontSize: 13, fontWeight: "600", color: theme.colors.gold },
   ph: { backgroundColor: theme.colors.active, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   trackCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.panel, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border, padding: 14 },
@@ -419,10 +421,10 @@ const s = StyleSheet.create({
   leaderName: { fontSize: 13, fontWeight: "600", color: "#e4e4e7", flexShrink: 1 },
   leaderNameViewer: { color: "#6ee7b7" },
   leaderPlays: { fontSize: 12, color: theme.colors.muted, flexShrink: 0 },
-  leaderPlaysViewer: { color: theme.colors.emerald },
+  leaderPlaysViewer: { color: theme.colors.gold },
   barWrap: { height: 4, borderRadius: 2, backgroundColor: theme.colors.border, overflow: "hidden" },
   barFill: { height: "100%" as unknown as number, borderRadius: 2, backgroundColor: theme.colors.muted },
-  barFillViewer: { backgroundColor: theme.colors.emerald },
+  barFillViewer: { backgroundColor: theme.colors.gold },
   av22: { width: 22, height: 22, borderRadius: 11, overflow: "hidden" },
   av28: { width: 28, height: 28, borderRadius: 14, overflow: "hidden" },
   av32: { width: 32, height: 32, borderRadius: 16, overflow: "hidden" },

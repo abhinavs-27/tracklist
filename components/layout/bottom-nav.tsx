@@ -39,7 +39,7 @@ export function BottomNav({ unreadCount }: { unreadCount: number }) {
                 href={t.href}
                 className={`relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[0.65rem] font-medium transition touch-manipulation ${
                   isActive
-                    ? "text-emerald-400"
+                    ? "text-gold-400"
                     : "text-zinc-500 active:text-zinc-300"
                 }`}
                 aria-current={isActive ? "page" : undefined}
@@ -47,7 +47,7 @@ export function BottomNav({ unreadCount }: { unreadCount: number }) {
                 <span className="relative">
                   <TabIcon active={isActive} />
                   {showBadge ? (
-                    <span className="absolute -right-1 -top-0.5 flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-zinc-950" />
+                    <span className="absolute -right-1 -top-0.5 flex h-2.5 w-2.5 rounded-full bg-gold-500 ring-2 ring-zinc-950" />
                   ) : null}
                 </span>
                 <span className="truncate">{t.label}</span>
@@ -63,7 +63,7 @@ export function BottomNav({ unreadCount }: { unreadCount: number }) {
 function HomeIcon({ className, active }: { className?: string; active?: boolean }) {
   return (
     <svg
-      className={className ?? `h-6 w-6 ${active ? "text-emerald-400" : "text-current"}`}
+      className={className ?? `h-6 w-6 ${active ? "text-gold-400" : "text-current"}`}
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -82,7 +82,7 @@ function HomeIcon({ className, active }: { className?: string; active?: boolean 
 function CompassIcon({ className, active }: { className?: string; active?: boolean }) {
   return (
     <svg
-      className={className ?? `h-6 w-6 ${active ? "text-emerald-400" : "text-current"}`}
+      className={className ?? `h-6 w-6 ${active ? "text-gold-400" : "text-current"}`}
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -102,7 +102,7 @@ function CompassIcon({ className, active }: { className?: string; active?: boole
 function SearchIcon({ className, active }: { className?: string; active?: boolean }) {
   return (
     <svg
-      className={className ?? `h-6 w-6 ${active ? "text-emerald-400" : "text-current"}`}
+      className={className ?? `h-6 w-6 ${active ? "text-gold-400" : "text-current"}`}
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -121,7 +121,7 @@ function SearchIcon({ className, active }: { className?: string; active?: boolea
 function CommunityIcon({ className, active }: { className?: string; active?: boolean }) {
   return (
     <svg
-      className={className ?? `h-6 w-6 ${active ? "text-emerald-400" : "text-current"}`}
+      className={className ?? `h-6 w-6 ${active ? "text-gold-400" : "text-current"}`}
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -140,7 +140,7 @@ function CommunityIcon({ className, active }: { className?: string; active?: boo
 function YouIcon({ className, active }: { className?: string; active?: boolean }) {
   return (
     <svg
-      className={className ?? `h-6 w-6 ${active ? "text-emerald-400" : "text-current"}`}
+      className={className ?? `h-6 w-6 ${active ? "text-gold-400" : "text-current"}`}
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"

@@ -134,7 +134,7 @@ export function CommunityActivityFeed({
       ListFooterComponent={
         feedNextOffset != null && feedLoadingMore ? (
           <View style={styles.footerLoading}>
-            <ActivityIndicator color={theme.colors.emerald} />
+            <ActivityIndicator color={theme.colors.gold} />
           </View>
         ) : null
       }
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   username: { fontWeight: "700", color: theme.colors.text },
   sep: { color: theme.colors.muted, fontWeight: "400" },
-  entityLink: { color: theme.colors.emerald, fontWeight: "600" },
+  entityLink: { color: theme.colors.gold, fontWeight: "600" },
   engagementRow: {
     marginTop: 8,
     alignSelf: "flex-start",
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   engagementText: {
     fontSize: 12,
     fontWeight: "600",
-    color: theme.colors.emerald,
+    color: theme.colors.gold,
   },
   timeMeta: { marginTop: 8, fontSize: 12, color: theme.colors.muted },
   artwork: {

@@ -7,10 +7,19 @@ import { fetchAlbumBioLastfm } from "./fetch-bio";
 
 const BIO_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const CREDIT_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+// When MBID can't be resolved, retry after 7 days instead of blocking for a year
+const MBID_RETRY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isStale(ts: string | null, ttlMs: number): boolean {
   if (!ts) return true;
   return Date.now() - new Date(ts).getTime() > ttlMs;
+}
+
+// Returns a timestamp that will appear stale after `retryInMs` milliseconds.
+// isStale checks: Date.now() - ts > CREDIT_TTL_MS
+// So we set ts = now - (CREDIT_TTL_MS - retryInMs)
+function staleSoonTimestamp(retryInMs: number): string {
+  return new Date(Date.now() - CREDIT_TTL_MS + retryInMs).toISOString();
 }
 
 const RELEASE_TYPE_MAP: Record<string, string> = {
@@ -20,6 +29,9 @@ const RELEASE_TYPE_MAP: Record<string, string> = {
   "Live performance": "live",
   Compilation: "compilation",
 };
+
+const PRODUCER_TYPES = new Set(["producer", "executive producer"]);
+const SONGWRITER_TYPES = new Set(["lyricist", "composer", "writer"]);
 
 export async function enrichAlbum(albumUuid: string): Promise<void> {
   const supabase = createSupabaseAdminClient();
@@ -32,23 +44,24 @@ export async function enrichAlbum(albumUuid: string): Promise<void> {
 
   if (!album) return;
 
-  const needsCredits = isStale(album.credits_enriched_at as string | null, CREDIT_TTL_MS);
+  let needsCredits = isStale(album.credits_enriched_at as string | null, CREDIT_TTL_MS);
   const needsBio = isStale(album.bio_enriched_at as string | null, BIO_TTL_MS);
+
+  // If previously stamped but no MBID was ever found, force a retry now —
+  // we can now resolve Spotify IDs via search (Last.fm imports that weren't matched)
+  if (!needsCredits && !album.mbid && album.credits_enriched_at) needsCredits = true;
 
   if (!needsCredits && !needsBio) return;
 
-  // Resolve MBID from Spotify external ID
+  // ── MBID resolution ───────────────────────────────────────────────────────
   let mbid = album.mbid as string | null;
   if (!mbid && needsCredits) {
-    const { data: extId } = await supabase
-      .from("album_external_ids")
-      .select("external_id")
-      .eq("album_id", albumUuid)
-      .eq("source", "spotify")
-      .maybeSingle();
-
-    if (extId?.external_id) {
-      mbid = await resolveAlbumMbid(extId.external_id as string);
+    // resolveCanonicalAlbumSpotifyInWorker checks album_external_ids first,
+    // then falls back to Spotify search + links the result — handles Last.fm imports
+    const { resolveCanonicalAlbumSpotifyInWorker } = await import("@/lib/jobs/resolve-canonical-spotify");
+    const spotifyId = await resolveCanonicalAlbumSpotifyInWorker(albumUuid);
+    if (spotifyId) {
+      mbid = await resolveAlbumMbid(spotifyId);
       if (mbid) await supabase.from("albums").update({ mbid }).eq("id", albumUuid);
     }
   }
@@ -73,14 +86,21 @@ export async function enrichAlbum(albumUuid: string): Promise<void> {
   }
 
   // ── Credits ────────────────────────────────────────────────────────────────
-  if (!needsCredits || !mbid) {
-    await supabase.from("albums").update({ credits_enriched_at: new Date().toISOString() }).eq("id", albumUuid);
+  if (!needsCredits) return;
+
+  if (!mbid) {
+    // No MBID found — retry in 7 days rather than blocking for a full year
+    await supabase.from("albums")
+      .update({ credits_enriched_at: staleSoonTimestamp(MBID_RETRY_TTL_MS) })
+      .eq("id", albumUuid);
     return;
   }
 
   const mbRelease = await fetchMbRelease(mbid);
   if (!mbRelease) {
-    await supabase.from("albums").update({ credits_enriched_at: new Date().toISOString() }).eq("id", albumUuid);
+    await supabase.from("albums")
+      .update({ credits_enriched_at: staleSoonTimestamp(MBID_RETRY_TTL_MS) })
+      .eq("id", albumUuid);
     return;
   }
 
@@ -92,7 +112,6 @@ export async function enrichAlbum(albumUuid: string): Promise<void> {
   const labelInfo = mbRelease["label-info"]?.[0]?.label;
   if (labelInfo) {
     const labelId = await upsertLabel(supabase, labelInfo);
-    // Insert and ignore duplicate constraint errors
     const { error: labelErr } = await supabase
       .from("album_labels")
       .insert({ album_id: albumUuid, label_id: labelId });
@@ -101,22 +120,41 @@ export async function enrichAlbum(albumUuid: string): Promise<void> {
     }
   }
 
-  // Producer / songwriter relationships directly on the release
-  const relations = mbRelease.relations ?? [];
-  for (const rel of relations) {
+  // ── Credits: release-level relations ──────────────────────────────────────
+  const seenProducers = new Set<string>();
+  const seenSongwriters = new Set<string>();
+
+  async function insertProducer(mbArtist: { id: string; name: string }) {
+    if (seenProducers.has(mbArtist.id)) return;
+    seenProducers.add(mbArtist.id);
+    const artistId = await upsertCreditArtist(supabase, mbArtist, { isProducer: true });
+    const { error } = await supabase.from("album_producers").insert({ album_id: albumUuid, artist_id: artistId });
+    if (error && error.code !== "23505") console.warn("[enrich-album] album_producers insert error", error.message);
+  }
+
+  async function insertSongwriter(mbArtist: { id: string; name: string }) {
+    if (seenSongwriters.has(mbArtist.id)) return;
+    seenSongwriters.add(mbArtist.id);
+    const artistId = await upsertCreditArtist(supabase, mbArtist, { isSongwriter: true });
+    const { error } = await supabase.from("album_songwriters").insert({ album_id: albumUuid, artist_id: artistId });
+    if (error && error.code !== "23505") console.warn("[enrich-album] album_songwriters insert error", error.message);
+  }
+
+  for (const rel of mbRelease.relations ?? []) {
     if (!rel.artist) continue;
-    if (rel.type === "producer") {
-      const artistId = await upsertCreditArtist(supabase, rel.artist, { isProducer: true });
-      const { error } = await supabase.from("album_producers").insert({ album_id: albumUuid, artist_id: artistId });
-      if (error && error.code !== "23505") {
-        console.warn("[enrich-album] album_producers insert error", error.message);
-      }
-    }
-    if (rel.type === "lyricist" || rel.type === "composer" || rel.type === "writer") {
-      const artistId = await upsertCreditArtist(supabase, rel.artist, { isSongwriter: true });
-      const { error } = await supabase.from("album_songwriters").insert({ album_id: albumUuid, artist_id: artistId });
-      if (error && error.code !== "23505") {
-        console.warn("[enrich-album] album_songwriters insert error", error.message);
+    if (PRODUCER_TYPES.has(rel.type)) await insertProducer(rel.artist);
+    else if (SONGWRITER_TYPES.has(rel.type)) await insertSongwriter(rel.artist);
+  }
+
+  // ── Credits: recording-level relations (per-track) ────────────────────────
+  // recording-level-rels populates relations on each track's recording,
+  // giving us producer/songwriter credits that are attached to individual songs.
+  for (const medium of mbRelease.media ?? []) {
+    for (const track of medium.tracks ?? []) {
+      for (const rel of track.recording?.relations ?? []) {
+        if (!rel.artist) continue;
+        if (PRODUCER_TYPES.has(rel.type)) await insertProducer(rel.artist);
+        else if (SONGWRITER_TYPES.has(rel.type)) await insertSongwriter(rel.artist);
       }
     }
   }

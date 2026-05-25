@@ -27,7 +27,7 @@ export function CommunityStatsCard({
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className={communityMeta}>Joined this week</dt>
-          <dd className={`tabular-nums text-lg font-semibold text-emerald-400/95 ${communityBody}`}>
+          <dd className={`tabular-nums text-lg font-semibold text-gold-400/95 ${communityBody}`}>
             +{membersJoinedThisWeek.toLocaleString()}
           </dd>
         </div>

@@ -30,7 +30,7 @@ function TabNav({ active, onChange }: { active: Tab; onChange: (t: Tab) => void 
         >
           {tab.label}
           {active === tab.id && (
-            <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-emerald-400" />
+            <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-gold-400" />
           )}
         </button>
       ))}

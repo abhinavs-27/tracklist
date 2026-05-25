@@ -51,8 +51,8 @@ function deriveSignature(taste: TasteIdentity): Signature {
 const KIND_COLOR: Record<string, string> = {
   shifting:         "bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/20",
   exploring:        "bg-violet-500/15 text-violet-400 ring-1 ring-violet-500/20",
-  stable:           "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20",
-  deepening:        "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20",
+  stable:           "bg-gold-500/15 text-gold-400 ring-1 ring-gold-500/20",
+  deepening:        "bg-gold-500/15 text-gold-400 ring-1 ring-gold-500/20",
   "deep-diver":     "bg-violet-500/15 text-violet-400 ring-1 ring-violet-500/20",
   "steady-explorer":"bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/20",
   skimmer:          "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/20",
@@ -61,7 +61,7 @@ const KIND_COLOR: Record<string, string> = {
   "indie-leaning":  "bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/20",
   mainstream:       "bg-zinc-700/40 text-zinc-400 ring-1 ring-white/[0.06]",
   balanced:         "bg-zinc-700/40 text-zinc-400 ring-1 ring-white/[0.06]",
-  "genre-fluid":    "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20",
+  "genre-fluid":    "bg-gold-500/15 text-gold-400 ring-1 ring-gold-500/20",
   "genre-curious":  "bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/20",
   focused:          "bg-zinc-700/40 text-zinc-400 ring-1 ring-white/[0.06]",
 };

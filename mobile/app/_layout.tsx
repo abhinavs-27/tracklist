@@ -1,4 +1,4 @@
-import { Slot, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -71,7 +71,7 @@ function RootLayoutNav() {
           alignItems: "center",
         }}
       >
-        <ActivityIndicator size="large" color={theme.colors.emerald} />
+        <ActivityIndicator size="large" color={theme.colors.gold} />
       </View>
     );
   }
@@ -81,7 +81,7 @@ function RootLayoutNav() {
       <StatusBar style="light" />
       <NotificationsBootstrap />
       <NotificationsTray />
-      <Slot />
+      <Stack screenOptions={{ headerShown: false }} />
     </>
   );
 }

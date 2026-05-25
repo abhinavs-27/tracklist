@@ -47,9 +47,14 @@ export function TasteIdentity({ userId }: Props) {
           borderColor: theme.colors.border,
           backgroundColor: theme.colors.panelSoft,
           padding: 16,
+          minHeight: 80,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
         }}
       >
-        <ActivityIndicator size="small" color={theme.colors.emerald} />
+        <ActivityIndicator size="small" color={theme.colors.gold} />
+        <Text style={{ fontSize: 12, color: theme.colors.muted }}>Loading taste profile…</Text>
       </View>
     );
   }
@@ -131,6 +136,7 @@ export function TasteIdentity({ userId }: Props) {
                 style={({ pressed }) => ({
                   width: 76,
                   opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.95 : 1 }],
                 })}
               >
                 <View
@@ -177,7 +183,7 @@ export function TasteIdentity({ userId }: Props) {
                 </Text>
                 <Text
                   style={{
-                    fontSize: 10,
+                    fontSize: 12,
                     color: theme.colors.muted,
                     textAlign: "center",
                     marginTop: 2,
@@ -205,7 +211,8 @@ export function TasteIdentity({ userId }: Props) {
                 style={({ pressed }) => ({
                   flexDirection: "row", alignItems: "center", gap: 10,
                   borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border,
-                  padding: 8, backgroundColor: "rgba(9,9,11,0.3)", opacity: pressed ? 0.85 : 1, width: 240,
+                  padding: 8, backgroundColor: "rgba(9,9,11,0.3)", opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.98 : 1 }], width: 240,
                 })}
               >
                 <View style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden", backgroundColor: theme.colors.panel, flexShrink: 0 }}>
@@ -235,7 +242,7 @@ export function TasteIdentity({ userId }: Props) {
             <>
               <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{genresLabel}</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {cardGenres.slice(0, 12).map((g) => (
+                {cardGenres.filter(g => g.weight >= 1).slice(0, 12).map((g) => (
                   <View key={g.name} style={{ borderRadius: 999, borderWidth: 1, borderColor: "rgba(63,63,70,0.8)", paddingVertical: 5, paddingHorizontal: 10, backgroundColor: "rgba(24,24,27,0.8)" }}>
                     <Text style={{ fontSize: 12, color: theme.colors.text }}>
                       {g.name}{" "}<Text style={{ color: theme.colors.muted }}>{Math.round(g.weight)}%</Text>
@@ -271,7 +278,7 @@ function AxisRow({ label, leftLabel, rightLabel, score, pole }: AxisRowProps) {
     return (
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 }}>
         <Text style={{ width: 72, fontSize: 12, color: "#71717a" }}>{label}</Text>
-        <Text style={{ fontSize: 11, color: "#3f3f46", fontStyle: "italic" }}>No data — requires Spotify history</Text>
+        <Text style={{ fontSize: 12, color: "#71717a", fontStyle: "italic" }}>No data — requires Spotify connected</Text>
       </View>
     );
   }
@@ -289,8 +296,8 @@ function AxisRow({ label, leftLabel, rightLabel, score, pole }: AxisRowProps) {
       <View style={{ flex: 1 }}>
         {/* Pole labels above bar — one at each end, no redundancy with result */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 5 }}>
-          <Text style={{ fontSize: 9, color: "#3f3f46" }}>{leftLabel}</Text>
-          <Text style={{ fontSize: 9, color: "#3f3f46" }}>{rightLabel}</Text>
+          <Text style={{ fontSize: 11, color: "#52525b" }}>{leftLabel}</Text>
+          <Text style={{ fontSize: 11, color: "#52525b" }}>{rightLabel}</Text>
         </View>
         {/* Filled progress track — works reliably with percentage in React Native */}
         <View style={{ height: 4, backgroundColor: "#27272a", borderRadius: 999, overflow: "hidden" }}>
@@ -323,8 +330,8 @@ function StyleCard({ identity: t, styleDisplay }: { identity: TasteIdentity; sty
 
       {axes ? (
         <>
-          <Pressable onPress={() => setExpanded(v => !v)} style={{ marginTop: 4 }}>
-            <Text style={{ fontSize: 11, color: "#52525b" }}>
+          <Pressable onPress={() => setExpanded(v => !v)} style={{ marginTop: 4, paddingVertical: 8, paddingHorizontal: 4, alignSelf: "flex-start" }}>
+            <Text style={{ fontSize: 12, color: "#71717a" }}>
               {expanded ? "Hide breakdown ↑" : "Show breakdown ↓"}
             </Text>
           </Pressable>
@@ -334,8 +341,8 @@ function StyleCard({ identity: t, styleDisplay }: { identity: TasteIdentity; sty
               <AxisRow label="Discovery" leftLabel={AXIS_DISPLAY.discovery.left} rightLabel={AXIS_DISPLAY.discovery.right} score={axes.discovery?.score ?? null} pole={axes.discovery?.pole ?? null} />
               <AxisRow label="Mode" leftLabel={AXIS_DISPLAY.mode.left} rightLabel={AXIS_DISPLAY.mode.right} score={axes.mode?.score ?? null} pole={axes.mode?.pole ?? null} />
               <AxisRow label="Signal" leftLabel={AXIS_DISPLAY.signal.left} rightLabel={AXIS_DISPLAY.signal.right} score={axes.signal?.score ?? null} pole={axes.signal?.pole ?? null} />
-              <Text style={{ fontSize: 10, color: "#3f3f46", marginTop: 10 }}>
-                Based on {t.totalLogs.toLocaleString()} plays across {t.topArtists.length} artists
+              <Text style={{ fontSize: 11, color: "#52525b", marginTop: 10 }}>
+                Based on {t.totalLogs.toLocaleString()} listens
               </Text>
             </View>
           ) : null}

@@ -132,7 +132,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
               onChange={(e) => setTitle(e.target.value)}
               maxLength={100}
               placeholder="My favorites"
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
               required
             />
             <p className="mt-0.5 text-xs text-zinc-500">{title.length}/100</p>
@@ -147,7 +147,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="A few words about this list..."
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
             />
           </div>
           <div>
@@ -231,7 +231,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
               placeholder={
                 type === "album" ? "Search albums..." : "Search tracks..."
               }
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder-zinc-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
             />
             {searchLoading && (
               <p className="text-xs text-zinc-500">Searching…</p>
@@ -343,7 +343,7 @@ export function CreateListModal({ onClose, onSuccess }: CreateListModalProps) {
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="rounded-lg bg-gold-600 px-4 py-2 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
             >
               {loading ? "Creating…" : "Create list"}
             </button>

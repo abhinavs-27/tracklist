@@ -42,7 +42,7 @@ export default function AuthCallbackScreen() {
           alignItems: "center",
         }}
       >
-        <ActivityIndicator size="large" color={theme.colors.emerald} />
+        <ActivityIndicator size="large" color={theme.colors.gold} />
       </View>
     );
   }

@@ -100,7 +100,7 @@ export function YearRangeFilter({ value, onChange }: Props) {
             width: 6,
             height: 6,
             borderRadius: 999,
-            backgroundColor: theme.colors.emerald,
+            backgroundColor: theme.colors.gold,
           }}
         />
         <Text
@@ -225,7 +225,7 @@ export function YearRangeFilter({ value, onChange }: Props) {
                   borderRadius: 12,
                   paddingVertical: 10,
                   alignItems: "center",
-                  backgroundColor: theme.colors.emerald,
+                  backgroundColor: theme.colors.gold,
                 }}
               >
                 <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "900" }}>

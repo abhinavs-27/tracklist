@@ -148,7 +148,7 @@ export function ProfileEditModal({ visible, onClose, onSaved, initialUsername, i
 
               {/* Current selection */}
               {loadingFav ? (
-                <ActivityIndicator color={theme.colors.emerald} style={{ marginVertical: 8 }} />
+                <ActivityIndicator color={theme.colors.gold} style={{ marginVertical: 8 }} />
               ) : (
                 <View style={s.favRow}>
                   {favorites.map((f) => (
@@ -182,7 +182,7 @@ export function ProfileEditModal({ visible, onClose, onSaved, initialUsername, i
                     placeholderTextColor={theme.colors.muted}
                     style={[s.input, { marginTop: 10 }]}
                   />
-                  {searching && <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 8 }} />}
+                  {searching && <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 8 }} />}
                   {searchResults.map((a) => (
                     <Pressable
                       key={a.id}
@@ -222,7 +222,7 @@ const s = StyleSheet.create({
   },
   cancel: { fontSize: 16, color: theme.colors.muted },
   title: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
-  save: { fontSize: 16, fontWeight: "700", color: theme.colors.emerald },
+  save: { fontSize: 16, fontWeight: "700", color: theme.colors.gold },
   saveDisabled: { opacity: 0.4 },
   body: { flex: 1, paddingHorizontal: 18, paddingTop: 20 },
   field: { marginBottom: 24 },

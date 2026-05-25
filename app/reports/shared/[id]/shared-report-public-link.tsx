@@ -51,7 +51,7 @@ export function SharedReportPublicLink({ reportId, isPublic }: Props) {
     <div
       className={`rounded-xl border px-4 py-3 transition-colors ${
         copied
-          ? "border-emerald-500/45 bg-emerald-950/35"
+          ? "border-gold-500/45 bg-gold-950/35"
           : "border-zinc-700/80 bg-zinc-900/50"
       }`}
       role="region"
@@ -69,7 +69,7 @@ export function SharedReportPublicLink({ reportId, isPublic }: Props) {
         <button
           type="button"
           onClick={() => void copy()}
-          className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-800/80 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-emerald-600/50 hover:bg-zinc-800"
+          className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-800/80 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-gold-600/50 hover:bg-zinc-800"
         >
           {copied ? "Copied" : "Copy link"}
         </button>

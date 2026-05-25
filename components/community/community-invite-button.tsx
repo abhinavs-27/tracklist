@@ -275,7 +275,7 @@ export function CommunityInviteButton({
                 "Loading link…"
               ) : justCopied ? (
                 <>
-                  <CheckIcon className="h-4 w-4 text-emerald-600" />
+                  <CheckIcon className="h-4 w-4 text-gold-600" />
                   Copied!
                 </>
               ) : linkBusy ? (
@@ -355,7 +355,7 @@ export function CommunityInviteButton({
               <p
                 className={`mt-3 text-sm ${
                   feedback.tone === "success"
-                    ? "text-emerald-400"
+                    ? "text-gold-400"
                     : "text-amber-400/90"
                 }`}
               >

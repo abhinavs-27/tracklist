@@ -104,7 +104,7 @@ export function RatingSection({ albumId, reviewId, myReview, onReviewChange }: P
       />
 
       {submitMutation.isPending && (
-        <ActivityIndicator size="small" color={theme.colors.emerald} style={{ marginTop: 4 }} />
+        <ActivityIndicator size="small" color={theme.colors.gold} style={{ marginTop: 4 }} />
       )}
 
       <View style={s.buttons}>
@@ -230,7 +230,7 @@ const m = StyleSheet.create({
     minHeight: 120,
   },
   submit: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: "center",

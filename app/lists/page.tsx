@@ -20,7 +20,7 @@ export default async function ListsPage() {
 
       {userId && (
         <div className={cardMutedCompact}>
-          <Link href="/you" className="text-emerald-400 hover:underline">
+          <Link href="/you" className="text-gold-400 hover:underline">
             You hub →
           </Link>
           <span className="ml-2 text-zinc-500">
@@ -37,7 +37,7 @@ export default async function ListsPage() {
       {!session && (
         <div className={cardOutlined}>
           <p className="text-zinc-500">
-            <Link href="/auth/signin" className="text-emerald-400 hover:underline">
+            <Link href="/auth/signin" className="text-gold-400 hover:underline">
               Sign in
             </Link>
             {" to create your own lists on your profile."}

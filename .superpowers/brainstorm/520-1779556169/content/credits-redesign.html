@@ -1,0 +1,243 @@
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #09090B; color: #F4F4F5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+  h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #F4F4F5; }
+  .subtitle { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  .grid { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; }
+  .phone { width: 340px; background: #09090B; border: 1.5px solid #27272A; border-radius: 36px; overflow: hidden; padding: 14px 0 0; box-shadow: 0 32px 80px rgba(0,0,0,0.8); cursor: pointer; transition: border-color 0.2s; }
+  .phone:hover { border-color: #10B98150; }
+  .phone.selected { border-color: #10B981; }
+  .phone-inner { padding: 0 14px; }
+  .phone-notch { width: 100px; height: 20px; background: #111; border-radius: 10px; margin: 0 auto 16px; }
+  .nav-back { font-size: 13px; color: #10B981; font-weight: 500; margin-bottom: 16px; display: block; }
+
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #52525B; margin-bottom: 10px; }
+  .divider { height: 1px; background: #27272A; margin: 14px 0; }
+  .bottom-spacer { height: 32px; }
+
+  /* ── OPTION A: Editorial prose ── */
+  .prose-credits { font-size: 14px; line-height: 1.8; color: #71717A; }
+  .prose-credits a { color: #10B981; text-decoration: none; font-weight: 500; }
+  .prose-credits .dot { color: #3F3F46; margin: 0 6px; }
+  .prose-more { display: inline-block; background: #10B98115; border: 1px solid #10B98130; color: #10B981; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 8px; cursor: pointer; vertical-align: middle; margin-left: 3px; }
+  .prose-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #3F3F46; margin-right: 6px; }
+
+  /* ── OPTION B: Chips with avatars ── */
+  .credit-group { margin-bottom: 14px; }
+  .credit-group:last-child { margin-bottom: 0; }
+  .credit-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #3F3F46; margin-bottom: 7px; }
+  .chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip-person { display: flex; align-items: center; gap: 6px; background: #18181B; border: 1px solid #27272A; border-radius: 20px; padding: 5px 10px 5px 5px; cursor: pointer; transition: border-color 0.15s; }
+  .chip-person:hover { border-color: #10B981; }
+  .chip-avatar { width: 22px; height: 22px; border-radius: 11px; background: linear-gradient(135deg, #1a2e1a, #0f1f1f); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #10B981; flex-shrink: 0; letter-spacing: 0; }
+  .chip-name { font-size: 13px; font-weight: 500; color: #D4D4D8; }
+  .chip-label { display: flex; align-items: center; gap: 6px; background: #18181B; border: 1px solid #27272A; border-radius: 20px; padding: 5px 10px 5px 5px; cursor: pointer; }
+  .chip-label-dot { width: 22px; height: 22px; border-radius: 11px; background: linear-gradient(135deg, #1f1a2e, #1a1f2e); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #A78BFA; }
+  .chip-label-name { font-size: 13px; font-weight: 500; color: #D4D4D8; }
+  .chip-more { background: transparent; border: 1px solid #27272A; border-radius: 20px; padding: 5px 10px; font-size: 12px; color: #52525B; cursor: pointer; }
+
+  /* ── OPTION C: Role cards ── */
+  .label-card { background: #18181B; border: 1px solid #27272A; border-radius: 12px; padding: 11px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .label-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #1f1a2e, #1a1f2e); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+  .label-info { flex: 1; min-width: 0; }
+  .label-card-name { font-size: 14px; font-weight: 600; color: #F4F4F5; }
+  .label-card-sub { font-size: 11px; color: #52525B; margin-top: 1px; }
+  .label-arrow { font-size: 12px; color: #3F3F46; }
+
+  .role-block { background: #111115; border: 1px solid #1E1E24; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+  .role-block:last-child { margin-bottom: 0; }
+  .role-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #3F3F46; margin-bottom: 9px; }
+  .role-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .role-chip { font-size: 13px; font-weight: 500; color: #10B981; background: #10B98112; border: 1px solid #10B98128; padding: 4px 11px; border-radius: 10px; cursor: pointer; }
+  .role-chip-feat { font-size: 13px; font-weight: 500; color: #F59E0B; background: #F59E0B12; border: 1px solid #F59E0B28; padding: 4px 11px; border-radius: 10px; cursor: pointer; }
+  .role-more { font-size: 12px; color: #3F3F46; background: transparent; border: 1px solid #1E1E24; padding: 4px 11px; border-radius: 10px; cursor: pointer; }
+
+  /* Members (used in option B + C panels below) */
+  .members-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .member { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 56px; cursor: pointer; }
+  .member-init { width: 44px; height: 44px; border-radius: 22px; background: #18181B; border: 1px solid #27272A; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #A1A1AA; letter-spacing: 0; }
+  .member-name { font-size: 10px; color: #71717A; text-align: center; line-height: 1.3; font-weight: 500; }
+
+  .about-text { font-size: 14px; line-height: 1.65; color: #A1A1AA; }
+  .show-more { color: #10B981; font-size: 13px; font-weight: 500; margin-top: 6px; display: block; }
+</style>
+
+<h2 style="text-align:center">Credits redesign — 3 directions</h2>
+<p class="subtitle" style="text-align:center">All three use initials-only for member avatars. Click to select your favourite.</p>
+
+<div class="grid">
+
+  <!-- OPTION A: Editorial prose -->
+  <div class="phone-wrap">
+    <div class="phone-label">A — Editorial prose</div>
+    <div class="phone" data-choice="a" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Albums</span>
+
+        <div class="section-label">About</div>
+        <div class="about-text" style="margin-bottom:14px">A semi-autobiographical portrait of growing up in Compton. Blends West Coast hip-hop with jazz and soul.<span class="show-more">Show more</span></div>
+
+        <div class="divider"></div>
+
+        <div class="section-label">Credits</div>
+        <div class="prose-credits">
+          <span class="prose-label">Label</span><a href="#">Aftermath</a><span class="dot">·</span><a href="#">Interscope</a><br>
+          <span class="prose-label">Produced</span><a href="#">Sounwave</a>, <a href="#">THC</a>, <a href="#">Just Blaze</a> <span class="prose-more">+4</span><br>
+          <span class="prose-label">Written</span><a href="#">Kendrick Lamar</a> <span class="prose-more">+8</span><br>
+          <span class="prose-label">Feat.</span><a href="#">Drake</a>, <a href="#">Jay Rock</a>, <a href="#">MC Eiht</a>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="section-label">Members</div>
+        <div class="members-row">
+          <div class="member"><div class="member-init">TY</div><div class="member-name">Thom Yorke</div></div>
+          <div class="member"><div class="member-init">JG</div><div class="member-name">Jonny Greenwood</div></div>
+          <div class="member"><div class="member-init">EO</div><div class="member-name">Ed O'Brien</div></div>
+          <div class="member"><div class="member-init">PS</div><div class="member-name">Phil Selway</div></div>
+          <div class="member"><div class="member-init">CG</div><div class="member-name">Colin Greenwood</div></div>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- OPTION B: Chips with avatars -->
+  <div class="phone-wrap">
+    <div class="phone-label">B — Name chips</div>
+    <div class="phone" data-choice="b" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Albums</span>
+
+        <div class="section-label">About</div>
+        <div class="about-text" style="margin-bottom:14px">A semi-autobiographical portrait of growing up in Compton. Blends West Coast hip-hop with jazz and soul.<span class="show-more">Show more</span></div>
+
+        <div class="divider"></div>
+
+        <div class="section-label">Credits</div>
+
+        <div class="credit-group">
+          <div class="credit-group-label">Label</div>
+          <div class="chips-row">
+            <div class="chip-label"><div class="chip-label-dot">♩</div><span class="chip-label-name">Aftermath Entertainment</span></div>
+            <div class="chip-label"><div class="chip-label-dot">♩</div><span class="chip-label-name">Interscope</span></div>
+          </div>
+        </div>
+
+        <div class="credit-group">
+          <div class="credit-group-label">Produced by</div>
+          <div class="chips-row">
+            <div class="chip-person"><div class="chip-avatar">SW</div><span class="chip-name">Sounwave</span></div>
+            <div class="chip-person"><div class="chip-avatar">TC</div><span class="chip-name">THC</span></div>
+            <div class="chip-person"><div class="chip-avatar">JB</div><span class="chip-name">Just Blaze</span></div>
+            <div class="chip-more">+4</div>
+          </div>
+        </div>
+
+        <div class="credit-group">
+          <div class="credit-group-label">Written by</div>
+          <div class="chips-row">
+            <div class="chip-person"><div class="chip-avatar">KL</div><span class="chip-name">Kendrick Lamar</span></div>
+            <div class="chip-more">+8</div>
+          </div>
+        </div>
+
+        <div class="credit-group">
+          <div class="credit-group-label">Featuring</div>
+          <div class="chips-row">
+            <div class="chip-person"><div class="chip-avatar" style="background:linear-gradient(135deg,#2e1f0a,#1f1505);color:#F59E0B">Dr</div><span class="chip-name">Drake</span></div>
+            <div class="chip-person"><div class="chip-avatar" style="background:linear-gradient(135deg,#2e1f0a,#1f1505);color:#F59E0B">JR</div><span class="chip-name">Jay Rock</span></div>
+            <div class="chip-person"><div class="chip-avatar" style="background:linear-gradient(135deg,#2e1f0a,#1f1505);color:#F59E0B">ME</div><span class="chip-name">MC Eiht</span></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Members</div>
+        <div class="members-row">
+          <div class="member"><div class="member-init">TY</div><div class="member-name">Thom Yorke</div></div>
+          <div class="member"><div class="member-init">JG</div><div class="member-name">Jonny Greenwood</div></div>
+          <div class="member"><div class="member-init">EO</div><div class="member-name">Ed O'Brien</div></div>
+          <div class="member"><div class="member-init">PS</div><div class="member-name">Phil Selway</div></div>
+          <div class="member"><div class="member-init">CG</div><div class="member-name">Colin Greenwood</div></div>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+  <!-- OPTION C: Role cards -->
+  <div class="phone-wrap">
+    <div class="phone-label">C — Role cards</div>
+    <div class="phone" data-choice="c" onclick="toggleSelect(this)">
+      <div class="phone-inner">
+        <div class="phone-notch"></div>
+        <span class="nav-back">← Albums</span>
+
+        <div class="section-label">About</div>
+        <div class="about-text" style="margin-bottom:14px">A semi-autobiographical portrait of growing up in Compton. Blends West Coast hip-hop with jazz and soul.<span class="show-more">Show more</span></div>
+
+        <div class="divider"></div>
+
+        <div class="section-label">Credits</div>
+
+        <div class="label-card">
+          <div class="label-icon">🏷</div>
+          <div class="label-info">
+            <div class="label-card-name">Aftermath · Interscope</div>
+            <div class="label-card-sub">Record Label</div>
+          </div>
+          <div class="label-arrow">›</div>
+        </div>
+
+        <div class="role-block">
+          <div class="role-title">Produced by</div>
+          <div class="role-chips">
+            <span class="role-chip">Sounwave</span>
+            <span class="role-chip">THC</span>
+            <span class="role-chip">Just Blaze</span>
+            <span class="role-chip">Hit-Boy</span>
+            <span class="role-more">+3 more</span>
+          </div>
+        </div>
+
+        <div class="role-block">
+          <div class="role-title">Written by</div>
+          <div class="role-chips">
+            <span class="role-chip">Kendrick Lamar</span>
+            <span class="role-more">+8 more</span>
+          </div>
+        </div>
+
+        <div class="role-block">
+          <div class="role-title">Featuring</div>
+          <div class="role-chips">
+            <span class="role-chip-feat">Drake</span>
+            <span class="role-chip-feat">Jay Rock</span>
+            <span class="role-chip-feat">MC Eiht</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-label">Members</div>
+        <div class="members-row">
+          <div class="member"><div class="member-init">TY</div><div class="member-name">Thom Yorke</div></div>
+          <div class="member"><div class="member-init">JG</div><div class="member-name">Jonny Greenwood</div></div>
+          <div class="member"><div class="member-init">EO</div><div class="member-name">Ed O'Brien</div></div>
+          <div class="member"><div class="member-init">PS</div><div class="member-name">Phil Selway</div></div>
+          <div class="member"><div class="member-init">CG</div><div class="member-name">Colin Greenwood</div></div>
+        </div>
+      </div>
+      <div class="bottom-spacer"></div>
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;margin-top:24px;font-size:13px;color:#52525B;max-width:760px;margin-left:auto;margin-right:auto;line-height:1.6">
+  A: liner-notes feel, most compact · B: most tappable, chip-per-person with initials · C: most structured, featuring gets its own color (amber). All use initials only for members — no emojis.
+</div>

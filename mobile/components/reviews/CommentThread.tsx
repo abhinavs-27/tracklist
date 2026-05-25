@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     alignItems: "center",
   },
   postBtnText: {

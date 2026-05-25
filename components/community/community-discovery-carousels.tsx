@@ -31,7 +31,7 @@ export async function CommunityDiscoveryCarousels({ communityId }: Props) {
               <li key={a.entityId} className="w-[132px] shrink-0">
                 <Link
                   href={`/album/${a.entityId}`}
-                  className="block rounded-xl border border-white/[0.08] bg-zinc-950/50 p-2.5 ring-1 ring-white/[0.05] transition hover:border-emerald-500/25 hover:ring-emerald-500/15"
+                  className="block rounded-xl border border-white/[0.08] bg-zinc-950/50 p-2.5 ring-1 ring-white/[0.05] transition hover:border-gold-500/25 hover:ring-gold-500/15"
                 >
                   <div className="relative aspect-square overflow-hidden rounded-lg bg-zinc-900">
                     {a.image ? (
@@ -76,7 +76,7 @@ export async function CommunityDiscoveryCarousels({ communityId }: Props) {
               <li key={a.entityId} className="w-[132px] shrink-0">
                 <Link
                   href={`/artist/${a.entityId}`}
-                  className="block rounded-xl border border-white/[0.08] bg-zinc-950/50 p-2.5 ring-1 ring-white/[0.05] transition hover:border-emerald-500/25 hover:ring-emerald-500/15"
+                  className="block rounded-xl border border-white/[0.08] bg-zinc-950/50 p-2.5 ring-1 ring-white/[0.05] transition hover:border-gold-500/25 hover:ring-gold-500/15"
                 >
                   <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900">
                     {a.image ? (

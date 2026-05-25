@@ -14,7 +14,7 @@ export type TasteCardGenre = Pick<TasteGenre, "name" | "weight">;
 
 const PILL_STYLES = [
   "border-violet-400/25 bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 text-violet-100/95",
-  "border-emerald-400/25 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 text-emerald-100/95",
+  "border-gold-400/25 bg-gradient-to-br from-gold-500/15 to-teal-500/10 text-gold-100/95",
   "border-amber-400/25 bg-gradient-to-br from-amber-500/12 to-orange-500/10 text-amber-100/95",
   "border-sky-400/25 bg-gradient-to-br from-sky-500/15 to-cyan-500/10 text-sky-100/95",
   "border-rose-400/25 bg-gradient-to-br from-rose-500/12 to-pink-500/10 text-rose-100/95",
@@ -145,7 +145,7 @@ export function TasteCard(props: TasteCardProps) {
         className={`overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/95 via-zinc-900/80 to-violet-950/25 shadow-lg shadow-black/25 ${className}`}
       >
         <div
-          className={`border-b border-white/5 bg-gradient-to-r from-emerald-950/20 via-transparent to-violet-950/30 ${padHeader}`}
+          className={`border-b border-white/5 bg-gradient-to-r from-gold-950/20 via-transparent to-violet-950/30 ${padHeader}`}
         >
           {!hideTitle ? (
             <h3
@@ -224,9 +224,9 @@ export function TasteCard(props: TasteCardProps) {
       className={`overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/98 via-zinc-950 to-zinc-950 shadow-xl shadow-black/40 ring-1 ring-white/[0.04] ${className}`}
     >
       {/* Summary */}
-      <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-emerald-950/35 via-zinc-950 to-violet-950/25 px-6 pb-8 pt-8 sm:px-10 sm:pb-10 sm:pt-10">
+      <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-gold-950/35 via-zinc-950 to-violet-950/25 px-6 pb-8 pt-8 sm:px-10 sm:pb-10 sm:pt-10">
         <div
-          className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-emerald-500/[0.07] blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-gold-500/[0.07] blur-3xl"
           aria-hidden
         />
         <div className="relative">
@@ -322,7 +322,7 @@ export function TasteCard(props: TasteCardProps) {
                 <p className="text-[10px] uppercase tracking-wide text-zinc-500">
                   Artist overlap
                 </p>
-                <p className="mt-2 text-2xl font-semibold tabular-nums text-emerald-400 sm:text-3xl">
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-gold-400 sm:text-3xl">
                   {match.overlapScore}%
                 </p>
               </div>
@@ -378,8 +378,8 @@ function StartHereBlock({
       : `Good places to start exploring ${themLabel}'s music.`;
 
   return (
-    <div className="rounded-2xl border border-zinc-800/70 bg-gradient-to-br from-emerald-950/25 via-zinc-950/80 to-zinc-950 p-5 sm:p-6">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/90">
+    <div className="rounded-2xl border border-zinc-800/70 bg-gradient-to-br from-gold-950/25 via-zinc-950/80 to-zinc-950 p-5 sm:p-6">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-gold-500/90">
         Start here
       </p>
       <p className="mt-1 text-xs text-zinc-500">{sub}</p>
@@ -394,7 +394,7 @@ function StartHereBlock({
               <li key={a.id}>
                 <Link
                   href={`/artist/${a.id}`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-2.5 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
+                  className="inline-flex items-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-2.5 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-gold-500/40 hover:text-gold-300"
                 >
                   {a.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -422,7 +422,7 @@ function StartHereBlock({
         {startHere.topAlbum ? (
           <Link
             href={`/album/${startHere.topAlbum.id}`}
-            className="flex gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 transition-colors hover:border-emerald-500/35"
+            className="flex gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 transition-colors hover:border-gold-500/35"
           >
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
               {startHere.topAlbum.imageUrl ? (
@@ -461,7 +461,7 @@ function StartHereBlock({
           startHere.topTrack.albumId ? (
             <Link
               href={`/album/${startHere.topTrack.albumId}`}
-              className="flex gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 transition-colors hover:border-emerald-500/35"
+              className="flex gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 transition-colors hover:border-gold-500/35"
             >
               <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <p className="text-[10px] uppercase tracking-wide text-zinc-500">
@@ -563,12 +563,12 @@ function SharedArtistsList({
                   <div className="flex flex-wrap items-center gap-2 gap-y-1">
                     <Link
                       href={`/artist/${a.id}`}
-                      className="truncate font-medium text-zinc-100 hover:text-emerald-400 hover:underline"
+                      className="truncate font-medium text-zinc-100 hover:text-gold-400 hover:underline"
                     >
                       {a.name}
                     </Link>
                     {lead === "you" ? (
-                      <span className="inline-flex shrink-0 rounded-full border border-emerald-500/35 bg-emerald-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+                      <span className="inline-flex shrink-0 rounded-full border border-gold-500/35 bg-gold-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">
                         {youLabel === "You" ? "You lead" : `${youLabel} leads`}
                       </span>
                     ) : lead === "them" ? (
@@ -587,7 +587,7 @@ function SharedArtistsList({
                     title={`${youLabel} ${a.listenCountUserA} · ${themLabel} ${a.listenCountUserB}`}
                   >
                     <div
-                      className="h-full min-w-px bg-gradient-to-r from-emerald-500 to-emerald-400"
+                      className="h-full min-w-px bg-gradient-to-r from-gold-500 to-gold-400"
                       style={{ flex: flexYou }}
                     />
                     <div
@@ -597,7 +597,7 @@ function SharedArtistsList({
                   </div>
                   <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] tabular-nums text-zinc-500">
                     <span>
-                      <span className="text-emerald-400/95">{youLabel}</span>{" "}
+                      <span className="text-gold-400/95">{youLabel}</span>{" "}
                       {a.listenCountUserA} plays
                     </span>
                     <span>

@@ -141,7 +141,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <span className="text-zinc-400">
             {" discovered "}
             {id ? (
-              <Link href={`/artist/${id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">{name}</Link>
+              <Link href={`/artist/${id}`} className="font-medium text-white hover:text-gold-400 hover:underline">{name}</Link>
             ) : (
               <span className="font-medium text-white">{name}</span>
             )}
@@ -155,7 +155,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <span className="text-zinc-400">
             {" is really into "}
             {id ? (
-              <Link href={`/artist/${id}`} className="font-medium text-white hover:text-emerald-400 hover:underline">{name}</Link>
+              <Link href={`/artist/${id}`} className="font-medium text-white hover:text-gold-400 hover:underline">{name}</Link>
             ) : (
               <span className="font-medium text-white">{name}</span>
             )}{" lately"}
@@ -171,7 +171,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
         return (
           <span className="text-zinc-400">
             {" rated "}
-            <Link href={href} className="font-medium text-white hover:text-emerald-400 hover:underline">{title}</Link>
+            <Link href={href} className="font-medium text-white hover:text-gold-400 hover:underline">{title}</Link>
             <span className="ml-1.5 text-amber-400/90">{formatStarDisplay(rating)}</span>
           </span>
         );
@@ -191,7 +191,7 @@ const FeedStoryBlock = memo(function FeedStoryBlock({
           <span className="text-zinc-400">
             {" created "}
             {lid ? (
-              <Link href={`/lists/${lid}`} className="font-medium text-white hover:text-emerald-400 hover:underline">{title}</Link>
+              <Link href={`/lists/${lid}`} className="font-medium text-white hover:text-gold-400 hover:underline">{title}</Link>
             ) : (
               <span className="font-medium text-white">{title}</span>
             )}

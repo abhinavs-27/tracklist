@@ -98,7 +98,7 @@ export default function AlbumDetailScreen() {
           {/* Nav */}
           <View style={s.nav}>
             <Pressable onPress={() => router.back()} hitSlop={8}>
-              <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+              <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
             </Pressable>
             <SkeletonLine width="50%" style={{ marginHorizontal: 12 }} />
             <View style={{ width: 26 }} />
@@ -160,7 +160,7 @@ export default function AlbumDetailScreen() {
       {/* Nav bar */}
       <View style={s.nav}>
         <Pressable onPress={() => router.back()} hitSlop={16} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
-          <Ionicons name="chevron-back" size={26} color={theme.colors.emerald} />
+          <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
         </Pressable>
         <Text style={s.navTitle} numberOfLines={1}>{album.name}</Text>
         <View style={{ width: 26 }} />
@@ -340,7 +340,7 @@ const s = StyleSheet.create({
     right: 0,
     height: 2,
     borderRadius: 1,
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
   },
   reviewsTab: { gap: 16 },
   yourRating: {

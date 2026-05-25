@@ -24,7 +24,7 @@ const activeChip: Record<
 > = {
   all: "bg-zinc-700 text-white shadow-sm ring-1 ring-white/10",
   recommendation:
-    "bg-emerald-600/90 text-white shadow-sm ring-1 ring-emerald-400/25",
+    "bg-gold-600/90 text-white shadow-sm ring-1 ring-gold-400/25",
   taste_comparison:
     "bg-violet-600/85 text-white shadow-sm ring-1 ring-violet-400/25",
   activity: "bg-sky-600/85 text-white shadow-sm ring-1 ring-sky-400/25",

@@ -56,16 +56,16 @@ export async function SimilarUsersSection({
               <Link href={`/profile/${m.userId}`} className="group flex flex-col items-center gap-1.5 text-center">
                 {u?.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={u.avatar_url} alt="" className="h-[72px] w-[72px] rounded-full object-cover border border-zinc-700 transition group-hover:border-emerald-500/50" />
+                  <img src={u.avatar_url} alt="" className="h-[72px] w-[72px] rounded-full object-cover border border-zinc-700 transition group-hover:border-gold-500/50" />
                 ) : (
                   <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-zinc-800 text-xl font-semibold text-zinc-300 border border-zinc-700">
                     {(u?.username ?? "?")[0]?.toUpperCase()}
                   </span>
                 )}
-                <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight text-zinc-200 group-hover:text-emerald-400">
+                <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight text-zinc-200 group-hover:text-gold-400">
                   {u?.username ?? "Unknown"}
                 </span>
-                <span className="text-[11px] font-bold tabular-nums text-emerald-400">{pct}%</span>
+                <span className="text-[11px] font-bold tabular-nums text-gold-400">{pct}%</span>
                 <span className="text-[10px] text-zinc-500 leading-tight">{tasteSimilarityLabel(m.similarityScore)}</span>
               </Link>
             </li>

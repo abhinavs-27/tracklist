@@ -313,8 +313,8 @@ export function LastfmSection({
     <section className="min-w-0 max-w-full overflow-x-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5">
       <h2 className="text-lg font-semibold text-white">Last.fm</h2>
       {showConnectCta ? (
-        <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-950/25 px-3 py-3">
-          <p className="text-sm font-medium text-emerald-100/95">
+        <div className="mt-3 rounded-lg border border-gold-500/25 bg-gold-950/25 px-3 py-3">
+          <p className="text-sm font-medium text-gold-100/95">
             Connect Last.fm to power your data
           </p>
           <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
@@ -351,7 +351,7 @@ export function LastfmSection({
             placeholder="e.g. your_lastfm_name"
             autoCapitalize="none"
             autoCorrect="off"
-            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
           />
         </div>
         <button
@@ -428,7 +428,7 @@ export function LastfmSection({
                 </p>
               ) : (
                 <p className="mt-3 text-sm text-zinc-400">
-                  <span className="font-medium text-emerald-400/90">
+                  <span className="font-medium text-gold-400/90">
                     {preview.matchedCount} matched
                   </span>
                   {" · "}
@@ -505,7 +505,7 @@ export function LastfmSection({
               type="button"
               disabled={importMutation.isPending || selectedKeys.size === 0}
               onClick={() => importMutation.mutate()}
-              className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 sm:w-auto"
+              className="mt-4 w-full rounded-lg bg-gold-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gold-500 disabled:opacity-50 sm:w-auto"
             >
               {importMutation.isPending
                 ? "Importing…"
@@ -640,7 +640,7 @@ export function LastfmSection({
                 type="button"
                 disabled={listAddBusy || !listPickId || lists.length === 0}
                 onClick={() => void addTracksToList()}
-                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                className="rounded-lg bg-gold-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {listAddBusy ? "Adding…" : "Add tracks"}
               </button>

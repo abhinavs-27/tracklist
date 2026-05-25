@@ -159,5 +159,5 @@ const s = StyleSheet.create({
     backgroundColor: theme.colors.panelSoft,
     alignItems: "center",
   },
-  viewAllText: { color: theme.colors.emerald, fontSize: 14, fontWeight: "600" },
+  viewAllText: { color: theme.colors.gold, fontSize: 14, fontWeight: "600" },
 });

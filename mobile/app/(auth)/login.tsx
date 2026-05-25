@@ -153,7 +153,7 @@ const s = StyleSheet.create({
     opacity: 0.18,
   },
   glowTop: {
-    backgroundColor: theme.colors.emerald,
+    backgroundColor: theme.colors.gold,
     top: -140,
     left: -80,
   },
@@ -174,7 +174,7 @@ const s = StyleSheet.create({
     height: 96,
     borderRadius: 22,
     overflow: "hidden",
-    shadowColor: theme.colors.emerald,
+    shadowColor: theme.colors.gold,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
@@ -280,14 +280,14 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
   legal: {
-    fontSize: 11,
-    color: "#52525b",
+    fontSize: 12,
+    color: theme.colors.muted,
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 18,
     paddingHorizontal: 8,
   },
   legalLink: {
-    color: "#71717a",
+    color: theme.colors.muted,
     textDecorationLine: "underline",
   },
 });

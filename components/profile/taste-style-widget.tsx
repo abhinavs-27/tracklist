@@ -41,7 +41,7 @@ function AxisBar({ label, leftLabel, rightLabel, score, pole }: AxisBarProps) {
           <span className="absolute -top-4 left-0 text-[10px] text-zinc-700">{leftLabel}</span>
           <span className="absolute -top-4 right-0 text-[10px] text-zinc-700">{rightLabel}</span>
           <div
-            className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+            className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-gold-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
             style={{ left: `calc(${pct}% - 6px)` }}
           />
         </div>

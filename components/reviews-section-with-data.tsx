@@ -118,13 +118,13 @@ export function ReviewsSectionWithData({
                 onChange={(e) => setEditText(e.target.value)}
                 rows={3}
                 autoFocus
-                className="w-full rounded-xl border border-zinc-700/80 bg-zinc-800/60 px-3 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30"
+                className="w-full rounded-xl border border-zinc-700/80 bg-zinc-800/60 px-3 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/30"
                 placeholder="What do you think? (optional)"
               />
               {error && <p className="text-xs text-red-400">{error}</p>}
               <div className="flex gap-2">
                 <button type="submit" disabled={submitLoading}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50">
+                  className="rounded-xl bg-gold-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gold-500 disabled:opacity-50">
                   {submitLoading ? "Saving…" : myReview ? "Update" : "Post review"}
                 </button>
                 <button type="button" onClick={() => setTextOpen(false)}

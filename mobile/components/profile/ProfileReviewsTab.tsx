@@ -144,7 +144,7 @@ export function ProfileReviewsTab({ username, isOwnProfile, hasLastfm }: Props) 
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color={theme.colors.emerald} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={theme.colors.gold} style={{ marginTop: 40 }} />
       ) : reviews.length === 0 ? (
         <Text style={s.empty}>
           {isOwnProfile ? "Rate some albums to build your diary." : "No reviews yet."}
@@ -194,7 +194,7 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(24,24,27,0.5)",
   },
   filterBtnActive: {
-    borderColor: theme.colors.emerald,
+    borderColor: theme.colors.gold,
     backgroundColor: "rgba(16,185,129,0.1)",
   },
   filterLabel: { fontSize: 13, fontWeight: "500", color: theme.colors.muted },
