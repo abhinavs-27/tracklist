@@ -234,6 +234,7 @@ export async function runLastfmSync(): Promise<{
   inserted: number;
   failures: number;
 }> {
+  const run = await startJobRun("lastfm_sync");
   const supabase = createSupabaseAdminClient();
 
   const { data: rawUsers, error } = await supabase
@@ -245,6 +246,7 @@ export async function runLastfmSync(): Promise<{
     .limit(MAX_LASTFM_USERS_PER_RUN);
 
   if (error) {
+    void run.finish({ status: "error" });
     throw new Error(error.message);
   }
 
@@ -269,6 +271,11 @@ export async function runLastfmSync(): Promise<{
     }
   }
 
+  void run.finish({
+    status: failures === 0 ? "ok" : "error",
+    items_ok: totalInserted,
+    items_failed: failures,
+  });
   return { ok: true, processed, inserted: totalInserted, failures };
 }
 
