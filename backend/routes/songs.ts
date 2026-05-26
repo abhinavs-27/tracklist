@@ -10,6 +10,35 @@ import { getReviewsForEntity } from "../services/reviewsService";
 
 export const songsRouter = Router();
 
+/** GET /api/songs/:id/info — credits-only info tab data for mobile. Accepts Spotify IDs and canonical UUIDs. */
+songsRouter.get("/:id/info", async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    if (!rawId || (!isValidSpotifyId(rawId) && !isValidUuid(rawId))) {
+      return badRequest(res, "Invalid song id");
+    }
+    if (!isSupabaseConfigured()) return notFound(res, "Song not found");
+
+    const supabase = getSupabase();
+    const canonicalId = await resolveCanonicalTrackUuidFromEntityId(supabase, rawId);
+    if (!canonicalId) return notFound(res, "Song not found");
+
+    const [producersResult, songwritersResult, featResult] = await Promise.all([
+      supabase.from("song_producers").select("artists(id, name)").eq("song_id", canonicalId),
+      supabase.from("song_songwriters").select("artists(id, name)").eq("song_id", canonicalId),
+      supabase.from("track_featuring_artists").select("artists(id, name)").eq("track_id", canonicalId),
+    ]);
+
+    const producers = (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    const songwriters = (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    const featuring = (featResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+
+    return ok(res, { producers, songwriters, featuring });
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
 /** GET /api/songs/:id — track detail for mobile. Accepts Spotify IDs and canonical UUIDs. */
 songsRouter.get("/:id", async (req, res) => {
   try {

@@ -36,17 +36,24 @@ export function ArtistTabs({
   const [externalLinks, setExternalLinks] = useState(initialExternalLinks ?? null);
   const [creditsEnrichedAt, setCreditsEnrichedAt] = useState(initialCreditsEnrichedAt ?? null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollAttemptsRef = useRef(0);
 
   useEffect(() => {
     if (creditsEnrichedAt) return;
+    let cancelled = false;
+    pollAttemptsRef.current = 0;
 
     const poll = async () => {
+      if (pollAttemptsRef.current >= 10) { if (!cancelled) return; return; }
+      pollAttemptsRef.current++;
       try {
         const res = await fetch(`/api/artists/${encodeURIComponent(artistId)}`);
-        if (!res.ok) return;
+        if (cancelled) return;
+        if (!res.ok) { if (!cancelled) pollRef.current = setTimeout(poll, 3000); return; }
         const json = await res.json();
         const data = json.data ?? json;
         if (data.credits_enriched_at) {
+          if (cancelled) return;
           setBio(data.bio ?? null);
           setMembers(data.members ?? []);
           setLabelHistory(data.label_history ?? []);
@@ -55,11 +62,11 @@ export function ArtistTabs({
           return;
         }
       } catch { /* swallow */ }
-      pollRef.current = setTimeout(poll, 3000);
+      if (!cancelled) pollRef.current = setTimeout(poll, 3000);
     };
 
     pollRef.current = setTimeout(poll, 3000);
-    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
+    return () => { cancelled = true; if (pollRef.current) clearTimeout(pollRef.current); };
   }, [artistId, creditsEnrichedAt]);
 
   const tabs: { id: Tab; label: string }[] = [

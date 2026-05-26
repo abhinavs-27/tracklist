@@ -7,7 +7,7 @@ import { SkeletonBox, SkeletonLine, SkeletonScreen } from "@/components/ui/Skele
 import { Ionicons } from "@expo/vector-icons";
 import { formatRelativeTime } from "@/lib/time";
 import { theme } from "@/lib/theme";
-import { useAlbum, useAlbumSocialBundle } from "@/lib/hooks/useAlbum";
+import { useAlbum, useAlbumInfo, useAlbumSocialBundle } from "@/lib/hooks/useAlbum";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { FriendActivityItem } from "@/lib/hooks/useFriendLeaderboard";
@@ -80,6 +80,7 @@ export default function AlbumDetailScreen() {
   }, [id]);
 
   const { album, tracks, stats, reviews, isLoading, error } = useAlbum(albumId);
+  const { bio, producers, songwriters, labels, isLoading: infoLoading } = useAlbumInfo(albumId);
   const { data: social } = useAlbumSocialBundle(albumId);
   const queryClient = useQueryClient();
 
@@ -246,10 +247,11 @@ export default function AlbumDetailScreen() {
         {activeTab === "info" && album && (
           <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
             <AlbumInfoTab
-              bio={(album as any).bio ?? null}
-              producers={(album as any).producers ?? []}
-              songwriters={(album as any).songwriters ?? []}
-              labels={(album as any).labels ?? []}
+              bio={bio}
+              producers={producers}
+              songwriters={songwriters}
+              labels={labels}
+              isLoading={infoLoading}
             />
           </View>
         )}

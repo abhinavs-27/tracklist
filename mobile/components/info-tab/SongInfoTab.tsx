@@ -8,14 +8,33 @@ interface CreditPerson { id: string; name: string; }
 interface Props {
   producers: CreditPerson[]; songwriters: CreditPerson[]; featuring: CreditPerson[];
   samples: SongRef[]; sampledBy: SongRef[]; covers: SongRef[];
+  isLoading?: boolean;
 }
 
 const SECTION_STYLE = { fontSize: 11, fontWeight: "700" as const, textTransform: "uppercase" as const, letterSpacing: 1, color: "#52525B", marginBottom: 8 };
 const HINT_STYLE    = { fontSize: 12, color: "#52525B", marginBottom: 8 };
 const DIV_STYLE     = { height: 1, backgroundColor: "#27272A", marginVertical: 16 };
 
-export function SongInfoTab({ producers, songwriters, featuring, samples, sampledBy, covers }: Props) {
+export function SongInfoTab({ producers, songwriters, featuring, samples, sampledBy, covers, isLoading }: Props) {
   const hasCredits = producers.length > 0 || songwriters.length > 0 || featuring.length > 0;
+  const hasContent = hasCredits || samples.length > 0 || sampledBy.length > 0 || covers.length > 0;
+
+  if (isLoading && !hasContent) {
+    return (
+      <View>
+        <Text style={HINT_STYLE}>Loading info…</Text>
+      </View>
+    );
+  }
+
+  if (!isLoading && !hasContent) {
+    return (
+      <View>
+        <Text style={HINT_STYLE}>No additional information found.</Text>
+      </View>
+    );
+  }
+
   return (
     <View>
       {hasCredits && (

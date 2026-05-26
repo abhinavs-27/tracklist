@@ -122,8 +122,9 @@ export async function getSongInfoTabData(supabase: SupabaseClient, songId: strin
     supabase.from("track_featuring_artists").select("artists(id, name, mbid, image_url)").eq("track_id", songId),
   ]);
 
-  function toSongRef(r: any, trackKey: string): SongRef {
+  function toSongRef(r: any, trackKey: string): SongRef | null {
     const t = r[trackKey];
+    if (!t) return null;
     const releaseDate: string | null = t.albums?.release_date ?? null;
     return {
       id: t.id,
@@ -139,8 +140,8 @@ export async function getSongInfoTabData(supabase: SupabaseClient, songId: strin
     producers: (producersResult.data ?? []).map((r: any) => r.artists) as CreditPerson[],
     songwriters: (songwritersResult.data ?? []).map((r: any) => r.artists) as CreditPerson[],
     featuring: (featResult.data ?? []).map((r: any) => r.artists) as CreditPerson[],
-    samples: (samplesResult.data ?? []).map((r) => toSongRef(r, "tracks")),
-    sampledBy: (sampledByResult.data ?? []).map((r) => toSongRef(r, "tracks")),
-    covers: (coversResult.data ?? []).map((r) => toSongRef(r, "tracks")),
+    samples: (samplesResult.data ?? []).map((r) => toSongRef(r, "tracks")).filter((x): x is SongRef => x !== null),
+    sampledBy: (sampledByResult.data ?? []).map((r) => toSongRef(r, "tracks")).filter((x): x is SongRef => x !== null),
+    covers: (coversResult.data ?? []).map((r) => toSongRef(r, "tracks")).filter((x): x is SongRef => x !== null),
   };
 }

@@ -15,7 +15,7 @@ interface Props {
   label: string;
   people: CreditPerson[];
   color: ColorKey;
-  navPath: (id: string) => string;
+  navPath?: (id: string) => string;
   maxShown?: number;
 }
 
@@ -36,11 +36,17 @@ export function CreditsBlock({ label, people, color, navPath, maxShown = 4 }: Pr
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center" }}>
         {shown.map((p, i) => (
           <View key={p.id} style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable onPress={() => router.push(navPath(p.id) as any)}>
-              <Text style={{ fontSize: 14, fontWeight: "500", color: nameColor, textDecorationLine: "underline", textDecorationColor: nameColor + "40" }}>
+            {navPath ? (
+              <Pressable onPress={() => router.push(navPath(p.id) as any)}>
+                <Text style={{ fontSize: 14, fontWeight: "500", color: nameColor, textDecorationLine: "underline", textDecorationColor: nameColor + "40" }}>
+                  {p.name}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={{ fontSize: 14, fontWeight: "500", color: nameColor }}>
                 {p.name}
               </Text>
-            </Pressable>
+            )}
             {i < shown.length - 1 && (
               <Text style={{ fontSize: 14, color: "#3F3F46", marginRight: 4 }}>,</Text>
             )}

@@ -8,7 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { theme } from "@/lib/theme";
-import { useSong, type RecentListenItem, type RecommendedTrack } from "@/lib/hooks/useSong";
+import { useSong, useSongInfo, type RecentListenItem, type RecommendedTrack } from "@/lib/hooks/useSong";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useSongLeaderboard } from "@/lib/hooks/useFriendLeaderboard";
 import { FriendLeaderboard } from "@/components/social/FriendLeaderboard";
@@ -59,6 +59,7 @@ export default function SongDetailScreen() {
 
   const songId = useMemo(() => (Array.isArray(id) ? id[0] : id) ?? "", [id]);
   const { song, stats, reviews, myReview, reviewStats, recentListens, recommended, isLoading, error } = useSong(songId);
+  const { producers, songwriters, featuring, samples, sampledBy, covers, isLoading: infoLoading } = useSongInfo(songId);
   const { data: leaderboard = [] } = useSongLeaderboard(songId, loggedIn);
 
   const invalidateSong = () => {
@@ -225,12 +226,13 @@ export default function SongDetailScreen() {
         {activeTab === "info" && song && (
           <View style={s.tabContent}>
             <SongInfoTab
-              producers={(song as any).producers ?? []}
-              songwriters={(song as any).songwriters ?? []}
-              featuring={(song as any).featuring ?? []}
-              samples={(song as any).samples ?? []}
-              sampledBy={(song as any).sampled_by ?? []}
-              covers={(song as any).covers ?? []}
+              producers={producers}
+              songwriters={songwriters}
+              featuring={featuring}
+              samples={samples}
+              sampledBy={sampledBy}
+              covers={covers}
+              isLoading={infoLoading}
             />
           </View>
         )}

@@ -83,6 +83,31 @@ export function useAlbum(albumId: string) {
   return { album, tracks, stats, reviews, isLoading, error };
 }
 
+export type AlbumInfoData = {
+  bio: string | null;
+  bio_source: string | null;
+  release_type: string | null;
+  producers: { id: string; name: string }[];
+  songwriters: { id: string; name: string }[];
+  labels: { id: string; name: string; mbid: string | null }[];
+};
+
+export function useAlbumInfo(albumId: string) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["album-info", albumId],
+    queryFn: () => fetcher<AlbumInfoData>(`/api/albums/${encodeURIComponent(albumId)}/info`),
+    enabled: !!albumId,
+    staleTime: 10 * 60 * 1000,
+  });
+  return {
+    bio: data?.bio ?? null,
+    producers: data?.producers ?? [],
+    songwriters: data?.songwriters ?? [],
+    labels: data?.labels ?? [],
+    isLoading,
+  };
+}
+
 type MyReviewResponse = {
   my_review: { id: string; rating: number; review_text: string | null } | null;
 };

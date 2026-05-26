@@ -10,6 +10,53 @@ import { getSessionUserId } from "../lib/auth";
 
 export const albumsRouter = Router();
 
+/** GET /api/albums/:id/info — bio + credits info tab data for mobile. Accepts Spotify IDs and canonical UUIDs. */
+albumsRouter.get("/:id/info", async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    if (!rawId || (!isValidSpotifyId(rawId) && !isValidUuid(rawId))) {
+      return badRequest(res, "Invalid album id");
+    }
+    if (!isSupabaseConfigured()) return notFound(res, "Album not found");
+
+    const supabase = getSupabase();
+    const canonicalId = isValidUuid(rawId)
+      ? rawId
+      : await resolveCanonicalAlbumUuidFromEntityId(supabase, rawId);
+    if (!canonicalId) return notFound(res, "Album not found");
+
+    const { data: albumMeta } = await supabase
+      .from("albums")
+      .select("bio, bio_source, release_type, credits_enriched_at")
+      .eq("id", canonicalId)
+      .maybeSingle();
+
+    if (!albumMeta) return notFound(res, "Album not found");
+
+    const [producersResult, songwritersResult, labelsResult] = await Promise.all([
+      supabase.from("album_producers").select("artists(id, name)").eq("album_id", canonicalId),
+      supabase.from("album_songwriters").select("artists(id, name)").eq("album_id", canonicalId),
+      supabase.from("album_labels").select("labels(id, name)").eq("album_id", canonicalId),
+    ]);
+
+    const producers = (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    const songwriters = (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    const labels = (labelsResult.data ?? []).map((r: any) => r.labels).filter(Boolean);
+
+    return ok(res, {
+      bio: (albumMeta as any).bio ?? null,
+      bio_source: (albumMeta as any).bio_source ?? null,
+      release_type: (albumMeta as any).release_type ?? null,
+      credits_enriched_at: (albumMeta as any).credits_enriched_at ?? null,
+      producers,
+      songwriters,
+      labels,
+    });
+  } catch (e) {
+    return internalError(res, e);
+  }
+});
+
 // In-process cache — avoids repeated Spotify API calls for the same album.
 // TTL 5 minutes matches the mobile app's staleTime.
 type CachedAlbum = { data: object; expiresAt: number };

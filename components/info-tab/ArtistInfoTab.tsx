@@ -38,6 +38,9 @@ export function ArtistInfoTab({ bio, members, labelHistory, externalLinks, isLoa
           Fetching info…
         </div>
       )}
+      {!hasContent && !isEnriching && (
+        <p className="text-sm text-zinc-500">No additional information found for this artist.</p>
+      )}
       {bio && (
         <section>
           <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-3">About</p>

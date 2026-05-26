@@ -49,6 +49,33 @@ type SongApiResponse = {
   recommended: RecommendedTrack[];
 };
 
+export type SongInfoData = {
+  producers: { id: string; name: string }[];
+  songwriters: { id: string; name: string }[];
+  featuring: { id: string; name: string }[];
+  samples: any[];
+  sampledBy: any[];
+  covers: any[];
+};
+
+export function useSongInfo(songId: string) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["song-info", songId],
+    queryFn: () => fetcher<SongInfoData>(`/api/songs/${encodeURIComponent(songId)}/info`),
+    enabled: !!songId,
+    staleTime: 10 * 60 * 1000,
+  });
+  return {
+    producers: data?.producers ?? [],
+    songwriters: data?.songwriters ?? [],
+    featuring: data?.featuring ?? [],
+    samples: data?.samples ?? [],
+    sampledBy: data?.sampledBy ?? [],
+    covers: data?.covers ?? [],
+    isLoading,
+  };
+}
+
 export function useSong(songId: string) {
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.song(songId),

@@ -65,7 +65,7 @@ export function AlbumInfoTab({ bio, producers, songwriters, labels, externalLink
       )}
       {hasCredits && (
         <section>
-          <CreditsBlock label="Label" people={labelPeople} entityPath={(id) => `/label/${id}`} />
+          <CreditsBlock label="Label" people={labelPeople} />
           <CreditsBlock label="Produced by" people={producers} entityPath={(id) => `/artist/${id}`} />
           <CreditsBlock label="Written by" people={songwriters} entityPath={(id) => `/artist/${id}`} />
         </section>
