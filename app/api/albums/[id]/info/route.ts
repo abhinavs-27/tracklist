@@ -18,6 +18,11 @@ export const GET = withHandler(async (_request, { params }) => {
 
   if (!albumMeta) return apiNotFound("Album not found");
 
+  // Trigger enrichment non-blocking — returns early if already done
+  void import("@/lib/jobs/musicbrainzQueue").then(({ enqueueMusicBrainzEnrich }) =>
+    enqueueMusicBrainzEnrich({ name: "enrich_album", albumId: id }),
+  );
+
   const infoTabData = await getAlbumInfoTabData(supabase, id);
 
   return apiOk({

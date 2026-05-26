@@ -31,6 +31,11 @@ export const GET = withHandler(async (_request, { params }) => {
 
   if (!trackMeta) return apiNotFound("Song not found");
 
+  // Trigger enrichment non-blocking — returns early if already done
+  void import("@/lib/jobs/musicbrainzQueue").then(({ enqueueMusicBrainzEnrich }) =>
+    enqueueMusicBrainzEnrich({ name: "enrich_song", songId: canonicalId }),
+  );
+
   const infoTabData = await getSongInfoTabData(supabase, canonicalId);
 
   return apiOk({
