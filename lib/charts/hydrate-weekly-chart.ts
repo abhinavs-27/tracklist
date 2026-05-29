@@ -52,8 +52,8 @@ export async function hydrateWeeklyChartRankings(
       }
       const t = byId.get(r.entity_id) ?? null;
       const resolvedName = t?.name?.trim();
-      if (!resolvedName) {
-        // Enqueue enrichment so the next render picks up the real name
+      const resolvedImage = t?.album?.images?.[0]?.url ?? null;
+      if (!resolvedName || !resolvedImage) {
         void enqueueSpotifyEnrich({ name: "enrich_track", trackId: r.entity_id }).catch(() => {});
       }
       const artistName =
@@ -64,7 +64,7 @@ export async function hydrateWeeklyChartRankings(
       return {
         ...r,
         name: resolvedName ?? "Unknown track",
-        image: t?.album?.images?.[0]?.url ?? null,
+        image: resolvedImage,
         artist_name: artistName?.trim() || null,
       };
     });
@@ -85,14 +85,15 @@ export async function hydrateWeeklyChartRankings(
       }
       const a = byId.get(r.entity_id) ?? null;
       const resolvedAlbumName = a?.name?.trim();
-      if (!resolvedAlbumName) {
+      const resolvedAlbumImage = a?.images?.[0]?.url ?? null;
+      if (!resolvedAlbumName || !resolvedAlbumImage) {
         void enqueueSpotifyEnrich({ name: "enrich_album", albumId: r.entity_id }).catch(() => {});
       }
       const artistName = a?.artists?.[0]?.name ?? null;
       return {
         ...r,
         name: resolvedAlbumName ?? "Unknown album",
-        image: a?.images?.[0]?.url ?? null,
+        image: resolvedAlbumImage,
         artist_name: artistName?.trim() || null,
       };
     });
@@ -111,10 +112,15 @@ export async function hydrateWeeklyChartRankings(
       return { ...r, name: "Unknown artist", image: null, artist_name: null };
     }
     const a = byId.get(r.entity_id) ?? null;
+    const resolvedArtistName = a?.name?.trim();
+    const resolvedArtistImage = a?.images?.[0]?.url ?? null;
+    if (!resolvedArtistName || !resolvedArtistImage) {
+      void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: r.entity_id }).catch(() => {});
+    }
     return {
       ...r,
-      name: a?.name ?? r.entity_id,
-      image: a?.images?.[0]?.url ?? null,
+      name: resolvedArtistName ?? r.entity_id,
+      image: resolvedArtistImage,
       artist_name: null,
     };
   });
