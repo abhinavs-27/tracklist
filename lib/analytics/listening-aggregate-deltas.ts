@@ -90,6 +90,21 @@ export type AggregateCatalogContext = {
 /**
  * Loads songs / albums / artists needed to attribute listens for aggregate deltas.
  */
+// PostgREST GET URLs break around 8KB; 100 UUIDs ≈ 3,800 chars, safely under that.
+const CATALOG_IN_CHUNK = 100;
+
+async function inChunks<T>(
+  ids: string[],
+  fetch: (chunk: string[]) => Promise<T[]>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += CATALOG_IN_CHUNK) {
+    const rows = await fetch(ids.slice(i, i + CATALOG_IN_CHUNK));
+    out.push(...rows);
+  }
+  return out;
+}
+
 export async function loadAggregateCatalogForLogs(
   admin: SupabaseClient,
   rows: AggregateLogRow[],
@@ -101,15 +116,19 @@ export async function loadAggregateCatalogForLogs(
     ...new Set(rows.map((r) => r.album_id).filter(Boolean) as string[]),
   ];
 
-  const { data: songs } = trackIds.length
-    ? await admin.from("tracks").select("id, artist_id, album_id").in("id", trackIds)
-    : { data: [] };
+  const songRows = trackIds.length
+    ? await inChunks(trackIds, async (chunk) => {
+        const { data, error } = await admin
+          .from("tracks")
+          .select("id, artist_id, album_id")
+          .in("id", chunk);
+        if (error) console.warn("[aggregate-catalog] tracks fetch", error.message);
+        return (data ?? []) as { id: string; artist_id: string | null; album_id: string | null }[];
+      })
+    : [];
 
   const songByTrack = new Map(
-    (songs ?? []).map((s) => [
-      s.id,
-      s as { artist_id: string | null; album_id: string | null },
-    ]),
+    songRows.map((s) => [s.id, s as { artist_id: string | null; album_id: string | null }]),
   );
 
   const albumIds = [
@@ -121,12 +140,19 @@ export async function loadAggregateCatalogForLogs(
     ]),
   ];
 
-  const { data: albums } = albumIds.length
-    ? await admin.from("albums").select("id, artist_id").in("id", albumIds)
-    : { data: [] };
+  const albumRows = albumIds.length
+    ? await inChunks(albumIds, async (chunk) => {
+        const { data, error } = await admin
+          .from("albums")
+          .select("id, artist_id")
+          .in("id", chunk);
+        if (error) console.warn("[aggregate-catalog] albums fetch", error.message);
+        return (data ?? []) as { id: string; artist_id: string }[];
+      })
+    : [];
 
   const albumById = new Map(
-    (albums ?? []).map((a) => [a.id, a as { artist_id: string }]),
+    albumRows.map((a) => [a.id, a as { artist_id: string }]),
   );
 
   const artistIds = new Set<string>();
@@ -144,18 +170,19 @@ export async function loadAggregateCatalogForLogs(
     if (la) artistIds.add(la);
   }
 
-  const { data: artists } = artistIds.size
-    ? await admin
-        .from("artists")
-        .select("id, genres")
-        .in("id", [...artistIds])
-    : { data: [] };
+  const artistRows = artistIds.size
+    ? await inChunks([...artistIds], async (chunk) => {
+        const { data, error } = await admin
+          .from("artists")
+          .select("id, genres")
+          .in("id", chunk);
+        if (error) console.warn("[aggregate-catalog] artists fetch", error.message);
+        return (data ?? []) as { id: string; genres: string[] | null }[];
+      })
+    : [];
 
   const artistById = new Map(
-    (artists ?? []).map((a) => [
-      a.id,
-      a as { id: string; genres: string[] | null },
-    ]),
+    artistRows.map((a) => [a.id, a as { id: string; genres: string[] | null }]),
   );
 
   return { songByTrack, albumById, artistById };
