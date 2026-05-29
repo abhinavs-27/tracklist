@@ -12,7 +12,9 @@ import { isUnknownWeeklyChartEntityId } from "@/lib/charts/weekly-chart-unknown"
 import type { ChartType } from "@/lib/charts/weekly-chart-types";
 
 const LOG_PAGE = 5000;
-const CATALOG_CHUNK = 400;
+// PostgREST uses GET with query params for .in() — 400 UUIDs exceeds the ~8KB URL limit.
+// 100 UUIDs ≈ 3,800 chars, safely under that limit.
+const CATALOG_CHUNK = 100;
 
 export type WeeklyChartLogRow = {
   track_id: string | null;
