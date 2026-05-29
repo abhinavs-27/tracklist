@@ -22,5 +22,13 @@ export function createSupabaseServiceRoleClient() {
     );
   }
 
-  return createClient(url, serviceKey);
+  return createClient(url, serviceKey, {
+    realtime: {
+      // Node.js 20 lacks native WebSocket. Server-side code never uses realtime
+      // subscriptions, so a no-op stub satisfies the constructor check.
+      ...(typeof globalThis.WebSocket === "undefined"
+        ? { transport: class {} as unknown as typeof WebSocket }
+        : {}),
+    },
+  });
 }

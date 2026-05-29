@@ -29,6 +29,7 @@
     "backfill:taste-snapshots": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-taste-snapshots.ts",
     "backfill:blind-spots": "REDIS_URL='' NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-blind-spots.ts",
     "backfill:musicbrainz-credits": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-musicbrainz-credits.ts",
+    "backfill:billboard-weeks": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-billboard-weeks.ts",
     "build:lambda:taste-snapshot": "node scripts/build-lambda-taste-snapshot.mjs",
     "build:lambda:enrich-drain": "node scripts/build-lambda-enrich-drain.mjs",
     "build:lambda:spotify-enrichment-retry": "node scripts/build-lambda-spotify-enrichment-retry.mjs"
