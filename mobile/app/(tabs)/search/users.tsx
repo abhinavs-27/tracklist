@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   },
   reasonDot: {
     fontSize: 12,
-    color: "#34d399",
+    color: "#C8973A",
     marginTop: 1,
     flexShrink: 0,
   },

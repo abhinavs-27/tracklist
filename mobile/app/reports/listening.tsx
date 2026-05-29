@@ -431,7 +431,7 @@ const s = StyleSheet.create({
   statUp: { color: theme.colors.gold },
   statDown: { color: "#ef4444" },
   heroCard: { flexDirection: "row", alignItems: "stretch", overflow: "hidden", borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, marginBottom: 8 },
-  heroRankPanel: { width: 60, backgroundColor: "#059669", alignItems: "center", justifyContent: "center" },
+  heroRankPanel: { width: 60, backgroundColor: "#C8973A", alignItems: "center", justifyContent: "center" },
   heroRankText: { fontSize: 22, fontWeight: "900", color: "rgba(255,255,255,0.9)" },
   heroArtWrap: { width: 44, height: 44, margin: 10, borderRadius: 7, overflow: "hidden", backgroundColor: theme.colors.active, flexShrink: 0 },
   heroArt: { width: 44, height: 44 },

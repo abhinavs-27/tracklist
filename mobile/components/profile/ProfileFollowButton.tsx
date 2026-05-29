@@ -87,7 +87,7 @@ export function ProfileFollowButton({
           paddingVertical: 10,
           paddingHorizontal: 16,
           borderRadius: 999,
-          backgroundColor: following ? "transparent" : "#059669",
+          backgroundColor: following ? "transparent" : "#C8973A",
           borderWidth: 1,
           borderColor: following ? "#52525b" : "transparent",
           alignSelf: "flex-start",

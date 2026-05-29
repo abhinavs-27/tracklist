@@ -36,6 +36,8 @@ declare namespace SpotifyApi {
     name: string;
     artists: ArtistObjectSimplified[];
     duration_ms?: number;
+    track_number?: number;
+    disc_number?: number;
   }
 
   interface TrackObjectFull extends TrackObjectSimplified {

@@ -7,54 +7,62 @@ import type {
   PulseTrend,
 } from "@/lib/profile/profile-pulse";
 
-function PulseArrow({
+function IconSquare({
   trend,
-  className = "",
+  variant = "mover",
 }: {
-  trend: PulseTrend;
-  className?: string;
+  trend?: PulseTrend;
+  variant?: "mover" | "discovery" | "shift";
 }) {
-  const base = `shrink-0 ${className}`;
-  if (trend === "flat") {
+  if (variant === "discovery") {
     return (
-      <span
-        className={`${base} inline-flex h-6 w-6 items-center justify-center text-zinc-500`}
-        title="Steady"
-        aria-hidden
-      >
-        <span className="text-base leading-none">↔</span>
-      </span>
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/12 ring-1 ring-violet-500/20">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M12 5v14M5 12h14" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
     );
   }
+
+  if (variant === "shift") {
+    const up = trend === "up";
+    const flat = trend === "flat";
+    const color = flat ? "#71717a" : up ? "#fbbf24" : "#f87171";
+    const bg = flat ? "bg-zinc-700/20" : up ? "bg-amber-500/12" : "bg-rose-500/12";
+    const ring = flat ? "ring-zinc-600/20" : up ? "ring-amber-500/20" : "ring-rose-500/20";
+    return (
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${bg} ring-1 ${ring}`}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          {flat ? (
+            <path d="M5 12h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+          ) : up ? (
+            <path d="M12 19V5M6 11l6-6 6 6" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          ) : (
+            <path d="M12 5v14M6 13l6 6 6-6" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+        </svg>
+      </div>
+    );
+  }
+
+  // mover (volume up/down/flat)
   const up = trend === "up";
+  const flat = trend === "flat";
+  const color = flat ? "#71717a" : up ? "#34d399" : "#f87171";
+  const bg = flat ? "bg-zinc-700/20" : up ? "bg-emerald-500/12" : "bg-rose-500/12";
+  const ring = flat ? "ring-zinc-600/20" : up ? "ring-emerald-500/20" : "ring-rose-500/20";
   return (
-    <span
-      className={`${base} inline-flex h-6 w-6 items-center justify-center ${
-        up ? "text-gold-400" : "text-rose-400"
-      }`}
-      title={up ? "Up" : "Down"}
-      aria-hidden
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-        {up ? (
-          <path
-            d="M12 19V5M12 5l-6 6M12 5l6 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${bg} ring-1 ${ring}`}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+        {flat ? (
+          <path d="M5 12h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+        ) : up ? (
+          <path d="M12 19V5M6 11l6-6 6 6" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         ) : (
-          <path
-            d="M12 5v14M12 19l-6-6M12 19l6-6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M12 5v14M6 13l6 6 6-6" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         )}
       </svg>
-    </span>
+    </div>
   );
 }
 
@@ -65,8 +73,8 @@ function fmtPct(n: number): string {
 
 function VolumeBlock({ v }: { v: PulsePlayVolume }) {
   return (
-    <div className="flex gap-3">
-      <PulseArrow trend={v.trend} className="mt-0.5" />
+    <div className="flex items-center gap-3">
+      <IconSquare trend={v.trend} variant="mover" />
       <div className="min-w-0">
         <p className="font-medium text-white">How much you&apos;re listening</p>
         <p className="mt-0.5 text-sm text-zinc-400">
@@ -84,16 +92,10 @@ function VolumeBlock({ v }: { v: PulsePlayVolume }) {
   );
 }
 
-function MoverBlock({
-  label,
-  mover,
-}: {
-  label: string;
-  mover: PulseMover;
-}) {
+function MoverBlock({ label, mover }: { label: string; mover: PulseMover }) {
   return (
-    <div className="flex gap-3">
-      <PulseArrow trend={mover.trend} className="mt-0.5" />
+    <div className="flex items-center gap-3">
+      <IconSquare trend={mover.trend} variant="shift" />
       <div className="min-w-0">
         <p className="font-medium text-white">{label}</p>
         <p className="mt-0.5 text-sm text-zinc-200">{mover.name}</p>
@@ -107,20 +109,8 @@ function DiscoveriesBlock({ names }: { names: string[] }) {
   const shown = names.slice(0, 4);
   const more = names.length - shown.length;
   return (
-    <div className="flex gap-3">
-      <span
-        className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center text-violet-400"
-        aria-hidden
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path
-            d="M12 5v14M5 12h14"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </span>
+    <div className="flex items-start gap-3">
+      <IconSquare variant="discovery" />
       <div className="min-w-0">
         <p className="font-medium text-white">Artists you just found</p>
         <p className="mt-0.5 text-sm text-zinc-400">
@@ -137,8 +127,8 @@ function DiscoveriesBlock({ names }: { names: string[] }) {
 
 function SoundShiftBlock({ s }: { s: PulseSoundShift }) {
   return (
-    <div className="flex gap-3">
-      <PulseArrow trend={s.trend} className="mt-0.5" />
+    <div className="flex items-center gap-3">
+      <IconSquare trend={s.trend} variant="shift" />
       <div className="min-w-0">
         <p className="font-medium text-white">{s.headline}</p>
         <p className="mt-0.5 text-sm text-zinc-400">{s.detail}</p>
@@ -152,7 +142,6 @@ export function ProfilePulseSection({
   id: sectionId = "profile-pulse",
 }: {
   insights: ProfilePulseInsights | null;
-  /** Anchor for in-page links (e.g. weekly narrative). */
   id?: string;
 }) {
   if (!insights) return null;
@@ -163,9 +152,7 @@ export function ProfilePulseSection({
     insights.artistChange != null;
 
   const hasBody =
-    hasWeekly ||
-    insights.discoveries != null ||
-    insights.soundShift != null;
+    hasWeekly || insights.discoveries != null || insights.soundShift != null;
 
   if (!hasBody) return null;
 
@@ -180,18 +167,14 @@ export function ProfilePulseSection({
         </h2>
         <p className="mt-1 text-sm text-zinc-500">{insights.rangeCaption}</p>
       </div>
-      <div
-        className={`${cardElevated} space-y-6 px-4 py-4 sm:px-5 sm:py-5`}
-      >
+      <div className={`${cardElevated} space-y-5 px-4 py-4 sm:px-5 sm:py-5`}>
         {hasWeekly ? (
           <div className="space-y-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
               This week vs last week
             </p>
             <div className="space-y-4 border-b border-zinc-800/80 pb-5">
-              {insights.playVolume ? (
-                <VolumeBlock v={insights.playVolume} />
-              ) : null}
+              {insights.playVolume ? <VolumeBlock v={insights.playVolume} /> : null}
               {insights.genreChange ? (
                 <MoverBlock label="Top genre this week" mover={insights.genreChange} />
               ) : null}
@@ -212,13 +195,7 @@ export function ProfilePulseSection({
         ) : null}
 
         {insights.soundShift ? (
-          <div
-            className={
-              soundNeedsTopRule
-                ? "space-y-2 border-t border-zinc-800/80 pt-5"
-                : "space-y-2"
-            }
-          >
+          <div className={soundNeedsTopRule ? "space-y-2 border-t border-zinc-800/80 pt-5" : "space-y-2"}>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
               What&apos;s changing
             </p>

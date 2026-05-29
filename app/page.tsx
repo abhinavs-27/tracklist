@@ -125,7 +125,7 @@ async function HomeData({
   const pulseTab = (
     <div className={sectionGap}>
       {weeklyNarrative ? (
-        <div className={`${cardElevated} px-4 py-4 text-sm leading-relaxed italic text-zinc-300 sm:px-5 sm:py-5`}>
+        <div className="border-l-[3px] border-gold-500/35 pl-4 text-base leading-relaxed text-zinc-300">
           {weeklyNarrative}
         </div>
       ) : null}

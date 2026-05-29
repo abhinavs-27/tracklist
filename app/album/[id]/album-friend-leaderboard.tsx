@@ -9,7 +9,7 @@ export async function AlbumFriendLeaderboard({
   albumId: string;
 }) {
   const entries = await getAlbumFriendLeaderboard(viewerId, albumId);
-  if (!entries || entries.length < 2) return null;
+  if (!entries || entries.length < 1) return null;
 
   const max = entries[0]?.playCount ?? 1;
 

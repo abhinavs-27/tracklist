@@ -70,6 +70,94 @@ export async function getArtistInfoTabData(supabase: SupabaseClient, artistId: s
   return { members, labelHistory };
 }
 
+export interface CreditedWork {
+  id: string;
+  name: string;
+  image_url: string | null;
+  release_date: string | null;
+  artist_name: string;
+  roles: ("producer" | "songwriter")[];
+  listen_count: number;
+  average_rating: number | null;
+}
+
+export async function getArtistCreditedWorks(
+  supabase: SupabaseClient,
+  artistId: string,
+  limit = 20,
+): Promise<CreditedWork[]> {
+  // Gather credits from all 4 tables: album-level and song-level (rolled up to albums)
+  const [albumProducerRes, albumSongwriterRes, songProducerRes, songSongwriterRes] = await Promise.all([
+    supabase.from("album_producers").select("album_id").eq("artist_id", artistId).limit(limit),
+    supabase.from("album_songwriters").select("album_id").eq("artist_id", artistId).limit(limit),
+    supabase.from("song_producers")
+      .select("tracks!song_producers_song_id_fkey(album_id)")
+      .eq("artist_id", artistId)
+      .limit(limit * 5),
+    supabase.from("song_songwriters")
+      .select("tracks!song_songwriters_song_id_fkey(album_id)")
+      .eq("artist_id", artistId)
+      .limit(limit * 5),
+  ]);
+
+  const producerIds = new Set<string>();
+  const songwriterIds = new Set<string>();
+
+  for (const r of albumProducerRes.data ?? []) producerIds.add((r as any).album_id);
+  for (const r of albumSongwriterRes.data ?? []) songwriterIds.add((r as any).album_id);
+  for (const r of songProducerRes.data ?? []) {
+    const id = (r as any).tracks?.album_id;
+    if (id) producerIds.add(id);
+  }
+  for (const r of songSongwriterRes.data ?? []) {
+    const id = (r as any).tracks?.album_id;
+    if (id) songwriterIds.add(id);
+  }
+
+  const allIds = [...new Set([...producerIds, ...songwriterIds])];
+  if (allIds.length === 0) return [];
+
+  // Fetch album details and stats in parallel
+  const [albumsRes, statsRes] = await Promise.all([
+    supabase
+      .from("albums")
+      .select("id, name, image_url, release_date, artists!albums_artist_id_fkey1(name)")
+      .in("id", allIds),
+    supabase
+      .from("album_stats")
+      .select("album_id, listen_count, avg_rating")
+      .in("album_id", allIds),
+  ]);
+
+  const statsMap = new Map<string, { listen_count: number; avg_rating: number | null }>();
+  for (const s of statsRes.data ?? []) {
+    statsMap.set((s as any).album_id, {
+      listen_count: (s as any).listen_count ?? 0,
+      avg_rating: (s as any).avg_rating ?? null,
+    });
+  }
+
+  return (albumsRes.data ?? [])
+    .map((a: any) => {
+      const stats = statsMap.get(a.id) ?? { listen_count: 0, avg_rating: null };
+      return {
+        id: a.id,
+        name: a.name,
+        image_url: a.image_url ?? null,
+        release_date: a.release_date ?? null,
+        artist_name: a.artists?.name ?? "",
+        listen_count: stats.listen_count,
+        average_rating: stats.avg_rating,
+        roles: [
+          ...(producerIds.has(a.id) ? ["producer" as const] : []),
+          ...(songwriterIds.has(a.id) ? ["songwriter" as const] : []),
+        ] as ("producer" | "songwriter")[],
+      };
+    })
+    .sort((a, b) => b.listen_count - a.listen_count || (b.release_date ?? "").localeCompare(a.release_date ?? ""))
+    .slice(0, limit);
+}
+
 // ── Album ──────────────────────────────────────────────────────────────────────
 
 export async function getAlbumInfoTabData(supabase: SupabaseClient, albumId: string) {
@@ -88,9 +176,9 @@ export async function getAlbumInfoTabData(supabase: SupabaseClient, albumId: str
       .eq("album_id", albumId),
   ]);
 
-  const producers: CreditPerson[] = (producersResult.data ?? []).map((r: any) => r.artists);
-  const songwriters: CreditPerson[] = (songwritersResult.data ?? []).map((r: any) => r.artists);
-  const labels: LabelEntry[] = (labelsResult.data ?? []).map((r: any) => r.labels);
+  const producers: CreditPerson[] = (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+  const songwriters: CreditPerson[] = (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+  const labels: LabelEntry[] = (labelsResult.data ?? []).map((r: any) => r.labels).filter(Boolean);
 
   return { producers, songwriters, labels };
 }
@@ -137,9 +225,9 @@ export async function getSongInfoTabData(supabase: SupabaseClient, songId: strin
   }
 
   return {
-    producers: (producersResult.data ?? []).map((r: any) => r.artists) as CreditPerson[],
-    songwriters: (songwritersResult.data ?? []).map((r: any) => r.artists) as CreditPerson[],
-    featuring: (featResult.data ?? []).map((r: any) => r.artists) as CreditPerson[],
+    producers: (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean) as CreditPerson[],
+    songwriters: (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean) as CreditPerson[],
+    featuring: (featResult.data ?? []).map((r: any) => r.artists).filter(Boolean) as CreditPerson[],
     samples: (samplesResult.data ?? []).map((r) => toSongRef(r, "tracks")).filter((x): x is SongRef => x !== null),
     sampledBy: (sampledByResult.data ?? []).map((r) => toSongRef(r, "tracks")).filter((x): x is SongRef => x !== null),
     covers: (coversResult.data ?? []).map((r) => toSongRef(r, "tracks")).filter((x): x is SongRef => x !== null),

@@ -13,6 +13,7 @@ export type AggregateLogRow = {
   id: string;
   user_id: string;
   listened_at: string;
+  created_at: string;
   track_id: string | null;
   album_id: string | null;
   artist_id: string | null;

@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   deltaUp: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#34d399",
+    color: "#E8A830",
     flexShrink: 0,
   },
   deltaDown: {

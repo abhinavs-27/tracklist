@@ -301,7 +301,7 @@ function AxisRow({ label, leftLabel, rightLabel, score, pole }: AxisRowProps) {
         </View>
         {/* Filled progress track — works reliably with percentage in React Native */}
         <View style={{ height: 4, backgroundColor: "#27272a", borderRadius: 999, overflow: "hidden" }}>
-          <View style={{ width: `${pct}%`, height: 4, backgroundColor: "#34d399", borderRadius: 999 }} />
+          <View style={{ width: `${pct}%`, height: 4, backgroundColor: "#C8973A", borderRadius: 999 }} />
         </View>
       </View>
 
@@ -318,12 +318,12 @@ function StyleCard({ identity: t, styleDisplay }: { identity: TasteIdentity; sty
   const axes = t.styleResult?.axes;
 
   return (
-    <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "rgba(16,185,129,0.25)", backgroundColor: "rgba(6,78,59,0.25)", padding: 14, gap: 6 }}>
-      <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(52,211,153,0.95)", textTransform: "uppercase", letterSpacing: 0.6 }}>Listening style</Text>
+    <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "rgba(200,151,58,0.25)", backgroundColor: "rgba(74,44,14,0.25)", padding: 14, gap: 6 }}>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: "rgba(200,151,58,0.95)", textTransform: "uppercase", letterSpacing: 0.6 }}>Listening style</Text>
       <Text style={{ fontSize: 24, fontWeight: "800", color: "#f4f4f5", lineHeight: 28 }}>{styleDisplay.title}</Text>
       {t.styleResult?.badge ? (
-        <View style={{ marginTop: 2, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: "rgba(16,185,129,0.3)", backgroundColor: "rgba(16,185,129,0.1)" }}>
-          <Text style={{ fontSize: 11, fontWeight: "600", color: "#6ee7b7" }}>{t.styleResult.badge}</Text>
+        <View style={{ marginTop: 2, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: "rgba(200,151,58,0.3)", backgroundColor: "rgba(200,151,58,0.1)" }}>
+          <Text style={{ fontSize: 11, fontWeight: "600", color: "#C8973A" }}>{t.styleResult.badge}</Text>
         </View>
       ) : null}
       <Text style={{ fontSize: 14, color: "#a1a1aa", lineHeight: 20 }}>{styleDisplay.subtitle}</Text>

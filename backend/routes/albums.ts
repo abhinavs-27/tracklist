@@ -215,13 +215,11 @@ albumsRouter.get("/:id", async (req, res) => {
         release_date,
       },
       tracks: (tracks.items ?? []).map((t, idx) => {
-        const maybeTrackNumber = (t as unknown as { track_number?: number })
-          .track_number;
         const serverStats = trackStats?.[t.id];
         return {
           id: t.id,
           name: t.name,
-          track_number: maybeTrackNumber ?? idx + 1,
+          track_number: t.track_number ?? idx + 1,
           duration_ms: t.duration_ms ?? null,
           listen_count: serverStats?.listen_count ?? 0,
           review_count: serverStats?.review_count ?? 0,

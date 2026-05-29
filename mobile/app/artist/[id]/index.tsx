@@ -21,20 +21,25 @@ import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
 import { formatRelativeTime } from "@/lib/time";
 import { ArtistInfoTab } from "@/components/info-tab/ArtistInfoTab";
 
-function ArtistHero({ name, imageUrl, genres, followers }: { name: string; imageUrl: string | null; genres: string[]; followers: number | null }) {
+function ArtistHero({ name, imageUrl, genres, followers, isProducer, isSongwriter }: { name: string; imageUrl: string | null; genres: string[]; followers: number | null; isProducer?: boolean; isSongwriter?: boolean }) {
+  const roleLabel = isProducer && isSongwriter
+    ? "Producer & Songwriter"
+    : isProducer ? "Producer"
+    : isSongwriter ? "Songwriter"
+    : "Artist";
   return (
     <View style={s.hero}>
       {imageUrl && (
         <Image source={{ uri: imageUrl }} style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.4 }] }]} blurRadius={40} contentFit="cover" />
       )}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: "#09090be6" }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: `${theme.colors.bg}e6` }]} />
       <View style={s.heroContent}>
         <View style={s.heroPhotoWrap}>
           {imageUrl
             ? <Image source={{ uri: imageUrl }} style={s.heroPhoto} contentFit="cover" />
             : <View style={[s.heroPhoto, s.ph]}><Ionicons name="musical-notes" size={40} color={theme.colors.muted} /></View>}
         </View>
-        <Text style={s.heroLabel}>Artist</Text>
+        <Text style={s.heroLabel}>{roleLabel}</Text>
         <Text style={s.heroName} numberOfLines={2}>{name}</Text>
         {genres.length > 0 && (
           <View style={s.pills}>
@@ -131,7 +136,7 @@ function Leaderboard({ entries, isPending }: { entries: ArtistLeaderboardEntry[]
       {[0, 1, 2].map((i) => <SkeletonBox key={i} height={44} radius={10} />)}
     </View>
   );
-  if (entries.length < 2) return <Text style={[s.muted, { paddingTop: 8 }]}>No friend data yet.</Text>;
+  if (entries.length < 1) return <Text style={[s.muted, { paddingTop: 8 }]}>No friend data yet.</Text>;
   const max = entries[0]?.playCount ?? 1;
   return (
     <View style={{ gap: 10 }}>
@@ -212,7 +217,7 @@ export default function ArtistDetailScreen() {
   const [tracksExpanded, setTracksExpanded] = useState(false);
   const artistId = useMemo(() => (Array.isArray(id) ? id[0] : id) ?? "", [id]);
 
-  const { artist, albums, topTracks, reviews, communityStats, bio, externalLinks, members, labelHistory, creditsEnrichedAt, isLoading, error } = useArtist(artistId);
+  const { artist, albums, topTracks, reviews, communityStats, bio, externalLinks, isProducer, isSongwriter, members, labelHistory, creditsEnrichedAt, creditedWorks, isLoading, error } = useArtist(artistId);
   const { data: bundle, isPending: bundlePending } = useArtistDetailBundle(artistId);
   const prefetchAlbum = usePrefetchAlbum();
   const prefetchSong = usePrefetchSong(); // used for TrackRow onPressIn
@@ -266,7 +271,26 @@ export default function ArtistDetailScreen() {
       </SkeletonScreen>
     );
   }
-  if (error || !artist) return <SafeAreaView style={[s.safe, { justifyContent: "center", alignItems: "center" }]}><Text style={{ color: theme.colors.danger, fontWeight: "700" }}>Failed to load artist</Text></SafeAreaView>;
+  if (error || !artist) {
+    const isNotFound = error?.message?.includes("404") || error?.message?.includes("HTTP 404");
+    return (
+      <SafeAreaView style={[s.safe, { flex: 1 }]} edges={["top"]}>
+        <View style={s.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={10}>
+            <Ionicons name="chevron-back" size={26} color={theme.colors.gold} />
+          </Pressable>
+        </View>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: "700", color: theme.colors.muted, textAlign: "center" }}>
+            {isNotFound ? "Artist not found" : "Couldn't load artist"}
+          </Text>
+          <Text style={{ fontSize: 13, color: theme.colors.muted, textAlign: "center", opacity: 0.6 }}>
+            {isNotFound ? "This person may not have a profile yet." : "Something went wrong. Try again later."}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const navAlbum = (id: string) => router.push(`/album/${id}` as const);
   const navSong = (id: string) => router.push(`/song/${id}` as const);
@@ -283,7 +307,7 @@ export default function ArtistDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        <ArtistHero name={artist.name} imageUrl={artist.image_url} genres={artist.genres} followers={artist.followers ?? null} />
+        <ArtistHero name={artist.name} imageUrl={artist.image_url} genres={artist.genres} followers={artist.followers ?? null} isProducer={isProducer} isSongwriter={isSongwriter} />
         {communityStats && <CommunityStats {...communityStats} />}
         {bundle?.viewerStats && <ViewerStrip {...bundle.viewerStats} onAlbum={navAlbum} />}
 
@@ -332,6 +356,28 @@ export default function ArtistDetailScreen() {
                   onPressInItem={(item) => prefetchAlbum(item.id)}
                   onPressItem={(item) => navAlbum(item.id)}
                 />
+              </View>
+            )}
+            {albums.length === 0 && (isProducer || isSongwriter) && (
+              <View style={s.section}>
+                <Text style={s.h2}>Works</Text>
+                {creditedWorks.length > 0 ? (
+                  <MediaGrid
+                    data={creditedWorks.map((w) => ({
+                      id: w.id,
+                      title: w.name,
+                      artist: w.artist_name,
+                      artworkUrl: w.image_url ?? null,
+                    }))}
+                    numColumns={3}
+                    scrollEnabled={false}
+                    showArtist
+                    onPressInItem={(item) => prefetchAlbum(item.id)}
+                    onPressItem={(item) => navAlbum(item.id)}
+                  />
+                ) : (
+                  <Text style={[s.muted, { paddingTop: 4 }]}>No credited works in catalog yet.</Text>
+                )}
               </View>
             )}
             {reviews.length > 0 && (
@@ -414,12 +460,12 @@ const s = StyleSheet.create({
   reviewMeta: { flexDirection: "row", alignItems: "center", gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border, paddingTop: 10 },
   // Leaderboard
   leaderRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: theme.colors.panel, borderRadius: 14, padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border },
-  leaderViewer: { borderColor: "rgba(16,185,129,0.25)", backgroundColor: "rgba(6,46,37,0.4)" },
+  leaderViewer: { borderColor: "rgba(200,151,58,0.25)", backgroundColor: "rgba(74,44,14,0.4)" },
   leaderRank: { width: 20, fontSize: 13, fontWeight: "700", color: theme.colors.muted, textAlign: "center" },
   leaderRankFirst: { color: "#fbbf24" },
   leaderNameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 5 },
   leaderName: { fontSize: 13, fontWeight: "600", color: "#e4e4e7", flexShrink: 1 },
-  leaderNameViewer: { color: "#6ee7b7" },
+  leaderNameViewer: { color: "#C8973A" },
   leaderPlays: { fontSize: 12, color: theme.colors.muted, flexShrink: 0 },
   leaderPlaysViewer: { color: theme.colors.gold },
   barWrap: { height: 4, borderRadius: 2, backgroundColor: theme.colors.border, overflow: "hidden" },

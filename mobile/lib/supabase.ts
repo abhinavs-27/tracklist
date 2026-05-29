@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
@@ -54,9 +54,20 @@ if (Platform.OS === "web") {
       }
     },
   };
-} else {
+} else if (NativeModules.RNCAsyncStorage) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  storage = require("@react-native-async-storage/async-storage").default;
+  const mod = require("@react-native-async-storage/async-storage");
+  storage = mod.default ?? mod;
+} else {
+  // Native module not in current binary — fall back to in-memory storage.
+  // Sessions will not persist across restarts. Fix: rebuild dev client with `eas build --profile development`.
+  console.warn("[supabase] AsyncStorage native module unavailable — using in-memory storage. Rebuild dev client to persist sessions.");
+  const mem: Record<string, string> = {};
+  storage = {
+    getItem: async (key: string) => mem[key] ?? null,
+    setItem: async (key: string, value: string) => { mem[key] = value; },
+    removeItem: async (key: string) => { delete mem[key]; },
+  };
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

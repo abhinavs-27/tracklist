@@ -199,7 +199,7 @@ export function TopThisWeekInteractive({ payload }: { payload: Payload }) {
             Top tracks
           </h3>
           <div className={strip}>
-            {tracks.map((t) => (
+            {tracks.map((t, i) => (
               <TopWeekTrackCard
                 key={t.trackId}
                 name={t.name}
@@ -207,6 +207,8 @@ export function TopThisWeekInteractive({ payload }: { payload: Payload }) {
                 imageUrl={t.albumImageUrl}
                 playCount={t.playCount}
                 href={`/album/${t.albumId}`}
+                rank={i + 1}
+                maxPlays={tracks[0]?.playCount}
               />
             ))}
           </div>
@@ -219,13 +221,15 @@ export function TopThisWeekInteractive({ payload }: { payload: Payload }) {
             Top artists
           </h3>
           <div className={strip}>
-            {artists.map((a) => (
+            {artists.map((a, i) => (
               <TopWeekArtistCard
                 key={a.artistId}
                 name={a.name}
                 imageUrl={a.imageUrl}
                 playCount={a.playCount}
                 href={`/artist/${a.artistId}`}
+                rank={i + 1}
+                maxPlays={artists[0]?.playCount}
               />
             ))}
           </div>
@@ -238,7 +242,7 @@ export function TopThisWeekInteractive({ payload }: { payload: Payload }) {
             Top albums
           </h3>
           <div className={strip}>
-            {albums.map((a) => (
+            {albums.map((a, i) => (
               <TopWeekTrackCard
                 key={a.albumId}
                 name={a.name}
@@ -246,6 +250,8 @@ export function TopThisWeekInteractive({ payload }: { payload: Payload }) {
                 imageUrl={a.imageUrl}
                 playCount={a.playCount}
                 href={`/album/${a.albumId}`}
+                rank={i + 1}
+                maxPlays={albums[0]?.playCount}
               />
             ))}
           </div>

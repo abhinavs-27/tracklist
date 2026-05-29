@@ -9,7 +9,7 @@ export async function ArtistFriendLeaderboard({
   canonicalArtistId: string;
 }) {
   const entries = await getArtistFriendLeaderboard(viewerId, canonicalArtistId);
-  if (!entries || entries.length < 2) return null;
+  if (!entries || entries.length < 1) return null;
 
   const max = entries[0]?.playCount ?? 1;
 

@@ -26,7 +26,7 @@ import { RecentListensSection } from "./recent-listens-section";
 import { ArtistFriendLeaderboard } from "./artist-friend-leaderboard";
 import { ArtistTabs } from "./artist-tabs";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getArtistInfoTabData } from "@/lib/musicbrainz/db-queries";
+import { getArtistInfoTabData, getArtistCreditedWorks } from "@/lib/musicbrainz/db-queries";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -78,9 +78,10 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
   // Fetch info tab data (bio, members, label history, external links)
   const supabase = await createSupabaseServerClient();
-  const [infoTabData, artistMetaResult] = await Promise.all([
+  const [infoTabData, artistMetaResult, creditedWorks] = await Promise.all([
     getArtistInfoTabData(supabase, entityId).catch(() => ({ members: [], labelHistory: [] })),
-    supabase.from("artists").select("bio, external_links, credits_enriched_at").eq("id", entityId).maybeSingle(),
+    supabase.from("artists").select("bio, external_links, credits_enriched_at, is_producer, is_songwriter").eq("id", entityId).maybeSingle(),
+    getArtistCreditedWorks(supabase, entityId).catch(() => []),
   ]);
   const artistMeta = artistMetaResult.data;
 
@@ -124,7 +125,15 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
 
           {/* Metadata */}
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Artist</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">
+              {artistMeta?.is_producer && artistMeta?.is_songwriter
+                ? "Producer & Songwriter"
+                : artistMeta?.is_producer
+                  ? "Producer"
+                  : artistMeta?.is_songwriter
+                    ? "Songwriter"
+                    : "Artist"}
+            </p>
             <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
               {artist.name}
             </h1>
@@ -226,6 +235,29 @@ export async function ArtistPageContent({ params }: { params: PageParams }) {
         generalContent={
           <div className="space-y-8">
             {topTracks?.length ? <ArtistPopularTracks tracks={topTracks} /> : null}
+
+            {popularAlbums.length === 0 && (artistMeta?.is_producer || artistMeta?.is_songwriter) && (
+              <section>
+                <h2 className="mb-3 text-lg font-semibold text-white">Works</h2>
+                {creditedWorks.length > 0 ? (
+                  <MediaGrid
+                    items={creditedWorks.map(
+                      (w): MediaItem => ({
+                        id: w.id,
+                        type: "album",
+                        title: w.name,
+                        artist: w.artist_name,
+                        artworkUrl: w.image_url ?? null,
+                      }),
+                    )}
+                    columns={3}
+                    showArtist
+                  />
+                ) : (
+                  <p className="text-sm text-zinc-500">No credited works in catalog yet.</p>
+                )}
+              </section>
+            )}
 
             {popularAlbums.length > 0 && (
               <section>

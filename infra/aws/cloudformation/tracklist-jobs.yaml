@@ -46,6 +46,22 @@ Resources:
         deadLetterTargetArn: !GetAtt CronJobsDLQ.Arn
         maxReceiveCount: 5
 
+  EnrichJobsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tracklist-enrich-jobs-dlq
+      MessageRetentionPeriod: 1209600
+
+  EnrichJobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tracklist-enrich-jobs
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt EnrichJobsDLQ.Arn
+        maxReceiveCount: 3
+
   CronQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -261,3 +277,8 @@ Outputs:
     Value: !GetAtt BillboardJobsQueue.Arn
   CronJobsQueueArn:
     Value: !GetAtt CronJobsQueue.Arn
+  EnrichJobsQueueUrl:
+    Description: ENRICH_JOBS_QUEUE_URL for the worker and drain/enrich Lambdas.
+    Value: !Ref EnrichJobsQueue
+  EnrichJobsQueueArn:
+    Value: !GetAtt EnrichJobsQueue.Arn

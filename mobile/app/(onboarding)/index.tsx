@@ -495,10 +495,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
     borderWidth: 1, borderColor: "#3f3f46",
   },
-  genrePillActive: { borderColor: theme.colors.gold, backgroundColor: "rgba(16,185,129,0.12)" },
+  genrePillActive: { borderColor: theme.colors.gold, backgroundColor: "rgba(200,151,58,0.12)" },
   genrePillDisabled: { borderColor: "#27272a" },
   genreLabel: { fontSize: 14, fontWeight: "600", color: theme.colors.text },
-  genreLabelActive: { color: "#6ee7b7" },
+  genreLabelActive: { color: "#C8973A" },
   genreLabelDisabled: { color: theme.colors.muted },
   selectionCount: { marginTop: 12, fontSize: 12, color: theme.colors.muted },
   genreGroupLabel: {

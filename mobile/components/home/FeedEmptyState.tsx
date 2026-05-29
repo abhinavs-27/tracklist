@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(16,185,129,0.3)",
+    borderColor: "rgba(200,151,58,0.3)",
   },
   btnText: {
     fontSize: 14,

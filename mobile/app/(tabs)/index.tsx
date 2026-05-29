@@ -203,7 +203,7 @@ function MoverCard({
           <Text style={styles.newBadgeText}>NEW</Text>
         </View>
       ) : movStr ? (
-        <Text style={[{ marginTop: 10, fontSize: 15, fontWeight: "700" }, movStr.startsWith("▲") ? { color: "#34d399" } : { color: "#f87171" }]}>
+        <Text style={[{ marginTop: 10, fontSize: 15, fontWeight: "700" }, movStr.startsWith("▲") ? { color: "#E8A830" } : { color: "#f87171" }]}>
           {movStr}
         </Text>
       ) : null}
@@ -391,7 +391,7 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
 // ─── Pulse Tab ─────────────────────────────────────────────────────────────────
 
 function PulseArrow({ trend }: { trend: "up" | "down" | "flat" }) {
-  const color = trend === "up" ? "#34d399" : trend === "down" ? "#f87171" : "#71717a";
+  const color = trend === "up" ? "#E8A830" : trend === "down" ? "#f87171" : "#71717a";
   const symbol = trend === "up" ? "↑" : trend === "down" ? "↓" : "↔";
   return (
     <View style={styles.pulseArrowBox}>
@@ -757,8 +757,9 @@ function InsightCard({
   chipsLabel?: string;
 }) {
   if (kind === "insufficient") return null;
+  const accentColor = KIND_TEXT[kind] ?? "#71717a";
   return (
-    <View style={styles.insightCard}>
+    <View style={[styles.insightCard, { borderLeftWidth: 3, borderLeftColor: `${accentColor}66` }]}>
       <View style={styles.insightCardHeader}>
         <Text style={styles.insightCardLabel}>{label.toUpperCase()}</Text>
         <KindBadge kind={kind} />
@@ -1156,7 +1157,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: 2,
     borderRadius: 2,
-    backgroundColor: "#34d399",
+    backgroundColor: "#C8973A",
   },
   tabContent: {
     paddingHorizontal: 16,
@@ -1172,17 +1173,15 @@ const styles = StyleSheet.create({
   },
   // Narrative
   narrativeCard: {
-    backgroundColor: "rgba(24,24,27,0.62)",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderLeftWidth: 3,
+    borderLeftColor: "rgba(200,151,58,0.38)",
+    paddingLeft: 14,
+    paddingVertical: 2,
   },
   narrativeText: {
-    fontSize: 14,
-    fontStyle: "italic",
+    fontSize: 15,
     color: "#d4d4d8",
-    lineHeight: 23,
+    lineHeight: 24,
   },
   // Sections
   section: {
@@ -1400,7 +1399,7 @@ const styles = StyleSheet.create({
   sectionAction: {
     fontSize: 14,
     fontWeight: "500",
-    color: "rgba(52,211,153,0.95)",
+    color: "rgba(200,151,58,0.95)",
   },
   // ─── Insight Cards ───────────────────────────────────────────────────────────
   insightCard: {
@@ -1686,7 +1685,7 @@ const styles = StyleSheet.create({
   },
   blindSpotSimilar: {
     fontSize: 12,
-    color: "#71717A",
+    color: theme.colors.muted,
   },
   // ─── Listening Report (web-matched) ─────────────────────────────────────────
   reportPeriod: {
@@ -1699,7 +1698,7 @@ const styles = StyleSheet.create({
     width: 16,
     textAlign: "center",
     fontSize: 12,
-    color: "#52525B",
+    color: theme.colors.muted,
     flexShrink: 0,
   },
   reportArtImg: {
@@ -1719,7 +1718,7 @@ const styles = StyleSheet.create({
   },
   reportTopGenre: {
     fontSize: 12,
-    color: "#71717A",
+    color: theme.colors.muted,
     paddingTop: 12,
     paddingBottom: 6,
   },
@@ -1805,7 +1804,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   chartTypePillActive: {
-    backgroundColor: "#059669",
+    backgroundColor: "#C8973A",
   },
   chartTypePillIdle: {
     backgroundColor: "#27272a",
@@ -1971,7 +1970,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   chartCardLeader: {
-    borderColor: "rgba(16,185,129,0.25)",
+    borderColor: "rgba(200,151,58,0.25)",
   },
   chartCardInner: {
     flexDirection: "row",
@@ -2053,7 +2052,7 @@ const styles = StyleSheet.create({
   moveUp: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#34d399",
+    color: "#E8A830",
   },
   moveDown: {
     fontSize: 14,
@@ -2125,7 +2124,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   shareBtn: {
-    backgroundColor: "#10b981",
+    backgroundColor: "#C8973A",
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: "center",

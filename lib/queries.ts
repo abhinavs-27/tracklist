@@ -2060,19 +2060,17 @@ export async function getSongFriendLeaderboard(
     const friendIds = (followRows ?? []).map((f) => f.following_id as string);
     const allUserIds = [viewerId, ...friendIds];
 
-    // Use aggregates (year buckets) — one query, no log scan
-    const { data: aggRows } = await supabase
-      .from("user_listening_aggregates")
-      .select("user_id, count")
+    // Count directly from logs — aggregates can be stale after recent listens
+    const { data: logRows } = await supabase
+      .from("logs")
+      .select("user_id")
       .in("user_id", allUserIds)
-      .eq("entity_type", "track")
-      .eq("entity_id", canonicalTrackId)
-      .not("year", "is", null);
+      .eq("track_id", canonicalTrackId)
+      .limit(10000);
 
     const userPlayCounts = new Map<string, number>();
-    for (const row of aggRows ?? []) {
-      const r = row as { user_id: string; count: number };
-      userPlayCounts.set(r.user_id, (userPlayCounts.get(r.user_id) ?? 0) + r.count);
+    for (const row of (logRows ?? []) as { user_id: string }[]) {
+      userPlayCounts.set(row.user_id, (userPlayCounts.get(row.user_id) ?? 0) + 1);
     }
 
     const withPlays = allUserIds.filter((id) => (userPlayCounts.get(id) ?? 0) > 0);
@@ -2139,19 +2137,21 @@ export async function getAlbumFriendLeaderboard(
     const friendIds = (followRows ?? []).map((f) => f.following_id as string);
     const allUserIds = [viewerId, ...friendIds];
 
-    // Use aggregates (year buckets) — no track ID expansion, no log scan
-    const { data: aggRows } = await supabase
-      .from("user_listening_aggregates")
-      .select("user_id, count")
-      .in("user_id", allUserIds)
-      .eq("entity_type", "album")
-      .eq("entity_id", albumId)
-      .not("year", "is", null);
+    // Count directly from logs — aggregates can be stale after recent listens
+    const { data: trackRows } = await supabase
+      .from("tracks").select("id").eq("album_id", albumId).limit(200);
+    const trackIds = (trackRows ?? []).map((t) => (t as { id: string }).id);
+    if (!trackIds.length) return null;
 
+    const CHUNK = 200;
     const userPlayCounts = new Map<string, number>();
-    for (const row of aggRows ?? []) {
-      const r = row as { user_id: string; count: number };
-      userPlayCounts.set(r.user_id, (userPlayCounts.get(r.user_id) ?? 0) + r.count);
+    for (let i = 0; i < trackIds.length; i += CHUNK) {
+      const chunk = trackIds.slice(i, i + CHUNK);
+      const { data: logRows } = await supabase
+        .from("logs").select("user_id").in("user_id", allUserIds).in("track_id", chunk).limit(5000);
+      for (const row of (logRows ?? []) as { user_id: string }[]) {
+        userPlayCounts.set(row.user_id, (userPlayCounts.get(row.user_id) ?? 0) + 1);
+      }
     }
 
     const withPlays = allUserIds.filter((id) => (userPlayCounts.get(id) ?? 0) > 0);
@@ -2274,19 +2274,21 @@ export async function getArtistFriendLeaderboard(
     const friendIds = (followRows ?? []).map((f) => f.following_id as string);
     const allUserIds = [viewerId, ...friendIds];
 
-    // Use aggregates (year buckets) — no track ID expansion, no log scan
-    const { data: aggRows } = await supabase
-      .from("user_listening_aggregates")
-      .select("user_id, count")
-      .in("user_id", allUserIds)
-      .eq("entity_type", "artist")
-      .eq("entity_id", canonicalArtistId)
-      .not("year", "is", null);
+    // Count directly from logs — aggregates can be stale after recent listens
+    const { data: trackRows } = await supabase
+      .from("tracks").select("id").eq("artist_id", canonicalArtistId).limit(2000);
+    const trackIds = (trackRows ?? []).map((t) => (t as { id: string }).id);
+    if (!trackIds.length) return null;
 
+    const CHUNK = 200;
     const userPlayCounts = new Map<string, number>();
-    for (const row of aggRows ?? []) {
-      const r = row as { user_id: string; count: number };
-      userPlayCounts.set(r.user_id, (userPlayCounts.get(r.user_id) ?? 0) + r.count);
+    for (let i = 0; i < trackIds.length; i += CHUNK) {
+      const chunk = trackIds.slice(i, i + CHUNK);
+      const { data: logRows } = await supabase
+        .from("logs").select("user_id").in("user_id", allUserIds).in("track_id", chunk).limit(5000);
+      for (const row of (logRows ?? []) as { user_id: string }[]) {
+        userPlayCounts.set(row.user_id, (userPlayCounts.get(row.user_id) ?? 0) + 1);
+      }
     }
 
     const withPlays = allUserIds.filter((id) => (userPlayCounts.get(id) ?? 0) > 0);

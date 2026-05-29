@@ -95,21 +95,21 @@ export async function getAllTimeAgg(
 
 /**
  * True all-time total play count for a user.
- * Uses `get_user_total_play_count` RPC — sum of yearly track-bucket counts,
- * no row cap, no application-side truncation.
+ * Counts directly from the logs table — aggregates can be stale after recent listens.
  */
 export async function getTotalPlayCount(
   admin: SupabaseClient,
   userId: string,
 ): Promise<number> {
-  const { data, error } = await admin.rpc("get_user_total_play_count", {
-    p_user_id: userId,
-  });
+  const { count, error } = await admin
+    .from("logs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
 
   if (error) {
     console.warn("[from-aggregates] getTotalPlayCount", error.message);
     return 0;
   }
 
-  return Number(data) || 0;
+  return count ?? 0;
 }

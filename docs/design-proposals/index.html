@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracklist — Design Proposals</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #09090b;
+    --surface: #18181b;
+    --surface2: #27272a;
+    --border: rgba(255,255,255,0.08);
+    --text: #fafafa;
+    --muted: #a1a1aa;
+    --subtle: #52525b;
+    --gold: #c8973a;
+    --gold-light: #f0b429;
+    --gold-dim: rgba(200,151,58,0.15);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Nav */
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(9,9,11,0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+  }
+  .site-nav-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+  }
+  .site-nav-logo {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .site-nav-links {
+    display: flex;
+    gap: 4px;
+  }
+  .site-nav-links a {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.15s;
+  }
+  .site-nav-links a:hover {
+    color: var(--text);
+    background: rgba(255,255,255,0.06);
+    text-decoration: none;
+  }
+
+  /* Hero */
+  .hero {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 72px 32px 48px;
+  }
+  .hero-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--text);
+  }
+  .hero-sub {
+    margin-top: 12px;
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 520px;
+  }
+  .hero-meta {
+    margin-top: 20px;
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    color: var(--subtle);
+  }
+
+  /* Section grid */
+  .toc {
+    max-width: 1100px;
+    margin: 0 auto 60px;
+    padding: 0 32px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .toc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    transition: all 0.15s;
+    cursor: pointer;
+    display: block;
+    color: inherit;
+  }
+  .toc-card:hover {
+    border-color: rgba(255,255,255,0.14);
+    background: var(--surface2);
+    text-decoration: none;
+  }
+  .toc-card-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--subtle);
+    margin-bottom: 6px;
+  }
+  .toc-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .toc-card-count {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--subtle);
+  }
+
+  /* Divider */
+  .divider {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px;
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Section */
+  .section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 32px;
+  }
+  .section-header {
+    margin-bottom: 40px;
+  }
+  .section-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--text);
+  }
+  .section-desc {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 560px;
+  }
+
+  /* Option grid */
+  .options {
+    display: grid;
+    gap: 28px;
+  }
+  .options-2col {
+    grid-template-columns: 1fr 1fr;
+  }
+  @media (max-width: 760px) {
+    .options-2col { grid-template-columns: 1fr; }
+  }
+
+  /* Option card */
+  .option {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .option.recommended {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px rgba(200,151,58,0.2), 0 16px 48px -12px rgba(200,151,58,0.18);
+  }
+  .option-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .option-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .option-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .badge-rec {
+    background: var(--gold-dim);
+    color: var(--gold);
+    border: 1px solid rgba(200,151,58,0.25);
+  }
+  .badge-alt {
+    background: rgba(255,255,255,0.04);
+    color: var(--subtle);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .option-preview {
+    padding: 24px;
+    background: var(--bg);
+  }
+  .option-notes {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .option-notes strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* ─────────────────────────────────────────────────────────────── */
+  /* MOCKUP COMPONENTS */
+  /* ─────────────────────────────────────────────────────────────── */
+
+  /* Fake album art block */
+  .art { border-radius: 10px; background: var(--surface2); overflow: hidden; flex-shrink: 0; }
+  .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .art-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--subtle); font-size: 11px; }
+
+  /* Avatar circle */
+  .av { border-radius: 9999px; background: var(--surface2); overflow: hidden; flex-shrink: 0; }
+  .av-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--muted); }
+
+  /* Generic card shell */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .card-elevated {
+    background: rgba(24,24,27,0.62);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px -8px rgba(0,0,0,0.55);
+    outline: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* Pill */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #d4d4d8;
+    outline: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* Stat */
+  .stat-val { font-size: 14px; font-weight: 700; color: var(--text); }
+  .stat-lbl { font-size: 13px; color: var(--muted); }
+
+  /* Gold button */
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0b429;
+    color: #18181b;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 12px;
+    cursor: default;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(240,180,41,0.35);
+  }
+
+  /* ── Rank badge ── */
+  .rank-badge {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    z-index: 2;
+    outline: 1px solid rgba(255,255,255,0.1);
+  }
+  .rank-1 { color: #fbbf24; outline-color: rgba(251,191,36,0.3); }
+  .rank-2 { color: #d4d4d8; outline-color: rgba(212,212,216,0.2); }
+  .rank-3 { color: #a16207; outline-color: rgba(161,98,7,0.25); }
+  .rank-n { color: var(--subtle); }
+
+  /* Play bar */
+  .play-bar-wrap { height: 3px; border-radius: 999px; background: var(--surface2); overflow: hidden; margin-top: 6px; }
+  .play-bar-fill { height: 100%; border-radius: 999px; background: rgba(200,151,58,0.6); }
+
+  /* Change indicator */
+  .change-up { color: #34d399; font-size: 12px; font-weight: 600; }
+  .change-down { color: #f87171; font-size: 12px; font-weight: 600; }
+  .change-flat { color: var(--subtle); font-size: 12px; font-weight: 600; }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 28px 32px;
+    max-width: 1100px;
+    margin: 40px auto 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--subtle);
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="site-nav-inner">
+    <span class="site-nav-logo">Tracklist — Design Proposals</span>
+    <nav class="site-nav-links">
+      <a href="#profile-banner">Profile Banner</a>
+      <a href="#home-tabs">Home Tabs</a>
+      <a href="#billboard-banner">Billboard Drop</a>
+      <a href="#top-this-week">Top This Week</a>
+      <a href="#pulse">Pulse</a>
+    </nav>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-label">UI Design Review — 2026-05-29</div>
+  <h1>Tracklist Visual Redesign</h1>
+  <p class="hero-sub">Five areas with 2–3 design options each. Review and pick the direction you want before any code is written.</p>
+  <div class="hero-meta">
+    <span>5 components</span>
+    <span>·</span>
+    <span>12 design options</span>
+    <span>·</span>
+    <span>Open each section to compare</span>
+  </div>
+</div>
+
+<div class="toc">
+  <a href="#profile-banner" class="toc-card">
+    <div class="toc-card-num">01</div>
+    <div class="toc-card-title">Profile Banner</div>
+    <div class="toc-card-count">2 options</div>
+  </a>
+  <a href="#home-tabs" class="toc-card">
+    <div class="toc-card-num">02</div>
+    <div class="toc-card-title">Home Tabs</div>
+    <div class="toc-card-count">3 options</div>
+  </a>
+  <a href="#billboard-banner" class="toc-card">
+    <div class="toc-card-num">03</div>
+    <div class="toc-card-title">Billboard Drop Banner</div>
+    <div class="toc-card-count">2 options</div>
+  </a>
+  <a href="#top-this-week" class="toc-card">
+    <div class="toc-card-num">04</div>
+    <div class="toc-card-title">Top This Week</div>
+    <div class="toc-card-count">3 options</div>
+  </a>
+  <a href="#pulse" class="toc-card">
+    <div class="toc-card-num">05</div>
+    <div class="toc-card-title">Pulse Section</div>
+    <div class="toc-card-count">2 options</div>
+  </a>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 01  PROFILE BANNER -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="profile-banner">
+  <div class="section-header">
+    <div class="section-num">01 — Profile Banner</div>
+    <h2 class="section-title">Profile Hero Banner</h2>
+    <p class="section-desc">The band of album art at the top of every profile. Currently a flat 4-image horizontal strip. Two directions below.</p>
+  </div>
+
+  <div class="options options-2col">
+
+    <!-- Option A: Staggered mosaic -->
+    <div class="option recommended">
+      <div class="option-label">
+        <span class="option-name">Option A — Staggered mosaic</span>
+        <span class="option-badge badge-rec">Recommended</span>
+      </div>
+      <div class="option-preview">
+        <!-- Banner mockup -->
+        <div style="position:relative; height:160px; border-radius:14px; overflow:hidden; background:#18181b;">
+          <!-- Row 1: 4 tiles -->
+          <div style="position:absolute; top:0; left:0; right:0; height:82px; display:flex; gap:2px;">
+            <div style="flex:1; background:linear-gradient(135deg,#3f3f46,#27272a);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#292524,#1c1917);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#1e3a5f,#172554);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#3d1f0e,#1c0a04);"></div>
+          </div>
+          <!-- Row 2: offset by half tile width, slightly wider -->
+          <div style="position:absolute; top:82px; left:-12.5%; width:125%; height:82px; display:flex; gap:2px;">
+            <div style="flex:1; background:linear-gradient(135deg,#292524,#1c1917);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#172554,#0f172a);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#1c0a04,#3d1f0e);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#3f3f46,#27272a);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#1e3a5f,#172554);"></div>
+          </div>
+          <!-- Bottom gradient fade -->
+          <div style="position:absolute; inset:0; background:linear-gradient(to bottom, transparent 40%, rgba(9,9,11,0.7) 70%, #09090b 100%); pointer-events:none;"></div>
+          <!-- Side vignettes -->
+          <div style="position:absolute; top:0; left:0; bottom:0; width:40px; background:linear-gradient(to right, rgba(9,9,11,0.5), transparent); pointer-events:none;"></div>
+          <div style="position:absolute; top:0; right:0; bottom:0; width:40px; background:linear-gradient(to left, rgba(9,9,11,0.5), transparent); pointer-events:none;"></div>
+        </div>
+        <!-- Profile section below banner -->
+        <div style="margin-top:12px; display:flex; align-items:flex-start; gap:14px;">
+          <div class="av" style="width:64px; height:64px; flex-shrink:0; margin-top:-24px; border:2px solid #09090b; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+            <div class="av-placeholder" style="font-size:20px;">A</div>
+          </div>
+          <div>
+            <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em; color:var(--text);">abhinavs</div>
+            <div style="margin-top:4px; font-size:13px; color:var(--muted);">
+              <span style="color:var(--text); font-weight:600;">142</span> followers &nbsp;·&nbsp; <span style="color:var(--text); font-weight:600;">89</span> following
+            </div>
+            <div style="margin-top:6px; font-size:13px; color:var(--muted);">3,241 listens &nbsp;·&nbsp; 12d streak</div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>What changes:</strong> 2-row mosaic, second row offset by half a tile so edges never align. Taller at 160px (up from 144px). Side vignettes prevent hard cutoffs at the edges. Content below the banner sits naturally on the page — no extra card container.<br><br>
+        <strong>When no albums:</strong> Deep gradient with a subtle radial glow instead of a flat zinc slab.
+      </div>
+    </div>
+
+    <!-- Option B: Single panoramic strip -->
+    <div class="option">
+      <div class="option-label">
+        <span class="option-name">Option B — Tall panoramic strip</span>
+        <span class="option-badge badge-alt">Alternative</span>
+      </div>
+      <div class="option-preview">
+        <div style="position:relative; height:160px; border-radius:14px; overflow:hidden; background:#18181b;">
+          <!-- Single row, zoomed in and blurred slightly so it reads more as atmosphere than detail -->
+          <div style="position:absolute; inset:0; display:flex; gap:2px; transform:scale(1.08); transform-origin:center;">
+            <div style="flex:1; background:linear-gradient(135deg,#3f3f46,#27272a); filter:blur(1px);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#292524,#1c1917); filter:blur(1px);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#1e3a5f,#172554); filter:blur(1px);"></div>
+            <div style="flex:1; background:linear-gradient(135deg,#3d1f0e,#1c0a04); filter:blur(1px);"></div>
+          </div>
+          <!-- Heavier overlay -->
+          <div style="position:absolute; inset:0; background:rgba(9,9,11,0.45); pointer-events:none;"></div>
+          <div style="position:absolute; inset:0; background:linear-gradient(to bottom, transparent 30%, rgba(9,9,11,0.75) 75%, #09090b 100%); pointer-events:none;"></div>
+        </div>
+        <div style="margin-top:12px; display:flex; align-items:flex-start; gap:14px;">
+          <div class="av" style="width:64px; height:64px; flex-shrink:0; margin-top:-24px; border:2px solid #09090b; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+            <div class="av-placeholder" style="font-size:20px;">A</div>
+          </div>
+          <div>
+            <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em; color:var(--text);">abhinavs</div>
+            <div style="margin-top:4px; font-size:13px; color:var(--muted);">
+              <span style="color:var(--text); font-weight:600;">142</span> followers &nbsp;·&nbsp; <span style="color:var(--text); font-weight:600;">89</span> following
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>What changes:</strong> Same single row as today but slightly zoomed and softened so the album art becomes ambient atmosphere rather than a grid. Heavier overlay. Simpler to implement but less visually dynamic than Option A.
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 02  HOME TABS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="home-tabs">
+  <div class="section-header">
+    <div class="section-num">02 — Home Tabs</div>
+    <h2 class="section-title">Home Tab Bar</h2>
+    <p class="section-desc">The Billboard / Pulse / History / Activity tabs. Currently a plain underline style. Three directions — each changes the visual weight of the active state.</p>
+  </div>
+
+  <div class="options" style="grid-template-columns:1fr 1fr 1fr; gap:24px;">
+
+    <!-- Option A: pill active -->
+    <div class="option recommended">
+      <div class="option-label">
+        <span class="option-name">Option A — Filled pill</span>
+        <span class="option-badge badge-rec">Recommended</span>
+      </div>
+      <div class="option-preview">
+        <!-- Tab strip inside a segmented control shell -->
+        <div style="background:rgba(24,24,27,0.65); border-radius:14px; padding:5px; display:flex; gap:2px; outline:1px solid rgba(255,255,255,0.07); box-shadow:inset 0 2px 10px rgba(0,0,0,0.35);">
+          <button style="flex:1; padding:8px 10px; border-radius:10px; background:rgba(63,63,70,0.7); outline:1px solid rgba(255,255,255,0.10); font-size:13px; font-weight:600; color:#fafafa; cursor:default; border:none; box-shadow:0 1px 4px rgba(0,0,0,0.3);">Billboard</button>
+          <button style="flex:1; padding:8px 10px; border-radius:10px; background:transparent; font-size:13px; font-weight:500; color:#71717a; cursor:default; border:none;">Pulse</button>
+          <button style="flex:1; padding:8px 10px; border-radius:10px; background:transparent; font-size:13px; font-weight:500; color:#71717a; cursor:default; border:none;">History</button>
+          <button style="flex:1; padding:8px 10px; border-radius:10px; background:transparent; font-size:13px; font-weight:500; color:#71717a; cursor:default; border:none;">Activity</button>
+        </div>
+        <div style="margin-top:14px; font-size:12px; color:var(--subtle);">Active pill: opaque zinc fill with ring. No underline needed.</div>
+      </div>
+      <div class="option-notes">
+        <strong>Why this works:</strong> The filled pill reads immediately — no need to hunt for a thin underline. Consistent with how iOS and many modern apps signal selected state. The segmented shell itself adds depth to an otherwise flat area of the page.
+      </div>
+    </div>
+
+    <!-- Option B: Bold underline, gold accent -->
+    <div class="option">
+      <div class="option-label">
+        <span class="option-name">Option B — Bold underline</span>
+        <span class="option-badge badge-alt">Alternative</span>
+      </div>
+      <div class="option-preview">
+        <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.07); gap:0;">
+          <button style="padding:12px 18px; font-size:14px; font-weight:700; color:#fafafa; border:none; background:transparent; cursor:default; position:relative; border-bottom:2px solid #c8973a; margin-bottom:-1px;">Billboard</button>
+          <button style="padding:12px 18px; font-size:14px; font-weight:500; color:#71717a; border:none; background:transparent; cursor:default;">Pulse</button>
+          <button style="padding:12px 18px; font-size:14px; font-weight:500; color:#71717a; border:none; background:transparent; cursor:default;">History</button>
+          <button style="padding:12px 18px; font-size:14px; font-weight:500; color:#71717a; border:none; background:transparent; cursor:default;">Activity</button>
+        </div>
+        <div style="margin-top:14px; font-size:12px; color:var(--subtle);">Same structure as today — bolder font weight on active, thicker gold line.</div>
+      </div>
+      <div class="option-notes">
+        <strong>Minimal change:</strong> This is the current design with slightly heavier typography and a thicker (2px) indicator line. Lowest risk — familiar and easy to scan. Less visually exciting but never wrong.
+      </div>
+    </div>
+
+    <!-- Option C: Two-level — subtitle row below active tab -->
+    <div class="option">
+      <div class="option-label">
+        <span class="option-name">Option C — Tab with context line</span>
+        <span class="option-badge badge-alt">Alternative</span>
+      </div>
+      <div class="option-preview">
+        <div style="border-bottom:1px solid rgba(255,255,255,0.07);">
+          <div style="display:flex; gap:0;">
+            <button style="padding:10px 18px 8px; font-size:14px; font-weight:700; color:#fafafa; border:none; background:transparent; cursor:default; position:relative; border-bottom:2px solid #c8973a; margin-bottom:-1px;">Billboard</button>
+            <button style="padding:10px 18px 8px; font-size:14px; font-weight:500; color:#71717a; border:none; background:transparent; cursor:default;">Pulse</button>
+            <button style="padding:10px 18px 8px; font-size:14px; font-weight:500; color:#71717a; border:none; background:transparent; cursor:default;">History</button>
+            <button style="padding:10px 18px 8px; font-size:14px; font-weight:500; color:#71717a; border:none; background:transparent; cursor:default;">Activity</button>
+          </div>
+          <div style="padding:4px 18px 8px; font-size:11px; font-weight:500; color:var(--subtle); letter-spacing:0.02em;">Your weekly ranked chart · May 19–25</div>
+        </div>
+        <div style="margin-top:14px; font-size:12px; color:var(--subtle);">A small context line under the tab strip contextualizes what you're looking at.</div>
+      </div>
+      <div class="option-notes">
+        <strong>Adds context:</strong> A single-line subtitle updates dynamically per active tab (e.g. "Your weekly ranked chart · May 19–25" on Billboard, "Rolling 7-day stats" on Pulse). Gives first-time users a clue about what each tab holds.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 03  BILLBOARD DROP BANNER -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="billboard-banner">
+  <div class="section-header">
+    <div class="section-num">03 — Billboard Drop Banner</div>
+    <h2 class="section-title">Billboard Drop Banner</h2>
+    <p class="section-desc">The notification shown at the top of the home page when a new weekly chart is ready. Currently a subtle amber-tinted card.</p>
+  </div>
+
+  <div class="options options-2col">
+
+    <!-- Option A: Dramatic full card -->
+    <div class="option recommended">
+      <div class="option-label">
+        <span class="option-name">Option A — Prominent announcement card</span>
+        <span class="option-badge badge-rec">Recommended</span>
+      </div>
+      <div class="option-preview">
+        <div style="position:relative; overflow:hidden; border-radius:16px; border:1px solid rgba(251,191,36,0.3); background:#09090b; box-shadow:0 20px 60px -16px rgba(251,191,36,0.28);">
+          <!-- Radial glow -->
+          <div style="position:absolute; inset:0; background:radial-gradient(ellipse at 15% 50%, rgba(251,191,36,0.18) 0%, transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(180,83,9,0.10) 0%, transparent 45%); pointer-events:none;"></div>
+          <div style="position:relative; display:flex; align-items:center; gap:16px; padding:20px 22px;">
+            <!-- Icon block -->
+            <div style="width:48px; height:48px; flex-shrink:0; border-radius:14px; background:rgba(251,191,36,0.12); outline:1px solid rgba(251,191,36,0.2); display:flex; align-items:center; justify-content:center;">
+              <!-- Simple chart icon (SVG) -->
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="14" width="4" height="7" rx="1.5" fill="rgba(251,191,36,0.9)"/>
+                <rect x="10" y="9" width="4" height="12" rx="1.5" fill="rgba(251,191,36,0.7)"/>
+                <rect x="17" y="4" width="4" height="17" rx="1.5" fill="rgba(251,191,36,0.5)"/>
+              </svg>
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:11px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:rgba(251,191,36,0.85); margin-bottom:3px;">Weekly Billboard</div>
+              <div style="font-size:16px; font-weight:700; letter-spacing:-0.02em; color:#fafafa;">Your chart for May 19–25 is ready</div>
+              <div style="margin-top:2px; font-size:13px; color:#a1a1aa;">See what rose, what dropped, and your #1 this week.</div>
+            </div>
+            <div class="btn-gold" style="flex-shrink:0; font-size:13px; padding:9px 18px;">View chart</div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>What changes:</strong> The icon is now a small bar-chart SVG (no emoji). Layout switches to three-part: icon · text · CTA. The CTA is larger and gold, not amber-text on dark. The glow underneath is more dramatic — this should feel like a real weekly drop event.
+      </div>
+    </div>
+
+    <!-- Option B: Compact top strip -->
+    <div class="option">
+      <div class="option-label">
+        <span class="option-name">Option B — Compact notification strip</span>
+        <span class="option-badge badge-alt">Alternative</span>
+      </div>
+      <div class="option-preview">
+        <div style="position:relative; overflow:hidden; border-radius:14px; border:1px solid rgba(251,191,36,0.2); background:linear-gradient(to right, rgba(120,53,15,0.25) 0%, rgba(24,24,27,0.95) 40%);">
+          <div style="display:flex; align-items:center; gap:14px; padding:14px 18px;">
+            <div style="width:5px; align-self:stretch; background:linear-gradient(to bottom, #fbbf24, #b45309); border-radius:999px; flex-shrink:0;"></div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa;">Your Billboard for May 19–25 is ready</div>
+              <div style="font-size:12px; color:#a1a1aa; margin-top:1px;">Weekly ranked chart &nbsp;·&nbsp; new entries this week</div>
+            </div>
+            <button style="font-size:12px; font-weight:600; color:#fbbf24; background:transparent; border:none; cursor:default; white-space:nowrap;">View →</button>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>More restrained:</strong> A left-accent bar (common in notification/alert UI) instead of a large glow. Takes up far less vertical space. Better if you expect users to dismiss it quickly and move on — doesn't compete visually with the chart content below it.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 04  TOP THIS WEEK CARDS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="top-this-week">
+  <div class="section-header">
+    <div class="section-num">04 — Top This Week Cards</div>
+    <h2 class="section-title">Top This Week — Card Layout</h2>
+    <p class="section-desc">The horizontal scroll of album/artist cards in the Pulse tab. Currently plain cards with no chart context. Three approaches — each increases the "chart" feel differently.</p>
+  </div>
+
+  <div class="options" style="display:grid; gap:28px;">
+
+    <!-- Option A: Rank badge + play bar -->
+    <div class="option recommended">
+      <div class="option-label">
+        <span class="option-name">Option A — Rank badge and play bar</span>
+        <span class="option-badge badge-rec">Recommended</span>
+      </div>
+      <div class="option-preview">
+        <div style="overflow:hidden;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.04em; color:#71717a; margin-bottom:10px; text-transform:uppercase; font-size:11px; letter-spacing:0.12em;">Top tracks</div>
+          <div style="display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; padding-top:4px; padding-left:4px;">
+            <!-- Card 1 -->
+            <div style="position:relative; flex-shrink:0; width:140px; background:rgba(24,24,27,0.62); border-radius:14px; padding:12px; outline:1px solid rgba(255,255,255,0.08); box-shadow:0 8px 28px -8px rgba(0,0,0,0.55);">
+              <div class="rank-badge rank-1">1</div>
+              <div style="width:100%; aspect-ratio:1; border-radius:10px; background:linear-gradient(135deg,#292524,#1c1917); overflow:hidden; margin-bottom:10px;"></div>
+              <div style="font-size:13px; font-weight:600; color:#fafafa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">All Falls Down</div>
+              <div style="font-size:11px; color:#71717a; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Kanye West</div>
+              <div style="font-size:11px; color:#52525b; margin-top:4px; font-variant-numeric:tabular-nums;">47 plays</div>
+              <div class="play-bar-wrap"><div class="play-bar-fill" style="width:100%;"></div></div>
+            </div>
+            <!-- Card 2 -->
+            <div style="position:relative; flex-shrink:0; width:140px; background:rgba(24,24,27,0.62); border-radius:14px; padding:12px; outline:1px solid rgba(255,255,255,0.08); box-shadow:0 8px 28px -8px rgba(0,0,0,0.55);">
+              <div class="rank-badge rank-2">2</div>
+              <div style="width:100%; aspect-ratio:1; border-radius:10px; background:linear-gradient(135deg,#1e3a5f,#172554); overflow:hidden; margin-bottom:10px;"></div>
+              <div style="font-size:13px; font-weight:600; color:#fafafa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">N95</div>
+              <div style="font-size:11px; color:#71717a; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Kendrick Lamar</div>
+              <div style="font-size:11px; color:#52525b; margin-top:4px; font-variant-numeric:tabular-nums;">31 plays</div>
+              <div class="play-bar-wrap"><div class="play-bar-fill" style="width:66%;"></div></div>
+            </div>
+            <!-- Card 3 -->
+            <div style="position:relative; flex-shrink:0; width:140px; background:rgba(24,24,27,0.62); border-radius:14px; padding:12px; outline:1px solid rgba(255,255,255,0.08); box-shadow:0 8px 28px -8px rgba(0,0,0,0.55);">
+              <div class="rank-badge rank-3">3</div>
+              <div style="width:100%; aspect-ratio:1; border-radius:10px; background:linear-gradient(135deg,#3d1f0e,#1c0a04); overflow:hidden; margin-bottom:10px;"></div>
+              <div style="font-size:13px; font-weight:600; color:#fafafa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Die Hard</div>
+              <div style="font-size:11px; color:#71717a; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Kendrick Lamar</div>
+              <div style="font-size:11px; color:#52525b; margin-top:4px; font-variant-numeric:tabular-nums;">24 plays</div>
+              <div class="play-bar-wrap"><div class="play-bar-fill" style="width:51%;"></div></div>
+            </div>
+            <!-- Card 4 -->
+            <div style="position:relative; flex-shrink:0; width:140px; background:rgba(24,24,27,0.62); border-radius:14px; padding:12px; outline:1px solid rgba(255,255,255,0.08); box-shadow:0 8px 28px -8px rgba(0,0,0,0.55);">
+              <div class="rank-badge rank-n">4</div>
+              <div style="width:100%; aspect-ratio:1; border-radius:10px; background:linear-gradient(135deg,#3f3f46,#27272a); overflow:hidden; margin-bottom:10px;"></div>
+              <div style="font-size:13px; font-weight:600; color:#fafafa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Supercut</div>
+              <div style="font-size:11px; color:#71717a; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Lorde</div>
+              <div style="font-size:11px; color:#52525b; margin-top:4px; font-variant-numeric:tabular-nums;">19 plays</div>
+              <div class="play-bar-wrap"><div class="play-bar-fill" style="width:40%;"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>What changes:</strong> A small circular rank badge (gold for #1, silver for #2, bronze for #3) sits in the top-left corner of each card. Below the play count, a single-line progress bar shows relative play volume — the #1 track is always 100% width, others are proportional. No color changes to the cards themselves.<br><br>
+        <strong>Implementation:</strong> Rank and maxPlays are passed from the parent; the bar is a pure CSS width percentage.
+      </div>
+    </div>
+
+    <!-- Option B: Horizontal ranked list rows -->
+    <div class="option">
+      <div class="option-label">
+        <span class="option-name">Option B — Horizontal ranked list</span>
+        <span class="option-badge badge-alt">Alternative</span>
+      </div>
+      <div class="option-preview">
+        <div style="font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:#71717a; margin-bottom:10px;">Top tracks</div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <!-- Row 1 -->
+          <div style="display:flex; align-items:center; gap:12px; background:rgba(24,24,27,0.62); border-radius:12px; padding:10px 14px; outline:1px solid rgba(255,255,255,0.08);">
+            <span style="font-size:13px; font-weight:800; color:#fbbf24; width:18px; text-align:center; flex-shrink:0;">1</span>
+            <div style="width:40px; height:40px; border-radius:8px; background:linear-gradient(135deg,#292524,#1c1917); flex-shrink:0;"></div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa;">All Falls Down</div>
+              <div style="font-size:12px; color:#71717a; margin-top:1px;">Kanye West</div>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa; font-variant-numeric:tabular-nums;">47</div>
+              <div style="font-size:11px; color:#52525b;">plays</div>
+            </div>
+          </div>
+          <!-- Row 2 -->
+          <div style="display:flex; align-items:center; gap:12px; background:rgba(24,24,27,0.62); border-radius:12px; padding:10px 14px; outline:1px solid rgba(255,255,255,0.08);">
+            <span style="font-size:13px; font-weight:800; color:#d4d4d8; width:18px; text-align:center; flex-shrink:0;">2</span>
+            <div style="width:40px; height:40px; border-radius:8px; background:linear-gradient(135deg,#1e3a5f,#172554); flex-shrink:0;"></div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa;">N95</div>
+              <div style="font-size:12px; color:#71717a; margin-top:1px;">Kendrick Lamar</div>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa; font-variant-numeric:tabular-nums;">31</div>
+              <div style="font-size:11px; color:#52525b;">plays</div>
+            </div>
+          </div>
+          <!-- Row 3 -->
+          <div style="display:flex; align-items:center; gap:12px; background:rgba(24,24,27,0.62); border-radius:12px; padding:10px 14px; outline:1px solid rgba(255,255,255,0.08);">
+            <span style="font-size:13px; font-weight:800; color:#a16207; width:18px; text-align:center; flex-shrink:0;">3</span>
+            <div style="width:40px; height:40px; border-radius:8px; background:linear-gradient(135deg,#3d1f0e,#1c0a04); flex-shrink:0;"></div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa;">Die Hard</div>
+              <div style="font-size:12px; color:#71717a; margin-top:1px;">Kendrick Lamar</div>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa; font-variant-numeric:tabular-nums;">24</div>
+              <div style="font-size:11px; color:#52525b;">plays</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>Trade-off:</strong> More information density — you can see 5+ tracks without scrolling horizontally. Feels more like a traditional chart. Loses the album art prominence of the card layout. Good if you want to show 10 tracks at a glance, less good if the art is a key part of the experience.
+      </div>
+    </div>
+
+    <!-- Option C: No change to cards, just add top-3 highlight header -->
+    <div class="option">
+      <div class="option-label">
+        <span class="option-name">Option C — Podium header above existing cards</span>
+        <span class="option-badge badge-alt">Alternative</span>
+      </div>
+      <div class="option-preview">
+        <!-- Podium strip -->
+        <div style="display:flex; align-items:flex-end; gap:8px; margin-bottom:16px; padding:16px 4px 0;">
+          <!-- #2 -->
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+            <div style="width:48px; height:48px; border-radius:999px; background:linear-gradient(135deg,#1e3a5f,#172554); outline:2px solid rgba(212,212,216,0.25);"></div>
+            <div style="font-size:11px; font-weight:600; color:#d4d4d8; text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">N95</div>
+            <div style="width:100%; height:28px; background:rgba(63,63,70,0.4); border-radius:6px 6px 0 0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#d4d4d8;">2</div>
+          </div>
+          <!-- #1 -->
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+            <div style="width:56px; height:56px; border-radius:999px; background:linear-gradient(135deg,#292524,#1c1917); outline:2px solid rgba(251,191,36,0.5); box-shadow:0 0 16px rgba(251,191,36,0.2);"></div>
+            <div style="font-size:11px; font-weight:600; color:#fbbf24; text-align:center; max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">All Falls Down</div>
+            <div style="width:100%; height:40px; background:rgba(120,53,15,0.3); border-radius:6px 6px 0 0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fbbf24;">1</div>
+          </div>
+          <!-- #3 -->
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+            <div style="width:44px; height:44px; border-radius:999px; background:linear-gradient(135deg,#3d1f0e,#1c0a04); outline:2px solid rgba(161,98,7,0.3);"></div>
+            <div style="font-size:11px; font-weight:600; color:#a16207; text-align:center; max-width:55px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Die Hard</div>
+            <div style="width:100%; height:20px; background:rgba(63,63,70,0.3); border-radius:6px 6px 0 0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#a16207;">3</div>
+          </div>
+        </div>
+        <div style="font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:#71717a; margin-top:12px; margin-bottom:10px;">4–10</div>
+        <div style="display:flex; gap:10px; overflow-x:auto;">
+          <div style="flex-shrink:0; width:120px; background:rgba(24,24,27,0.62); border-radius:14px; padding:10px; outline:1px solid rgba(255,255,255,0.08);">
+            <div style="width:100%; aspect-ratio:1; border-radius:8px; background:linear-gradient(135deg,#3f3f46,#27272a); margin-bottom:8px;"></div>
+            <div style="font-size:12px; font-weight:600; color:#fafafa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Supercut</div>
+            <div style="font-size:10px; color:#71717a; margin-top:2px;">Lorde</div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>Most dramatic:</strong> Separates the top 3 into a podium visualization (tallest column = #1) before showing the rest as the existing horizontal card strip. High visual impact but adds significant height to the section. Best if you want the profile to feel like a real leaderboard.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 05  PULSE SECTION -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="pulse">
+  <div class="section-header">
+    <div class="section-num">05 — Pulse Section</div>
+    <h2 class="section-title">Pulse — Weekly Stats</h2>
+    <p class="section-desc">The weekly listening stats block. Currently a plain list of stats inside a single card. Two directions — one keeps the card, one breaks it into individual stat tiles.</p>
+  </div>
+
+  <div class="options options-2col">
+
+    <!-- Option A: Stat tiles grid -->
+    <div class="option recommended">
+      <div class="option-label">
+        <span class="option-name">Option A — Stat tiles</span>
+        <span class="option-badge badge-rec">Recommended</span>
+      </div>
+      <div class="option-preview">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em; color:#fafafa;">Pulse</div>
+          <div style="font-size:13px; color:#71717a; margin-top:2px;">May 19 – May 25</div>
+        </div>
+        <!-- 2x2 grid of stat tiles -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <!-- Tile 1: Play volume -->
+          <div style="background:rgba(24,24,27,0.62); border-radius:14px; padding:14px 16px; outline:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:#52525b; margin-bottom:8px;">Plays this week</div>
+            <div style="font-size:28px; font-weight:800; letter-spacing:-0.03em; color:#fafafa; line-height:1;">247</div>
+            <div style="margin-top:6px; font-size:12px;" class="change-up">+18% vs last week</div>
+          </div>
+          <!-- Tile 2: Top genre -->
+          <div style="background:rgba(24,24,27,0.62); border-radius:14px; padding:14px 16px; outline:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:#52525b; margin-bottom:8px;">Top genre</div>
+            <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em; color:#fafafa; line-height:1.2;">Hip-hop</div>
+            <div style="margin-top:6px; font-size:12px;" class="change-flat">Same as last week</div>
+          </div>
+          <!-- Tile 3: Top artist -->
+          <div style="background:rgba(24,24,27,0.62); border-radius:14px; padding:14px 16px; outline:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:#52525b; margin-bottom:8px;">Top artist</div>
+            <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em; color:#fafafa; line-height:1.2;">Kendrick Lamar</div>
+            <div style="margin-top:6px; font-size:12px;" class="change-up">Up from Drake</div>
+          </div>
+          <!-- Tile 4: New discoveries -->
+          <div style="background:rgba(24,24,27,0.62); border-radius:14px; padding:14px 16px; outline:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:#52525b; margin-bottom:8px;">New artists</div>
+            <div style="font-size:28px; font-weight:800; letter-spacing:-0.03em; color:#fafafa; line-height:1;">3</div>
+            <div style="margin-top:6px; font-size:12px; color:#a78bfa;">Added to rotation</div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>What changes:</strong> The single long card becomes a 2×2 grid of individual stat tiles. Each tile has one stat and a single change indicator. Numbers are large and immediately scannable. The tile approach makes it easy to add or remove a stat without affecting the others.
+      </div>
+    </div>
+
+    <!-- Option B: Current style with improved change indicators -->
+    <div class="option">
+      <div class="option-label">
+        <span class="option-name">Option B — Enhanced single card</span>
+        <span class="option-badge badge-alt">Alternative</span>
+      </div>
+      <div class="option-preview">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:18px; font-weight:700; letter-spacing:-0.02em; color:#fafafa;">Pulse</div>
+          <div style="font-size:13px; color:#71717a; margin-top:2px;">May 19 – May 25</div>
+        </div>
+        <div style="background:rgba(24,24,27,0.62); border-radius:16px; padding:18px 20px; outline:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; gap:16px;">
+          <!-- Divider label -->
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#52525b;">This week vs last week</div>
+          <!-- Stat row 1 -->
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:32px; height:32px; border-radius:10px; background:rgba(52,211,153,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M6 11l6-6 6 6" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa;">How much you're listening</div>
+              <div style="font-size:12px; color:#71717a; margin-top:1px;">247 plays · <span style="color:#34d399;">+18%</span> vs 210 last week</div>
+            </div>
+          </div>
+          <!-- Stat row 2 -->
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:32px; height:32px; border-radius:10px; background:rgba(251,191,36,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M6 11l6-6 6 6" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa;">Top artist this week</div>
+              <div style="font-size:12px; color:#fafafa; margin-top:1px;">Kendrick Lamar</div>
+              <div style="font-size:11px; color:#71717a; margin-top:1px;">Up from Drake</div>
+            </div>
+          </div>
+          <!-- Stat row 3 -->
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:32px; height:32px; border-radius:10px; background:rgba(167,139,250,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:13px; font-weight:600; color:#fafafa;">Artists you just found</div>
+              <div style="font-size:12px; color:#d4d4d8; margin-top:1px;">Mk.gee · Blood Orange · Arooj Aftab</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <strong>What changes:</strong> Each stat row gets a small colored icon square (green for volume up, gold for movers, violet for discoveries) instead of a plain arrow. More visual anchors without restructuring the layout. Closest to the current design — lower implementation effort.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <span>Tracklist · Design Proposals · 2026-05-29</span>
+  <span>Open in browser at <code>docs/design-proposals/index.html</code></span>
+</footer>
+
+</body>
+</html>

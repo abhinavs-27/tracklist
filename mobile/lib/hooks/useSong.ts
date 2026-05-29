@@ -64,6 +64,7 @@ export function useSongInfo(songId: string) {
     queryFn: () => fetcher<SongInfoData>(`/api/songs/${encodeURIComponent(songId)}/info`),
     enabled: !!songId,
     staleTime: 10 * 60 * 1000,
+    retry: false,
   });
   return {
     producers: data?.producers ?? [],

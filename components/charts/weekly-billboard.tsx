@@ -611,17 +611,17 @@ const BillboardHero = memo(function BillboardHero({
   );
 
   const content = (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-5">
       {leader.image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={leader.image} alt=""
-          className="h-[108px] w-[108px] shrink-0 rounded-xl object-cover ring-1 ring-white/10" />
+          className="h-[124px] w-[124px] shrink-0 rounded-xl object-cover ring-2 ring-amber-500/20 shadow-lg shadow-black/40" />
       ) : (
-        <div className="flex h-[108px] w-[108px] shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-zinc-600">♪</div>
+        <div className="flex h-[124px] w-[124px] shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-zinc-600">♪</div>
       )}
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/90">#1 this week</p>
-        <h2 className="mt-1.5 text-lg font-bold leading-tight tracking-tight text-white line-clamp-2">{leader.name}</h2>
+        <h2 className="mt-1.5 text-xl font-bold leading-tight tracking-tight text-white line-clamp-2">{leader.name}</h2>
         {leader.artist_name && <p className="mt-0.5 truncate text-sm text-zinc-400">{leader.artist_name}</p>}
         {statsLine}
       </div>
@@ -629,8 +629,8 @@ const BillboardHero = memo(function BillboardHero({
   );
 
   return (
-    <section className={`${cardRadius} border border-zinc-800/80 bg-zinc-900/50 p-4 ring-1 ring-inset ring-white/[0.06]`}>
-      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">{weekLabel}</p>
+    <section className={`${cardRadius} relative overflow-hidden border border-amber-500/15 bg-zinc-900/60 p-4 shadow-[0_8px_32px_-8px_rgba(200,151,58,0.12)] ring-1 ring-inset ring-white/[0.06]`}>
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">{weekLabel}</p>
       {heroCatalogHref ? (
         <Link href={heroCatalogHref} prefetch={false} className="group block rounded-xl transition hover:bg-white/[0.03]">
           {content}

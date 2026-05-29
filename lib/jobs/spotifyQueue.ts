@@ -267,7 +267,10 @@ export async function enqueueSpotifyEnrich(
 ): Promise<void> {
   // Route enrich_artist / enrich_album through SQS when available so Lambda
   // handles them in production (Vercel has no persistent BullMQ worker).
-  if (process.env.CRON_JOBS_QUEUE_URL?.trim()) {
+  // Guard: never re-enqueue to SQS from within a Lambda execution. The SQS
+  // event-source-mapping retries up to maxReceiveCount before routing to DLQ.
+  // Re-enqueueing from Lambda creates a Lambda→SQS→Lambda recursive loop.
+  if (process.env.CRON_JOBS_QUEUE_URL?.trim() && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     if (job.name === "enrich_artist") {
       void import("@/lib/jobs/enqueue-cron-message")
         .then(({ sendCronJobMessage }) =>

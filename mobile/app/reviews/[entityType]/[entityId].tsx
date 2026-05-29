@@ -128,7 +128,7 @@ export default function ReviewsScreen() {
                 borderRadius: 10,
                 borderWidth: 1,
                 borderColor: active ? theme.colors.gold : theme.colors.border,
-                backgroundColor: active ? "rgba(16,185,129,0.2)" : theme.colors.panel,
+                backgroundColor: active ? "rgba(200,151,58,0.2)" : theme.colors.panel,
                 opacity: pressed ? 0.85 : 1,
               })}
               accessibilityLabel={`${r} out of 5 stars`}

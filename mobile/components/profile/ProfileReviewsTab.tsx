@@ -195,10 +195,10 @@ const s = StyleSheet.create({
   },
   filterBtnActive: {
     borderColor: theme.colors.gold,
-    backgroundColor: "rgba(16,185,129,0.1)",
+    backgroundColor: "rgba(200,151,58,0.1)",
   },
   filterLabel: { fontSize: 13, fontWeight: "500", color: theme.colors.muted },
-  filterLabelActive: { color: "#6ee7b7" },
+  filterLabelActive: { color: "#C8973A" },
   empty: { textAlign: "center", color: "#52525b", fontSize: 14, marginTop: 40 },
   monthLabel: {
     fontSize: 10,

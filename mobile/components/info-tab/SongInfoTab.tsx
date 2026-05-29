@@ -1,9 +1,10 @@
 import { Text, View } from "react-native";
 import { CreditsBlock } from "./CreditsBlock";
+import type { CreditPerson } from "./CreditsBlock";
 import { SongCard } from "./SongCard";
+import { theme } from "@/lib/theme";
 
 interface SongRef { id: string; name: string; artist_name: string; album_image_url: string | null; release_year: number | null; }
-interface CreditPerson { id: string; name: string; }
 
 interface Props {
   producers: CreditPerson[]; songwriters: CreditPerson[]; featuring: CreditPerson[];
@@ -11,9 +12,9 @@ interface Props {
   isLoading?: boolean;
 }
 
-const SECTION_STYLE = { fontSize: 11, fontWeight: "700" as const, textTransform: "uppercase" as const, letterSpacing: 1, color: "#52525B", marginBottom: 8 };
-const HINT_STYLE    = { fontSize: 12, color: "#52525B", marginBottom: 8 };
-const DIV_STYLE     = { height: 1, backgroundColor: "#27272A", marginVertical: 16 };
+const SECTION_STYLE = { fontSize: 11, fontWeight: "700" as const, textTransform: "uppercase" as const, letterSpacing: 1, color: theme.colors.muted, marginBottom: 8 };
+const HINT_STYLE    = { fontSize: 12, color: theme.colors.muted, marginBottom: 8 };
+const DIV_STYLE     = { height: 1, backgroundColor: theme.colors.border, marginVertical: 16 };
 
 export function SongInfoTab({ producers, songwriters, featuring, samples, sampledBy, covers, isLoading }: Props) {
   const hasCredits = producers.length > 0 || songwriters.length > 0 || featuring.length > 0;
@@ -40,9 +41,9 @@ export function SongInfoTab({ producers, songwriters, featuring, samples, sample
       {hasCredits && (
         <>
           <Text style={SECTION_STYLE}>Credits</Text>
-          <CreditsBlock label="Produced by" people={producers} color="emerald" navPath={(id) => `/artist/${id}`} />
-          <CreditsBlock label="Written by" people={songwriters} color="emerald" navPath={(id) => `/artist/${id}`} />
-          <CreditsBlock label="Featuring" people={featuring} color="amber" navPath={(id) => `/artist/${id}`} />
+          <CreditsBlock label="Produced by" people={producers} navPath={(id) => `/artist/${id}`} />
+          <CreditsBlock label="Written by" people={songwriters} navPath={(id) => `/artist/${id}`} />
+          <CreditsBlock label="Featuring" people={featuring} navPath={(id) => `/artist/${id}`} />
         </>
       )}
       {samples.length > 0 && (

@@ -48,6 +48,24 @@ function deriveSignature(taste: TasteIdentity): Signature {
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
+const KIND_BORDER_COLOR: Record<string, string> = {
+  shifting:          "#38bdf8",
+  exploring:         "#a78bfa",
+  stable:            "#C8973A",
+  deepening:         "#C8973A",
+  "deep-diver":      "#a78bfa",
+  "steady-explorer": "#38bdf8",
+  skimmer:           "#fbbf24",
+  loyal:             "#71717a",
+  underground:       "#a78bfa",
+  "indie-leaning":   "#38bdf8",
+  mainstream:        "#71717a",
+  balanced:          "#71717a",
+  "genre-fluid":     "#C8973A",
+  "genre-curious":   "#38bdf8",
+  focused:           "#71717a",
+};
+
 const KIND_COLOR: Record<string, string> = {
   shifting:         "bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/20",
   exploring:        "bg-violet-500/15 text-violet-400 ring-1 ring-violet-500/20",
@@ -124,8 +142,12 @@ function InsightCard({
   narrative: string;
   children?: React.ReactNode;
 }) {
+  const accentColor = KIND_BORDER_COLOR[primaryKind] ?? "#71717a";
   return (
-    <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 p-4 ring-1 ring-white/[0.04]">
+    <div
+      className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 p-4 ring-1 ring-white/[0.04]"
+      style={{ borderLeftWidth: "3px", borderLeftColor: `${accentColor}55` }}
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
           {label}

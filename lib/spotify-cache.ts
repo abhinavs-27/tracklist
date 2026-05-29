@@ -215,6 +215,7 @@ type SongRow = {
   artist_id: string | null;
   duration_ms: number | null;
   track_number: number | null;
+  disc_number?: number | null;
   popularity?: number | null;
   created_at: string;
   updated_at: string;
@@ -1787,6 +1788,8 @@ async function getOrFetchAlbumInner(
           },
         ],
         duration_ms: s.duration_ms ?? undefined,
+        track_number: s.track_number ?? undefined,
+        disc_number: s.disc_number ?? 1,
       }));
 
       const tracksPayload: SpotifyApi.PagingObject<SpotifyApi.TrackObjectSimplified> =
@@ -1820,6 +1823,7 @@ async function getOrFetchAlbumInner(
         "id, name, album_id, artist_id, duration_ms, disc_number, track_number, data_source",
       )
       .eq("album_id", albumUuid)
+      .order("disc_number", { ascending: true })
       .order("track_number", { ascending: true });
     let songsStale = (songRowsStale ?? []) as unknown as SongRow[];
 
@@ -1935,6 +1939,8 @@ async function getOrFetchAlbumInner(
             },
           ],
           duration_ms: s.duration_ms ?? undefined,
+          track_number: s.track_number ?? undefined,
+          disc_number: s.disc_number ?? 1,
         })),
         total: songsStale.length,
         limit: songsStale.length,

@@ -57,6 +57,17 @@ export type ArtistViewerStats = {
   firstListened: string | null;
 };
 
+export type CreditedWork = {
+  id: string;
+  name: string;
+  image_url: string | null;
+  release_date: string | null;
+  artist_name: string;
+  roles: ("producer" | "songwriter")[];
+  listen_count: number;
+  average_rating: number | null;
+};
+
 type ArtistApiResponse = {
   artist: ArtistSummary;
   albums: ArtistAlbumGridItem[];
@@ -72,6 +83,7 @@ type ArtistApiResponse = {
   credits_enriched_at?: string | null;
   members?: Array<{ id: string; name: string; role: string | null; is_active: boolean }>;
   label_history?: Array<{ id: string; name: string; mbid: string | null; start_year: number | null; end_year: number | null; is_current: boolean }>;
+  credited_works?: CreditedWork[];
 };
 
 export type ArtistAlbumItem = {
@@ -121,9 +133,12 @@ export function useArtist(artistId: string) {
     communityStats: data?.communityStats ?? null,
     bio: data?.bio ?? null,
     externalLinks: data?.external_links ?? null,
+    isProducer: data?.is_producer ?? false,
+    isSongwriter: data?.is_songwriter ?? false,
     members: data?.members ?? [],
     labelHistory: data?.label_history ?? [],
     creditsEnrichedAt: data?.credits_enriched_at ?? null,
+    creditedWorks: data?.credited_works ?? [],
     isLoading,
     error,
   };

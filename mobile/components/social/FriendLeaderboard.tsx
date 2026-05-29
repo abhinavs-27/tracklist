@@ -11,7 +11,7 @@ type Props = {
 export function FriendLeaderboard({ entries }: Props) {
   const router = useRouter();
 
-  if (entries.length < 2) return null;
+  if (entries.length < 1) return null;
 
   const max = entries[0]?.playCount ?? 1;
 

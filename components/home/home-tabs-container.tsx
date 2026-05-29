@@ -46,13 +46,13 @@ export function HomeTabsContainer({
               key={tab.id}
               type="button"
               onClick={() => setActive(tab.id)}
-              className={`relative px-5 py-3 text-sm font-medium transition-colors duration-150 ${
-                active === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+              className={`relative px-5 py-3 text-sm transition-colors duration-150 ${
+                active === tab.id ? "font-bold text-white" : "font-medium text-zinc-500 hover:text-zinc-300"
               }`}
             >
               {tab.label}
               {active === tab.id && (
-                <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-gold-400" />
+                <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-gold-400" />
               )}
             </button>
           ))}
@@ -66,13 +66,13 @@ export function HomeTabsContainer({
             key={tab.id}
             type="button"
             onClick={() => setActive(tab.id)}
-            className={`relative px-5 py-3 text-sm font-medium transition-colors duration-150 ${
-              active === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+            className={`relative px-5 py-3 text-sm transition-colors duration-150 ${
+              active === tab.id ? "font-bold text-white" : "font-medium text-zinc-500 hover:text-zinc-300"
             }`}
           >
             {tab.label}
             {active === tab.id && (
-              <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-gold-400" />
+              <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-gold-400" />
             )}
           </button>
         ))}

@@ -98,6 +98,7 @@ export function useAlbumInfo(albumId: string) {
     queryFn: () => fetcher<AlbumInfoData>(`/api/albums/${encodeURIComponent(albumId)}/info`),
     enabled: !!albumId,
     staleTime: 10 * 60 * 1000,
+    retry: false,
   });
   return {
     bio: data?.bio ?? null,

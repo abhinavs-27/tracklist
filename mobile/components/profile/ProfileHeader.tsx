@@ -10,6 +10,7 @@ type Props = {
   stats: ProfileStats;
   streak?: ProfileUser["streak"];
   totalLogs?: number;
+  topGenre?: string | null;
   bannerAlbums?: BannerAlbum[];
   onPressFollowers?: () => void;
   onPressFollowing?: () => void;
@@ -20,6 +21,7 @@ export function ProfileHeader({
   stats,
   streak,
   totalLogs,
+  topGenre,
   bannerAlbums = [],
   onPressFollowers,
   onPressFollowing,
@@ -97,9 +99,14 @@ export function ProfileHeader({
           <Text style={s.bio} numberOfLines={4}>{user.bio}</Text>
         ) : null}
 
-        {/* Stats: listens + streak */}
-        {(totalLogs && totalLogs > 0) || (streak?.current_streak ?? 0) > 0 ? (
+        {/* Stats: genre pill + listens + streak */}
+        {(topGenre || (totalLogs && totalLogs > 0) || (streak?.current_streak ?? 0) > 0) ? (
           <View style={s.statsRow}>
+            {topGenre ? (
+              <View style={s.genrePill}>
+                <Text style={s.genrePillText}>{topGenre}</Text>
+              </View>
+            ) : null}
             {totalLogs && totalLogs > 0 ? (
               <Text style={s.stat}>
                 <Text style={s.statBold}>{totalLogs.toLocaleString()}</Text>
@@ -155,9 +162,11 @@ const s = StyleSheet.create({
 
   bio: { fontSize: 14, color: theme.colors.muted, lineHeight: 20, marginTop: 8 },
 
-  statsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4, marginTop: 8 },
-  stat: { fontSize: 14 },
+  statsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  stat: { fontSize: 15 },
   statBold: { fontWeight: "700", color: theme.colors.text },
   statLabel: { color: theme.colors.muted },
-  statDot: { fontSize: 14, color: "#52525b" },
+  statDot: { fontSize: 15, color: "#52525b" },
+  genrePill: { borderRadius: 999, backgroundColor: "rgba(200,151,58,0.1)", paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: "rgba(200,151,58,0.2)" },
+  genrePillText: { fontSize: 12, fontWeight: "600", color: "#C8973A", textTransform: "capitalize" },
 });

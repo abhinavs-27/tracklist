@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
   },
-  pillActive: { backgroundColor: "#059669", borderColor: "#059669" },
+  pillActive: { backgroundColor: "#C8973A", borderColor: "#C8973A" },
   pillText: { fontSize: 13, fontWeight: "600", color: theme.colors.muted },
   pillTextActive: { color: "#fff" },
   results: { paddingHorizontal: 16, paddingTop: 4 },

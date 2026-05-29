@@ -115,8 +115,11 @@ export const GET = withHandler(async (_request, ctx) => {
         .catch(() => null);
     }
 
-    const { getArtistInfoTabData } = await import("@/lib/musicbrainz/db-queries");
-    const infoTabData = await getArtistInfoTabData(supabase, lookupId);
+    const { getArtistInfoTabData, getArtistCreditedWorks } = await import("@/lib/musicbrainz/db-queries");
+    const [infoTabData, creditedWorks] = await Promise.all([
+      getArtistInfoTabData(supabase, lookupId),
+      getArtistCreditedWorks(supabase, lookupId),
+    ]);
 
     return apiOk({
       metadata_complete,
@@ -143,6 +146,7 @@ export const GET = withHandler(async (_request, ctx) => {
       credits_enriched_at: artistMeta?.credits_enriched_at ?? null,
       members: infoTabData.members,
       label_history: infoTabData.labelHistory,
+      credited_works: creditedWorks,
     });
   } catch (e) {
     return apiInternalError(e);

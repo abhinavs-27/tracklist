@@ -205,20 +205,25 @@ export default async function ProfilePage({
         />
 
         {/* Stats row */}
-        {(totalListens > 0 || (streak?.current_streak ?? 0) > 0) && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
+        {(totalListens > 0 || (streak?.current_streak ?? 0) > 0 || (heroTaste.topGenres ?? []).length > 0) && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {(heroTaste.topGenres ?? []).length > 0 && (
+              <span className="rounded-full bg-gold-500/10 px-3 py-1 text-xs font-semibold capitalize text-gold-400/90 ring-1 ring-gold-500/20">
+                {heroTaste.topGenres[0]!.name}
+              </span>
+            )}
             {totalListens > 0 && (
               <span>
-                <span className="font-semibold text-white">{totalListens.toLocaleString()}</span>{" "}
-                <span className="text-zinc-400">listens</span>
+                <span className="text-base font-bold text-white">{totalListens.toLocaleString()}</span>{" "}
+                <span className="text-sm text-zinc-400">listens</span>
               </span>
             )}
             {(streak?.current_streak ?? 0) > 0 && (
               <>
                 <span className="text-zinc-700">·</span>
                 <span>
-                  <span className="font-semibold text-white">{streak!.current_streak}d</span>{" "}
-                  <span className="text-zinc-400">streak</span>
+                  <span className="text-base font-bold text-white">{streak!.current_streak}d</span>{" "}
+                  <span className="text-sm text-zinc-400">streak</span>
                 </span>
               </>
             )}

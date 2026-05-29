@@ -94,6 +94,7 @@ export async function updateListeningAggregates(options?: {
       {
         p_listened_at: lastRow.listened_at,
         p_log_id: lastRow.id,
+        p_created_at: lastRow.created_at,
       },
     );
     if (wmErr) {
@@ -104,7 +105,7 @@ export async function updateListeningAggregates(options?: {
       log("watermark_advance_failed", { message: wmErr.message });
     } else {
       log("watermark_advanced", {
-        listened_at: lastRow.listened_at,
+        created_at: lastRow.created_at,
         log_id: lastRow.id,
       });
     }

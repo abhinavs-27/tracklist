@@ -10,7 +10,24 @@
  * paints stale content instantly while the network request is in-flight.
  */
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { NativeModules } from "react-native";
+
+// Guard against missing native module (e.g. Expo Go or dev client built without
+// AsyncStorage). Same pattern as supabase.ts — never call require() unless the
+// native module is registered, or the v2 package throws during module init.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let AsyncStorage: any;
+if (NativeModules.RNCAsyncStorage) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  AsyncStorage = require("@react-native-async-storage/async-storage").default;
+} else {
+  AsyncStorage = {
+    setItem: async () => {},
+    getItem: async () => null,
+    removeItem: async () => {},
+    multiGet: async (keys: string[]) => keys.map((k) => [k, null] as [string, null]),
+  };
+}
 
 const NS = "tl:cache:v2";
 

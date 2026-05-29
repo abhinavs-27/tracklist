@@ -658,7 +658,7 @@ export async function runDrainEnrichBacklog(): Promise<{
   }
 
   const { getSpotifyEnrichQueue } = await import("@/lib/jobs/spotifyQueue");
-  const { sendCronJobMessage } = await import("@/lib/jobs/enqueue-cron-message");
+  const { sendEnrichJobMessage } = await import("@/lib/jobs/enqueue-enrich-message");
 
   const queue = getSpotifyEnrichQueue();
   if (!queue) {
@@ -681,9 +681,9 @@ export async function runDrainEnrichBacklog(): Promise<{
     try {
       const data = j.data as { name: string; artistId?: string; albumId?: string };
       if (data.name === "enrich_artist" && data.artistId) {
-        await sendCronJobMessage({ type: "ENRICH_ARTIST", artistId: data.artistId });
+        await sendEnrichJobMessage({ type: "ENRICH_ARTIST", artistId: data.artistId });
       } else if (data.name === "enrich_album" && data.albumId) {
-        await sendCronJobMessage({ type: "ENRICH_ALBUM", albumId: data.albumId });
+        await sendEnrichJobMessage({ type: "ENRICH_ALBUM", albumId: data.albumId });
       } else {
         // Unknown job type — leave it for the BullMQ worker
         continue;

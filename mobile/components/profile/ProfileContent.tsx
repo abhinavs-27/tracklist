@@ -189,6 +189,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
       ];
 
   const totalLogs = (tasteData as { totalLogs?: number } | undefined)?.totalLogs ?? 0;
+  const topGenre = (tasteData as { topGenres?: { name: string }[] } | undefined)?.topGenres?.[0]?.name ?? null;
 
   const bannerAlbums = favorites.slice(0, 4).map((f) => ({ artworkUrl: f.artworkUrl }));
 
@@ -208,6 +209,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
         stats={stats}
         streak={user.streak}
         totalLogs={totalLogs}
+        topGenre={topGenre}
         bannerAlbums={bannerAlbums}
         onPressFollowers={() => { setFollowModalTab("followers"); setFollowModalOpen(true); }}
         onPressFollowing={() => { setFollowModalTab("following"); setFollowModalOpen(true); }}
@@ -381,7 +383,7 @@ const ph = StyleSheet.create({
     gap: 6,
     minHeight: 44,
   },
-  actionBtnEmerald: { borderColor: "rgba(16,185,129,0.3)", backgroundColor: "rgba(6,46,37,0.3)" },
+  actionBtnEmerald: { borderColor: "rgba(200,151,58,0.3)", backgroundColor: "rgba(74,44,14,0.3)" },
   actionBtnText: { fontSize: 13, fontWeight: "600", color: theme.colors.text },
   actionBtnEmeraldText: { color: theme.colors.gold },
   stickyTabWrap: { backgroundColor: theme.colors.bg, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3 },

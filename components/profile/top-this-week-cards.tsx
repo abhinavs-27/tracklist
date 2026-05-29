@@ -6,24 +6,53 @@ const strip =
 
 export { strip };
 
+function RankBadge({ rank }: { rank: number }) {
+  const colorClass =
+    rank === 1
+      ? "text-amber-400 ring-amber-500/30"
+      : rank === 2
+        ? "text-zinc-300 ring-zinc-500/20"
+        : rank === 3
+          ? "text-amber-700 ring-amber-700/25"
+          : "text-zinc-600 ring-zinc-700/20";
+
+  return (
+    <div
+      className={`absolute -left-1.5 -top-1.5 z-10 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-zinc-950 text-[10px] font-black ring-1 ${colorClass}`}
+    >
+      {rank}
+    </div>
+  );
+}
+
 export function TopWeekTrackCard({
   name,
   artistName,
   imageUrl,
   playCount,
   href,
+  rank,
+  maxPlays,
 }: {
   name: string;
   artistName: string;
   imageUrl: string | null;
   playCount: number;
   href: string;
+  rank?: number;
+  maxPlays?: number;
 }) {
+  const barPct =
+    maxPlays && maxPlays > 0
+      ? Math.max(8, Math.round((playCount / maxPlays) * 100))
+      : null;
+
   return (
     <Link
       href={href}
-      className={`${cardElevatedInteractive} flex w-[min(46vw,168px)] shrink-0 snap-start flex-col gap-2 p-3 sm:w-[156px]`}
+      className={`${cardElevatedInteractive} relative flex w-[min(46vw,168px)] shrink-0 snap-start flex-col gap-2 p-3 sm:w-[156px]`}
     >
+      {rank != null && <RankBadge rank={rank} />}
       <div className="aspect-square w-full overflow-hidden rounded-lg bg-zinc-800">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -48,6 +77,14 @@ export function TopWeekTrackCard({
         <p className="mt-1 text-[11px] tabular-nums text-zinc-600">
           {playCount} plays
         </p>
+        {barPct != null && (
+          <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-zinc-800">
+            <div
+              className="h-full rounded-full bg-gold-500/60"
+              style={{ width: `${barPct}%` }}
+            />
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -58,17 +95,27 @@ export function TopWeekArtistCard({
   imageUrl,
   playCount,
   href,
+  rank,
+  maxPlays,
 }: {
   name: string;
   imageUrl: string | null;
   playCount: number;
   href: string;
+  rank?: number;
+  maxPlays?: number;
 }) {
+  const barPct =
+    maxPlays && maxPlays > 0
+      ? Math.max(8, Math.round((playCount / maxPlays) * 100))
+      : null;
+
   return (
     <Link
       href={href}
-      className={`${cardElevatedInteractive} flex w-[min(38vw,132px)] shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-[120px]`}
+      className={`${cardElevatedInteractive} relative flex w-[min(38vw,132px)] shrink-0 snap-start flex-col items-center gap-2 p-3 text-center sm:w-[120px]`}
     >
+      {rank != null && <RankBadge rank={rank} />}
       <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full border border-zinc-700/80 bg-zinc-800">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -89,6 +136,14 @@ export function TopWeekArtistCard({
         {name}
       </p>
       <p className="text-[11px] tabular-nums text-zinc-600">{playCount} plays</p>
+      {barPct != null && (
+        <div className="w-full h-[3px] overflow-hidden rounded-full bg-zinc-800">
+          <div
+            className="h-full rounded-full bg-gold-500/60"
+            style={{ width: `${barPct}%` }}
+          />
+        </div>
+      )}
     </Link>
   );
 }

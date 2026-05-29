@@ -264,27 +264,27 @@ const s = StyleSheet.create({
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   badge: { borderRadius: 999, borderWidth: 1, borderColor: "rgba(63,63,70,0.6)", backgroundColor: "rgba(39,39,42,0.6)", paddingHorizontal: 12, paddingVertical: 6 },
   badgeText: { fontSize: 13, color: "#d4d4d8" },
-  badgeContrib: { borderRadius: 999, borderWidth: 1, borderColor: "rgba(16,185,129,0.2)", backgroundColor: "rgba(6,46,37,0.5)", paddingHorizontal: 12, paddingVertical: 6 },
-  badgeContribText: { fontSize: 13, fontWeight: "500", color: "#34d399" },
+  badgeContrib: { borderRadius: 999, borderWidth: 1, borderColor: "rgba(200,151,58,0.2)", backgroundColor: "rgba(74,44,14,0.5)", paddingHorizontal: 12, paddingVertical: 6 },
+  badgeContribText: { fontSize: 13, fontWeight: "500", color: "#E8A830" },
 
   countdown: { borderRadius: 14, borderWidth: 1, borderColor: "rgba(217,119,6,0.3)", backgroundColor: "rgba(120,53,15,0.3)", paddingHorizontal: 14, paddingVertical: 10 },
   countdownText: { fontSize: 14, fontWeight: "500", color: "#fbbf24" },
 
-  heroCard: { backgroundColor: "rgba(24,24,27,0.48)", borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(63,63,70,0.85)", padding: 20 },
+  heroCard: { backgroundColor: "rgba(24,24,27,0.6)", borderRadius: 20, borderWidth: 1, borderColor: "rgba(200,151,58,0.15)", padding: 20, shadowColor: "#C8973A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
   heroWeekLabel: { fontSize: 10, fontWeight: "600", letterSpacing: 1.8, color: "#71717a", textTransform: "uppercase", marginBottom: 16 },
   heroInner: { flexDirection: "row", alignItems: "center", gap: 16 },
-  heroArt: { width: 108, height: 108, borderRadius: 14, flexShrink: 0, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.1)" },
+  heroArt: { width: 124, height: 124, borderRadius: 14, flexShrink: 0, borderWidth: 2, borderColor: "rgba(200,151,58,0.25)" },
   heroArtPlaceholder: { backgroundColor: "#27272a", alignItems: "center", justifyContent: "center" },
   heroMeta: { flex: 1, minWidth: 0 },
   heroRank: { fontSize: 10, fontWeight: "800", color: "rgba(251,191,36,0.9)", letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 6 },
-  heroTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.text, lineHeight: 24, letterSpacing: -0.3 },
+  heroTitle: { fontSize: 20, fontWeight: "800", color: theme.colors.text, lineHeight: 26, letterSpacing: -0.4 },
   heroArtist: { fontSize: 14, color: "#a1a1aa", marginTop: 2 },
   heroPlays: { fontSize: 12, color: "#71717a", marginTop: 6 },
 
   narrativeCard: { backgroundColor: "rgba(24,24,27,0.3)", borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.05)", padding: 20 },
   narrativeLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 1.8, color: "#71717a", textTransform: "uppercase" },
   narrativeRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  narrativeIcon: { fontSize: 14, color: "#10b981", marginTop: 1, width: 16 },
+  narrativeIcon: { fontSize: 14, color: "#C8973A", marginTop: 1, width: 16 },
   narrativeText: { flex: 1, fontSize: 14, color: "#d4d4d8", lineHeight: 22 },
 
   moversSection: { gap: 16 },
@@ -294,7 +294,7 @@ const s = StyleSheet.create({
   moverName: { fontSize: 18, fontWeight: "700", color: theme.colors.text, lineHeight: 24 },
   moverSub: { fontSize: 13, color: theme.colors.muted, marginTop: 4 },
   moverMove: { fontSize: 15, fontWeight: "700", marginTop: 8 },
-  moverMoveUp: { color: "#34d399" },
+  moverMoveUp: { color: "#E8A830" },
   moverMoveDown: { color: "#f87171" },
 
   sectionLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1.4, color: theme.colors.muted, textTransform: "uppercase", marginBottom: 12 },
@@ -314,7 +314,7 @@ const s = StyleSheet.create({
 
   newBadge: { backgroundColor: "#1e3a8a", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: "rgba(96,165,250,0.3)" },
   newBadgeText: { fontSize: 10, fontWeight: "700", color: "#93c5fd", letterSpacing: 0.5 },
-  moveUp: { fontSize: 13, fontWeight: "700", color: "#34d399" },
+  moveUp: { fontSize: 13, fontWeight: "700", color: "#E8A830" },
   moveDown: { fontSize: 13, fontWeight: "700", color: "#f87171" },
   moveSame: { fontSize: 13, color: "#52525b" },
 

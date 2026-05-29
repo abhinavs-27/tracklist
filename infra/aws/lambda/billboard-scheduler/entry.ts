@@ -9,7 +9,7 @@ const LOG = "[billboard-worker]";
 
 function isCronQueue(record: SQSRecord): boolean {
   const arn = record.eventSourceARN ?? "";
-  return arn.includes("tracklist-cron-jobs");
+  return arn.includes("tracklist-cron-jobs") || arn.includes("tracklist-enrich-jobs");
 }
 
 async function processRecord(record: SQSRecord): Promise<void> {

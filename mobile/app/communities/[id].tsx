@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: theme.colors.gold,
   },
-  memberPillJoinedText: { fontSize: 13, fontWeight: "600", color: "#ecfdf5" },
+  memberPillJoinedText: { fontSize: 13, fontWeight: "600", color: "#F4F4F5" },
   memberPillSep: { width: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.08)" },
   memberPillLeave: { paddingHorizontal: 14, paddingVertical: 8, justifyContent: "center" },
   memberPillLeaveText: { fontSize: 13, fontWeight: "500", color: theme.colors.muted },

@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     width: "100%",
-    backgroundColor: "#4ade80",
+    backgroundColor: "#C8973A",
     paddingVertical: 18,
     borderRadius: 999,
     alignItems: "center",

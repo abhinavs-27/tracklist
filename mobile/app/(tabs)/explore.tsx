@@ -732,12 +732,12 @@ export default function ExploreScreen() {
                         paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999,
                         borderWidth: 1,
                         borderColor: talkMode === m ? theme.colors.gold : "rgba(63,63,70,0.8)",
-                        backgroundColor: talkMode === m ? "rgba(16,185,129,0.1)" : "rgba(24,24,27,0.5)",
+                        backgroundColor: talkMode === m ? "rgba(200,151,58,0.1)" : "rgba(24,24,27,0.5)",
                       }}
                     >
                       <Text style={{
                         fontSize: 12, fontWeight: "600",
-                        color: talkMode === m ? "#6ee7b7" : theme.colors.muted,
+                        color: talkMode === m ? "#C8973A" : theme.colors.muted,
                       }}>
                         {m === "discussed" ? "Most discussed" : "Loved by friends"}
                       </Text>
@@ -961,9 +961,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 18,
     padding: 20,
     borderRadius: 16,
-    backgroundColor: "rgba(6,46,37,0.5)",
+    backgroundColor: "rgba(74,44,14,0.5)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(16,185,129,0.2)",
+    borderColor: "rgba(200,151,58,0.2)",
     gap: 12,
   },
   ctaBody: {

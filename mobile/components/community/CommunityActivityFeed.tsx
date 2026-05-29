@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, minWidth: 0 },
   batchTitle: { fontSize: 14, color: theme.colors.text },
   batchKicker: { fontWeight: "500", color: theme.colors.muted },
-  batchList: { marginTop: 10, gap: 8, paddingLeft: 4, borderLeftWidth: 2, borderLeftColor: "rgba(16,185,129,0.35)" },
+  batchList: { marginTop: 10, gap: 8, paddingLeft: 4, borderLeftWidth: 2, borderLeftColor: "rgba(200,151,58,0.35)" },
   avatar: {
     width: 44,
     height: 44,
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: "rgba(16,185,129,0.12)",
+    backgroundColor: "rgba(200,151,58,0.12)",
   },
   engagementText: {
     fontSize: 12,

@@ -146,7 +146,7 @@ const s = StyleSheet.create({
   wrap: { gap: 16 },
   pillRow: { flexDirection: "row", gap: 8 },
   pill: { borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
-  pillActive: { backgroundColor: "#059669" },
+  pillActive: { backgroundColor: "#C8973A" },
   pillIdle: { backgroundColor: "#27272a", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.1)" },
   pillText: { fontSize: 14, fontWeight: "500" },
   pillTextActive: { color: "#fff" },

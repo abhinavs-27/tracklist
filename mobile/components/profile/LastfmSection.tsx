@@ -295,13 +295,13 @@ export function LastfmSection({
           style={{
             borderRadius: 10,
             borderWidth: 1,
-            borderColor: "rgba(16, 185, 129, 0.35)",
-            backgroundColor: "rgba(6, 78, 59, 0.35)",
+            borderColor: "rgba(200, 151, 58, 0.35)",
+            backgroundColor: "rgba(74, 44, 14, 0.35)",
             padding: 12,
             gap: 6,
           }}
         >
-          <Text style={{ fontSize: 14, fontWeight: "700", color: "#d1fae5" }}>
+          <Text style={{ fontSize: 14, fontWeight: "700", color: "#fde0a0" }}>
             Connect Last.fm to power your data
           </Text>
           <Text style={{ fontSize: 12, color: theme.colors.muted, lineHeight: 18 }}>

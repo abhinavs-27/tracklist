@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
-    backgroundColor: "rgba(6,78,59,0.2)",
+    backgroundColor: "rgba(74,44,14,0.2)",
   },
   kicker: {
     fontSize: 10,

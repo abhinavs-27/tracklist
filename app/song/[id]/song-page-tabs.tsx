@@ -176,7 +176,7 @@ export function SongPageTabs({
       {hasSocial && (
         <div className={`mt-6 space-y-8 ${active !== "social" ? "hidden" : ""}`}>
           {/* Leaderboard */}
-          {leaderboard && leaderboard.length >= 2 && (
+          {leaderboard && leaderboard.length >= 1 && (
             <section>
               <h2 className="mb-4 text-lg font-semibold text-white">Among your friends</h2>
               <ul className="space-y-3">

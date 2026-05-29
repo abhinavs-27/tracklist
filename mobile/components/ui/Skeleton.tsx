@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
+import { theme } from "@/lib/theme";
 
-const BASE = "#27272A"; // zinc-800
+const BASE = theme.colors.border;
 
 // Type cast resolves JSX callable-type incompatibility between TS6 and RN 0.83 Animated.
 const AnimView = Animated.View as unknown as React.ComponentType<{ style?: object }>;
@@ -58,6 +59,6 @@ export function SkeletonScreen({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#09090B",
+    backgroundColor: theme.colors.bg,
   },
 });

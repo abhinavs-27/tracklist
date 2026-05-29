@@ -28,10 +28,11 @@ async function main() {
     process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "us-east-1";
   const billboardUrl = process.env.BILLBOARD_JOBS_QUEUE_URL?.trim();
   const cronUrl = process.env.CRON_JOBS_QUEUE_URL?.trim();
+  const enrichUrl = process.env.ENRICH_JOBS_QUEUE_URL?.trim();
 
-  if (!billboardUrl && !cronUrl) {
+  if (!billboardUrl && !cronUrl && !enrichUrl) {
     throw new Error(
-      "Set BILLBOARD_JOBS_QUEUE_URL and/or CRON_JOBS_QUEUE_URL",
+      "Set BILLBOARD_JOBS_QUEUE_URL, CRON_JOBS_QUEUE_URL, and/or ENRICH_JOBS_QUEUE_URL",
     );
   }
 
@@ -50,6 +51,7 @@ async function main() {
     region,
     hasBillboard: Boolean(billboardUrl),
     hasCron: Boolean(cronUrl),
+    hasEnrich: Boolean(enrichUrl),
     maxPerSec,
   });
 
@@ -70,8 +72,19 @@ async function main() {
       if (!handled && cronUrl) {
         const msg = await receiveOne(client, cronUrl);
         if (msg) {
+          handled = true;
           await limiter.schedule(() =>
             processCronMessage(client, cronUrl, msg),
+          );
+        }
+      }
+
+      if (!handled && enrichUrl) {
+        const msg = await receiveOne(client, enrichUrl);
+        if (msg) {
+          handled = true;
+          await limiter.schedule(() =>
+            processCronMessage(client, enrichUrl, msg),
           );
         }
       }
