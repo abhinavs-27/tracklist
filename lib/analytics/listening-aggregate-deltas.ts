@@ -27,8 +27,8 @@ type AggregateDeltaKey =
 
 export const MAX_GENRES_PER_LOG = 3;
 // Kept small so each RPC stays well under Supabase's statement timeout (~8-10s).
-// 5000 was timing out; 500 rows each takes ~1-2s at current table size.
-export const BULK_DELTA_CHUNK = 500;
+// 500 rows was timing out at table scale; 100 rows each takes ~200-400ms.
+export const BULK_DELTA_CHUNK = 100;
 const FS = "\x1f";
 
 function deltaKey(
