@@ -1716,17 +1716,20 @@ async function getOrFetchAlbumInner(
           }
         } else if (!tracksAreAllSpotifySourced(songs)) {
           // Partial tracks — enqueue via SQS so Lambda handles it reliably.
-          void import("@/lib/jobs/enqueue-cron-message")
-            .then(({ sendCronJobMessage }) =>
-              sendCronJobMessage({
-                type: "SYNC_ALBUM_TRACKS",
-                albumId: albumUuid,
-                spotifyAlbumApiId,
-              }),
-            )
-            .catch((e) =>
-              console.warn(`${LOG_PREFIX} SYNC_ALBUM_TRACKS enqueue failed`, e),
-            );
+          // Guard: skip from within Lambda to prevent Lambda→SQS→Lambda recursive loop.
+          if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+            void import("@/lib/jobs/enqueue-cron-message")
+              .then(({ sendCronJobMessage }) =>
+                sendCronJobMessage({
+                  type: "SYNC_ALBUM_TRACKS",
+                  albumId: albumUuid,
+                  spotifyAlbumApiId,
+                }),
+              )
+              .catch((e) =>
+                console.warn(`${LOG_PREFIX} SYNC_ALBUM_TRACKS enqueue failed`, e),
+              );
+          }
         }
       }
 
@@ -1868,17 +1871,20 @@ async function getOrFetchAlbumInner(
           void enqueueSpotifyEnrich({ name: "enrich_album", albumId: albumUuid });
         }
       } else if (!tracksAreAllSpotifySourced(songsStale)) {
-        void import("@/lib/jobs/enqueue-cron-message")
-          .then(({ sendCronJobMessage }) =>
-            sendCronJobMessage({
-              type: "SYNC_ALBUM_TRACKS",
-              albumId: albumUuid,
-              spotifyAlbumApiId,
-            }),
-          )
-          .catch((e) =>
-            console.warn(`${LOG_PREFIX} SYNC_ALBUM_TRACKS enqueue (stale) failed`, e),
-          );
+        // Guard: skip from within Lambda to prevent Lambda→SQS→Lambda recursive loop.
+        if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+          void import("@/lib/jobs/enqueue-cron-message")
+            .then(({ sendCronJobMessage }) =>
+              sendCronJobMessage({
+                type: "SYNC_ALBUM_TRACKS",
+                albumId: albumUuid,
+                spotifyAlbumApiId,
+              }),
+            )
+            .catch((e) =>
+              console.warn(`${LOG_PREFIX} SYNC_ALBUM_TRACKS enqueue (stale) failed`, e),
+            );
+        }
         ranStaleSyncBackfill = true;
       }
     }
