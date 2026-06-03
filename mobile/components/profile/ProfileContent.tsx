@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { SkeletonBox, SkeletonCircle, SkeletonLine, SkeletonScreen } from "@/components/ui/Skeleton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -73,28 +73,58 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
   });
 
   const [sharing, setSharing] = useState(false);
+  const cachedIdentityUriRef = useRef<string | null>(null);
+
+  // Pre-download the identity card as soon as own profile loads so the share
+  // sheet appears instantly when the user taps Share.
+  useEffect(() => {
+    if (!user?.is_own_profile) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+        const dest = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
+        const result = await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, dest, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!cancelled && result.status === 200) {
+          cachedIdentityUriRef.current = dest;
+        }
+      } catch {
+        // silent — on-demand fallback in handleShare
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.is_own_profile]);
 
   const handleShare = useCallback(async () => {
     if (sharing) return;
     setSharing(true);
     try {
       if (user?.is_own_profile) {
-        const { supabase } = await import("@/lib/supabase");
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
-        const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
-        const result = await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, localUri, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (result.status !== 200) {
-          // Card not ready yet (new user) — share a text invite instead
-          await Share.share({
-            message: `Check out my music profile on Tracklist — tracklist.lol/@${user?.username ?? ""}`,
+        let localUri = cachedIdentityUriRef.current;
+        if (!localUri) {
+          const { supabase } = await import("@/lib/supabase");
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+          const dest = (FileSystem.cacheDirectory ?? "") + "tracklist-identity.png";
+          const result = await FileSystem.downloadAsync(`${apiBase}/api/profile/identity-card`, dest, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
-          return;
+          if (result.status !== 200) {
+            await Share.share({
+              message: `Check out my music profile on Tracklist — tracklist.lol/@${user?.username ?? ""}`,
+            });
+            return;
+          }
+          localUri = dest;
         }
-        await Share.share({ url: localUri });
+        const Sharing = await import("expo-sharing");
+        await Sharing.shareAsync(localUri, { mimeType: "image/png", dialogTitle: "Share your Tracklist profile" });
       } else {
         await Share.share({ message: `Check out ${user?.username} on Tracklist` });
       }

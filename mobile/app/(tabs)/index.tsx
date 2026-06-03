@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import {
   ActivityIndicator,
   FlatList,
@@ -252,29 +252,68 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
   const hero = chart ? [...chart.rankings].sort((a, b) => a.rank - b.rank)[0] ?? null : null;
   const [sharing, setSharing] = useState(false);
+  const cachedShareUriRef = useRef<string | null>(null);
+  const cachedShareKeyRef = useRef<string | null>(null);
+
+  // Pre-download the share image as soon as chart data is ready so tapping
+  // "Share your chart" is instant rather than waiting for the download.
+  useEffect(() => {
+    if (!hero) return;
+    const key = `${chartType}-${weekStart ?? "latest"}`;
+    if (cachedShareKeyRef.current === key) return;
+    cachedShareUriRef.current = null;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+        const params = new URLSearchParams({ type: chartType });
+        if (weekStart) params.set("weekStart", weekStart);
+        const imageUrl = `${apiBase}/api/charts/share-image?${params.toString()}`;
+        const dest = (FileSystem.cacheDirectory ?? "") + `tracklist-chart-${chartType}.png`;
+        const result = await FileSystem.downloadAsync(imageUrl, dest, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!cancelled && result.status === 200) {
+          cachedShareUriRef.current = dest;
+          cachedShareKeyRef.current = key;
+        }
+      } catch {
+        // silent — on-demand download fallback in handleShare
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hero, chartType, weekStart]);
 
   const handleShare = useCallback(async () => {
     if (!hero || sharing) return;
     setSharing(true);
     try {
-      const { supabase } = await import("@/lib/supabase");
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const key = `${chartType}-${weekStart ?? "latest"}`;
+      let localUri = cachedShareKeyRef.current === key ? cachedShareUriRef.current : null;
 
-      const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
-      const params = new URLSearchParams({ type: chartType });
-      if (weekStart) params.set("weekStart", weekStart);
-      const imageUrl = `${apiBase}/api/charts/share-image?${params.toString()}`;
+      if (!localUri) {
+        const { supabase } = await import("@/lib/supabase");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+        const params = new URLSearchParams({ type: chartType });
+        if (weekStart) params.set("weekStart", weekStart);
+        const imageUrl = `${apiBase}/api/charts/share-image?${params.toString()}`;
+        const dest = (FileSystem.cacheDirectory ?? "") + `tracklist-chart-${chartType}.png`;
+        const result = await FileSystem.downloadAsync(imageUrl, dest, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (result.status !== 200) throw new Error("chart not ready");
+        localUri = dest;
+      }
 
-      const localUri = (FileSystem.cacheDirectory ?? "") + "tracklist-chart.png";
-      const downloadResult = await FileSystem.downloadAsync(imageUrl, localUri, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (downloadResult.status !== 200) throw new Error("chart not ready");
-      await Share.share({ url: localUri });
+      const Sharing = await import("expo-sharing");
+      await Sharing.shareAsync(localUri, { mimeType: "image/png", dialogTitle: "Share your chart" });
     } catch (e) {
-      // Fallback to text share if image download fails
+      console.error("[handleShare] image share failed:", e);
       if (hero) {
         void Share.share({
           message: `My #1 this week: ${hero.name}${hero.artist_name ? ` by ${hero.artist_name}` : ""} — ${weekLabel}`,
@@ -357,30 +396,6 @@ function BillboardTab({ router }: { router: ReturnType<typeof useRouter> }) {
             <Pressable onPress={() => void handleShare()} disabled={sharing} style={({ pressed }: { pressed: boolean }) => [styles.shareBtn, (pressed || sharing) && { opacity: 0.88 }]}>
               <Text style={styles.shareBtnText}>{sharing ? "Generating…" : "Share your chart"}</Text>
             </Pressable>
-            <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(63,63,70,0.8)", paddingTop: 20 }}>
-              <Text style={styles.quickActionsLabel}>QUICK ACTIONS</Text>
-              <View style={styles.quickActionsRow}>
-                <Pressable onPress={() => void handleShare()} disabled={sharing} style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, (pressed || sharing) && { opacity: 0.7 }]}>
-                  <Text style={styles.quickBtnText}>{sharing ? "…" : "Share"}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    const top5 = [...chart.rankings].sort((a, b) => a.rank - b.rank).slice(0, 5);
-                    const summary = top5.map((r, i) => `${i + 1}. ${r.name}${r.artist_name ? ` – ${r.artist_name}` : ""}`).join("\n");
-                    void Share.share({ message: `My Billboard ${weekLabel}\n\n${summary}` });
-                  }}
-                  style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
-                >
-                  <Text style={styles.quickBtnText}>Copy summary</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => void Share.share({ message: `https://tracklist.app` })}
-                  style={({ pressed }: { pressed: boolean }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
-                >
-                  <Text style={styles.quickBtnText}>Copy link</Text>
-                </Pressable>
-              </View>
-            </View>
           </View>
         </>
       )}
@@ -2134,33 +2149,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#000",
-  },
-  quickActionsLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.8,
-    color: "#71717a",
-    textTransform: "uppercase",
-    marginBottom: 12,
-  },
-  quickActionsRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  quickBtn: {
-    flex: 1,
-    backgroundColor: "#27272a",
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.08)",
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  quickBtnText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#d4d4d8",
-    textAlign: "center",
   },
   // Each row is a rounded card — matches web's rounded-xl border bg-zinc-900/40
   activityRow: {

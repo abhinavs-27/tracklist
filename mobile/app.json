@@ -44,7 +44,8 @@
           "color": "#10b981",
           "sounds": []
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "router": {},
