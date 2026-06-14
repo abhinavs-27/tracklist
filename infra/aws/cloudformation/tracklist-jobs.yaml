@@ -256,6 +256,19 @@ Resources:
           RoleArn: !GetAtt EventBridgeRole.Arn
           Input: '{"type":"SNAPSHOT_TASTE_MONTHLY"}'
 
+  RuleRefreshBlindSpots:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-refresh-blind-spots
+      Description: Weekly Wednesday 03:00 UTC — REFRESH_BLIND_SPOTS
+      ScheduleExpression: cron(0 3 ? * WED *)
+      State: ENABLED
+      Targets:
+        - Id: SqsBlindSpots
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"REFRESH_BLIND_SPOTS"}'
+
   BillboardWeeklyScheduleRule:
     Condition: HasBillboardLambda
     Type: AWS::Events::Rule
