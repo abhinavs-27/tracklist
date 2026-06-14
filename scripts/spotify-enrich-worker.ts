@@ -14,6 +14,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { createSpotifyEnrichWorker } from "../lib/jobs/spotifyQueue";
+import { createLastfmImportWorker } from "../lib/jobs/lastfmQueue";
+import { processLastfmFullImportJob } from "../lib/jobs/lastfm-full-import-worker";
 
 function loadEnvFile() {
   const p = path.join(process.cwd(), ".env");
@@ -42,35 +44,38 @@ function loadEnvFile() {
 function main() {
   loadEnvFile();
   if (!process.env.REDIS_URL?.trim()) {
-    console.error(
-      "[spotify-enrich-worker] REDIS_URL is not set. Add it to .env or the environment.",
-    );
+    console.error("[worker] REDIS_URL is not set. Add it to .env or the environment.");
     process.exit(1);
   }
 
-  const worker = createSpotifyEnrichWorker();
-  if (!worker) {
-    console.error(
-      "[spotify-enrich-worker] Could not connect to Redis (check REDIS_URL).",
-    );
+  const spotifyWorker = createSpotifyEnrichWorker();
+  if (!spotifyWorker) {
+    console.error("[worker] Could not connect to Redis for spotify-enrich.");
     process.exit(1);
   }
 
-  console.log("[spotify-enrich-worker] started (queue: spotify-enrich)");
+  const lastfmWorker = createLastfmImportWorker(processLastfmFullImportJob);
+  if (!lastfmWorker) {
+    console.error("[worker] Could not connect to Redis for lastfm-full-import.");
+    process.exit(1);
+  }
 
-  worker.on("error", (err) => {
-    console.error("[spotify-enrich-worker] error", err);
-  });
-  worker.on("completed", (job) => {
-    console.log("[spotify-enrich-worker] completed", job.id, job.name);
-  });
-  worker.on("failed", (job, err) => {
-    console.error("[spotify-enrich-worker] failed", job?.id, job?.name, err);
-  });
+  console.log("[worker] started (queues: spotify-enrich, lastfm-full-import)");
+
+  const workers = [
+    ["spotify-enrich", spotifyWorker],
+    ["lastfm-full-import", lastfmWorker],
+  ] as const;
+
+  for (const [name, worker] of workers) {
+    worker.on("error", (err) => console.error(`[worker:${name}] error`, err));
+    worker.on("completed", (job) => console.log(`[worker:${name}] completed`, job.id, job.name));
+    worker.on("failed", (job, err) => console.error(`[worker:${name}] failed`, job?.id, job?.name, err));
+  }
 
   const shutdown = async () => {
-    console.log("[spotify-enrich-worker] shutting down…");
-    await worker.close();
+    console.log("[worker] shutting down…");
+    await Promise.all([spotifyWorker.close(), lastfmWorker.close()]);
     process.exit(0);
   };
   process.on("SIGINT", () => void shutdown());
