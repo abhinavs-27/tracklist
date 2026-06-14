@@ -15,6 +15,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.abhinavs.tracklist",
       "usesAppleSignIn": true,
+      "deploymentTarget": "16.4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
