@@ -1065,7 +1065,7 @@ async function getOrFetchArtistInnerBody(
   if (row) {
     const a = { ...row, id } as unknown as ArtistRow;
 
-    if (a.image_url) {
+    if (a.image_url && !isCacheStale(a.cached_at ?? a.updated_at)) {
       return {
         id,
         name: a.name,
@@ -1076,12 +1076,15 @@ async function getOrFetchArtistInnerBody(
       } as SpotifyApi.ArtistObjectFull;
     }
 
+    // Use stale image (if any) as fallback while Spotify is re-fetched.
+    const staleImages = a.image_url ? [{ url: a.image_url }] : undefined;
+
     if (!net) {
       void enqueueSpotifyEnrich({ name: "enrich_artist", artistId: id });
       return {
         id,
         name: a.name,
-        images: undefined,
+        images: staleImages,
         genres: a.genres ?? undefined,
         popularity: typeof a.popularity === "number" ? a.popularity : 0,
         followers: { total: 0 },
@@ -1091,7 +1094,7 @@ async function getOrFetchArtistInnerBody(
     const fallbackNoImage: SpotifyApi.ArtistObjectFull = {
       id,
       name: a.name,
-      images: undefined,
+      images: staleImages,
       genres: a.genres ?? undefined,
       popularity: typeof a.popularity === "number" ? a.popularity : 0,
       followers: { total: 0 },

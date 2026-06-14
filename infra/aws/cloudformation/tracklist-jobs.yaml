@@ -243,6 +243,19 @@ Resources:
           RoleArn: !GetAtt EventBridgeRole.Arn
           Input: '{"type":"ARCHIVE_OLD_LOGS","cutoff_days":180}'
 
+  RuleSnapshotTasteMonthly:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-snapshot-taste-monthly
+      Description: Monthly 2nd 02:00 UTC — SNAPSHOT_TASTE_MONTHLY (previous month always complete)
+      ScheduleExpression: cron(0 2 2 * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsSnapshotTaste
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"SNAPSHOT_TASTE_MONTHLY"}'
+
   BillboardWeeklyScheduleRule:
     Condition: HasBillboardLambda
     Type: AWS::Events::Rule

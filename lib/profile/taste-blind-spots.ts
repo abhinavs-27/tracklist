@@ -72,22 +72,48 @@ async function computeBlindSpots(userId: string): Promise<TasteBlindSpotsResult>
   type ArtistEntry = { id: string; name: string; plays: number };
   type Snapshot = { snapshot_month: string; top_artists: ArtistEntry[] };
 
-  // Build a normalised set of all artist names the user has played (for filtering).
-  const playedNames = new Set<string>();
+  // Seeds come from recent snapshots (top artists per month, already have names).
   const recentTopByName = new Map<string, ArtistEntry>();
-
   for (const snap of snapshots as Snapshot[]) {
     for (const a of snap.top_artists ?? []) {
       const key = a.name.toLowerCase().trim();
-      playedNames.add(key);
       if (!recentTopByName.has(key)) recentTopByName.set(key, a);
     }
   }
 
-  if (playedNames.size === 0) return EMPTY;
+  if (recentTopByName.size === 0) return EMPTY;
+
+  // Build the complete played-names filter from user_listening_aggregates so that
+  // artists the user has listened to but never cracked their monthly top 10 are
+  // still excluded from recommendations.
+  console.log(`  [${short}] fetching all played artist IDs...`);
+  const { data: aggRows } = await admin
+    .from("user_listening_aggregates")
+    .select("entity_id")
+    .eq("user_id", userId)
+    .eq("entity_type", "artist");
+
+  const allPlayedIds = [
+    ...new Set((aggRows ?? []).map((r) => r.entity_id as string).filter(Boolean)),
+  ];
+
+  const playedNames = new Set<string>(recentTopByName.keys());
+
+  // Look up names for IDs found in aggregates (in 500-item chunks).
+  for (let i = 0; i < allPlayedIds.length; i += 500) {
+    const { data: nameRows } = await admin
+      .from("artists")
+      .select("name")
+      .in("id", allPlayedIds.slice(i, i + 500));
+    for (const r of (nameRows ?? []) as { name: string }[]) {
+      playedNames.add(r.name.toLowerCase().trim());
+    }
+  }
+
+  console.log(`  [${short}] ${playedNames.size} total played artists (filter set)`);
 
   const seedArtists = [...recentTopByName.values()].slice(0, 6);
-  console.log(`  [${short}] ${playedNames.size} artists played, ${seedArtists.length} seeds — fetching similar...`);
+  console.log(`  [${short}] ${seedArtists.length} seeds — fetching similar...`);
 
   // 2 — Fetch Last.fm similar artists for each seed.
   type Candidate = { name: string; becauseOf: string[]; score: number };

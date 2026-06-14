@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
@@ -320,12 +320,12 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     />
   ) : tab === "settings" && isOwn ? (
     <View style={{ paddingHorizontal: 16, gap: 20 }}>
-      {/* Privacy — matches web order */}
-      <PrivateLogsToggleNative userId={user.id} />
       {/* Last.fm */}
       <LastfmSection userId={user.id} username={user.username}
         initialUsername={user.lastfm_username ?? null}
         initialLastSyncedAt={user.lastfm_last_synced_at ?? null} />
+      {/* Legal & support */}
+      <AboutSection />
       {/* Delete account */}
       <DeleteAccountSection username={user.username} />
       {/* Session / Log out */}
@@ -451,48 +451,37 @@ const sectionCardDesc = {
   marginTop: 6,
 };
 
-/** Private logs toggle adapted for React Native — matches web Privacy card. */
-function PrivateLogsToggleNative({ userId }: { userId: string }) {
-  const [value, setValue] = useState(false);
-  const [pending, setPending] = useState(false);
+const PRIVACY_URL = `${process.env.EXPO_PUBLIC_API_URL ?? "https://tracklistsocial.com"}/privacy`;
+const SUPPORT_EMAIL = "singh.avi99@gmail.com";
 
-  const onChange = async (next: boolean) => {
-    const prev = value;
-    setValue(next);
-    setPending(true);
-    try {
-      await fetcher("/api/users/me/private-logs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logs_private: next }),
-      });
-    } catch {
-      setValue(prev);
-    } finally {
-      setPending(false);
-    }
-  };
+function AboutSection() {
+  const rows: { label: string; onPress: () => void }[] = [
+    { label: "Privacy Policy", onPress: () => void Linking.openURL(PRIVACY_URL) },
+    { label: "Contact Support", onPress: () => void Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Tracklist%20Support`) },
+  ];
 
   return (
     <View style={sectionCard}>
-      <Text style={sectionCardTitle}>Privacy</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-        <View style={{ flex: 1, marginRight: 16 }}>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text }}>
-            Private listening logs
-          </Text>
-          <Text style={{ fontSize: 13, color: theme.colors.muted, marginTop: 4, lineHeight: 18 }}>
-            Private logs won't appear in feeds or on your profile, but stats and taste match are unaffected.
-          </Text>
-        </View>
-        <Switch
-          value={value}
-          onValueChange={(v) => void onChange(v)}
-          disabled={pending}
-          trackColor={{ false: theme.colors.border, true: theme.colors.gold }}
-          thumbColor={theme.colors.text}
-        />
-      </View>
+      <Text style={sectionCardTitle}>About</Text>
+      {rows.map((row, i) => (
+        <Pressable
+          key={row.label}
+          onPress={row.onPress}
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: i === 0 ? 14 : 0,
+            paddingVertical: 11,
+            borderTopWidth: i > 0 ? StyleSheet.hairlineWidth : 0,
+            borderTopColor: theme.colors.border,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 14, color: theme.colors.text }}>{row.label}</Text>
+          <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+        </Pressable>
+      ))}
     </View>
   );
 }

@@ -35,7 +35,7 @@ type BatchEntry = { trackId: string; listenedAtIso: string };
 export async function syncBatchLogSideEffects(
   _userId: string,
   entries: BatchEntry[],
-  options?: { skipSpotifyEnrich?: boolean },
+  options?: { skipSpotifyEnrich?: boolean; skipEntityStatsRefresh?: boolean },
 ): Promise<void> {
   if (entries.length === 0) return;
 
@@ -53,11 +53,15 @@ export async function syncBatchLogSideEffects(
   scheduleEnrichArtistGenresForTrackIds(supabase, uniqueIds);
 
   const tRefresh0 = Date.now();
-  const { error: refreshError } = await supabase.rpc("refresh_entity_stats");
-  const refreshEntityStatsMs = Date.now() - tRefresh0;
-  if (refreshError) {
-    console.warn("[syncBatchLog] refresh_entity_stats failed", refreshError);
-  } else if (isDebugLastfmSync()) {
+  let refreshEntityStatsMs = 0;
+  if (!options?.skipEntityStatsRefresh) {
+    const { error: refreshError } = await supabase.rpc("refresh_entity_stats");
+    refreshEntityStatsMs = Date.now() - tRefresh0;
+    if (refreshError) {
+      console.warn("[syncBatchLog] refresh_entity_stats failed", refreshError);
+    }
+  }
+  if (isDebugLastfmSync()) {
     console.log("[lastfm-sync] batch side-effects", {
       uniqueTrackIds: uniqueIds.length,
       enrichEnqueueMs,

@@ -165,6 +165,24 @@ export function LastfmSection({
     },
   });
 
+  type ImportStatusData = { status: string | null; progress: Record<string, unknown> };
+
+  const importStatusQuery = useQuery({
+    queryKey: ["lastfm", "import-status"],
+    queryFn: () => fetcher<{ data: ImportStatusData }>("/api/lastfm/import-status").then((r) => r.data),
+    enabled: !!initialUsername?.trim(),
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      return s === "pending" || s === "running" ? 5000 : false;
+    },
+    staleTime: 30_000,
+  });
+
+  const fullImportMutation = useMutation({
+    mutationFn: () => fetcher("/api/lastfm/full-import", { method: "POST" }),
+    onSuccess: () => void importStatusQuery.refetch(),
+  });
+
   const previewQuery = useQuery({
     queryKey: ["lastfm", "preview", usernameInput.trim(), savedAt, previewNonce],
     queryFn: async () => {
@@ -360,6 +378,63 @@ export function LastfmSection({
           {saveMutation.error instanceof Error ? saveMutation.error.message : "Save failed"}
         </Text>
       )}
+
+      {initialUsername?.trim() ? (
+        <View style={{
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: "rgba(24,24,27,0.4)",
+          padding: 12,
+          gap: 8,
+        }}>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text }}>
+            Full history import
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.colors.muted, lineHeight: 17 }}>
+            Import your entire Last.fm scrobble history. Progress shows on your home tab.
+          </Text>
+          {(() => {
+            const s = importStatusQuery.data?.status;
+            const p = importStatusQuery.data?.progress as { logsAdded?: number } | undefined;
+            if (s === "pending") {
+              return <Text style={{ fontSize: 12, color: theme.colors.muted }}>Import queued…</Text>;
+            }
+            if (s === "running") {
+              const added = p?.logsAdded != null ? `${p.logsAdded.toLocaleString()} plays added` : null;
+              return <Text style={{ fontSize: 12, color: theme.colors.muted }}>Importing… {added}</Text>;
+            }
+            if (s === "done") {
+              const added = p?.logsAdded != null ? `${p.logsAdded.toLocaleString()} plays` : null;
+              return <Text style={{ fontSize: 12, color: "#4ade80" }}>Complete{added ? ` — ${added} imported` : ""}.</Text>;
+            }
+            return (
+              <Pressable
+                onPress={() => fullImportMutation.mutate()}
+                disabled={fullImportMutation.isPending}
+                style={({ pressed }) => ({
+                  alignSelf: "flex-start",
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  opacity: pressed || fullImportMutation.isPending ? 0.6 : 1,
+                })}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.text }}>
+                  {fullImportMutation.isPending ? "Starting…" : s === "failed" || s === "stalled" ? "Retry import" : "Import full history"}
+                </Text>
+              </Pressable>
+            );
+          })()}
+          {fullImportMutation.isError && (
+            <Text style={{ fontSize: 12, color: theme.colors.danger }}>
+              {fullImportMutation.error instanceof Error ? fullImportMutation.error.message : "Failed"}
+            </Text>
+          )}
+        </View>
+      ) : null}
 
       <Pressable
         onPress={() => setManualOpen((o) => !o)}

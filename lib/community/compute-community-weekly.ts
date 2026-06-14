@@ -14,6 +14,7 @@ import {
 } from "@/lib/taste/buildTasteVector";
 import { getUtcWeekStartDate, rollingWindowIso } from "@/lib/week";
 import { longestStreakInWindow } from "@/lib/community/getWeeklyLeaderboard";
+import { genreKey, genreLabel } from "@/lib/taste/normalize-genre";
 
 const ROLLING_DAYS = 7;
 
@@ -268,6 +269,7 @@ export async function computeCommunityWeekly(communityId: string): Promise<{
   }
 
   const genreCounts = new Map<string, number>();
+  const genreDisplayMap = new Map<string, string>();
   const artistIds = new Set<string>();
   for (const log of logs) {
     const aid =
@@ -300,16 +302,17 @@ export async function computeCommunityWeekly(communityId: string): Promise<{
     if (genres.length === 0) continue;
     const w = 1 / genres.length;
     for (const g of genres) {
-      const k = g.trim();
-      if (!k) continue;
+      if (!g.trim()) continue;
+      const k = genreKey(g);
       genreCounts.set(k, (genreCounts.get(k) ?? 0) + w);
+      if (!genreDisplayMap.has(k)) genreDisplayMap.set(k, genreLabel(g));
     }
   }
 
   const topGenres = [...genreCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 12)
-    .map(([name, weight]) => ({ name, weight: Math.round(weight * 100) / 100 }));
+    .map(([k, weight]) => ({ name: genreDisplayMap.get(k) ?? k, weight: Math.round(weight * 100) / 100 }));
 
   const styleCounts = new Map<string, number>();
   const { data: cacheRows } = await admin

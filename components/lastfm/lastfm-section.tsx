@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { queryKeys } from "@/lib/query-keys";
 import type { LastfmPreviewRow } from "@/lib/lastfm/types";
+import type { LastfmImportStatus, LastfmImportProgress } from "@/app/api/lastfm/import-status/route";
 
 type Props = {
   userId: string;
@@ -153,6 +154,30 @@ export function LastfmSection({
       });
       router.refresh();
     },
+  });
+
+  const importStatusQuery = useQuery({
+    queryKey: ["lastfm", "import-status"],
+    queryFn: async () => {
+      const res = await fetch("/api/lastfm/import-status");
+      const data = await res.json() as { data: { status: LastfmImportStatus; progress: LastfmImportProgress } };
+      return data.data;
+    },
+    enabled: !!initialUsername?.trim(),
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      return s === "pending" || s === "running" ? 5000 : false;
+    },
+    staleTime: 30_000,
+  });
+
+  const fullImportMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/lastfm/full-import", { method: "POST" });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to start import");
+    },
+    onSuccess: () => void importStatusQuery.refetch(),
   });
 
   const previewQuery = useQuery({
@@ -370,6 +395,46 @@ export function LastfmSection({
             : "Save failed"}
         </p>
       )}
+
+      {initialUsername?.trim() ? (
+        <div className="mt-4 rounded-lg border border-zinc-800/60 bg-zinc-950/20 px-4 py-3">
+          <p className="text-sm font-medium text-zinc-300">Full history import</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            Import your entire Last.fm scrobble history — every play, going back to the beginning.
+            Progress shows on your home page.
+          </p>
+          {(() => {
+            const s = importStatusQuery.data?.status;
+            const p = importStatusQuery.data?.progress;
+            if (s === "pending") {
+              return <p className="mt-2 text-xs text-zinc-400">Import queued…</p>;
+            }
+            if (s === "running") {
+              const added = p?.logsAdded != null ? `${p.logsAdded.toLocaleString()} plays added` : null;
+              return <p className="mt-2 text-xs text-zinc-400">Importing… {added}</p>;
+            }
+            if (s === "done") {
+              const added = p?.logsAdded != null ? `${p.logsAdded.toLocaleString()} plays` : null;
+              return <p className="mt-2 text-xs text-green-400">Complete{added ? ` — ${added} imported` : ""}.</p>;
+            }
+            return (
+              <button
+                type="button"
+                disabled={fullImportMutation.isPending}
+                onClick={() => fullImportMutation.mutate()}
+                className="mt-3 rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {fullImportMutation.isPending ? "Starting…" : s === "failed" || s === "stalled" ? "Retry import" : "Import full history"}
+              </button>
+            );
+          })()}
+          {fullImportMutation.isError && (
+            <p className="mt-2 text-xs text-red-400">
+              {fullImportMutation.error instanceof Error ? fullImportMutation.error.message : "Failed"}
+            </p>
+          )}
+        </div>
+      ) : null}
 
       <details className="mt-5 rounded-lg border border-zinc-800/80 bg-zinc-950/30">
         <summary className="cursor-pointer list-none px-3 py-2.5 text-sm font-medium text-zinc-400 marker:content-none [&::-webkit-details-marker]:hidden">

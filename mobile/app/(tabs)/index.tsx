@@ -655,7 +655,7 @@ function GenrePillsRow({ genres }: { genres: TimelineMonth["topGenres"] }) {
     <View style={styles.genrePillRow}>
       {genres.slice(0, 3).map((g) => (
         <View key={g.name} style={styles.genrePill}>
-          <Text style={styles.genrePillText}>{g.name}</Text>
+          <Text style={styles.genrePillText} numberOfLines={1}>{g.name}</Text>
         </View>
       ))}
     </View>
@@ -1517,7 +1517,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   tlPlaysCell: {
-    width: 42,
+    width: 50,
     textAlign: "right",
     fontSize: 12,
     color: theme.colors.muted,
@@ -1574,6 +1574,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(255,255,255,0.05)",
+    maxWidth: 120,
   },
   genrePillText: {
     fontSize: 12,

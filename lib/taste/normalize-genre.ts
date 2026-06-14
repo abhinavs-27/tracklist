@@ -1,21 +1,44 @@
 /**
- * Normalizes raw Last.fm genre tags for deduplication.
+ * Normalizes raw Last.fm / Spotify genre tags for deduplication.
  *
- * Last.fm produces inconsistent tags: "hip-hop", "hip hop", "Hip Hop" are
- * all the same genre. This collapses them to a canonical key so they're
- * counted once, then produces a clean display label.
- *
- * Does NOT semantically merge genres (e.g. "rap" stays separate from
- * "hip-hop") — that level of canonicalization is out of scope here.
+ * Two levels of normalization:
+ * 1. Surface: lowercase, hyphens → spaces, collapse whitespace.
+ * 2. Semantic: merge synonymous tags ("rap" → "hip hop", etc.) so they
+ *    accumulate into a single bucket instead of fragmenting the top-genres list.
  */
 
-/** Canonical dedup key: lowercase, hyphens → spaces, collapsed whitespace. */
+/**
+ * Synonyms that should merge into a single canonical key.
+ * Keys are already surface-normalized (lowercase, spaces, trimmed).
+ */
+const GENRE_MERGE: Record<string, string> = {
+  // Rap / Hip-Hop
+  "rap":                    "hip hop",
+  "hiphop":                 "hip hop",
+  "underground rap":        "underground hip hop",
+  "trap rap":               "trap",
+  "gangster rap":           "gangsta rap",
+
+  // R&B
+  "rhythm and blues":       "r&b",
+  "rnb":                    "r&b",
+
+  // Rock
+  "rock and roll":          "rock n roll",
+  "rock & roll":            "rock n roll",
+
+  // Soul
+  "neo soul":               "neo-soul",
+};
+
+/** Canonical dedup key: surface-normalize then apply semantic merges. */
 export function genreKey(raw: string): string {
-  return raw
+  const surface = raw
     .toLowerCase()
     .replace(/[-–—]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  return GENRE_MERGE[surface] ?? surface;
 }
 
 /**

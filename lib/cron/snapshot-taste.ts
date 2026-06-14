@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { genreKey, genreLabel } from "@/lib/taste/normalize-genre";
 
 const CHUNK = 200;
 const LOG_CAP = 5000; // per month per user — enough for even heavy listeners
@@ -99,8 +100,10 @@ export async function snapshotUserMonth(
     };
   });
 
-  // 7 — Genre weights: distribute each artist's plays across their genres
+  // 7 — Genre weights: distribute each artist's plays across their genres.
+  // Key by normalized genre key so "hip-hop" / "hip hop" / "Hip Hop" merge into one bucket.
   const genreWeight = new Map<string, number>();
+  const genreDisplay = new Map<string, string>(); // key → display label
   let totalPopularity = 0;
   let popularityCount = 0;
 
@@ -117,7 +120,9 @@ export async function snapshotUserMonth(
     if (genres.length === 0) continue;
     const share = plays / genres.length;
     for (const g of genres) {
-      genreWeight.set(g, (genreWeight.get(g) ?? 0) + share);
+      const key = genreKey(g);
+      genreWeight.set(key, (genreWeight.get(key) ?? 0) + share);
+      if (!genreDisplay.has(key)) genreDisplay.set(key, genreLabel(g));
     }
   }
 
@@ -125,8 +130,8 @@ export async function snapshotUserMonth(
   const topGenres = [...genreWeight.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, TOP_GENRES)
-    .map(([name, weight]) => ({
-      name,
+    .map(([key, weight]) => ({
+      name: genreDisplay.get(key) ?? key,
       weight: Math.round((weight / maxGenreWeight) * 100) / 100,
     }));
 

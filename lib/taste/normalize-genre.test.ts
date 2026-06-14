@@ -25,6 +25,23 @@ describe("genreKey", () => {
   it("trims whitespace", () => {
     expect(genreKey("  rock  ")).toBe("rock");
   });
+
+  it("merges rap into hip hop", () => {
+    expect(genreKey("Rap")).toBe("hip hop");
+    expect(genreKey("rap")).toBe("hip hop");
+  });
+
+  it("merges underground rap into underground hip hop", () => {
+    expect(genreKey("Underground Rap")).toBe("underground hip hop");
+    expect(genreKey("underground-rap")).toBe("underground hip hop");
+  });
+
+  it("merges rnb / rhythm and blues into r&b", () => {
+    expect(genreKey("rnb")).toBe("r&b");
+    expect(genreKey("rhythm and blues")).toBe("r&b");
+  });
+
+
 });
 
 describe("genreLabel", () => {

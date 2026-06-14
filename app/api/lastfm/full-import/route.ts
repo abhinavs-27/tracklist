@@ -10,6 +10,29 @@ import {
 } from "@/lib/api-response";
 import { enqueueLastfmFullImport } from "@/lib/jobs/lastfmQueue";
 
+const ADMIN_EMAIL = "singh.avi99@gmail.com";
+
+async function notifyAdminOfPendingImport(userId: string, lastfmUsername: string, trackilstUsername: string) {
+  const key = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.RESEND_FROM?.trim();
+  if (!key || !from) {
+    console.warn("[lastfm] RESEND_API_KEY or RESEND_FROM not set — skipping admin notification");
+    return;
+  }
+
+  const command = `USER_ID=${userId} npm run lastfm:run-local`;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to: ADMIN_EMAIL,
+      subject: `[Tracklist] Last.fm import requested by ${trackilstUsername}`,
+      text: `${trackilstUsername} (${userId}) wants to import their Last.fm history.\n\nLast.fm username: ${lastfmUsername}\n\nRun this locally:\n\n  ${command}\n`,
+    }),
+  }).catch((e) => console.error("[lastfm] admin email failed", e));
+}
+
 export async function POST(request: NextRequest) {
   try {
     const me = await requireApiAuth(request);
@@ -17,7 +40,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const { data: user, error } = await supabase
       .from("users")
-      .select("lastfm_username, lastfm_import_status")
+      .select("username, lastfm_username, lastfm_import_status")
       .eq("id", me.id)
       .maybeSingle();
 
@@ -42,13 +65,20 @@ export async function POST(request: NextRequest) {
 
     if (updateErr) return apiInternalError(updateErr);
 
-    await enqueueLastfmFullImport({
-      userId: me.id,
-      lastfmUsername: username,
-      fromIso: "1970-01-01T00:00:00.000Z",
-    });
+    // Try to enqueue via BullMQ (no-ops if Redis isn't configured).
+    try {
+      await enqueueLastfmFullImport({
+        userId: me.id,
+        lastfmUsername: username,
+        fromIso: "1970-01-01T00:00:00.000Z",
+      });
+      console.log("[lastfm] full-import enqueued", { userId: me.id });
+    } catch (e) {
+      console.warn("[lastfm] BullMQ unavailable, falling back to admin notification", e);
+    }
 
-    console.log("[lastfm] full-import enqueued", { userId: me.id });
+    // Always notify so the import gets run even without a live worker.
+    void notifyAdminOfPendingImport(me.id, username, user?.username ?? me.id);
 
     return apiOk({ status: "pending" });
   } catch (e) {
