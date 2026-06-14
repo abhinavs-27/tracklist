@@ -80,6 +80,12 @@ export type BackfillLastfmSinceOptions = {
    * If `hasMore` is true, call again until everyone is caught up.
    */
   maxPagesPerUser: number;
+  /** Called every PAGE_LOG_INTERVAL pages with current progress. */
+  onProgress?: (state: {
+    pagesDone: number;
+    pagesTotal: number | null;
+    logsAdded: number;
+  }) => Promise<void>;
 };
 
 const DEFAULT_OPTS: BackfillLastfmSinceOptions = {
@@ -185,6 +191,14 @@ export async function backfillLastfmScrobblesSince(
         insertedLogsThisBatch: ingest.insertedLogs,
         importedTotal: imported,
       });
+    }
+
+    if (opts.onProgress && (pagesFetched % PAGE_LOG_INTERVAL === 0 || pi >= totalPages)) {
+      await opts.onProgress({
+        pagesDone: pagesFetched,
+        pagesTotal: totalPages > 1 ? totalPages : null,
+        logsAdded: imported,
+      }).catch(() => { /* never let progress writes block the import */ });
     }
 
     if (pi >= totalPages) {
