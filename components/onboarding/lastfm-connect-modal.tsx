@@ -14,6 +14,7 @@ type GuidedPreview = {
   recentTracks: PreviewTrack[];
   topArtists: Array<{ name: string; image: string | null }>;
   topAlbums: Array<{ name: string; artistName: string; image: string | null }>;
+  totalScrobbles: number | null;
 };
 
 type Props = {
@@ -60,6 +61,7 @@ export function LastfmConnectModal({
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<GuidedPreview | null>(null);
   const [skipWarningOpen, setSkipWarningOpen] = useState(false);
+  const [importStarted, setImportStarted] = useState(false);
 
   const busy = loading || saving;
 
@@ -101,6 +103,32 @@ export function LastfmConnectModal({
       setLoading(false);
     }
   }, [username]);
+
+  const saveAndImportFull = useCallback(async () => {
+    const u = username.trim();
+    if (!u) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const saveRes = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lastfm_username: u }),
+      });
+      if (!saveRes.ok) {
+        const d = await saveRes.json().catch(() => ({})) as { error?: string };
+        setError(d.error ?? "Could not save Last.fm username");
+        return;
+      }
+      await fetch("/api/lastfm/full-import", { method: "POST" });
+      setImportStarted(true);
+      await new Promise((r) => setTimeout(r, 1800));
+      onConnected();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }, [username, onConnected, onClose]);
 
   const saveUsername = useCallback(async () => {
     const u = username.trim();
@@ -273,41 +301,61 @@ export function LastfmConnectModal({
           </div>
         ) : null}
 
-        <div className="mt-6 flex flex-col gap-2 border-t border-zinc-800 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-          {preview && !loading ? (
+        <div className="mt-6 flex flex-col gap-3 border-t border-zinc-800 pt-4">
+          {importStarted ? (
+            <p className="text-sm text-gold-400">
+              Import started — your history will appear in the background.
+            </p>
+          ) : preview ? (
+            <>
+              <p className="text-xs text-zinc-500">How would you like to import?</p>
+              <button
+                type="button"
+                onClick={() => void saveAndImportFull()}
+                disabled={saving}
+                aria-busy={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gold-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50"
+              >
+                {saving ? (
+                  <><InlineSpinner tone="gold" /><span>Starting…</span></>
+                ) : (
+                  preview.totalScrobbles != null
+                    ? `Import all ${preview.totalScrobbles.toLocaleString()} scrobbles`
+                    : "Import full history"
+                )}
+              </button>
+              <p className="px-1 text-xs leading-relaxed text-zinc-500">
+                Imports everything — takes a few minutes for large libraries. You can keep using the app while it runs.
+              </p>
+              <button
+                type="button"
+                onClick={() => void saveUsername()}
+                disabled={saving}
+                aria-busy={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {saving ? <><InlineSpinner tone="light" /><span>Connecting…</span></> : "Sync going forward only"}
+              </button>
+            </>
+          ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => void saveUsername()}
-              disabled={saving}
-              aria-busy={saving}
-              className="order-1 flex w-full items-center justify-center gap-2 rounded-xl bg-gold-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-gold-500 disabled:opacity-50 sm:order-3 sm:w-auto"
+              onClick={onClose}
+              disabled={busy}
+              className="rounded-xl px-4 py-2 text-sm text-zinc-400 hover:text-white disabled:opacity-50"
             >
-              {saving ? (
-                <>
-                  <InlineSpinner tone="gold" />
-                  <span>Connecting…</span>
-                </>
-              ) : (
-                "Save & connect"
-              )}
+              Close
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="order-2 rounded-xl px-4 py-2 text-sm text-zinc-400 hover:text-white disabled:opacity-50 sm:order-1"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            onClick={() => setSkipWarningOpen(true)}
-            disabled={busy}
-            className="order-3 text-left text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50 sm:order-2 sm:text-right"
-          >
-            I'll set up Last.fm later
-          </button>
+            <button
+              type="button"
+              onClick={() => setSkipWarningOpen(true)}
+              disabled={busy}
+              className="text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+            >
+              I'll set up Last.fm later
+            </button>
+          </div>
         </div>
       </div>
     </div>
