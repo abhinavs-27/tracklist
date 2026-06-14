@@ -6,6 +6,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { countUnreadNotifications } from "@/lib/queries";
 import { BillboardDropSection } from "@/components/billboard-drop/billboard-drop-section";
 import { HomeWelcomeOverlay } from "@/components/home-welcome-overlay";
+import { LastfmImportProgressCard } from "@/components/home/lastfm-import-progress-card";
+import type { LastfmImportStatus, LastfmImportProgress } from "@/app/api/lastfm/import-status/route";
 import { VisitorFeed } from "@/components/home/visitor-feed";
 import { VisitorSignupTriggers } from "@/components/home/visitor-signup-triggers";
 import { HomeTabsContainer } from "@/components/home/home-tabs-container";
@@ -61,10 +63,24 @@ async function HomeData({
     getCachedListeningReportPreview(userId), // 5
     getTasteInsights(userId), // 6
     createSupabaseServerClient().then((s) => countUnreadNotifications(userId, s)), // 7
+    createSupabaseServerClient().then((s) =>           // 8 — lastfm import status
+      s.from("users")
+        .select("lastfm_import_status, lastfm_import_progress")
+        .eq("id", userId)
+        .maybeSingle()
+    ),
   ]);
 
   const unreadCount =
     settled[7].status === "fulfilled" ? settled[7].value : 0;
+
+  const importStatusRow =
+    settled[8].status === "fulfilled"
+      ? (settled[8] as PromiseFulfilledResult<{ data: { lastfm_import_status: string | null; lastfm_import_progress: Record<string, unknown> | null } | null; error: unknown }>).value?.data
+      : null;
+
+  const initialImportStatus = (importStatusRow?.lastfm_import_status ?? null) as LastfmImportStatus;
+  const initialImportProgress = (importStatusRow?.lastfm_import_progress ?? {}) as LastfmImportProgress;
 
   const tasteIdentity: TasteIdentity =
     settled[0].status === "fulfilled" ? settled[0].value : EMPTY_TASTE;
@@ -174,13 +190,21 @@ async function HomeData({
   const activityTab = <RecentlyPlayedFeed />;
 
   return (
-    <HomeTabsContainer
-      billboardContent={billboardTab}
-      pulseContent={pulseTab}
-      historyContent={historyTab}
-      activityContent={activityTab}
-      unreadCount={unreadCount}
-    />
+    <>
+      {initialImportStatus ? (
+        <LastfmImportProgressCard
+          initialStatus={initialImportStatus}
+          initialProgress={initialImportProgress}
+        />
+      ) : null}
+      <HomeTabsContainer
+        billboardContent={billboardTab}
+        pulseContent={pulseTab}
+        historyContent={historyTab}
+        activityContent={activityTab}
+        unreadCount={unreadCount}
+      />
+    </>
   );
 }
 
