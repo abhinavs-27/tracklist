@@ -23,19 +23,21 @@ usersRouter.get("/me", async (req, res) => {
   const supabase = getSupabase();
   const [userRow, followersRes, followingRes, streakRes] = await Promise.all([
     supabase.from("users")
-      .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at")
+      .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, onboarding_completed, logs_private")
       .eq("id", session.id).maybeSingle(),
     supabase.from("follows").select("id", { count: "exact", head: true }).eq("following_id", session.id),
     supabase.from("follows").select("id", { count: "exact", head: true }).eq("follower_id", session.id),
     supabase.from("user_streaks").select("current_streak, longest_streak").eq("user_id", session.id).maybeSingle(),
   ]);
   if (!userRow.data) return notFound(res, "User not found");
-  const u = userRow.data as { id: string; username: string; avatar_url: string | null; bio: string | null; created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null };
+  const u = userRow.data as { id: string; username: string; avatar_url: string | null; bio: string | null; created_at: string; lastfm_username: string | null; lastfm_last_synced_at: string | null; onboarding_completed: boolean; logs_private: boolean };
   const streak = streakRes.data as { current_streak: number; longest_streak: number } | null;
   return ok(res, {
     id: u.id, username: u.username, avatar_url: u.avatar_url, bio: u.bio,
     created_at: u.created_at, lastfm_username: u.lastfm_username,
     lastfm_last_synced_at: u.lastfm_last_synced_at,
+    onboarding_completed: u.onboarding_completed,
+    logs_private: u.logs_private,
     followers_count: followersRes.count ?? 0, following_count: followingRes.count ?? 0,
     is_following: false, is_own_profile: true,
     current_streak: streak?.current_streak ?? 0, longest_streak: streak?.longest_streak ?? 0,
