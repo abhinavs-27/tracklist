@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fetchLastfmRecentTracksPageSafe } from "@/lib/lastfm/fetch-recent";
-import { ingestLastfmScrobbles } from "@/lib/lastfm/ingest";
+import { createIngestEntityCache, ingestLastfmScrobbles } from "@/lib/lastfm/ingest";
 import { LASTFM_USER_SYNC_FETCH_LIMIT } from "@/lib/lastfm/sync-user-scrobbles";
 
 export const DEFAULT_LASTFM_BACKFILL_SINCE_ISO = "2026-03-31T00:00:00.000Z";
@@ -137,81 +137,81 @@ export async function backfillLastfmScrobblesSince(
   let pagesFetched = 0;
   let imported = 0;
   let hasMore = false;
+  const entityCache = createIngestEntityCache();
 
-  let p = 1;
-  for (let iter = 0; iter < safetyCap; iter++) {
-    const delay = p === 1 ? 0 : Math.max(0, opts.pageDelayMs);
-    const fetchResult = await fetchLastfmRecentTracksPageSafe(
-      username,
-      opts.limit,
-      p,
-      { fromUnix, pageDelayMs: delay },
-    );
+  // Ingest options shared across all page calls
+  const ingestOpts = {
+    enqueueSpotifyResolve: false,
+    skipEntityStatsRefresh: true,
+    skipEntityUpdates: true,
+    skipDedup: true,
+    entityCache,
+  } as const;
 
-    if (!fetchResult.ok) {
-      console.warn(LOG_PREFIX, "Last.fm fetch failed", {
-        username,
-        error: fetchResult.error,
-      });
-      return {
-        pagesFetched,
-        imported,
-        fetchFailed: true,
-        fetchError: fetchResult.error,
-        fetchErrorCode: fetchResult.errorCode,
-        hasMore: false,
-      };
+  // ── Page 1: fetch first to discover totalPages ────────────────────────────
+  const firstResult = await fetchLastfmRecentTracksPageSafe(
+    username, opts.limit, 1, { fromUnix, pageDelayMs: 0 },
+  );
+  if (!firstResult.ok) {
+    return { pagesFetched, imported, fetchFailed: true, fetchError: firstResult.error, fetchErrorCode: firstResult.errorCode, hasMore: false };
+  }
+  pagesFetched++;
+  const { totalPages } = firstResult.pageInfo;
+
+  if (firstResult.tracks.length > 0) {
+    const ingest0 = await ingestLastfmScrobbles(supabase, userId, firstResult.tracks, ingestOpts);
+    imported += ingest0.insertedLogs;
+    console.log(LOG_PREFIX, "Last.fm page", { username, page: 1, totalPages, tracksThisPage: firstResult.tracks.length, insertedLogsThisBatch: ingest0.insertedLogs, importedTotal: imported });
+  }
+  if (opts.onProgress) {
+    await opts.onProgress({ pagesDone: pagesFetched, pagesTotal: totalPages > 1 ? totalPages : null, logsAdded: imported }).catch(() => {});
+  }
+  if (totalPages <= 1) {
+    hasMore = false;
+  } else {
+
+    // ── Pages 2..N: concurrent batches of CONCURRENCY ────────────────────────
+    const CONCURRENCY = 3;
+    const stagger = Math.max(0, Math.floor(opts.pageDelayMs / CONCURRENCY));
+    const lastPage = Math.min(totalPages, safetyCap);
+
+    for (let batchStart = 2; batchStart <= lastPage; batchStart += CONCURRENCY) {
+      const batchNums: number[] = [];
+      for (let i = 0; i < CONCURRENCY && batchStart + i <= lastPage; i++) {
+        batchNums.push(batchStart + i);
+      }
+
+      const batchResults = await Promise.allSettled(
+        batchNums.map((pageNum, i) =>
+          new Promise<void>((res) => setTimeout(res, i * stagger))
+            .then(() => fetchLastfmRecentTracksPageSafe(username, opts.limit, pageNum, { fromUnix, pageDelayMs: 0 }))
+            .then(async (result) => {
+              if (!result.ok) throw new Error(result.error ?? "fetch failed");
+              if (result.tracks.length === 0) return 0;
+              const ing = await ingestLastfmScrobbles(supabase, userId, result.tracks, ingestOpts);
+              return ing.insertedLogs;
+            }),
+        ),
+      );
+
+      let batchInserted = 0;
+      for (const r of batchResults) {
+        pagesFetched++;
+        if (r.status === "fulfilled") {
+          batchInserted += r.value;
+        } else {
+          console.warn(LOG_PREFIX, "page failed (continuing)", { pages: batchNums, reason: String(r.reason) });
+        }
+      }
+      imported += batchInserted;
+
+      console.log(LOG_PREFIX, "Last.fm batch", { username, pages: batchNums, batchInserted, importedTotal: imported });
+      if (opts.onProgress) {
+        await opts.onProgress({ pagesDone: pagesFetched, pagesTotal: totalPages > 1 ? totalPages : null, logsAdded: imported }).catch(() => {});
+      }
     }
 
-    pagesFetched += 1;
-
-    if (fetchResult.tracks.length === 0) {
-      hasMore = false;
-      break;
-    }
-
-    const ingest = await ingestLastfmScrobbles(supabase, userId, fetchResult.tracks, {
-      enqueueSpotifyResolve: false,
-    });
-    imported += ingest.insertedLogs;
-
-    const { page: pi, totalPages } = fetchResult.pageInfo;
-
-    const shouldLogPage =
-      pagesFetched === 1 ||
-      pagesFetched % PAGE_LOG_INTERVAL === 0 ||
-      pi >= totalPages ||
-      iter + 1 >= safetyCap;
-    if (shouldLogPage) {
-      console.log(LOG_PREFIX, "Last.fm page", {
-        username,
-        page: pi,
-        totalPages,
-        tracksThisPage: fetchResult.tracks.length,
-        insertedLogsThisBatch: ingest.insertedLogs,
-        importedTotal: imported,
-      });
-    }
-
-    if (opts.onProgress && (pagesFetched % PAGE_LOG_INTERVAL === 0 || pi >= totalPages)) {
-      await opts.onProgress({
-        pagesDone: pagesFetched,
-        pagesTotal: totalPages > 1 ? totalPages : null,
-        logsAdded: imported,
-      }).catch(() => { /* never let progress writes block the import */ });
-    }
-
-    if (pi >= totalPages) {
-      hasMore = false;
-      break;
-    }
-
-    if (iter + 1 >= safetyCap) {
-      hasMore = true;
-      break;
-    }
-
-    p += 1;
+    hasMore = totalPages > safetyCap;
   }
 
   const nowIso = new Date().toISOString();
@@ -219,6 +219,12 @@ export async function backfillLastfmScrobblesSince(
     .from("users")
     .update({ lastfm_last_synced_at: nowIso })
     .eq("id", userId);
+
+  if (imported > 0) {
+    const { error: statsErr } = await supabase.rpc("refresh_entity_stats");
+    if (statsErr) console.warn(LOG_PREFIX, "refresh_entity_stats failed", statsErr);
+    else console.log(LOG_PREFIX, "refresh_entity_stats done");
+  }
 
   return {
     pagesFetched,
