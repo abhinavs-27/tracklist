@@ -41,6 +41,9 @@ yarn-error.log*
 # cursor (contains MCP credentials)
 .cursor/mcp.json
 
+# claude code (worktrees, memory, local config)
+.claude/
+
 # superpowers plans and specs (local dev artifacts, not for version control)
 docs/superpowers/
 .superpowers/

@@ -27,14 +27,16 @@ async function main() {
   const nn = artistName.trim().toLowerCase();
 
   // 1. Find all artist rows matching this name (try generated column first, fall back to ilike)
-  let rows: { id: string; name: string; image_url: string | null; cached_at: string | null; updated_at: string; data_source: string | null }[] | null = null;
+  type ArtistRow = { id: string; name: string; image_url: string | null; cached_at: string | null; updated_at: string; data_source: string | null };
+  let rows: ArtistRow[] | null = null;
+
   const { data: byNorm, error: normErr } = await supabase
     .from("artists")
     .select("id, name, image_url, cached_at, updated_at, data_source")
     .eq("name_normalized", nn);
 
   if (!normErr && byNorm?.length) {
-    rows = byNorm as unknown as typeof rows;
+    rows = byNorm as unknown as ArtistRow[];
   } else {
     // Fall back to case-insensitive name match
     const { data: byIlike, error: ilikeErr } = await supabase
@@ -42,14 +44,14 @@ async function main() {
       .select("id, name, image_url, cached_at, updated_at, data_source")
       .ilike("name", `%${artistName.trim()}%`);
     if (ilikeErr) { console.error("artists select failed:", ilikeErr); process.exit(1); }
-    rows = byIlike as typeof rows;
+    rows = byIlike as unknown as ArtistRow[];
   }
 
   if (!rows?.length) { console.log(`No artists found matching "${artistName}"`); process.exit(0); }
 
   console.log(`\nFound ${rows.length} artist row(s) for "${artistName}":\n`);
 
-  for (const row of rows as { id: string; name: string; image_url: string | null; cached_at: string | null; updated_at: string; data_source: string | null }[]) {
+  for (const row of rows) {
     console.log(`  UUID:        ${row.id}`);
     console.log(`  name:        ${row.name}`);
     console.log(`  data_source: ${row.data_source ?? "(null)"}`);
