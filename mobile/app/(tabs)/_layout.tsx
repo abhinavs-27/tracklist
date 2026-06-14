@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function TabBarBackground() {
+  // isLiquidGlassAvailable: confirms iOS 26 design system is active; isGlassEffectAPIAvailable: crash guard for iOS 26 beta devices
   if (isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
     return (
       <GlassView
@@ -24,6 +25,8 @@ function TabBarBackground() {
   }
   return null;
 }
+
+const renderTabBarBackground = () => <TabBarBackground />;
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -50,7 +53,7 @@ export default function TabsLayout() {
           elevation: 0,
           overflow: "hidden",
         },
-        tabBarBackground: () => <TabBarBackground />,
+        tabBarBackground: renderTabBarBackground,
       }}
     >
       <Tabs.Screen
