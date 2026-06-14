@@ -1,64 +1,102 @@
 import { Tabs } from "expo-router";
-import { Platform } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
+import {
+  GlassView,
+  isGlassEffectAPIAvailable,
+  isLiquidGlassAvailable,
+} from "expo-glass-effect";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+function TabBarBackground() {
+  if (isLiquidGlassAvailable() && isGlassEffectAPIAvailable()) {
+    return (
+      <GlassView
+        style={StyleSheet.absoluteFill}
+        glassEffectStyle="regular"
+        colorScheme="dark"
+      />
+    );
+  }
+  if (Platform.OS === "ios") {
+    return <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />;
+  }
+  return null;
+}
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  // Half the safe-area bottom so the home-indicator strip is covered but compact
-  const bottomPad = Math.round(insets.bottom / 2);
+  const bottomOffset = Math.max(22, insets.bottom + 8);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#C8973A",
-        tabBarInactiveTintColor: "#a1a1aa",
+        tabBarInactiveTintColor: "rgba(161,161,170,0.75)",
+        tabBarShowLabel: false,
         tabBarStyle: {
           position: "absolute",
-          borderTopWidth: 0,
-          backgroundColor: Platform.OS === "ios" ? "transparent" : "#09090b",
+          bottom: bottomOffset,
+          left: 14,
+          right: 14,
+          height: 58,
+          borderRadius: 29,
+          borderWidth: 1,
+          borderColor: "rgba(255,255,255,0.13)",
+          backgroundColor:
+            Platform.OS === "android" ? "rgba(28,28,32,0.95)" : "transparent",
           elevation: 0,
-          height: 60 + bottomPad,
-          paddingBottom: bottomPad,
+          overflow: "hidden",
         },
-        tabBarBackground:
-          Platform.OS === "ios"
-            ? () => <BlurView intensity={80} tint="dark" style={{ flex: 1 }} />
-            : undefined,
+        tabBarBackground: () => <TabBarBackground />,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            focused ? (
+              <View style={styles.activePill}>
+                <Ionicons name="home" size={24} color={color} />
+              </View>
+            ) : (
+              <Ionicons name="home-outline" size={24} color={color} />
+            ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: "Explore",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "compass" : "compass-outline"} size={24} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            focused ? (
+              <View style={styles.activePill}>
+                <Ionicons name="compass" size={24} color={color} />
+              </View>
+            ) : (
+              <Ionicons name="compass-outline" size={24} color={color} />
+            ),
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
           title: "Search",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "search" : "search-outline"} size={24} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            focused ? (
+              <View style={styles.activePill}>
+                <Ionicons name="search" size={24} color={color} />
+              </View>
+            ) : (
+              <Ionicons name="search-outline" size={24} color={color} />
+            ),
         }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            // Always navigate to the root of the search stack (index.tsx)
             navigation.navigate("search", { screen: "index" });
           },
         })}
@@ -67,21 +105,43 @@ export default function TabsLayout() {
         name="communities"
         options={{
           title: "Community",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "people" : "people-outline"} size={24} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            focused ? (
+              <View style={styles.activePill}>
+                <Ionicons name="people" size={24} color={color} />
+              </View>
+            ) : (
+              <Ionicons name="people-outline" size={24} color={color} />
+            ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "You",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            focused ? (
+              <View style={styles.activePill}>
+                <Ionicons name="person" size={24} color={color} />
+              </View>
+            ) : (
+              <Ionicons name="person-outline" size={24} color={color} />
+            ),
         }}
       />
-
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  activePill: {
+    backgroundColor: "rgba(255,255,255,0.13)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    borderRadius: 18,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
