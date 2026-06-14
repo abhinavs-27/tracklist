@@ -61,6 +61,7 @@ export type LastfmGuidedPreview = {
   }>;
   topArtists: Array<{ name: string; playcount: number; image: string | null }>;
   topAlbums: Array<{ name: string; artistName: string; playcount: number; image: string | null }>;
+  totalScrobbles: number | null;
 };
 
 /**
@@ -86,7 +87,7 @@ export async function fetchLastfmGuidedPreview(
     };
   }
 
-  const [artistsData, albumsData] = await Promise.all([
+  const [artistsData, albumsData, userInfoData] = await Promise.all([
     lastfmJson({
       method: "user.getTopArtists",
       user: u,
@@ -98,6 +99,10 @@ export async function fetchLastfmGuidedPreview(
       user: u,
       period: "7day",
       limit: "8",
+    }),
+    lastfmJson({
+      method: "user.getInfo",
+      user: u,
     }),
   ]);
 
@@ -142,6 +147,13 @@ export async function fetchLastfmGuidedPreview(
     }
   }
 
+  let totalScrobbles: number | null = null;
+  if (!userInfoData.error) {
+    const raw = (userInfoData as { user?: { playcount?: string } }).user?.playcount;
+    const n = parseInt(raw ?? "", 10);
+    if (Number.isFinite(n) && n >= 0) totalScrobbles = n;
+  }
+
   const preview: LastfmGuidedPreview = {
     recentTracks: recent.tracks.map((t) => ({
       trackName: t.trackName,
@@ -152,6 +164,7 @@ export async function fetchLastfmGuidedPreview(
     })),
     topArtists,
     topAlbums,
+    totalScrobbles,
   };
 
   return { ok: true, preview, rawRecent: recent.tracks };
