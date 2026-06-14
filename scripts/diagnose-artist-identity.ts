@@ -34,7 +34,7 @@ async function main() {
     .eq("name_normalized", nn);
 
   if (!normErr && byNorm?.length) {
-    rows = byNorm as typeof rows;
+    rows = byNorm as unknown as typeof rows;
   } else {
     // Fall back to case-insensitive name match
     const { data: byIlike, error: ilikeErr } = await supabase
