@@ -196,11 +196,12 @@ export async function backfillLastfmScrobblesSince(
 
       let batchInserted = 0;
       for (const r of batchResults) {
-        pagesFetched++;
         if (r.status === "fulfilled") {
+          pagesFetched++;
           batchInserted += r.value;
         } else {
           console.warn(LOG_PREFIX, "page failed (continuing)", { pages: batchNums, reason: String(r.reason) });
+          hasMore = true; // failed pages must be re-run
         }
       }
       imported += batchInserted;
@@ -211,7 +212,7 @@ export async function backfillLastfmScrobblesSince(
       }
     }
 
-    hasMore = totalPages > safetyCap;
+    hasMore = hasMore || totalPages > safetyCap;
   }
 
   const nowIso = new Date().toISOString();

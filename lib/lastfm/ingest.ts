@@ -422,15 +422,6 @@ export async function ingestLastfmScrobbles(
     const { scrobble, songId, artistId, listenedAt } = p;
     const { artistName, trackName, albumName } = scrobble;
 
-    listensBatch.push({
-      user_id: userId,
-      artist_name: artistName,
-      track_name: trackName,
-      spotify_track_id: null,
-      source: "lastfm",
-      listened_at: listenedAt,
-    });
-
     const artistPreloaded = artistExtCache.has(artistId);
     let artistUuid =
       artistExtCache.get(artistId) ??
@@ -578,6 +569,14 @@ export async function ingestLastfmScrobbles(
     if (!trackPreloaded) newTrackLinks.push({ track_id: trackUuid, source: "lastfm", external_id: songId });
     trackExtCache.set(songId, trackUuid);
     entityCache?.tracks.set(songId, trackUuid);
+    listensBatch.push({
+      user_id: userId,
+      artist_name: artistName,
+      track_name: trackName,
+      spotify_track_id: null,
+      source: "lastfm",
+      listened_at: listenedAt,
+    });
     ingestedForLogs.push({ listenedAt, trackUuid });
 
     /** Track job maps Last.fm → Spotify and links catalog to real Spotify ids (see resolveTrackSpotifyJob). */
