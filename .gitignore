@@ -43,6 +43,7 @@ yarn-error.log*
 
 # superpowers plans and specs (local dev artifacts, not for version control)
 docs/superpowers/
+.superpowers/
 
 # typescript
 *.tsbuildinfo
