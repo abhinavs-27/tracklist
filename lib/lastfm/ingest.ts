@@ -436,7 +436,7 @@ export async function ingestLastfmScrobbles(
       artistExtCache.get(artistId) ??
       artistNameMap.get(normalizedName(artistName));
     if (!artistUuid) {
-      const { data: insArt, error: insArtErr } = await supabase
+      const { data: insArt } = await supabase
         .from("artists")
         .insert({
           name: artistName,
@@ -447,12 +447,16 @@ export async function ingestLastfmScrobbles(
           updated_at: now,
         })
         .select("id")
-        .single();
-      if (insArtErr || !insArt) {
-        console.warn("[lastfm ingest] artist insert failed", insArtErr);
-        continue;
+        .maybeSingle();
+      if (!insArt) {
+        // Concurrent page may have inserted this artist simultaneously — re-query
+        const { data: existing } = await supabase
+          .from("artists").select("id").eq("name_normalized", normalizedName(artistName)).maybeSingle();
+        if (!existing) { console.warn("[lastfm ingest] artist insert + re-query both failed"); continue; }
+        artistUuid = (existing as { id: string }).id;
+      } else {
+        artistUuid = insArt.id as string;
       }
-      artistUuid = insArt.id as string;
     } else if (!skipEntityUpdates) {
       await supabase
         .from("artists")
@@ -484,7 +488,7 @@ export async function ingestLastfmScrobbles(
           ? scrobble.artworkUrl.trim()
           : null;
       if (!albumUuid) {
-        const { data: insAlb, error: insAlbErr } = await supabase
+        const { data: insAlb } = await supabase
           .from("albums")
           .insert({
             name: albumTitle,
@@ -494,9 +498,12 @@ export async function ingestLastfmScrobbles(
             cached_at: now,
           })
           .select("id")
-          .single();
-        if (insAlbErr || !insAlb) {
-          console.warn("[lastfm ingest] album insert failed", insAlbErr);
+          .maybeSingle();
+        if (!insAlb) {
+          // Concurrent insert conflict — re-query
+          const { data: existingAlb } = await supabase
+            .from("albums").select("id").eq("artist_id", artistUuid).eq("name_normalized", normalizedName(albumTitle)).maybeSingle();
+          if (existingAlb) albumUuid = (existingAlb as { id: string }).id;
         } else {
           albumUuid = insAlb.id as string;
         }
@@ -530,7 +537,7 @@ export async function ingestLastfmScrobbles(
       trackExtCache.get(songId) ??
       trackNameMap.get(`${artistUuid}:${normalizedName(trackName)}`);
     if (!trackUuid) {
-      const { data: insTr, error: insTrErr } = await supabase
+      const { data: insTr } = await supabase
         .from("tracks")
         .insert({
           name: trackName,
@@ -543,12 +550,16 @@ export async function ingestLastfmScrobbles(
           updated_at: now,
         })
         .select("id")
-        .single();
-      if (insTrErr || !insTr) {
-        console.warn("[lastfm ingest] track insert failed", insTrErr);
-        continue;
+        .maybeSingle();
+      if (!insTr) {
+        // Concurrent insert conflict — re-query
+        const { data: existingTr } = await supabase
+          .from("tracks").select("id").eq("artist_id", artistUuid).eq("name_normalized", normalizedName(trackName)).maybeSingle();
+        if (!existingTr) { console.warn("[lastfm ingest] track insert + re-query both failed"); continue; }
+        trackUuid = (existingTr as { id: string }).id;
+      } else {
+        trackUuid = insTr.id as string;
       }
-      trackUuid = insTr.id as string;
     } else if (!skipEntityUpdates) {
       await supabase
         .from("tracks")
