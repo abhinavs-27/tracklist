@@ -260,8 +260,8 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: tracklist-cron-refresh-blind-spots
-      Description: Weekly Wednesday 03:00 UTC — REFRESH_BLIND_SPOTS
-      ScheduleExpression: cron(0 3 ? * WED *)
+      Description: Monthly 3rd 03:00 UTC — REFRESH_BLIND_SPOTS
+      ScheduleExpression: cron(0 3 3 * ? *)
       State: ENABLED
       Targets:
         - Id: SqsBlindSpots
