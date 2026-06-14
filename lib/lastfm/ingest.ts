@@ -21,6 +21,7 @@ import {
   linkAlbumExternalId,
   linkArtistExternalId,
   linkTrackExternalId,
+  normalizedName,
 } from "@/lib/catalog/entity-resolution";
 
 import { lfmAlbumId, lfmArtistId, lfmSongId } from "./lfm-ids";
@@ -193,12 +194,31 @@ async function filterAgainstExistingLfmLogs(
   });
 }
 
+/** Persistent cache shared across pages in a bulk import run. Pass the same object to every ingestLastfmScrobbles call. */
+export type IngestEntityCache = {
+  artists: Map<string, string>; // lastfm artist external_id → uuid
+  albums: Map<string, string>;  // lastfm album external_id → uuid
+  tracks: Map<string, string>;  // lastfm track external_id → uuid
+};
+
+export function createIngestEntityCache(): IngestEntityCache {
+  return { artists: new Map(), albums: new Map(), tracks: new Map() };
+}
+
 export type IngestLastfmScrobblesOptions = {
   /**
    * When false, skip enqueueing `resolve_track_spotify` and `enrich_track` batch jobs
    * (Last.fm-only backfill; run enrichment-retry / repair later). Default true.
    */
   enqueueSpotifyResolve?: boolean;
+  /** Skip calling refresh_entity_stats after each page — set true during bulk imports and call once at the end. */
+  skipEntityStatsRefresh?: boolean;
+  /** Skip UPDATE calls on already-existing artist/album rows and skip achievements RPC. Set true for bulk imports. */
+  skipEntityUpdates?: boolean;
+  /** Skip the pre-insert dedup filter. The upsert onConflict handles true duplicates. Set true for bulk imports where most scrobbles are new. */
+  skipDedup?: boolean;
+  /** Persistent cross-page cache. Pass the same object across all pages in a bulk import to avoid re-fetching the same entities. */
+  entityCache?: IngestEntityCache;
 };
 
 /**
@@ -211,7 +231,7 @@ export async function ingestLastfmScrobbles(
   scrobbles: LastfmNormalizedScrobble[],
   options?: IngestLastfmScrobblesOptions,
 ): Promise<IngestLastfmResult> {
-  const { enqueueSpotifyResolve = true } = options ?? {};
+  const { enqueueSpotifyResolve = true, skipEntityStatsRefresh = false, skipEntityUpdates = false, skipDedup = false, entityCache } = options ?? {};
 
   if (scrobbles.length === 0) {
     return { insertedLogs: 0, insertedListens: 0, skipped: 0 };
@@ -225,16 +245,17 @@ export async function ingestLastfmScrobbles(
   }));
 
   const tFilter0 = Date.now();
-  const toConsider = await filterAgainstExistingLfmLogs(
-    supabase,
-    userId,
-    candidates.map((c) => ({ songId: c.songId, listenedAt: c.listenedAt })),
-  );
+  let pending = candidates;
+  if (!skipDedup) {
+    const toConsider = await filterAgainstExistingLfmLogs(
+      supabase,
+      userId,
+      candidates.map((c) => ({ songId: c.songId, listenedAt: c.listenedAt })),
+    );
+    const allow = new Set(toConsider.map((t) => `${t.songId}|${t.listenedAt}`));
+    pending = candidates.filter((c) => allow.has(`${c.songId}|${c.listenedAt}`));
+  }
   const filterMs = Date.now() - tFilter0;
-  const allow = new Set(toConsider.map((t) => `${t.songId}|${t.listenedAt}`));
-  const pending = candidates.filter((c) =>
-    allow.has(`${c.songId}|${c.listenedAt}`),
-  );
 
   if (pending.length === 0) {
     if (isDebugLastfmSync()) {
@@ -258,7 +279,7 @@ export async function ingestLastfmScrobbles(
   let resolveStaggerSlot = 0;
   const ingestedForLogs: { listenedAt: string; trackUuid: string }[] = [];
 
-  // ── Bulk pre-load all external IDs in 3 queries (replaces per-scrobble lookups) ──
+  // ── Bulk pre-load external IDs — skip IDs already in the cross-page cache ──
   const allArtistExtIds = [...new Set(pending.map((p) => p.artistId))];
   const allSongExtIds = [...new Set(pending.map((p) => p.songId))];
   const allAlbumExtIds = [
@@ -273,44 +294,113 @@ export async function ingestLastfmScrobbles(
     ),
   ];
 
+  const uncachedArtistIds = entityCache ? allArtistExtIds.filter((id) => !entityCache.artists.has(id)) : allArtistExtIds;
+  const uncachedSongIds = entityCache ? allSongExtIds.filter((id) => !entityCache.tracks.has(id)) : allSongExtIds;
+  const uncachedAlbumIds = entityCache ? allAlbumExtIds.filter((id) => !entityCache.albums.has(id)) : allAlbumExtIds;
+
   const [artistExtRows, trackExtRows, albumExtRows] = await Promise.all([
-    supabase
-      .from("artist_external_ids")
-      .select("external_id, artist_id")
-      .eq("source", "lastfm")
-      .in("external_id", allArtistExtIds)
-      .then((r) => r.data ?? []),
-    supabase
-      .from("track_external_ids")
-      .select("external_id, track_id")
-      .eq("source", "lastfm")
-      .in("external_id", allSongExtIds)
-      .then((r) => r.data ?? []),
-    allAlbumExtIds.length > 0
-      ? supabase
-          .from("album_external_ids")
-          .select("external_id, album_id")
-          .eq("source", "lastfm")
-          .in("external_id", allAlbumExtIds)
-          .then((r) => r.data ?? [])
+    uncachedArtistIds.length > 0
+      ? supabase.from("artist_external_ids").select("external_id, artist_id").eq("source", "lastfm").in("external_id", uncachedArtistIds).then((r) => r.data ?? [])
+      : Promise.resolve([]),
+    uncachedSongIds.length > 0
+      ? supabase.from("track_external_ids").select("external_id, track_id").eq("source", "lastfm").in("external_id", uncachedSongIds).then((r) => r.data ?? [])
+      : Promise.resolve([]),
+    uncachedAlbumIds.length > 0
+      ? supabase.from("album_external_ids").select("external_id, album_id").eq("source", "lastfm").in("external_id", uncachedAlbumIds).then((r) => r.data ?? [])
       : Promise.resolve([]),
   ]);
 
-  const artistExtCache = new Map<string, string>(
-    (artistExtRows as { external_id: string; artist_id: string }[]).map(
-      (r) => [r.external_id, r.artist_id],
-    ),
-  );
-  const trackExtCache = new Map<string, string>(
-    (trackExtRows as { external_id: string; track_id: string }[]).map(
-      (r) => [r.external_id, r.track_id],
-    ),
-  );
-  const albumExtCache = new Map<string, string>(
-    (albumExtRows as { external_id: string; album_id: string }[]).map(
-      (r) => [r.external_id, r.album_id],
-    ),
-  );
+  // Seed local caches from cross-page cache first, then overlay fresh DB results
+  const artistExtCache = new Map<string, string>(entityCache?.artists);
+  for (const r of artistExtRows as { external_id: string; artist_id: string }[]) {
+    artistExtCache.set(r.external_id, r.artist_id);
+    entityCache?.artists.set(r.external_id, r.artist_id);
+  }
+  const trackExtCache = new Map<string, string>(entityCache?.tracks);
+  for (const r of trackExtRows as { external_id: string; track_id: string }[]) {
+    trackExtCache.set(r.external_id, r.track_id);
+    entityCache?.tracks.set(r.external_id, r.track_id);
+  }
+  const albumExtCache = new Map<string, string>(entityCache?.albums);
+  for (const r of albumExtRows as { external_id: string; album_id: string }[]) {
+    albumExtCache.set(r.external_id, r.album_id);
+    entityCache?.albums.set(r.external_id, r.album_id);
+  }
+
+  // ── Batch name lookups for uncached entities (3 queries, replaces N sequential calls) ──
+
+  // 1. Artists not in external-id cache → look up by normalized name
+  const uncachedArtistNorms = [...new Set(
+    pending
+      .filter((p) => !artistExtCache.has(p.artistId))
+      .map((p) => normalizedName(p.scrobble.artistName))
+      .filter((n): n is string => !!n),
+  )];
+  const artistNameMap = new Map<string, string>(); // name_normalized → uuid
+  if (uncachedArtistNorms.length > 0) {
+    const { data: anRows } = await supabase
+      .from("artists")
+      .select("id, name_normalized")
+      .in("name_normalized", uncachedArtistNorms);
+    for (const r of (anRows ?? []) as { id: string; name_normalized: string }[]) {
+      artistNameMap.set(r.name_normalized, r.id);
+    }
+  }
+
+  // 2. Albums not in external-id cache → look up by artist_id + normalized name
+  const uncachedAlbumPending = pending.filter((p) => {
+    const album = p.scrobble.albumName?.trim();
+    return album && !albumExtCache.has(lfmAlbumId(p.scrobble.artistName, album));
+  });
+  const albumNameMap = new Map<string, string>(); // `${artistId}:${albumNorm}` → uuid
+  if (uncachedAlbumPending.length > 0) {
+    const albumArtistUuids = [...new Set(
+      uncachedAlbumPending
+        .map((p) => artistExtCache.get(p.artistId) ?? artistNameMap.get(normalizedName(p.scrobble.artistName)))
+        .filter((u): u is string => !!u),
+    )];
+    const uncachedAlbumNorms = [...new Set(
+      uncachedAlbumPending
+        .map((p) => normalizedName(p.scrobble.albumName ?? ""))
+        .filter((n): n is string => !!n),
+    )];
+    if (albumArtistUuids.length > 0 && uncachedAlbumNorms.length > 0) {
+      const { data: albRows } = await supabase
+        .from("albums")
+        .select("id, name_normalized, artist_id")
+        .in("artist_id", albumArtistUuids)
+        .in("name_normalized", uncachedAlbumNorms);
+      for (const r of (albRows ?? []) as { id: string; name_normalized: string; artist_id: string }[]) {
+        albumNameMap.set(`${r.artist_id}:${r.name_normalized}`, r.id);
+      }
+    }
+  }
+
+  // 3. Tracks not in external-id cache → look up by artist_id + normalized name
+  const uncachedTrackPending = pending.filter((p) => !trackExtCache.has(p.songId));
+  const trackNameMap = new Map<string, string>(); // `${artistId}:${trackNorm}` → uuid
+  if (uncachedTrackPending.length > 0) {
+    const trackArtistUuids = [...new Set(
+      uncachedTrackPending
+        .map((p) => artistExtCache.get(p.artistId) ?? artistNameMap.get(normalizedName(p.scrobble.artistName)))
+        .filter((u): u is string => !!u),
+    )];
+    const uncachedTrackNorms = [...new Set(
+      uncachedTrackPending
+        .map((p) => normalizedName(p.scrobble.trackName))
+        .filter((n): n is string => !!n),
+    )];
+    if (trackArtistUuids.length > 0 && uncachedTrackNorms.length > 0) {
+      const { data: trRows } = await supabase
+        .from("tracks")
+        .select("id, name_normalized, artist_id")
+        .in("artist_id", trackArtistUuids)
+        .in("name_normalized", uncachedTrackNorms);
+      for (const r of (trRows ?? []) as { id: string; name_normalized: string; artist_id: string }[]) {
+        trackNameMap.set(`${r.artist_id}:${r.name_normalized}`, r.id);
+      }
+    }
+  }
 
   // Collect listens to batch-insert at the end
   const listensBatch: {
@@ -341,11 +431,10 @@ export async function ingestLastfmScrobbles(
       listened_at: listenedAt,
     });
 
-    // Use pre-loaded cache; fall back to individual lookup only for misses
+    const artistPreloaded = artistExtCache.has(artistId);
     let artistUuid =
       artistExtCache.get(artistId) ??
-      (await getArtistIdByExternalId(supabase, "lastfm", artistId)) ??
-      (await findArtistIdByNormalizedName(supabase, artistName));
+      artistNameMap.get(normalizedName(artistName));
     if (!artistUuid) {
       const { data: insArt, error: insArtErr } = await supabase
         .from("artists")
@@ -364,7 +453,7 @@ export async function ingestLastfmScrobbles(
         continue;
       }
       artistUuid = insArt.id as string;
-    } else {
+    } else if (!skipEntityUpdates) {
       await supabase
         .from("artists")
         .update({
@@ -377,40 +466,30 @@ export async function ingestLastfmScrobbles(
         })
         .eq("id", artistUuid);
     }
-    // Queue link instead of immediate await
-    newArtistLinks.push({ artist_id: artistUuid, source: "lastfm", external_id: artistId });
-    artistExtCache.set(artistId, artistUuid); // cache newly created artists
+    if (!artistPreloaded) newArtistLinks.push({ artist_id: artistUuid, source: "lastfm", external_id: artistId });
+    artistExtCache.set(artistId, artistUuid);
+    entityCache?.artists.set(artistId, artistUuid);
 
     const albumTitle = albumName?.trim() || null;
     let albumUuid: string | null = null;
     if (albumTitle) {
       const lfmAlbumKey = lfmAlbumId(artistName, albumTitle);
-      // Use pre-loaded cache first
+      const albumPreloaded = albumExtCache.has(lfmAlbumKey);
       albumUuid =
         albumExtCache.get(lfmAlbumKey) ??
-        (await getAlbumIdByExternalId(supabase, "lastfm", lfmAlbumKey)) ??
-        (await findAlbumIdByArtistAndName(supabase, artistUuid, albumTitle));
+        albumNameMap.get(`${artistUuid}:${normalizedName(albumTitle)}`) ??
+        null;
       const coverFromScrobble =
         typeof scrobble.artworkUrl === "string" && scrobble.artworkUrl.trim()
           ? scrobble.artworkUrl.trim()
           : null;
-      const { data: existingAlb } = albumUuid
-        ? await supabase
-            .from("albums")
-            .select("image_url")
-            .eq("id", albumUuid)
-            .maybeSingle()
-        : { data: null };
-      const keepImg = (
-        existingAlb as { image_url?: string | null } | null
-      )?.image_url?.trim();
       if (!albumUuid) {
         const { data: insAlb, error: insAlbErr } = await supabase
           .from("albums")
           .insert({
             name: albumTitle,
             artist_id: artistUuid,
-            image_url: coverFromScrobble || keepImg || null,
+            image_url: coverFromScrobble ?? null,
             updated_at: now,
             cached_at: now,
           })
@@ -421,7 +500,13 @@ export async function ingestLastfmScrobbles(
         } else {
           albumUuid = insAlb.id as string;
         }
-      } else {
+      } else if (!skipEntityUpdates) {
+        const { data: existingAlb } = await supabase
+          .from("albums")
+          .select("image_url")
+          .eq("id", albumUuid)
+          .maybeSingle();
+        const keepImg = (existingAlb as { image_url?: string | null } | null)?.image_url?.trim();
         await supabase
           .from("albums")
           .update({
@@ -434,21 +519,16 @@ export async function ingestLastfmScrobbles(
           .eq("id", albumUuid);
       }
       if (albumUuid) {
-        newAlbumLinks.push({ album_id: albumUuid, source: "lastfm", external_id: lfmAlbumKey });
+        if (!albumPreloaded) newAlbumLinks.push({ album_id: albumUuid, source: "lastfm", external_id: lfmAlbumKey });
         albumExtCache.set(lfmAlbumKey, albumUuid);
+        entityCache?.albums.set(lfmAlbumKey, albumUuid);
       }
     }
 
-    // Use pre-loaded cache for track lookup
+    const trackPreloaded = trackExtCache.has(songId);
     let trackUuid =
       trackExtCache.get(songId) ??
-      (await getTrackIdByExternalId(supabase, "lastfm", songId)) ??
-      (await findTrackIdByArtistAlbumAndName(
-        supabase,
-        artistUuid,
-        albumUuid,
-        trackName,
-      ));
+      trackNameMap.get(`${artistUuid}:${normalizedName(trackName)}`);
     if (!trackUuid) {
       const { data: insTr, error: insTrErr } = await supabase
         .from("tracks")
@@ -469,7 +549,7 @@ export async function ingestLastfmScrobbles(
         continue;
       }
       trackUuid = insTr.id as string;
-    } else {
+    } else if (!skipEntityUpdates) {
       await supabase
         .from("tracks")
         .update({
@@ -484,8 +564,9 @@ export async function ingestLastfmScrobbles(
         })
         .eq("id", trackUuid);
     }
-    newTrackLinks.push({ track_id: trackUuid, source: "lastfm", external_id: songId });
+    if (!trackPreloaded) newTrackLinks.push({ track_id: trackUuid, source: "lastfm", external_id: songId });
     trackExtCache.set(songId, trackUuid);
+    entityCache?.tracks.set(songId, trackUuid);
     ingestedForLogs.push({ listenedAt, trackUuid });
 
     /** Track job maps Last.fm → Spotify and links catalog to real Spotify ids (see resolveTrackSpotifyJob). */
@@ -554,14 +635,21 @@ export async function ingestLastfmScrobbles(
     artist_id: null as string | null,
   }));
 
+  const LOG_UPSERT_CHUNK = 25;
   const tLogs0 = Date.now();
-  const { data: inserted, error: logErr } = await supabase
-    .from("logs")
-    .upsert(logRows, {
-      onConflict: "user_id,track_id,listened_at",
-      ignoreDuplicates: true,
-    })
-    .select("id, track_id, listened_at");
+  const inserted: { id: string; track_id: string; listened_at: string }[] = [];
+  let logErr: { message: string } | null = null;
+
+  for (let i = 0; i < logRows.length; i += LOG_UPSERT_CHUNK) {
+    const chunk = logRows.slice(i, i + LOG_UPSERT_CHUNK);
+    const { data, error } = await supabase
+      .from("logs")
+      .upsert(chunk, { onConflict: "user_id,track_id,listened_at", ignoreDuplicates: true })
+      .select("id, track_id, listened_at");
+    if (error) { logErr = error; break; }
+    if (data) inserted.push(...data);
+  }
+
   const logsUpsertMs = Date.now() - tLogs0;
 
   if (logErr) {
@@ -576,19 +664,16 @@ export async function ingestLastfmScrobbles(
   const insertedLogs = inserted?.length ?? 0;
 
   if (insertedLogs > 0) {
-    const tAch0 = Date.now();
-    const { error: achErr } = await supabase.rpc(
-      "grant_achievements_on_listen",
-      {
-        p_user_id: userId,
-      },
-    );
-    const achievementsRpcMs = Date.now() - tAch0;
-    if (achErr) {
-      console.warn(
-        "[lastfm ingest] grant_achievements_on_listen failed",
-        achErr,
+    if (!skipEntityUpdates) {
+      const tAch0 = Date.now();
+      const { error: achErr } = await supabase.rpc(
+        "grant_achievements_on_listen",
+        { p_user_id: userId },
       );
+      const achievementsRpcMs = Date.now() - tAch0;
+      if (achErr) {
+        console.warn("[lastfm ingest] grant_achievements_on_listen failed", achErr);
+      }
     }
     const tBatchFx0 = Date.now();
     await syncBatchLogSideEffects(
@@ -597,7 +682,7 @@ export async function ingestLastfmScrobbles(
         trackId: r.trackUuid,
         listenedAtIso: r.listenedAt,
       })),
-      { skipSpotifyEnrich: !enqueueSpotifyResolve },
+      { skipSpotifyEnrich: !enqueueSpotifyResolve, skipEntityStatsRefresh },
     );
     const batchSideEffectsMs = Date.now() - tBatchFx0;
 
@@ -612,7 +697,6 @@ export async function ingestLastfmScrobbles(
             ? Math.round(perScrobbleLoopMs / pending.length)
             : 0,
         logsUpsertMs,
-        achievementsRpcMs,
         batchSideEffectsMs,
       });
     } else if (batchSideEffectsMs >= 3000) {
