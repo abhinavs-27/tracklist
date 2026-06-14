@@ -11,6 +11,7 @@ vi.mock("@/lib/lastfm/fetch-recent", () => ({
 
 vi.mock("@/lib/lastfm/ingest", () => ({
   ingestLastfmScrobbles: vi.fn().mockResolvedValue({ insertedLogs: 0, skipped: 0 }),
+  createIngestEntityCache: () => ({ artists: new Map(), albums: new Map(), tracks: new Map() }),
 }));
 
 const mockSupabase = {
