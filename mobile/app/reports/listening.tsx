@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import * as FileSystem from "expo-file-system/legacy";
 import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
@@ -271,6 +272,7 @@ export default function ListeningReportScreen() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const { report, compare } = useListeningReport({ range, entityType, startDate, endDate });
 
@@ -288,15 +290,68 @@ export default function ListeningReportScreen() {
   }
 
   async function handleShare() {
-    if (!items.length) return;
-    const top3 = items
-      .slice(0, 3)
-      .map((r, i) => `${i + 1}. ${r.name} (${r.count} plays)`)
-      .join(", ");
-    const label = ENTITY_TABS.find((t) => t.value === entityType)?.label ?? entityType;
-    await Share.share({
-      message: `My top ${label} ${rangeLabel.toLowerCase()} on Tracklist: ${top3}`,
-    });
+    if (!items.length || sharing) return;
+    setSharing(true);
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "";
+      const label = ENTITY_TABS.find((t) => t.value === entityType)?.label ?? entityType;
+
+      const rows = items.slice(0, 5).map((r) => ({
+        rank: r.rank,
+        name: r.name,
+        count: r.count,
+        image: r.image,
+      }));
+
+      const resp = await fetch(`${apiBase}/api/reports/share-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          reportTitle: `My Top ${label}`,
+          periodLabel,
+          entityLabel: label,
+          rows,
+          totalPlays: compare.data?.totalPlaysCurrent ?? null,
+        }),
+      });
+
+      if (!resp.ok) throw new Error("share image failed");
+
+      const arrayBuffer = await resp.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const chunkSize = 8192;
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+      }
+      const base64 = btoa(binary);
+
+      const dest = (FileSystem.cacheDirectory ?? "") + "tracklist-report.png";
+      await FileSystem.writeAsStringAsync(dest, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const Sharing = await import("expo-sharing");
+      await Sharing.shareAsync(dest, { mimeType: "image/png", dialogTitle: "Share your listening report" });
+    } catch (e) {
+      console.error("[handleShare] report image share failed:", e);
+      const top3 = items
+        .slice(0, 3)
+        .map((r, i) => `${i + 1}. ${r.name} (${r.count} plays)`)
+        .join(", ");
+      const label = ENTITY_TABS.find((t) => t.value === entityType)?.label ?? entityType;
+      void Share.share({
+        message: `My top ${label} ${rangeLabel.toLowerCase()} on Tracklist: ${top3}`,
+      });
+    } finally {
+      setSharing(false);
+    }
   }
 
   const renderItem = useCallback(
@@ -333,8 +388,8 @@ export default function ListeningReportScreen() {
           <Ionicons name="chevron-back" size={22} color={theme.colors.gold} />
         </Pressable>
         <Text style={s.navTitle}>Listening Report</Text>
-        <Pressable onPress={handleShare} style={s.shareBtn} disabled={!hasData}>
-          <Text style={[s.shareText, !hasData && s.shareBtnDisabled]}>Share</Text>
+        <Pressable onPress={() => void handleShare()} style={s.shareBtn} disabled={!hasData || sharing}>
+          <Text style={[s.shareText, (!hasData || sharing) && s.shareBtnDisabled]}>{sharing ? "…" : "Share"}</Text>
         </Pressable>
       </View>
 
