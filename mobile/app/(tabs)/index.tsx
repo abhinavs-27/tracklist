@@ -674,7 +674,6 @@ function TasteTimeline({ months, shifts }: { months: TimelineMonth[]; shifts: Ar
         <Text style={[styles.tlMonthCell, styles.tlHeaderText]}>MONTH</Text>
         <View style={styles.tlArtistCell}><Text style={styles.tlHeaderText}>ARTISTS</Text></View>
         <View style={styles.tlGenreCell}><Text style={styles.tlHeaderText}>GENRES</Text></View>
-        <Text style={[styles.tlPlaysCell, styles.tlHeaderText]}>PLAYS</Text>
       </View>
       {visible.map((entry, i) => (
         <View key={entry.month}>
@@ -686,7 +685,6 @@ function TasteTimeline({ months, shifts }: { months: TimelineMonth[]; shifts: Ar
             <View style={styles.tlGenreCell}>
               <GenrePillsRow genres={entry.topGenres} />
             </View>
-            <Text style={styles.tlPlaysCell}>{entry.totalLogs.toLocaleString()}</Text>
           </View>
           {shifts[i] === "major" ? (
             <View style={styles.shiftMajorRow}>
