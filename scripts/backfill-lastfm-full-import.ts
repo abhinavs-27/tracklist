@@ -42,29 +42,32 @@ async function fetchEligibleUsers(
 }
 
 async function main() {
-  if (DRY_RUN) {
-    console.log(LOG, "DRY RUN — will not enqueue or update DB");
-  }
+  const t0 = Date.now();
+  console.log(LOG, DRY_RUN ? "DRY RUN — will not enqueue or update DB" : "starting");
+  console.log(LOG, `fetching users with lastfm_username and no prior import...`);
 
   let offset = 0;
   let totalEnqueued = 0;
   let totalSkipped = 0;
+  let page = 0;
 
   for (;;) {
+    page++;
+    console.log(LOG, `page ${page}: querying offset=${offset}...`);
     const users = await fetchEligibleUsers(offset);
-    if (users.length === 0) break;
+    console.log(LOG, `page ${page}: found ${users.length} eligible user(s)`);
 
-    console.log(LOG, `page offset=${offset} found=${users.length}`);
+    if (users.length === 0) break;
 
     for (const user of users) {
       if (DRY_RUN) {
-        console.log(LOG, `  would enqueue user=${user.id} lastfm=${user.lastfm_username}`);
+        console.log(LOG, `  [dry] would enqueue user=${user.id} lastfm=${user.lastfm_username}`);
         totalEnqueued++;
         continue;
       }
 
+      process.stdout.write(`${LOG}   enqueueing ${user.lastfm_username} (${user.id})... `);
       try {
-        // Mark pending in DB first so the UI can show progress immediately
         const supabase = createSupabaseAdminClient();
         await supabase
           .from("users")
@@ -77,10 +80,10 @@ async function main() {
           fromIso: "1970-01-01T00:00:00.000Z",
         });
 
-        console.log(LOG, `  enqueued user=${user.id} lastfm=${user.lastfm_username}`);
+        console.log("ok");
         totalEnqueued++;
       } catch (e) {
-        console.warn(LOG, `  FAILED user=${user.id}`, e instanceof Error ? e.message : String(e));
+        console.log(`FAILED: ${e instanceof Error ? e.message : String(e)}`);
         totalSkipped++;
       }
     }
@@ -89,7 +92,11 @@ async function main() {
     if (users.length < PAGE_SIZE) break;
   }
 
-  console.log(LOG, `done — enqueued=${totalEnqueued} skipped=${totalSkipped}`);
+  const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+  console.log(LOG, `done in ${elapsed}s — enqueued=${totalEnqueued} failed=${totalSkipped}`);
+  if (totalEnqueued > 0 && !DRY_RUN) {
+    console.log(LOG, `make sure the worker is running: npm run worker:spotify-enrich`);
+  }
 }
 
 main().catch((e) => {
