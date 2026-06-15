@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { after } from "next/server";
 import { getSession } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -3339,11 +3340,11 @@ export type NotificationRow = {
   created_at: string;
 };
 
-export async function countUnreadNotifications(
+export const countUnreadNotifications = cache(async (
   userId: string,
   /** When set, avoids a second `createSupabaseServerClient()` (parallel clients + `cookies()` can deadlock RSC). */
   existingClient?: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-): Promise<number> {
+): Promise<number> => {
   try {
     const supabase = existingClient ?? (await createSupabaseServerClient());
     const { count, error } = await supabase
@@ -3357,7 +3358,7 @@ export async function countUnreadNotifications(
     console.error("[queries] countUnreadNotifications failed:", e);
     return 0;
   }
-}
+});
 
 export async function getNotifications(
   userId: string,

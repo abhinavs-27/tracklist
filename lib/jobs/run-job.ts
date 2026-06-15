@@ -87,6 +87,11 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
       case "REPAIR_LASTFM_AGGREGATES":
         await cron.runRepairLastfmAggregates(job.batch);
         break;
+      case "POST_IMPORT_PIPELINE": {
+        const { runPostImportPipelineForUser } = await import("@/lib/jobs/post-import-pipeline");
+        await runPostImportPipelineForUser(job.userId, { mode: "inline" });
+        break;
+      }
       case "UPGRADE_LASTFM_ALBUM_COVERS":
         await cron.runUpgradeLastfmAlbumCovers({
           batch: job.batch,

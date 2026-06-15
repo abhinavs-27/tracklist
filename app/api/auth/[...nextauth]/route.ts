@@ -66,14 +66,15 @@ export const authOptions: NextAuthOptions = {
         if (typeof s.onboarding_completed === 'boolean') {
           token.onboarding_completed = s.onboarding_completed;
         }
+        return token;
       }
 
       const email = (user?.email ?? token?.email) as string | undefined;
-      // Always resolve `token.id` from our `users` row. OAuth sets `user.id` / `sub`
-      // to the provider subject (e.g. Google), which is a string — if we only ran
-      // this when `token.id` was missing, we'd skip the lookup and middleware would
-      // query `users` by the wrong id, so new accounts never hit onboarding.
-      if (email) {
+      // Only hit the DB on initial sign-in or when our internal user ID is absent from
+      // the token (legacy sessions pre-dating this field). On every other read the data
+      // is already in the JWT — running a DB query here on every getServerSession() call
+      // adds a round-trip to the critical rendering path and delays FCP.
+      if (email && (trigger === 'signIn' || !token.id)) {
         try {
           const supabase = await createSupabaseServerClient();
           const { data: dbUser, error } = await supabase
