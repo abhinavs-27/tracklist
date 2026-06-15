@@ -83,6 +83,18 @@ export async function processLastfmFullImportJob(job: LastfmFullImportJobData): 
     });
 
     console.log(LOG, "done", { userId, imported: result.imported, pages: result.pagesFetched });
+
+    // Kick off the stats pipeline. Fire-and-forget — a pipeline failure must not
+    // fail the import job (BullMQ would retry the whole import).
+    if (result.imported > 0) {
+      const { runPostImportPipelineForUser } = await import("@/lib/jobs/post-import-pipeline");
+      void runPostImportPipelineForUser(userId).catch((e) => {
+        console.error(LOG, "post-import pipeline failed (non-fatal)", {
+          userId,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      });
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(LOG, "exception", { userId, error: msg });
