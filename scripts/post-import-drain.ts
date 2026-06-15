@@ -51,12 +51,13 @@ async function repairArtistAggregates(): Promise<void> {
 
 async function refreshTasteForRecentImports(): Promise<void> {
   const admin = createSupabaseAdminClient();
-  // Find users whose Last.fm import completed in the last 7 days
+  // Refresh all users who have completed a Last.fm import.
+  // users has no updated_at — completion time is inside the lastfm_import_progress JSONB.
+  // Taste refresh is cheap and idempotent so refreshing all done users is safe.
   const { data: users, error } = await admin
     .from("users")
     .select("id")
-    .eq("lastfm_import_status", "done")
-    .gte("updated_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+    .eq("lastfm_import_status", "done");
 
   if (error) {
     console.error(`${LOG} could not fetch recently-imported users:`, error.message);
