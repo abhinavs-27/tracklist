@@ -20,7 +20,7 @@ function getRedis(): IORedis | null {
   const url = process.env.REDIS_URL?.trim();
   if (!url) { _redis = null; return null; }
   try {
-    _redis = new IORedis(url, { maxRetriesPerRequest: null, enableReadyCheck: true });
+    _redis = new IORedis(url, { maxRetriesPerRequest: null, enableReadyCheck: true, lazyConnect: true, connectTimeout: 3000 });
     attachRedisErrorHandler(_redis, "lastfm-bullmq");
   } catch { _redis = null; }
   return _redis;

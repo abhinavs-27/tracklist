@@ -645,7 +645,7 @@ export async function ingestLastfmScrobbles(
     artist_id: null as string | null,
   }));
 
-  const LOG_UPSERT_CHUNK = 10;
+  const LOG_UPSERT_CHUNK = 100;
   const tLogs0 = Date.now();
   const inserted: { id: string; track_id: string; listened_at: string }[] = [];
   let logErr: { message: string } | null = null;

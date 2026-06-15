@@ -171,7 +171,7 @@ export async function backfillLastfmScrobblesSince(
   } else {
 
     // ── Pages 2..N: concurrent batches of CONCURRENCY ────────────────────────
-    const CONCURRENCY = 3;
+    const CONCURRENCY = 5;
     const stagger = Math.max(0, Math.floor(opts.pageDelayMs / CONCURRENCY));
     const lastPage = Math.min(totalPages, safetyCap);
 

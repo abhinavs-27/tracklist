@@ -707,6 +707,30 @@ export async function getEntityStats(
       }
       if (!error && !row) {
         console.warn("[queries] getEntityStats cache miss (album):", entityId);
+        const empty: EntityStats = {
+          ...DEFAULT_ENTITY_STATS,
+          rating_distribution: defaultRatingDistribution(),
+        };
+        setEntityStatsMemory(entityType, entityId, empty);
+        after(async () => {
+          try {
+            const live = await getEntityStatsLive("album", canonicalId);
+            setEntityStatsMemory(entityType, entityId, live);
+            const admin = await createSupabaseAdminClient();
+            await admin.from("album_stats").upsert(
+              {
+                album_id: canonicalId,
+                listen_count: live.listen_count,
+                review_count: live.review_count,
+                avg_rating: live.average_rating,
+                rating_distribution: live.rating_distribution ?? {},
+                last_updated: new Date().toISOString(),
+              },
+              { onConflict: "album_id" },
+            );
+          } catch { /* swallow */ }
+        });
+        return empty;
       }
     } else {
       const { data: row, error } = await supabase
@@ -2768,31 +2792,29 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
   avg_rating: number | null;
   favorite_count: number;
 }> {
-  const stats = await getEntityStats("album", albumId);
-  let favorite_count = 0;
-  try {
-    const supabase = await createSupabaseServerClient();
-    const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(
-      supabase,
-      albumId,
-    );
-    if (canonicalId) {
-      const { data: row } = await supabase
-        .from("entity_stats")
-        .select("favorite_count")
-        .eq("entity_type", "album")
-        .eq("entity_id", canonicalId)
-        .maybeSingle();
-      favorite_count = Number(row?.favorite_count ?? 0);
-    }
-  } catch (e) {
-    console.warn("[queries] getAlbumEngagementStats favorite_count:", e);
-  }
+  // Resolve the canonical ID once, then run stats + favorite_count in parallel.
+  const supabase = await createSupabaseServerClient();
+  const canonicalId = await resolveCanonicalAlbumUuidFromEntityId(supabase, albumId);
+
+  const [stats, favoriteRow] = await Promise.all([
+    getEntityStats("album", albumId),
+    canonicalId
+      ? Promise.resolve(
+          supabase
+            .from("entity_stats")
+            .select("favorite_count")
+            .eq("entity_type", "album")
+            .eq("entity_id", canonicalId)
+            .maybeSingle(),
+        ).then((r) => r.data).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
   return {
     listen_count: stats.listen_count,
     review_count: stats.review_count,
     avg_rating: stats.average_rating,
-    favorite_count,
+    favorite_count: Number(favoriteRow?.favorite_count ?? 0),
   };
 }
 

@@ -33,12 +33,17 @@ export type SpotifyEnrichJobData =
 
 const QUEUE_NAME = "spotify-enrich";
 
-/** Space Last.fm → Spotify resolve jobs so many imports in one sync do not burst the Spotify API. */
+/**
+ * Delay between successive Last.fm → Spotify resolve jobs in the BullMQ queue.
+ * Defaults to 0 — Bottleneck already handles rate limiting, so an additional
+ * per-job schedule delay only adds wall-clock latency (1000 songs × 2500ms = 42 min).
+ * Set SPOTIFY_RESOLVE_STAGGER_MS to a positive value if you want extra headroom.
+ */
 export function getSpotifyResolveStaggerMs(): number {
   const raw = process.env.SPOTIFY_RESOLVE_STAGGER_MS?.trim();
-  if (!raw) return 2500;
+  if (!raw) return 0;
   const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n >= 0 ? n : 2500;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 function resolveStaggerMs(): number {
@@ -59,6 +64,8 @@ function getRedisConnection(): IORedis | null {
     redisConnection = new IORedis(url, {
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
+      lazyConnect: true,
+      connectTimeout: 3000,
     });
     attachRedisErrorHandler(redisConnection, "bullmq");
   } catch {
@@ -401,12 +408,15 @@ export async function processSpotifyEnrichJob(
 export function createSpotifyEnrichWorker(): Worker | null {
   const conn = getRedisConnection();
   if (!conn) return null;
+  // Concurrency=5: workers pipeline DB lookups in parallel while Bottleneck
+  // serializes Spotify API calls. Safe — Bottleneck's maxConcurrent=1 is the
+  // actual rate-limit gate regardless of how many workers are active.
   return new Worker(
     QUEUE_NAME,
     async (bullJob) => {
       await processSpotifyEnrichJob(bullJob.data as SpotifyEnrichJobData);
     },
-    { connection: conn, concurrency: 1 },
+    { connection: conn, concurrency: 5 },
   );
 }
 

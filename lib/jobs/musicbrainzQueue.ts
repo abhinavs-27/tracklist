@@ -23,7 +23,7 @@ function getRedisConnection(): IORedis | null {
     return null;
   }
   try {
-    redisConnection = new IORedis(url, { maxRetriesPerRequest: null, enableReadyCheck: true });
+    redisConnection = new IORedis(url, { maxRetriesPerRequest: null, enableReadyCheck: true, lazyConnect: true, connectTimeout: 3000 });
     attachRedisErrorHandler(redisConnection, "bullmq-mb");
   } catch {
     redisConnection = null;
