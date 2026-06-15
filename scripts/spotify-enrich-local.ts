@@ -15,6 +15,23 @@
  *   DRY_RUN=1          print pending counts without processing
  */
 
+// Swap to a dedicated enrichment Spotify app before any API calls are made.
+// getClientCredentialsToken() reads SPOTIFY_CLIENT_ID at call time, so this works.
+// Create a separate app at developer.spotify.com to avoid rate-limiting production.
+if (process.env.SPOTIFY_ENRICH_CLIENT_ID) {
+  process.env.SPOTIFY_CLIENT_ID = process.env.SPOTIFY_ENRICH_CLIENT_ID;
+  process.env.SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_ENRICH_CLIENT_SECRET ?? "";
+  console.log("[spotify-enrich-local] using dedicated enrichment Spotify app");
+} else {
+  console.warn(
+    "[spotify-enrich-local] WARNING: SPOTIFY_ENRICH_CLIENT_ID not set — using production credentials.\n" +
+    "  Create a separate Spotify app at developer.spotify.com and add:\n" +
+    "  SPOTIFY_ENRICH_CLIENT_ID=...\n" +
+    "  SPOTIFY_ENRICH_CLIENT_SECRET=...\n" +
+    "  to .env.local to avoid rate-limiting the production app.",
+  );
+}
+
 import IORedis from "ioredis";
 import { Queue } from "bullmq";
 import { createClient } from "@supabase/supabase-js";
