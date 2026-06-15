@@ -11,7 +11,6 @@ import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
 import { computeAllCommunitiesWeekly } from "@/lib/community/compute-community-weekly";
 import { sendBillboardWeeklyDigestEmail } from "@/lib/email/send-billboard-weekly-email";
 import { updateListeningAggregates } from "@/lib/analytics/updateListeningAggregates";
-import { repairLastfmListeningAggregates } from "@/lib/analytics/repairLastfmAggregates";
 import {
   repairMissingArtistAggregates,
   repairOrphanedArtistAggregates,
@@ -533,12 +532,26 @@ export async function runRepairArtistAggregates(): Promise<{
   };
 }
 
-export async function runRepairLastfmAggregates(batch = 500): Promise<
-  Awaited<ReturnType<typeof repairLastfmListeningAggregates>> & { ok: true }
-> {
-  const capped = Math.min(2000, Math.max(50, batch));
-  const result = await repairLastfmListeningAggregates({ batchSize: capped });
-  return { ok: true, ...result };
+export async function runRepairLastfmAggregates(_batch = 500): Promise<{
+  ok: true;
+  missingInserted: number;
+  orphanedMerged: number;
+  errors: number;
+}> {
+  // get_logs_for_lfm_aggregate_repair (migration 088) was stubbed to WHERE FALSE
+  // in migration 102 and never re-implemented. The actual repair is handled by
+  // repair_missing_artist_aggregates: fills artist rows inferred from album rows
+  // for logs processed before Spotify enrichment set tracks.artist_id.
+  const [missing, orphaned] = await Promise.all([
+    repairMissingArtistAggregates({ limit: 100000 }),
+    repairOrphanedArtistAggregates(),
+  ]);
+  return {
+    ok: true,
+    missingInserted: missing.inserted,
+    orphanedMerged: orphaned.merged,
+    errors: missing.errors + orphaned.errors,
+  };
 }
 
 export async function runUpgradeLastfmAlbumCovers(options?: {
