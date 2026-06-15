@@ -485,29 +485,47 @@ export async function runBillboardWeeklyEmail(): Promise<{
   }
 }
 
-export async function runListeningAggregates(): Promise<
-  Awaited<ReturnType<typeof updateListeningAggregates>> & { ok: true; repairInserted: number }
+export async function runListeningAggregates(options?: {
+  /** Wall-clock deadline in ms. Default 4 minutes — leaves headroom for SQS 15-min visibility. */
+  timeLimitMs?: number;
+  /** Logs per updateListeningAggregates call. Default 5000 (was 2000). */
+  batchSize?: number;
+}): Promise<
+  { ok: true; processed: number; errors: number; repairInserted: number; rounds: number }
 > {
   const run = await startJobRun("listening_aggregates");
+  const timeLimitMs = options?.timeLimitMs ?? 4 * 60 * 1000;
+  const batchSize = options?.batchSize ?? 5000;
+  const deadline = Date.now() + timeLimitMs;
+
   try {
-    const result = await updateListeningAggregates();
+    let totalProcessed = 0;
+    let totalErrors = 0;
+    let totalRepairInserted = 0;
+    let rounds = 0;
 
-    // After each batch, repair any album→artist attribution gaps created when
-    // logs were processed before Spotify enrichment completed (artist_id was null).
-    const repair = result.processed > 0
-      ? await repairMissingArtistAggregates()
-      : { inserted: 0, errors: 0 };
+    while (Date.now() < deadline) {
+      const result = await updateListeningAggregates({ batchSize });
+      totalProcessed += result.processed;
+      totalErrors += result.errors;
+      rounds++;
 
-    if (repair.inserted > 0) {
-      console.log("[cron] repair_missing_artist_aggregates inserted", repair.inserted);
+      if (result.processed === 0) break; // drained
+
+      // After each round, repair artist gaps created when album logs were
+      // processed before Spotify enrichment set tracks.artist_id.
+      const repair = await repairMissingArtistAggregates();
+      totalRepairInserted += repair.inserted;
+
+      if (result.errors > 0) break; // stop on error
     }
 
     void run.finish({
-      status: result.processed > 0 ? "ok" : "skipped",
-      items_ok: result.processed,
-      items_failed: result.errors + repair.errors,
+      status: totalProcessed > 0 ? "ok" : "skipped",
+      items_ok: totalProcessed,
+      items_failed: totalErrors,
     });
-    return { ok: true, ...result, repairInserted: repair.inserted };
+    return { ok: true, processed: totalProcessed, errors: totalErrors, repairInserted: totalRepairInserted, rounds };
   } catch (e) {
     void run.finish({ status: "error" });
     throw e;

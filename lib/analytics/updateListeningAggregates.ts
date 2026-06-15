@@ -75,14 +75,17 @@ export async function updateListeningAggregates(options?: {
 
   const ingested: { log_id: string }[] = rows.map((r) => ({ log_id: r.id }));
   log("ingest_insert_start", { logRows: ingested.length });
-  const { error: insErr } = await admin
-    .from("user_listening_aggregate_ingest")
-    .insert(ingested);
-
-  if (insErr) {
-    console.error("[analytics] ingest insert failed", insErr);
-    log("ingest_insert_failed", { message: insErr.message });
-    return { processed: 0, errors: 1 };
+  const INGEST_CHUNK = 200;
+  for (let i = 0; i < ingested.length; i += INGEST_CHUNK) {
+    const chunk = ingested.slice(i, i + INGEST_CHUNK);
+    const { error: insErr } = await admin
+      .from("user_listening_aggregate_ingest")
+      .upsert(chunk, { onConflict: "log_id", ignoreDuplicates: true });
+    if (insErr) {
+      console.error("[analytics] ingest insert failed", insErr);
+      log("ingest_insert_failed", { message: insErr.message });
+      return { processed: 0, errors: 1 };
+    }
   }
 
   // Advance the watermark cursor to the last processed row so the next

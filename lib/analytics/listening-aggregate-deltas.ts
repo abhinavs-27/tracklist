@@ -458,18 +458,19 @@ export async function applyListeningAggregateDeltaMaps(
           year: number | null;
         },
     );
-    const { error: re } = await admin.rpc("refresh_genre_covers_for_buckets", {
-      p_buckets: touchedPayload,
-    });
-    if (re) {
-      console.warn(
-        "[analytics] refresh_genre_covers_for_buckets failed",
-        re.message,
-      );
-      log("genre_covers_refresh_failed", { message: re.message });
-    } else {
-      log("genre_covers_refresh_done", { buckets: touchedPayload.length });
-    }
+    // Fire-and-forget — this loops over every touched bucket in SQL and can take
+    // 30s+ on large batches. It is cosmetic (cover images on genre aggregates)
+    // and already non-fatal, so don't block the main path on it.
+    void admin
+      .rpc("refresh_genre_covers_for_buckets", { p_buckets: touchedPayload })
+      .then(({ error: re }) => {
+        if (re) {
+          console.warn("[analytics] refresh_genre_covers_for_buckets failed", re.message);
+          log("genre_covers_refresh_failed", { message: re.message });
+        } else {
+          log("genre_covers_refresh_done", { buckets: touchedPayload.length });
+        }
+      });
   }
 
   return { errors };

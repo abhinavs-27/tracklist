@@ -1,9 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  readStaleSessionCache,
-  writeStaleSessionCache,
-} from "@repo/lib/client/stale-session-cache";
+import { readCache, writeCache } from "../persistent-cache";
 import { fetcher } from "../api";
 import { queryKeys } from "../query-keys";
 import type {
@@ -20,7 +17,7 @@ const EXPLORE_HUB_CACHE_KEY = "explore:hub:lite:v1";
 const STALE_MS = 60 * 1000;
 
 export function useExploreHub() {
-  const initial = readStaleSessionCache<ExploreHubResponse>(EXPLORE_HUB_CACHE_KEY);
+  const initial = readCache<ExploreHubResponse>(EXPLORE_HUB_CACHE_KEY);
 
   const trendingQ = useQuery({
     queryKey: queryKeys.exploreTrending(),
@@ -88,7 +85,7 @@ export function useExploreHub() {
   useEffect(() => {
     if (!data) return;
     if (trendingQ.isSuccess && leaderboardQ.isSuccess) {
-      writeStaleSessionCache(EXPLORE_HUB_CACHE_KEY, data);
+      writeCache(EXPLORE_HUB_CACHE_KEY, data);
     }
   }, [data, trendingQ.isSuccess, leaderboardQ.isSuccess]);
 

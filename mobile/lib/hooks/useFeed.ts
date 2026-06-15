@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { readStaleSessionCache, writeStaleSessionCache } from "@repo/lib/client/stale-session-cache";
+import { readCache, writeCache } from "../persistent-cache";
 import { fetcher } from "../api";
 import { queryKeys } from "../query-keys";
 import type { FeedPageResponse } from "../types/feed";
@@ -8,7 +8,7 @@ const PAGE_SIZE = 20;
 const FEED_FIRST_PAGE_CACHE_KEY = "feed:first-page";
 
 export function useFeed() {
-  const initialFirstPage = readStaleSessionCache<FeedPageResponse>(
+  const initialFirstPage = readCache<FeedPageResponse>(
     FEED_FIRST_PAGE_CACHE_KEY,
   );
 

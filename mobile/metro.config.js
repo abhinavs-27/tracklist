@@ -9,6 +9,15 @@ const config = getDefaultConfig(projectRoot);
 /** Resolve shared `lib/` (logging, query keys) from the repo root. */
 config.watchFolders = [workspaceRoot];
 
+/**
+ * Tell Metro where each package's node_modules live so it finds deps for
+ * shared source files that live outside `projectRoot`.
+ */
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, "node_modules"),
+  path.resolve(workspaceRoot, "node_modules"),
+];
+
 /** Prefer prebuilt entry so Hermes resolves hooks (e.g. useQueryClient) reliably. */
 const reactQueryModern = path.resolve(
   projectRoot,
@@ -18,10 +27,7 @@ const reactQueryModern = path.resolve(
 const upstreamResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "@tanstack/react-query") {
-    return {
-      filePath: reactQueryModern,
-      type: "sourceFile",
-    };
+    return { filePath: reactQueryModern, type: "sourceFile" };
   }
   if (upstreamResolveRequest) {
     return upstreamResolveRequest(context, moduleName, platform);

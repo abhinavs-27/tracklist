@@ -1,4 +1,4 @@
-import { firstSpotifyImageUrl } from "@repo/lib/spotify/best-image-url";
+import { firstSpotifyImageUrl } from "@/lib/spotify/best-image-url";
 
 /**
  * Resolve cover art from feed `album` payloads (Spotify `images[]`, DB `image_url`, or both).

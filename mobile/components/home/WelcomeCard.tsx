@@ -11,7 +11,7 @@ import {
   LISTENING_STYLE_COPY,
   STYLE_ACCENT_COLOR,
   normalizeListeningStyle,
-} from "@repo/lib/taste/listening-style";
+} from "@/lib/taste/listening-style";
 import type { TasteIdentity } from "@repo/lib/taste/types";
 
 function hexToRgb(hex: string, alpha: number): string {

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { after } from "next/server";
 import { getSession } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -724,6 +725,31 @@ export async function getEntityStats(
       }
       if (!error && !row) {
         console.warn("[queries] getEntityStats cache miss (track):", entityId);
+        const empty: EntityStats = {
+          ...DEFAULT_ENTITY_STATS,
+          rating_distribution: defaultRatingDistribution(),
+        };
+        setEntityStatsMemory(entityType, entityId, empty);
+        // Compute real stats after the response is sent so we don't block page render.
+        // The result is persisted to track_stats so the next visit is a cache hit.
+        after(async () => {
+          try {
+            const live = await getEntityStatsLive("song", canonicalId);
+            setEntityStatsMemory(entityType, entityId, live);
+            const admin = await createSupabaseAdminClient();
+            await admin.from("track_stats").upsert(
+              {
+                track_id: canonicalId,
+                listen_count: live.listen_count,
+                review_count: live.review_count,
+                avg_rating: live.average_rating,
+                last_updated: new Date().toISOString(),
+              },
+              { onConflict: "track_id" },
+            );
+          } catch { /* swallow */ }
+        });
+        return empty;
       }
     }
 

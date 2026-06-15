@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import {
   AXIS_DISPLAY,
-} from "@repo/lib/taste/listening-style";
+} from "@/lib/taste/listening-style";
 import { useRouter } from "expo-router";
 import { fetcher } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -19,7 +19,7 @@ import { theme } from "@/lib/theme";
 import {
   getListeningStyleDisplay,
   normalizeListeningStyle,
-} from "@repo/lib/taste/listening-style";
+} from "@/lib/taste/listening-style";
 import type { TasteIdentity } from "@repo/lib/taste/types";
 
 type Props = {
