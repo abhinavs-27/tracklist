@@ -737,8 +737,8 @@ export async function runArchiveOldLogs(
 }
 
 export async function runSpotifyEnrichmentRetry(
-  batchSongs = 30,
-  batchArtists = 20,
+  batchSongs = 200,
+  batchArtists = 100,
 ): Promise<{ ok: true; songs: number; artists: number; queued: number }> {
   const run = await startJobRun("spotify_enrichment_retry", {
     batch_songs: batchSongs,
