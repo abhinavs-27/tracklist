@@ -15,6 +15,7 @@ import {
   repairMissingArtistAggregates,
   repairOrphanedArtistAggregates,
 } from "@/lib/analytics/repair-artist-aggregates";
+import { repairLfmAggregatesFromLogs } from "@/lib/analytics/repair-lfm-aggregates-from-logs";
 import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { runSpotifyEnrichmentRetry } from "@/lib/cron/cron-runners";
@@ -40,13 +41,21 @@ async function drainAggregates(): Promise<number> {
   return total;
 }
 
+async function repairLfmAggregates(): Promise<void> {
+  console.log(`${LOG} repairing missing artist/album/genre rows from processed logs...`);
+  const r = await repairLfmAggregatesFromLogs();
+  console.log(
+    `${LOG} log-based repair done — artist: ${r.artistRows}, album: ${r.albumRows}, genre: ${r.genreRows}, errors: ${r.errors}`,
+  );
+}
+
 async function repairArtistAggregates(): Promise<void> {
-  console.log(`${LOG} repairing missing artist aggregate rows...`);
+  console.log(`${LOG} secondary repair: artist rows from album aggregates + orphan cleanup...`);
   const [missing, orphaned] = await Promise.all([
     repairMissingArtistAggregates({ limit: 200000 }),
     repairOrphanedArtistAggregates(),
   ]);
-  console.log(`${LOG} repair done — missing inserted: ${missing.inserted}, orphaned merged: ${orphaned.merged}, errors: ${missing.errors + orphaned.errors}`);
+  console.log(`${LOG} secondary repair done — missing inserted: ${missing.inserted}, orphaned merged: ${orphaned.merged}, errors: ${missing.errors + orphaned.errors}`);
 }
 
 async function refreshTasteForRecentImports(): Promise<void> {
@@ -99,19 +108,27 @@ async function main() {
   }
 
   // 1. Drain aggregate queue
-  console.log(`\n${LOG} === Step 1/4: Drain listening aggregates ===`);
+  console.log(`\n${LOG} === Step 1/5: Drain listening aggregates ===`);
   const aggregated = await drainAggregates();
 
-  // 2. Repair artist rows
-  console.log(`\n${LOG} === Step 2/4: Repair artist aggregate rows ===`);
+  // 2. Back-fill artist/album/genre rows missing from logs processed before enrichment.
+  //    This is the primary repair for Last.fm imports: the aggregate pipeline only wrote
+  //    "track" rows when tracks had no artist_id/album_id. After `spotify-enrich:local`
+  //    fills those fields, this step inserts the missing rows from the original log data.
+  console.log(`\n${LOG} === Step 2/5: Repair missing artist/album/genre rows from logs ===`);
+  await repairLfmAggregates();
+
+  // 3. Secondary repair: infer any still-missing artist rows from album aggregate rows,
+  //    and merge orphaned rows left by failed canonical merges.
+  console.log(`\n${LOG} === Step 3/5: Secondary repair (artist from album + orphan cleanup) ===`);
   await repairArtistAggregates();
 
-  // 3. Refresh taste identity for recently imported users
-  console.log(`\n${LOG} === Step 3/4: Refresh taste identity ===`);
+  // 4. Refresh taste identity for recently imported users
+  console.log(`\n${LOG} === Step 4/5: Refresh taste identity ===`);
   await refreshTasteForRecentImports();
 
-  // 4. Bump Spotify enrichment
-  console.log(`\n${LOG} === Step 4/4: Spotify enrichment retry (200 songs / 100 artists) ===`);
+  // 5. Bump Spotify enrichment (kicks off next batch for un-enriched tracks)
+  console.log(`\n${LOG} === Step 5/5: Spotify enrichment retry (200 songs / 100 artists) ===`);
   try {
     const result = await runSpotifyEnrichmentRetry(200, 100);
     console.log(`${LOG} enrichment queued — songs: ${result.songs}, artists: ${result.artists}`);
