@@ -13,7 +13,6 @@
  *   BATCH_ARTISTS=100  artists per round (default 100)
  *   CLEAR_QUEUE=0      skip BullMQ queue obliterate step (default: obliterate if REDIS_URL set)
  *   DRY_RUN=1          print pending counts without processing
- *   VERBOSE=1          log individual job failures
  */
 
 import IORedis from "ioredis";
@@ -27,7 +26,6 @@ const BATCH_SONGS = Math.min(200, Math.max(1, parseInt(process.env.BATCH_SONGS ?
 const BATCH_ARTISTS = Math.min(100, Math.max(1, parseInt(process.env.BATCH_ARTISTS ?? "100", 10)));
 const DRY_RUN = process.env.DRY_RUN === "1";
 const CLEAR_QUEUE = process.env.CLEAR_QUEUE !== "0";
-const VERBOSE = process.env.VERBOSE === "1";
 const LOG = "[spotify-enrich-local]";
 
 async function clearBullMQQueue(): Promise<void> {
@@ -163,8 +161,10 @@ async function main(): Promise<void> {
     let roundArtists = 0;
     let roundErrors = 0;
 
-    for (const t of tracks ?? []) {
+    for (let i = 0; i < (tracks ?? []).length; i++) {
+      const t = tracks![i]!;
       if (!t.lastfm_name || !t.lastfm_artist_name) continue;
+      const tStart = Date.now();
       try {
         await processSpotifyEnrichJob({
           name: "resolve_track_spotify",
@@ -174,19 +174,22 @@ async function main(): Promise<void> {
           albumName: null,
         });
         roundSongs++;
+        console.log(
+          `${LOG}   track ${i + 1}/${songCount}: ${t.lastfm_artist_name} — ${t.lastfm_name} (${Date.now() - tStart}ms)`,
+        );
       } catch (e) {
         roundErrors++;
-        if (VERBOSE) {
-          console.warn(
-            `${LOG} track failed (${t.lastfm_artist_name} — ${t.lastfm_name}):`,
-            e instanceof Error ? e.message : String(e),
-          );
-        }
+        console.warn(
+          `${LOG}   track ${i + 1}/${songCount} FAILED (${Date.now() - tStart}ms): ${t.lastfm_artist_name} — ${t.lastfm_name}:`,
+          e instanceof Error ? e.message : String(e),
+        );
       }
     }
 
-    for (const a of artists ?? []) {
+    for (let i = 0; i < (artists ?? []).length; i++) {
+      const a = artists![i]!;
       if (!a.lastfm_name) continue;
+      const aStart = Date.now();
       try {
         await processSpotifyEnrichJob({
           name: "resolve_artist_spotify",
@@ -194,14 +197,15 @@ async function main(): Promise<void> {
           artistName: a.lastfm_name,
         });
         roundArtists++;
+        console.log(
+          `${LOG}   artist ${i + 1}/${artistCount}: ${a.lastfm_name} (${Date.now() - aStart}ms)`,
+        );
       } catch (e) {
         roundErrors++;
-        if (VERBOSE) {
-          console.warn(
-            `${LOG} artist failed (${a.lastfm_name}):`,
-            e instanceof Error ? e.message : String(e),
-          );
-        }
+        console.warn(
+          `${LOG}   artist ${i + 1}/${artistCount} FAILED (${Date.now() - aStart}ms): ${a.lastfm_name}:`,
+          e instanceof Error ? e.message : String(e),
+        );
       }
     }
 
