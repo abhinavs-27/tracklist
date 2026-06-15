@@ -18,24 +18,97 @@
 import IORedis from "ioredis";
 import { Queue } from "bullmq";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { processSpotifyEnrichJob } from "@/lib/jobs/spotifyQueue";
-import { lfmArtistId, lfmSongId } from "@/lib/lastfm/lfm-ids";
+import { getTrack } from "@/lib/spotify";
+import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
+import {
+  upsertTrackFromSpotify,
+  upsertArtistFromSpotify,
+  firstSpotifyImageUrl,
+} from "@/lib/spotify-cache";
+import { pickBestArtistMatch } from "@/lib/spotify/matching";
+import { searchSpotify } from "@/lib/spotify";
 import { syncListensSpotifyTrackIdsFromSongs } from "@/lib/lastfm/sync-listens-spotify-from-songs";
 
 const BATCH_SONGS = Math.min(200, Math.max(1, parseInt(process.env.BATCH_SONGS ?? "200", 10)));
 const BATCH_ARTISTS = Math.min(100, Math.max(1, parseInt(process.env.BATCH_ARTISTS ?? "100", 10)));
 const DRY_RUN = process.env.DRY_RUN === "1";
 const CLEAR_QUEUE = process.env.CLEAR_QUEUE !== "0";
-const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS ?? "60000", 10);
 const LOG = "[spotify-enrich-local]";
 
-function withJobTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`job timed out after ${ms}ms`)), ms),
-    ),
-  ]);
+/**
+ * Resolve a single LFM track to Spotify and fill in artist_id + album_id on the LFM row.
+ * Deliberately skips mergeCanonicalTracks to avoid lock contention during bulk backfills.
+ * The LFM UUID stays; the canonical merge runs later via the production enrichment worker.
+ */
+async function enrichTrack(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  track: { id: string; lastfm_name: string; lastfm_artist_name: string },
+): Promise<"enriched" | "no_match" | "skipped"> {
+  const match = await mapLastfmToSpotify(track.lastfm_artist_name, track.lastfm_name, null);
+  if (!match) {
+    await admin.from("tracks").update({ needs_spotify_enrichment: false }).eq("id", track.id);
+    return "no_match";
+  }
+
+  const spotifyTrack = await getTrack(match.trackId);
+  const firstArtist = spotifyTrack.artists?.[0];
+  const alb = spotifyTrack.album;
+  if (!firstArtist || !alb) {
+    await admin.from("tracks").update({ needs_spotify_enrichment: false }).eq("id", track.id);
+    return "no_match";
+  }
+
+  // Create/update the Spotify-side canonical track (sets artist_id and album_id on that row).
+  const spotifyTrackUuid = await upsertTrackFromSpotify(
+    admin,
+    spotifyTrack,
+    alb.id,
+    alb.name,
+    firstSpotifyImageUrl(alb.images),
+    "release_date" in alb ? (alb as { release_date?: string }).release_date : undefined,
+  );
+
+  // Copy artist_id and album_id from the Spotify canonical row back to the LFM row.
+  const { data: canonical } = await admin
+    .from("tracks")
+    .select("artist_id, album_id")
+    .eq("id", spotifyTrackUuid)
+    .maybeSingle();
+
+  await admin
+    .from("tracks")
+    .update({
+      artist_id: (canonical as { artist_id?: string | null } | null)?.artist_id ?? null,
+      album_id: (canonical as { album_id?: string | null } | null)?.album_id ?? null,
+      needs_spotify_enrichment: false,
+    })
+    .eq("id", track.id);
+
+  return "enriched";
+}
+
+/**
+ * Resolve a single LFM artist to Spotify and clear the enrichment flag.
+ * Skips mergeCanonicalArtists for the same reason as enrichTrack.
+ */
+async function enrichArtist(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  artist: { id: string; lastfm_name: string },
+): Promise<"enriched" | "no_match"> {
+  const res = await searchSpotify(artist.lastfm_name, ["artist"], 5);
+  const items = res.artists?.items ?? [];
+  const pick = pickBestArtistMatch(artist.lastfm_name, items);
+
+  if (!pick) {
+    await admin.from("artists").update({ needs_spotify_enrichment: false }).eq("id", artist.id);
+    return "no_match";
+  }
+
+  // Upsert the Spotify artist (fills genres/images/popularity).
+  await upsertArtistFromSpotify(admin, pick);
+  // Clear the enrichment flag on the LFM artist row.
+  await admin.from("artists").update({ needs_spotify_enrichment: false }).eq("id", artist.id);
+  return "enriched";
 }
 
 async function clearBullMQQueue(): Promise<void> {
@@ -176,33 +249,16 @@ async function main(): Promise<void> {
       if (!t.lastfm_name || !t.lastfm_artist_name) continue;
       const tStart = Date.now();
       try {
-        await withJobTimeout(
-          processSpotifyEnrichJob({
-            name: "resolve_track_spotify",
-            lfmSongId: lfmSongId(t.lastfm_artist_name, t.lastfm_name),
-            artistName: t.lastfm_artist_name,
-            trackName: t.lastfm_name,
-            albumName: null,
-          }),
-          JOB_TIMEOUT_MS,
-        );
+        const result = await enrichTrack(admin, t as { id: string; lastfm_name: string; lastfm_artist_name: string });
         roundSongs++;
         console.log(
-          `${LOG}   track ${i + 1}/${songCount}: ${t.lastfm_artist_name} — ${t.lastfm_name} (${Date.now() - tStart}ms)`,
+          `${LOG}   track ${i + 1}/${songCount} [${result}]: ${t.lastfm_artist_name} — ${t.lastfm_name} (${Date.now() - tStart}ms)`,
         );
       } catch (e) {
         roundErrors++;
-        const ms = Date.now() - tStart;
         console.warn(
-          `${LOG}   track ${i + 1}/${songCount} FAILED (${ms}ms): ${t.lastfm_artist_name} — ${t.lastfm_name}: ${e instanceof Error ? e.message : String(e)}`,
+          `${LOG}   track ${i + 1}/${songCount} FAILED (${Date.now() - tStart}ms): ${t.lastfm_artist_name} — ${t.lastfm_name}: ${e instanceof Error ? e.message : String(e)}`,
         );
-        // Touch updated_at to push this track to the back of the queue so subsequent
-        // rounds process other tracks rather than retrying the same stuck item.
-        await admin
-          .from("tracks")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", t.id)
-          .then(() => {}, () => {});
       }
     }
 
@@ -211,29 +267,16 @@ async function main(): Promise<void> {
       if (!a.lastfm_name) continue;
       const aStart = Date.now();
       try {
-        await withJobTimeout(
-          processSpotifyEnrichJob({
-            name: "resolve_artist_spotify",
-            lfmArtistId: lfmArtistId(a.lastfm_name),
-            artistName: a.lastfm_name,
-          }),
-          JOB_TIMEOUT_MS,
-        );
+        const result = await enrichArtist(admin, a as { id: string; lastfm_name: string });
         roundArtists++;
         console.log(
-          `${LOG}   artist ${i + 1}/${artistCount}: ${a.lastfm_name} (${Date.now() - aStart}ms)`,
+          `${LOG}   artist ${i + 1}/${artistCount} [${result}]: ${a.lastfm_name} (${Date.now() - aStart}ms)`,
         );
       } catch (e) {
         roundErrors++;
-        const ms = Date.now() - aStart;
         console.warn(
-          `${LOG}   artist ${i + 1}/${artistCount} FAILED (${ms}ms): ${a.lastfm_name}: ${e instanceof Error ? e.message : String(e)}`,
+          `${LOG}   artist ${i + 1}/${artistCount} FAILED (${Date.now() - aStart}ms): ${a.lastfm_name}: ${e instanceof Error ? e.message : String(e)}`,
         );
-        await admin
-          .from("artists")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", a.id)
-          .then(() => {}, () => {});
       }
     }
 
