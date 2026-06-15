@@ -17,7 +17,7 @@
 
 import IORedis from "ioredis";
 import { Queue } from "bullmq";
-import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createClient } from "@supabase/supabase-js";
 import { getTrack } from "@/lib/spotify";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import {
@@ -34,6 +34,29 @@ const BATCH_ARTISTS = Math.min(100, Math.max(1, parseInt(process.env.BATCH_ARTIS
 const DRY_RUN = process.env.DRY_RUN === "1";
 const CLEAR_QUEUE = process.env.CLEAR_QUEUE !== "0";
 const LOG = "[spotify-enrich-local]";
+const DB_TIMEOUT_MS = 25_000; // abort any Supabase request stuck longer than this
+
+/**
+ * Admin client with a per-request fetch timeout so a locked DB row can't hang the script.
+ * Each PostgREST HTTP call is aborted after DB_TIMEOUT_MS — the try/catch in the main loop
+ * catches the AbortError and logs FAILED, then moves on to the next track.
+ */
+function createTimedAdminClient() {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    global: {
+      fetch: (input, init) => {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), DB_TIMEOUT_MS);
+        return fetch(input, { ...init, signal: controller.signal }).finally(() =>
+          clearTimeout(id),
+        );
+      },
+    },
+  });
+}
 
 /**
  * Resolve a single LFM track to Spotify and fill in artist_id + album_id on the LFM row.
@@ -41,7 +64,7 @@ const LOG = "[spotify-enrich-local]";
  * The LFM UUID stays; the canonical merge runs later via the production enrichment worker.
  */
 async function enrichTrack(
-  admin: ReturnType<typeof createSupabaseAdminClient>,
+  admin: ReturnType<typeof createTimedAdminClient>,
   track: { id: string; lastfm_name: string; lastfm_artist_name: string },
 ): Promise<"enriched" | "no_match" | "skipped"> {
   const match = await mapLastfmToSpotify(track.lastfm_artist_name, track.lastfm_name, null);
@@ -92,7 +115,7 @@ async function enrichTrack(
  * Skips mergeCanonicalArtists for the same reason as enrichTrack.
  */
 async function enrichArtist(
-  admin: ReturnType<typeof createSupabaseAdminClient>,
+  admin: ReturnType<typeof createTimedAdminClient>,
   artist: { id: string; lastfm_name: string },
 ): Promise<"enriched" | "no_match"> {
   const res = await searchSpotify(artist.lastfm_name, ["artist"], 5);
@@ -149,7 +172,7 @@ async function clearBullMQQueue(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const admin = createSupabaseAdminClient();
+  const admin = createTimedAdminClient();
 
   if (DRY_RUN) {
     const [{ count: tracks }, { count: artists }] = await Promise.all([

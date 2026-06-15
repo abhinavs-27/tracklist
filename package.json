@@ -35,7 +35,7 @@
     "lastfm:run-local": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/run-lastfm-imports-local.ts",
     "lastfm:repair": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/repair-lastfm-import.ts",
     "post-import:drain": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/post-import-drain.ts",
-    "spotify-enrich:local": "SPOTIFY_MIN_TIME_MS=100 SPOTIFY_RESERVOIR_PER_30S=120 SPOTIFY_SEARCH_MIN_TIME_MS=100 SPOTIFY_SEARCH_RESERVOIR_PER_30S=120 NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/spotify-enrich-local.ts",
+    "spotify-enrich:local": "SPOTIFY_MIN_TIME_MS=100 SPOTIFY_RESERVOIR_PER_30S=120 SPOTIFY_INTERACTIVE_MIN_TIME_MS=100 SPOTIFY_INTERACTIVE_RESERVOIR_PER_30S=120 SPOTIFY_SEARCH_MIN_TIME_MS=100 SPOTIFY_SEARCH_RESERVOIR_PER_30S=120 NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/spotify-enrich-local.ts",
     "build:lambda:taste-snapshot": "node scripts/build-lambda-taste-snapshot.mjs",
     "build:lambda:enrich-drain": "node scripts/build-lambda-enrich-drain.mjs",
     "build:lambda:spotify-enrichment-retry": "node scripts/build-lambda-spotify-enrichment-retry.mjs"
