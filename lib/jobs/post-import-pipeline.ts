@@ -76,7 +76,9 @@ async function runInlineMode(
   // The aggregate queue is global (one watermark for all users). Guard against
   // two concurrent import jobs both trying to drain at the same time.
   if (_draining) {
-    console.log(LOG, "aggregate drain already in progress — skipping for this user", { userId });
+    // The running drain is global and will process this user's logs too.
+    // The daily cron handles any logs inserted after it finishes.
+    console.warn(LOG, "aggregate drain already in progress — this user's logs will be caught by the running drain or daily cron", { userId });
   } else {
     _draining = true;
     try {
