@@ -46,6 +46,12 @@ function createTimedAdminClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
   return createClient(url, key, {
     auth: { persistSession: false },
+    // Node.js 20 has no native WebSocket; server scripts never use realtime subscriptions.
+    realtime: {
+      ...(typeof globalThis.WebSocket === "undefined"
+        ? { transport: class {} as unknown as typeof WebSocket }
+        : {}),
+    },
     global: {
       fetch: (input, init) => {
         const controller = new AbortController();
