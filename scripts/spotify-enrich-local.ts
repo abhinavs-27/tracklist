@@ -26,7 +26,17 @@ const BATCH_SONGS = Math.min(200, Math.max(1, parseInt(process.env.BATCH_SONGS ?
 const BATCH_ARTISTS = Math.min(100, Math.max(1, parseInt(process.env.BATCH_ARTISTS ?? "100", 10)));
 const DRY_RUN = process.env.DRY_RUN === "1";
 const CLEAR_QUEUE = process.env.CLEAR_QUEUE !== "0";
+const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS ?? "60000", 10);
 const LOG = "[spotify-enrich-local]";
+
+function withJobTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`job timed out after ${ms}ms`)), ms),
+    ),
+  ]);
+}
 
 async function clearBullMQQueue(): Promise<void> {
   const url = process.env.REDIS_URL?.trim();
@@ -166,23 +176,33 @@ async function main(): Promise<void> {
       if (!t.lastfm_name || !t.lastfm_artist_name) continue;
       const tStart = Date.now();
       try {
-        await processSpotifyEnrichJob({
-          name: "resolve_track_spotify",
-          lfmSongId: lfmSongId(t.lastfm_artist_name, t.lastfm_name),
-          artistName: t.lastfm_artist_name,
-          trackName: t.lastfm_name,
-          albumName: null,
-        });
+        await withJobTimeout(
+          processSpotifyEnrichJob({
+            name: "resolve_track_spotify",
+            lfmSongId: lfmSongId(t.lastfm_artist_name, t.lastfm_name),
+            artistName: t.lastfm_artist_name,
+            trackName: t.lastfm_name,
+            albumName: null,
+          }),
+          JOB_TIMEOUT_MS,
+        );
         roundSongs++;
         console.log(
           `${LOG}   track ${i + 1}/${songCount}: ${t.lastfm_artist_name} — ${t.lastfm_name} (${Date.now() - tStart}ms)`,
         );
       } catch (e) {
         roundErrors++;
+        const ms = Date.now() - tStart;
         console.warn(
-          `${LOG}   track ${i + 1}/${songCount} FAILED (${Date.now() - tStart}ms): ${t.lastfm_artist_name} — ${t.lastfm_name}:`,
-          e instanceof Error ? e.message : String(e),
+          `${LOG}   track ${i + 1}/${songCount} FAILED (${ms}ms): ${t.lastfm_artist_name} — ${t.lastfm_name}: ${e instanceof Error ? e.message : String(e)}`,
         );
+        // Touch updated_at to push this track to the back of the queue so subsequent
+        // rounds process other tracks rather than retrying the same stuck item.
+        await admin
+          .from("tracks")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", t.id)
+          .then(() => {}, () => {});
       }
     }
 
@@ -191,21 +211,29 @@ async function main(): Promise<void> {
       if (!a.lastfm_name) continue;
       const aStart = Date.now();
       try {
-        await processSpotifyEnrichJob({
-          name: "resolve_artist_spotify",
-          lfmArtistId: lfmArtistId(a.lastfm_name),
-          artistName: a.lastfm_name,
-        });
+        await withJobTimeout(
+          processSpotifyEnrichJob({
+            name: "resolve_artist_spotify",
+            lfmArtistId: lfmArtistId(a.lastfm_name),
+            artistName: a.lastfm_name,
+          }),
+          JOB_TIMEOUT_MS,
+        );
         roundArtists++;
         console.log(
           `${LOG}   artist ${i + 1}/${artistCount}: ${a.lastfm_name} (${Date.now() - aStart}ms)`,
         );
       } catch (e) {
         roundErrors++;
+        const ms = Date.now() - aStart;
         console.warn(
-          `${LOG}   artist ${i + 1}/${artistCount} FAILED (${Date.now() - aStart}ms): ${a.lastfm_name}:`,
-          e instanceof Error ? e.message : String(e),
+          `${LOG}   artist ${i + 1}/${artistCount} FAILED (${ms}ms): ${a.lastfm_name}: ${e instanceof Error ? e.message : String(e)}`,
         );
+        await admin
+          .from("artists")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", a.id)
+          .then(() => {}, () => {});
       }
     }
 
