@@ -37,6 +37,8 @@ npm run backfill:album-art
 npm run backfill:taste-snapshots
 npm run backfill:blind-spots
 npm run merge-catalog           # merge duplicate catalog entries
+npm run post-import:drain       # drain stats backlog after bulk import (loops until empty)
+DRY_RUN=1 npm run post-import:drain  # print pending count without processing
 
 # Mobile
 cd mobile && npx expo start
@@ -146,6 +148,24 @@ Rate limiting via three Bottleneck instances in `packages/spotify-client/`: main
 ### Last.fm
 
 Tracks not matched to Spotify get synthetic `lfm:<hash>` IDs. Enriched asynchronously via BullMQ or inline fallback. `lib/lastfm/` (27 files) handles import, dedup, Spotify mapping, enrichment, and scheduled sync.
+
+### Post-Import Stats Pipeline
+
+After a `backfill:lastfm-full-import` run or any bulk Last.fm import, stats are stale until the pipeline catches up. The BullMQ worker triggers the pipeline automatically after each user's import, but for large backlogs (>200k logs) run locally:
+
+```bash
+npm run post-import:drain
+```
+
+**Pipeline stages** (in order):
+1. `updateListeningAggregates` — drains `logs` into `user_listening_aggregates` (watermark-based, loops until empty)
+2. `repairMissingArtistAggregates` — fills missing artist rows from album rows (Spotify enrichment attribution gap)
+3. `refreshTasteIdentityCacheForUser` — rebuilds taste vectors for each recently-imported user
+4. `runSpotifyEnrichmentRetry(200, 100)` — queues enrichment for new Last.fm entities
+
+**Local vs AWS mode**: Set `POST_IMPORT_PIPELINE_MODE` env var.
+- `inline` (default): runs in-process in the BullMQ worker and drain script. Works everywhere.
+- `enqueue`: sends a `POST_IMPORT_PIPELINE` SQS message instead. Switch to this when AWS compute can handle the load without local scripts.
 
 ### Feed Architecture
 
