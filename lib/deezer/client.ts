@@ -6,7 +6,7 @@ import { withRetry } from "@/lib/http/with-retry";
 const DEEZER_BASE = "https://api.deezer.com";
 
 // Polite shared throttle (~10 req/s); Deezer's ceiling is far higher but we stay courteous.
-const limiter = new Bottleneck({ maxConcurrent: 2, minTime: 100 });
+const limiter = new Bottleneck({ maxConcurrent: 6, minTime: 50 });
 
 export interface DeezerAlbumSearchItem {
   id: number;

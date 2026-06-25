@@ -21,6 +21,9 @@
  *   BACKFILL_MODE    "demand" (default) or "all".
  *   BACKFILL_TOP_N   How many undated albums to process (default 500). In `all`
  *                    mode pass a large value for full coverage; it caps processing.
+ *   BACKFILL_CONCURRENCY  How many albums to process at once (default 6). Only
+ *                    raises throughput for Deezer (its limiter allows it);
+ *                    MusicBrainz stays 1 req/s via its own limiter regardless.
  *   DRY_RUN          If "1", logs would-be matches without writing.
  */
 
@@ -38,6 +41,7 @@ const TOP_N = parseInt(process.env.BACKFILL_TOP_N ?? "500", 10);
 const DRY_RUN = process.env.DRY_RUN === "1";
 const MODE = process.env.BACKFILL_MODE === "all" ? "all" : "demand";
 const SOURCE = process.env.BACKFILL_SOURCE === "musicbrainz" ? "musicbrainz" : "deezer";
+const CONCURRENCY = Math.max(1, parseInt(process.env.BACKFILL_CONCURRENCY ?? "6", 10));
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -185,6 +189,30 @@ async function processAlbum(
 }
 
 /**
+ * Process `albums` with up to CONCURRENCY workers in flight. Calls `onProcessed`
+ * once per finished album (for progress logging / counting). Stops handing out new
+ * work once `shouldStop()` returns true (used to honor the TOP_N cap).
+ */
+async function processPool(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  albums: AlbumToFill[],
+  counts: Counts,
+  onProcessed: () => void,
+  shouldStop: () => boolean,
+): Promise<void> {
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < albums.length && !shouldStop()) {
+      const album = albums[next++];
+      await processAlbum(supabase, album, counts);
+      onProcessed();
+    }
+  }
+  const workers = Array.from({ length: Math.min(CONCURRENCY, albums.length) }, () => worker());
+  await Promise.all(workers);
+}
+
+/**
  * Full-coverage scan over ALL undated albums via KEYSET pagination by id.
  *
  * As rows get release_date written they leave the `release_date IS NULL` filter,
@@ -232,17 +260,22 @@ async function processAllUndated(
       }
     }
 
-    for (const a of rows) {
-      if (processed >= cap) break;
-      const album: AlbumToFill = {
-        id: a.id,
-        name: a.name,
-        artistName: a.artist_id ? (artistName.get(a.artist_id) ?? "") : "",
-      };
-      await processAlbum(supabase, album, counts);
-      processed++;
-      if (processed % 100 === 0) progressLog(processed, counts);
-    }
+    const pageAlbums: AlbumToFill[] = rows.map((a) => ({
+      id: a.id,
+      name: a.name,
+      artistName: a.artist_id ? (artistName.get(a.artist_id) ?? "") : "",
+    }));
+    await processPool(
+      supabase,
+      pageAlbums,
+      counts,
+      () => {
+        processed++;
+        if (processed % 100 === 0) progressLog(processed, counts);
+      },
+      () => processed >= cap,
+    );
+    if (processed >= cap) break;
 
     lastId = rows[rows.length - 1].id; // keyset advance
   }
@@ -252,7 +285,7 @@ async function processAllUndated(
 
 async function main() {
   const supabase = createSupabaseAdminClient();
-  console.log(`[backfill-album-dates] start SOURCE=${SOURCE} MODE=${MODE} TOP_N=${TOP_N} DRY_RUN=${DRY_RUN}`);
+  console.log(`[backfill-album-dates] start SOURCE=${SOURCE} MODE=${MODE} TOP_N=${TOP_N} CONCURRENCY=${CONCURRENCY} DRY_RUN=${DRY_RUN}`);
 
   const counts: Counts = { written: 0, noMatch: 0, skipped: 0, errored: 0 };
 
@@ -264,11 +297,16 @@ async function main() {
     console.log(`[backfill-album-dates] ${albums.length} undated albums selected (by listens)`);
 
     let processed = 0;
-    for (const album of albums) {
-      await processAlbum(supabase, album, counts);
-      processed++;
-      if (processed % 100 === 0) progressLog(processed, counts);
-    }
+    await processPool(
+      supabase,
+      albums,
+      counts,
+      () => {
+        processed++;
+        if (processed % 100 === 0) progressLog(processed, counts);
+      },
+      () => false,
+    );
   }
 
   console.log(
