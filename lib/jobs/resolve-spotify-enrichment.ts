@@ -9,6 +9,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { enrichAlbumDateFromDeezer } from "@/lib/deezer/enrich-album-date";
 import { enrichArtistImageFromDeezer } from "@/lib/deezer/enrich-artist-deezer";
 import { getLastfmArtistGenres } from "@/lib/lastfm/get-artist-genres";
+import { getLastfmTrackDuration } from "@/lib/lastfm/get-track-duration";
 import { lfmArtistId } from "@/lib/lastfm/lfm-ids";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { getTrack, searchSpotify } from "@/lib/spotify";
@@ -128,25 +129,67 @@ export async function resolveTrackSpotifyJob(data: {
     );
     if (!lfmTrackUuid) return;
 
-    // Primary album-metadata source: fill release_date/total_tracks from Deezer
-    // (no Spotify quota). Independent of, and ahead of, Spotify identity resolution.
-    if (data.albumName?.trim()) {
-      const { data: trackRow } = await supabase
-        .from("tracks")
-        .select("album_id")
-        .eq("id", lfmTrackUuid)
+    // Fetch artist_id in addition to album_id — needed for the early-return check.
+    const { data: trackRow } = await supabase
+      .from("tracks")
+      .select("artist_id, album_id")
+      .eq("id", lfmTrackUuid)
+      .maybeSingle();
+
+    let existingArtistId: string | null =
+      (trackRow as { artist_id?: string | null } | null)?.artist_id ?? null;
+    let albumUuid: string | null =
+      (trackRow as { album_id?: string | null } | null)?.album_id ?? null;
+
+    // ── Catalog album lookup (only when artist is resolved, album is not) ────
+    if (existingArtistId && data.albumName?.trim() && !albumUuid) {
+      const albumNameNorm = data.albumName.trim().toLowerCase();
+      const { data: catalogAlbum } = await supabase
+        .from("albums")
+        .select("id")
+        .eq("artist_id", existingArtistId)
+        .eq("name_normalized", albumNameNorm)
         .maybeSingle();
-      const albumUuid = (trackRow as { album_id?: string | null } | null)?.album_id;
-      if (albumUuid) {
-        await enrichAlbumDateFromDeezer(
-          supabase,
-          albumUuid,
-          data.artistName,
-          data.albumName,
-        );
+
+      if (catalogAlbum?.id) {
+        await supabase
+          .from("tracks")
+          .update({ album_id: catalogAlbum.id })
+          .eq("id", lfmTrackUuid);
+        albumUuid = catalogAlbum.id;
       }
     }
 
+    // ── Deezer album date (unchanged behaviour, now also runs for early-return path) ──
+    if (albumUuid && data.albumName?.trim()) {
+      await enrichAlbumDateFromDeezer(
+        supabase,
+        albumUuid,
+        data.artistName,
+        data.albumName,
+      );
+    }
+
+    // ── Early-return: artist already resolved → fill duration, skip Spotify ──
+    if (existingArtistId) {
+      const duration = await getLastfmTrackDuration(
+        data.trackName,
+        data.artistName,
+      );
+      if (duration != null) {
+        await supabase
+          .from("tracks")
+          .update({ duration_ms: duration })
+          .eq("id", lfmTrackUuid);
+      }
+      await supabase
+        .from("tracks")
+        .update({ needs_spotify_enrichment: false })
+        .eq("id", lfmTrackUuid);
+      return;
+    }
+
+    // ── Spotify fallback: artist_id still unknown → full identity resolution ─
     const match = await mapLastfmToSpotify(
       data.trackName,
       data.artistName,
