@@ -8,7 +8,7 @@ function normalize(s: string): string {
 }
 
 // Deezer placeholder images have an empty hash segment: "/images/artist//1000x..."
-function isPlaceholderImage(url: string): boolean {
+function isPlaceholderImage(url: string | undefined): boolean {
   return !url || url.includes("/artist//");
 }
 
@@ -26,7 +26,7 @@ export async function enrichArtistImageFromDeezer(
       results.find((r) => normalize(r.name) === normalize(artistName)) ??
       results[0];
 
-    if (!match.picture_xl || isPlaceholderImage(match.picture_xl)) {
+    if (isPlaceholderImage(match.picture_xl)) {
       return { enriched: false };
     }
 

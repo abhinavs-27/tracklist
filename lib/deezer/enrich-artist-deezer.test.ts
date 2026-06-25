@@ -35,7 +35,7 @@ describe("enrichArtistImageFromDeezer", () => {
       },
     ]);
 
-    const { supabase, update, eq } = makeSupabase();
+    const { supabase, update, eq, is } = makeSupabase();
     const result = await enrichArtistImageFromDeezer(
       supabase as never,
       "uuid-123",
@@ -48,7 +48,7 @@ describe("enrichArtistImageFromDeezer", () => {
         "https://e-cdns-images.dzcdn.net/images/artist/abc123/1000x1000.jpg",
     });
     expect(eq).toHaveBeenCalledWith("id", "uuid-123");
-    // Should also verify is() was called but the test structure captures it through the chain
+    expect(is).toHaveBeenCalledWith("image_url", null);
   });
 
   it("returns enriched=false when picture_xl is a Deezer placeholder", async () => {
