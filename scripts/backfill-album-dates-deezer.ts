@@ -1,14 +1,23 @@
 /**
- * One-time backfill: fill album release_date/total_tracks from Deezer,
- * prioritized by listener demand (album_stats.listen_count DESC).
+ * One-time backfill: fill album release_date/total_tracks from Deezer.
+ *
+ * Two selection modes (BACKFILL_MODE):
+ *   demand (default) — prioritize by listener demand (album_stats.listen_count DESC).
+ *                      Only reaches albums that have listens.
+ *   all              — full coverage: scan ALL undated albums directly from the
+ *                      `albums` table using KEYSET pagination by id, so albums
+ *                      with zero listens (absent from album_stats) are covered too.
  *
  * Usage:
  *   npm run backfill:album-dates
- *   DRY_RUN=1 npm run backfill:album-dates        # report matches, write nothing
+ *   DRY_RUN=1 npm run backfill:album-dates                      # report matches, write nothing
  *   BACKFILL_TOP_N=2000 npm run backfill:album-dates
+ *   BACKFILL_MODE=all BACKFILL_TOP_N=100000 npm run backfill:album-dates
  *
  * Env:
- *   BACKFILL_TOP_N   How many undated albums to process (default 500).
+ *   BACKFILL_MODE    "demand" (default) or "all".
+ *   BACKFILL_TOP_N   How many undated albums to process (default 500). In `all`
+ *                    mode pass a large value for full coverage; it caps processing.
  *   DRY_RUN          If "1", logs would-be matches without writing.
  */
 
@@ -22,6 +31,7 @@ import { enrichAlbumDateFromDeezer } from "@/lib/deezer/enrich-album-date";
 
 const TOP_N = parseInt(process.env.BACKFILL_TOP_N ?? "500", 10);
 const DRY_RUN = process.env.DRY_RUN === "1";
+const MODE = process.env.BACKFILL_MODE === "all" ? "all" : "demand";
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -114,55 +124,142 @@ async function selectUndatedAlbumsByDemand(
   return out;
 }
 
+type Counts = { written: number; noMatch: number; skipped: number; errored: number };
+
+function progressLog(processed: number, counts: Counts): void {
+  console.log(
+    `[backfill-album-dates] progress: processed=${processed} written=${counts.written} no_match=${counts.noMatch} skipped=${counts.skipped} errored=${counts.errored}`,
+  );
+}
+
+async function processAlbum(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  album: AlbumToFill,
+  counts: Counts,
+): Promise<void> {
+  if (!album.artistName || !album.name) {
+    counts.skipped++;
+    return;
+  }
+  try {
+    if (DRY_RUN) {
+      const match = await withTimeout(
+        matchAlbumOnDeezer(album.artistName, album.name),
+        15000,
+        `match ${album.artistName} – ${album.name}`,
+      );
+      if (match) {
+        counts.written++;
+        console.log(`[dry] ${album.artistName} – ${album.name} -> ${match.releaseDate} (${match.totalTracks ?? "?"} tracks)`);
+      } else {
+        counts.noMatch++;
+      }
+      return;
+    }
+    const result = await withTimeout(
+      enrichAlbumDateFromDeezer(supabase, album.id, album.artistName, album.name),
+      15000,
+      `enrich ${album.artistName} – ${album.name}`,
+    );
+    if (result === "written") counts.written++;
+    else if (result === "no-match") counts.noMatch++;
+    else if (result === "skipped-has-date") counts.skipped++;
+    else counts.errored++;
+  } catch (e) {
+    counts.errored++;
+    console.warn(`[backfill-album-dates] error on ${album.id}:`, e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * Full-coverage scan over ALL undated albums via KEYSET pagination by id.
+ *
+ * As rows get release_date written they leave the `release_date IS NULL` filter,
+ * but `id > lastId` keeps advancing, so no row is skipped (the offset/.range hazard)
+ * and no-match rows (still null, id <= lastId) are never re-fetched.
+ */
+async function processAllUndated(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  cap: number,
+  counts: Counts,
+): Promise<number> {
+  type AlbumRow = { id: string; name: string; artist_id: string | null };
+  const PAGE = 200;
+  // `id` is a uuid column, so the keyset lower bound must be a valid uuid. The
+  // all-zeros uuid sorts before every real id.
+  let lastId = "00000000-0000-0000-0000-000000000000";
+  let processed = 0;
+
+  while (processed < cap) {
+    const { data: albs, error: albError } = await supabase
+      .from("albums")
+      .select("id, name, artist_id")
+      .is("release_date", null)
+      .gt("id", lastId)
+      .order("id", { ascending: true })
+      .limit(PAGE);
+    if (albError) throw new Error(`select albums: ${albError.message}`);
+
+    const rows = (albs ?? []) as AlbumRow[];
+    if (rows.length === 0) break; // exhausted
+
+    // Resolve artist names separately (albums<->artists has multiple FKs, no embed).
+    const artistIds = [
+      ...new Set(rows.map((a) => a.artist_id).filter((x): x is string => Boolean(x))),
+    ];
+    const artistName = new Map<string, string>();
+    if (artistIds.length) {
+      const { data: artists, error: artistError } = await supabase
+        .from("artists")
+        .select("id, name")
+        .in("id", artistIds);
+      if (artistError) throw new Error(`select artists: ${artistError.message}`);
+      for (const ar of (artists ?? []) as { id: string; name: string }[]) {
+        artistName.set(ar.id, ar.name);
+      }
+    }
+
+    for (const a of rows) {
+      if (processed >= cap) break;
+      const album: AlbumToFill = {
+        id: a.id,
+        name: a.name,
+        artistName: a.artist_id ? (artistName.get(a.artist_id) ?? "") : "",
+      };
+      await processAlbum(supabase, album, counts);
+      processed++;
+      if (processed % 100 === 0) progressLog(processed, counts);
+    }
+
+    lastId = rows[rows.length - 1].id; // keyset advance
+  }
+
+  return processed;
+}
+
 async function main() {
   const supabase = createSupabaseAdminClient();
-  console.log(`[backfill-album-dates] start TOP_N=${TOP_N} DRY_RUN=${DRY_RUN}`);
+  console.log(`[backfill-album-dates] start MODE=${MODE} TOP_N=${TOP_N} DRY_RUN=${DRY_RUN}`);
 
-  const albums = await selectUndatedAlbumsByDemand(supabase, TOP_N);
-  console.log(`[backfill-album-dates] ${albums.length} undated albums selected (by listens)`);
+  const counts: Counts = { written: 0, noMatch: 0, skipped: 0, errored: 0 };
 
-  let written = 0;
-  let noMatch = 0;
-  let skipped = 0;
-  let errored = 0;
+  if (MODE === "all") {
+    const processed = await processAllUndated(supabase, TOP_N, counts);
+    console.log(`[backfill-album-dates] processed ${processed} undated albums (all-mode keyset scan)`);
+  } else {
+    const albums = await selectUndatedAlbumsByDemand(supabase, TOP_N);
+    console.log(`[backfill-album-dates] ${albums.length} undated albums selected (by listens)`);
 
-  for (const album of albums) {
-    if (!album.artistName || !album.name) {
-      skipped++;
-      continue;
-    }
-    try {
-      if (DRY_RUN) {
-        const match = await withTimeout(
-          matchAlbumOnDeezer(album.artistName, album.name),
-          15000,
-          `match ${album.artistName} – ${album.name}`,
-        );
-        if (match) {
-          written++;
-          console.log(`[dry] ${album.artistName} – ${album.name} -> ${match.releaseDate} (${match.totalTracks ?? "?"} tracks)`);
-        } else {
-          noMatch++;
-        }
-        continue;
-      }
-      const result = await withTimeout(
-        enrichAlbumDateFromDeezer(supabase, album.id, album.artistName, album.name),
-        15000,
-        `enrich ${album.artistName} – ${album.name}`,
-      );
-      if (result === "written") written++;
-      else if (result === "no-match") noMatch++;
-      else if (result === "skipped-has-date") skipped++;
-      else errored++;
-    } catch (e) {
-      errored++;
-      console.warn(`[backfill-album-dates] error on ${album.id}:`, e instanceof Error ? e.message : e);
+    let processed = 0;
+    for (const album of albums) {
+      await processAlbum(supabase, album, counts);
+      processed++;
+      if (processed % 100 === 0) progressLog(processed, counts);
     }
   }
 
   console.log(
-    `[backfill-album-dates] done. written=${written} no_match=${noMatch} skipped=${skipped} errored=${errored}`,
+    `[backfill-album-dates] done. written=${counts.written} no_match=${counts.noMatch} skipped=${counts.skipped} errored=${counts.errored}`,
   );
   process.exit(0);
 }
