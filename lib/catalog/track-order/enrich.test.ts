@@ -10,6 +10,7 @@ function makeSupabase(opts: {
   albumRow: { name: string; artist_id: string; track_order_checked_at: string | null };
   artistName: string;
   trackRows: { id: string; name: string; track_number: number | null }[];
+  trackUpdateError?: boolean;
 }) {
   const trackUpdates: Array<{ payload: unknown; id: unknown }> = [];
   const albumUpdates: unknown[] = [];
@@ -47,7 +48,7 @@ function makeSupabase(opts: {
           update: vi.fn().mockImplementation((payload: unknown) => ({
             eq: vi.fn().mockImplementation((_c: string, v: unknown) => {
               trackUpdates.push({ payload, id: v });
-              return Promise.resolve({ error: null });
+              return Promise.resolve({ error: opts.trackUpdateError ? { message: "boom" } : null });
             }),
           })),
         };
@@ -122,5 +123,18 @@ describe("enrichTrackOrderForAlbum", () => {
     const result = await enrichTrackOrderForAlbum(supabase as never, "alb-1");
     expect(result).toBe("written");
     expect(trackUpdates).toHaveLength(1);
+  });
+
+  it("returns error and does NOT stamp the marker when a track update fails", async () => {
+    mResolve.mockResolvedValue({ source: "deezer", tracks: [{ title: "Song", trackNumber: 1, discNumber: 1 }] });
+    const { supabase, albumUpdates } = makeSupabase({
+      albumRow: { name: "X", artist_id: "a", track_order_checked_at: null },
+      artistName: "Artist",
+      trackRows: [{ id: "t1", name: "Song", track_number: null }],
+      trackUpdateError: true,
+    });
+    const result = await enrichTrackOrderForAlbum(supabase as never, "alb-1");
+    expect(result).toBe("error");
+    expect(albumUpdates).toHaveLength(0); // marker NOT stamped
   });
 });

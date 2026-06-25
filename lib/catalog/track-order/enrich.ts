@@ -33,11 +33,11 @@ export async function enrichTrackOrderForAlbum(
   try {
     const { data: albumRow } = await supabase
       .from("albums")
-      .select("name, artist_id, track_order_checked_at")
+      .select("name, artist_id, mbid, track_order_checked_at")
       .eq("id", albumUuid)
       .maybeSingle();
     const album = albumRow as
-      | { name: string; artist_id: string | null; track_order_checked_at: string | null }
+      | { name: string; artist_id: string | null; mbid: string | null; track_order_checked_at: string | null }
       | null;
     if (!album) return "error";
     if (album.track_order_checked_at) return "skipped-checked";
@@ -63,17 +63,11 @@ export async function enrichTrackOrderForAlbum(
       artistName = (artistRow as { name?: string } | null)?.name ?? "";
     }
 
-    const { data: mbidRow } = await supabase
-      .from("albums")
-      .select("mbid")
-      .eq("id", albumUuid)
-      .maybeSingle();
-
     const forResolve: AlbumForTrackOrder = {
       id: albumUuid,
       name: album.name,
       artistName,
-      mbid: (mbidRow as { mbid?: string | null } | null)?.mbid ?? null,
+      mbid: album.mbid ?? null,
     };
 
     const resolved = await resolveAlbumTracklist(supabase, forResolve);
@@ -96,6 +90,7 @@ export async function enrichTrackOrderForAlbum(
 
     const assignedTracks = new Set<string>();
     let written = 0;
+    let anyUpdateError = false;
     for (const p of pairs) {
       if (assignedTracks.has(p.trackId) || claimed.has(p.entryIdx)) continue;
       const entry = resolved.tracks[p.entryIdx];
@@ -103,13 +98,16 @@ export async function enrichTrackOrderForAlbum(
         .from("tracks")
         .update({ track_number: entry.trackNumber, disc_number: entry.discNumber })
         .eq("id", p.trackId);
-      if (!error) {
-        assignedTracks.add(p.trackId);
-        claimed.add(p.entryIdx);
-        written++;
+      if (error) {
+        anyUpdateError = true;
+        continue;
       }
+      assignedTracks.add(p.trackId);
+      claimed.add(p.entryIdx);
+      written++;
     }
 
+    if (anyUpdateError) return "error"; // not stamped -> retried next run
     await stampChecked(supabase, albumUuid);
     return written > 0 ? "written" : "no-match";
   } catch {
