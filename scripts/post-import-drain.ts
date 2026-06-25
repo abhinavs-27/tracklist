@@ -64,10 +64,11 @@ async function getLfmImportedUsers(): Promise<string[]> {
 }
 
 async function repairLfmAggregates(): Promise<void> {
-  // Chunked cursor-based repair: processes 5000 ingest rows per RPC call, each
-  // well within the 2-minute PostgREST timeout. Loops until next_cursor is null.
-  console.log(`${LOG} repairing missing artist/album/genre rows (chunked, 5k rows/call)...`);
-  const r = await repairLfmAggregatesChunked({ chunkSize: 5000 });
+  // 500 rows/call ≈ 300ms each — safe under Supabase's PostgREST connection timeout.
+  // SET LOCAL statement_timeout inside the function can't override PgBouncer's limit.
+  // 434k ingest rows / 500 = ~870 calls ≈ 4-5 minutes total.
+  console.log(`${LOG} repairing missing artist/album/genre rows (chunked, 500 rows/call)...`);
+  const r = await repairLfmAggregatesChunked({ chunkSize: 500 });
   console.log(
     `${LOG} log-based repair done — artist: ${r.artistRows}, album: ${r.albumRows}, genre: ${r.genreRows}, chunks: ${r.chunks}, errors: ${r.errors}`,
   );
