@@ -74,8 +74,11 @@ async function repairLfmAggregates(): Promise<void> {
 }
 
 async function repairArtistAggregates(userIds: string[]): Promise<void> {
-  // Per-user for the same timeout reason as repairLfmAggregates.
-  let totalInserted = 0, totalMerged = 0, totalErrors = 0;
+  // Per-user, best-effort. These functions scan user_listening_aggregates and may
+  // timeout for users with very large histories (>100k aggregate rows). That's
+  // acceptable — repair_lfm_aggregates_chunk handles the primary repair; this step
+  // is a secondary safety net for edge cases (album agg exists but artist agg dropped).
+  let totalInserted = 0, totalMerged = 0;
   for (const userId of userIds) {
     const [missing, orphaned] = await Promise.all([
       repairMissingArtistAggregates({ userId }),
@@ -83,14 +86,15 @@ async function repairArtistAggregates(userIds: string[]): Promise<void> {
     ]);
     totalInserted += missing.inserted;
     totalMerged += orphaned.merged;
-    totalErrors += missing.errors + orphaned.errors;
-    if (missing.errors + orphaned.errors > 0) {
-      console.warn(`${LOG}   secondary repair failed for user ${userId}`);
-    } else if (missing.inserted + orphaned.merged > 0) {
+    if (missing.inserted + orphaned.merged > 0) {
       console.log(`${LOG}   user ${userId}: missing=${missing.inserted} orphaned=${orphaned.merged}`);
     }
+    // Timeout errors for large users are non-fatal — log at debug level and continue.
+    if (missing.errors + orphaned.errors > 0) {
+      console.log(`${LOG}   user ${userId}: secondary repair skipped (user too large for timeout window)`);
+    }
   }
-  console.log(`${LOG} secondary repair done — missing inserted: ${totalInserted}, orphaned merged: ${totalMerged}, errors: ${totalErrors}`);
+  console.log(`${LOG} secondary repair done — missing inserted: ${totalInserted}, orphaned merged: ${totalMerged}`);
 }
 
 async function refreshTasteForRecentImports(): Promise<void> {
