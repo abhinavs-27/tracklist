@@ -42,24 +42,77 @@ async function selectUndatedAlbumsByDemand(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   limit: number,
 ): Promise<AlbumToFill[]> {
-  // album_stats ordered by listens, joined to album (name, artist) and artist name.
-  const { data, error } = await supabase
-    .from("album_stats")
-    .select("album_id, listen_count, albums!inner ( id, name, release_date, artist_id, artists!inner ( name ) )")
-    .is("albums.release_date", null)
-    .order("listen_count", { ascending: false })
-    .limit(limit);
-  if (error) throw new Error(`select album_stats: ${error.message}`);
-
-  type Row = {
-    album_id: string;
-    albums: { id: string; name: string; release_date: string | null; artists: { name: string } };
+  // album_stats has no FK to albums, so PostgREST can't embed albums from it.
+  // Two-step: page album_stats by listens (single table), then fetch the undated
+  // subset from albums (artists!inner uses the real albums.artist_id FK),
+  // preserving the listen-desc order until we have `limit` undated albums.
+  // albums<->artists has more than one FK (ambiguous embed), so resolve artist
+  // names via a separate single-table lookup instead of a PostgREST embed.
+  type AlbumRow = {
+    id: string;
+    name: string;
+    artist_id: string | null;
+    release_date: string | null;
   };
-  return ((data ?? []) as unknown as Row[]).map((r) => ({
-    id: r.albums.id,
-    name: r.albums.name,
-    artistName: r.albums.artists?.name ?? "",
-  }));
+
+  const out: AlbumToFill[] = [];
+  const PAGE = 200; // also bounds the .in() URL length
+  for (let offset = 0; out.length < limit; offset += PAGE) {
+    const { data: stats, error: statsError } = await supabase
+      .from("album_stats")
+      .select("album_id, listen_count")
+      .order("listen_count", { ascending: false })
+      .range(offset, offset + PAGE - 1);
+    if (statsError) throw new Error(`select album_stats: ${statsError.message}`);
+
+    const statsRows = (stats ?? []) as { album_id: string; listen_count: number }[];
+    if (statsRows.length === 0) break; // exhausted
+    const ids = statsRows.map((r) => r.album_id);
+
+    const { data: albs, error: albError } = await supabase
+      .from("albums")
+      .select("id, name, artist_id, release_date")
+      .in("id", ids)
+      .is("release_date", null);
+    if (albError) throw new Error(`select albums: ${albError.message}`);
+
+    const undatedById = new Map<string, AlbumRow>();
+    for (const a of (albs ?? []) as AlbumRow[]) undatedById.set(a.id, a);
+
+    const artistIds = [
+      ...new Set(
+        [...undatedById.values()]
+          .map((a) => a.artist_id)
+          .filter((x): x is string => Boolean(x)),
+      ),
+    ];
+    const artistName = new Map<string, string>();
+    if (artistIds.length) {
+      const { data: artists, error: artistError } = await supabase
+        .from("artists")
+        .select("id, name")
+        .in("id", artistIds);
+      if (artistError) throw new Error(`select artists: ${artistError.message}`);
+      for (const ar of (artists ?? []) as { id: string; name: string }[]) {
+        artistName.set(ar.id, ar.name);
+      }
+    }
+
+    for (const r of statsRows) {
+      const a = undatedById.get(r.album_id);
+      if (!a) continue;
+      out.push({
+        id: a.id,
+        name: a.name,
+        artistName: a.artist_id ? (artistName.get(a.artist_id) ?? "") : "",
+      });
+      if (out.length >= limit) break;
+    }
+
+    if (statsRows.length < PAGE) break; // last page reached
+  }
+
+  return out;
 }
 
 async function main() {
