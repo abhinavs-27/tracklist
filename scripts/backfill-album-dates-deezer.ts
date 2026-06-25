@@ -42,12 +42,10 @@ async function selectUndatedAlbumsByDemand(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   limit: number,
 ): Promise<AlbumToFill[]> {
-  // album_stats has no FK to albums, so PostgREST can't embed albums from it.
-  // Two-step: page album_stats by listens (single table), then fetch the undated
-  // subset from albums (artists!inner uses the real albums.artist_id FK),
-  // preserving the listen-desc order until we have `limit` undated albums.
-  // albums<->artists has more than one FK (ambiguous embed), so resolve artist
-  // names via a separate single-table lookup instead of a PostgREST embed.
+  // album_stats has no FK to albums (no embed possible) and albums<->artists has
+  // more than one FK (ambiguous embed). So use three single-table queries: page
+  // album_stats by listens, fetch the undated subset from albums, then resolve
+  // artist names separately — preserving listen-desc order until `limit` undated.
   type AlbumRow = {
     id: string;
     name: string;
