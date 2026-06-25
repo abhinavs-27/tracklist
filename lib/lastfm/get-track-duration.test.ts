@@ -56,4 +56,20 @@ describe("getLastfmTrackDuration", () => {
     const ms = await getLastfmTrackDuration("Ghost Track", "Nobody");
     expect(ms).toBeNull();
   });
+
+  it("returns null when duration is zero", async () => {
+    mockFetchLastfmApi.mockResolvedValue({
+      ok: true,
+      json: async () => ({ track: { name: "Silent", duration: "0" } }),
+    } as Response);
+
+    const ms = await getLastfmTrackDuration("Silent", "Artist");
+    expect(ms).toBeNull();
+  });
+
+  it("returns null on fetch error", async () => {
+    mockFetchLastfmApi.mockRejectedValue(new Error("Network failure"));
+    const ms = await getLastfmTrackDuration("Track", "Artist");
+    expect(ms).toBeNull();
+  });
 });
