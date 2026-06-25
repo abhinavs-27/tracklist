@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { searchDeezerAlbums, getDeezerAlbum } from "./client";
+import { searchDeezerAlbums, getDeezerAlbum, searchDeezerArtists } from "./client";
 
 function mockFetchOnce(json: unknown, ok = true, status = 200) {
   vi.stubGlobal(
@@ -53,5 +53,27 @@ describe("getDeezerAlbum", () => {
     mockFetchOnce({ error: { type: "DataException", message: "no data", code: 800 } });
     const album = await getDeezerAlbum(999999999);
     expect(album).toBeNull();
+  });
+});
+
+describe("searchDeezerArtists", () => {
+  it("returns parsed artist items from Deezer response", async () => {
+    mockFetchOnce({
+      data: [
+        { id: 1, name: "Radiohead", picture_xl: "https://deezer.com/img/radiohead.jpg", nb_fan: 5000 },
+      ],
+    });
+    const results = await searchDeezerArtists("Radiohead");
+
+    expect(results).toHaveLength(1);
+    expect(results[0].name).toBe("Radiohead");
+    expect(results[0].picture_xl).toBe("https://deezer.com/img/radiohead.jpg");
+  });
+
+  it("returns empty array on Deezer error response", async () => {
+    mockFetchOnce({ error: { type: "DataException", message: "not found", code: 800 } });
+    const results = await searchDeezerArtists("zzz-unknown-artist-zzz");
+
+    expect(results).toEqual([]);
   });
 });

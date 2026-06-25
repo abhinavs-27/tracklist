@@ -24,6 +24,13 @@ export interface DeezerAlbumFull {
   artist?: { name?: string };
 }
 
+export interface DeezerArtistSearchItem {
+  id: number;
+  name: string;
+  picture_xl: string;
+  nb_fan?: number;
+}
+
 interface DeezerError {
   error?: { type?: string; message?: string; code?: number };
 }
@@ -68,4 +75,14 @@ export async function searchDeezerAlbums(
 
 export async function getDeezerAlbum(id: number): Promise<DeezerAlbumFull | null> {
   return deezerGet<DeezerAlbumFull>(`/album/${id}`, "album");
+}
+
+export async function searchDeezerArtists(
+  artistName: string,
+  limit = 5,
+): Promise<DeezerArtistSearchItem[]> {
+  const safe = Math.min(Math.max(limit, 1), 25);
+  const path = `/search/artist?q=${encodeURIComponent(deezerField(artistName))}&limit=${safe}`;
+  const data = await deezerGet<{ data?: DeezerArtistSearchItem[] }>(path, "search/artist");
+  return data?.data ?? [];
 }
