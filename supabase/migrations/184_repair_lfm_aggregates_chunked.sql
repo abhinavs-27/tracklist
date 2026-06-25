@@ -33,8 +33,9 @@ DECLARE
   v_next_cursor UUID;
   v_chunk_count INT;
 BEGIN
+  SET LOCAL statement_timeout = '10min';
+
   -- Grab the next chunk of ingest rows by PK order.
-  -- Each call hits the PK index: O(chunk_size), not O(total_rows).
   -- DROP first so the function is safe when called multiple times in the same session.
   DROP TABLE IF EXISTS _repair_chunk;
   CREATE TEMP TABLE _repair_chunk ON COMMIT DROP AS
@@ -52,10 +53,14 @@ BEGIN
     RETURN;
   END IF;
 
+  -- Update statistics so the planner picks nested-loop index lookups into logs/tracks
+  -- instead of hash-probing their full tables (temp tables have no stats by default).
+  ANALYZE _repair_chunk;
+
   SELECT log_id INTO v_next_cursor FROM _repair_chunk ORDER BY log_id DESC LIMIT 1;
 
   -- ── Artist rows ──────────────────────────────────────────────────────────
-  WITH enriched AS (
+  WITH enriched AS MATERIALIZED (
     SELECT l.user_id, t.artist_id::text AS entity_id, l.listened_at
     FROM _repair_chunk c
     JOIN logs l ON l.id = c.log_id
@@ -93,7 +98,7 @@ BEGIN
   SELECT COUNT(*) INTO v_artist FROM ins;
 
   -- ── Album rows ───────────────────────────────────────────────────────────
-  WITH enriched AS (
+  WITH enriched AS MATERIALIZED (
     SELECT l.user_id, t.album_id::text AS entity_id, l.listened_at
     FROM _repair_chunk c
     JOIN logs l ON l.id = c.log_id
@@ -123,7 +128,7 @@ BEGIN
   SELECT COUNT(*) INTO v_album FROM ins;
 
   -- ── Genre rows ───────────────────────────────────────────────────────────
-  WITH enriched AS (
+  WITH enriched AS MATERIALIZED (
     SELECT l.user_id, lower(trim(genre_name)) AS entity_id, l.listened_at
     FROM _repair_chunk c
     JOIN logs l ON l.id = c.log_id
