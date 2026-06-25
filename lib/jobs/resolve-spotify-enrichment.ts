@@ -6,6 +6,7 @@ import {
   getTrackIdByExternalId,
 } from "@/lib/catalog/entity-resolution";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { enrichAlbumDateFromDeezer } from "@/lib/deezer/enrich-album-date";
 import { lfmArtistId } from "@/lib/lastfm/lfm-ids";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { getTrack, searchSpotify } from "@/lib/spotify";
@@ -79,6 +80,25 @@ export async function resolveTrackSpotifyJob(data: {
       data.lfmSongId,
     );
     if (!lfmTrackUuid) return;
+
+    // Primary album-metadata source: fill release_date/total_tracks from Deezer
+    // (no Spotify quota). Independent of, and ahead of, Spotify identity resolution.
+    if (data.albumName?.trim()) {
+      const { data: trackRow } = await supabase
+        .from("tracks")
+        .select("album_id")
+        .eq("id", lfmTrackUuid)
+        .maybeSingle();
+      const albumUuid = (trackRow as { album_id?: string | null } | null)?.album_id;
+      if (albumUuid) {
+        await enrichAlbumDateFromDeezer(
+          supabase,
+          albumUuid,
+          data.artistName,
+          data.albumName,
+        );
+      }
+    }
 
     const match = await mapLastfmToSpotify(
       data.trackName,
