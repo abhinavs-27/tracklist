@@ -15,7 +15,7 @@ import {
   repairMissingArtistAggregates,
   repairOrphanedArtistAggregates,
 } from "@/lib/analytics/repair-artist-aggregates";
-import { repairLfmAggregatesFromLogs } from "@/lib/analytics/repair-lfm-aggregates-from-logs";
+import { repairLfmAggregatesChunked } from "@/lib/analytics/repair-lfm-aggregates-chunked";
 import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { runSpotifyEnrichmentRetry } from "@/lib/cron/cron-runners";
@@ -63,24 +63,13 @@ async function getLfmImportedUsers(): Promise<string[]> {
   return (data ?? []).map((u) => u.id as string);
 }
 
-async function repairLfmAggregates(userIds: string[]): Promise<void> {
-  // Call per-user to stay within the 2-minute PostgREST statement timeout.
-  // A single all-users call scans 434k ingest rows × 3 entity types and exceeds the limit.
-  let totalArtist = 0, totalAlbum = 0, totalGenre = 0, totalErrors = 0;
-  for (const userId of userIds) {
-    const r = await repairLfmAggregatesFromLogs({ userId });
-    totalArtist += r.artistRows;
-    totalAlbum += r.albumRows;
-    totalGenre += r.genreRows;
-    totalErrors += r.errors;
-    if (r.errors > 0) {
-      console.warn(`${LOG}   repair failed for user ${userId}`);
-    } else if (r.artistRows + r.albumRows + r.genreRows > 0) {
-      console.log(`${LOG}   user ${userId}: artist=${r.artistRows} album=${r.albumRows} genre=${r.genreRows}`);
-    }
-  }
+async function repairLfmAggregates(): Promise<void> {
+  // Chunked cursor-based repair: processes 5000 ingest rows per RPC call, each
+  // well within the 2-minute PostgREST timeout. Loops until next_cursor is null.
+  console.log(`${LOG} repairing missing artist/album/genre rows (chunked, 5k rows/call)...`);
+  const r = await repairLfmAggregatesChunked({ chunkSize: 5000 });
   console.log(
-    `${LOG} log-based repair done — artist: ${totalArtist}, album: ${totalAlbum}, genre: ${totalGenre}, errors: ${totalErrors}`,
+    `${LOG} log-based repair done — artist: ${r.artistRows}, album: ${r.albumRows}, genre: ${r.genreRows}, chunks: ${r.chunks}, errors: ${r.errors}`,
   );
 }
 
@@ -163,18 +152,18 @@ async function main() {
   console.log(`\n${LOG} === Step 2/6: Resolve track artist_id by name ===`);
   await resolveTrackArtists();
 
-  // Fetch the user list once; both repair steps share it.
-  const importedUsers = await getLfmImportedUsers();
-  console.log(`${LOG} ${importedUsers.length} Last.fm-imported user(s) to repair`);
-
   // 3. Back-fill artist/album/genre rows missing from logs processed before enrichment.
   //    repair_lfm_aggregates_from_logs now also has a name-join fallback for any tracks
   //    still null after the resolve step above.
   console.log(`\n${LOG} === Step 3/6: Repair missing artist/album/genre rows from logs ===`);
-  await repairLfmAggregates(importedUsers);
+  await repairLfmAggregates();
 
   // 4. Secondary repair: infer any still-missing artist rows from album aggregate rows,
   //    and merge orphaned rows left by failed canonical merges.
+  // Fetch the user list for the per-user secondary repair (these functions scan aggregates,
+  // not the ingest table, so per-user scoping is effective here).
+  const importedUsers = await getLfmImportedUsers();
+  console.log(`${LOG} ${importedUsers.length} Last.fm-imported user(s) for secondary repair`);
   console.log(`\n${LOG} === Step 4/6: Secondary repair (artist from album + orphan cleanup) ===`);
   await repairArtistAggregates(importedUsers);
 
