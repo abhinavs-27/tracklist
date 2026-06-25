@@ -62,6 +62,7 @@ async function selectUndatedAlbumsByDemand(
       .from("album_stats")
       .select("album_id, listen_count")
       .order("listen_count", { ascending: false })
+      .order("album_id", { ascending: true })
       .range(offset, offset + PAGE - 1);
     if (statsError) throw new Error(`select album_stats: ${statsError.message}`);
 

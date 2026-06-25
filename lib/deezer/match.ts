@@ -9,6 +9,12 @@ export interface DeezerAlbumMatch {
   totalTracks: number | null;
 }
 
+function isValidReleaseDate(d: string | undefined): d is string {
+  if (!d) return false;
+  if (d === "0000-00-00") return false;
+  return /^\d{4}-\d{2}-\d{2}$/.test(d);
+}
+
 // Require the artist to be identified and the title to be a strong match.
 const MIN_ARTIST_SCORE = 22; // artistMatches: 30 primary / 28 full / 22 tokens
 const MIN_TITLE_SCORE = 40; // trackTitleSimilarity: 50 exact / 45 substring / 40 tokens_high
@@ -46,7 +52,7 @@ export async function matchAlbumOnDeezer(
   if (!best) return null;
 
   const full = await getDeezerAlbum(best.id);
-  if (!full?.release_date) return null;
+  if (!isValidReleaseDate(full?.release_date)) return null;
 
   return {
     deezerAlbumId: best.id,

@@ -35,9 +35,14 @@ export async function enrichAlbumDateFromDeezer(
     const match = await matchAlbumOnDeezer(artistName, albumName);
     if (!match) return "no-match";
 
+    const updatePayload: { release_date: string; total_tracks?: number } = {
+      release_date: match.releaseDate,
+    };
+    if (match.totalTracks != null) updatePayload.total_tracks = match.totalTracks;
+
     const { error } = await supabase
       .from("albums")
-      .update({ release_date: match.releaseDate, total_tracks: match.totalTracks })
+      .update(updatePayload)
       .eq("id", albumUuid);
     if (error) return "error";
 

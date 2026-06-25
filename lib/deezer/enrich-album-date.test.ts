@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./match", () => ({ matchAlbumOnDeezer: vi.fn() }));
 vi.mock("@/lib/catalog/entity-resolution", () => ({
-  getAlbumIdByExternalId: vi.fn(),
   linkAlbumExternalId: vi.fn(),
 }));
 
@@ -51,6 +50,19 @@ describe("enrichAlbumDateFromDeezer", () => {
     expect(result).toBe("written");
     expect(update).toHaveBeenCalledWith({ release_date: "2001-03-07", total_tracks: 14 });
     expect(mockedLink).toHaveBeenCalledWith(supabase, "album-uuid", "deezer", "302127");
+  });
+
+  it("writes only release_date when totalTracks is null", async () => {
+    mockedMatch.mockResolvedValue({ deezerAlbumId: 302127, releaseDate: "2001-03-07", totalTracks: null });
+    const { supabase, update } = makeSupabase(null);
+    const result = await enrichAlbumDateFromDeezer(
+      supabase as never,
+      "album-uuid",
+      "Daft Punk",
+      "Discovery",
+    );
+    expect(result).toBe("written");
+    expect(update).toHaveBeenCalledWith({ release_date: "2001-03-07" });
   });
 
   it("skips when the album already has a release_date", async () => {

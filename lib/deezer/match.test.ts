@@ -54,4 +54,22 @@ describe("matchAlbumOnDeezer", () => {
     const out = await matchAlbumOnDeezer("Daft Punk", "Discovery");
     expect(out).toBeNull();
   });
+
+  it("returns null when Deezer returns the 0000-00-00 sentinel date", async () => {
+    mockedSearch.mockResolvedValue([
+      { id: 302127, title: "Discovery", artist: { name: "Daft Punk" }, nb_tracks: 14 },
+    ]);
+    mockedGet.mockResolvedValue({ id: 302127, title: "Discovery", release_date: "0000-00-00", nb_tracks: 14 });
+    const out = await matchAlbumOnDeezer("Daft Punk", "Discovery");
+    expect(out).toBeNull();
+  });
+
+  it("returns null when release_date is malformed (year only)", async () => {
+    mockedSearch.mockResolvedValue([
+      { id: 302127, title: "Discovery", artist: { name: "Daft Punk" }, nb_tracks: 14 },
+    ]);
+    mockedGet.mockResolvedValue({ id: 302127, title: "Discovery", release_date: "2001", nb_tracks: 14 });
+    const out = await matchAlbumOnDeezer("Daft Punk", "Discovery");
+    expect(out).toBeNull();
+  });
 });
