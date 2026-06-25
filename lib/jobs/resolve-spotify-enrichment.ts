@@ -7,6 +7,9 @@ import {
 } from "@/lib/catalog/entity-resolution";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { enrichAlbumDateFromDeezer } from "@/lib/deezer/enrich-album-date";
+import { enrichArtistImageFromDeezer } from "@/lib/deezer/enrich-artist-deezer";
+import { getLastfmArtistGenres } from "@/lib/lastfm/get-artist-genres";
+import { getLastfmTrackDuration } from "@/lib/lastfm/get-track-duration";
 import { lfmArtistId } from "@/lib/lastfm/lfm-ids";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { getTrack, searchSpotify } from "@/lib/spotify";
@@ -33,6 +36,51 @@ export async function resolveArtistSpotifyJob(data: {
       data.lfmArtistId,
     );
 
+    // ── Step 1: Last.fm tags → genres ────────────────────────────────────────
+    // getLastfmArtistGenres never throws; returns { tags: [], ... } on failure.
+    if (lfmUuid) {
+      const lfmInfo = await getLastfmArtistGenres(data.artistName);
+      if (lfmInfo.tags.length > 0) {
+        await supabase
+          .from("artists")
+          .update({ genres: lfmInfo.tags })
+          .eq("id", lfmUuid);
+      }
+    }
+
+    // ── Step 2: Deezer → image (null-only) ───────────────────────────────────
+    if (lfmUuid) {
+      const { data: artistRow } = await supabase
+        .from("artists")
+        .select("image_url, genres")
+        .eq("id", lfmUuid)
+        .maybeSingle();
+
+      if (!artistRow?.image_url) {
+        await enrichArtistImageFromDeezer(supabase, lfmUuid, data.artistName);
+      }
+
+      // ── Step 3: Early-return if genres + image now populated ──────────────
+      const { data: refreshed } = await supabase
+        .from("artists")
+        .select("image_url, genres")
+        .eq("id", lfmUuid)
+        .maybeSingle();
+
+      const hasGenres =
+        Array.isArray(refreshed?.genres) && refreshed.genres.length > 0;
+      const hasImage = !!refreshed?.image_url;
+
+      if (hasGenres && hasImage) {
+        await supabase
+          .from("artists")
+          .update({ needs_spotify_enrichment: false })
+          .eq("id", lfmUuid);
+        return;
+      }
+    }
+
+    // ── Step 4: Spotify fallback (existing logic, unchanged) ─────────────────
     const res = await searchSpotify(data.artistName, ["artist"], 5, {
       allowLastfmMapping: true,
     });
