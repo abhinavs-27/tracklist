@@ -13,8 +13,11 @@
  *   DRY_RUN=1 npm run backfill:album-dates                      # report matches, write nothing
  *   BACKFILL_TOP_N=2000 npm run backfill:album-dates
  *   BACKFILL_MODE=all BACKFILL_TOP_N=100000 npm run backfill:album-dates
+ *   BACKFILL_SOURCE=musicbrainz BACKFILL_MODE=all BACKFILL_TOP_N=100000 npm run backfill:album-dates
  *
  * Env:
+ *   BACKFILL_SOURCE  "deezer" (default) or "musicbrainz" (fallback for albums
+ *                    Deezer can't match).
  *   BACKFILL_MODE    "demand" (default) or "all".
  *   BACKFILL_TOP_N   How many undated albums to process (default 500). In `all`
  *                    mode pass a large value for full coverage; it caps processing.
@@ -28,10 +31,13 @@ if (!("WebSocket" in globalThis)) (globalThis as any).WebSocket = WebSocket;
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { matchAlbumOnDeezer } from "@/lib/deezer/match";
 import { enrichAlbumDateFromDeezer } from "@/lib/deezer/enrich-album-date";
+import { matchAlbumDateOnMusicBrainz } from "@/lib/musicbrainz/match-album-date";
+import { enrichAlbumDateFromMusicBrainz } from "@/lib/musicbrainz/enrich-album-date";
 
 const TOP_N = parseInt(process.env.BACKFILL_TOP_N ?? "500", 10);
 const DRY_RUN = process.env.DRY_RUN === "1";
 const MODE = process.env.BACKFILL_MODE === "all" ? "all" : "demand";
+const SOURCE = process.env.BACKFILL_SOURCE === "musicbrainz" ? "musicbrainz" : "deezer";
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -143,21 +149,28 @@ async function processAlbum(
   }
   try {
     if (DRY_RUN) {
+      const matchPromise: Promise<{ releaseDate: string; totalTracks?: number | null } | null> =
+        SOURCE === "musicbrainz"
+          ? matchAlbumDateOnMusicBrainz(album.artistName, album.name)
+          : matchAlbumOnDeezer(album.artistName, album.name);
       const match = await withTimeout(
-        matchAlbumOnDeezer(album.artistName, album.name),
+        matchPromise,
         15000,
         `match ${album.artistName} – ${album.name}`,
       );
       if (match) {
         counts.written++;
-        console.log(`[dry] ${album.artistName} – ${album.name} -> ${match.releaseDate} (${match.totalTracks ?? "?"} tracks)`);
+        const tracks = "totalTracks" in match && match.totalTracks != null ? match.totalTracks : "?";
+        console.log(`[dry] ${album.artistName} – ${album.name} -> ${match.releaseDate} (${tracks} tracks)`);
       } else {
         counts.noMatch++;
       }
       return;
     }
     const result = await withTimeout(
-      enrichAlbumDateFromDeezer(supabase, album.id, album.artistName, album.name),
+      SOURCE === "musicbrainz"
+        ? enrichAlbumDateFromMusicBrainz(supabase, album.id, album.artistName, album.name)
+        : enrichAlbumDateFromDeezer(supabase, album.id, album.artistName, album.name),
       15000,
       `enrich ${album.artistName} – ${album.name}`,
     );
@@ -239,7 +252,7 @@ async function processAllUndated(
 
 async function main() {
   const supabase = createSupabaseAdminClient();
-  console.log(`[backfill-album-dates] start MODE=${MODE} TOP_N=${TOP_N} DRY_RUN=${DRY_RUN}`);
+  console.log(`[backfill-album-dates] start SOURCE=${SOURCE} MODE=${MODE} TOP_N=${TOP_N} DRY_RUN=${DRY_RUN}`);
 
   const counts: Counts = { written: 0, noMatch: 0, skipped: 0, errored: 0 };
 
