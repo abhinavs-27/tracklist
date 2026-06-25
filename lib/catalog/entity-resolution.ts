@@ -8,7 +8,7 @@ import {
   scheduleTrackEnrichment,
 } from "./non-blocking-enrichment";
 
-export type MusicExternalSource = "spotify" | "lastfm";
+export type MusicExternalSource = "spotify" | "lastfm" | "deezer";
 
 /** Match DB generated column: lower(trim(both from name)) */
 export function normalizedName(name: string): string {
