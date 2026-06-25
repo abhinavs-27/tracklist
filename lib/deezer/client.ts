@@ -77,6 +77,31 @@ export async function getDeezerAlbum(id: number): Promise<DeezerAlbumFull | null
   return deezerGet<DeezerAlbumFull>(`/album/${id}`, "album");
 }
 
+export interface DeezerTrack {
+  title: string;
+  trackNumber: number;
+  discNumber: number;
+}
+
+interface DeezerTrackRaw {
+  title?: string;
+  track_position?: number;
+  disk_number?: number;
+}
+
+export async function getDeezerAlbumTracks(albumId: number): Promise<DeezerTrack[]> {
+  const data = await deezerGet<{ data?: DeezerTrackRaw[] }>(
+    `/album/${albumId}/tracks`,
+    "album/tracks",
+  );
+  const rows = data?.data ?? [];
+  return rows.map((t, i) => ({
+    title: t.title ?? "",
+    trackNumber: typeof t.track_position === "number" ? t.track_position : i + 1,
+    discNumber: typeof t.disk_number === "number" ? t.disk_number : 1,
+  }));
+}
+
 export async function searchDeezerArtists(
   artistName: string,
   limit = 5,

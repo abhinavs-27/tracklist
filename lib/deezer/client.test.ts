@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { searchDeezerAlbums, getDeezerAlbum, searchDeezerArtists } from "./client";
+import { searchDeezerAlbums, getDeezerAlbum, getDeezerAlbumTracks, searchDeezerArtists } from "./client";
 
 function mockFetchOnce(json: unknown, ok = true, status = 200) {
   vi.stubGlobal(
@@ -79,5 +79,39 @@ describe("searchDeezerArtists", () => {
     const results = await searchDeezerArtists("zzz-unknown-artist-zzz");
 
     expect(results).toEqual([]);
+  });
+});
+
+describe("getDeezerAlbumTracks", () => {
+  it("parses track_position + disk_number into ordered tracks", async () => {
+    mockFetchOnce({
+      data: [
+        { id: 1, title: "One More Time", track_position: 1, disk_number: 1 },
+        { id: 2, title: "Aerodynamic", track_position: 2, disk_number: 1 },
+        { id: 3, title: "Bonus", track_position: 1, disk_number: 2 },
+      ],
+    });
+    const out = await getDeezerAlbumTracks(302127);
+    expect(out).toEqual([
+      { title: "One More Time", trackNumber: 1, discNumber: 1 },
+      { title: "Aerodynamic", trackNumber: 2, discNumber: 1 },
+      { title: "Bonus", trackNumber: 1, discNumber: 2 },
+    ]);
+    const url = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toBe("https://api.deezer.com/album/302127/tracks");
+  });
+
+  it("falls back to index+1 / disc 1 when position fields are missing", async () => {
+    mockFetchOnce({ data: [{ id: 1, title: "A" }, { id: 2, title: "B" }] });
+    const out = await getDeezerAlbumTracks(1);
+    expect(out).toEqual([
+      { title: "A", trackNumber: 1, discNumber: 1 },
+      { title: "B", trackNumber: 2, discNumber: 1 },
+    ]);
+  });
+
+  it("returns [] on a Deezer error object", async () => {
+    mockFetchOnce({ error: { type: "DataException", message: "no", code: 800 } });
+    expect(await getDeezerAlbumTracks(999)).toEqual([]);
   });
 });
