@@ -151,7 +151,8 @@ describe("enrichArtistImageFromDeezer", () => {
       },
     ]);
 
-    const eq = vi.fn().mockResolvedValue({ error: new Error("db error") });
+    const is = vi.fn().mockResolvedValue({ error: new Error("db error") });
+    const eq = vi.fn().mockReturnValue({ is });
     const update = vi.fn().mockReturnValue({ eq });
     const supabase = { from: vi.fn().mockReturnValue({ update }) };
 
