@@ -2,6 +2,7 @@ import "server-only";
 
 import { mergeCanonicalArtists, mergeCanonicalTracks } from "@/lib/catalog/merge-canonical";
 import {
+  findAlbumIdByArtistAndName,
   getArtistIdByExternalId,
   getTrackIdByExternalId,
 } from "@/lib/catalog/entity-resolution";
@@ -143,20 +144,17 @@ export async function resolveTrackSpotifyJob(data: {
 
     // ── Catalog album lookup (only when artist is resolved, album is not) ────
     if (existingArtistId && data.albumName?.trim() && !albumUuid) {
-      const albumNameNorm = data.albumName.trim().toLowerCase();
-      const { data: catalogAlbum } = await supabase
-        .from("albums")
-        .select("id")
-        .eq("artist_id", existingArtistId)
-        .eq("name_normalized", albumNameNorm)
-        .maybeSingle();
-
-      if (catalogAlbum?.id) {
+      const found = await findAlbumIdByArtistAndName(
+        supabase,
+        existingArtistId,
+        data.albumName,
+      );
+      if (found) {
         await supabase
           .from("tracks")
-          .update({ album_id: catalogAlbum.id })
+          .update({ album_id: found })
           .eq("id", lfmTrackUuid);
-        albumUuid = catalogAlbum.id;
+        albumUuid = found;
       }
     }
 
@@ -176,15 +174,13 @@ export async function resolveTrackSpotifyJob(data: {
         data.trackName,
         data.artistName,
       );
-      if (duration != null) {
-        await supabase
-          .from("tracks")
-          .update({ duration_ms: duration })
-          .eq("id", lfmTrackUuid);
-      }
+      const trackUpdates: Record<string, unknown> = {
+        needs_spotify_enrichment: false,
+      };
+      if (duration != null) trackUpdates.duration_ms = duration;
       await supabase
         .from("tracks")
-        .update({ needs_spotify_enrichment: false })
+        .update(trackUpdates)
         .eq("id", lfmTrackUuid);
       return;
     }
