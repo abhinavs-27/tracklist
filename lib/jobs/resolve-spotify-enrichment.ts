@@ -37,31 +37,34 @@ export async function resolveArtistSpotifyJob(data: {
       data.lfmArtistId,
     );
 
-    // ── Step 1: Last.fm tags → genres ────────────────────────────────────────
-    // getLastfmArtistGenres never throws; returns { tags: [], ... } on failure.
     if (lfmUuid) {
-      const lfmInfo = await getLastfmArtistGenres(data.artistName);
-      if (lfmInfo.tags.length > 0) {
-        await supabase
-          .from("artists")
-          .update({ genres: lfmInfo.tags })
-          .eq("id", lfmUuid);
-      }
-    }
-
-    // ── Step 2: Deezer → image (null-only) ───────────────────────────────────
-    if (lfmUuid) {
+      // Read current state once, before any writes
       const { data: artistRow } = await supabase
         .from("artists")
         .select("image_url, genres")
         .eq("id", lfmUuid)
         .maybeSingle();
 
+      // ── Step 1: Last.fm tags → genres (only when genres not already set) ──
+      // getLastfmArtistGenres never throws; returns { tags: [], ... } on failure.
+      const genresAlreadySet =
+        Array.isArray(artistRow?.genres) && artistRow.genres.length > 0;
+      if (!genresAlreadySet) {
+        const lfmInfo = await getLastfmArtistGenres(data.artistName);
+        if (lfmInfo.tags.length > 0) {
+          await supabase
+            .from("artists")
+            .update({ genres: lfmInfo.tags })
+            .eq("id", lfmUuid);
+        }
+      }
+
+      // ── Step 2: Deezer → image (null-only) ───────────────────────────────
       if (!artistRow?.image_url) {
         await enrichArtistImageFromDeezer(supabase, lfmUuid, data.artistName);
       }
 
-      // ── Step 3: Early-return if genres + image now populated ──────────────
+      // ── Step 3: Re-read and early-return if both genres + image populated ─
       const { data: refreshed } = await supabase
         .from("artists")
         .select("image_url, genres")
@@ -137,7 +140,7 @@ export async function resolveTrackSpotifyJob(data: {
       .eq("id", lfmTrackUuid)
       .maybeSingle();
 
-    let existingArtistId: string | null =
+    const existingArtistId: string | null =
       (trackRow as { artist_id?: string | null } | null)?.artist_id ?? null;
     let albumUuid: string | null =
       (trackRow as { album_id?: string | null } | null)?.album_id ?? null;
