@@ -68,6 +68,10 @@ describe("searchDeezerArtists", () => {
     expect(results).toHaveLength(1);
     expect(results[0].name).toBe("Radiohead");
     expect(results[0].picture_xl).toBe("https://deezer.com/img/radiohead.jpg");
+    const url = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toContain("https://api.deezer.com/search/artist");
+    expect(decodeURIComponent(url)).toContain("Radiohead");
+    expect(url).toContain("limit=5");
   });
 
   it("returns empty array on Deezer error response", async () => {
