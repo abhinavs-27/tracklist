@@ -19,6 +19,7 @@ import { repairLfmAggregatesFromLogs } from "@/lib/analytics/repair-lfm-aggregat
 import { refreshTasteIdentityCacheForUser } from "@/lib/taste/taste-identity";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { runSpotifyEnrichmentRetry } from "@/lib/cron/cron-runners";
+import { resolveTrackArtistIdsByName } from "@/lib/analytics/resolve-track-artist-ids";
 
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE ?? "5000", 10);
 const DRY_RUN = process.env.DRY_RUN === "1";
@@ -39,6 +40,14 @@ async function drainAggregates(): Promise<number> {
     }
   }
   return total;
+}
+
+async function resolveTrackArtists(): Promise<void> {
+  console.log(`${LOG} resolving tracks.artist_id from lastfm_artist_name via catalog name lookup...`);
+  const r = await resolveTrackArtistIdsByName();
+  console.log(
+    `${LOG} artist_id resolution done — tracks updated: ${r.tracksUpdated}, errors: ${r.errors}`,
+  );
 }
 
 async function repairLfmAggregates(): Promise<void> {
@@ -108,27 +117,32 @@ async function main() {
   }
 
   // 1. Drain aggregate queue
-  console.log(`\n${LOG} === Step 1/5: Drain listening aggregates ===`);
+  console.log(`\n${LOG} === Step 1/6: Drain listening aggregates ===`);
   const aggregated = await drainAggregates();
 
-  // 2. Back-fill artist/album/genre rows missing from logs processed before enrichment.
-  //    This is the primary repair for Last.fm imports: the aggregate pipeline only wrote
-  //    "track" rows when tracks had no artist_id/album_id. After `spotify-enrich:local`
-  //    fills those fields, this step inserts the missing rows from the original log data.
-  console.log(`\n${LOG} === Step 2/5: Repair missing artist/album/genre rows from logs ===`);
+  // 2. Resolve tracks.artist_id from lastfm_artist_name — no Spotify call needed.
+  //    Most artists from a Last.fm import already exist in the catalog (other users' history).
+  //    This fills in artist_id so the repair step can find artist/genre aggregate rows.
+  console.log(`\n${LOG} === Step 2/6: Resolve track artist_id by name ===`);
+  await resolveTrackArtists();
+
+  // 3. Back-fill artist/album/genre rows missing from logs processed before enrichment.
+  //    repair_lfm_aggregates_from_logs now also has a name-join fallback for any tracks
+  //    still null after the resolve step above.
+  console.log(`\n${LOG} === Step 3/6: Repair missing artist/album/genre rows from logs ===`);
   await repairLfmAggregates();
 
-  // 3. Secondary repair: infer any still-missing artist rows from album aggregate rows,
+  // 4. Secondary repair: infer any still-missing artist rows from album aggregate rows,
   //    and merge orphaned rows left by failed canonical merges.
-  console.log(`\n${LOG} === Step 3/5: Secondary repair (artist from album + orphan cleanup) ===`);
+  console.log(`\n${LOG} === Step 4/6: Secondary repair (artist from album + orphan cleanup) ===`);
   await repairArtistAggregates();
 
-  // 4. Refresh taste identity for recently imported users
-  console.log(`\n${LOG} === Step 4/5: Refresh taste identity ===`);
+  // 5. Refresh taste identity for recently imported users
+  console.log(`\n${LOG} === Step 5/6: Refresh taste identity ===`);
   await refreshTasteForRecentImports();
 
-  // 5. Bump Spotify enrichment (kicks off next batch for un-enriched tracks)
-  console.log(`\n${LOG} === Step 5/5: Spotify enrichment retry (200 songs / 100 artists) ===`);
+  // 6. Bump Spotify enrichment (kicks off next batch for un-enriched tracks)
+  console.log(`\n${LOG} === Step 6/6: Spotify enrichment retry (200 songs / 100 artists) ===`);
   try {
     const result = await runSpotifyEnrichmentRetry(200, 100);
     console.log(`${LOG} enrichment queued — songs: ${result.songs}, artists: ${result.artists}`);
