@@ -29,6 +29,7 @@
     "backfill:taste-snapshots": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-taste-snapshots.ts",
     "backfill:blind-spots": "REDIS_URL='' NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-blind-spots.ts",
     "backfill:musicbrainz-credits": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-musicbrainz-credits.ts",
+    "backfill:album-dates": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-dates-deezer.ts",
     "backfill:billboard-weeks": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-billboard-weeks.ts",
     "backfill:listening-aggregates": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-listening-aggregates.ts",
     "backfill:lastfm-full-import": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-lastfm-full-import.ts",
