@@ -88,11 +88,13 @@ async function selectUndatedAlbumsByDemand(
     if (statsRows.length === 0) break; // exhausted
     const ids = statsRows.map((r) => r.album_id);
 
-    const { data: albs, error: albError } = await supabase
+    let albQuery = supabase
       .from("albums")
       .select("id, name, artist_id, release_date")
       .in("id", ids)
       .is("release_date", null);
+    if (SOURCE === "musicbrainz") albQuery = albQuery.is("mb_date_checked_at", null);
+    const { data: albs, error: albError } = await albQuery;
     if (albError) throw new Error(`select albums: ${albError.message}`);
 
     const undatedById = new Map<string, AlbumRow>();
@@ -232,11 +234,13 @@ async function processAllUndated(
   let processed = 0;
 
   while (processed < cap) {
-    const { data: albs, error: albError } = await supabase
+    let allQuery = supabase
       .from("albums")
       .select("id, name, artist_id")
       .is("release_date", null)
-      .gt("id", lastId)
+      .gt("id", lastId);
+    if (SOURCE === "musicbrainz") allQuery = allQuery.is("mb_date_checked_at", null);
+    const { data: albs, error: albError } = await allQuery
       .order("id", { ascending: true })
       .limit(PAGE);
     if (albError) throw new Error(`select albums: ${albError.message}`);

@@ -29,7 +29,8 @@ describe("enrichAlbumDateFromMusicBrainz", () => {
     const { supabase, update } = makeSupabase(null);
     const result = await enrichAlbumDateFromMusicBrainz(supabase as never, "album-uuid", "Daft Punk", "Discovery");
     expect(result).toBe("written");
-    expect(update).toHaveBeenCalledWith({ release_date: "2001-03-07", mbid: "mbid-1" });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ release_date: "2001-03-07", mbid: "mbid-1" }));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ mb_date_checked_at: expect.any(String) }));
   });
 
   it("skips when the album already has a release_date", async () => {
@@ -45,6 +46,7 @@ describe("enrichAlbumDateFromMusicBrainz", () => {
     const { supabase, update } = makeSupabase(null);
     const result = await enrichAlbumDateFromMusicBrainz(supabase as never, "album-uuid", "Daft Punk", "Discovery");
     expect(result).toBe("no-match");
-    expect(update).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ mb_date_checked_at: expect.any(String) }));
+    expect(update).not.toHaveBeenCalledWith(expect.objectContaining({ release_date: expect.anything() }));
   });
 });

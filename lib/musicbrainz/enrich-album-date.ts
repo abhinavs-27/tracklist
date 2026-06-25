@@ -32,11 +32,26 @@ export async function enrichAlbumDateFromMusicBrainz(
     if (existing) return "skipped-has-date";
 
     const match = await matchAlbumDateOnMusicBrainz(artistName, albumName);
-    if (!match) return "no-match";
+    if (!match) {
+      // Best-effort marker so future MusicBrainz scans skip this no-match album.
+      try {
+        await supabase
+          .from("albums")
+          .update({ mb_date_checked_at: new Date().toISOString() })
+          .eq("id", albumUuid);
+      } catch {
+        // ignore — marker is an optimization, not required for correctness
+      }
+      return "no-match";
+    }
 
     const { error } = await supabase
       .from("albums")
-      .update({ release_date: match.releaseDate, mbid: match.mbid })
+      .update({
+        release_date: match.releaseDate,
+        mbid: match.mbid,
+        mb_date_checked_at: new Date().toISOString(),
+      })
       .eq("id", albumUuid);
     if (error) return "error";
 
