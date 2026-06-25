@@ -50,21 +50,58 @@ async function resolveTrackArtists(): Promise<void> {
   );
 }
 
-async function repairLfmAggregates(): Promise<void> {
-  console.log(`${LOG} repairing missing artist/album/genre rows from processed logs...`);
-  const r = await repairLfmAggregatesFromLogs();
+async function getLfmImportedUsers(): Promise<string[]> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("users")
+    .select("id")
+    .in("lastfm_import_status", ["done", "running"]);
+  if (error) {
+    console.error(`${LOG} could not fetch imported users:`, error.message);
+    return [];
+  }
+  return (data ?? []).map((u) => u.id as string);
+}
+
+async function repairLfmAggregates(userIds: string[]): Promise<void> {
+  // Call per-user to stay within the 2-minute PostgREST statement timeout.
+  // A single all-users call scans 434k ingest rows × 3 entity types and exceeds the limit.
+  let totalArtist = 0, totalAlbum = 0, totalGenre = 0, totalErrors = 0;
+  for (const userId of userIds) {
+    const r = await repairLfmAggregatesFromLogs({ userId });
+    totalArtist += r.artistRows;
+    totalAlbum += r.albumRows;
+    totalGenre += r.genreRows;
+    totalErrors += r.errors;
+    if (r.errors > 0) {
+      console.warn(`${LOG}   repair failed for user ${userId}`);
+    } else if (r.artistRows + r.albumRows + r.genreRows > 0) {
+      console.log(`${LOG}   user ${userId}: artist=${r.artistRows} album=${r.albumRows} genre=${r.genreRows}`);
+    }
+  }
   console.log(
-    `${LOG} log-based repair done — artist: ${r.artistRows}, album: ${r.albumRows}, genre: ${r.genreRows}, errors: ${r.errors}`,
+    `${LOG} log-based repair done — artist: ${totalArtist}, album: ${totalAlbum}, genre: ${totalGenre}, errors: ${totalErrors}`,
   );
 }
 
-async function repairArtistAggregates(): Promise<void> {
-  console.log(`${LOG} secondary repair: artist rows from album aggregates + orphan cleanup...`);
-  const [missing, orphaned] = await Promise.all([
-    repairMissingArtistAggregates({ limit: 200000 }),
-    repairOrphanedArtistAggregates(),
-  ]);
-  console.log(`${LOG} secondary repair done — missing inserted: ${missing.inserted}, orphaned merged: ${orphaned.merged}, errors: ${missing.errors + orphaned.errors}`);
+async function repairArtistAggregates(userIds: string[]): Promise<void> {
+  // Per-user for the same timeout reason as repairLfmAggregates.
+  let totalInserted = 0, totalMerged = 0, totalErrors = 0;
+  for (const userId of userIds) {
+    const [missing, orphaned] = await Promise.all([
+      repairMissingArtistAggregates({ userId }),
+      repairOrphanedArtistAggregates({ userId }),
+    ]);
+    totalInserted += missing.inserted;
+    totalMerged += orphaned.merged;
+    totalErrors += missing.errors + orphaned.errors;
+    if (missing.errors + orphaned.errors > 0) {
+      console.warn(`${LOG}   secondary repair failed for user ${userId}`);
+    } else if (missing.inserted + orphaned.merged > 0) {
+      console.log(`${LOG}   user ${userId}: missing=${missing.inserted} orphaned=${orphaned.merged}`);
+    }
+  }
+  console.log(`${LOG} secondary repair done — missing inserted: ${totalInserted}, orphaned merged: ${totalMerged}, errors: ${totalErrors}`);
 }
 
 async function refreshTasteForRecentImports(): Promise<void> {
@@ -126,16 +163,20 @@ async function main() {
   console.log(`\n${LOG} === Step 2/6: Resolve track artist_id by name ===`);
   await resolveTrackArtists();
 
+  // Fetch the user list once; both repair steps share it.
+  const importedUsers = await getLfmImportedUsers();
+  console.log(`${LOG} ${importedUsers.length} Last.fm-imported user(s) to repair`);
+
   // 3. Back-fill artist/album/genre rows missing from logs processed before enrichment.
   //    repair_lfm_aggregates_from_logs now also has a name-join fallback for any tracks
   //    still null after the resolve step above.
   console.log(`\n${LOG} === Step 3/6: Repair missing artist/album/genre rows from logs ===`);
-  await repairLfmAggregates();
+  await repairLfmAggregates(importedUsers);
 
   // 4. Secondary repair: infer any still-missing artist rows from album aggregate rows,
   //    and merge orphaned rows left by failed canonical merges.
   console.log(`\n${LOG} === Step 4/6: Secondary repair (artist from album + orphan cleanup) ===`);
-  await repairArtistAggregates();
+  await repairArtistAggregates(importedUsers);
 
   // 5. Refresh taste identity for recently imported users
   console.log(`\n${LOG} === Step 5/6: Refresh taste identity ===`);
