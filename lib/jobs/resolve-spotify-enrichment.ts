@@ -9,7 +9,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { enrichAlbumDateFromDeezer } from "@/lib/deezer/enrich-album-date";
 import { enrichArtistImageFromDeezer } from "@/lib/deezer/enrich-artist-deezer";
 import { getLastfmArtistGenres } from "@/lib/lastfm/get-artist-genres";
-import { getLastfmTrackDuration } from "@/lib/lastfm/get-track-duration";
 import { lfmArtistId } from "@/lib/lastfm/lfm-ids";
 import { mapLastfmToSpotify } from "@/lib/lastfm/map-to-spotify";
 import { getTrack, searchSpotify } from "@/lib/spotify";
