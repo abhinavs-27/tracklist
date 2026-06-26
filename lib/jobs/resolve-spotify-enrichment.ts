@@ -1,5 +1,6 @@
 import "server-only";
 
+import { repairMissingArtistAggregates } from "@/lib/analytics/repair-artist-aggregates";
 import { mergeCanonicalArtists, mergeCanonicalTracks } from "@/lib/catalog/merge-canonical";
 import {
   findAlbumIdByArtistAndName,
@@ -189,6 +190,17 @@ export async function resolveTrackSpotifyJob(data: {
     }
 
     // ── Spotify fallback: artist_id still unknown → full identity resolution ─
+
+    // Collect users with logs for this track before merge (track_id may change after mergeCanonicalTracks)
+    const { data: affectedLogRows } = await supabase
+      .from("logs")
+      .select("user_id")
+      .eq("track_id", lfmTrackUuid)
+      .limit(500);
+    const affectedUserIds = [
+      ...new Set((affectedLogRows ?? []).map((r) => (r as { user_id: string }).user_id)),
+    ];
+
     const match = await mapLastfmToSpotify(
       data.trackName,
       data.artistName,
@@ -239,6 +251,18 @@ export async function resolveTrackSpotifyJob(data: {
       lfmArtistUuid !== spotifyArtistUuid
     ) {
       await mergeCanonicalArtists(supabase, spotifyArtistUuid, lfmArtistUuid);
+    }
+
+    // Repair artist aggregate rows for users whose logs now have a resolved artist
+    if (affectedUserIds.length > 0) {
+      for (const userId of affectedUserIds) {
+        repairMissingArtistAggregates({ userId }).catch((e) => {
+          console.warn("[resolve-track-spotify] post-enrichment repair failed", {
+            userId,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        });
+      }
     }
 
     const { error: listenErr } = await supabase

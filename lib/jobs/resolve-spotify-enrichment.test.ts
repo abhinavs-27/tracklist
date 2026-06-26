@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const albumIdForTrack = "album-uuid-1";
 
+vi.mock("@/lib/analytics/repair-artist-aggregates", () => ({
+  repairMissingArtistAggregates: vi.fn().mockResolvedValue({ inserted: 0, errors: 0 }),
+}));
+
 // Shared mock for supabase `from` — reassignable per test via mockFrom.mockImplementation
 const mockFrom = vi.fn();
 
@@ -52,6 +56,7 @@ import { searchSpotify } from "@/lib/spotify";
 import { getLastfmTrackDuration } from "@/lib/lastfm/get-track-duration";
 import { getLastfmArtistGenres } from "@/lib/lastfm/get-artist-genres";
 import { getArtistIdByExternalId, getTrackIdByExternalId } from "@/lib/catalog/entity-resolution";
+import { repairMissingArtistAggregates } from "@/lib/analytics/repair-artist-aggregates";
 
 const mockedEnrich = enrichAlbumDateFromDeezer as unknown as ReturnType<typeof vi.fn>;
 const mockedMapLastfmToSpotify = mapLastfmToSpotify as unknown as ReturnType<typeof vi.fn>;
@@ -171,5 +176,119 @@ describe("resolveTrackSpotifyJob — early-return when artist_id already resolve
       needs_spotify_enrichment: false,
       duration_ms: 180000,
     });
+  });
+});
+
+// ── Post-enrichment repair tests ──────────────────────────────────────────────
+
+describe("resolveTrackSpotifyJob — post-enrichment aggregate repair", () => {
+  it("calls repairMissingArtistAggregates for users with logs after artist_id is resolved", async () => {
+    mockedGetTrackIdByExternalId.mockResolvedValue("lfm-track-uuid");
+
+    // Spotify path: mapLastfmToSpotify returns a match
+    mockedMapLastfmToSpotify.mockResolvedValue({ trackId: "spotify-track-id" });
+
+    const { getTrack, searchSpotify: _s } = await import("@/lib/spotify");
+    const { upsertTrackFromSpotify, upsertArtistFromSpotify } = await import("@/lib/spotify-cache");
+    const { mergeCanonicalTracks, mergeCanonicalArtists } = await import("@/lib/catalog/merge-canonical");
+
+    (getTrack as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "spotify-track-id",
+      artists: [{ id: "spotify-artist-id", name: "Artist" }],
+      album: { id: "spotify-album-id", name: "Album", images: [] },
+    });
+    (upsertTrackFromSpotify as ReturnType<typeof vi.fn>).mockResolvedValue("spotify-track-uuid");
+    (upsertArtistFromSpotify as ReturnType<typeof vi.fn>).mockResolvedValue("spotify-artist-uuid");
+    (mergeCanonicalTracks as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (mergeCanonicalArtists as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    // artist_id is NULL → takes the Spotify path
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "tracks") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { artist_id: null, album_id: null },
+                error: null,
+              }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+        };
+      }
+      if (table === "logs") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({
+                data: [{ user_id: "user-a" }, { user_id: "user-b" }],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "listens") {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+      return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }) };
+    });
+
+    await resolveTrackSpotifyJob({
+      lfmSongId: "lfm:song",
+      artistName: "Artist",
+      trackName: "Track",
+      albumName: "Album",
+    });
+
+    // Allow fire-and-forget promises to settle
+    await new Promise((r) => setTimeout(r, 0));
+
+    const repairMock = repairMissingArtistAggregates as ReturnType<typeof vi.fn>;
+    expect(repairMock).toHaveBeenCalledTimes(2);
+    expect(repairMock).toHaveBeenCalledWith({ userId: "user-a" });
+    expect(repairMock).toHaveBeenCalledWith({ userId: "user-b" });
+  });
+
+  it("does NOT call repairMissingArtistAggregates on the early-return path (artist_id already set)", async () => {
+    mockedGetTrackIdByExternalId.mockResolvedValue("track-uuid");
+    mockedGetLastfmTrackDuration.mockResolvedValue(null);
+
+    // artist_id already set → early return fires
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "tracks") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { artist_id: "existing-artist-id", album_id: null },
+                error: null,
+              }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+        };
+      }
+      return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }) };
+    });
+
+    await resolveTrackSpotifyJob({
+      lfmSongId: "lfm:song",
+      artistName: "Radiohead",
+      trackName: "Creep",
+      albumName: null,
+    });
+
+    const repairMock = repairMissingArtistAggregates as ReturnType<typeof vi.fn>;
+    expect(repairMock).not.toHaveBeenCalled();
   });
 });
