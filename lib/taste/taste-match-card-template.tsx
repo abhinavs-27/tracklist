@@ -56,7 +56,6 @@ const COL = {
   zinc300: "#d4d4d8",
   zinc200: "#e4e4e7",
   zinc500: "#71717a",
-  emerald: "#6ee7b7",
 };
 
 // satori: every node with >1 child needs display:flex + explicit flexDirection.
@@ -101,7 +100,7 @@ export function TasteMatchCardTemplate({
   match: TasteMatchResponse;
   youLabel?: string;
   themLabel?: string;
-}): JSX.Element {
+}) {
   const m = buildTasteMatchCardModel(match, youLabel, themLabel);
   return (
     <div
