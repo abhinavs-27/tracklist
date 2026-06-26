@@ -61,6 +61,9 @@ export const queryKeys = {
     ["community", communityId, "tasteMatch"] as const,
   /** Similar users (`GET /api/taste/matches`). */
   tasteMatches: () => ["tasteMatches"] as const,
+  /** Viewer vs another user full taste match (`GET /api/taste-match?userB`). */
+  tasteMatch: (viewerId: string, profileId: string) =>
+    ["tasteMatch", viewerId, profileId] as const,
   /** Pending community invites for inbox (`GET /api/communities/invites`). */
   communityInvites: () => ["communityInvites"] as const,
   /** Recommended public communities (`GET /api/communities/recommended`). */
