@@ -45,14 +45,12 @@ beforeEach(() => {
 });
 
 describe("fetchArtistViewerStats", () => {
-  it("returns playCount from user_listening_aggregates all-time row", async () => {
-    // artist agg (maybeSingle)
+  it("returns playCount from user_listening_aggregates all-time row (artist has no albums)", async () => {
+    // artist agg (maybeSingle) — no albums means the album-aggs query is never reached
     fromQueues["user_listening_aggregates"] = [
       { data: { count: 42 }, error: null },
-      // album aggs (limit)
-      { data: [], error: null },
     ];
-    // artist albums list
+    // artist albums list — empty, so albumIds.length === 0 and album-aggs block is skipped
     fromQueues["albums"] = [{ data: [], error: null }];
     // tracks for firstListened
     fromQueues["tracks"] = [{ data: [], error: null }];
@@ -95,5 +93,26 @@ describe("fetchArtistViewerStats", () => {
 
     expect(result.topAlbumId).toBe("album-1");
     expect(result.topAlbumName).toBe("DAMN.");
+  });
+
+  it("returns firstListened from logs", async () => {
+    // artist agg (maybeSingle)
+    fromQueues["user_listening_aggregates"] = [
+      { data: { count: 5 }, error: null },
+      // album aggs after no albums found
+      { data: [], error: null },
+    ];
+    // artist albums list — empty, so albumIds.length === 0
+    fromQueues["albums"] = [{ data: [], error: null }];
+    // tracks — non-empty so the firstListened log-query loop runs
+    fromQueues["tracks"] = [{ data: [{ id: "track-1" }], error: null }];
+    // logs query (order + limit terminal call)
+    fromQueues["logs"] = [
+      { data: [{ listened_at: "2023-01-15T00:00:00Z" }], error: null },
+    ];
+
+    const result = await fetchArtistViewerStats("artist-1", "viewer-1");
+
+    expect(result.firstListened).toBe("2023-01-15T00:00:00Z");
   });
 });
