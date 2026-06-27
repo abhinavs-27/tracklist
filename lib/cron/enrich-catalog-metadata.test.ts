@@ -50,7 +50,7 @@ describe("runTrackOrderEnrichmentBatch", () => {
     const res = await runTrackOrderEnrichmentBatch(supabase, 25);
     expect((supabase as { rpc: ReturnType<typeof vi.fn> }).rpc).toHaveBeenCalledWith(
       "catalog_albums_needing_track_order", { p_limit: 25 });
-    expect(mTrack).toHaveBeenNthCalledWith(1, supabase, "a1", { force: true });
+    expect(mTrack).toHaveBeenNthCalledWith(1, supabase, "a1", { force: true, deezerOnly: true });
     expect(res).toEqual({ processed: 3, written: 1, noSource: 1, noMatch: 1, errored: 0 });
   });
 });

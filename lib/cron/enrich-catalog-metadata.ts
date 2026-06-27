@@ -59,7 +59,7 @@ export async function runTrackOrderEnrichmentBatch(
   if (error) throw new Error(`catalog_albums_needing_track_order: ${error.message}`);
   for (const row of (data ?? []) as { album_id: string }[]) {
     counts.processed++;
-    const result = await enrichTrackOrderForAlbum(supabase, row.album_id, { force: true });
+    const result = await enrichTrackOrderForAlbum(supabase, row.album_id, { force: true, deezerOnly: true });
     if (result === "written") counts.written++;
     else if (result === "no-source") counts.noSource++;
     else if (result === "no-match") counts.noMatch++;

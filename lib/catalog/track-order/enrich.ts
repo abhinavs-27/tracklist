@@ -29,7 +29,7 @@ async function stampChecked(supabase: SupabaseClient, albumUuid: string): Promis
 export async function enrichTrackOrderForAlbum(
   supabase: SupabaseClient,
   albumUuid: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; deezerOnly?: boolean },
 ): Promise<TrackOrderResult> {
   try {
     const { data: albumRow } = await supabase
@@ -71,7 +71,7 @@ export async function enrichTrackOrderForAlbum(
       mbid: album.mbid ?? null,
     };
 
-    const resolved = await resolveAlbumTracklist(supabase, forResolve);
+    const resolved = await resolveAlbumTracklist(supabase, forResolve, { deezerOnly: opts?.deezerOnly });
     if (!resolved) {
       await stampChecked(supabase, albumUuid);
       return "no-source";
