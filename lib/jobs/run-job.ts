@@ -87,6 +87,9 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
       case "REPAIR_LASTFM_AGGREGATES":
         await cron.runRepairLastfmAggregates(job.batch);
         break;
+      case "ENRICH_CATALOG_METADATA":
+        await cron.runEnrichCatalogMetadata({ dates: job.dates, tracks: job.tracks });
+        break;
       case "POST_IMPORT_PIPELINE": {
         const { runPostImportPipelineForUser } = await import("@/lib/jobs/post-import-pipeline");
         await runPostImportPipelineForUser(job.userId, { mode: "inline" });

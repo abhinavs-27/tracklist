@@ -152,6 +152,19 @@ Resources:
           RoleArn: !GetAtt EventBridgeRole.Arn
           Input: '{"type":"TASTE_IDENTITY_REFRESH"}'
 
+  RuleEnrichCatalogMetadata:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-enrich-catalog-metadata
+      Description: Weekly Monday 07:00 UTC — ENRICH_CATALOG_METADATA
+      ScheduleExpression: cron(0 7 ? * MON *)
+      State: ENABLED
+      Targets:
+        - Id: SqsEnrichCatalog
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"ENRICH_CATALOG_METADATA"}'
+
   RuleCommunityFeatureWeekly:
     Type: AWS::Events::Rule
     Properties:
