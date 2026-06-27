@@ -51,13 +51,23 @@ export async function updateListeningAggregates(options?: {
   // Filter out rows already processed by write-time inline aggregates so the
   // drain doesn't double-count them. Advance watermark past the full scanned
   // window even when all rows are filtered (prevents watermark getting stuck).
-  const { data: ingestedData } = await admin
-    .from("user_listening_aggregate_ingest")
-    .select("log_id")
-    .in("log_id", rows.map((r) => r.id));
-  const ingestedIds = new Set(
-    (ingestedData ?? []).map((r: { log_id: string }) => r.log_id),
-  );
+  // Chunk at 200 UUIDs to avoid PostgREST ~8KB URL limit (~200 UUIDs per request).
+  const FILTER_CHUNK = 200;
+  const ingestedIds = new Set<string>();
+  for (let i = 0; i < rows.length; i += FILTER_CHUNK) {
+    const chunk = rows.slice(i, i + FILTER_CHUNK);
+    const { data: chunkData, error: filterErr } = await admin
+      .from("user_listening_aggregate_ingest")
+      .select("log_id")
+      .in("log_id", chunk.map((r) => r.id));
+    if (filterErr) {
+      // Fail safe: abort the drain rather than risk double-counting aggregates.
+      console.error("[analytics] ingest filter lookup failed", filterErr);
+      log("ingest_filter_failed", { message: filterErr.message });
+      return { processed: 0, errors: 1 };
+    }
+    for (const r of chunkData ?? []) ingestedIds.add((r as { log_id: string }).log_id);
+  }
   const rowsToProcess = rows.filter((r) => !ingestedIds.has(r.id));
 
   log("fetched_pending_logs", { scanned: rows.length, toProcess: rowsToProcess.length });
