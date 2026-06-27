@@ -40,7 +40,11 @@ export async function writeInlineAggregates(
     const maps = accumulateListeningAggregateDeltas(rows, ctx, {
       includeTrackBumps: true,
     });
-    await applyListeningAggregateDeltaMaps(admin, maps, () => {});
+    const { errors } = await applyListeningAggregateDeltaMaps(admin, maps, () => {});
+    if (errors > 0) {
+      console.warn("[writeInlineAggregates] aggregate apply had errors, skipping ingest mark");
+      return;
+    }
 
     // Mark AFTER aggregate write — if aggregate fails, drain can recover
     const { error } = await admin
