@@ -156,13 +156,16 @@ export const POST = withHandler(
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
     scheduleTrackEnrichmentBatch(idsToWarm);
 
+    const spotifyAdmin = createSupabaseAdminClient();
+
     if (insertedLogs?.length) {
-      const syncAdmin = createSupabaseAdminClient();
+      const syncLogs = insertedLogs as { id: string; track_id: string; listened_at: string }[];
+      const insertedTrackIds = [...new Set(syncLogs.map((r) => r.track_id))];
       (async () => {
-        const { data: trackMeta } = await syncAdmin
+        const { data: trackMeta } = await spotifyAdmin
           .from("tracks")
           .select("id, artist_id, album_id")
-          .in("id", idsToWarm);
+          .in("id", insertedTrackIds);
         const trackCatalog = new Map<string, { artistId: string | null; albumId: string | null }>(
           (trackMeta ?? []).map(
             (t: { id: string; artist_id: string | null; album_id: string | null }) => [
@@ -175,22 +178,19 @@ export const POST = withHandler(
           "@/lib/analytics/write-inline-aggregates"
         );
         await writeInlineAggregates(
-          (insertedLogs as { id: string; track_id: string; listened_at: string }[]).map(
-            (r) => ({
-              id: r.id,
-              user_id: me!.id,
-              track_id: r.track_id,
-              listened_at: r.listened_at,
-            }),
-          ),
+          syncLogs.map((r) => ({
+            id: r.id,
+            user_id: me!.id,
+            track_id: r.track_id,
+            listened_at: r.listened_at,
+          })),
           trackCatalog,
         );
-      })().catch((e) => console.warn("[spotify-sync] inline aggregates failed", e));
+      })().catch((e) => console.warn("[spotify-ingest] inline aggregates failed", e));
     }
 
     try {
-      const admin = createSupabaseAdminClient();
-      scheduleEnrichArtistGenresForTrackIds(admin, idsToWarm);
+      scheduleEnrichArtistGenresForTrackIds(spotifyAdmin, idsToWarm);
     } catch (e) {
       if (process.env.NODE_ENV === "development") {
         console.warn("[spotify-sync] Last.fm genre enrich schedule failed", e);
