@@ -63,7 +63,12 @@ describe("writeInlineAggregates", () => {
     await writeInlineAggregates([LOG_A], CATALOG);
 
     expect(mockAccumulate).toHaveBeenCalledOnce();
-    const [rows, ctx, opts] = mockAccumulate.mock.calls[0];
+    const callArgs = mockAccumulate.mock.calls[0] as unknown as [
+      Array<{ track_id: string; artist_id: string | null; album_id: string | null }>,
+      { songByTrack: Map<string, unknown> },
+      { includeTrackBumps: boolean },
+    ];
+    const [rows, ctx, opts] = callArgs;
     expect(rows).toHaveLength(1);
     expect(rows[0].track_id).toBe("track-uuid-1");
     expect(rows[0].artist_id).toBe("artist-uuid-1");
