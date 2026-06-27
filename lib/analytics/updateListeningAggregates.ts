@@ -14,7 +14,7 @@ import {
  */
 export async function updateListeningAggregates(options?: {
   batchSize?: number;
-}): Promise<{ processed: number; errors: number }> {
+}): Promise<{ processed: number; scanned: number; errors: number }> {
   const admin = createSupabaseAdminClient();
   const batchSize = Math.min(
     10000,
@@ -38,14 +38,14 @@ export async function updateListeningAggregates(options?: {
   if (logErr) {
     console.error("[analytics] get_pending_logs_for_aggregates", logErr);
     log("fetch_logs_failed", { message: logErr.message });
-    return { processed: 0, errors: 1 };
+    return { processed: 0, scanned: 0, errors: 1 };
   }
 
   const rows = (logs ?? []) as AggregateLogRow[];
 
   if (!rows.length) {
     log("done", { pendingLogs: 0, processed: 0 });
-    return { processed: 0, errors: 0 };
+    return { processed: 0, scanned: 0, errors: 0 };
   }
 
   // Filter out rows already processed by write-time inline aggregates so the
@@ -65,7 +65,7 @@ export async function updateListeningAggregates(options?: {
       // Fail safe: abort the drain rather than risk double-counting aggregates.
       console.error("[analytics] ingest filter lookup failed", filterErr);
       log("ingest_filter_failed", { message: filterErr.message });
-      return { processed: 0, errors: 1 };
+      return { processed: 0, scanned: rows.length, errors: 1 };
     }
     for (const r of chunkData ?? []) ingestedIds.add((r as { log_id: string }).log_id);
   }
@@ -90,7 +90,7 @@ export async function updateListeningAggregates(options?: {
         log("watermark_advanced", { created_at: lastScanned.created_at, log_id: lastScanned.id });
       }
     }
-    return { processed: 0, errors: 0 };
+    return { processed: 0, scanned: rows.length, errors: 0 };
   }
 
   const ctx = await loadAggregateCatalogForLogs(admin, rowsToProcess);
@@ -113,22 +113,19 @@ export async function updateListeningAggregates(options?: {
     log,
   );
   if (applyErr) {
-    return { processed: 0, errors: applyErr };
+    return { processed: 0, scanned: rows.length, errors: applyErr };
   }
 
+  // Upsert ingest marks in a single POST (body size, not URL length, is the limit here).
   const ingested: { log_id: string }[] = rowsToProcess.map((r) => ({ log_id: r.id }));
   log("ingest_insert_start", { logRows: ingested.length });
-  const INGEST_CHUNK = FILTER_CHUNK; // same URL-size budget
-  for (let i = 0; i < ingested.length; i += INGEST_CHUNK) {
-    const chunk = ingested.slice(i, i + INGEST_CHUNK);
-    const { error: insErr } = await admin
-      .from("user_listening_aggregate_ingest")
-      .upsert(chunk, { onConflict: "log_id", ignoreDuplicates: true });
-    if (insErr) {
-      console.error("[analytics] ingest insert failed", insErr);
-      log("ingest_insert_failed", { message: insErr.message });
-      return { processed: 0, errors: 1 };
-    }
+  const { error: insErr } = await admin
+    .from("user_listening_aggregate_ingest")
+    .upsert(ingested, { onConflict: "log_id", ignoreDuplicates: true });
+  if (insErr) {
+    console.error("[analytics] ingest insert failed", insErr);
+    log("ingest_insert_failed", { message: insErr.message });
+    return { processed: 0, scanned: rows.length, errors: 1 };
   }
 
   // Advance the watermark cursor to the last row in the full scanned window
@@ -160,9 +157,9 @@ export async function updateListeningAggregates(options?: {
 
   log("done", {
     processed: rowsToProcess.length,
+    scanned: rows.length,
     errors: 0,
-    pendingLogs: rows.length,
   });
 
-  return { processed: rowsToProcess.length, errors: 0 };
+  return { processed: rowsToProcess.length, scanned: rows.length, errors: 0 };
 }

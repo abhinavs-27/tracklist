@@ -96,6 +96,12 @@ describe("writeInlineAggregates", () => {
     await expect(writeInlineAggregates([LOG_A], CATALOG)).resolves.toBeUndefined();
   });
 
+  it("skips ingest mark when applyListeningAggregateDeltaMaps returns errors > 0", async () => {
+    mockApply.mockResolvedValueOnce({ errors: 1 });
+    await writeInlineAggregates([LOG_A], CATALOG);
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
   it("does nothing and skips DB calls when logs array is empty", async () => {
     await writeInlineAggregates([], CATALOG);
     expect(mockAccumulate).not.toHaveBeenCalled();

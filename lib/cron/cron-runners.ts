@@ -511,14 +511,13 @@ export async function runListeningAggregates(options?: {
       totalErrors += result.errors;
       rounds++;
 
-      if (result.processed === 0) break; // drained
+      if (result.scanned === 0) break; // truly drained — no more logs in range
+      if (result.errors > 0) break; // stop on error before any repair
 
       // After each round, repair artist gaps created when album logs were
       // processed before Spotify enrichment set tracks.artist_id.
       const repair = await repairMissingArtistAggregates();
       totalRepairInserted += repair.inserted;
-
-      if (result.errors > 0) break; // stop on error
     }
 
     void run.finish({
