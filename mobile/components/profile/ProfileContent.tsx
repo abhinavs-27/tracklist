@@ -31,6 +31,7 @@ import { CreateListModal } from "@/components/list/CreateListModal";
 import { LastfmSection } from "./LastfmSection";
 import { TasteIdentity } from "./TasteIdentity";
 import { SimilarUsersSection } from "./SimilarUsersSection";
+import { TasteMatchSection } from "./TasteMatchSection";
 import { ProfileReviewsTab } from "./ProfileReviewsTab";
 
 type Tab = "overview" | "lists" | "reviews" | "settings";
@@ -295,6 +296,13 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
   const tabContent = tab === "overview" ? (
     <View style={{ paddingHorizontal: 16, gap: 20 }}>
       {isOwn ? <SimilarUsersSection /> : null}
+      {!isOwn && viewerId ? (
+        <TasteMatchSection
+          profileUserId={user.id}
+          viewerId={viewerId}
+          username={user.username}
+        />
+      ) : null}
       <View>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>Music identity</Text>
