@@ -52,6 +52,7 @@ export async function updateListeningAggregates(options?: {
   // drain doesn't double-count them. Advance watermark past the full scanned
   // window even when all rows are filtered (prevents watermark getting stuck).
   // Chunk at 200 UUIDs to avoid PostgREST ~8KB URL limit (~200 UUIDs per request).
+  // Stay under PostgREST's ~8KB URL limit for .in() queries (~36 chars per UUID).
   const FILTER_CHUNK = 200;
   const ingestedIds = new Set<string>();
   for (let i = 0; i < rows.length; i += FILTER_CHUNK) {
@@ -117,7 +118,7 @@ export async function updateListeningAggregates(options?: {
 
   const ingested: { log_id: string }[] = rowsToProcess.map((r) => ({ log_id: r.id }));
   log("ingest_insert_start", { logRows: ingested.length });
-  const INGEST_CHUNK = 200;
+  const INGEST_CHUNK = FILTER_CHUNK; // same URL-size budget
   for (let i = 0; i < ingested.length; i += INGEST_CHUNK) {
     const chunk = ingested.slice(i, i + INGEST_CHUNK);
     const { error: insErr } = await admin

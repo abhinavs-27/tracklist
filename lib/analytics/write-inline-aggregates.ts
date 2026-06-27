@@ -32,6 +32,9 @@ export async function writeInlineAggregates(
       user_id: l.user_id,
       track_id: l.track_id,
       listened_at: l.listened_at,
+      // AggregateLogRow.created_at drives the drain watermark, but the inline
+      // path never advances the watermark — only the drain does. Using listened_at
+      // here is safe; the drain reads created_at from the DB directly.
       created_at: l.listened_at,
       album_id: trackCatalog.get(l.track_id)?.albumId ?? null,
       artist_id: trackCatalog.get(l.track_id)?.artistId ?? null,
