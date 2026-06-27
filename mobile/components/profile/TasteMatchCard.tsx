@@ -1,5 +1,4 @@
 // mobile/components/profile/TasteMatchCard.tsx
-// @ts-ignore — @types/react resolution breaks under this tsconfig's paths wildcard; pre-existing project-wide issue
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
