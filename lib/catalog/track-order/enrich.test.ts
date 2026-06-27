@@ -137,4 +137,28 @@ describe("enrichTrackOrderForAlbum", () => {
     expect(result).toBe("error");
     expect(albumUpdates).toHaveLength(0); // marker NOT stamped
   });
+
+  it("re-processes an already-checked album when force is true", async () => {
+    mResolve.mockResolvedValue({ source: "deezer", tracks: [{ title: "Song", trackNumber: 3, discNumber: 1 }] });
+    const { supabase, trackUpdates } = makeSupabase({
+      albumRow: { name: "X", artist_id: "a", track_order_checked_at: "2026-01-01T00:00:00Z" },
+      artistName: "Artist",
+      trackRows: [{ id: "t1", name: "Song", track_number: null }],
+    });
+    const result = await enrichTrackOrderForAlbum(supabase as never, "alb-1", { force: true });
+    expect(result).toBe("written");
+    expect(mResolve).toHaveBeenCalled(); // did NOT short-circuit
+    expect(trackUpdates).toEqual([{ payload: { track_number: 3, disc_number: 1 }, id: "t1" }]);
+  });
+
+  it("still short-circuits an already-checked album without force", async () => {
+    const { supabase } = makeSupabase({
+      albumRow: { name: "X", artist_id: "a", track_order_checked_at: "2026-01-01T00:00:00Z" },
+      artistName: "Artist",
+      trackRows: [{ id: "t1", name: "Song", track_number: null }],
+    });
+    const result = await enrichTrackOrderForAlbum(supabase as never, "alb-1");
+    expect(result).toBe("skipped-checked");
+    expect(mResolve).not.toHaveBeenCalled();
+  });
 });
