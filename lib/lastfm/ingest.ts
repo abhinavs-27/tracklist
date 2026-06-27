@@ -25,6 +25,7 @@ import {
 } from "@/lib/catalog/entity-resolution";
 
 import { lfmAlbumId, lfmArtistId, lfmSongId } from "./lfm-ids";
+import { writeInlineAggregates } from "@/lib/analytics/write-inline-aggregates";
 
 export type IngestLastfmResult = {
   /** New rows inserted into `logs`. */
@@ -417,6 +418,8 @@ export async function ingestLastfmScrobbles(
   const newTrackLinks: { track_id: string; source: "lastfm"; external_id: string }[] = [];
   const newAlbumLinks: { album_id: string; source: "lastfm"; external_id: string }[] = [];
 
+  const trackCatalog = new Map<string, { artistId: string | null; albumId: string | null }>();
+
   const tLoop0 = Date.now();
   for (const p of pending) {
     const { scrobble, songId, artistId, listenedAt } = p;
@@ -578,6 +581,7 @@ export async function ingestLastfmScrobbles(
       listened_at: listenedAt,
     });
     ingestedForLogs.push({ listenedAt, trackUuid });
+    trackCatalog.set(trackUuid, { artistId: artistUuid ?? null, albumId: albumUuid ?? null });
 
     /** Track job maps Last.fm → Spotify and links catalog to real Spotify ids (see resolveTrackSpotifyJob). */
     if (
@@ -657,7 +661,17 @@ export async function ingestLastfmScrobbles(
       .upsert(chunk, { onConflict: "user_id,track_id,listened_at", ignoreDuplicates: true })
       .select("id, track_id, listened_at");
     if (error) { logErr = error; break; }
-    if (data) inserted.push(...data);
+    if (data) {
+      inserted.push(...data);
+      const chunkLogs = (data as { id: string; track_id: string; listened_at: string }[]).map(
+        (r) => ({ id: r.id, user_id: userId, track_id: r.track_id, listened_at: r.listened_at }),
+      );
+      if (chunkLogs.length > 0) {
+        writeInlineAggregates(chunkLogs, trackCatalog).catch(
+          (e) => console.warn("[lastfm ingest] inline aggregates failed", e),
+        );
+      }
+    }
   }
 
   const logsUpsertMs = Date.now() - tLogs0;

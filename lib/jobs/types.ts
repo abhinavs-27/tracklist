@@ -35,6 +35,7 @@ export type CronJobMessage =
   | { type: "DRAIN_ENRICH_BACKLOG" }
   | { type: "SPOTIFY_ENRICHMENT_RETRY"; batchSongs?: number; batchArtists?: number }
   | { type: "ARCHIVE_OLD_LOGS"; cutoff_days?: number }
-  | { type: "POST_IMPORT_PIPELINE"; userId: string };
+  | { type: "POST_IMPORT_PIPELINE"; userId: string }
+  | { type: "ENRICH_CATALOG_METADATA"; dates?: number; tracks?: number };
 
 export type JobMessage = BillboardJobMessage | CronJobMessage;

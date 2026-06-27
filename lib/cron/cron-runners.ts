@@ -16,6 +16,7 @@ import {
   repairOrphanedArtistAggregates,
 } from "@/lib/analytics/repair-artist-aggregates";
 import { runUpgradeLastfmAlbumCovers as upgradeLastfmAlbumCoversCatalog } from "@/lib/catalog/upgrade-lastfm-album-covers";
+import { runDateEnrichmentBatch, runTrackOrderEnrichmentBatch } from "@/lib/cron/enrich-catalog-metadata";
 
 const LOG = "[cron-runners]";
 
@@ -866,4 +867,18 @@ export async function runSpotifyEnrichmentRetry(
     void run.finish({ status: "error" });
     throw e;
   }
+}
+
+/** Weekly catalog enrichment (Deezer-only): fill missing album dates + track numbers. */
+export async function runEnrichCatalogMetadata(opts?: {
+  dates?: number;
+  tracks?: number;
+}): Promise<{
+  dates: Awaited<ReturnType<typeof runDateEnrichmentBatch>>;
+  tracks: Awaited<ReturnType<typeof runTrackOrderEnrichmentBatch>>;
+}> {
+  const supabase = createSupabaseAdminClient();
+  const dates = await runDateEnrichmentBatch(supabase, opts?.dates ?? 150);
+  const tracks = await runTrackOrderEnrichmentBatch(supabase, opts?.tracks ?? 150);
+  return { dates, tracks };
 }

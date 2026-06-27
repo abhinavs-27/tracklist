@@ -144,6 +144,14 @@ export const POST = withHandler(
         .catch((e) => {
           console.warn("[logs] community-feed-insert import error", e);
         }),
+      import("@/lib/analytics/write-inline-aggregates")
+        .then(({ writeInlineAggregates }) =>
+          writeInlineAggregates(
+            [{ id: data.id as string, user_id: me!.id, track_id: trackId, listened_at: listenedAt }],
+            new Map([[trackId, { artistId, albumId }]]),
+          )
+        )
+        .catch((e) => console.warn("[logs] inline aggregates failed", e)),
     ]);
     console.log("[logs] manual-log-created", {
       userId: me!.id,

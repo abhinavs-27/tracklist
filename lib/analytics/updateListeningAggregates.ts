@@ -48,19 +48,62 @@ export async function updateListeningAggregates(options?: {
     return { processed: 0, errors: 0 };
   }
 
-  log("fetched_pending_logs", { count: rows.length });
+  // Filter out rows already processed by write-time inline aggregates so the
+  // drain doesn't double-count them. Advance watermark past the full scanned
+  // window even when all rows are filtered (prevents watermark getting stuck).
+  // Chunk at 200 UUIDs to avoid PostgREST ~8KB URL limit (~200 UUIDs per request).
+  // Stay under PostgREST's ~8KB URL limit for .in() queries (~36 chars per UUID).
+  const FILTER_CHUNK = 200;
+  const ingestedIds = new Set<string>();
+  for (let i = 0; i < rows.length; i += FILTER_CHUNK) {
+    const chunk = rows.slice(i, i + FILTER_CHUNK);
+    const { data: chunkData, error: filterErr } = await admin
+      .from("user_listening_aggregate_ingest")
+      .select("log_id")
+      .in("log_id", chunk.map((r) => r.id));
+    if (filterErr) {
+      // Fail safe: abort the drain rather than risk double-counting aggregates.
+      console.error("[analytics] ingest filter lookup failed", filterErr);
+      log("ingest_filter_failed", { message: filterErr.message });
+      return { processed: 0, errors: 1 };
+    }
+    for (const r of chunkData ?? []) ingestedIds.add((r as { log_id: string }).log_id);
+  }
+  const rowsToProcess = rows.filter((r) => !ingestedIds.has(r.id));
 
-  const ctx = await loadAggregateCatalogForLogs(admin, rows);
+  log("fetched_pending_logs", { scanned: rows.length, toProcess: rowsToProcess.length });
+
+  if (!rowsToProcess.length) {
+    // All logs in this window were inline-processed; advance watermark past them.
+    log("all_inline_processed", { scanned: rows.length });
+    const lastScanned = rows[rows.length - 1];
+    if (lastScanned) {
+      const { error: wmErr } = await admin.rpc("advance_aggregate_ingest_watermark", {
+        p_listened_at: lastScanned.listened_at,
+        p_log_id: lastScanned.id,
+        p_created_at: lastScanned.created_at,
+      });
+      if (wmErr) {
+        console.error("[analytics] advance_aggregate_ingest_watermark (inline skip)", wmErr);
+        log("watermark_advance_failed", { message: wmErr.message });
+      } else {
+        log("watermark_advanced", { created_at: lastScanned.created_at, log_id: lastScanned.id });
+      }
+    }
+    return { processed: 0, errors: 0 };
+  }
+
+  const ctx = await loadAggregateCatalogForLogs(admin, rowsToProcess);
 
   log("loaded_related_rows", {
     distinctTracks: [
-      ...new Set(rows.map((r) => r.track_id).filter(Boolean) as string[]),
+      ...new Set(rowsToProcess.map((r) => r.track_id).filter(Boolean) as string[]),
     ].length,
     distinctAlbums: ctx.albumById.size,
     distinctArtists: ctx.artistById.size,
   });
 
-  const maps = accumulateListeningAggregateDeltas(rows, ctx, {
+  const maps = accumulateListeningAggregateDeltas(rowsToProcess, ctx, {
     includeTrackBumps: true,
   });
 
@@ -73,9 +116,9 @@ export async function updateListeningAggregates(options?: {
     return { processed: 0, errors: applyErr };
   }
 
-  const ingested: { log_id: string }[] = rows.map((r) => ({ log_id: r.id }));
+  const ingested: { log_id: string }[] = rowsToProcess.map((r) => ({ log_id: r.id }));
   log("ingest_insert_start", { logRows: ingested.length });
-  const INGEST_CHUNK = 200;
+  const INGEST_CHUNK = FILTER_CHUNK; // same URL-size budget
   for (let i = 0; i < ingested.length; i += INGEST_CHUNK) {
     const chunk = ingested.slice(i, i + INGEST_CHUNK);
     const { error: insErr } = await admin
@@ -88,8 +131,9 @@ export async function updateListeningAggregates(options?: {
     }
   }
 
-  // Advance the watermark cursor to the last processed row so the next
-  // invocation uses a fast range scan instead of a full anti-join.
+  // Advance the watermark cursor to the last row in the full scanned window
+  // (not just rowsToProcess) so the next invocation uses a fast range scan
+  // instead of a full anti-join, and doesn't re-scan inline-skipped logs.
   const lastRow = rows[rows.length - 1];
   if (lastRow) {
     const { error: wmErr } = await admin.rpc(
@@ -115,10 +159,10 @@ export async function updateListeningAggregates(options?: {
   }
 
   log("done", {
-    processed: rows.length,
+    processed: rowsToProcess.length,
     errors: 0,
     pendingLogs: rows.length,
   });
 
-  return { processed: rows.length, errors: 0 };
+  return { processed: rowsToProcess.length, errors: 0 };
 }

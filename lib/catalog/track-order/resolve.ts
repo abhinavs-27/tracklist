@@ -38,6 +38,7 @@ async function fetchDeezerExternalId(
 export async function resolveAlbumTracklist(
   supabase: SupabaseClient,
   album: AlbumForTrackOrder,
+  opts?: { deezerOnly?: boolean },
 ): Promise<ResolvedTracklist | null> {
   // 1. Stored Deezer id (album_id -> external_id)
   const deezerExternalId = await fetchDeezerExternalId(supabase, album.id);
@@ -54,8 +55,8 @@ export async function resolveAlbumTracklist(
     if (tracks.length > 0) return { source: "deezer", tracks };
   }
 
-  // 3. MusicBrainz fallback (only with a release-group mbid)
-  if (album.mbid) {
+  // 3. MusicBrainz fallback (only with a release-group mbid, and not in Deezer-only mode)
+  if (album.mbid && !opts?.deezerOnly) {
     const tracks = await getMusicBrainzTracklist(album.artistName, album.name, album.mbid);
     if (tracks.length > 0) return { source: "musicbrainz", tracks };
   }

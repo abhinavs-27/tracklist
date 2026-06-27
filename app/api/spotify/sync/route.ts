@@ -156,6 +156,38 @@ export const POST = withHandler(
     const idsToWarm = [...new Set(toInsert.map((u) => u.track_id))];
     scheduleTrackEnrichmentBatch(idsToWarm);
 
+    if (insertedLogs?.length) {
+      const syncAdmin = createSupabaseAdminClient();
+      (async () => {
+        const { data: trackMeta } = await syncAdmin
+          .from("tracks")
+          .select("id, artist_id, album_id")
+          .in("id", idsToWarm);
+        const trackCatalog = new Map<string, { artistId: string | null; albumId: string | null }>(
+          (trackMeta ?? []).map(
+            (t: { id: string; artist_id: string | null; album_id: string | null }) => [
+              t.id,
+              { artistId: t.artist_id, albumId: t.album_id },
+            ],
+          ),
+        );
+        const { writeInlineAggregates } = await import(
+          "@/lib/analytics/write-inline-aggregates"
+        );
+        await writeInlineAggregates(
+          (insertedLogs as { id: string; track_id: string; listened_at: string }[]).map(
+            (r) => ({
+              id: r.id,
+              user_id: me!.id,
+              track_id: r.track_id,
+              listened_at: r.listened_at,
+            }),
+          ),
+          trackCatalog,
+        );
+      })().catch((e) => console.warn("[spotify-sync] inline aggregates failed", e));
+    }
+
     try {
       const admin = createSupabaseAdminClient();
       scheduleEnrichArtistGenresForTrackIds(admin, idsToWarm);

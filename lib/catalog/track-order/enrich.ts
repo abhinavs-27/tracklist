@@ -29,6 +29,7 @@ async function stampChecked(supabase: SupabaseClient, albumUuid: string): Promis
 export async function enrichTrackOrderForAlbum(
   supabase: SupabaseClient,
   albumUuid: string,
+  opts?: { force?: boolean; deezerOnly?: boolean },
 ): Promise<TrackOrderResult> {
   try {
     const { data: albumRow } = await supabase
@@ -40,7 +41,7 @@ export async function enrichTrackOrderForAlbum(
       | { name: string; artist_id: string | null; mbid: string | null; track_order_checked_at: string | null }
       | null;
     if (!album) return "error";
-    if (album.track_order_checked_at) return "skipped-checked";
+    if (album.track_order_checked_at && !opts?.force) return "skipped-checked";
 
     const { data: trackData } = await supabase
       .from("tracks")
@@ -70,7 +71,7 @@ export async function enrichTrackOrderForAlbum(
       mbid: album.mbid ?? null,
     };
 
-    const resolved = await resolveAlbumTracklist(supabase, forResolve);
+    const resolved = await resolveAlbumTracklist(supabase, forResolve, { deezerOnly: opts?.deezerOnly });
     if (!resolved) {
       await stampChecked(supabase, albumUuid);
       return "no-source";

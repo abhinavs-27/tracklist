@@ -96,6 +96,12 @@ export function parseCronJob(body: string): CronJobMessage {
         type: "ARCHIVE_OLD_LOGS" as const,
         cutoff_days: typeof o.cutoff_days === "number" ? o.cutoff_days : undefined,
       };
+    case "ENRICH_CATALOG_METADATA":
+      return {
+        type: "ENRICH_CATALOG_METADATA" as const,
+        dates: typeof o.dates === "number" ? o.dates : undefined,
+        tracks: typeof o.tracks === "number" ? o.tracks : undefined,
+      };
     default:
       throw new Error(`Unknown cron job type: ${t}`);
   }

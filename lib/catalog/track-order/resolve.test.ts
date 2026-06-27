@@ -72,6 +72,13 @@ describe("resolveAlbumTracklist", () => {
     expect(out).toBeNull();
   });
 
+  it("skips MusicBrainz when deezerOnly is set, even with an mbid", async () => {
+    mMatch.mockResolvedValue(null);
+    const out = await resolveAlbumTracklist(makeSupa(null), { ...album, mbid: "rg-9" }, { deezerOnly: true });
+    expect(mMbTracks).not.toHaveBeenCalled();
+    expect(out).toBeNull();
+  });
+
   it("returns null when a Deezer id yields an empty tracklist and no mbid", async () => {
     mDzTracks.mockResolvedValue([]);
     const out = await resolveAlbumTracklist(makeSupa("7"), album);
