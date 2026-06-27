@@ -11,7 +11,7 @@ type Sort = "popular" | "topRated" | "mostFavorited";
 type Era = "all" | "2020s" | "2010s" | "2000s" | "1990s" | "1980s" | "1970s" | "older" | "custom";
 
 function parseEntity(v?: string): Entity {
-  return v === "track" ? "track" : "album";
+  return v === "album" ? "album" : "track";
 }
 
 function parseSort(v?: string): Sort {

@@ -5,6 +5,7 @@ import {
 } from "@/lib/spotify-cache";
 import { getTrendingEntitiesCached } from "@/lib/discover-cache";
 import { getLeaderboard, type LeaderboardEntry } from "@/lib/queries";
+import { getLeaderboardPageFromPrecomputed } from "@/lib/precomputed-cache-read";
 import {
   collectTrackIdsNeedingEnrichment,
   scheduleExploreTrackEnrichment,
@@ -66,8 +67,13 @@ export async function getExploreLeaderboardPayload(): Promise<{
   leaderboard: LeaderboardEntry[];
 }> {
   const t = Date.now();
+  const fromCache = await getLeaderboardPageFromPrecomputed("popular", "song", 8, 0);
+  if (fromCache) {
+    exploreLog("db getLeaderboard (precomputed cache)", Date.now() - t);
+    return { leaderboard: fromCache.items };
+  }
   const leaderboardTop = await getLeaderboard("popular", {}, "song", 8);
-  exploreLog("db getLeaderboard", Date.now() - t);
+  exploreLog("db getLeaderboard (live fallback)", Date.now() - t);
   return { leaderboard: leaderboardTop };
 }
 

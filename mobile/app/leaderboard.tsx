@@ -244,7 +244,8 @@ export default function LeaderboardScreen() {
 
   const [type, setType] = useState<LeaderboardTypeInput>(() => {
     const p = firstParam(params.type as string | string[] | undefined);
-    return p === "songs" ? "songs" : "albums";
+    if (p === "songs" || p === "albums") return p;
+    return "songs";
   });
   const [metric, setMetric] = useState<LeaderboardMetricInput>(() => {
     const p = firstParam(params.metric as string | string[] | undefined);
