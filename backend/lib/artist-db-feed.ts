@@ -172,41 +172,66 @@ export async function fetchArtistViewerStats(
 ): Promise<ArtistViewerStats> {
   const empty: ArtistViewerStats = { playCount: 0, topAlbumName: null, topAlbumId: null, firstListened: null };
   try {
-    const { data: trackRows } = await supabase
-      .from("tracks").select("id, album_id").eq("artist_id", canonicalArtistId).limit(2000);
-    const tracks = (trackRows ?? []) as { id: string; album_id: string | null }[];
-    if (!tracks.length) return empty;
+    // Play count from aggregates — accurate even when tracks.artist_id is NULL
+    const { data: artistAgg } = await supabase
+      .from("user_listening_aggregates")
+      .select("count")
+      .eq("user_id", viewerId)
+      .eq("entity_type", "artist")
+      .eq("entity_id", canonicalArtistId)
+      .is("week_start", null)
+      .maybeSingle();
 
-    const trackToAlbum = new Map(tracks.map((t) => [t.id, t.album_id]));
-    const CHUNK = 200;
-    const trackIds = tracks.map((t) => t.id);
+    const playCount = (artistAgg as { count?: number } | null)?.count ?? 0;
+    if (!playCount) return empty;
 
-    let totalCount = 0;
-    const albumCounts = new Map<string, number>();
-    let firstListened: string | null = null;
+    // Top album from album aggregates — accurate for same reason
+    const { data: albumRows } = await supabase
+      .from("albums")
+      .select("id")
+      .eq("artist_id", canonicalArtistId)
+      .limit(200);
 
-    for (let i = 0; i < trackIds.length; i += CHUNK) {
-      const chunk = trackIds.slice(i, i + CHUNK);
-      const { data: logRows } = await supabase
-        .from("logs").select("track_id, listened_at").eq("user_id", viewerId).in("track_id", chunk).limit(5000);
-      for (const row of (logRows ?? []) as { track_id: string; listened_at: string }[]) {
-        totalCount++;
-        const aid = trackToAlbum.get(row.track_id);
-        if (aid) albumCounts.set(aid, (albumCounts.get(aid) ?? 0) + 1);
-        if (!firstListened || row.listened_at < firstListened) firstListened = row.listened_at;
+    const albumIds = (albumRows ?? []).map((a) => (a as { id: string }).id);
+    let topAlbumId: string | null = null;
+    let topAlbumName: string | null = null;
+
+    if (albumIds.length) {
+      const { data: albumAggs } = await supabase
+        .from("user_listening_aggregates")
+        .select("entity_id, count")
+        .eq("user_id", viewerId)
+        .eq("entity_type", "album")
+        .in("entity_id", albumIds)
+        .is("week_start", null)
+        .order("count", { ascending: false })
+        .limit(1);
+
+      topAlbumId = (albumAggs as { entity_id: string; count: number }[] | null)?.[0]?.entity_id ?? null;
+      if (topAlbumId) {
+        const { data: albumRow } = await supabase.from("albums").select("name").eq("id", topAlbumId).maybeSingle();
+        topAlbumName = (albumRow as { name?: string } | null)?.name ?? null;
       }
     }
 
-    if (!totalCount) return empty;
-
-    const topAlbumId = [...albumCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-    let topAlbumName: string | null = null;
-    if (topAlbumId) {
-      const { data: albumRow } = await supabase.from("albums").select("name").eq("id", topAlbumId).maybeSingle();
-      topAlbumName = (albumRow as { name?: string } | null)?.name ?? null;
+    // First listened from logs (aggregates don't store timestamps)
+    const { data: trackRows } = await supabase
+      .from("tracks").select("id").eq("artist_id", canonicalArtistId).limit(2000);
+    const trackIds = (trackRows ?? []).map((t) => (t as { id: string }).id);
+    let firstListened: string | null = null;
+    if (trackIds.length) {
+      const CHUNK = 200;
+      for (let i = 0; i < trackIds.length; i += CHUNK) {
+        const chunk = trackIds.slice(i, i + CHUNK);
+        const { data: logRows } = await supabase
+          .from("logs").select("listened_at").eq("user_id", viewerId).in("track_id", chunk)
+          .order("listened_at", { ascending: true }).limit(1);
+        const date = (logRows as { listened_at?: string }[] | null)?.[0]?.listened_at;
+        if (date && (!firstListened || date < firstListened)) firstListened = date;
+      }
     }
 
-    return { playCount: totalCount, topAlbumName, topAlbumId, firstListened };
+    return { playCount, topAlbumName, topAlbumId, firstListened };
   } catch { return empty; }
 }
 
@@ -352,24 +377,22 @@ export async function fetchArtistFriendLeaderboard(
   canonicalArtistId: string,
 ): Promise<ArtistLeaderboardEntry[]> {
   try {
-    const { data: trackRows } = await supabase
-      .from("tracks").select("id").eq("artist_id", canonicalArtistId).limit(2000);
-    const trackIds = (trackRows ?? []).map((t) => t.id as string);
-    if (!trackIds.length) return [];
-
     const { data: follows } = await supabase
       .from("follows").select("following_id").eq("follower_id", viewerId).limit(200);
     const friendIds = [viewerId, ...((follows ?? []) as { following_id: string }[]).map((f) => f.following_id)];
 
+    const { data: aggRows } = await supabase
+      .from("user_listening_aggregates")
+      .select("user_id, count")
+      .in("user_id", friendIds)
+      .eq("entity_type", "artist")
+      .eq("entity_id", canonicalArtistId)
+      .is("week_start", null)
+      .limit(201);
+
     const playCounts = new Map<string, number>();
-    const CHUNK = 200;
-    for (let i = 0; i < trackIds.length; i += CHUNK) {
-      const chunk = trackIds.slice(i, i + CHUNK);
-      const { data: logs } = await supabase
-        .from("logs").select("user_id").in("user_id", friendIds).in("track_id", chunk).limit(50000);
-      for (const row of (logs ?? []) as { user_id: string }[]) {
-        playCounts.set(row.user_id, (playCounts.get(row.user_id) ?? 0) + 1);
-      }
+    for (const row of (aggRows ?? []) as { user_id: string; count: number }[]) {
+      playCounts.set(row.user_id, row.count);
     }
 
     if (playCounts.size < 2) return [];
