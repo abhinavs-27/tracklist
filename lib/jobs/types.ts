@@ -20,6 +20,7 @@ export type CronJobMessage =
   | { type: "COMPUTE_COOCCURRENCE" }
   | { type: "LASTFM_SYNC" }
   | { type: "TASTE_IDENTITY_REFRESH" }
+  | { type: "TASTE_IDENTITY_REFRESH_CHUNK"; userIds: string[] }
   | { type: "COMMUNITY_FEATURE_WEEKLY"; limit?: number }
   | { type: "BILLBOARD_WEEKLY_EMAIL" }
   | { type: "LISTENING_AGGREGATES" }

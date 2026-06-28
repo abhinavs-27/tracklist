@@ -66,7 +66,12 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         await cron.runLastfmSync();
         break;
       case "TASTE_IDENTITY_REFRESH":
-        await cron.runTasteIdentityRefresh();
+        // Fans out TASTE_IDENTITY_REFRESH_CHUNK messages when the user base is
+        // large, so no single invocation exceeds the Lambda timeout.
+        await cron.runTasteIdentityRefreshDispatch();
+        break;
+      case "TASTE_IDENTITY_REFRESH_CHUNK":
+        await cron.runTasteIdentityRefreshChunk(job.userIds);
         break;
       case "COMMUNITY_FEATURE_WEEKLY":
         await cron.runCommunityFeatureWeekly(job.limit ?? 80);
