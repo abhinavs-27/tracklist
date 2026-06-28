@@ -279,6 +279,42 @@ export async function runLastfmSync(): Promise<{
   return { ok: true, processed, inserted: totalInserted, failures };
 }
 
+/**
+ * One SQS TASTE_IDENTITY_REFRESH_CHUNK message handles this many users, so a
+ * large user base fans out across many short Lambda invocations instead of one
+ * that exceeds the function timeout.
+ */
+const TASTE_IDENTITY_CHUNK_SIZE = 25;
+
+/** Refresh a specific list of users (shared by the inline and chunk paths). */
+async function refreshTasteIdentityForUserList(
+  userIds: string[],
+): Promise<{ processed: number; failures: number }> {
+  let processed = 0;
+  let failures = 0;
+  const CONCURRENCY = 10;
+  for (let i = 0; i < userIds.length; i += CONCURRENCY) {
+    const batch = userIds.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map((userId) => refreshTasteIdentityCacheForUser(userId)),
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        processed += 1;
+      } else {
+        console.error(LOG, "taste-identity refresh failed", r.reason);
+        failures += 1;
+      }
+    }
+  }
+  return { processed, failures };
+}
+
+/**
+ * Inline global refresh: resolve the users and process them in-process.
+ * Used by the local `run-taste-identity-refresh` script and as the fallback
+ * when no SQS queue is configured.
+ */
 export async function runTasteIdentityRefresh(): Promise<{
   ok: true;
   attempted: number;
@@ -288,36 +324,58 @@ export async function runTasteIdentityRefresh(): Promise<{
   const run = await startJobRun("taste_identity_refresh");
   try {
     const userIds = await resolveTasteIdentityCronUserIds();
-    let processed = 0;
-    let failures = 0;
-
-    const CONCURRENCY = 10;
-    for (let i = 0; i < userIds.length; i += CONCURRENCY) {
-      const chunk = userIds.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(
-        chunk.map((userId) => refreshTasteIdentityCacheForUser(userId)),
-      );
-      for (const r of results) {
-        if (r.status === "fulfilled") {
-          processed += 1;
-        } else {
-          console.error(LOG, "taste-identity refresh failed", r.reason);
-          failures += 1;
-        }
-      }
-    }
-
+    const { processed, failures } = await refreshTasteIdentityForUserList(userIds);
     void run.finish({ status: "ok", items_ok: processed, items_failed: failures });
-    return {
-      ok: true,
-      attempted: userIds.length,
-      processed,
-      failures,
-    };
+    return { ok: true, attempted: userIds.length, processed, failures };
   } catch (e) {
     void run.finish({ status: "error" });
     throw e;
   }
+}
+
+/**
+ * Process one fanned-out chunk of users (one TASTE_IDENTITY_REFRESH_CHUNK SQS
+ * message → one Lambda invocation).
+ */
+export async function runTasteIdentityRefreshChunk(
+  userIds: string[],
+): Promise<{ ok: true; processed: number; failures: number }> {
+  const { processed, failures } = await refreshTasteIdentityForUserList(userIds);
+  return { ok: true, processed, failures };
+}
+
+/**
+ * Entry point for the scheduled TASTE_IDENTITY_REFRESH message. When an SQS
+ * queue is configured and there are more than one chunk of users, fan out
+ * TASTE_IDENTITY_REFRESH_CHUNK messages (each its own Lambda invocation) so the
+ * job can never exceed the function timeout. Otherwise process inline.
+ */
+export async function runTasteIdentityRefreshDispatch(): Promise<
+  | { ok: true; mode: "inline"; attempted: number; processed: number; failures: number }
+  | { ok: true; mode: "fanout"; attempted: number; chunks: number }
+> {
+  const queueUrl = process.env.CRON_JOBS_QUEUE_URL?.trim();
+  const userIds = await resolveTasteIdentityCronUserIds();
+
+  if (!queueUrl || userIds.length <= TASTE_IDENTITY_CHUNK_SIZE) {
+    const run = await startJobRun("taste_identity_refresh");
+    try {
+      const { processed, failures } = await refreshTasteIdentityForUserList(userIds);
+      void run.finish({ status: "ok", items_ok: processed, items_failed: failures });
+      return { ok: true, mode: "inline", attempted: userIds.length, processed, failures };
+    } catch (e) {
+      void run.finish({ status: "error" });
+      throw e;
+    }
+  }
+
+  const { chunk } = await import("@/lib/utils/chunk");
+  const { sendCronJobMessage } = await import("@/lib/jobs/enqueue-cron-message");
+  const batches = chunk(userIds, TASTE_IDENTITY_CHUNK_SIZE);
+  for (const userIdsChunk of batches) {
+    await sendCronJobMessage({ type: "TASTE_IDENTITY_REFRESH_CHUNK", userIds: userIdsChunk });
+  }
+  return { ok: true, mode: "fanout", attempted: userIds.length, chunks: batches.length };
 }
 
 export async function runCommunityFeatureWeekly(

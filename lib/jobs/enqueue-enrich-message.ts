@@ -63,12 +63,34 @@ async function sendToQueue(url: string, job: CronJobMessage): Promise<void> {
 }
 
 /**
+ * Is Spotify's enrichment circuit breaker currently open? Only the breaker error
+ * counts as "down" — an unrelated failure (import/Redis) must not block enqueues.
+ */
+async function isSpotifyEnrichmentCircuitOpen(): Promise<boolean> {
+  try {
+    const { checkCircuitBreaker } = await import("@/lib/spotify/client");
+    await checkCircuitBreaker();
+    return false;
+  } catch (e) {
+    return e instanceof Error && e.message.includes("circuit breaker");
+  }
+}
+
+/**
  * Enqueue a catalog-enrichment / Spotify-sync job onto the enrich queue
  * (falling back to the cron queue when ENRICH_JOBS_QUEUE_URL is unset).
+ *
+ * Skips enqueuing while Spotify's circuit breaker is open — when Spotify is
+ * rate-limited (Dev-Mode 429s), enqueuing only piles up work that is guaranteed
+ * to fail and dead-letter. The breaker reopens on its own and entities are
+ * re-enqueued on the next page view / sync, so nothing is permanently lost.
  */
 export async function sendEnrichmentJobMessage(
   job: EnrichmentJobMessage,
 ): Promise<void> {
+  if (await isSpotifyEnrichmentCircuitOpen()) {
+    return;
+  }
   const url = resolveEnrichmentQueueUrl();
   if (!url) {
     throw new Error("Missing ENRICH_JOBS_QUEUE_URL and CRON_JOBS_QUEUE_URL");
