@@ -1721,9 +1721,9 @@ async function getOrFetchAlbumInner(
           // Partial tracks — enqueue via SQS so Lambda handles it reliably.
           // Guard: skip from within Lambda to prevent Lambda→SQS→Lambda recursive loop.
           if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
-            void import("@/lib/jobs/enqueue-cron-message")
-              .then(({ sendCronJobMessage }) =>
-                sendCronJobMessage({
+            void import("@/lib/jobs/enqueue-enrich-message")
+              .then(({ sendEnrichmentJobMessage }) =>
+                sendEnrichmentJobMessage({
                   type: "SYNC_ALBUM_TRACKS",
                   albumId: albumUuid,
                   spotifyAlbumApiId,
@@ -1876,9 +1876,9 @@ async function getOrFetchAlbumInner(
       } else if (!tracksAreAllSpotifySourced(songsStale)) {
         // Guard: skip from within Lambda to prevent Lambda→SQS→Lambda recursive loop.
         if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
-          void import("@/lib/jobs/enqueue-cron-message")
-            .then(({ sendCronJobMessage }) =>
-              sendCronJobMessage({
+          void import("@/lib/jobs/enqueue-enrich-message")
+            .then(({ sendEnrichmentJobMessage }) =>
+              sendEnrichmentJobMessage({
                 type: "SYNC_ALBUM_TRACKS",
                 albumId: albumUuid,
                 spotifyAlbumApiId,

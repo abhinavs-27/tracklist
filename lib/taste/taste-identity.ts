@@ -11,6 +11,10 @@ import {
   upsertArtistFromSpotify,
 } from "@/lib/spotify-cache";
 import { scheduleEnrichArtistGenresForArtistIds } from "./enrich-artist-genres";
+import {
+  persistTasteIdentityNoClobber,
+  upsertTasteIdentityCache,
+} from "./taste-identity-cache-write";
 import { ratingsToArtistCountMap } from "./ratings-weight";
 import { computeTasteAxes } from "./compute-taste-axes";
 import { genreKey, genreLabel as makeGenreLabel } from "./normalize-genre";
@@ -1151,31 +1155,13 @@ export async function computeTasteIdentity(
   return { ...withSummary, recent: recent ?? undefined };
 }
 
-async function upsertTasteIdentityCache(
-  admin: SupabaseClient,
-  userId: string,
-  payload: TasteIdentity,
-): Promise<void> {
-  const { error } = await admin.from("taste_identity_cache").upsert(
-    {
-      user_id: userId,
-      payload,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
-  if (error) {
-    console.warn("[taste-identity] cache upsert failed", error);
-  }
-}
-
-/**
- * Recompute taste identity from logs and write `taste_identity_cache` (no stale check).
- * Used by the daily cron and can be called after bulk imports.
- */
 /**
  * Recompute from logs, merge latest artwork from `artists` / `albums`, and upsert cache.
  * Call from the daily cron (or after bulk imports); profile reads do not run this.
+ *
+ * Uses `persistTasteIdentityNoClobber` so a transient read failure (which makes
+ * `computeTasteIdentity` return the EMPTY constant even for heavy users) can never
+ * overwrite a populated cache and wipe the user's taste profile.
  */
 export async function refreshTasteIdentityCacheForUser(
   userId: string,
@@ -1183,8 +1169,7 @@ export async function refreshTasteIdentityCacheForUser(
   const admin = createSupabaseAdminClient();
   const computed = await computeTasteIdentity(admin, userId);
   const hydrated = await hydrateTasteIdentityArtwork(admin, computed);
-  await upsertTasteIdentityCache(admin, userId, hydrated);
-  return hydrated;
+  return persistTasteIdentityNoClobber(admin, userId, hydrated);
 }
 
 /**
