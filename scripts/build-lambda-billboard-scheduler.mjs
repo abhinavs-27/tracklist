@@ -57,3 +57,8 @@ console.log(
 console.log(
   "Deploy worker: npm run package:lambda:billboard-worker && aws lambda update-function-code --function-name billboard-worker --zip-file fileb:///tmp/billboard-worker-full.zip --region …",
 );
+console.log(
+  // Heavy jobs (TASTE_IDENTITY_REFRESH, catalog SYNC_*) need headroom or they time out and dead-letter.
+  // Keep below the cron-jobs queue VisibilityTimeout (1020s, see tracklist-jobs.yaml).
+  "Worker config (run once / after recreate): aws lambda update-function-configuration --function-name billboard-worker --timeout 900 --memory-size 512 --region …",
+);

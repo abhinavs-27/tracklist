@@ -40,7 +40,9 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: tracklist-cron-jobs
-      VisibilityTimeout: 900
+      # Must exceed the billboard-worker Lambda timeout (900s) so a long heavy job
+      # (e.g. TASTE_IDENTITY_REFRESH) isn't re-delivered while still running.
+      VisibilityTimeout: 1020
       MessageRetentionPeriod: 1209600
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt CronJobsDLQ.Arn

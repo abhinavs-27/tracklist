@@ -2527,9 +2527,9 @@ function scheduleArtistDiscographyBackfill(
     const ageMs = Date.now() - new Date(discographySyncedAt).getTime();
     if (ageMs < 7 * 24 * 60 * 60 * 1000) return; // recently synced — skip enqueue
   }
-  void import("@/lib/jobs/enqueue-cron-message")
-    .then(({ sendCronJobMessage }) =>
-      sendCronJobMessage({
+  void import("@/lib/jobs/enqueue-enrich-message")
+    .then(({ sendEnrichmentJobMessage }) =>
+      sendEnrichmentJobMessage({
         type: "SYNC_ARTIST_DISCOGRAPHY",
         artistId: canonicalArtistId,
       }),

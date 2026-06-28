@@ -279,17 +279,17 @@ export async function enqueueSpotifyEnrich(
   // Re-enqueueing from Lambda creates a Lambda→SQS→Lambda recursive loop.
   if (process.env.CRON_JOBS_QUEUE_URL?.trim() && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     if (job.name === "enrich_artist") {
-      void import("@/lib/jobs/enqueue-cron-message")
-        .then(({ sendCronJobMessage }) =>
-          sendCronJobMessage({ type: "ENRICH_ARTIST", artistId: job.artistId }),
+      void import("@/lib/jobs/enqueue-enrich-message")
+        .then(({ sendEnrichmentJobMessage }) =>
+          sendEnrichmentJobMessage({ type: "ENRICH_ARTIST", artistId: job.artistId }),
         )
         .catch((e) => console.error("[spotify-queue] SQS enrich_artist failed", e));
       return;
     }
     if (job.name === "enrich_album") {
-      void import("@/lib/jobs/enqueue-cron-message")
-        .then(({ sendCronJobMessage }) =>
-          sendCronJobMessage({ type: "ENRICH_ALBUM", albumId: job.albumId }),
+      void import("@/lib/jobs/enqueue-enrich-message")
+        .then(({ sendEnrichmentJobMessage }) =>
+          sendEnrichmentJobMessage({ type: "ENRICH_ALBUM", albumId: job.albumId }),
         )
         .catch((e) => console.error("[spotify-queue] SQS enrich_album failed", e));
       return;
