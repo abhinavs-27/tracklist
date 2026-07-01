@@ -155,8 +155,8 @@ export async function syncArtistDiscography(canonicalArtistId: string): Promise<
 
   // ── Stamp ──────────────────────────────────────────────────────────────────
   // Stamp regardless of outcome to rate-limit retries on artists with no Deezer/MB presence.
-  // A failed resolution doesn't mean the artist was skipped permanently — once the MusicBrainz
-  // fallback is implemented (Task 3), it will run and populate albums before this stamp.
+  // The MusicBrainz fallback runs before this stamp, so artists with an mbid still get albums
+  // even when Deezer yields nothing.
   await supabase
     .from("artists")
     .update({ discography_synced_at: new Date().toISOString() })
