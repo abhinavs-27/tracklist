@@ -90,12 +90,13 @@ export async function syncArtistDiscography(canonicalArtistId: string): Promise<
             }
           }
         } else {
+          // Deezer uses "0000-00-00" for unknown release dates
           const releaseDate =
             dAlbum.release_date && dAlbum.release_date !== "0000-00-00"
               ? dAlbum.release_date
               : null;
 
-          const { data: inserted } = await supabase
+          const { data: inserted, error: insertErr } = await supabase
             .from("albums")
             .insert({
               name: dAlbum.title,
@@ -107,25 +108,29 @@ export async function syncArtistDiscography(canonicalArtistId: string): Promise<
             .select("id")
             .single();
 
-          const newAlbumId = (inserted as { id?: string } | null)?.id;
-          if (newAlbumId) {
-            albumsInserted++;
-            const tracks = await getDeezerAlbumTracks(dAlbum.id);
-            for (const t of tracks) {
-              try {
-                await supabase.from("tracks").insert({
-                  name: t.title,
-                  album_id: newAlbumId,
-                  artist_id: canonicalArtistId,
-                  track_number: t.trackNumber,
-                  disc_number: t.discNumber,
-                  duration_ms: null,
-                  data_source: "deezer",
-                  needs_spotify_enrichment: true,
-                });
-                tracksInserted++;
-              } catch (e) {
-                console.error(LOG, "track insert:", t.title, e);
+          if (insertErr) {
+            console.error(LOG, "album insert failed:", dAlbum.title, insertErr);
+          } else {
+            const newAlbumId = (inserted as { id?: string } | null)?.id;
+            if (newAlbumId) {
+              albumsInserted++;
+              const tracks = await getDeezerAlbumTracks(dAlbum.id);
+              for (const t of tracks) {
+                try {
+                  await supabase.from("tracks").insert({
+                    name: t.title,
+                    album_id: newAlbumId,
+                    artist_id: canonicalArtistId,
+                    track_number: t.trackNumber,
+                    disc_number: t.discNumber,
+                    duration_ms: null,
+                    data_source: "deezer",
+                    needs_spotify_enrichment: true,
+                  });
+                  tracksInserted++;
+                } catch (e) {
+                  console.error(LOG, "track insert:", t.title, e);
+                }
               }
             }
           }
@@ -142,6 +147,9 @@ export async function syncArtistDiscography(canonicalArtistId: string): Promise<
   }
 
   // ── Stamp ──────────────────────────────────────────────────────────────────
+  // Stamp regardless of outcome to rate-limit retries on artists with no Deezer/MB presence.
+  // A failed resolution doesn't mean the artist was skipped permanently — once the MusicBrainz
+  // fallback is implemented (Task 3), it will run and populate albums before this stamp.
   await supabase
     .from("artists")
     .update({ discography_synced_at: new Date().toISOString() })

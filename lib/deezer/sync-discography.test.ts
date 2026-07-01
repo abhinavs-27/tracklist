@@ -36,7 +36,7 @@ vi.mock("@/lib/catalog/entity-resolution", () => ({
 vi.mock("@/lib/lastfm/normalize-lastfm-search", () => ({
   artistMatches: (_name: string, candidates: string[]) => ({
     score: candidates[0] ? 30 : 0,
-    match: candidates[0] ?? "",
+    label: candidates[0] ?? "",
   }),
 }));
 
