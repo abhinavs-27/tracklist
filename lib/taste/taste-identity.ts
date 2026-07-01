@@ -913,10 +913,16 @@ export async function computeTasteIdentity(
   userId: string,
 ): Promise<TasteIdentity> {
   // --- Counts from aggregates (no log cap, accurate even for 100k+ log users) ---
+  // Strict reads: a failed aggregate read must THROW here, not silently return [].
+  // Otherwise a transient RPC failure yields a degenerate identity (real totalLogs
+  // but no artists/albums) that gets persisted and clobbers the user's cache. By
+  // throwing, we abort the refresh and leave the existing cache untouched. A genuine
+  // empty result (RPC ok, 0 rows — e.g. cold-start user) still returns [] and flows
+  // through the normal EMPTY path below.
   const [artistAgg, albumAgg, totalLogs] = await Promise.all([
-    getAllTimeAgg(admin, userId, "artist", 200),
-    getAllTimeAgg(admin, userId, "album", 200),
-    getTotalPlayCount(admin, userId),
+    getAllTimeAgg(admin, userId, "artist", 200, { throwOnError: true }),
+    getAllTimeAgg(admin, userId, "album", 200, { throwOnError: true }),
+    getTotalPlayCount(admin, userId, { throwOnError: true }),
   ]);
 
   const ratingEntries = await fetchUserAlbumRatings(admin, userId);

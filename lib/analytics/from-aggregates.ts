@@ -76,6 +76,7 @@ export async function getAllTimeAgg(
   userId: string,
   entityType: "artist" | "album" | "track" | "genre",
   limit = 50,
+  opts?: { throwOnError?: boolean },
 ): Promise<AggCount[]> {
   const { data, error } = await admin.rpc("get_user_entity_totals", {
     p_user_id: userId,
@@ -84,6 +85,15 @@ export async function getAllTimeAgg(
   });
 
   if (error) {
+    // A genuine empty result comes back as `data: []` with no error. An `error`
+    // here means the read FAILED — swallowing it to [] lets callers mistake a
+    // transient failure for "this user has no data". Strict callers must be able
+    // to tell the difference and abort rather than persist a wrong result.
+    if (opts?.throwOnError) {
+      throw new Error(
+        `[from-aggregates] getAllTimeAgg ${entityType} failed: ${error.message}`,
+      );
+    }
     console.warn("[from-aggregates] getAllTimeAgg", entityType, error.message);
     return [];
   }
@@ -100,6 +110,7 @@ export async function getAllTimeAgg(
 export async function getTotalPlayCount(
   admin: SupabaseClient,
   userId: string,
+  opts?: { throwOnError?: boolean },
 ): Promise<number> {
   const { count, error } = await admin
     .from("logs")
@@ -107,6 +118,9 @@ export async function getTotalPlayCount(
     .eq("user_id", userId);
 
   if (error) {
+    if (opts?.throwOnError) {
+      throw new Error(`[from-aggregates] getTotalPlayCount failed: ${error.message}`);
+    }
     console.warn("[from-aggregates] getTotalPlayCount", error.message);
     return 0;
   }

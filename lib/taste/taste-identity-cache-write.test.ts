@@ -23,10 +23,40 @@ const EMPTY: TasteIdentity = {
 const POPULATED: TasteIdentity = {
   ...EMPTY,
   topArtists: [{ id: "a1", name: "Artist", listenCount: 500, imageUrl: null }],
+  topAlbums: [
+    { id: "al1", name: "Album", artistName: "Artist", listenCount: 300, imageUrl: null },
+  ],
   topGenres: [{ name: "Rock", weight: 50 }],
   totalLogs: 62231,
   listeningStyle: "the-loyalist",
   summary: "Your plays keep circling back to the same few artists.",
+};
+
+// Partial aggregate-read failure: the `get_user_entity_totals` RPC swallowed its
+// error and returned [], so the ALBUM list collapsed to empty. Album ratings salvaged
+// a couple of synthetic artists (and their genres), and totalLogs came from the
+// healthy direct `logs` count — an internally inconsistent payload that is NOT empty.
+const ALBUMS_COLLAPSED: TasteIdentity = {
+  ...EMPTY,
+  topArtists: [
+    { id: "a1", name: "Artist", listenCount: 10, imageUrl: null },
+    { id: "a2", name: "Artist 2", listenCount: 8, imageUrl: null },
+  ],
+  topAlbums: [],
+  topGenres: [{ name: "Rock", weight: 60 }],
+  totalLogs: 47930,
+};
+
+// Symmetric partial failure: the ARTIST aggregate read collapsed to empty while
+// albums survived (observed live during batch repair: albums=10, artists=0).
+const ARTISTS_COLLAPSED: TasteIdentity = {
+  ...EMPTY,
+  topArtists: [],
+  topAlbums: [
+    { id: "al1", name: "Album", artistName: "Artist", listenCount: 40, imageUrl: null },
+  ],
+  topGenres: [],
+  totalLogs: 19862,
 };
 
 // Cold-start seed: totalLogs 0 but real entities surfaced from ratings/favorites.
@@ -104,5 +134,45 @@ describe("persistTasteIdentityNoClobber", () => {
     expect(maybeSingle).not.toHaveBeenCalled(); // no need to guard a non-empty write
     expect(upsert).toHaveBeenCalledTimes(1);
     expect(result.totalLogs).toBe(62231);
+  });
+
+  it("does NOT overwrite a cache that had albums when a recompute's albums collapse to empty despite logs", async () => {
+    const { admin, upsert, maybeSingle } = makeAdmin(POPULATED);
+
+    const result = await persistTasteIdentityNoClobber(admin, "u1", ALBUMS_COLLAPSED);
+
+    expect(maybeSingle).toHaveBeenCalled(); // inspected existing
+    expect(upsert).not.toHaveBeenCalled(); // refused to clobber
+    expect(result.totalLogs).toBe(62231); // preserved good data
+    expect(result.topAlbums.length).toBe(1);
+  });
+
+  it("does NOT overwrite a cache that had artists when a recompute's artists collapse to empty despite logs", async () => {
+    const { admin, upsert, maybeSingle } = makeAdmin(POPULATED);
+
+    const result = await persistTasteIdentityNoClobber(admin, "u1", ARTISTS_COLLAPSED);
+
+    expect(maybeSingle).toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+    expect(result.totalLogs).toBe(62231);
+    expect(result.topArtists.length).toBe(1);
+  });
+
+  it("DOES write an album-collapsed recompute when the existing cache never had albums (genuine album-less user)", async () => {
+    const albumLessExisting: TasteIdentity = { ...POPULATED, topAlbums: [] };
+    const { admin, upsert } = makeAdmin(albumLessExisting);
+
+    await persistTasteIdentityNoClobber(admin, "u1", { ...ALBUMS_COLLAPSED, totalLogs: 120 });
+
+    expect(upsert).toHaveBeenCalledTimes(1); // no albums to protect — legit update
+  });
+
+  it("DOES write an artist-collapsed recompute when the existing cache never had artists", async () => {
+    const artistLessExisting: TasteIdentity = { ...POPULATED, topArtists: [] };
+    const { admin, upsert } = makeAdmin(artistLessExisting);
+
+    await persistTasteIdentityNoClobber(admin, "u1", { ...ARTISTS_COLLAPSED, totalLogs: 120 });
+
+    expect(upsert).toHaveBeenCalledTimes(1);
   });
 });

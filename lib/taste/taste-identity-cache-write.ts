@@ -64,7 +64,19 @@ export async function persistTasteIdentityNoClobber(
   userId: string,
   computed: TasteIdentity,
 ): Promise<TasteIdentity> {
-  if (isEmptyTasteIdentity(computed)) {
+  const empty = isEmptyTasteIdentity(computed);
+
+  // Partial-failure fingerprints. `getAllTimeAgg` (get_user_entity_totals RPC)
+  // swallows errors and returns [], while `getTotalPlayCount` reads `logs` directly —
+  // so a transient failure of one entity's aggregate read yields a non-empty-but-
+  // inconsistent payload: the user still has logs, yet the artist OR album list
+  // collapsed to empty (ratings may salvage a few of the other). Not fully empty, so
+  // `isEmptyTasteIdentity` alone would let it through and clobber the cache.
+  const hasLogs = (computed.totalLogs ?? 0) > 0;
+  const albumsCollapsed = hasLogs && (computed.topAlbums?.length ?? 0) === 0;
+  const artistsCollapsed = hasLogs && (computed.topArtists?.length ?? 0) === 0;
+
+  if (empty || albumsCollapsed || artistsCollapsed) {
     const { data: existing } = await admin
       .from("taste_identity_cache")
       .select("payload")
@@ -73,11 +85,30 @@ export async function persistTasteIdentityNoClobber(
 
     const prev = existing?.payload as TasteIdentity | undefined;
     if (prev && !isEmptyTasteIdentity(prev)) {
-      console.warn(
-        "[taste-identity] skipping empty recompute over populated cache — likely a transient read failure",
-        { userId, prevTotalLogs: prev.totalLogs },
-      );
-      return prev;
+      // Empty recompute: any populated prior cache wins. A collapse only wins when
+      // the prior cache actually carried that dimension — a genuinely album-less (or
+      // artist-less) user's legitimate update must still persist.
+      const skip =
+        empty ||
+        (albumsCollapsed && (prev.topAlbums?.length ?? 0) > 0) ||
+        (artistsCollapsed && (prev.topArtists?.length ?? 0) > 0);
+      if (skip) {
+        console.warn(
+          "[taste-identity] skipping low-signal recompute over populated cache — likely a transient read failure",
+          {
+            userId,
+            reason: empty
+              ? "empty"
+              : albumsCollapsed
+                ? "albums-collapsed"
+                : "artists-collapsed",
+            prevTotalLogs: prev.totalLogs,
+            prevArtists: prev.topArtists?.length ?? 0,
+            prevAlbums: prev.topAlbums?.length ?? 0,
+          },
+        );
+        return prev;
+      }
     }
   }
 
