@@ -117,7 +117,7 @@ describe("getDeezerAlbumTracks", () => {
 });
 
 describe("getDeezerArtistAlbums", () => {
-  it("returns filtered albums (album + ep only)", async () => {
+  it("returns all album entries from the Deezer response", async () => {
     mockFetchOnce({
       data: [
         { id: 1, title: "Studio Album", release_date: "2020-01-01", cover_xl: "https://img1", record_type: "album", nb_tracks: 12 },
@@ -138,6 +138,8 @@ describe("getDeezerArtistAlbums", () => {
       record_type: "album",
       nb_tracks: 12,
     });
+    const calledUrl = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toBe("https://api.deezer.com/artist/123/albums?limit=500");
   });
 
   it("returns empty array when Deezer returns error", async () => {
