@@ -31,6 +31,15 @@ export interface DeezerArtistSearchItem {
   nb_fan?: number;
 }
 
+export interface DeezerArtistAlbum {
+  id: number;
+  title: string;
+  release_date: string; // "YYYY-MM-DD" or "0000-00-00"
+  cover_xl: string;
+  record_type: "album" | "ep" | "single" | "live" | string;
+  nb_tracks: number;
+}
+
 interface DeezerError {
   error?: { type?: string; message?: string; code?: number };
 }
@@ -109,5 +118,15 @@ export async function searchDeezerArtists(
   const safe = Math.min(Math.max(limit, 1), 25);
   const path = `/search/artist?q=${encodeURIComponent(deezerField(artistName))}&limit=${safe}`;
   const data = await deezerGet<{ data?: DeezerArtistSearchItem[] }>(path, "search/artist");
+  return data?.data ?? [];
+}
+
+export async function getDeezerArtistAlbums(
+  artistId: number,
+): Promise<DeezerArtistAlbum[]> {
+  const data = await deezerGet<{ data?: DeezerArtistAlbum[] }>(
+    `/artist/${artistId}/albums?limit=500`,
+    "artist/albums",
+  );
   return data?.data ?? [];
 }

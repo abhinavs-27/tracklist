@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { searchDeezerAlbums, getDeezerAlbum, getDeezerAlbumTracks, searchDeezerArtists } from "./client";
+import { searchDeezerAlbums, getDeezerAlbum, getDeezerAlbumTracks, searchDeezerArtists, getDeezerArtistAlbums } from "./client";
 
 function mockFetchOnce(json: unknown, ok = true, status = 200) {
   vi.stubGlobal(
@@ -113,5 +113,45 @@ describe("getDeezerAlbumTracks", () => {
   it("returns [] on a Deezer error object", async () => {
     mockFetchOnce({ error: { type: "DataException", message: "no", code: 800 } });
     expect(await getDeezerAlbumTracks(999)).toEqual([]);
+  });
+});
+
+describe("getDeezerArtistAlbums", () => {
+  it("returns filtered albums (album + ep only)", async () => {
+    mockFetchOnce({
+      data: [
+        { id: 1, title: "Studio Album", release_date: "2020-01-01", cover_xl: "https://img1", record_type: "album", nb_tracks: 12 },
+        { id: 2, title: "An EP", release_date: "2021-06-01", cover_xl: "https://img2", record_type: "ep", nb_tracks: 4 },
+        { id: 3, title: "Single A", release_date: "2021-01-01", cover_xl: "https://img3", record_type: "single", nb_tracks: 1 },
+        { id: 4, title: "Live Show", release_date: "2019-05-01", cover_xl: "https://img4", record_type: "live", nb_tracks: 20 },
+      ],
+    });
+
+    const result = await getDeezerArtistAlbums(123);
+
+    expect(result).toHaveLength(4); // filtering is done by caller in sync-discography
+    expect(result[0]).toEqual({
+      id: 1,
+      title: "Studio Album",
+      release_date: "2020-01-01",
+      cover_xl: "https://img1",
+      record_type: "album",
+      nb_tracks: 12,
+    });
+  });
+
+  it("returns empty array when Deezer returns error", async () => {
+    mockFetchOnce({ error: { type: "Exception", message: "no data" } });
+    const result = await getDeezerArtistAlbums(999);
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array on HTTP failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 500 } as Response),
+    );
+    const result = await getDeezerArtistAlbums(999);
+    expect(result).toEqual([]);
   });
 });
