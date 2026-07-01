@@ -15,6 +15,7 @@ const LOG = "[sync-discography]";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const MIN_ARTIST_SCORE = 22;
 
+// Separate limiter from packages/musicbrainz-client — if both run in the same process, combine them into a shared module.
 const mbLimiter = new Bottleneck({ maxConcurrent: 1, minTime: 1100 });
 const MB_BASE = "https://musicbrainz.org/ws/2";
 const MB_USER_AGENT = "Tracklist/1.0 (singh.avi99@gmail.com)";
@@ -186,6 +187,7 @@ async function syncFromMusicBrainz(
   if (!mbid) return;
 
   try {
+    // %7C is URL-encoded "|" — MusicBrainz type filter separator
     const url = `${MB_BASE}/release-group?artist=${encodeURIComponent(mbid)}&type=album%7Cep&fmt=json&limit=100`;
     const data = await mbLimiter.schedule(() =>
       withRetry<{ "release-groups"?: MbReleaseGroup[] }>(
@@ -210,6 +212,7 @@ async function syncFromMusicBrainz(
             name: rg.title,
             artist_id: canonicalArtistId,
             release_date: releaseDate,
+            mbid: rg.id,
           });
         }
       } catch (e) {

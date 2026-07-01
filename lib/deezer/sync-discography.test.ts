@@ -261,16 +261,22 @@ describe("MusicBrainz fallback", () => {
 
   it("stamps discography_synced_at even when MB fetch throws", async () => {
     let callCount = 0;
+    const updateSpy = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
     mockFrom.mockImplementation(() => {
       callCount++;
       if (callCount === 1) return makeChain({ data: { name: "Artist", mbid: "mb-err", discography_synced_at: null } });
-      if (callCount === 2) return makeChain({ data: null });
-      return makeChain({ data: null, error: null });
+      if (callCount === 2) return makeChain({ data: null }); // no deezer external_id
+      // callCount 3+ is the stamp (artists.update)
+      const chain = makeChain({ data: null, error: null });
+      chain["update"] = updateSpy;
+      return chain;
     });
     mockSearchDeezerArtists.mockResolvedValue([]);
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("MB down")));
 
-    // Should not throw despite MB failure
     await expect(syncArtistDiscography("artist-uuid-mb-4")).resolves.toBeUndefined();
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ discography_synced_at: expect.any(String) }),
+    );
   });
 });
