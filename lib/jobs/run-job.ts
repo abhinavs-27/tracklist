@@ -12,7 +12,6 @@ const SPOTIFY_JOB_TYPES = new Set([
   "ENRICH_ALBUM",
   "SPOTIFY_ENRICHMENT_RETRY",
   "DRAIN_ENRICH_BACKLOG",
-  "SYNC_ARTIST_DISCOGRAPHY",
   "SYNC_ALBUM_TRACKS",
 ]);
 
@@ -108,10 +107,8 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         });
         break;
       case "SYNC_ARTIST_DISCOGRAPHY": {
-        const { syncArtistDiscographyForCanonicalArtist } = await import(
-          "@/lib/spotify-cache"
-        );
-        await syncArtistDiscographyForCanonicalArtist(job.artistId);
+        const { syncArtistDiscography } = await import("@/lib/deezer/sync-discography");
+        await syncArtistDiscography(job.artistId);
         break;
       }
       case "SYNC_ALBUM_TRACKS": {

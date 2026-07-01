@@ -83,9 +83,15 @@ describe("sendEnrichmentJobMessage circuit-breaker guard", () => {
     expect(sendSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT enqueue when the Spotify circuit breaker is open", async () => {
+  it("blocks bulk jobs (ENRICH_ARTIST) when the Spotify circuit breaker is open", async () => {
+    breakerOpen = true;
+    await sendEnrichmentJobMessage({ type: "ENRICH_ARTIST", artistId: "a1" });
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
+
+  it("allows SYNC_ARTIST_DISCOGRAPHY even when the Spotify circuit breaker is open (Deezer-based, on-demand)", async () => {
     breakerOpen = true;
     await sendEnrichmentJobMessage({ type: "SYNC_ARTIST_DISCOGRAPHY", artistId: "a1" });
-    expect(sendSpy).not.toHaveBeenCalled();
+    expect(sendSpy).toHaveBeenCalledTimes(1);
   });
 });
