@@ -16,6 +16,7 @@ export type ArtistMobileTrackRow = {
   id: string;
   name: string;
   duration_ms: number | null;
+  album_id: string | null;
 };
 
 /**
@@ -143,6 +144,7 @@ export async function fetchArtistTracksFromDb(
           id: song.id,
           name: song.name,
           duration_ms: song.duration_ms ?? null,
+          album_id: song.album_id ?? null,
         };
       })
       .filter((x): x is ArtistMobileTrackRow => x !== null);

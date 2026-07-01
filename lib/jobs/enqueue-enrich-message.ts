@@ -80,15 +80,17 @@ async function isSpotifyEnrichmentCircuitOpen(): Promise<boolean> {
  * Enqueue a catalog-enrichment / Spotify-sync job onto the enrich queue
  * (falling back to the cron queue when ENRICH_JOBS_QUEUE_URL is unset).
  *
- * Skips enqueuing while Spotify's circuit breaker is open — when Spotify is
- * rate-limited (Dev-Mode 429s), enqueuing only piles up work that is guaranteed
- * to fail and dead-letter. The breaker reopens on its own and entities are
- * re-enqueued on the next page view / sync, so nothing is permanently lost.
+ * ENRICH_ARTIST / ENRICH_ALBUM are blocked while Spotify's circuit breaker is
+ * open — during Dev-Mode 429 floods these are bulk jobs that dead-letter en
+ * masse. SYNC_ARTIST_DISCOGRAPHY and SYNC_ALBUM_TRACKS are on-demand (page-view
+ * triggered, one job per artist/album) so they are never blocked: dropping them
+ * silently leaves artist pages with stale/missing albums indefinitely.
  */
 export async function sendEnrichmentJobMessage(
   job: EnrichmentJobMessage,
 ): Promise<void> {
-  if (await isSpotifyEnrichmentCircuitOpen()) {
+  const isBulkEnrichJob = job.type === "ENRICH_ARTIST" || job.type === "ENRICH_ALBUM";
+  if (isBulkEnrichJob && await isSpotifyEnrichmentCircuitOpen()) {
     return;
   }
   const url = resolveEnrichmentQueueUrl();

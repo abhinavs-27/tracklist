@@ -80,6 +80,20 @@ export const GET = withHandler(async (_request, ctx) => {
         topTrackIds.length > 0
           ? await getTrackStatsForTrackIds(topTrackIds)
           : {};
+
+      // Batch-fetch album art for the top tracks so TrackRow can show artwork.
+      const albumIds = [...new Set(dbTracks.map((t) => t.album_id).filter(Boolean) as string[])];
+      const albumArtMap = new Map<string, string | null>();
+      if (albumIds.length > 0) {
+        const { data: albumRows } = await supabase
+          .from("albums")
+          .select("id, image_url")
+          .in("id", albumIds);
+        for (const row of albumRows ?? []) {
+          albumArtMap.set(row.id, (row as { id: string; image_url: string | null }).image_url ?? null);
+        }
+      }
+
       topTracks = dbTracks.map((t, idx) => {
         const s = trackStats[t.id];
         const listen = s?.listen_count ?? 0;
@@ -92,6 +106,7 @@ export const GET = withHandler(async (_request, ctx) => {
           listen_count: listen,
           review_count: s?.review_count ?? 0,
           average_rating: s?.average_rating ?? null,
+          artwork_url: t.album_id ? (albumArtMap.get(t.album_id) ?? null) : null,
         };
       });
     }
