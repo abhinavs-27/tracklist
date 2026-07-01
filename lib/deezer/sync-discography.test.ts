@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("bottleneck", () => ({
@@ -177,5 +177,100 @@ describe("syncArtistDiscography", () => {
     await syncArtistDiscography("artist-uuid-6");
 
     expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("MusicBrainz fallback", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("triggers fallback when Deezer yields no artist match", async () => {
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return makeChain({ data: { name: "Obscure Band", mbid: "mb-uuid-1", discography_synced_at: null } });
+      if (callCount === 2) return makeChain({ data: null }); // no deezer external_id
+      return makeChain({ data: null, error: null });
+    });
+    mockSearchDeezerArtists.mockResolvedValue([]); // no deezer results
+    mockGetDeezerArtistAlbums.mockResolvedValue([]);
+
+    const mbResponse = {
+      "release-groups": [
+        { id: "rg-1", title: "Old Album", "first-release-date": "2010-05-01", "primary-type": "Album" },
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => mbResponse,
+    }));
+    mockFindAlbumIdByArtistAndName.mockResolvedValue(null);
+
+    await syncArtistDiscography("artist-uuid-mb-1");
+
+    // MB fetch was called
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("musicbrainz.org"),
+      expect.any(Object),
+    );
+  });
+
+  it("triggers fallback when Deezer has 0 albums after filter", async () => {
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return makeChain({ data: { name: "Artist", mbid: "mb-uuid-2", discography_synced_at: null } });
+      if (callCount === 2) return makeChain({ data: { external_id: "77" } }); // has deezer id
+      return makeChain({ data: null, error: null });
+    });
+    // Deezer only has singles — filtered to zero
+    mockGetDeezerArtistAlbums.mockResolvedValue([
+      { id: 99, title: "Single X", record_type: "single", release_date: "2020-01-01", cover_xl: "", nb_tracks: 1 },
+    ]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ "release-groups": [] }),
+    }));
+
+    await syncArtistDiscography("artist-uuid-mb-2");
+
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("mb-uuid-2"),
+      expect.any(Object),
+    );
+  });
+
+  it("skips MB fetch when artist has no mbid", async () => {
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return makeChain({ data: { name: "Artist", mbid: null, discography_synced_at: null } });
+      if (callCount === 2) return makeChain({ data: null }); // no deezer id
+      return makeChain({ data: null, error: null });
+    });
+    mockSearchDeezerArtists.mockResolvedValue([]);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await syncArtistDiscography("artist-uuid-mb-3");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("stamps discography_synced_at even when MB fetch throws", async () => {
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return makeChain({ data: { name: "Artist", mbid: "mb-err", discography_synced_at: null } });
+      if (callCount === 2) return makeChain({ data: null });
+      return makeChain({ data: null, error: null });
+    });
+    mockSearchDeezerArtists.mockResolvedValue([]);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("MB down")));
+
+    // Should not throw despite MB failure
+    await expect(syncArtistDiscography("artist-uuid-mb-4")).resolves.toBeUndefined();
   });
 });

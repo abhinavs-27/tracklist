@@ -8,10 +8,16 @@ import {
   getDeezerArtistAlbums,
   searchDeezerArtists,
 } from "./client";
+import Bottleneck from "bottleneck";
+import { withRetry } from "@/lib/http/with-retry";
 
 const LOG = "[sync-discography]";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const MIN_ARTIST_SCORE = 22;
+
+const mbLimiter = new Bottleneck({ maxConcurrent: 1, minTime: 1100 });
+const MB_BASE = "https://musicbrainz.org/ws/2";
+const MB_USER_AGENT = "Tracklist/1.0 (singh.avi99@gmail.com)";
 
 export async function syncArtistDiscography(canonicalArtistId: string): Promise<void> {
   const supabase = createSupabaseAdminClient();
@@ -158,11 +164,60 @@ export async function syncArtistDiscography(canonicalArtistId: string): Promise<
   console.log(LOG, "done", { canonicalArtistId, deezerId, albumsFound, albumsInserted, tracksInserted });
 }
 
-// Stub — filled in Task 3
+interface MbReleaseGroup {
+  id: string;
+  title?: string;
+  "first-release-date"?: string;
+}
+
+function padMbDate(d: string | undefined): string | null {
+  if (!d) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  if (/^\d{4}-\d{2}$/.test(d)) return `${d}-01`;
+  if (/^\d{4}$/.test(d)) return `${d}-01-01`;
+  return null;
+}
+
 async function syncFromMusicBrainz(
-  _supabase: ReturnType<typeof createSupabaseAdminClient>,
-  _canonicalArtistId: string,
-  _mbid: string | null,
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  canonicalArtistId: string,
+  mbid: string | null,
 ): Promise<void> {
-  // intentionally empty until Task 3
+  if (!mbid) return;
+
+  try {
+    const url = `${MB_BASE}/release-group?artist=${encodeURIComponent(mbid)}&type=album%7Cep&fmt=json&limit=100`;
+    const data = await mbLimiter.schedule(() =>
+      withRetry<{ "release-groups"?: MbReleaseGroup[] }>(
+        async (sig) => {
+          const res = await fetch(url, {
+            signal: sig,
+            headers: { "User-Agent": MB_USER_AGENT },
+          });
+          if (!res.ok) throw new Error(`MB HTTP ${res.status}`);
+          return res.json() as Promise<{ "release-groups"?: MbReleaseGroup[] }>;
+        },
+        { label: "musicbrainz/release-group-by-artist", timeoutMs: 15000, maxAttempts: 2, backoffBaseMs: 1200 },
+      ),
+    );
+
+    for (const rg of data["release-groups"] ?? []) {
+      try {
+        const existingId = await findAlbumIdByArtistAndName(supabase, canonicalArtistId, rg.title ?? "");
+        if (!existingId && rg.title) {
+          const releaseDate = padMbDate(rg["first-release-date"]);
+          await supabase.from("albums").insert({
+            name: rg.title,
+            artist_id: canonicalArtistId,
+            release_date: releaseDate,
+          });
+        }
+      } catch (e) {
+        console.error(LOG, "MB album insert:", rg.title, e);
+      }
+    }
+  } catch (e) {
+    console.error(LOG, "MusicBrainz fallback error:", e);
+    // catch and continue — stamp discography_synced_at regardless
+  }
 }
