@@ -121,6 +121,8 @@ export async function searchDeezerArtists(
   return data?.data ?? [];
 }
 
+// Single request with limit=500. No pagination — artists with >500 releases will be
+// silently truncated (acceptable for v1; affects only very prolific catalogs).
 export async function getDeezerArtistAlbums(
   artistId: number,
 ): Promise<DeezerArtistAlbum[]> {
