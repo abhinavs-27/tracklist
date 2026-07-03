@@ -23,7 +23,12 @@ export type AggregateLogRow = {
 type AggregateDeltaKey =
   | { kind: "week"; start: string }
   | { kind: "month"; start: string }
-  | { kind: "year"; year: number };
+  | { kind: "year"; year: number }
+  // All-time bucket: week_start/month/year all NULL. This is the row every
+  // "all-time" read targets (WHERE week_start IS NULL AND month IS NULL AND
+  // year IS NULL). Without it, those reads fall back to matching monthly/yearly
+  // rows (which also have week_start NULL) and break.
+  | { kind: "alltime" };
 
 export const MAX_GENRES_PER_LOG = 3;
 // Kept small so each RPC stays well under Supabase's statement timeout (~8-10s).
@@ -42,7 +47,9 @@ function deltaKey(
       ? `w:${bucket.start}`
       : bucket.kind === "month"
         ? `m:${bucket.start}`
-        : `y:${bucket.year}`;
+        : bucket.kind === "year"
+          ? `y:${bucket.year}`
+          : "a:";
   return [userId, entityType, entityId, b].join(FS);
 }
 
@@ -57,7 +64,9 @@ function contribKey(
       ? `w:${bucket.start}`
       : bucket.kind === "month"
         ? `m:${bucket.start}`
-        : `y:${bucket.year}`;
+        : bucket.kind === "year"
+          ? `y:${bucket.year}`
+          : "a:";
   return [userId, genre, b, artistId].join(FS);
 }
 
@@ -77,6 +86,9 @@ export function parseBucket(
       p_month: null,
       p_year: parseInt(part.slice(2), 10),
     };
+  }
+  if (part === "a:") {
+    return { p_week_start: null, p_month: null, p_year: null };
   }
   throw new Error(`bad bucket ${part}`);
 }
@@ -236,6 +248,7 @@ export function accumulateListeningAggregateDeltas(
       { kind: "week", start: w },
       { kind: "month", start: m },
       { kind: "year", year: y },
+      { kind: "alltime" },
     ];
     for (const b of buckets) {
       const k = contribKey(userId, genre, b, contributingArtistId);
@@ -259,6 +272,7 @@ export function accumulateListeningAggregateDeltas(
       { kind: "week", start: w },
       { kind: "month", start: m },
       { kind: "year", year: y },
+      { kind: "alltime" },
     ];
     for (const b of buckets) {
       const k = deltaKey(userId, entityType, entityId, b);
