@@ -13,7 +13,7 @@ import {
   scheduleArtistEnrichment,
 } from "@/lib/catalog/non-blocking-enrichment";
 import { getArtistIdByExternalId } from "@/lib/catalog/entity-resolution";
-import { getTrackStatsForTrackIds } from "@/lib/queries";
+import { getReviewsForArtist, getTrackStatsForTrackIds } from "@/lib/queries";
 import { getOrFetchArtist } from "@/lib/spotify-cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
@@ -131,10 +131,24 @@ export const GET = withHandler(async (_request, ctx) => {
     }
 
     const { getArtistInfoTabData, getArtistCreditedWorks } = await import("@/lib/musicbrainz/db-queries");
-    const [infoTabData, creditedWorks] = await Promise.all([
+    const [infoTabData, creditedWorks, reviews] = await Promise.all([
       getArtistInfoTabData(supabase, lookupId),
       getArtistCreditedWorks(supabase, lookupId),
+      getReviewsForArtist(lookupId, 6).catch(() => []),
     ]);
+
+    // Community stats derived from the artist's albums (mirrors Express).
+    const totalCommunityPlays = (albums as { listen_count?: number }[]).reduce(
+      (s, a) => s + (a.listen_count ?? 0),
+      0,
+    );
+    const ratedAlbums = (albums as { average_rating?: number | null }[]).filter(
+      (a) => a.average_rating != null,
+    );
+    const avgRating =
+      ratedAlbums.length > 0
+        ? ratedAlbums.reduce((s, a) => s + (a.average_rating ?? 0), 0) / ratedAlbums.length
+        : null;
 
     return apiOk({
       metadata_complete,
@@ -162,6 +176,12 @@ export const GET = withHandler(async (_request, ctx) => {
       members: infoTabData.members,
       label_history: infoTabData.labelHistory,
       credited_works: creditedWorks,
+      communityStats: {
+        totalPlays: totalCommunityPlays,
+        avgRating,
+        albumCount: albums.length,
+      },
+      reviews,
     });
   } catch (e) {
     return apiInternalError(e);

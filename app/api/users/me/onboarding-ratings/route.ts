@@ -1,8 +1,12 @@
 // app/api/users/me/onboarding-ratings/route.ts
+import { after } from "next/server";
 import { withHandler } from "@/lib/api-handler";
 import { apiBadRequest, apiOk } from "@/lib/api-response";
 import { parseBody } from "@/lib/api-utils";
-import { seedTasteIdentityFromRatings } from "@/lib/taste/taste-identity";
+import {
+  persistOnboardingRatings,
+  refreshTasteIdentityCacheForUser,
+} from "@/lib/taste/taste-identity";
 
 export const POST = withHandler(
   async (request, { user }) => {
@@ -30,7 +34,20 @@ export const POST = withHandler(
       ? rawGenres.filter((g): g is string => typeof g === "string").slice(0, 10)
       : [];
 
-    await seedTasteIdentityFromRatings(user!.id, ratings, preferredGenres);
+    // Fast writes on the hot path so the client's "Continue" returns quickly.
+    await persistOnboardingRatings(user!.id, ratings, preferredGenres);
+
+    // Taste-identity computation is expensive (10-15 DB queries + Spotify
+    // metadata/image enrichment). Defer it past the response — the onboarding
+    // client doesn't consume the result, and cron/first-logs recompute it later.
+    const userId = user!.id;
+    after(async () => {
+      try {
+        await refreshTasteIdentityCacheForUser(userId);
+      } catch (err) {
+        console.error("[onboarding-ratings] deferred taste refresh failed", err);
+      }
+    });
 
     return apiOk({ saved: ratings.length });
   },

@@ -26,7 +26,9 @@ export function useItemReaction(target: ReactionTarget | null) {
       body: JSON.stringify({ targets: [target] }),
     })
       .then((data) => {
-        const key = `${target.targetType}:${target.targetId}`;
+        // Server keys the results map with a unit-separator (\u001f), matching
+        // the shared reactionTargetKey() the web uses — not a colon.
+        const key = `${target.targetType}\u001f${target.targetId}`;
         const s = data.results?.[key];
         if (s) setSnap(s);
       })

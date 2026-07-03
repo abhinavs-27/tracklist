@@ -10,12 +10,16 @@ import {
   getReviewsForEntity,
   getTrackStatsForTrackIds,
 } from "@/lib/queries";
-import { isValidSpotifyId, isValidUuid } from "@/lib/validation";
+import { isValidLfmCatalogId, isValidSpotifyId, isValidUuid } from "@/lib/validation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export const GET = withHandler(async (_request, { user, params }) => {
     const { id } = params;
-    if (!isValidSpotifyId(id) && !isValidUuid(id)) return apiBadRequest("Invalid album id");
+    // Accept Spotify base62, canonical UUID, and Last.fm catalog ids (lfm:…) —
+    // discovery/explore hrefs can carry any of these; getOrFetchAlbum and the
+    // stats/reviews helpers all resolve lfm ids via resolveCanonicalAlbumUuid.
+    if (!isValidSpotifyId(id) && !isValidUuid(id) && !isValidLfmCatalogId(id))
+      return apiBadRequest("Invalid album id");
 
     const supabase = await createSupabaseServerClient();
 
@@ -106,6 +110,7 @@ export const GET = withHandler(async (_request, { user, params }) => {
         play_count: engagement.listen_count,
         favorite_count,
         review_count,
+        rating_distribution: engagement.rating_distribution ?? null,
       },
       reviews: {
         items: reviews,

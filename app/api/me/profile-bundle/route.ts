@@ -3,7 +3,7 @@ import { withHandler } from "@/lib/api-handler";
 export const maxDuration = 30;
 import { apiOk } from "@/lib/api-response";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getUserFavoriteAlbums, getUserLists, getFollowCounts } from "@/lib/queries";
+import { getUserFavoriteAlbums, getUserLists, getFollowCounts, getUserStreak } from "@/lib/queries";
 import { getCachedRecentAlbumsFromLogs } from "@/lib/profile/recent-activity-cache";
 
 export const GET = withHandler(
@@ -11,7 +11,7 @@ export const GET = withHandler(
     const uid = user!.id;
     const admin = createSupabaseAdminClient();
 
-    const [userRowRes, followCountsRes, favoritesRes, listsRes, recentRes] =
+    const [userRowRes, followCountsRes, favoritesRes, listsRes, recentRes, streakRes, reviewCountRes] =
       await Promise.allSettled([
         admin
           .from("users")
@@ -24,6 +24,11 @@ export const GET = withHandler(
         getUserFavoriteAlbums(uid, 10),
         getUserLists(uid, 50),
         getCachedRecentAlbumsFromLogs(uid, 48, false),
+        getUserStreak(uid),
+        admin
+          .from("reviews")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", uid),
       ]);
 
     const userRow =
@@ -37,6 +42,10 @@ export const GET = withHandler(
     const lists = listsRes.status === "fulfilled" ? listsRes.value : [];
     const recentAlbums =
       recentRes.status === "fulfilled" ? recentRes.value : [];
+    const streak =
+      streakRes.status === "fulfilled" ? streakRes.value : null;
+    const review_count =
+      reviewCountRes.status === "fulfilled" ? (reviewCountRes.value.count ?? 0) : 0;
 
     const profileUser = userRow
       ? {
@@ -51,6 +60,14 @@ export const GET = withHandler(
           following_count: followCounts.following_count ?? 0,
           is_following: false,
           is_own_profile: true,
+          review_count,
+          streak: streak
+            ? {
+                current_streak: streak.current_streak,
+                longest_streak: streak.longest_streak,
+                last_listen_date: streak.last_listen_date ?? null,
+              }
+            : null,
         }
       : null;
 

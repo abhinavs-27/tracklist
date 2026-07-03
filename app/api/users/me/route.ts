@@ -14,7 +14,7 @@ import { getFollowCounts, getUserStreak } from "@/lib/queries";
 export const GET = withHandler(
   async (_request, { user: me }) => {
     const admin = createSupabaseAdminClient();
-    const [userRow, followCounts, streak] = await Promise.all([
+    const [userRow, followCounts, streak, reviewCountRes] = await Promise.all([
       admin
         .from("users")
         .select("id, username, avatar_url, bio, created_at, lastfm_username, lastfm_last_synced_at, logs_private, onboarding_completed")
@@ -22,6 +22,10 @@ export const GET = withHandler(
         .maybeSingle(),
       getFollowCounts(me!.id),
       getUserStreak(me!.id).catch(() => null),
+      admin
+        .from("reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", me!.id),
     ]);
     if (!userRow.data) return apiNotFound("User not found");
     const u = userRow.data as {
@@ -42,8 +46,17 @@ export const GET = withHandler(
       following_count: followCounts.following_count,
       is_following: false,
       is_own_profile: true,
+      review_count: reviewCountRes.count ?? 0,
       current_streak: streak?.current_streak ?? 0,
       longest_streak: streak?.longest_streak ?? 0,
+      // Nested form read by the mobile ProfileUser type (flat kept for compat).
+      streak: streak
+        ? {
+            current_streak: streak.current_streak,
+            longest_streak: streak.longest_streak,
+            last_listen_date: streak.last_listen_date ?? null,
+          }
+        : null,
     });
   },
   { requireAuth: true },

@@ -29,7 +29,8 @@ export async function GET(
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10) || 0);
 
     const lists = await getUserLists(user.id, limit, offset);
-    return apiOk(lists);
+    // Mobile (and Express) expect `{ lists }`, not a bare array.
+    return apiOk({ lists });
   } catch (e) {
     return apiInternalError(e);
   }

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { handleUnauthorized, requireApiAuth } from "@/lib/auth";
 import { getOrCreateEntity } from "@/lib/catalog/getOrCreateEntity";
 import { resolveCanonicalAlbumUuidFromEntityId } from "@/lib/catalog/entity-resolution";
@@ -130,13 +130,18 @@ export async function POST(request: NextRequest) {
       albumIds,
     });
 
-    const admin = createSupabaseAdminClient();
-    const { error: syncErr } = await admin.rpc(
-      "sync_favorite_counts_from_user_favorite_albums",
-    );
-    if (syncErr) {
-      console.error("[users] sync_favorite_counts_from_user_favorite_albums", syncErr);
-    }
+    // Denormalized favorite_count sync is a global full-table recompute and is
+    // not needed synchronously — defer it past the response so the save returns
+    // as soon as the user's rows are written.
+    after(async () => {
+      const admin = createSupabaseAdminClient();
+      const { error: syncErr } = await admin.rpc(
+        "sync_favorite_counts_from_user_favorite_albums",
+      );
+      if (syncErr) {
+        console.error("[users] sync_favorite_counts_from_user_favorite_albums", syncErr);
+      }
+    });
 
     return apiOk({ albums: albumIds });
   } catch (e) {
