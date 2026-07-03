@@ -90,6 +90,11 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         await withJobRun("community_member_stats", {}, () => computeAllCommunitiesWeekly());
         break;
       }
+      case "PIPELINE_HEALTH": {
+        const { runPipelineHealthCheck } = await import("@/lib/jobs/pipeline-health");
+        await runPipelineHealthCheck();
+        break;
+      }
       case "REPAIR_LASTFM_AGGREGATES":
         await cron.runRepairLastfmAggregates(job.batch);
         break;
