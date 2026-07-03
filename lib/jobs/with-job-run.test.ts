@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const finish = vi.fn(async () => {});
-const startJobRun = vi.fn(async () => ({ finish }));
-const sendJobAlert = vi.fn(async () => true);
+const startJobRun = vi.fn(async (..._args: unknown[]) => ({ finish }));
+const sendJobAlert = vi.fn(async (..._args: unknown[]) => true);
 
 vi.mock("./job-logger", () => ({ startJobRun: (...a: unknown[]) => startJobRun(...a) }));
 vi.mock("./alert", () => ({ sendJobAlert: (...a: unknown[]) => sendJobAlert(...a) }));

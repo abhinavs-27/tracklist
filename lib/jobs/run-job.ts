@@ -4,6 +4,7 @@ import {
   runGenerateUserBillboard,
 } from "@/lib/jobs/billboard-handlers";
 import * as cron from "@/lib/cron/cron-runners";
+import { withJobRun } from "@/lib/jobs/with-job-run";
 
 const JOB_LOG = "[job]";
 
@@ -85,7 +86,8 @@ export async function runCronJob(job: CronJobMessage): Promise<void> {
         const { computeAllCommunitiesWeekly } = await import(
           "@/lib/community/compute-community-weekly"
         );
-        await computeAllCommunitiesWeekly();
+        // This dispatch case had no job_runs recording; withJobRun adds it + alert-on-error.
+        await withJobRun("community_member_stats", {}, () => computeAllCommunitiesWeekly());
         break;
       }
       case "REPAIR_LASTFM_AGGREGATES":
