@@ -59,13 +59,11 @@
     "@tracklist/musicbrainz-client": "workspace:*",
     "@tracklist/spotify-client": "workspace:*",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/og": "^0.11.1",
     "@vercel/speed-insights": "^2.0.0",
     "bottleneck": "^2.19.5",
     "bullmq": "^5.76.10",
     "fast-average-color-node": "^3.2.0",
     "framer-motion": "^12.39.0",
-    "html-to-image": "^1.11.13",
     "ioredis": "^5.10.1",
     "next": "^16.2.6",
     "next-auth": "^4.24.14",
@@ -73,8 +71,7 @@
     "react-dom": "19.2.6",
     "react-easy-crop": "^5.5.7",
     "server-only": "^0.0.1",
-    "tsx": "^4.22.3",
-    "vercel": "^54.2.0"
+    "tsx": "^4.22.3"
   },
   "overrides": {
     "@tootallnate/once": "3.0.1",
