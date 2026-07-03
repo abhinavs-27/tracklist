@@ -115,6 +115,19 @@ Resources:
           RoleArn: !GetAtt EventBridgeRole.Arn
           Input: '{"type":"REFRESH_STATS"}'
 
+  RulePipelineHealth:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: tracklist-cron-pipeline-health
+      Description: Every 3h — PIPELINE_HEALTH (dead-man's-switch + error watch on job_runs)
+      ScheduleExpression: cron(0 0/3 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: SqsPipelineHealth
+          Arn: !GetAtt CronJobsQueue.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+          Input: '{"type":"PIPELINE_HEALTH"}'
+
   RuleComputeCooccurrence:
     Type: AWS::Events::Rule
     Properties:

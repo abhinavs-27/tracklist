@@ -50,6 +50,7 @@ export function parseCronJob(body: string): CronJobMessage {
     case "BILLBOARD_WEEKLY_EMAIL":
     case "LISTENING_AGGREGATES":
     case "REFRESH_COMMUNITY_MEMBER_STATS":
+    case "PIPELINE_HEALTH":
       return { type: t };
     case "COMMUNITY_FEATURE_WEEKLY":
       return {
