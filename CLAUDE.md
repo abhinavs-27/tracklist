@@ -201,6 +201,7 @@ Cron endpoint handlers live under `app/api/cron/` (27 subdirectories). All are p
 | `/api/cron/compute-cooccurrence` | Co-occurrence matrix for recommendations |
 | `/api/cron/spotify-enrichment-retry` | Retry failed Spotify enrichment jobs |
 | `/api/cron/feed-events-sync` | Sync feed events from log activity |
+| `/api/cron/pipeline-health` | Dead-man's-switch + error watch: alerts (Slack/email) when an `EXPECTED_JOBS` entry has no recent `ok` run in `job_runs`, or when any job errored in the last 24h. Schedule every few hours. |
 
 ### Taste System
 
@@ -392,6 +393,8 @@ TRACKLIST_DEBUG_LASTFM_MAPPING=1      # verbose mapping logs
 REDIS_URL                              # optional; full URL e.g. redis://:pass@host:6379
 RESEND_API_KEY, RESEND_FROM           # email delivery
 CRON_SECRET                           # Bearer token for /api/cron/* protection
+JOB_ALERT_SLACK_WEBHOOK               # optional; if set, job errors/staleness POST here (preferred channel)
+JOB_ALERT_EMAIL                       # optional; Resend recipient for job alerts (needs RESEND_API_KEY + RESEND_FROM)
 MAINTENANCE_MODE=1                    # site-wide 503
 
 # Proxy (do NOT set both — proxy loop)
