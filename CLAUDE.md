@@ -338,6 +338,29 @@ These consolidate multiple parallel requests into one, eliminating round-trips:
 
 ---
 
+## Working Norms (Iteration Cycle)
+
+- **The gate:** `npm run verify` (typecheck + unit) must be green before any push. A husky
+  pre-push hook enforces this locally; a required GitHub Actions `verify` check on protected
+  `main` enforces it on merge. Use `git push --no-verify` only for deliberate WIP branches,
+  never toward `main`.
+- **All changes land via PR** into protected `main` (squash merge, branch auto-deleted). No
+  direct pushes (admins retain an emergency override via `enforce_admins=false`).
+- **Lint is tracked debt, not yet gated:** 341 pre-existing errors (see
+  `docs/testing-baseline.md`). Lint is intentionally excluded from `verify` until the backlog
+  is cleared; don't add new lint errors.
+- **Regression → test rule:** when fixing a regression, first write a failing test that
+  reproduces it, then fix. Target high-blast-radius modules: `lib/queries.ts`,
+  `lib/feed/merged-feed.ts`, taste cache (`lib/profile/cached-profile-data.ts`, `lib/taste/`),
+  and the post-import pipeline stages.
+- **Shrink blast radius opportunistically:** when editing a giant module (`lib/queries.ts`,
+  `lib/spotify-cache.ts`), carve the touched responsibility into a focused, tested file. No
+  standalone refactor sprints.
+- **Tag critical-path Playwright specs `@smoke`** as they're written, so a CI smoke run can be
+  enabled later (CI e2e is deferred — it needs a running app + test secrets).
+
+---
+
 ## Key Environment Variables
 
 ### Web / Server
