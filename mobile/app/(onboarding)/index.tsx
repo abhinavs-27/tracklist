@@ -209,16 +209,22 @@ export default function OnboardingScreen() {
     }
   }, [ratings, selectedGenres]);
 
-  // After favorites: save favorites, mark complete, enter app
+  // After favorites: save favorites, mark complete, enter app.
+  // Saving favorites can take several seconds server-side (un-cached albums are
+  // resolved against Spotify), so fire it in the background rather than blocking
+  // the button — the fetch keeps running after we navigate. We only await the
+  // fast onboarding_completed flag so the app doesn't bounce the user back here.
   const submitFavorites = useCallback(async () => {
     setSubmitting(true);
+    if (favorites.length > 0) {
+      fetcher("/api/users/me/favorites", {
+        method: "POST",
+        body: JSON.stringify({ albums: favorites.map((f: FavoriteAlbum) => f.album_id) }),
+      }).catch(() => {
+        // background save — errors are non-fatal to entering the app
+      });
+    }
     try {
-      if (favorites.length > 0) {
-        await fetcher("/api/users/me/favorites", {
-          method: "POST",
-          body: JSON.stringify({ albums: favorites.map((f: FavoriteAlbum) => f.album_id) }),
-        });
-      }
       await fetcher("/api/users/me", {
         method: "PATCH",
         body: JSON.stringify({ onboarding_completed: true }),

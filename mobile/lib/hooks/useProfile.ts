@@ -168,8 +168,11 @@ async function loadProfile(userIdentifier?: string): Promise<{
     };
   }
 
-  // Own profile: use /api/users/me (proven working) then parallel individual calls.
-  // Avoids /api/me/profile-bundle which has a routing issue in production.
+  // Own profile: /api/users/me then parallel individual calls. The
+  // /api/me/profile-bundle route is healthy now (its "routing issue" was a
+  // deploy-timing artifact from when it was first added), but we keep the
+  // split calls deliberately: each has its own .catch, so one failing section
+  // never blanks the whole profile.
   const me = await fetcher<ProfileUser>("/api/users/me");
 
   if (!me?.username) {

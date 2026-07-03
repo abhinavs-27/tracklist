@@ -1,8 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -45,6 +44,14 @@ export function NotificationsTray() {
     () => notifications.slice(0, DROPDOWN_MAX),
     [notifications],
   );
+
+  // Non-blocking overlay: taps outside the panel pass through to the page, so
+  // navigating there won't auto-close the tray via a backdrop. Close it when
+  // the route changes instead — a single tap on a link both navigates and
+  // dismisses the tray.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   const hideBell =
     pathname === "/notifications" ||
@@ -108,17 +115,12 @@ export function NotificationsTray() {
         ) : null}
       </Pressable>
 
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <View style={styles.modalRoot}>
-          <Pressable
-            style={styles.backdrop}
-            onPress={() => setOpen(false)}
-          />
+      {open ? (
+        // Full-screen wrapper with `box-none` so it never captures touches
+        // itself — only the panel below does. Taps anywhere outside the panel
+        // fall through to the page, keeping the rest of the app interactive
+        // while the tray is open (no blocking Modal / dimming backdrop).
+        <View style={styles.overlay} pointerEvents="box-none">
           <View
             style={[
               styles.panel,
@@ -191,7 +193,7 @@ export function NotificationsTray() {
             </Pressable>
           </View>
         </View>
-      </Modal>
+      ) : null}
     </>
   );
 }
@@ -222,12 +224,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#fff",
   },
-  modalRoot: {
-    flex: 1,
-  },
-  backdrop: {
+  overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    // Lift above the navigator (sibling of <Stack/>), matching the bell.
+    zIndex: 2000,
+    elevation: 2000,
   },
   panel: {
     position: "absolute",

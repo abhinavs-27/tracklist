@@ -17,7 +17,7 @@ import {
   validateBio,
   validateAvatarUrl,
 } from "@/lib/validation";
-import { getFullUserProfile } from "@/lib/queries";
+import { getFullUserProfile, getUserStreak } from "@/lib/queries";
 
 export const GET = withHandler(async (request, { params }) => {
   const { username } = params;
@@ -44,7 +44,37 @@ export const GET = withHandler(async (request, { params }) => {
 
   if (!user) return apiNotFound("User not found");
 
-  return apiOk(user);
+  // Augment with fields the mobile ProfileUser type reads (a nested `streak`
+  // object and `review_count`) which getFullUserProfile does not include.
+  // Never let this augmentation fail the whole profile — degrade to defaults.
+  let review_count = 0;
+  let streak: {
+    current_streak: number;
+    longest_streak: number;
+    last_listen_date: string | null;
+  } | null = null;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const [streakRow, reviewCountRes] = await Promise.all([
+      getUserStreak(user.id).catch(() => null),
+      supabase
+        .from("reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+    ]);
+    review_count = reviewCountRes.count ?? 0;
+    streak = streakRow
+      ? {
+          current_streak: streakRow.current_streak,
+          longest_streak: streakRow.longest_streak,
+          last_listen_date: streakRow.last_listen_date ?? null,
+        }
+      : null;
+  } catch (e) {
+    console.error("[api/users/:username] streak/review_count augmentation failed", e);
+  }
+
+  return apiOk({ ...user, review_count, streak });
 });
 
 export const PATCH = withHandler(

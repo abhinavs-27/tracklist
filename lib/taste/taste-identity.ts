@@ -1182,7 +1182,14 @@ export async function refreshTasteIdentityCacheForUser(
  * Batch-inserts onboarding ratings to `reviews`, saves preferred_genres,
  * and seeds taste_identity_cache. Replaces seedTasteIdentityFromFavoriteAlbums.
  */
-export async function seedTasteIdentityFromRatings(
+/**
+ * Persist onboarding preferred genres + album ratings. Fast writes only
+ * (a single users update + one batched reviews upsert) — safe to await on the
+ * request hot path. Does NOT recompute taste identity; callers that need the
+ * cache seeded should follow with `refreshTasteIdentityCacheForUser`, ideally
+ * deferred (e.g. Next.js `after()`) since it is expensive.
+ */
+export async function persistOnboardingRatings(
   userId: string,
   ratings: Array<{ albumId: string; rating: number; reviewText?: string }>,
   preferredGenres: string[],
@@ -1211,8 +1218,15 @@ export async function seedTasteIdentityFromRatings(
       .from("reviews")
       .upsert(rows, { onConflict: "user_id,entity_type,entity_id", ignoreDuplicates: false });
   }
+}
 
-  // 3. Seed taste identity using full ratings (not capped 4-album seed)
+export async function seedTasteIdentityFromRatings(
+  userId: string,
+  ratings: Array<{ albumId: string; rating: number; reviewText?: string }>,
+  preferredGenres: string[],
+): Promise<void> {
+  await persistOnboardingRatings(userId, ratings, preferredGenres);
+  // Seed taste identity using full ratings (not capped 4-album seed)
   await refreshTasteIdentityCacheForUser(userId);
 }
 

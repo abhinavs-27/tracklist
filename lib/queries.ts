@@ -334,7 +334,11 @@ export async function getReviewsForEntity(
 
     if (reviewsRes.error) return null;
 
-    const userId = session?.user?.id ?? null;
+    // Prefer the caller-supplied viewer id (route resolves it from either the
+    // NextAuth cookie OR a mobile Bearer token). `getSession()` only reads the
+    // NextAuth cookie, so on mobile it is null — falling back to it alone made
+    // `my_review` / `viewer_has_liked` always empty for Bearer-authed clients.
+    const userId = viewerId ?? session?.user?.id ?? null;
     const reviewRows = reviewsRes.data ?? [];
 
     const myRowPromise = userId
@@ -2792,6 +2796,7 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
   review_count: number;
   avg_rating: number | null;
   favorite_count: number;
+  rating_distribution: Record<string, number> | null;
 }> {
   // Resolve the canonical ID once, then run stats + favorite_count in parallel.
   const supabase = await createSupabaseServerClient();
@@ -2816,6 +2821,7 @@ export async function getAlbumEngagementStats(albumId: string): Promise<{
     review_count: stats.review_count,
     avg_rating: stats.average_rating,
     favorite_count: Number(favoriteRow?.favorite_count ?? 0),
+    rating_distribution: stats.rating_distribution ?? null,
   };
 }
 
