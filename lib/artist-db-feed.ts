@@ -177,6 +177,8 @@ export async function fetchArtistViewerStats(
       .eq("entity_type", "artist")
       .eq("entity_id", canonicalArtistId)
       .is("week_start", null)
+      .is("month", null)
+      .is("year", null)
       .maybeSingle();
 
     const playCount = (artistAgg as { count?: number } | null)?.count ?? 0;
@@ -201,6 +203,8 @@ export async function fetchArtistViewerStats(
         .eq("entity_type", "album")
         .in("entity_id", albumIds)
         .is("week_start", null)
+        .is("month", null)
+        .is("year", null)
         .order("count", { ascending: false })
         .limit(1);
 
