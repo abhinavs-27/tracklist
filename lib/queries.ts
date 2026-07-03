@@ -2692,7 +2692,7 @@ export type PopularAlbumsForArtistResult = {
 
 /**
  * Albums for the artist overview (default cap 8). DB-only; discography backfill is queued
- * (`sync_artist_discography`) — never block RSC on Spotify.
+ * (SQS SYNC_ARTIST_DISCOGRAPHY → Deezer) — never block RSC.
  */
 export async function getPopularAlbumsForArtist(
   artistId: string,
@@ -2733,7 +2733,7 @@ export async function getPopularAlbumsForArtist(
     scheduleArtistDiscographyBackfill(canonicalArtistId, discographySyncedAt);
 
     if (artistAlbumsVerbose(artistId)) {
-      console.log(ARTIST_ALBUMS_SYNC_TAG, "scheduled sync_artist_discography (non-blocking)", {
+      console.log(ARTIST_ALBUMS_SYNC_TAG, "scheduled SYNC_ARTIST_DISCOGRAPHY (non-blocking)", {
         artistId,
         canonicalArtistId,
         discographySyncedAt,

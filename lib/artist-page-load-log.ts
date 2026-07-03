@@ -5,7 +5,7 @@ import "server-only";
  *
  * - `TRACKLIST_DEBUG_ARTIST_PAGE=1` — log for every artist
  * - `TRACKLIST_DEBUG_ARTIST_PAGE_IDS` — comma-separated canonical artist UUIDs (e.g. one URL you are debugging)
- * - `ARTIST_ALBUMS_SYNC_DEBUG=1` — verbose `[artist-albums-sync]` when scheduling `sync_artist_discography` (RSC is DB-only; Spotify runs in queue)
+ * - `ARTIST_ALBUMS_SYNC_DEBUG=1` — verbose `[artist-albums-sync]` when scheduling SYNC_ARTIST_DISCOGRAPHY (RSC is DB-only; Deezer sync runs in the SQS worker)
  */
 const TAG = "[artist-page-load]";
 

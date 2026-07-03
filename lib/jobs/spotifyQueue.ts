@@ -9,8 +9,6 @@ import { getSpotifyClientMetrics } from "@tracklist/spotify-client";
 
 export type SpotifyEnrichJobData =
   | { name: "enrich_artist"; artistId: string }
-  /** Full GET /artists/{id}/albums pagination + DB upserts — worker / in-memory only. */
-  | { name: "sync_artist_discography"; artistId: string }
   | { name: "enrich_album"; albumId: string }
   | { name: "enrich_track"; trackId: string }
   /** High-priority catalog fetch (e.g. user-facing); no secrets in payload. */
@@ -136,7 +134,6 @@ const queueMetrics: EnrichQueueMetrics = {
 function jobKey(job: SpotifyEnrichJobData): string {
   switch (job.name) {
     case "enrich_artist":
-    case "sync_artist_discography":
       return `${job.name}:${job.artistId}`;
     case "enrich_album":
       return `${job.name}:${job.albumId}`;
@@ -354,24 +351,6 @@ export async function processSpotifyEnrichJob(
   } = await import("@/lib/jobs/resolve-canonical-spotify");
   const { getOrFetchAlbum, getOrFetchTrack, getOrFetchArtist } =
     await import("@/lib/spotify-cache");
-
-  if (job.name === "sync_artist_discography") {
-    const { syncArtistDiscographyForCanonicalArtist } = await import(
-      "@/lib/spotify-cache"
-    );
-    /** In dev without Redis, in-memory queue runs in the Next process — never block the loop for minutes. */
-    if (getSpotifyEnrichQueue()) {
-      await syncArtistDiscographyForCanonicalArtist(job.artistId);
-    } else {
-      void syncArtistDiscographyForCanonicalArtist(job.artistId).catch((e) => {
-        console.error(
-          "[spotify-queue] sync_artist_discography (background) failed",
-          e,
-        );
-      });
-    }
-    return;
-  }
 
   if (job.name === "enrich_artist") {
     await resolveCanonicalArtistSpotifyInWorker(job.artistId);
