@@ -32,6 +32,7 @@
     "backfill:album-dates": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-album-dates-deezer.ts",
     "backfill:track-order": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-track-order.ts",
     "backfill:artist-discography": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' npx tsx scripts/backfill-artist-discography.ts",
+    "backfill:artist-discography:local": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' npx tsx scripts/run-artist-discography-local.ts",
     "backfill:billboard-weeks": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-billboard-weeks.ts",
     "backfill:listening-aggregates": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-listening-aggregates.ts",
     "backfill:lastfm-full-import": "NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/backfill-lastfm-full-import.ts",

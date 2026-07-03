@@ -56,3 +56,7 @@ next-env.d.ts
 /workers/sqs-worker/dist/
 /infra/aws/lambda/billboard-scheduler/dist/
 /lambda/dist/
+
+# artist-discography local sync failure ledger
+.disco-sync-state.json
+.disco-sync-state.json.tmp
