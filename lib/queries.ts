@@ -2118,6 +2118,8 @@ export async function getSongFriendLeaderboard(
       .eq("entity_type", "track")
       .eq("entity_id", canonicalTrackId)
       .is("week_start", null)
+      .is("month", null)
+      .is("year", null)
       .limit(101);
 
     const userPlayCounts = new Map<string, number>();
@@ -2196,6 +2198,8 @@ export async function getAlbumFriendLeaderboard(
       .eq("entity_type", "album")
       .eq("entity_id", albumId)
       .is("week_start", null)
+      .is("month", null)
+      .is("year", null)
       .limit(101);
 
     const userPlayCounts = new Map<string, number>();
@@ -2330,6 +2334,8 @@ export async function getArtistFriendLeaderboard(
       .eq("entity_type", "artist")
       .eq("entity_id", canonicalArtistId)
       .is("week_start", null)
+      .is("month", null)
+      .is("year", null)
       .limit(101);
 
     const userPlayCounts = new Map<string, number>();
