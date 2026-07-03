@@ -28,7 +28,7 @@ async function resolveFavoriteAlbumUuid(
   const id = raw.trim();
   if (!id) return null;
 
-  let uuid = await resolveCanonicalAlbumUuidFromEntityId(supabase, id);
+  const uuid = await resolveCanonicalAlbumUuidFromEntityId(supabase, id);
   if (uuid) return uuid;
 
   if (isValidSpotifyId(id)) {

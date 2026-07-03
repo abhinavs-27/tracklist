@@ -134,7 +134,7 @@ albumsRouter.get("/:id", async (req, res) => {
     };
     let ratingDistribution: Record<string, number> | null = null;
     let reviewsResult = null;
-    let trackStats: Record<
+    const trackStats: Record<
       string,
       { listen_count: number; review_count: number; average_rating: number | null }
     > = {};

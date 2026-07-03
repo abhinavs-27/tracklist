@@ -2,7 +2,7 @@
  * Same semantics as root `lib/spotify-integration-enabled.ts`.
  */
 
-let devLoggedDisabled = false;
+const devLoggedDisabled = false;
 
 export function isSpotifyCatalogAllowedForLastfmImport(): boolean {
   if (process.env.SPOTIFY_DISABLE_FOR_LASTFM_IMPORT === "true") {
