@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "test:unit": "vitest run",
     "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run test:unit",
     "perf:feed-asymmetry": "node scripts/perf-feed-asymmetry.mjs",
     "perf:album-catalog": "node scripts/perf-album-catalog.mjs",
     "build:sqs-worker": "node scripts/build-sqs-worker.mjs",
@@ -42,7 +43,8 @@
     "spotify-enrich:local": "REDIS_URL='' SPOTIFY_MIN_TIME_MS=150 SPOTIFY_RESERVOIR_PER_30S=60 SPOTIFY_INTERACTIVE_MIN_TIME_MS=150 SPOTIFY_INTERACTIVE_RESERVOIR_PER_30S=60 SPOTIFY_SEARCH_MIN_TIME_MS=150 SPOTIFY_SEARCH_RESERVOIR_PER_30S=60 NODE_OPTIONS='-r ./scripts/load-env-local.cjs -r ./scripts/register-server-only-stub.cjs' tsx scripts/spotify-enrich-local.ts",
     "build:lambda:taste-snapshot": "node scripts/build-lambda-taste-snapshot.mjs",
     "build:lambda:enrich-drain": "node scripts/build-lambda-enrich-drain.mjs",
-    "build:lambda:spotify-enrichment-retry": "node scripts/build-lambda-spotify-enrichment-retry.mjs"
+    "build:lambda:spotify-enrichment-retry": "node scripts/build-lambda-spotify-enrichment-retry.mjs",
+    "prepare": "husky"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1050.0",
@@ -110,6 +112,7 @@
     "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.6",
+    "husky": "^9.1.7",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.7"

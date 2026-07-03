@@ -87,7 +87,7 @@ export async function getCommunityWeeklySummaryWithTrend(
   );
 
   let current = byWeek.get(thisWeek) ?? null;
-  let previous = byWeek.get(prevWeek) ?? null;
+  const previous = byWeek.get(prevWeek) ?? null;
 
   const tz = options?.timeZone?.trim();
   if (tz && isValidTimeZone(tz) && current) {

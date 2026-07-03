@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "playwright-report/**",
+    // Build artifacts — compiled JS, never source-of-truth
+    "**/dist/**",
+    // Git worktrees created by Claude Code — not part of this branch
+    ".claude/worktrees/**",
+    // Untracked one-off scripts (not yet part of the codebase)
+    "scripts/refresh-all-taste-identity.ts",
   ]),
 ]);
 

@@ -694,7 +694,7 @@ export async function getLeaderboard(
       ),
     );
 
-    let albumEntries: LeaderboardEntry[] = albumStatsRows
+    const albumEntries: LeaderboardEntry[] = albumStatsRows
       .map((row) => {
         const album = albumMapFull.get(row.album_id);
         if (!album) return null;

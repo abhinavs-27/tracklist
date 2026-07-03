@@ -68,8 +68,8 @@ export async function linkOrphanLastfmSongsToAlbums(
 
     const artistId = lfmArtistId(artistName);
 
-    let meta = await getLastfmTrackAlbumMeta(artistName, trackName);
-    let albumTitle = meta?.albumTitle ?? `${trackName} (single)`;
+    const meta = await getLastfmTrackAlbumMeta(artistName, trackName);
+    const albumTitle = meta?.albumTitle ?? `${trackName} (single)`;
     let imageUrl = meta?.imageUrl ?? null;
 
     if (!imageUrl) {
