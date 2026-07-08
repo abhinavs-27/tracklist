@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { assertServiceRoleKey } from "@/lib/supabase/assert-keys";
 
 /**
  * Service-role Supabase client for workers and job code paths (no `server-only`).
@@ -12,6 +13,7 @@ export function createJobsSupabaseClient(): SupabaseClient {
       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY",
     );
   }
+  assertServiceRoleKey(serviceKey);
 
   return createClient(url, serviceKey, {
     realtime: {
