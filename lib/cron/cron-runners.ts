@@ -177,7 +177,7 @@ export async function runRefreshStats(): Promise<{
 
     const totalMs = Date.now() - runStarted;
     console.log(LOG, "refresh-stats done", { totalMs });
-    void run.finish({ status: "ok" });
+    await run.finish({ status: "ok" });
     return {
       ok: true,
       totalMs,
@@ -186,7 +186,7 @@ export async function runRefreshStats(): Promise<{
       catalogHydrationError,
     };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -220,10 +220,10 @@ export async function runComputeCooccurrence(): Promise<{
     };
 
     console.log(LOG, "co-occurrence done", { songs, albums });
-    void run.finish({ status: "ok", items_ok: songs.pairs_written + albums.pairs_written });
+    await run.finish({ status: "ok", items_ok: songs.pairs_written + albums.pairs_written });
     return { ok: true, songs, albums };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -246,7 +246,7 @@ export async function runLastfmSync(): Promise<{
     .limit(MAX_LASTFM_USERS_PER_RUN);
 
   if (error) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw new Error(error.message);
   }
 
@@ -271,7 +271,7 @@ export async function runLastfmSync(): Promise<{
     }
   }
 
-  void run.finish({
+  await run.finish({
     status: failures === 0 ? "ok" : "error",
     items_ok: totalInserted,
     items_failed: failures,
@@ -325,10 +325,10 @@ export async function runTasteIdentityRefresh(): Promise<{
   try {
     const userIds = await resolveTasteIdentityCronUserIds();
     const { processed, failures } = await refreshTasteIdentityForUserList(userIds);
-    void run.finish({ status: "ok", items_ok: processed, items_failed: failures });
+    await run.finish({ status: "ok", items_ok: processed, items_failed: failures });
     return { ok: true, attempted: userIds.length, processed, failures };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -361,10 +361,10 @@ export async function runTasteIdentityRefreshDispatch(): Promise<
     const run = await startJobRun("taste_identity_refresh");
     try {
       const { processed, failures } = await refreshTasteIdentityForUserList(userIds);
-      void run.finish({ status: "ok", items_ok: processed, items_failed: failures });
+      await run.finish({ status: "ok", items_ok: processed, items_failed: failures });
       return { ok: true, mode: "inline", attempted: userIds.length, processed, failures };
     } catch (e) {
-      void run.finish({ status: "error" });
+      await run.finish({ status: "error" });
       throw e;
     }
   }
@@ -412,7 +412,7 @@ export async function runBillboardWeeklyEmail(): Promise<{
       .maybeSingle();
 
     if (latestErr || !latestRow?.week_start) {
-      void run.finish({ status: "skipped" });
+      await run.finish({ status: "skipped" });
       return {
         ok: true,
         skipped: true,
@@ -526,7 +526,7 @@ export async function runBillboardWeeklyEmail(): Promise<{
       }
     }
 
-    void run.finish({ status: sent > 0 ? "ok" : "skipped", items_ok: sent, items_failed: sendFailed });
+    await run.finish({ status: sent > 0 ? "ok" : "skipped", items_ok: sent, items_failed: sendFailed });
     return {
       ok: true,
       week_start: weekStart,
@@ -539,7 +539,7 @@ export async function runBillboardWeeklyEmail(): Promise<{
       note,
     };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -578,14 +578,14 @@ export async function runListeningAggregates(options?: {
       totalRepairInserted += repair.inserted;
     }
 
-    void run.finish({
+    await run.finish({
       status: totalProcessed > 0 ? "ok" : "skipped",
       items_ok: totalProcessed,
       items_failed: totalErrors,
     });
     return { ok: true, processed: totalProcessed, errors: totalErrors, repairInserted: totalRepairInserted, rounds };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -722,10 +722,10 @@ export async function runRefreshBlindSpots(): Promise<{
     }
 
     console.log(`[blind-spots] done — processed:${processed} skipped:${skipped} errors:${errors}`);
-    void run.finish({ status: "ok", items_ok: processed, items_failed: errors });
+    await run.finish({ status: "ok", items_ok: processed, items_failed: errors });
     return { ok: true, processed, skipped, errors };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -804,10 +804,10 @@ export async function runArchiveOldLogs(
     const archived =
       (data?.[0] as { archived: number } | undefined)?.archived ?? 0;
     console.log(LOG, "archive_old_logs done", { archived });
-    void run.finish({ status: archived > 0 ? "ok" : "skipped", items_ok: archived });
+    await run.finish({ status: archived > 0 ? "ok" : "skipped", items_ok: archived });
     return { ok: true, archived };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -918,10 +918,10 @@ export async function runSpotifyEnrichmentRetry(
       artists: (artists ?? []).length,
       queued: jobs.length,
     });
-    void run.finish({ status: jobs.length > 0 ? "ok" : "skipped", items_ok: jobs.length });
+    await run.finish({ status: jobs.length > 0 ? "ok" : "skipped", items_ok: jobs.length });
     return { ok: true, songs: (songs ?? []).length, artists: (artists ?? []).length, queued: jobs.length };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }

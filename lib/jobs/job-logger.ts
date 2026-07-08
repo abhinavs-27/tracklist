@@ -14,15 +14,18 @@ export type JobRun = {
 
 /**
  * Call at the start of a background job. Returns a finish() callback to call when done.
- * The finish() call writes one row to job_runs asynchronously — never throws.
+ * The finish() call writes one row to job_runs — it never throws (errors are caught
+ * and logged), so callers should `await` it. Awaiting matters in Lambda: a fire-and-
+ * forget (`void`) finish() is dropped when the runtime freezes after the handler
+ * returns, which silently under-records successful long-running jobs.
  *
  * Usage:
  *   const run = await startJobRun("billboard_user", { week_start: "2025-01-06" });
  *   try {
  *     // ... do work ...
- *     void run.finish({ status: "ok", fast_path: true, items_ok: 3 });
+ *     await run.finish({ status: "ok", fast_path: true, items_ok: 3 });
  *   } catch (e) {
- *     void run.finish({ status: "error" });
+ *     await run.finish({ status: "error" });
  *     throw e;
  *   }
  */

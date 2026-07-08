@@ -65,10 +65,10 @@ export async function runGenerateUserBillboard(args: {
     const chartsWritten = results.filter((r) => !r.skipped).length;
     const skipped = results.filter((r) => r.skipped).length;
 
-    void run.finish({ status: "ok", fast_path: fastPath, items_ok: chartsWritten, items_failed: skipped });
+    await run.finish({ status: "ok", fast_path: fastPath, items_ok: chartsWritten, items_failed: skipped });
     return { chartsWritten, skipped };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }
@@ -107,10 +107,10 @@ export async function runGenerateCommunityBillboard(args: {
     const chartsWritten = results.filter((r) => !r.skipped).length;
     const skipped = results.filter((r) => r.skipped).length;
 
-    void run.finish({ status: "ok", items_ok: chartsWritten, items_failed: skipped });
+    await run.finish({ status: "ok", items_ok: chartsWritten, items_failed: skipped });
     return { chartsWritten, skipped };
   } catch (e) {
-    void run.finish({ status: "error" });
+    await run.finish({ status: "error" });
     throw e;
   }
 }

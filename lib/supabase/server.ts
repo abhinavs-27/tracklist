@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { isProd } from "@/lib/env";
+import { assertServiceRoleKey } from "@/lib/supabase/assert-keys";
 
 /**
  * Supabase client with the **service role** key (server-only).
@@ -15,6 +16,7 @@ export function createSupabaseServiceRoleClient() {
       "Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY",
     );
   }
+  assertServiceRoleKey(serviceKey);
 
   if (isProd() && process.env.DATABASE_URL?.includes("localhost")) {
     throw new Error(
