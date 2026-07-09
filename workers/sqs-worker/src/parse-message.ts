@@ -52,6 +52,18 @@ export function parseCronJob(body: string): CronJobMessage {
     case "REFRESH_COMMUNITY_MEMBER_STATS":
     case "PIPELINE_HEALTH":
       return { type: t };
+    case "TASTE_IDENTITY_REFRESH_CHUNK": {
+      if (
+        !Array.isArray(o.userIds) ||
+        !o.userIds.every((u) => typeof u === "string")
+      ) {
+        throw new Error("TASTE_IDENTITY_REFRESH_CHUNK requires userIds: string[]");
+      }
+      return {
+        type: "TASTE_IDENTITY_REFRESH_CHUNK",
+        userIds: o.userIds as string[],
+      };
+    }
     case "COMMUNITY_FEATURE_WEEKLY":
       return {
         type: "COMMUNITY_FEATURE_WEEKLY",
