@@ -11,9 +11,9 @@ export const EXPECTED_JOBS: Record<string, number> = {
   listening_aggregates: 48 * 3600_000,
   refresh_stats: 48 * 3600_000,
   lastfm_sync: 48 * 3600_000,
-  taste_identity_refresh: 48 * 3600_000,
   spotify_enrichment_retry: 48 * 3600_000,
   // Weekly jobs — 8 day grace.
+  taste_identity_refresh: 8 * 24 * 3600_000, // EventBridge schedule is weekly (Mondays)
   compute_cooccurrence: 8 * 24 * 3600_000,
   blind_spots: 8 * 24 * 3600_000,
   billboard_weekly_email: 8 * 24 * 3600_000,
