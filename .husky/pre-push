@@ -1,1 +1,3 @@
+branch="$(git rev-parse --abbrev-ref HEAD)"
+node scripts/git/check-branch-name.mjs "$branch" || exit 1
 npm run verify
