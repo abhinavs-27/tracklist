@@ -44,6 +44,31 @@ DRY_RUN=1 npm run post-import:drain  # print pending count without processing
 cd mobile && npx expo start
 ```
 
+## Git Workflow
+
+**One worktree per task.** Every concurrent task runs in its own git worktree at
+`../tracklist-worktrees/<slug>` (sibling to the repo, never nested inside it). This
+keeps parallel Claude sessions from sharing HEAD/index. The main tree
+(`/Users/abhinav/tracklist`) is just the worktree for whatever you're doing now.
+
+**Branch naming (enforced):** `type/short-desc`, where `type` is one of
+`feat fix chore docs refactor test perf` and `short-desc` is kebab-case
+(`^(feat|fix|chore|docs|refactor|test|perf)/[a-z0-9]+(-[a-z0-9]+)*$`). `main` is
+exempt. The `.husky/pre-push` hook rejects pushes from mis-named branches by running
+`scripts/git/check-branch-name.mjs`, which delegates to the pure, unit-tested rule in
+`scripts/git/validate-branch-name.mjs`.
+
+**Helper commands:**
+
+| Command | What it does |
+|---|---|
+| `npm run wt:new <type/desc>` | Create `../tracklist-worktrees/<slug>` on a new, correctly-named branch off fresh `origin/main`. |
+| `npm run wt:clean [name]` | Remove a worktree (current one if no name); refuses on uncommitted or unmerged work unless `--force`. |
+| `npm run git:tidy` | Dry-run: list fully-merged local branches + stale worktrees. `--yes` to delete. Never touches unmerged work. |
+
+**Never `git add -A`** — stage explicitly. Nesting a worktree inside the main tree is
+what makes bulk-add dangerous, which is why worktrees live in the sibling directory.
+
 ## Architecture
 
 Three deployment tiers:
