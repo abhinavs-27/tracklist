@@ -46,6 +46,51 @@ describe("fetchLastfmRecentTracksSafe", () => {
     expect(fetchLastfmApi).toHaveBeenCalledTimes(1);
   });
 
+  it("retries transient rate-limit {error:29} and returns classified code after exhaustion", async () => {
+    fetchLastfmApi.mockResolvedValue(lastfmErrorResponse(429, 29, "Rate limit exceeded"));
+
+    const { fetchLastfmRecentTracksSafe } = await import("@/lib/lastfm/fetch-recent");
+    const result = await fetchLastfmRecentTracksSafe("someone", 1);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errorCode).toBe("lastfm_29");
+    }
+    expect(fetchLastfmApi).toHaveBeenCalledTimes(3);
+  });
+
+  it("recovers when a transient Last.fm error clears on retry", async () => {
+    fetchLastfmApi
+      .mockResolvedValueOnce(lastfmErrorResponse(503, 16, "Temporarily unavailable"))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              recenttracks: {
+                track: [
+                  {
+                    name: "Song",
+                    artist: { "#text": "Artist" },
+                    date: { uts: "1700000000" },
+                  },
+                ],
+              },
+            }),
+          ),
+      });
+
+    const { fetchLastfmRecentTracksSafe } = await import("@/lib/lastfm/fetch-recent");
+    const result = await fetchLastfmRecentTracksSafe("someone", 1);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.tracks).toHaveLength(1);
+    }
+    expect(fetchLastfmApi).toHaveBeenCalledTimes(2);
+  });
+
   it("still retries non-Last.fm HTTP failures", async () => {
     fetchLastfmApi.mockResolvedValue({
       ok: false,
