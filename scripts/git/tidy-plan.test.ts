@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeTidyPlan } from './tidy-plan.mjs';
 
 const wt = (over = {}) => ({
-  path: '/x', branch: 'b', mergedIntoMain: false, missing: false, isMain: false, ...over,
+  path: '/x', branch: 'b', mergedIntoMain: false, missing: false, dirty: false, isMain: false, ...over,
 });
 
 describe('computeTidyPlan', () => {
@@ -39,6 +39,14 @@ describe('computeTidyPlan', () => {
       ],
     });
     expect(plan.worktreesToPrune.sort()).toEqual(['/gone', '/merged']);
+  });
+
+  it('never prunes a merged worktree with uncommitted changes', () => {
+    const plan = computeTidyPlan({
+      branches: [],
+      worktrees: [wt({ path: '/dirty', mergedIntoMain: true, dirty: true })],
+    });
+    expect(plan.worktreesToPrune).toEqual([]);
   });
 
   it('returns empty plan when nothing is stale', () => {

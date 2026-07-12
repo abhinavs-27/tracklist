@@ -37,13 +37,18 @@ const branches = tryGit(['for-each-ref', '--format=%(refname:short)', 'refs/head
   .split('\n').filter(Boolean)
   .map((name) => ({ name, mergedIntoMain: mergedIntoMain(name), checkedOut: checkedOut.has(name) }));
 
-const wtInfo = worktrees.map((w, i) => ({
-  path: w.path,
-  branch: w.branch ?? null,
-  isMain: i === 0,
-  missing: !existsSync(w.path),
-  mergedIntoMain: w.branch ? mergedIntoMain(w.branch) : false,
-}));
+const wtInfo = worktrees.map((w, i) => {
+  const missing = !existsSync(w.path);
+  return {
+    path: w.path,
+    branch: w.branch ?? null,
+    isMain: i === 0,
+    missing,
+    // A present worktree with any staged/unstaged/untracked change is dirty and must be kept.
+    dirty: !missing && tryGit(['-C', w.path, 'status', '--porcelain']).length > 0,
+    mergedIntoMain: w.branch ? mergedIntoMain(w.branch) : false,
+  };
+});
 
 const plan = computeTidyPlan({ branches, worktrees: wtInfo });
 
@@ -59,7 +64,7 @@ for (const b of plan.branchesToDelete) console.log(`  delete branch  ${b}`);
 if (!APPLY) { console.log('\nRe-run with --yes to apply.'); process.exit(0); }
 
 for (const p of plan.worktreesToPrune) {
-  try { git(['worktree', 'remove', p, '--force']); console.log(`removed worktree ${p}`); }
+  try { git(['worktree', 'remove', p]); console.log(`removed worktree ${p}`); }
   catch (e) { console.error(`skip worktree ${p}: ${e.message}`); }
 }
 git(['worktree', 'prune']);

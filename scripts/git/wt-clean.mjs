@@ -27,6 +27,7 @@ const target = nameArg
 const paths = tryGit(['worktree', 'list', '--porcelain'])
   .split('\n').filter((l) => l.startsWith('worktree ')).map((l) => l.slice(9));
 const mainTree = paths[0];
+if (!mainTree) { console.error('✗ could not determine the main worktree'); process.exit(1); }
 if (path.resolve(target) === path.resolve(mainTree)) {
   console.error('✗ refusing to remove the main worktree'); process.exit(1);
 }

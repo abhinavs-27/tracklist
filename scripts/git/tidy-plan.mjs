@@ -3,7 +3,7 @@
  * and which worktrees are safe to prune. All git I/O happens in the caller.
  * @param {{
  *   branches: Array<{ name: string, mergedIntoMain: boolean, checkedOut: boolean }>,
- *   worktrees: Array<{ path: string, branch: string|null, mergedIntoMain: boolean, missing: boolean, isMain: boolean }>,
+ *   worktrees: Array<{ path: string, branch: string|null, mergedIntoMain: boolean, missing: boolean, dirty: boolean, isMain: boolean }>,
  *   protectedBranches?: string[]
  * }} input
  * @returns {{ branchesToDelete: string[], worktreesToPrune: string[] }}
@@ -14,7 +14,7 @@ export function computeTidyPlan(input) {
     .filter((b) => b.mergedIntoMain && !b.checkedOut && !protectedBranches.has(b.name))
     .map((b) => b.name);
   const worktreesToPrune = input.worktrees
-    .filter((w) => !w.isMain && (w.missing || w.mergedIntoMain))
+    .filter((w) => !w.isMain && !w.dirty && (w.missing || w.mergedIntoMain))
     .map((w) => w.path);
   return { branchesToDelete, worktreesToPrune };
 }
