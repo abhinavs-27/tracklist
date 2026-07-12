@@ -34,6 +34,23 @@ async function getToken(): Promise<string | null> {
   return _cachedToken;
 }
 
+/** The cached token can be stale after a long background (timers pause on
+ * native, so auto-refresh may not have run yet). On a 401, force a session
+ * read — supabase-js refreshes an expired token — and retry once. */
+async function refreshedToken(staleToken: string): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const fresh = data.session?.access_token ?? null;
+    if (fresh) {
+      _cachedToken = fresh;
+      _tokenBootstrapped = true;
+    }
+    return fresh && fresh !== staleToken ? fresh : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
   if (!API_URL) {
     throw new Error("EXPO_PUBLIC_API_URL is not set");
@@ -50,10 +67,18 @@ export async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     ...init,
     headers,
   });
+
+  if (res.status === 401 && token) {
+    const fresh = await refreshedToken(token);
+    if (fresh) {
+      headers.set("Authorization", `Bearer ${fresh}`);
+      res = await fetch(url, { ...init, headers });
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");

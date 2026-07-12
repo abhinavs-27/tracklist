@@ -6,6 +6,18 @@ import type { LastfmNormalizedScrobble } from "./types";
 
 const LASTFM_API = "https://ws.audioscrobbler.com/2.0/";
 
+/** 8 "operation failed", 11 "service offline", 16 "temporarily unavailable", 29 "rate limit" — retry these. */
+const TRANSIENT_LASTFM_API_ERRORS = new Set([8, 11, 16, 29]);
+
+/** A classified Last.fm API error worth retrying; keeps its errorCode if retries run out. */
+class LastfmApiError extends Error {
+  errorCode: string;
+  constructor(message: string, errorCode: string) {
+    super(message);
+    this.errorCode = errorCode;
+  }
+}
+
 type LastfmTrack = {
   name?: string;
   artist?: { "#text"?: string };
@@ -146,14 +158,28 @@ export async function fetchLastfmRecentTracksSafe(
       const text = await res.text();
       if (!res.ok) {
         let detail = text.slice(0, 200);
+        let apiErr: LastfmApiError | null = null;
         try {
-          const j = JSON.parse(text) as { message?: string };
+          const j = JSON.parse(text) as { error?: number; message?: string };
+          // Last.fm sends API errors (e.g. unknown user) as 4xx with the same
+          // {error, message} body it uses on 200 — classify instead of blind retry.
+          if (typeof j.error === "number" && j.error) {
+            const parsed = parseLastfmResponse(j);
+            if (!parsed.ok) {
+              if (!TRANSIENT_LASTFM_API_ERRORS.has(j.error)) {
+                clearTimeout(tid);
+                return { ok: false, tracks: [], error: parsed.error, errorCode: parsed.errorCode };
+              }
+              apiErr = new LastfmApiError(parsed.error, parsed.errorCode);
+            }
+          }
           if (typeof j.message === "string" && j.message.trim()) {
             detail = j.message.trim();
           }
         } catch {
           /* non-JSON body */
         }
+        if (apiErr) throw apiErr;
         throw new Error(`HTTP ${res.status}: ${detail}`);
       }
       let data: {
@@ -203,6 +229,9 @@ export async function fetchLastfmRecentTracksSafe(
     }
   }
 
+  if (lastErr instanceof LastfmApiError) {
+    return { ok: false, tracks: [], error: lastErr.message, errorCode: lastErr.errorCode };
+  }
   const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
   const code =
     lastErr instanceof Error && lastErr.name === "AbortError" ? "timeout" : "fetch_failed";
@@ -278,14 +307,28 @@ export async function fetchLastfmRecentTracksPageSafe(
       const text = await res.text();
       if (!res.ok) {
         let detail = text.slice(0, 200);
+        let apiErr: LastfmApiError | null = null;
         try {
-          const j = JSON.parse(text) as { message?: string };
+          const j = JSON.parse(text) as { error?: number; message?: string };
+          // Last.fm sends API errors (e.g. unknown user) as 4xx with the same
+          // {error, message} body it uses on 200 — classify instead of blind retry.
+          if (typeof j.error === "number" && j.error) {
+            const parsed = parseLastfmResponse(j);
+            if (!parsed.ok) {
+              if (!TRANSIENT_LASTFM_API_ERRORS.has(j.error)) {
+                clearTimeout(tid);
+                return { ok: false, tracks: [], error: parsed.error, errorCode: parsed.errorCode };
+              }
+              apiErr = new LastfmApiError(parsed.error, parsed.errorCode);
+            }
+          }
           if (typeof j.message === "string" && j.message.trim()) {
             detail = j.message.trim();
           }
         } catch {
           /* non-JSON body */
         }
+        if (apiErr) throw apiErr;
         throw new Error(`HTTP ${res.status}: ${detail}`);
       }
       let data: {
@@ -339,6 +382,9 @@ export async function fetchLastfmRecentTracksPageSafe(
     }
   }
 
+  if (lastErr instanceof LastfmApiError) {
+    return { ok: false, tracks: [], error: lastErr.message, errorCode: lastErr.errorCode };
+  }
   const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
   const code =
     lastErr instanceof Error && lastErr.name === "AbortError" ? "timeout" : "fetch_failed";

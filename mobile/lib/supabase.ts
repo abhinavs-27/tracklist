@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from "react-native";
+import { AppState, NativeModules, Platform } from "react-native";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
@@ -79,3 +79,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: Platform.OS === "web",
   },
 });
+
+// React Native pauses JS timers while backgrounded, so `autoRefreshToken`
+// alone never refreshes there: tokens expire (~1h) in the background and the
+// first taps after resume hit the API with a stale token and get 401s.
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
