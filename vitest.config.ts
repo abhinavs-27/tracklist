@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.test.ts', '**/*.test.tsx'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/**', '**/.claude/**'],
     alias: {
       '@': path.resolve(__dirname, './'),
       'server-only': path.resolve(__dirname, 'tests/mocks/empty.js'),
