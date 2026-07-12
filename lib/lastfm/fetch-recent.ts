@@ -147,7 +147,16 @@ export async function fetchLastfmRecentTracksSafe(
       if (!res.ok) {
         let detail = text.slice(0, 200);
         try {
-          const j = JSON.parse(text) as { message?: string };
+          const j = JSON.parse(text) as { error?: number; message?: string };
+          // Last.fm sends API errors (e.g. unknown user) as 4xx with the same
+          // {error, message} body it uses on 200 — classify, don't retry.
+          if (typeof j.error === "number" && j.error) {
+            const parsed = parseLastfmResponse(j);
+            if (!parsed.ok) {
+              clearTimeout(tid);
+              return { ok: false, tracks: [], error: parsed.error, errorCode: parsed.errorCode };
+            }
+          }
           if (typeof j.message === "string" && j.message.trim()) {
             detail = j.message.trim();
           }
@@ -279,7 +288,16 @@ export async function fetchLastfmRecentTracksPageSafe(
       if (!res.ok) {
         let detail = text.slice(0, 200);
         try {
-          const j = JSON.parse(text) as { message?: string };
+          const j = JSON.parse(text) as { error?: number; message?: string };
+          // Last.fm sends API errors (e.g. unknown user) as 4xx with the same
+          // {error, message} body it uses on 200 — classify, don't retry.
+          if (typeof j.error === "number" && j.error) {
+            const parsed = parseLastfmResponse(j);
+            if (!parsed.ok) {
+              clearTimeout(tid);
+              return { ok: false, tracks: [], error: parsed.error, errorCode: parsed.errorCode };
+            }
+          }
           if (typeof j.message === "string" && j.message.trim()) {
             detail = j.message.trim();
           }
