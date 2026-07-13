@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../supabase";
 import { signInWithGoogleOAuth, signInWithApple } from "../auth-oauth";
+import { unregisterPushWithBackend } from "../notifications";
 
 const AUTH_SESSION_KEY = ["auth", "session"] as const;
 
@@ -72,6 +73,11 @@ export function useAuth(): UseAuthResult {
       return { error, cancelled };
     },
     signOut: async () => {
+      try {
+        await unregisterPushWithBackend();
+      } catch (e) {
+        console.warn("[useAuth] unregisterPushWithBackend failed:", e);
+      }
       await signOutMutation.mutateAsync();
     },
   };

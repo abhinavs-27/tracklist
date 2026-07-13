@@ -8,7 +8,6 @@ import {
   Notifications,
   registerPushWithBackend,
   routeFromPushData,
-  unregisterPushWithBackend,
 } from "@/lib/notifications";
 
 /**
@@ -24,9 +23,6 @@ export function NotificationsBootstrap() {
   useEffect(() => {
     if (isLoading) return;
     if (!session?.user?.id) {
-      if (lastRegisteredUid.current) {
-        void unregisterPushWithBackend();
-      }
       lastRegisteredUid.current = null;
       return;
     }
