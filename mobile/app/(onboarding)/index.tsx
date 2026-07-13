@@ -269,7 +269,7 @@ export default function OnboardingScreen() {
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           <Text style={s.title}>What do you listen to?</Text>
           <Text style={s.subtitle}>
-            Pick up to {MAX_GENRES} genres. We'll show you albums to rate — this builds your taste profile right away.
+            Pick up to {MAX_GENRES} genres. We&apos;ll show you albums to rate — this builds your taste profile right away.
           </Text>
 
           <View style={s.genreGrid}>
@@ -327,7 +327,7 @@ export default function OnboardingScreen() {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Text style={s.title}>Rate what you know</Text>
         <Text style={s.subtitle}>
-          Tap stars for albums you've heard. Skip anything unfamiliar.
+          Tap stars for albums you&apos;ve heard. Skip anything unfamiliar.
           {ratedCount > 0 ? ` · ${ratedCount} rated` : ""}
         </Text>
 
@@ -355,7 +355,7 @@ export default function OnboardingScreen() {
         {suggestions.length === 0 ? (
           <View style={{ marginTop: 32, gap: 12 }}>
             <Text style={{ color: theme.colors.muted, textAlign: "center", fontSize: 14 }}>
-              We don't have album data for your genres yet.
+              We don&apos;t have album data for your genres yet.
             </Text>
             <Text style={{ color: theme.colors.muted, textAlign: "center", fontSize: 14 }}>
               Search for albums you know and rate them — or skip for now and rate albums as you discover them in the app.

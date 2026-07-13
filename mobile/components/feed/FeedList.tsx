@@ -83,7 +83,7 @@ export function FeedList({ listHeader, emptyComponent }: FeedListProps) {
     const detail = error instanceof Error ? error.message : String(error);
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>Couldn't load the feed</Text>
+        <Text style={styles.errorText}>Couldn&apos;t load the feed</Text>
         {detail ? (
           <Text style={styles.errorDetail} selectable>
             {detail}

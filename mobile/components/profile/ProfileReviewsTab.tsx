@@ -124,7 +124,7 @@ export function ProfileReviewsTab({ username, isOwnProfile, hasLastfm }: Props) 
       {showLastfmNudge ? (
         <View style={s.nudge}>
           <Text style={s.nudgeText}>
-            Connect Last.fm to see how many times you've listened to each of these.
+            Connect Last.fm to see how many times you&apos;ve listened to each of these.
           </Text>
         </View>
       ) : null}

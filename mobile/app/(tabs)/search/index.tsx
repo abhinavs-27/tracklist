@@ -385,7 +385,7 @@ export default function SearchScreen() {
 
           {/* No results */}
           {query.trim() && !loading && !hasResults && !searchError && (
-            <Text style={styles.emptyText}>No results for "{query}"</Text>
+            <Text style={styles.emptyText}>No results for &quot;{query}&quot;</Text>
           )}
 
           {/* Top result */}

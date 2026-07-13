@@ -653,7 +653,7 @@ export default function ExploreScreen() {
 
         {isError ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Couldn't load Explore</Text>
+            <Text style={styles.emptyTitle}>Couldn&apos;t load Explore</Text>
             <Text style={styles.emptyBody}>
               Pull down to try again, or check your connection.
             </Text>
@@ -678,7 +678,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}
@@ -781,7 +781,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}
@@ -801,7 +801,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}
@@ -822,7 +822,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}

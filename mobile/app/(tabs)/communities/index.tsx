@@ -159,7 +159,7 @@ export default function CommunitiesTabScreen() {
         </View>
       ) : error ? (
         <View style={styles.pad}>
-          <Text style={styles.err}>Couldn't load communities.</Text>
+          <Text style={styles.err}>Couldn&apos;t load communities.</Text>
           <Pressable onPress={onRefresh}>
             <Text style={styles.link}>Try again</Text>
           </Pressable>
@@ -178,7 +178,7 @@ export default function CommunitiesTabScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={48} color={theme.colors.muted} />
               <Text style={styles.empty}>
-                You're not in a community yet.{"\n"}Create one or ask a friend for an invite.
+                You&apos;re not in a community yet.{"\n"}Create one or ask a friend for an invite.
               </Text>
             </View>
           }

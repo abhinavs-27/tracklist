@@ -551,7 +551,7 @@ function PulseTab({
                     <View style={styles.pulseRow}>
                       <PulseArrow trend={pulse.playVolume.trend} />
                       <View style={styles.pulseRowText}>
-                        <Text style={styles.pulseLabel}>How much you're listening</Text>
+                        <Text style={styles.pulseLabel}>How much you&apos;re listening</Text>
                         <Text style={styles.pulseMeta}>
                           {pulse.playVolume.percentChange > 0 ? "+" : ""}{Math.round(pulse.playVolume.percentChange)}% vs last week
                           {" · "}<Text style={{ color: "#d4d4d8" }}>{pulse.playVolume.currentPlays.toLocaleString()} plays</Text>
@@ -594,7 +594,7 @@ function PulseTab({
                   </View>
                   <View style={styles.pulseRowText}>
                     <Text style={styles.pulseLabel}>Artists you just found</Text>
-                    <Text style={styles.pulseMeta}>New artists you've added to your rotation this week.</Text>
+                    <Text style={styles.pulseMeta}>New artists you&apos;ve added to your rotation this week.</Text>
                     <Text style={[styles.pulseName, { marginTop: 8 }]}>
                       {pulse.discoveries.names.slice(0, 4).join(" · ")}
                       {pulse.discoveries.names.length > 4 ? ` · +${pulse.discoveries.names.length - 4} more` : ""}
@@ -607,7 +607,7 @@ function PulseTab({
             {/* What's changing */}
             {pulse.soundShift ? (
               <View style={[styles.pulseGroup, soundNeedsRule && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(63,63,70,0.8)", paddingTop: 20 }]}>
-                <Text style={styles.pulseGroupLabel}>WHAT'S CHANGING</Text>
+                <Text style={styles.pulseGroupLabel}>WHAT&apos;S CHANGING</Text>
                 <View style={styles.pulseRow}>
                   <PulseArrow trend={pulse.soundShift.trend} />
                   <View style={styles.pulseRowText}>
@@ -910,7 +910,7 @@ function HistoryTab() {
               </View>
             </View>
             <Text style={styles.blindSpotsIntro}>
-              Similar to artists you love, but you haven't listened to them yet.
+              Similar to artists you love, but you haven&apos;t listened to them yet.
             </Text>
             {blindSpots!.artists.slice(0, 5).map((a) => (
               <View key={a.spotifyId} style={styles.blindSpotItem}>
