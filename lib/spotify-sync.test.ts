@@ -33,8 +33,18 @@ vi.mock('@/lib/spotify-user', () => ({
 }));
 
 // We use a factory to get a fresh mock chain for each call to 'from'
-function createChain() {
-  const chain: any = {
+interface MockQueryChain {
+  select: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  in: ReturnType<typeof vi.fn>;
+  insert: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
+  order: ReturnType<typeof vi.fn>;
+  limit: ReturnType<typeof vi.fn>;
+}
+
+function createChain(): MockQueryChain {
+  const chain: MockQueryChain = {
     select: vi.fn().mockImplementation(() => chain),
     eq: vi.fn().mockImplementation(() => chain),
     in: vi.fn().mockImplementation(() => chain),
@@ -46,7 +56,7 @@ function createChain() {
   return chain;
 }
 
-let activeChain: any;
+let activeChain: MockQueryChain | undefined;
 const mockSupabase = {
   from: vi.fn(() => {
     activeChain = createChain();

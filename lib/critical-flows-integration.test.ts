@@ -20,8 +20,22 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 // Mock Supabase
-function createChain() {
-  const chain: any = {
+interface MockQueryChain {
+  select: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  in: ReturnType<typeof vi.fn>;
+  insert: ReturnType<typeof vi.fn>;
+  upsert: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+  single: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
+  order: ReturnType<typeof vi.fn>;
+  limit: ReturnType<typeof vi.fn>;
+  range: ReturnType<typeof vi.fn>;
+}
+
+function createChain(): MockQueryChain {
+  const chain: MockQueryChain = {
     select: vi.fn().mockImplementation(() => chain),
     eq: vi.fn().mockImplementation(() => chain),
     in: vi.fn().mockImplementation(() => chain),
@@ -37,7 +51,7 @@ function createChain() {
   return chain;
 }
 
-let activeChain: any;
+let activeChain: MockQueryChain | undefined;
 const mockSupabase = {
   from: vi.fn(() => {
     activeChain = createChain();
@@ -127,7 +141,8 @@ vi.mock('@/lib/queries', () => ({
     }
     return [];
   }),
-  enrichUsersWithFollowStatus: vi.fn(async (users) => users.map((u: any) => ({ ...u, following: false }))),
+  enrichUsersWithFollowStatus: vi.fn(async <T extends { id: string }>(users: T[]) =>
+    users.map((u) => ({ ...u, following: false }))),
 }));
 
 vi.mock('@/lib/feed/generate-events', () => ({
@@ -190,7 +205,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         body: JSON.stringify({ entity_type: 'album', entity_id: '2nLhD10Z7Sb4RFyCX2ZCyx', rating: 5, review_text: 'Great!' }),
       });
 
-      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof reviewPOST>[1]);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.id).toBe('r1');
@@ -202,7 +217,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ entity_type: 'album', entity_id: 'a1', rating: 6 }),
         });
-        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof reviewPOST>[1]);
         expect(res.status).toBe(400);
     });
 
@@ -211,7 +226,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ entity_type: 'album' }),
         });
-        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof reviewPOST>[1]);
         expect(res.status).toBe(400);
     });
 
@@ -220,7 +235,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         method: 'POST',
         body: JSON.stringify({ entity_type: 'invalid', entity_id: 'a1', rating: 5 }),
       });
-      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof reviewPOST>[1]);
       expect(res.status).toBe(400);
     });
 
@@ -229,7 +244,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         method: 'POST',
         body: JSON.stringify({ entity_type: 'album', entity_id: 'ERR4567890123456789012', rating: 5 }),
       });
-      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof reviewPOST>[1]);
       expect(res.status).toBe(400);
       const body = await res.json();
       expect(body.error).toContain('Could not resolve entity');
@@ -250,7 +265,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', source: 'manual' }),
       });
 
-      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof logPOST>[1]);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.id).toBe('l1');
@@ -261,7 +276,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ source: 'manual' }),
         });
-        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await logPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof logPOST>[1]);
         expect(res.status).toBe(400);
     });
 
@@ -270,7 +285,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         method: 'POST',
         body: JSON.stringify({ track_id: '2nLhD10Z7Sb4RFyCX2ZCyx', listened_at: 'invalid-date' }),
       });
-      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof logPOST>[1]);
       expect(res.status).toBe(400);
       const body = await res.json();
       expect(body.error).toContain('Invalid listened_at date');
@@ -281,7 +296,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
         method: 'POST',
         body: JSON.stringify({ track_id: 'unknown-id' }),
       });
-      const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+      const res = await logPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof logPOST>[1]);
       expect(res.status).toBe(400);
       const body = await res.json();
       expect(body.error).toContain('Invalid or unknown track_id');
@@ -292,7 +307,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
           method: 'POST',
           body: JSON.stringify({ track_id: 'pending-id', source: 'manual' }),
         });
-        const res = await logPOST(req, { user: { id: 'test-user-id' } } as any);
+        const res = await logPOST(req, { user: { id: 'test-user-id' } } as unknown as Parameters<typeof logPOST>[1]);
         expect(res.status).toBe(503);
         const body = await res.json();
         expect(body.code).toBe('catalog_pending');
@@ -330,7 +345,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
   describe('GET /api/users/[username]', () => {
     it('should fetch a user profile', async () => {
       const req = new NextRequest('http://localhost/api/users/testuser');
-      const res = await userGET(req, { params: { username: 'testuser' } } as any);
+      const res = await userGET(req, { params: { username: 'testuser' } } as unknown as Parameters<typeof userGET>[1]);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.username).toBe('testuser');
@@ -338,19 +353,19 @@ describe('Critical Flows: API Integration (Vitest)', () => {
 
     it('should return 404 for non-existent user', async () => {
         const req = new NextRequest('http://localhost/api/users/missing');
-        const res = await userGET(req, { params: { username: 'missing' } } as any);
+        const res = await userGET(req, { params: { username: 'missing' } } as unknown as Parameters<typeof userGET>[1]);
         expect(res.status).toBe(404);
     });
 
     it('should return 500 on database error', async () => {
         const req = new NextRequest('http://localhost/api/users/error');
-        const res = await userGET(req, { params: { username: 'error' } } as any);
+        const res = await userGET(req, { params: { username: 'error' } } as unknown as Parameters<typeof userGET>[1]);
         expect(res.status).toBe(500);
     });
 
     it('should return 400 for invalid username format', async () => {
       const req = new NextRequest('http://localhost/api/users/!!');
-      const res = await userGET(req, { params: { username: '!!' } } as any);
+      const res = await userGET(req, { params: { username: '!!' } } as unknown as Parameters<typeof userGET>[1]);
       expect(res.status).toBe(400);
       const body = await res.json();
       expect(body.error).toContain('Invalid username format');
@@ -391,7 +406,7 @@ describe('Critical Flows: API Integration (Vitest)', () => {
   describe('GET /api/search/users', () => {
     it('should return user search results', async () => {
       const req = new NextRequest('http://localhost/api/search/users?q=test');
-      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as any);
+      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as unknown as Parameters<typeof searchUsersGET>[1]);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.length).toBeGreaterThan(0);
@@ -400,13 +415,13 @@ describe('Critical Flows: API Integration (Vitest)', () => {
 
     it('should return 400 for short query', async () => {
       const req = new NextRequest('http://localhost/api/search/users?q=a');
-      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as any);
+      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as unknown as Parameters<typeof searchUsersGET>[1]);
       expect(res.status).toBe(400);
     });
 
     it('should return 400 if no query provided', async () => {
       const req = new NextRequest('http://localhost/api/search/users');
-      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as any);
+      const res = await searchUsersGET(req, { user: { id: 'viewer-id' } } as unknown as Parameters<typeof searchUsersGET>[1]);
       expect(res.status).toBe(400);
     });
   });

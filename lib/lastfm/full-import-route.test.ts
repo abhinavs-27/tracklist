@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { NextRequest } from "next/server";
 
 vi.mock("@/lib/auth", () => ({
   requireApiAuth: vi.fn().mockResolvedValue({ id: "user-1", username: "test" }),
@@ -36,7 +37,7 @@ describe("POST /api/lastfm/full-import", () => {
   it("returns 409 when import is already running", async () => {
     const { POST } = await import("@/app/api/lastfm/full-import/route");
     const req = new Request("http://localhost/api/lastfm/full-import", { method: "POST" });
-    const res = await POST(req as any);
+    const res = await POST(req as unknown as NextRequest);
     expect(res.status).toBe(409);
   });
 });

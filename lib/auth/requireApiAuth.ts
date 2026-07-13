@@ -146,10 +146,10 @@ export async function getUserFromRequest(
       return {
         id: sessionUserId,
         email: su.email ?? undefined,
-        username: (su as any).username ?? su.name ?? "user",
-        avatar_url: (su as any).avatar_url ?? su.image ?? null,
-        bio: (su as any).bio ?? null,
-        created_at: (su as any).created_at ?? undefined,
+        username: su.username ?? su.name ?? "user",
+        avatar_url: su.avatar_url ?? su.image ?? null,
+        bio: su.bio ?? null,
+        created_at: undefined,
       };
     }
 

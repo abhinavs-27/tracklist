@@ -203,7 +203,17 @@ async function getListenLogsInternal(opts: {
     const { data: rawLogs, error } = await query;
     if (error || !rawLogs?.length) return [];
 
-    let logs = rawLogs.map((l: any) => ({
+    // `selectFields` is built dynamically, so Supabase can't infer a literal row type here.
+    interface RawLogRow {
+      id: string;
+      listened_at: string;
+      source: string | null;
+      created_at: string;
+      user_id?: string;
+      track_id?: string;
+    }
+
+    let logs = (rawLogs as unknown as RawLogRow[]).map((l) => ({
       ...l,
       user_id: opts.userId ?? l.user_id,
       track_id: resolvedTrackFilter ?? l.track_id,
@@ -1950,7 +1960,7 @@ export async function getTopTracksForArtist(
       .limit(1000);
     if (!songRowsRaw?.length) return [];
 
-    const songRows = songRowsRaw.map((s: any) => ({
+    const songRows = songRowsRaw.map((s) => ({
       ...s,
       artist_id: canonicalArtistId,
     })) as {
@@ -4782,7 +4792,7 @@ export async function getList(
       .eq("list_id", listId)
       .order("position", { ascending: true })
       .range(from, to);
-    itemRows = (itemsResult.data ?? []).map((r: any) => ({ ...r, list_id: listId }));
+    itemRows = (itemsResult.data ?? []).map((r) => ({ ...r, list_id: listId }));
     itemsError = itemsResult.error;
 
     // If column missing (e.g. added_at), retry with minimal columns and default added_at.
