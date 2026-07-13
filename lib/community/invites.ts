@@ -94,36 +94,29 @@ async function notifyInviteeOfCommunityInvite(
   actorUserId: string,
   communityId: string,
 ): Promise<void> {
-  const { error } = await admin.from("notifications").insert({
-    user_id: invitedUserId,
-    actor_user_id: actorUserId,
-    type: "community_invite",
-    entity_type: "community",
-    entity_id: communityId,
-  });
-  if (error) {
-    console.warn(
-      "[community] invite notification insert failed",
-      error.message,
-    );
-  }
-
-  // Push to invited user
   try {
-    const { sendPushToUser } = await import("@/lib/push/send");
     const [inviterResult, communityResult] = await Promise.all([
       admin.from("users").select("username").eq("id", actorUserId).maybeSingle(),
       admin.from("communities").select("name").eq("id", communityId).maybeSingle(),
     ]);
     const inviterUsername = inviterResult.data?.username ?? "Someone";
     const communityName = communityResult.data?.name ?? "a community";
-    await sendPushToUser(admin, invitedUserId, {
-      title: "You've been invited!",
-      body: `@${inviterUsername} invited you to ${communityName}`,
-      data: { url: "/notifications" },
+    const { notify } = await import("@/lib/notifications/notify");
+    await notify({
+      admin,
+      userId: invitedUserId,
+      actorUserId,
+      type: "community_invite",
+      entityType: "community",
+      entityId: communityId,
+      push: {
+        title: "You've been invited!",
+        body: `@${inviterUsername} invited you to ${communityName}`,
+        data: { url: "/notifications" },
+      },
     });
   } catch (e) {
-    console.warn("[invites] push failed", e);
+    console.warn("[invites] notify failed", e);
   }
 }
 
