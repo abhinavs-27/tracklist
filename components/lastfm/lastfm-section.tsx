@@ -95,13 +95,22 @@ export function LastfmSection({
   const [listAddBusy, setListAddBusy] = useState(false);
   const [lastImportTrackIds, setLastImportTrackIds] = useState<string[]>([]);
 
-  useEffect(() => {
+  // Sync local editable copies from the server-provided props. Computed
+  // during render (rather than effect+setState) so a fresh server value
+  // (e.g. after router.refresh()) is reflected in the very first render.
+  const [prevInitialUsername, setPrevInitialUsername] = useState(initialUsername);
+  if (initialUsername !== prevInitialUsername) {
+    setPrevInitialUsername(initialUsername);
     setUsernameInput(initialUsername ?? "");
-  }, [initialUsername]);
+  }
 
-  useEffect(() => {
+  const [prevInitialLastSyncedAt, setPrevInitialLastSyncedAt] = useState(
+    initialLastSyncedAt,
+  );
+  if (initialLastSyncedAt !== prevInitialLastSyncedAt) {
+    setPrevInitialLastSyncedAt(initialLastSyncedAt);
     setLastSyncedAt(initialLastSyncedAt ?? null);
-  }, [initialLastSyncedAt]);
+  }
 
   useEffect(() => {
     if (!successToast) return;

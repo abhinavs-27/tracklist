@@ -42,13 +42,18 @@ export function FeedListVirtual({
   const [items, setItems] = useState<EnrichedFeedActivity[]>(initialItems);
   const [nextCursor, setNextCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
+  const [prevInitialItems, setPrevInitialItems] = useState(initialItems);
 
-  const rows = useMemo(() => groupConsecutiveListenSessions(items), [items]);
-
-  useEffect(() => {
+  // Reset local state when the parent hands us a new initial page (e.g. feed
+  // filter changed). Adjusting state during render (rather than in an effect)
+  // avoids an extra commit that would briefly flash the previous page.
+  if (initialItems !== prevInitialItems) {
+    setPrevInitialItems(initialItems);
     setItems(initialItems);
     setNextCursor(initialCursor);
-  }, [initialItems, initialCursor]);
+  }
+
+  const rows = useMemo(() => groupConsecutiveListenSessions(items), [items]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loading) return;
@@ -68,9 +73,11 @@ export function FeedListVirtual({
     }
   }, [nextCursor, loading]);
 
-  const listRef = useRef<HTMLDivElement>(null);
+  const [listNode, setListNode] = useState<HTMLDivElement | null>(null);
   const loadMoreRef = useRef(loadMore);
-  loadMoreRef.current = loadMore;
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  });
 
   const getItemKey = useCallback(
     (index: number) => feedRowKey(rows[index]!, index),
@@ -82,7 +89,7 @@ export function FeedListVirtual({
     estimateSize: () => ROW_ESTIMATE,
     overscan: OVERSCAN,
     getItemKey,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    scrollMargin: listNode?.offsetTop ?? 0,
   });
 
   // Infinite scroll: load more when near the bottom of the list
@@ -108,7 +115,7 @@ export function FeedListVirtual({
   return (
     <FeedReactionsProvider rows={rows}>
       <div
-        ref={listRef}
+        ref={setListNode}
         className={className}
         role="feed"
         aria-busy={loading}

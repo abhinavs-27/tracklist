@@ -199,8 +199,10 @@ export function FollowersModal({
 
   const followersRef = useRef(followers);
   const followingRef = useRef(following);
-  followersRef.current = followers;
-  followingRef.current = following;
+  useEffect(() => {
+    followersRef.current = followers;
+    followingRef.current = following;
+  });
 
   /** Lock page scroll while open (mobile + desktop). */
   useEffect(() => {
@@ -227,20 +229,34 @@ export function FollowersModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setActiveTab(initialTab);
-  }, [isOpen, initialTab]);
+  // Reset the active tab whenever the modal (re)opens with a possibly new
+  // initialTab. Computed during render (not effect+setState) so it applies
+  // to the very first render for the new open/initialTab pair.
+  const openTabKey = `${isOpen}|${initialTab}`;
+  const [prevOpenTabKey, setPrevOpenTabKey] = useState(openTabKey);
+  if (openTabKey !== prevOpenTabKey) {
+    setPrevOpenTabKey(openTabKey);
+    if (isOpen) setActiveTab(initialTab);
+  }
+
+  // Same pattern: clear stale lists as soon as the modal (re)opens for a
+  // given user, before the prefetch effect below kicks off the fetch.
+  const openUserKey = `${isOpen}|${userId}|${username}`;
+  const [prevOpenUserKey, setPrevOpenUserKey] = useState(openUserKey);
+  if (openUserKey !== prevOpenUserKey) {
+    setPrevOpenUserKey(openUserKey);
+    if (isOpen) {
+      setFollowers([]);
+      setFollowing([]);
+      setFollowersHasMore(true);
+      setFollowingHasMore(true);
+      setError(null);
+    }
+  }
 
   /** When the modal opens, prefetch both tabs in parallel so switching is instant. */
   useEffect(() => {
     if (!isOpen) return;
-
-    setFollowers([]);
-    setFollowing([]);
-    setFollowersHasMore(true);
-    setFollowingHasMore(true);
-    setError(null);
 
     const ac = new AbortController();
 

@@ -104,13 +104,25 @@ export function ProfileOnboarding({
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
-  useEffect(() => {
+  // Sync local editable copies from server props during render (rather than
+  // effect+setState) so a changed prop is reflected in the very first render.
+  const [prevInitialUsername, setPrevInitialUsername] = useState(initialUsername);
+  if (initialUsername !== prevInitialUsername) {
+    setPrevInitialUsername(initialUsername);
     setUsernameInput(initialUsername);
-  }, [initialUsername]);
+  }
 
+  const [prevInitialAvatarUrl, setPrevInitialAvatarUrl] = useState(initialAvatarUrl);
+  if (initialAvatarUrl !== prevInitialAvatarUrl) {
+    setPrevInitialAvatarUrl(initialAvatarUrl);
+    setAvatarDisplayUrl(initialAvatarUrl);
+  }
+
+  // Ref mirror stays in a real effect (not render) — it's a plain
+  // non-reactive cache read only from async mutation callbacks, and ref
+  // writes during render are unsafe under concurrent re-renders.
   useEffect(() => {
     savedAvatarUrlRef.current = initialAvatarUrl;
-    setAvatarDisplayUrl(initialAvatarUrl);
   }, [initialAvatarUrl]);
 
   const revokeCropSrc = useCallback(() => {
@@ -122,8 +134,10 @@ export function ProfileOnboarding({
 
   useEffect(() => {
     if (step !== 1) {
-      setCropModalOpen(false);
-      revokeCropSrc();
+      (() => {
+        setCropModalOpen(false);
+        revokeCropSrc();
+      })();
     }
   }, [step, revokeCropSrc]);
 

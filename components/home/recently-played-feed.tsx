@@ -44,11 +44,17 @@ export function RecentlyPlayedFeed() {
     }
   }, []);
 
-  useEffect(() => { fetchPage(0, false); }, [fetchPage]);
+  useEffect(() => {
+    void (async () => {
+      await fetchPage(0, false);
+    })();
+  }, [fetchPage]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef({ items: [] as RecentTrack[], hasMore: true, loadingMore: false });
-  stateRef.current = { items, hasMore, loadingMore };
+  useEffect(() => {
+    stateRef.current = { items, hasMore, loadingMore };
+  });
 
   useEffect(() => {
     const target = sentinelRef.current;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   communityBody,
   communityButton,
@@ -54,50 +54,53 @@ export function CommunityConsensusSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Reset to page 1 whenever the community changes. Computed during render
+  // (rather than effect+setState) so it takes effect on the very first
+  // render for the new communityId.
+  const [prevCommunityId, setPrevCommunityId] = useState(communityId);
+  if (communityId !== prevCommunityId) {
+    setPrevCommunityId(communityId);
     setPage(1);
-  }, [communityId]);
+  }
 
-  const fetchPage = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const offset = (page - 1) * PAGE_SIZE;
-      const q = new URLSearchParams({
-        type: entity,
-        range: "all",
-        limit: String(PAGE_SIZE),
-        offset: String(offset),
-      });
-      const res = await fetch(
-        `/api/communities/${encodeURIComponent(communityId)}/consensus?${q}`,
-        { cache: "no-store" },
-      );
-      const json = (await res.json().catch(() => null)) as {
-        items?: ConsensusApiItem[];
-        hasMore?: boolean;
-        error?: string;
-      } | null;
-      if (!res.ok) {
-        setError(json?.error ?? "Could not load consensus");
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const offset = (page - 1) * PAGE_SIZE;
+        const q = new URLSearchParams({
+          type: entity,
+          range: "all",
+          limit: String(PAGE_SIZE),
+          offset: String(offset),
+        });
+        const res = await fetch(
+          `/api/communities/${encodeURIComponent(communityId)}/consensus?${q}`,
+          { cache: "no-store" },
+        );
+        const json = (await res.json().catch(() => null)) as {
+          items?: ConsensusApiItem[];
+          hasMore?: boolean;
+          error?: string;
+        } | null;
+        if (!res.ok) {
+          setError(json?.error ?? "Could not load consensus");
+          setItems([]);
+          setHasNextPage(false);
+          return;
+        }
+        setItems(json?.items ?? []);
+        setHasNextPage(Boolean(json?.hasMore));
+      } catch {
+        setError("Could not load consensus");
         setItems([]);
         setHasNextPage(false);
-        return;
+      } finally {
+        setLoading(false);
       }
-      setItems(json?.items ?? []);
-      setHasNextPage(Boolean(json?.hasMore));
-    } catch {
-      setError("Could not load consensus");
-      setItems([]);
-      setHasNextPage(false);
-    } finally {
-      setLoading(false);
-    }
+    })();
   }, [entity, page, communityId]);
-
-  useEffect(() => {
-    void fetchPage();
-  }, [fetchPage]);
 
   const rankBase = (page - 1) * PAGE_SIZE;
 

@@ -22,8 +22,6 @@ export function MusicRecommendationNotificationFooter({
   actorUsername,
   initialResponded,
 }: Props) {
-  if (!SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED) return null;
-
   const router = useRouter();
   const [recOpen, setRecOpen] = useState(false);
   const [snap, setSnap] = useState<ReactionSnapshot | null>(null);
@@ -44,6 +42,8 @@ export function MusicRecommendationNotificationFooter({
     }),
     [notificationId],
   );
+
+  if (!SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED) return null;
 
   return (
     <>
