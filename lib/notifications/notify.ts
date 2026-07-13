@@ -38,13 +38,18 @@ async function pushAllowedFor(
 ): Promise<Set<string>> {
   const category = categoryForType(type);
   const allowed = new Set<string>();
-  const { data } = await admin
-    .from("notification_preferences")
-    .select("user_id, social, recommendations, community, charts")
-    .in("user_id", userIds);
-  const byUser = new Map(
-    ((data ?? []) as PrefRow[]).map((r) => [r.user_id, r]),
-  );
+  const byUser = new Map<string, PrefRow>();
+  const DB_CHUNK = 900;
+  for (let i = 0; i < userIds.length; i += DB_CHUNK) {
+    const chunk = userIds.slice(i, i + DB_CHUNK);
+    const { data } = await admin
+      .from("notification_preferences")
+      .select("user_id, social, recommendations, community, charts")
+      .in("user_id", chunk);
+    for (const r of (data ?? []) as PrefRow[]) {
+      byUser.set(r.user_id, r);
+    }
+  }
   for (const id of userIds) {
     const row = byUser.get(id);
     const on = row ? row[category] : DEFAULT_PREFS[category];
