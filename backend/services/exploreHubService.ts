@@ -1,5 +1,3 @@
-/// <reference path="../types/spotify-api.d.ts" />
-
 import { resolveCanonicalTrackUuidFromEntityId } from "../lib/catalogEntityResolution";
 import { isValidSpotifyId } from "../lib/validation";
 import { getSupabase } from "../lib/supabase";

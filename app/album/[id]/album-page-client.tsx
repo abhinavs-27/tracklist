@@ -296,7 +296,7 @@ export function AlbumPageClient({
           </span>
           {myReview.review_text && (
             <><span className="text-zinc-700">·</span>
-              <span className="line-clamp-1 italic text-zinc-300">"{myReview.review_text}"</span></>
+              <span className="line-clamp-1 italic text-zinc-300">&quot;{myReview.review_text}&quot;</span></>
           )}
         </div>
       )}

@@ -1,5 +1,3 @@
-/// <reference path="../types/spotify-api.d.ts" />
-
 import { catalogSpotifyFetchJson, enforceSpotifyBatchLimit, MAX_SPOTIFY_ITEMS } from "@tracklist/spotify-client";
 
 export const SPOTIFY_MAX_BATCH_IDS = MAX_SPOTIFY_ITEMS;

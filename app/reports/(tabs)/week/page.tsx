@@ -46,7 +46,7 @@ export default async function WeeklyReportPage({
       return (
         <div className="space-y-4">
           <h1 className="text-xl font-bold text-white">Story</h1>
-          <p className="text-zinc-400">Could not load this week's report.</p>
+          <p className="text-zinc-400">Could not load this week&apos;s report.</p>
         </div>
       );
     }

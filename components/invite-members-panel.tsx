@@ -277,7 +277,7 @@ export function InviteMembersPanel({
               Invite link
             </p>
             <p className={`mt-1 leading-relaxed ${communityMeta}`}>
-              We'll{" "}
+              We&apos;ll{" "}
               <span className="font-medium text-zinc-400">
                 copy the URL to your clipboard
               </span>{" "}

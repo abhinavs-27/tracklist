@@ -658,7 +658,7 @@ export function ProfileOnboarding({
                   <div>
                     <h2 className={h2}>What do you listen to?</h2>
                     <p className={bodyMuted}>
-                      Pick your genres and we'll show you albums to rate. This builds your taste profile right away — no Last.fm needed.
+                      Pick your genres and we&apos;ll show you albums to rate. This builds your taste profile right away — no Last.fm needed.
                     </p>
                   </div>
                   <GenrePicker
@@ -696,7 +696,7 @@ export function ProfileOnboarding({
                   <div>
                     <h2 className={h2}>Rate what you know</h2>
                     <p className={bodyMuted}>
-                      Half-stars welcome. Skip anything you haven't heard.
+                      Half-stars welcome. Skip anything you haven&apos;t heard.
                     </p>
                   </div>
                   <RatingGrid

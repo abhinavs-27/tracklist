@@ -31,14 +31,14 @@ export default function PrivacyPage() {
           <p>
             Tracklist is a music social platform that lets you log listens, rate albums, follow
             friends, and discover music. This policy explains what information we collect, why we
-            collect it, and how you can control it. We don't sell your data. We don't run ads.
+            collect it, and how you can control it. We don&apos;t sell your data. We don&apos;t run ads.
           </p>
         </Section>
 
         <Section title="Information we collect">
           <p><span className="text-zinc-200 font-medium">Account information.</span> When you sign
             in with Google or Apple we receive your email address and, optionally, your name and
-            profile photo. We use your email only to identify your account — we don't send
+            profile photo. We use your email only to identify your account — we don&apos;t send
             marketing email.</p>
 
           <p><span className="text-zinc-200 font-medium">Username and profile.</span> You choose a
@@ -54,10 +54,10 @@ export default function PrivacyPage() {
 
           <p><span className="text-zinc-200 font-medium">Last.fm connection.</span> If you connect
             a Last.fm account, we store your Last.fm username and import your listening history
-            from their API. We don't store your Last.fm password.</p>
+            from their API. We don&apos;t store your Last.fm password.</p>
 
           <p><span className="text-zinc-200 font-medium">Spotify connection.</span> If you connect
-            Spotify, we use the Spotify API to look up album and track metadata. We don't read
+            Spotify, we use the Spotify API to look up album and track metadata. We don&apos;t read
             your Spotify listening history without your permission.</p>
 
           <p><span className="text-zinc-200 font-medium">Preferred genres.</span> During
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
             <li>Authenticate you and keep your account secure</li>
             <li>Display your listening history, charts, and taste profile</li>
             <li>Power social features: feeds, follows, communities, leaderboards</li>
-            <li>Send push notifications you've opted into</li>
+            <li>Send push notifications you&apos;ve opted into</li>
             <li>Improve the app based on aggregate, anonymised usage patterns</li>
           </ul>
           <p>We do not use your data for advertising, and we do not sell or rent your data to
@@ -95,8 +95,8 @@ export default function PrivacyPage() {
           <p>Tracklist relies on the following services to operate:</p>
           <ul className="list-disc list-inside space-y-1 pl-2">
             <li><span className="text-zinc-200">Supabase</span> — database and authentication infrastructure. Your data is stored on Supabase servers.</li>
-            <li><span className="text-zinc-200">Google</span> — Sign in with Google. Governed by Google's privacy policy.</li>
-            <li><span className="text-zinc-200">Apple</span> — Sign in with Apple. Governed by Apple's privacy policy.</li>
+            <li><span className="text-zinc-200">Google</span> — Sign in with Google. Governed by Google&apos;s privacy policy.</li>
+            <li><span className="text-zinc-200">Apple</span> — Sign in with Apple. Governed by Apple&apos;s privacy policy.</li>
             <li><span className="text-zinc-200">Last.fm</span> — if connected, we fetch your listening history via the Last.fm API.</li>
             <li><span className="text-zinc-200">Spotify</span> — we use the Spotify API to look up music metadata.</li>
             <li><span className="text-zinc-200">Vercel</span> — web hosting and edge network.</li>
@@ -134,7 +134,7 @@ export default function PrivacyPage() {
 
         <Section title="Changes to this policy">
           <p>
-            We may update this policy as the app evolves. If we make material changes we'll update
+            We may update this policy as the app evolves. If we make material changes we&apos;ll update
             the effective date at the top of this page. Continued use of Tracklist after changes
             are posted constitutes acceptance.
           </p>

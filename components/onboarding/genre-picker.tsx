@@ -20,7 +20,7 @@ export function GenrePicker({ selected, onChange, maxSelections = 5 }: Props) {
   return (
     <div>
       <p className="mb-3 text-sm text-zinc-500">
-        Pick up to {maxSelections}. We'll show you albums to rate.
+        Pick up to {maxSelections}. We&apos;ll show you albums to rate.
       </p>
       <div className="flex flex-wrap gap-2">
         {GENRES.map((genre) => {

@@ -1,4 +1,5 @@
 import { use } from "react";
+import Link from "next/link";
 import type { Session } from "next-auth";
 import { SectionBlock } from "@/components/layout/section-block";
 import { TasteMatchSection } from "@/components/taste-match";
@@ -132,12 +133,12 @@ export function ProfileDeferredBody({
         <div className="flex items-center gap-2">
           {isOwnProfile ? <ProfileListsSection /> : null}
           {isOwnProfile && userLists.length > 0 ? (
-            <a
+            <Link
               href="/lists"
               className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-1.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800"
             >
               View all
-            </a>
+            </Link>
           ) : null}
         </div>
       </div>

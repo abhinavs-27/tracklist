@@ -249,7 +249,7 @@ export function LastfmConnectModal({
         {preview && !loading ? (
           <div className="mt-4 space-y-4 border-t border-zinc-800/80 pt-4">
             <p className="text-xs font-medium text-gold-400/90">
-              Looks good — this is what we'll sync.
+              Looks good — this is what we&apos;ll sync.
             </p>
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -353,7 +353,7 @@ export function LastfmConnectModal({
               disabled={busy}
               className="text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
             >
-              I'll set up Last.fm later
+              I&apos;ll set up Last.fm later
             </button>
           </div>
         </div>

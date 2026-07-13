@@ -1,4 +1,3 @@
-/// <reference path="./types/spotify-api.d.ts" />
 import path from "path";
 import express, { type Request } from "express";
 import cors from "cors";

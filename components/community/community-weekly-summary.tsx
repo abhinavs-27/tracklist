@@ -76,7 +76,7 @@ export function CommunityWeeklySummary(props: {
     return (
       <Wrap className={wrapClass}>
         <p className={`${communityBody} text-zinc-500`}>
-          Couldn't load this week's vibe.
+          Couldn&apos;t load this week&apos;s vibe.
         </p>
       </Wrap>
     );
