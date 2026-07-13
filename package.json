@@ -62,6 +62,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "bottleneck": "^2.19.5",
     "bullmq": "^5.76.10",
+    "expo-server-sdk": "^6.1.0",
     "fast-average-color-node": "^3.2.0",
     "framer-motion": "^12.39.0",
     "ioredis": "^5.10.1",
