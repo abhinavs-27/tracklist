@@ -21,8 +21,18 @@ export default async function LabelPage({ params }: { params: PageParams }) {
     supabase.from("album_labels").select("albums(id, name, image_url, release_date)").eq("label_id", id).limit(12),
   ]);
 
-  const artists = (artistRows ?? []).map((r: any) => ({ id: r.artists.id, name: r.artists.name, image_url: r.artists.image_url }));
-  const albums = (albumRows ?? []).map((r: any) => ({ id: r.albums.id, name: r.albums.name, image_url: r.albums.image_url }));
+  // postgrest-js types these to-one joins as arrays without a Database generic;
+  // cast through the true single-row shape (same pattern as backend join reads).
+  type ArtistRef = { id: string; name: string; image_url: string | null };
+  type AlbumRef = { id: string; name: string; image_url: string | null; release_date: string | null };
+  const artists = (artistRows ?? [])
+    .map((r) => r.artists as unknown as ArtistRef | null)
+    .filter((a): a is ArtistRef => a != null)
+    .map((a) => ({ id: a.id, name: a.name, image_url: a.image_url }));
+  const albums = (albumRows ?? [])
+    .map((r) => r.albums as unknown as AlbumRef | null)
+    .filter((a): a is AlbumRef => a != null)
+    .map((a) => ({ id: a.id, name: a.name, image_url: a.image_url }));
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">

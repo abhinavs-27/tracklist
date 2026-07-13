@@ -53,7 +53,7 @@ export default function ReviewsScreen() {
     queryFn: () => fetcher<{ user?: { id?: string } } | Record<string, never>>("/api/auth/session"),
     staleTime: 30 * 1000,
   });
-  const isSignedIn = !!(session as any)?.user?.id;
+  const isSignedIn = !!session?.user?.id;
 
   const myReview = data?.my_review ?? null;
   const average = data?.average_rating ?? null;

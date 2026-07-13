@@ -52,7 +52,7 @@ function SongPageTabsLoader({
   listensPromise: Promise<ListenLogWithUser[]>;
   relatedPromise: Promise<SpotifyApi.TrackObjectFull[]>;
   leaderboardPromise: Promise<AlbumLeaderboardEntry[] | null>;
-  songInfoPromise: Promise<{ producers: any[]; songwriters: any[]; featuring: any[]; samples: any[]; sampledBy: any[]; covers: any[]; creditsEnrichedAt: string | null }>;
+  songInfoPromise: Promise<Awaited<ReturnType<typeof getSongInfoTabData>> & { creditsEnrichedAt: string | null }>;
 }) {
   const reviewsData = use(reviewsPromise);
   const recentListens = use(listensPromise);

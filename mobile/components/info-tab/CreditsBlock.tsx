@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
 import { theme } from "@/lib/theme";
 
 export type CreditPerson = { id: string; name: string; image_url?: string | null };
@@ -74,7 +74,7 @@ export function CreditsBlock({ label, people, navPath, maxShown = 5 }: Props) {
             </View>
           );
           return navPath ? (
-            <Pressable key={p.id} onPress={() => router.push(navPath(p.id) as any)}>
+            <Pressable key={p.id} onPress={() => router.push(navPath(p.id) as Href)}>
               {inner}
             </Pressable>
           ) : (

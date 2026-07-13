@@ -233,7 +233,7 @@ export default async function HomePage({
   // Phase 1: Onboarding check.
   // Use the value from the session/JWT to avoid a database lookup.
   // NextAuth 'jwt' callback in route.ts ensures this is synced from the DB.
-  if ((session.user as any).onboarding_completed === false) {
+  if (session.user.onboarding_completed === false) {
     redirect("/onboarding");
   }
 

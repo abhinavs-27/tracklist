@@ -7,6 +7,24 @@ import { Image } from "expo-image";
 import { fetcher } from "@/lib/api";
 import { theme } from "@/lib/theme";
 
+type LabelEntityRef = { id: string; name: string; image_url: string | null };
+
+type LabelResponse = {
+  label: {
+    id: string;
+    name: string;
+    bio: string | null;
+    bio_source: string | null;
+    country: string | null;
+    founded_year: number | null;
+    image_url: string | null;
+    external_links: Record<string, string> | null;
+    mbid: string | null;
+  };
+  topArtists: LabelEntityRef[];
+  topAlbums: LabelEntityRef[];
+};
+
 function ArtistTile({ id, name, image_url, onPress }: { id: string; name: string; image_url: string | null; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={{ flex: 1, margin: 4 }}>
@@ -40,7 +58,7 @@ export default function LabelScreen() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["label", labelId],
-    queryFn: () => fetcher<any>(`/api/labels/${labelId}`),
+    queryFn: () => fetcher<LabelResponse>(`/api/labels/${labelId}`),
     enabled: !!labelId,
   });
 
@@ -75,9 +93,9 @@ export default function LabelScreen() {
             <View style={{ marginBottom: 24 }}>
               <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", color: theme.colors.muted, marginBottom: 12 }}>Artists</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", margin: -4 }}>
-                {data.topArtists.map((a: any) => (
+                {data.topArtists.map((a) => (
                   <View key={a.id} style={{ width: "33.33%" }}>
-                    <ArtistTile id={a.id} name={a.name} image_url={a.image_url} onPress={() => router.push(`/artist/${a.id}` as any)} />
+                    <ArtistTile id={a.id} name={a.name} image_url={a.image_url} onPress={() => router.push(`/artist/${a.id}` as const)} />
                   </View>
                 ))}
               </View>
@@ -88,9 +106,9 @@ export default function LabelScreen() {
             <View style={{ marginBottom: 24 }}>
               <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", color: theme.colors.muted, marginBottom: 12 }}>Albums</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", margin: -4 }}>
-                {data.topAlbums.map((a: any) => (
+                {data.topAlbums.map((a) => (
                   <View key={a.id} style={{ width: "33.33%" }}>
-                    <AlbumTile id={a.id} name={a.name} image_url={a.image_url} onPress={() => router.push(`/album/${a.id}` as any)} />
+                    <AlbumTile id={a.id} name={a.name} image_url={a.image_url} onPress={() => router.push(`/album/${a.id}` as const)} />
                   </View>
                 ))}
               </View>

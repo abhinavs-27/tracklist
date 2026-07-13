@@ -17,7 +17,7 @@ export const GET = withHandler(async (req, ctx) => {
     .range(from, from + limit - 1);
 
   return apiOk({
-    artists: (data ?? []).map((r: any) => r.artists),
+    artists: (data ?? []).map((r) => r.artists),
     total: count ?? 0,
     page,
   });

@@ -9,7 +9,7 @@ import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
 import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
 import { AlbumFavoritedByModal } from "@/components/album-favorited-by-modal";
-import { AlbumInfoTab } from "@/components/info-tab/AlbumInfoTab";
+import { AlbumInfoTab, type CreditPerson, type LabelEntry } from "@/components/info-tab/AlbumInfoTab";
 import { HALF_STAR_RATINGS, formatStarDisplay } from "@/lib/ratings";
 import { formatRelativeTime } from "@/lib/time";
 import { sectionTitle } from "@/lib/ui/surface";
@@ -90,9 +90,9 @@ export type AlbumPageClientProps = {
   recommendationsNode?: ReactNode;
   leaderboardNode?: ReactNode;
   bio?: string | null;
-  producers?: any[];
-  songwriters?: any[];
-  labels?: any[];
+  producers?: CreditPerson[];
+  songwriters?: CreditPerson[];
+  labels?: LabelEntry[];
   creditsEnrichedAt?: string | null;
 };
 

@@ -14,7 +14,7 @@
 
 // Node.js 20 lacks native WebSocket; polyfill with undici for Supabase Realtime.
 import { WebSocket } from "undici";
-if (!("WebSocket" in globalThis)) (globalThis as any).WebSocket = WebSocket;
+if (!("WebSocket" in globalThis)) Object.assign(globalThis, { WebSocket });
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { enrichTrackOrderForAlbum } from "@/lib/catalog/track-order/enrich";

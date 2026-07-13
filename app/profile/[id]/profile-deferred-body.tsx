@@ -65,7 +65,7 @@ type ProfileDeferredBodyProps = {
   // Prefetched promises from parent
   userListsPromise: Promise<UserListWithPreview[]>;
   tasteIdentityPromise: Promise<TasteIdentity>;
-  userMatchesPromise: Promise<any>;
+  userMatchesPromise: Promise<Awaited<ReturnType<typeof getCachedUserMatches>>>;
 };
 
 export function ProfileDeferredBody({

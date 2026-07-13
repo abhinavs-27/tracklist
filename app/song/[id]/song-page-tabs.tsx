@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ReviewsSectionWithData } from "@/components/reviews-section-with-data";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
-import { SongInfoTab } from "@/components/info-tab/SongInfoTab";
+import { SongInfoTab, type CreditPerson, type SongRef } from "@/components/info-tab/SongInfoTab";
 import type { ReviewsResponse } from "@/lib/hooks/use-reviews";
 import type { ListenLogWithUser } from "@/types";
 import type { AlbumLeaderboardEntry } from "@/lib/queries";
@@ -65,12 +65,12 @@ export function SongPageTabs({
   hasSocial: boolean;
   albumImageUrl: string | null;
   relatedTracks?: SpotifyApi.TrackObjectFull[];
-  producers?: any[];
-  songwriters?: any[];
-  featuring?: any[];
-  samples?: any[];
-  sampledBy?: any[];
-  covers?: any[];
+  producers?: CreditPerson[];
+  songwriters?: CreditPerson[];
+  featuring?: CreditPerson[];
+  samples?: SongRef[];
+  sampledBy?: SongRef[];
+  covers?: SongRef[];
   creditsEnrichedAt?: string | null;
 }) {
   const [active, setActive] = useState<Tab>("reviews");
