@@ -1,24 +1,52 @@
-import type { NotificationRow } from "./types/notifications";
+import type { NotificationRow, NotificationType } from "./types/notifications";
 
 type Actor = { username: string } | null;
+
+const KNOWN_TYPES: readonly NotificationType[] = [
+  "follow",
+  "like",
+  "review_like",
+  "comment",
+  "music_recommendation",
+  "community_invite",
+  "community_follow",
+  "weekly_charts",
+];
 
 /** Primary line — aligned with web `/notifications` patterns. */
 export function notificationPrimaryLine(
   n: NotificationRow,
   actor: Actor,
 ): string {
-  if (n.type === "follow") {
-    return `${actor?.username ?? "Someone"} started following you`;
+  const who = actor?.username ?? "Someone";
+  if (!KNOWN_TYPES.includes(n.type as NotificationType)) {
+    return humanizeNotificationType(n.type);
   }
-  if (n.type === "community_invite") {
-    return `${actor?.username ?? "Someone"} invited you to a community`;
+  const type = n.type as NotificationType;
+  switch (type) {
+    case "follow":
+      return `${who} started following you`;
+    case "like":
+      return `${who} liked your post`;
+    case "review_like":
+      return `${who} liked your review`;
+    case "comment":
+      return `${who} replied to you`;
+    case "music_recommendation": {
+      const p = n.payload as { title?: string } | undefined;
+      return `${who} recommended ${p?.title?.trim() || "something"}`;
+    }
+    case "community_invite":
+      return `${who} invited you to a community`;
+    case "community_follow":
+      return `${who} followed your community`;
+    case "weekly_charts":
+      return "Your weekly charts are ready";
+    default: {
+      const _exhaustive: never = type;
+      return _exhaustive;
+    }
   }
-  if (n.type === "music_recommendation") {
-    const p = n.payload as { title?: string } | undefined;
-    const piece = p?.title?.trim() || "something";
-    return `${actor?.username ?? "Someone"} recommended ${piece}`;
-  }
-  return humanizeNotificationType(n.type);
 }
 
 /** Secondary line — entity hint when we don’t resolve titles client-side. */
