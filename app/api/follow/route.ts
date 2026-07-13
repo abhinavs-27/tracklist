@@ -34,24 +34,22 @@ export const POST = withHandler(
         '23503': 'User not found',
       });
     }
-    await supabase.from('notifications').insert({
-      user_id: validFollowingId,
-      actor_user_id: me!.id,
-      type: 'follow',
-    });
-    // Push to the followed user
     try {
       const { createSupabaseAdminClient } = await import("@/lib/supabase-admin");
-      const { sendPushToUser } = await import("@/lib/push/send");
-      const admin = createSupabaseAdminClient();
-
-      await sendPushToUser(admin, validFollowingId, {
-        title: "New follower",
-        body: `@${me!.username ?? "Someone"} started following you`,
-        data: { url: `/user/${me!.username ?? ""}` },
+      const { notify } = await import("@/lib/notifications/notify");
+      await notify({
+        admin: createSupabaseAdminClient(),
+        userId: validFollowingId,
+        actorUserId: me!.id,
+        type: "follow",
+        push: {
+          title: "New follower",
+          body: `@${me!.username ?? "Someone"} started following you`,
+          data: { url: `/user/${me!.username ?? ""}` },
+        },
       });
     } catch (e) {
-      console.warn("[follow] push failed", e);
+      console.warn("[follow] notify failed", e);
     }
     try {
       const { fanOutFollowInSharedCommunities } = await import(

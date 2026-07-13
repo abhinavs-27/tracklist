@@ -4,9 +4,9 @@
   "private": true,
   "description": "Express + TypeScript API server for Tracklist (web + mobile)",
   "scripts": {
-    "dev": "nodemon --watch './**/*.ts' --exec 'ts-node -r tsconfig-paths/register --project tsconfig.json' server.ts",
+    "dev": "nodemon --watch './**/*.ts' --exec 'ts-node -r tsconfig-paths/register -r ../scripts/register-server-only-stub.cjs --project tsconfig.json' server.ts",
     "build": "tsc",
-    "start": "node dist/backend/server.js",
+    "start": "node -r ../scripts/register-server-only-stub.cjs dist/backend/server.js",
     "test": "vitest run"
   },
   "dependencies": {
