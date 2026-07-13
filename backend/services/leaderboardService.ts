@@ -504,7 +504,7 @@ export async function getLeaderboard(
 
         if (trackIds.length === 0) return [];
 
-        const statsRowsMerged: any[] = [];
+        const statsRowsMerged: { track_id: string; listen_count: number; avg_rating: number | null }[] = [];
         for (let i = 0; i < trackIds.length; i += CHUNK) {
           const slice = trackIds.slice(i, i + CHUNK);
           const { data: rows } = await supabase

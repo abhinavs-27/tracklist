@@ -32,7 +32,7 @@ async function fetchUserMap(
 > {
   if (userIds.length === 0) return new Map();
   const uniqueIds = [...new Set(userIds)];
-  const users: any[] = [];
+  const users: { id: string; username: string; avatar_url: string | null }[] = [];
 
   for (let i = 0; i < uniqueIds.length; i += USER_MAP_CHUNK) {
     const chunk = uniqueIds.slice(i, i + USER_MAP_CHUNK);
