@@ -21,6 +21,7 @@ vi.mock("expo-server-sdk", () => {
 const receiptRows = [
   { ticket_id: "r-dead", token: "ExponentPushToken[dead]" },
   { ticket_id: "r-ok", token: "ExponentPushToken[ok]" },
+  { ticket_id: "r-inflight", token: "ExponentPushToken[inflight]" },
 ];
 const deletedTokens: string[] = [];
 const deletedReceipts: string[] = [];
@@ -71,11 +72,15 @@ describe("push-receipts cron", () => {
     getReceipts.mockResolvedValue({
       "r-dead": { status: "error", details: { error: "DeviceNotRegistered" } },
       "r-ok": { status: "ok" },
+      // "r-inflight" intentionally omitted — Expo hasn't resolved it yet.
     });
     const res = await GET();
     const body = await res.json();
     expect(deletedTokens).toEqual(["ExponentPushToken[dead]"]);
+    // Only ids present in the fetched result are cleared; the unresolved
+    // "r-inflight" receipt must remain so a later run can poll it again.
     expect(deletedReceipts.sort()).toEqual(["r-dead", "r-ok"]);
+    expect(deletedReceipts).not.toContain("r-inflight");
     expect(body.tokensRemoved).toBe(1);
     expect(body.processed).toBe(2);
   });

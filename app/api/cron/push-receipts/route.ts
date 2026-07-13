@@ -30,6 +30,7 @@ export async function GET() {
   const tokenByTicket = new Map(receipts.map((r) => [r.ticket_id, r.token]));
   const ids = receipts.map((r) => r.ticket_id);
   const deadTokens = new Set<string>();
+  const processedIds: string[] = [];
 
   for (const idChunk of expo.chunkPushNotificationReceiptIds(ids)) {
     let result: Record<string, { status: string; details?: { error?: string } }>;
@@ -39,6 +40,7 @@ export async function GET() {
       console.warn("[cron push-receipts] fetch chunk failed", e);
       continue;
     }
+    processedIds.push(...Object.keys(result));
     for (const [ticketId, receipt] of Object.entries(result)) {
       if (
         receipt.status === "error" &&
@@ -53,11 +55,13 @@ export async function GET() {
   if (deadTokens.size > 0) {
     await admin.from("push_tokens").delete().in("token", [...deadTokens]);
   }
-  await admin.from("push_receipts").delete().in("ticket_id", ids);
+  if (processedIds.length > 0) {
+    await admin.from("push_receipts").delete().in("ticket_id", processedIds);
+  }
 
   console.log("[cron push-receipts] done", {
-    processed: receipts.length,
+    processed: processedIds.length,
     tokensRemoved: deadTokens.size,
   });
-  return apiOk({ processed: receipts.length, tokensRemoved: deadTokens.size });
+  return apiOk({ processed: processedIds.length, tokensRemoved: deadTokens.size });
 }
