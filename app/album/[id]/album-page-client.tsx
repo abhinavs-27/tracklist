@@ -9,7 +9,7 @@ import { TrackCard } from "@/components/track-card";
 import { useReviews } from "@/lib/hooks/use-reviews";
 import type { FriendActivityItem } from "@/app/album/[id]/friends-who-listened";
 import { AlbumFavoritedByModal } from "@/components/album-favorited-by-modal";
-import { AlbumInfoTab } from "@/components/info-tab/AlbumInfoTab";
+import { AlbumInfoTab, type CreditPerson, type LabelEntry } from "@/components/info-tab/AlbumInfoTab";
 import { HALF_STAR_RATINGS, formatStarDisplay } from "@/lib/ratings";
 import { formatRelativeTime } from "@/lib/time";
 import { sectionTitle } from "@/lib/ui/surface";
@@ -90,9 +90,9 @@ export type AlbumPageClientProps = {
   recommendationsNode?: ReactNode;
   leaderboardNode?: ReactNode;
   bio?: string | null;
-  producers?: any[];
-  songwriters?: any[];
-  labels?: any[];
+  producers?: CreditPerson[];
+  songwriters?: CreditPerson[];
+  labels?: LabelEntry[];
   creditsEnrichedAt?: string | null;
 };
 
@@ -129,14 +129,23 @@ export function AlbumPageClient({
   const [songwriters, setSongwriters] = useState(initialSongwriters);
   const [labels, setLabels] = useState(initialLabels);
   const [creditsEnrichedAt, setCreditsEnrichedAt] = useState(initialCreditsEnrichedAt);
-  const [isPolling, setIsPolling] = useState(!initialHasContent && initialCreditsEnrichedAt === null);
+  const needsCreditsPolling = !initialHasContent && initialCreditsEnrichedAt === null;
+  const [isPolling, setIsPolling] = useState(needsCreditsPolling);
+  // Restart polling synchronously (during render, not in the effect below) when
+  // navigating to a different album id while this component instance persists —
+  // mirrors the effect's own guard so a re-poll is only ever kicked off when the
+  // new album actually needs it, matching the previous behavior exactly.
+  const [pollingForId, setPollingForId] = useState(id);
+  if (id !== pollingForId && needsCreditsPolling) {
+    setPollingForId(id);
+    setIsPolling(true);
+  }
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttemptsRef = useRef(0);
 
   useEffect(() => {
     if (initialHasContent || initialCreditsEnrichedAt !== null) return;
     let cancelled = false;
-    setIsPolling(true);
     pollAttemptsRef.current = 0;
     const poll = async () => {
       if (pollAttemptsRef.current >= 10) {
@@ -176,7 +185,10 @@ export function AlbumPageClient({
 
   useEffect(() => {
     const ids = tracks.items?.map((t) => t.id) ?? [];
-    if (ids.length === 0) { setTrackStatsLoading(false); return; }
+    // No tracks means the track list (and its stats-loading skeleton) never
+    // renders at all (guarded below by `tracks.items?.length`), so there is
+    // nothing that needs `trackStatsLoading` flipped to false here.
+    if (ids.length === 0) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -296,7 +308,7 @@ export function AlbumPageClient({
           </span>
           {myReview.review_text && (
             <><span className="text-zinc-700">·</span>
-              <span className="line-clamp-1 italic text-zinc-300">"{myReview.review_text}"</span></>
+              <span className="line-clamp-1 italic text-zinc-300">&quot;{myReview.review_text}&quot;</span></>
           )}
         </div>
       )}

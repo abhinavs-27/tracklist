@@ -34,14 +34,16 @@ export function ImageCropModal({
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [prevResetKey, setPrevResetKey] = useState({ open, imageSrc });
+  if (open !== prevResetKey.open || imageSrc !== prevResetKey.imageSrc) {
+    setPrevResetKey({ open, imageSrc });
     if (open) {
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setCroppedAreaPixels(null);
       setError(null);
     }
-  }, [open, imageSrc]);
+  }
 
   const onCropComplete = useCallback((_croppedArea: Area, areaPixels: Area) => {
     setCroppedAreaPixels(areaPixels);

@@ -1,5 +1,5 @@
 import { WebSocket } from "undici";
-if (!("WebSocket" in globalThis)) (globalThis as any).WebSocket = WebSocket;
+if (!("WebSocket" in globalThis)) Object.assign(globalThis, { WebSocket });
 
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 

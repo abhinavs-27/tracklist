@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { SectionBlock } from "@/components/layout/section-block";
 import type {
   ExploreCommunityContrastRow,
@@ -339,9 +339,11 @@ export function ExploreDiscoveryFeedClient({
     }
   }, []);
 
-  useEffect(() => {
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (initial !== prevInitial) {
+    setPrevInitial(initial);
     if (initial) setData(initial);
-  }, [initial]);
+  }
 
   const onRangeChange = useCallback(
     (r: ExploreRangeParam) => {

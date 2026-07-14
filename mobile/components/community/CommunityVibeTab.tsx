@@ -219,7 +219,7 @@ function TasteMatchSection({ communityId }: { communityId: string }) {
           {score >= 60 ? "Strong overlap" : score >= 30 ? "Some overlap" : "Very different"}
         </Text>
       </View>
-      <Text style={s.tasteSub}>Last 30 days of listens vs this group's combined mix.</Text>
+      <Text style={s.tasteSub}>Last 30 days of listens vs this group&apos;s combined mix.</Text>
     </View>
   );
 }

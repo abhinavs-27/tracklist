@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ReviewsSectionWithData } from "@/components/reviews-section-with-data";
 import { MediaGrid, type MediaItem } from "@/components/media/MediaGrid";
-import { SongInfoTab } from "@/components/info-tab/SongInfoTab";
+import { SongInfoTab, type CreditPerson, type SongRef } from "@/components/info-tab/SongInfoTab";
 import type { ReviewsResponse } from "@/lib/hooks/use-reviews";
 import type { ListenLogWithUser } from "@/types";
 import type { AlbumLeaderboardEntry } from "@/lib/queries";
@@ -65,12 +65,12 @@ export function SongPageTabs({
   hasSocial: boolean;
   albumImageUrl: string | null;
   relatedTracks?: SpotifyApi.TrackObjectFull[];
-  producers?: any[];
-  songwriters?: any[];
-  featuring?: any[];
-  samples?: any[];
-  sampledBy?: any[];
-  covers?: any[];
+  producers?: CreditPerson[];
+  songwriters?: CreditPerson[];
+  featuring?: CreditPerson[];
+  samples?: SongRef[];
+  sampledBy?: SongRef[];
+  covers?: SongRef[];
   creditsEnrichedAt?: string | null;
 }) {
   const [active, setActive] = useState<Tab>("reviews");
@@ -84,14 +84,23 @@ export function SongPageTabs({
   const [creditsEnrichedAtState, setCreditsEnrichedAt] = useState(initialCreditsEnrichedAt ?? null);
   // Only poll when enrichment hasn't run yet (null timestamp at page load).
   // If the timestamp is already set, enrichment already ran — show the result immediately.
-  const [isPolling, setIsPolling] = useState(!initialHasContent && initialCreditsEnrichedAt === null);
+  const needsCreditsPolling = !initialHasContent && initialCreditsEnrichedAt === null;
+  const [isPolling, setIsPolling] = useState(needsCreditsPolling);
+  // Restart polling synchronously (during render, not in the effect below) when
+  // navigating to a different song id while this component instance persists —
+  // mirrors the effect's own guard so a re-poll is only ever kicked off when the
+  // new song actually needs it, matching the previous behavior exactly.
+  const [pollingForId, setPollingForId] = useState(entityId);
+  if (entityId !== pollingForId && needsCreditsPolling) {
+    setPollingForId(entityId);
+    setIsPolling(true);
+  }
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttemptsRef = useRef(0);
 
   useEffect(() => {
     if (initialHasContent || initialCreditsEnrichedAt !== null) return;
     let cancelled = false;
-    setIsPolling(true);
     pollAttemptsRef.current = 0;
     const poll = async () => {
       if (pollAttemptsRef.current >= 10) {

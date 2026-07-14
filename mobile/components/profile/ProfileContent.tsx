@@ -134,7 +134,7 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     } finally {
       setSharing(false);
     }
-  }, [sharing, user?.is_own_profile, user?.username]);
+  }, [sharing, user]);
 
   if (isLoading) {
     return (

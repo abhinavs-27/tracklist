@@ -39,15 +39,29 @@ albumsRouter.get("/:id/info", async (req, res) => {
       supabase.from("album_labels").select("labels(id, name)").eq("album_id", canonicalId),
     ]);
 
-    const producers = (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
-    const songwriters = (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
-    const labels = (labelsResult.data ?? []).map((r: any) => r.labels).filter(Boolean);
+    type CreditPerson = { id: string; name: string };
+    const producers = (
+      (producersResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
+    const songwriters = (
+      (songwritersResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
+    const labels = (
+      (labelsResult.data ?? []) as { labels: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.labels).filter(Boolean);
+
+    const meta = albumMeta as {
+      bio: string | null;
+      bio_source: string | null;
+      release_type: string | null;
+      credits_enriched_at: string | null;
+    };
 
     return ok(res, {
-      bio: (albumMeta as any).bio ?? null,
-      bio_source: (albumMeta as any).bio_source ?? null,
-      release_type: (albumMeta as any).release_type ?? null,
-      credits_enriched_at: (albumMeta as any).credits_enriched_at ?? null,
+      bio: meta.bio ?? null,
+      bio_source: meta.bio_source ?? null,
+      release_type: meta.release_type ?? null,
+      credits_enriched_at: meta.credits_enriched_at ?? null,
       producers,
       songwriters,
       labels,

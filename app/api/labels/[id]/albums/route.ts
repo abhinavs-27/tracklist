@@ -17,7 +17,7 @@ export const GET = withHandler(async (req, ctx) => {
     .range(from, from + limit - 1);
 
   return apiOk({
-    albums: (data ?? []).map((r: any) => r.albums),
+    albums: (data ?? []).map((r) => r.albums),
     total: count ?? 0,
     page,
   });

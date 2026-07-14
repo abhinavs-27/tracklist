@@ -89,13 +89,17 @@ export function InviteMembersPanel({
   }, [justCopied]);
 
   /** Sync if parent re-passes URL; reuse server value when defined so copy is instant (no extra GET). */
-  useEffect(() => {
-    if (initialInviteUrl === undefined) return;
-    setInviteUrl(
-      typeof initialInviteUrl === "string" ? initialInviteUrl : null,
-    );
-    setInvitePrefetchDone(true);
-  }, [initialInviteUrl]);
+  const [prevInitialInviteUrl, setPrevInitialInviteUrl] =
+    useState(initialInviteUrl);
+  if (initialInviteUrl !== prevInitialInviteUrl) {
+    setPrevInitialInviteUrl(initialInviteUrl);
+    if (initialInviteUrl !== undefined) {
+      setInviteUrl(
+        typeof initialInviteUrl === "string" ? initialInviteUrl : null,
+      );
+      setInvitePrefetchDone(true);
+    }
+  }
 
   /** Client-only: prefetch when parent did not supply `initialInviteUrl`. */
   useEffect(() => {
@@ -277,7 +281,7 @@ export function InviteMembersPanel({
               Invite link
             </p>
             <p className={`mt-1 leading-relaxed ${communityMeta}`}>
-              We'll{" "}
+              We&apos;ll{" "}
               <span className="font-medium text-zinc-400">
                 copy the URL to your clipboard
               </span>{" "}

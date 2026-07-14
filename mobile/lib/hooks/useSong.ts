@@ -49,13 +49,21 @@ type SongApiResponse = {
   recommended: RecommendedTrack[];
 };
 
+export type SongRelation = {
+  id: string;
+  name: string;
+  artist_name: string;
+  album_image_url: string | null;
+  release_year: number | null;
+};
+
 export type SongInfoData = {
   producers: { id: string; name: string }[];
   songwriters: { id: string; name: string }[];
   featuring: { id: string; name: string }[];
-  samples: any[];
-  sampledBy: any[];
-  covers: any[];
+  samples: SongRelation[];
+  sampledBy: SongRelation[];
+  covers: SongRelation[];
 };
 
 export function useSongInfo(songId: string) {

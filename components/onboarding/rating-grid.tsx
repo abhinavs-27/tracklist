@@ -86,7 +86,7 @@ export function RatingGrid({ suggestions, onRatingsChange }: Props) {
 
       {suggestions.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-6 text-center">
-          <p className="text-sm text-zinc-400">We don't have album data for your genres yet.</p>
+          <p className="text-sm text-zinc-400">We don&apos;t have album data for your genres yet.</p>
           <p className="mt-2 text-sm text-zinc-600">Search for albums you know below, or skip and rate albums as you discover them in the app.</p>
         </div>
       ) : null}

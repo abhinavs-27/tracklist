@@ -87,57 +87,83 @@ export function ChartsClient(props: {
     window.history.replaceState({}, "", u.toString());
   }, []);
 
-  const loadWeeks = useCallback(async (type: ChartType) => {
-    const cacheKey = billboardWeeksCacheKey(type);
+  // Re-sync `weeks`/`loadingWeeks` from the stale-session cache synchronously
+  // (during render) whenever `chartType` changes — mirrors what the initial
+  // useState lazy initializers above already do for the very first render, and
+  // what `loadWeeks` used to do at its top before kicking off the network
+  // request. Keeping this out of the effect avoids a synchronous setState call
+  // inside the effect body while firing on exactly the same transitions
+  // (chartType change <=> weeksCacheKey change, a 1:1 mapping).
+  const weeksCacheKey = billboardWeeksCacheKey(chartType);
+  const [syncedWeeksCacheKey, setSyncedWeeksCacheKey] = useState(weeksCacheKey);
+  if (weeksCacheKey !== syncedWeeksCacheKey) {
+    setSyncedWeeksCacheKey(weeksCacheKey);
     const cached = readStaleSessionCache<{
       weeks: WeekOption[];
       fetched_at?: string;
-    }>(cacheKey);
+    }>(weeksCacheKey);
     if (cached?.fetched_at) {
       setWeeks(cached.weeks ?? []);
       setLoadingWeeks(false);
     } else {
       setLoadingWeeks(true);
     }
-    try {
-      const res = await fetch(
-        `/api/charts/weeks?type=${encodeURIComponent(type)}&limit=${WEEKS_FETCH_LIMIT}`,
-        { cache: "no-store" },
-      );
-      const json = (await res.json().catch(() => null)) as
-        | { weeks?: WeekOption[]; error?: string; fetched_at?: string }
-        | null;
-      if (!res.ok) {
-        setWeeks([]);
-        return;
-      }
-      if (json && res.ok) {
-        writeStaleSessionCache(cacheKey, json);
-      }
-      setWeeks(json?.weeks ?? []);
-    } catch {
-      setWeeks([]);
-    } finally {
-      setLoadingWeeks(false);
-    }
-  }, []);
+  }
 
-  const loadChart = useCallback(
-    async (type: ChartType, week: string | null) => {
-      const cacheKey = billboardChartCacheKey(type, week);
-      const cached = readStaleSessionCache<
-        LatestWeeklyChartApiResult & { fetched_at?: string }
-      >(cacheKey);
-      if (cached?.fetched_at) {
-        setData(stripFetchedAt(cached));
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
+  // Same idea for the chart data itself, keyed on chartType+weekStart.
+  const chartCacheKey = billboardChartCacheKey(chartType, weekStart);
+  const [syncedChartCacheKey, setSyncedChartCacheKey] = useState(chartCacheKey);
+  if (chartCacheKey !== syncedChartCacheKey) {
+    setSyncedChartCacheKey(chartCacheKey);
+    const cached = readStaleSessionCache<
+      LatestWeeklyChartApiResult & { fetched_at?: string }
+    >(chartCacheKey);
+    if (cached?.fetched_at) {
+      setData(stripFetchedAt(cached));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+  }
+
+  useEffect(() => {
+    const cacheKey = billboardWeeksCacheKey(chartType);
+    const run = async () => {
       try {
-        const q = new URLSearchParams({ type });
-        if (week) q.set("weekStart", week);
+        const res = await fetch(
+          `/api/charts/weeks?type=${encodeURIComponent(chartType)}&limit=${WEEKS_FETCH_LIMIT}`,
+          { cache: "no-store" },
+        );
+        const json = (await res.json().catch(() => null)) as
+          | { weeks?: WeekOption[]; error?: string; fetched_at?: string }
+          | null;
+        if (!res.ok) {
+          setWeeks([]);
+          return;
+        }
+        if (json && res.ok) {
+          writeStaleSessionCache(cacheKey, json);
+        }
+        setWeeks(json?.weeks ?? []);
+      } catch {
+        setWeeks([]);
+      } finally {
+        setLoadingWeeks(false);
+      }
+    };
+    void run();
+  }, [chartType]);
+
+  useEffect(() => {
+    const cacheKey = billboardChartCacheKey(chartType, weekStart);
+    const hadCachedFetchedAt = !!readStaleSessionCache<
+      LatestWeeklyChartApiResult & { fetched_at?: string }
+    >(cacheKey)?.fetched_at;
+    const run = async () => {
+      try {
+        const q = new URLSearchParams({ type: chartType });
+        if (weekStart) q.set("weekStart", weekStart);
         const res = await fetch(`/api/charts?${q.toString()}`, {
           cache: "no-store",
         });
@@ -157,24 +183,16 @@ export function ChartsClient(props: {
         writeStaleSessionCache(cacheKey, row);
         setData(stripFetchedAt(row));
       } catch {
-        if (!cached?.fetched_at) {
+        if (!hadCachedFetchedAt) {
           setData(null);
         }
         setError("Could not load chart");
       } finally {
         setLoading(false);
       }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    void loadWeeks(chartType);
-  }, [chartType, loadWeeks]);
-
-  useEffect(() => {
-    void loadChart(chartType, weekStart);
-  }, [chartType, weekStart, loadChart]);
+    };
+    void run();
+  }, [chartType, weekStart]);
 
   /** Acknowledge Weekly Billboard drop when viewing the latest sealed week (hides home modal/banner). */
   useEffect(() => {
@@ -194,12 +212,17 @@ export function ChartsClient(props: {
     });
   }, [data, loading, weekStart, weeks]);
 
-  /** After weeks load, drop invalid week selection. */
-  useEffect(() => {
-    if (loadingWeeks || !weekStart || weeks.length === 0) return;
-    const ok = weeks.some((w) => w.week_start === weekStart);
-    if (!ok) setWeekStart(null);
-  }, [loadingWeeks, weekStart, weeks]);
+  /** After weeks load, drop invalid week selection — computed during render
+   * (guarded, can't loop: once weekStart is nulled the condition goes false)
+   * instead of via a setState call inside an effect. */
+  if (
+    !loadingWeeks &&
+    weekStart &&
+    weeks.length > 0 &&
+    !weeks.some((w) => w.week_start === weekStart)
+  ) {
+    setWeekStart(null);
+  }
 
   const firstWeek = weeks[0]?.week_start;
   const selectedIndex =

@@ -1,7 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { useToast } from "@/components/toast";
+
+// No external subscription needed — `window.location.origin` is stable once
+// hydrated — but useSyncExternalStore is the sanctioned way to read a
+// browser-only value that must render as "" during SSR/hydration and then
+// switch to its real value on the client, without needing an effect + setState
+// (which would cascade an extra render and trip react-hooks/set-state-in-effect).
+const noopSubscribe = () => () => {};
+function getServerShareUrlSnapshot() {
+  return "";
+}
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
@@ -23,15 +33,15 @@ type Props = {
 
 export function SharedReportPublicLink({ reportId, isPublic }: Props) {
   const { toast } = useToast();
-  const [shareUrl, setShareUrl] = useState("");
+  const shareUrl = useSyncExternalStore(
+    noopSubscribe,
+    () =>
+      typeof window === "undefined" || !isPublic
+        ? ""
+        : `${window.location.origin}/reports/shared/${encodeURIComponent(reportId)}`,
+    getServerShareUrlSnapshot,
+  );
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !isPublic) return;
-    setShareUrl(
-      `${window.location.origin}/reports/shared/${encodeURIComponent(reportId)}`,
-    );
-  }, [reportId, isPublic]);
 
   const copy = useCallback(async () => {
     if (!shareUrl) return;

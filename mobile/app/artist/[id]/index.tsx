@@ -294,7 +294,7 @@ export default function ArtistDetailScreen() {
 
   const navAlbum = (id: string) => router.push(`/album/${id}` as const);
   const navSong = (id: string) => router.push(`/song/${id}` as const);
-  const grid: MediaItem[] = albums.map((a) => ({ id: a.id, title: a.name, artist: a.artist, artworkUrl: a.artwork_url, avgRating: (a as any).average_rating ?? undefined, totalPlays: (a as any).listen_count ?? undefined }));
+  const grid: MediaItem[] = albums.map((a) => ({ id: a.id, title: a.name, artist: a.artist, artworkUrl: a.artwork_url, avgRating: undefined, totalPlays: undefined }));
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
@@ -417,7 +417,7 @@ const s = StyleSheet.create({
   hero: { overflow: "hidden", borderRadius: 16, marginHorizontal: 16, marginTop: 4 },
   heroContent: { alignItems: "center", padding: 24, gap: 10 },
   heroPhotoWrap: { width: 208, height: 208, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", shadowColor: "#000", shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.8, shadowRadius: 30 },
-  heroPhoto: { width: "100%", height: "100%" } as any,
+  heroPhoto: { width: "100%", height: "100%" },
   heroLabel: { fontSize: 12, fontWeight: "600", letterSpacing: 1.2, textTransform: "uppercase", color: theme.colors.muted },
   heroName: { fontSize: 26, fontWeight: "800", color: theme.colors.text, textAlign: "center", letterSpacing: -0.5 },
   followers: { fontSize: 13, color: theme.colors.muted, textAlign: "center" },

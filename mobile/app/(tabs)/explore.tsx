@@ -545,11 +545,17 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (talkMode !== "friends" || !session) return;
     let cancelled = false;
-    setLovedLoading(true);
-    fetcher<{ items: LovedByFriendsItem[] }>("/api/explore/loved-by-friends")
-      .then((res) => { if (!cancelled) setLovedByFriends(res.items ?? []); })
-      .catch(() => { if (!cancelled) setLovedByFriends([]); })
-      .finally(() => { if (!cancelled) setLovedLoading(false); });
+    void (async () => {
+      setLovedLoading(true);
+      try {
+        const res = await fetcher<{ items: LovedByFriendsItem[] }>("/api/explore/loved-by-friends");
+        if (!cancelled) setLovedByFriends(res.items ?? []);
+      } catch {
+        if (!cancelled) setLovedByFriends([]);
+      } finally {
+        if (!cancelled) setLovedLoading(false);
+      }
+    })();
     return () => { cancelled = true; };
   }, [talkMode, session]);
 
@@ -653,7 +659,7 @@ export default function ExploreScreen() {
 
         {isError ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Couldn't load Explore</Text>
+            <Text style={styles.emptyTitle}>Couldn&apos;t load Explore</Text>
             <Text style={styles.emptyBody}>
               Pull down to try again, or check your connection.
             </Text>
@@ -678,7 +684,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}
@@ -781,7 +787,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}
@@ -801,7 +807,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}
@@ -822,7 +828,7 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.inlineEmpty}>
                   <Text style={styles.inlineEmptyText}>
-                    Not enough activity in this window yet — try "This week" or check back soon.
+                    Not enough activity in this window yet — try &quot;This week&quot; or check back soon.
                   </Text>
                 </View>
               )}

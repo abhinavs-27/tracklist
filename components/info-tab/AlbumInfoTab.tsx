@@ -3,8 +3,8 @@ import { useState } from "react";
 import { CreditsBlock } from "./CreditsBlock";
 import { ExternalLinks } from "./ExternalLinks";
 
-interface CreditPerson { id: string; name: string; image_url?: string | null; }
-interface LabelEntry { id: string; name: string; mbid: string | null; }
+export interface CreditPerson { id: string; name: string; image_url?: string | null; }
+export interface LabelEntry { id: string; name: string; mbid: string | null; }
 
 interface Props {
   bio: string | null;

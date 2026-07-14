@@ -148,7 +148,9 @@ export function ShareReportModal(props: ShareReportModalProps) {
   // Spotlight only useful when #1 item has a cover image
   const hasSpotlightImage = !!(rows[0]?.image);
 
-  useEffect(() => {
+  const [prevResetKey, setPrevResetKey] = useState({ open, defaultName });
+  if (open !== prevResetKey.open || defaultName !== prevResetKey.defaultName) {
+    setPrevResetKey({ open, defaultName });
     if (open) {
       setName(defaultName);
       setVariant("list");
@@ -156,7 +158,7 @@ export function ShareReportModal(props: ShareReportModalProps) {
       setLinkCopied(false);
       setBusy(false);
     }
-  }, [open, defaultName]);
+  }
 
   useEffect(() => {
     if (!open) return;

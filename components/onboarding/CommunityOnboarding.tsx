@@ -94,7 +94,7 @@ export function CommunityOnboarding() {
     });
     recommendedInflight.set(uid, p);
     await p;
-  }, [status, session?.user?.id, isPostOnboardingWelcome]);
+  }, [status, session, isPostOnboardingWelcome]);
 
   useEffect(() => {
     let idleId: number | undefined;

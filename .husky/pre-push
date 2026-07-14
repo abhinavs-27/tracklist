@@ -1,3 +1,13 @@
 branch="$(git rev-parse --abbrev-ref HEAD)"
 node scripts/git/check-branch-name.mjs "$branch" || exit 1
+
+# Lint only changed files (fast local gate; CI runs full-repo lint).
+BASE="$(git merge-base origin/main HEAD 2>/dev/null || echo '')"
+if [ -n "$BASE" ]; then
+  CHANGED="$(git diff --name-only --diff-filter=ACMR "$BASE"...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs')"
+  if [ -n "$CHANGED" ]; then
+    echo "$CHANGED" | xargs npx eslint || exit 1
+  fi
+fi
+
 npm run verify

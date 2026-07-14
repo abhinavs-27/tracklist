@@ -23,7 +23,9 @@ describe('getUserFromRequest', () => {
         onboarding_completed: true,
       },
     };
-    (getSession as any).mockResolvedValue(mockSession);
+    vi.mocked(getSession).mockResolvedValue(
+      mockSession as unknown as Awaited<ReturnType<typeof getSession>>,
+    );
 
     const user = await getUserFromRequest();
 
@@ -38,7 +40,7 @@ describe('getUserFromRequest', () => {
   });
 
   it('returns null when no session and no auth header', async () => {
-    (getSession as any).mockResolvedValue(null);
+    vi.mocked(getSession).mockResolvedValue(null);
     const user = await getUserFromRequest();
     expect(user).toBeNull();
   });

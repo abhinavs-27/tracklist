@@ -54,22 +54,35 @@ export function FollowNetworkModal({
 
   const followersRef = useRef(followers);
   const followingRef = useRef(following);
-  followersRef.current = followers;
-  followingRef.current = following;
-
   useEffect(() => {
-    if (!visible) return;
-    setActiveTab(initialTab);
-  }, [visible, initialTab]);
+    followersRef.current = followers;
+    followingRef.current = following;
+  });
 
-  useEffect(() => {
-    if (!visible) return;
-    setFollowers([]);
-    setFollowersHasMore(true);
-    setFollowing([]);
-    setFollowingHasMore(true);
-    setError(null);
-  }, [visible, profileUsername]);
+  // Reset the active tab whenever the modal (re)opens with a possibly new
+  // initialTab. Computed during render (not effect+setState) so it applies
+  // to the very first render for the new visible/initialTab pair.
+  const openTabKey = `${visible}|${initialTab}`;
+  const [prevOpenTabKey, setPrevOpenTabKey] = useState(openTabKey);
+  if (openTabKey !== prevOpenTabKey) {
+    setPrevOpenTabKey(openTabKey);
+    if (visible) setActiveTab(initialTab);
+  }
+
+  // Same pattern: clear stale lists as soon as the modal (re)opens for a
+  // given profile, before the fetch effect below kicks off the fetch.
+  const openUserKey = `${visible}|${profileUsername}`;
+  const [prevOpenUserKey, setPrevOpenUserKey] = useState(openUserKey);
+  if (openUserKey !== prevOpenUserKey) {
+    setPrevOpenUserKey(openUserKey);
+    if (visible) {
+      setFollowers([]);
+      setFollowersHasMore(true);
+      setFollowing([]);
+      setFollowingHasMore(true);
+      setError(null);
+    }
+  }
 
   async function fetchPage(tab: TabKind, append: boolean) {
     const isFollowers = tab === "followers";
@@ -108,12 +121,14 @@ export function FollowNetworkModal({
 
   useEffect(() => {
     if (!visible || !profileUsername) return;
-    if (activeTab === "followers" && followers.length === 0 && !followersLoading) {
-      void fetchPage("followers", false);
-    }
-    if (activeTab === "following" && following.length === 0 && !followingLoading) {
-      void fetchPage("following", false);
-    }
+    void (async () => {
+      if (activeTab === "followers" && followers.length === 0 && !followersLoading) {
+        await fetchPage("followers", false);
+      }
+      if (activeTab === "following" && following.length === 0 && !followingLoading) {
+        await fetchPage("following", false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load when tab/user resets lists
   }, [visible, activeTab, profileUsername, followers.length, following.length]);
 

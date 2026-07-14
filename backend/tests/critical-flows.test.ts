@@ -10,8 +10,30 @@ vi.mock('../lib/auth', () => ({
 }));
 
 // Mock Supabase
-function createChain(data: any = null, error: any = null, count: number | null = null) {
-  const chain: any = {
+type ChainResult = { data: unknown; error: unknown; count: number | null };
+interface ChainMock {
+  select: (...args: unknown[]) => ChainMock;
+  eq: (...args: unknown[]) => ChainMock;
+  in: (...args: unknown[]) => ChainMock;
+  insert: (...args: unknown[]) => ChainMock;
+  upsert: (...args: unknown[]) => ChainMock;
+  update: (...args: unknown[]) => ChainMock;
+  single: (...args: unknown[]) => ChainMock;
+  maybeSingle: (...args: unknown[]) => ChainMock;
+  order: (...args: unknown[]) => ChainMock;
+  limit: (...args: unknown[]) => ChainMock;
+  rpc: (...args: unknown[]) => ChainMock;
+  range: (...args: unknown[]) => ChainMock;
+  lt: (...args: unknown[]) => ChainMock;
+  data: unknown;
+  error: unknown;
+  count: number | null;
+  // Ensure that thenable or awaited chain returns the correct shape
+  then: (resolve: (result: ChainResult) => unknown) => unknown;
+}
+
+function createChain(data: unknown = null, error: unknown = null, count: number | null = null): ChainMock {
+  const chain: ChainMock = {
     select: vi.fn().mockImplementation(() => chain),
     eq: vi.fn().mockImplementation(() => chain),
     in: vi.fn().mockImplementation(() => chain),
@@ -28,9 +50,8 @@ function createChain(data: any = null, error: any = null, count: number | null =
     data,
     error,
     count,
+    then: (resolve) => resolve({ data, error, count }),
   };
-  // Ensure that thenable or awaited chain returns the correct shape
-  chain.then = (resolve: any) => resolve({ data, error, count });
   return chain;
 }
 
@@ -87,7 +108,10 @@ vi.mock('../services/userSearchService', () => ({
 }));
 
 vi.mock('../services/followService', () => ({
-  enrichUsersWithFollowStatus: vi.fn(async (users) => users.map((u: any) => ({ ...u, following: false }))),
+  enrichUsersWithFollowStatus: vi.fn(
+    async (users: { id: string; username: string; avatar_url: string | null }[]) =>
+      users.map((u) => ({ ...u, following: false })),
+  ),
 }));
 
 vi.mock('../lib/rateLimit', () => ({

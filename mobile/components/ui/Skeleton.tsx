@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { theme } from "@/lib/theme";
 
@@ -19,7 +19,7 @@ type BoxProps = {
  * Single pulsing placeholder rectangle.
  */
 export function SkeletonBox({ width = "100%", height = 16, radius = 6, style }: BoxProps) {
-  const opacity = useRef(new Animated.Value(0.45)).current;
+  const [opacity] = useState(() => new Animated.Value(0.45));
 
   useEffect(() => {
     Animated.loop(

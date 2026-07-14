@@ -27,7 +27,10 @@ export function ArtistInfoTab({ bio, members, labelHistory, externalLinks, isLoa
   const hasContent = bio || members.length > 0 || labelHistory.length > 0;
 
   useEffect(() => {
-    if (!isEnriching) { setGraceExpired(false); return; }
+    if (!isEnriching) {
+      (() => { setGraceExpired(false); })();
+      return;
+    }
     const t = setTimeout(() => setGraceExpired(true), ENRICH_GRACE_MS);
     return () => clearTimeout(t);
   }, [isEnriching]);

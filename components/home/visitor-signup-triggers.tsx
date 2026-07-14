@@ -15,11 +15,13 @@ export function VisitorSignupTriggers() {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    try {
-      setDismissed(sessionStorage.getItem(STORAGE_DISMISS) === "1");
-    } catch {
-      setDismissed(false);
-    }
+    (() => {
+      try {
+        setDismissed(sessionStorage.getItem(STORAGE_DISMISS) === "1");
+      } catch {
+        setDismissed(false);
+      }
+    })();
   }, []);
 
   const evaluateScroll = useCallback(() => {
@@ -34,7 +36,9 @@ export function VisitorSignupTriggers() {
   }, []);
 
   useEffect(() => {
-    evaluateScroll();
+    (() => {
+      evaluateScroll();
+    })();
     window.addEventListener("scroll", evaluateScroll, { passive: true });
     window.addEventListener("resize", evaluateScroll, { passive: true });
     return () => {

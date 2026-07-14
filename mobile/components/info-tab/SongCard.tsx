@@ -10,7 +10,7 @@ interface SongRef {
 export function SongCard({ song }: { song: SongRef }) {
   const router = useRouter();
   return (
-    <Pressable onPress={() => router.push(`/song/${song.id}` as any)}
+    <Pressable onPress={() => router.push(`/song/${song.id}` as const)}
       style={({ pressed }: { pressed: boolean }) => ({ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: "#131316", opacity: pressed ? 0.7 : 1 })}>
       <View style={{ width: 40, height: 40, borderRadius: 6, backgroundColor: "#27272A", overflow: "hidden", flexShrink: 0 }}>
         {song.album_image_url && (

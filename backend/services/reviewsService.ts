@@ -26,7 +26,7 @@ async function fetchUserMap(
 ): Promise<Map<string, { id: string; username: string; avatar_url: string | null }>> {
   if (userIds.length === 0) return new Map();
   const uniqueIds = [...new Set(userIds)];
-  const users: any[] = [];
+  const users: { id: string; username: string; avatar_url: string | null }[] = [];
   const CHUNK = 120;
 
   for (let i = 0; i < uniqueIds.length; i += CHUNK) {

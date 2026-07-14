@@ -428,6 +428,9 @@ function PulseTab({
   pulse: import("@/lib/hooks/useHomeDashboard").ProfilePulseInsights;
   isLoading: boolean;
 }) {
+  const prefetchArtist = usePrefetchArtist();
+  const prefetchAlbum = usePrefetchAlbum();
+
   if (isLoading) {
     return (
       <View style={styles.centered}>
@@ -436,8 +439,6 @@ function PulseTab({
     );
   }
 
-  const prefetchArtist = usePrefetchArtist();
-  const prefetchAlbum = usePrefetchAlbum();
   const weeklyTop = billboard?.weeklyTop;
   const narrative = billboard?.narrative;
   const artists = weeklyTop?.artists.slice(0, 12) ?? [];
@@ -571,7 +572,7 @@ function PulseTab({
                     <View style={styles.pulseRow}>
                       <PulseArrow trend={pulse.playVolume.trend} />
                       <View style={styles.pulseRowText}>
-                        <Text style={styles.pulseLabel}>How much you're listening</Text>
+                        <Text style={styles.pulseLabel}>How much you&apos;re listening</Text>
                         <Text style={styles.pulseMeta}>
                           {pulse.playVolume.percentChange > 0 ? "+" : ""}{Math.round(pulse.playVolume.percentChange)}% vs last week
                           {" · "}<Text style={{ color: "#d4d4d8" }}>{pulse.playVolume.currentPlays.toLocaleString()} plays</Text>
@@ -614,7 +615,7 @@ function PulseTab({
                   </View>
                   <View style={styles.pulseRowText}>
                     <Text style={styles.pulseLabel}>Artists you just found</Text>
-                    <Text style={styles.pulseMeta}>New artists you've added to your rotation this week.</Text>
+                    <Text style={styles.pulseMeta}>New artists you&apos;ve added to your rotation this week.</Text>
                     <Text style={[styles.pulseName, { marginTop: 8 }]}>
                       {pulse.discoveries.names.slice(0, 4).join(" · ")}
                       {pulse.discoveries.names.length > 4 ? ` · +${pulse.discoveries.names.length - 4} more` : ""}
@@ -627,7 +628,7 @@ function PulseTab({
             {/* What's changing */}
             {pulse.soundShift ? (
               <View style={[styles.pulseGroup, soundNeedsRule && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(63,63,70,0.8)", paddingTop: 20 }]}>
-                <Text style={styles.pulseGroupLabel}>WHAT'S CHANGING</Text>
+                <Text style={styles.pulseGroupLabel}>WHAT&apos;S CHANGING</Text>
                 <View style={styles.pulseRow}>
                   <PulseArrow trend={pulse.soundShift.trend} />
                   <View style={styles.pulseRowText}>
@@ -932,7 +933,7 @@ function HistoryTab() {
               </View>
             </View>
             <Text style={styles.blindSpotsIntro}>
-              Similar to artists you love, but you haven't listened to them yet.
+              Similar to artists you love, but you haven&apos;t listened to them yet.
             </Text>
             {blindSpots!.artists.slice(0, 5).map((a) => (
               <View key={a.spotifyId} style={styles.blindSpotItem}>
@@ -1024,7 +1025,9 @@ function ActivityTab() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const stateRef = useRef({ hasMore: true, loadingMore: false, count: 0 });
-  stateRef.current = { hasMore, loadingMore, count: items.length };
+  useEffect(() => {
+    stateRef.current = { hasMore, loadingMore, count: items.length };
+  });
 
   const fetchPage = useCallback(async (offset: number, append: boolean) => {
     if (append) setLoadingMore(true);
@@ -1043,7 +1046,7 @@ function ActivityTab() {
     }
   }, []);
 
-  useEffect(() => { void fetchPage(0, false); }, [fetchPage]);
+  useEffect(() => { void (async () => { await fetchPage(0, false); })(); }, [fetchPage]);
 
   const onEndReached = useCallback(() => {
     if (stateRef.current.hasMore && !stateRef.current.loadingMore) {

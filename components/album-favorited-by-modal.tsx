@@ -188,7 +188,9 @@ export function AlbumFavoritedByModal({
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const usersLenRef = useRef(0);
-  usersLenRef.current = users.length;
+  useEffect(() => {
+    usersLenRef.current = users.length;
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -213,13 +215,24 @@ export function AlbumFavoritedByModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
+  // Reset the list whenever the modal (re)opens or the album changes, so a
+  // stale previous page never flashes before the fetch below completes.
+  // Computed during render (rather than as a setState-in-effect) so the
+  // reset is visible in the very first render for the new open/albumId pair.
+  const openKey = `${isOpen}|${albumId}`;
+  const [prevOpenKey, setPrevOpenKey] = useState(openKey);
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey);
+    if (isOpen) {
+      setUsers([]);
+      setHasMore(true);
+      setError(null);
+      setTotal(null);
+    }
+  }
+
   useEffect(() => {
     if (!isOpen) return;
-
-    setUsers([]);
-    setHasMore(true);
-    setError(null);
-    setTotal(null);
 
     const ac = new AbortController();
 

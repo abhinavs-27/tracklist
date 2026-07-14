@@ -2,8 +2,8 @@ import { CreditsBlock } from "./CreditsBlock";
 import { SongCard } from "./SongCard";
 import { ExternalLinks } from "./ExternalLinks";
 
-interface CreditPerson { id: string; name: string; image_url?: string | null; }
-interface SongRef { id: string; name: string; artist_name: string; artist_id: string; album_image_url: string | null; release_year: number | null; }
+export interface CreditPerson { id: string; name: string; image_url?: string | null; }
+export interface SongRef { id: string; name: string; artist_name: string; artist_id: string; album_image_url: string | null; release_year: number | null; }
 
 interface Props {
   producers: CreditPerson[];

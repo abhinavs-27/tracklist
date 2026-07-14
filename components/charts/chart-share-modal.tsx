@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
 import { formatWeeklyChartShareText } from "@/lib/charts/format-chart-share-text";
 import {
@@ -105,7 +105,7 @@ export function ChartShareModal(props: {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const shareCapability = useRef(detectShareCapability());
+  const [shareCapability] = useState(() => detectShareCapability());
 
   const pageUrl = typeof window !== "undefined" ? window.location.href : "";
   const numberOne = props.chart_moment.number_one;
@@ -141,7 +141,7 @@ export function ChartShareModal(props: {
         communityId: props.communityId,
       });
 
-      if (shareCapability.current === "native-files") {
+      if (shareCapability === "native-files") {
         await navigator.share({
           files: [file],
           title: props.shareTitle ?? "My weekly chart on Tracklist",
@@ -206,7 +206,7 @@ export function ChartShareModal(props: {
 
   if (!props.open) return null;
 
-  const isMobileNative = shareCapability.current === "native-files";
+  const isMobileNative = shareCapability === "native-files";
   const primaryLabel = isMobileNative ? "Share image" : "Download image";
   const PrimaryIcon = isMobileNative ? ShareIcon : DownloadIcon;
 

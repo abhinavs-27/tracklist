@@ -29,9 +29,16 @@ songsRouter.get("/:id/info", async (req, res) => {
       supabase.from("track_featuring_artists").select("artists(id, name)").eq("track_id", canonicalId),
     ]);
 
-    const producers = (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
-    const songwriters = (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
-    const featuring = (featResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
+    type CreditPerson = { id: string; name: string };
+    const producers = (
+      (producersResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
+    const songwriters = (
+      (songwritersResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
+    const featuring = (
+      (featResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
 
     return ok(res, { producers, songwriters, featuring });
   } catch (e) {
@@ -61,33 +68,50 @@ songsRouter.get("/:id", async (req, res) => {
       supabase.from("track_external_ids").select("external_id, source").eq("track_id", canonicalId),
     ]);
 
-    const trackRow = trackRowResult.data;
+    type TrackRow = {
+      id: string;
+      name: string;
+      duration_ms: number | null;
+      track_number: number | null;
+      album_id: string | null;
+    };
+    type AlbumRow = {
+      id: string;
+      name: string;
+      image_url: string | null;
+      release_date: string | null;
+      artist_id: string | null;
+    };
+    type ArtistRow = { id: string; name: string };
+
+    const trackRow = trackRowResult.data as TrackRow | null;
     if (!trackRow) return notFound(res, "Song not found");
 
-    const extIds = extIdResult.data ?? [];
-    const spotifyId = extIds.find((e: any) => e.source === "spotify")?.external_id ?? null;
+    const extIds = (extIdResult.data ?? []) as { external_id: string; source: string }[];
+    const spotifyId = extIds.find((e) => e.source === "spotify")?.external_id ?? null;
 
     // Fetch album and artist
-    let album: any = null;
+    let album: AlbumRow | null = null;
     let artist = { name: "", id: null as string | null };
-    if ((trackRow as any).album_id) {
+    if (trackRow.album_id) {
       const { data: albumRow } = await supabase
         .from("albums")
         .select("id, name, image_url, release_date, artist_id")
-        .eq("id", (trackRow as any).album_id)
+        .eq("id", trackRow.album_id)
         .maybeSingle();
-      album = albumRow;
-      if (albumRow?.artist_id) {
+      album = albumRow as AlbumRow | null;
+      if (album?.artist_id) {
         const { data: artistRow } = await supabase
           .from("artists")
           .select("id, name")
-          .eq("id", albumRow.artist_id)
+          .eq("id", album.artist_id)
           .maybeSingle();
-        artist = { name: (artistRow as any)?.name ?? "", id: (artistRow as any)?.id ?? null };
+        const artistRowTyped = artistRow as ArtistRow | null;
+        artist = { name: artistRowTyped?.name ?? "", id: artistRowTyped?.id ?? null };
       }
     }
 
-    const albumId = (trackRow as any).album_id ?? null;
+    const albumId = trackRow.album_id ?? null;
 
     const [statsResult, reviewsResult, recentListensData, recommendedData] = await Promise.all([
       getEntityStats("song", canonicalId),
@@ -125,7 +149,8 @@ songsRouter.get("/:id", async (req, res) => {
           .limit(12);
         if (!coRows?.length) return [];
 
-        const relatedIds = coRows.map((r: any) => r.related_content_id as string);
+        type CoRow = { related_content_id: string; score: number };
+        const relatedIds = (coRows as CoRow[]).map((r) => r.related_content_id);
 
         // Fetch track details + album art for each related track
         const { data: relatedTracks } = await supabase
@@ -134,27 +159,38 @@ songsRouter.get("/:id", async (req, res) => {
           .in("id", relatedIds);
         if (!relatedTracks?.length) return [];
 
-        const albumIds = [...new Set(relatedTracks.map((t: any) => t.album_id).filter(Boolean))];
+        type RelatedTrackRow = {
+          id: string;
+          name: string;
+          album_id: string | null;
+          track_external_ids: { external_id: string; source: string }[] | null;
+        };
+        const relatedTrackRows = relatedTracks as unknown as RelatedTrackRow[];
+
+        type RelatedAlbumRow = { id: string; name: string; image_url: string | null; artist_id: string | null };
+        const albumIds = [...new Set(relatedTrackRows.map((t) => t.album_id).filter((id): id is string => !!id))];
         const { data: albumRows } = albumIds.length
           ? await supabase.from("albums").select("id, name, image_url, artist_id").in("id", albumIds)
           : { data: [] };
-        const albumMap = new Map(((albumRows ?? []) as any[]).map((a) => [a.id, a]));
+        const albumRowsTyped = (albumRows ?? []) as RelatedAlbumRow[];
+        const albumMap = new Map(albumRowsTyped.map((a) => [a.id, a]));
 
-        const artistIds = [...new Set((albumRows ?? []).map((a: any) => a.artist_id).filter(Boolean))];
+        type RelatedArtistRow = { id: string; name: string };
+        const artistIds = [...new Set(albumRowsTyped.map((a) => a.artist_id).filter((id): id is string => !!id))];
         const { data: artistRows } = artistIds.length
           ? await supabase.from("artists").select("id, name").in("id", artistIds)
           : { data: [] };
-        const artistMap = new Map(((artistRows ?? []) as any[]).map((a) => [a.id, a]));
+        const artistMap = new Map(((artistRows ?? []) as RelatedArtistRow[]).map((a) => [a.id, a]));
 
         // Preserve co-occurrence order
-        const trackMap = new Map(relatedTracks.map((t: any) => [t.id, t]));
+        const trackMap = new Map(relatedTrackRows.map((t) => [t.id, t]));
         return relatedIds
           .map((id) => {
             const t = trackMap.get(id);
             if (!t) return null;
-            const alb = albumMap.get(t.album_id);
-            const art = artistMap.get(alb?.artist_id);
-            const spotifyId = ((t.track_external_ids ?? []) as any[]).find((e) => e.source === "spotify")?.external_id ?? null;
+            const alb = t.album_id ? albumMap.get(t.album_id) : undefined;
+            const art = alb?.artist_id ? artistMap.get(alb.artist_id) : undefined;
+            const spotifyId = (t.track_external_ids ?? []).find((e) => e.source === "spotify")?.external_id ?? null;
             return {
               id: spotifyId ?? t.id,
               canonical_id: t.id,
@@ -190,27 +226,47 @@ songsRouter.get("/:id", async (req, res) => {
       supabase.from("tracks").select("credits_enriched_at").eq("id", canonicalId).maybeSingle(),
     ]);
 
-    function toSongRef(r: any, trackKey: string) {
+    type SongRefTrack = {
+      id: string;
+      name: string;
+      albums: { release_date: string | null; image_url: string | null } | null;
+      artists: { id: string; name: string } | null;
+    };
+    function toSongRef(r: Record<string, SongRefTrack | null>, trackKey: string) {
       const t = r[trackKey];
       if (!t) return null;
-      const releaseDate: string | null = (t as any).albums?.release_date ?? null;
+      const releaseDate: string | null = t.albums?.release_date ?? null;
       return {
-        id: (t as any).id,
-        name: (t as any).name,
-        artist_name: (t as any).artists?.name ?? "",
-        artist_id: (t as any).artists?.id ?? "",
-        album_image_url: (t as any).albums?.image_url ?? null,
+        id: t.id,
+        name: t.name,
+        artist_name: t.artists?.name ?? "",
+        artist_id: t.artists?.id ?? "",
+        album_image_url: t.albums?.image_url ?? null,
         release_year: releaseDate ? parseInt(releaseDate.slice(0, 4), 10) : null,
       };
     }
 
-    const producers = (producersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
-    const songwriters = (songwritersResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
-    const featuring = (featResult.data ?? []).map((r: any) => r.artists).filter(Boolean);
-    const samples = (samplesResult.data ?? []).map((r: any) => toSongRef(r, "tracks")).filter(Boolean);
-    const sampled_by = (sampledByResult.data ?? []).map((r: any) => toSongRef(r, "tracks")).filter(Boolean);
-    const covers = (coversResult.data ?? []).map((r: any) => toSongRef(r, "tracks")).filter(Boolean);
-    const credits_enriched_at = (creditsMetaResult.data as any)?.credits_enriched_at ?? null;
+    type CreditPerson = { id: string; name: string };
+    const producers = (
+      (producersResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
+    const songwriters = (
+      (songwritersResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
+    const featuring = (
+      (featResult.data ?? []) as { artists: CreditPerson | CreditPerson[] | null }[]
+    ).map((r) => r.artists).filter(Boolean);
+    const samples = (
+      (samplesResult.data ?? []) as unknown as Record<string, SongRefTrack | null>[]
+    ).map((r) => toSongRef(r, "tracks")).filter(Boolean);
+    const sampled_by = (
+      (sampledByResult.data ?? []) as unknown as Record<string, SongRefTrack | null>[]
+    ).map((r) => toSongRef(r, "tracks")).filter(Boolean);
+    const covers = (
+      (coversResult.data ?? []) as unknown as Record<string, SongRefTrack | null>[]
+    ).map((r) => toSongRef(r, "tracks")).filter(Boolean);
+    const credits_enriched_at =
+      (creditsMetaResult.data as { credits_enriched_at: string | null } | null)?.credits_enriched_at ?? null;
 
     const reviews = (reviewsResult?.reviews ?? []).map((r) => ({
       id: r.id,

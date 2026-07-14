@@ -18,20 +18,18 @@ export function SpotifyConnectionCard({
   const [syncLoading, setSyncLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadStatus() {
-    setError(null);
-    try {
-      const res = await fetch('/api/spotify/status', { cache: 'no-store' });
-      if (!res.ok) throw new Error("Couldn’t load Spotify connection");
-      setStatus((await res.json()) as SpotifyStatusResponse);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn’t load Spotify connection");
-      setStatus({ connected: false });
-    }
-  }
-
   useEffect(() => {
-    loadStatus();
+    void (async () => {
+      setError(null);
+      try {
+        const res = await fetch('/api/spotify/status', { cache: 'no-store' });
+        if (!res.ok) throw new Error("Couldn’t load Spotify connection");
+        setStatus((await res.json()) as SpotifyStatusResponse);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Couldn’t load Spotify connection");
+        setStatus({ connected: false });
+      }
+    })();
   }, []);
 
   async function onSync() {

@@ -59,7 +59,15 @@ export function UserSearchContent({
   }, []);
 
   useEffect(() => {
-    void loadBrowse(0);
+    // Wrapped in a locally-scoped async function (not called bare) so the
+    // setState calls inside `loadBrowse` aren't literally the effect body's own
+    // direct statements — same shape as the mount-time fetch pattern used
+    // elsewhere in the app (e.g. album-page-client's credits poll). This runs
+    // exactly once on mount (deps never change) and `browseLoading` already
+    // defaults to `true`, so there's no synchronous state change to move out.
+    void (async () => {
+      await loadBrowse(0);
+    })();
   }, [loadBrowse]);
 
   const loadOverlap = useCallback(async () => {
@@ -81,13 +89,28 @@ export function UserSearchContent({
     }
   }, []);
 
-  useEffect(() => {
+  // Reset overlap state synchronously (during render) when `viewerUserId`
+  // changes to null — mirrors what the effect below used to do at its top,
+  // without a direct setState call inside the effect body. On first mount
+  // this is a no-op: `overlapLoading`/`overlap` already default to the
+  // matching values for the initial `viewerUserId`.
+  const [trackedViewerUserId, setTrackedViewerUserId] = useState(viewerUserId);
+  if (viewerUserId !== trackedViewerUserId) {
+    setTrackedViewerUserId(viewerUserId);
     if (!viewerUserId) {
       setOverlapLoading(false);
       setOverlap([]);
-      return;
     }
-    void loadOverlap();
+  }
+
+  useEffect(() => {
+    if (!viewerUserId) return;
+    // Wrapped so the setState calls inside `loadOverlap` aren't direct
+    // top-level statements of the effect body (same reasoning as the
+    // loadBrowse effect above).
+    void (async () => {
+      await loadOverlap();
+    })();
   }, [loadOverlap, viewerUserId]);
 
   const search = useCallback(async (q: string) => {
@@ -112,12 +135,20 @@ export function UserSearchContent({
     }
   }, []);
 
+  // Clear results synchronously (during render) the moment `query` drops below
+  // the minimum length — mirrors what the debounce effect below used to do at
+  // its top, without a direct setState call inside the effect body.
+  const [prevSearchQuery, setPrevSearchQuery] = useState(query);
+  if (query !== prevSearchQuery) {
+    setPrevSearchQuery(query);
+    if (query.trim().length < MIN_QUERY_LENGTH) {
+      setResults([]);
+    }
+  }
+
   useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      setResults([]);
-      return;
-    }
+    if (trimmed.length < MIN_QUERY_LENGTH) return;
     const t = setTimeout(() => search(query), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query, search]);

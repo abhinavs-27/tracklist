@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   FavoriteAlbumsPicker,
   type FavoriteAlbumPick,
@@ -23,7 +23,9 @@ export function FavoriteAlbumsEditModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const [prevOpenKey, setPrevOpenKey] = useState({ isOpen, initialAlbums });
+  if (isOpen !== prevOpenKey.isOpen || initialAlbums !== prevOpenKey.initialAlbums) {
+    setPrevOpenKey({ isOpen, initialAlbums });
     if (isOpen) {
       setSelected(
         initialAlbums.map((a) => ({
@@ -34,7 +36,7 @@ export function FavoriteAlbumsEditModal({
       );
       setError("");
     }
-  }, [isOpen, initialAlbums]);
+  }
 
   const handleSave = async () => {
     setSaving(true);

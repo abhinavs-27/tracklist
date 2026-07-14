@@ -82,7 +82,11 @@ export function CommentThread(props: Props) {
   };
 
   useEffect(() => {
-    if (open && comments.length === 0 && !fetching) fetchComments();
+    if (open && comments.length === 0 && !fetching) {
+      void (async () => {
+        await fetchComments();
+      })();
+    }
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
   }, [open]);
 

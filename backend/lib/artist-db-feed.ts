@@ -326,10 +326,22 @@ export async function fetchArtistReviewsSimple(
 
     if (!reviews?.length) return [];
 
+    type ReviewRow = {
+      id: string;
+      user_id: string;
+      entity_type: string;
+      entity_id: string;
+      rating: number | null;
+      review_text: string | null;
+      created_at: string;
+      users: { id: string; username: string; avatar_url: string | null } | null;
+    };
+    const reviewRows = reviews as unknown as ReviewRow[];
+
     // For song reviews, we need the album image — join tracks→albums like the web does
-    const songReviewTrackIds = (reviews as any[])
+    const songReviewTrackIds = reviewRows
       .filter((r) => r.entity_type === "song")
-      .map((r) => r.entity_id as string);
+      .map((r) => r.entity_id);
 
     const trackAlbumImageMap = new Map<string, string | null>();
     if (songReviewTrackIds.length > 0) {
@@ -343,7 +355,7 @@ export async function fetchArtistReviewsSimple(
       }
     }
 
-    return (reviews as any[]).map((r) => {
+    return reviewRows.map((r) => {
       const album = albumMap.get(r.entity_id);
       const entityName = album?.name ?? trackNameMap.get(r.entity_id) ?? null;
       const entityImage = r.entity_type === "album"

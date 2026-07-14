@@ -72,14 +72,20 @@ export function SendRecommendationModal({
     return () => clearTimeout(t);
   }, [query, kind, search]);
 
-  useEffect(() => {
+  // Sync from context-provided initial values during render (rather than
+  // effect+setState) so a changed prop is reflected in the very first render.
+  const [prevInitialKind, setPrevInitialKind] = useState(initialKind);
+  if (initialKind !== prevInitialKind) {
+    setPrevInitialKind(initialKind);
     if (initialKind) setKind(initialKind);
-  }, [initialKind]);
+  }
 
-  useEffect(() => {
+  const [prevInitialQuery, setPrevInitialQuery] = useState(initialQuery);
+  if (initialQuery !== prevInitialQuery) {
+    setPrevInitialQuery(initialQuery);
     const q = initialQuery?.trim();
     if (q) setQuery(q);
-  }, [initialQuery]);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

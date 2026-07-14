@@ -66,7 +66,7 @@ export default function CommunityDetailScreen() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    setTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    (() => { setTz(Intl.DateTimeFormat().resolvedOptions().timeZone); })();
   }, []);
 
   const { data: meta, isPending: metaPending } = useQuery({
@@ -122,6 +122,50 @@ export default function CommunityDetailScreen() {
   }, [isMember, community, meta?.my_role]);
   const canEdit = isMember && meta?.my_role === "admin";
   const leaderboard = lbData?.leaderboard ?? [];
+
+  const onLeave = useCallback(async () => {
+    if (!id) return;
+    setLeaving(true);
+    try {
+      await leaveCommunity(id);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.community(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.communitiesMine() });
+      router.back();
+    } catch {
+      // ignore — user stays on page
+    } finally {
+      setLeaving(false);
+    }
+  }, [id, queryClient, router]);
+
+  const openEdit = useCallback(() => {
+    if (!community) return;
+    setEditName(community.name);
+    setEditDesc(community.description ?? "");
+    setEditPrivate(community.is_private);
+    setSaveErr(null);
+    setEditing(true);
+  }, [community]);
+
+  const onSave = useCallback(async () => {
+    const trimmed = editName.trim();
+    if (trimmed.length < 2) return;
+    setSaveErr(null);
+    setSaving(true);
+    try {
+      await updateCommunitySettings(id, {
+        name: trimmed,
+        description: editDesc.trim() || null,
+        is_private: editPrivate,
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.community(id) });
+      setEditing(false);
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  }, [id, editName, editDesc, editPrivate, queryClient]);
 
   async function onAcceptInvite() {
     if (!pendingInviteId) return;
@@ -235,50 +279,6 @@ export default function CommunityDetailScreen() {
   }
 
   const consensusPending = albumConsensusPending || artistConsensusPending;
-
-  const onLeave = useCallback(async () => {
-    if (!id) return;
-    setLeaving(true);
-    try {
-      await leaveCommunity(id);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.community(id) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.communitiesMine() });
-      router.back();
-    } catch {
-      // ignore — user stays on page
-    } finally {
-      setLeaving(false);
-    }
-  }, [id, queryClient, router]);
-
-  const openEdit = useCallback(() => {
-    if (!community) return;
-    setEditName(community.name);
-    setEditDesc(community.description ?? "");
-    setEditPrivate(community.is_private);
-    setSaveErr(null);
-    setEditing(true);
-  }, [community]);
-
-  const onSave = useCallback(async () => {
-    const trimmed = editName.trim();
-    if (trimmed.length < 2) return;
-    setSaveErr(null);
-    setSaving(true);
-    try {
-      await updateCommunitySettings(id, {
-        name: trimmed,
-        description: editDesc.trim() || null,
-        is_private: editPrivate,
-      });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.community(id) });
-      setEditing(false);
-    } catch (e) {
-      setSaveErr(e instanceof Error ? e.message : "Could not save");
-    } finally {
-      setSaving(false);
-    }
-  }, [id, editName, editDesc, editPrivate, queryClient]);
 
   const avatarImageUri = community?.avatar_url
     ? `${API_URL}/api/profile-pictures/community/${id}`

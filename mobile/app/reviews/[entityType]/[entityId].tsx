@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -53,16 +53,22 @@ export default function ReviewsScreen() {
     queryFn: () => fetcher<{ user?: { id?: string } } | Record<string, never>>("/api/auth/session"),
     staleTime: 30 * 1000,
   });
-  const isSignedIn = !!(session as any)?.user?.id;
+  const isSignedIn = !!session?.user?.id;
 
   const myReview = data?.my_review ?? null;
   const average = data?.average_rating ?? null;
   const count = data?.count ?? 0;
 
-  const [rating, setRating] = useState<number>(3);
-  const [reviewText, setReviewText] = useState<string>("");
+  // Seed from an existing review so the edit form is correct on the very first
+  // render (avoids a flash of the "no review yet" defaults when data is
+  // already warm). The guarded block below keeps it in sync when myReview
+  // changes after mount.
+  const [rating, setRating] = useState<number>(() => myReview?.rating ?? 3);
+  const [reviewText, setReviewText] = useState<string>(() => myReview?.review_text ?? "");
 
-  useEffect(() => {
+  const [prevMyReviewId, setPrevMyReviewId] = useState(myReview?.id);
+  if (myReview?.id !== prevMyReviewId) {
+    setPrevMyReviewId(myReview?.id);
     if (myReview) {
       setRating(myReview.rating);
       setReviewText(myReview.review_text ?? "");
@@ -70,7 +76,7 @@ export default function ReviewsScreen() {
       setRating(3);
       setReviewText("");
     }
-  }, [myReview?.id]);
+  }
 
   const [submitError, setSubmitError] = useState<string | null>(null);
 

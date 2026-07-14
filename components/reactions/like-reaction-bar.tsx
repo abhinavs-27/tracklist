@@ -55,7 +55,9 @@ export function LikeReactionBar({
   const feedCtx = useFeedReactionsOptional();
   const useFeed = !standalone && feedCtx;
   const onSnapshotChangeRef = useRef(onSnapshotChange);
-  onSnapshotChangeRef.current = onSnapshotChange;
+  useEffect(() => {
+    onSnapshotChangeRef.current = onSnapshotChange;
+  });
 
   const fromFeed =
     useFeed && feedCtx!.loaded

@@ -28,7 +28,7 @@ export const GET = withHandler(async (_req, ctx) => {
 
   return apiOk({
     label,
-    topArtists: (artistRows ?? []).map((r: any) => r.artists),
-    topAlbums: (albumRows ?? []).map((r: any) => r.albums),
+    topArtists: (artistRows ?? []).map((r) => r.artists),
+    topAlbums: (albumRows ?? []).map((r) => r.albums),
   });
 }, { requireAuth: false });

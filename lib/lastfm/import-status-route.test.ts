@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { NextRequest } from "next/server";
 
 vi.mock("@/lib/auth", () => ({
   requireApiAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
@@ -24,7 +25,7 @@ describe("GET /api/lastfm/import-status", () => {
   it("returns null status when no import has been triggered", async () => {
     const { GET } = await import("@/app/api/lastfm/import-status/route");
     const req = new Request("http://localhost/api/lastfm/import-status");
-    const res = await GET(req as any);
+    const res = await GET(req as unknown as NextRequest);
     expect(res.status).toBe(200);
     const body = await res.json() as { data: { status: string | null } };
     expect(body.data.status).toBeNull();

@@ -16,7 +16,7 @@ export function MembersGrid({ members }: { members: Member[] }) {
       <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", color: theme.colors.muted, marginBottom: 10 }}>Members</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
         {members.map((m) => (
-          <Pressable key={m.id} onPress={() => router.push(`/artist/${m.id}` as any)} style={{ alignItems: "center", gap: 6 }}>
+          <Pressable key={m.id} onPress={() => router.push(`/artist/${m.id}` as const)} style={{ alignItems: "center", gap: 6 }}>
             <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.border, alignItems: "center", justifyContent: "center" }}>
               <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.muted }}>{initials(m.name)}</Text>
             </View>

@@ -17,6 +17,14 @@ export const maxDuration = 60;
  * Auth required — viewer is always user A.
  */
 export async function GET(request: NextRequest) {
+  // Data-fetching (auth + match lookup + font loading) resolves inside try/catch.
+  // The <TasteMatchCardTemplate/> JSX + ImageResponse construction happen after
+  // this block on purpose: ImageResponse renders the element tree lazily inside
+  // an internal async ReadableStream (@vercel/og), after this function returns —
+  // a render error there was never observable to this try/catch regardless of
+  // where the JSX sat, so keeping it out of the try keeps the boundary honest.
+  let match: Awaited<ReturnType<typeof getTasteMatch>>;
+  let fonts: Awaited<ReturnType<typeof loadChartShareImageFonts>>;
   try {
     const me = await requireApiAuth(request);
     const { searchParams } = new URL(request.url);
@@ -25,30 +33,30 @@ export async function GET(request: NextRequest) {
     if (!userB) return apiBadRequest("Missing userB");
     if (!isValidUuid(userB)) return apiBadRequest("Invalid user id");
 
-    const match = await getTasteMatch(me.id, userB);
+    match = await getTasteMatch(me.id, userB);
     if (match.insufficientData) {
       return apiBadRequest("Not enough listening history to compare yet.");
     }
 
-    const fonts = await loadChartShareImageFonts();
-
-    const response = new ImageResponse(
-      <TasteMatchCardTemplate match={match} youLabel="You" themLabel="Them" />,
-      {
-        width: 1080,
-        height: 1350,
-        ...(fonts.length > 0 ? { fonts } : {}),
-      },
-    );
-
-    response.headers.set(
-      "Cache-Control",
-      "private, max-age=3600, stale-while-revalidate=86400",
-    );
-    return response;
+    fonts = await loadChartShareImageFonts();
   } catch (e) {
     const u = handleUnauthorized(e);
     if (u) return u;
     return apiInternalError(e);
   }
+
+  const response = new ImageResponse(
+    <TasteMatchCardTemplate match={match} youLabel="You" themLabel="Them" />,
+    {
+      width: 1080,
+      height: 1350,
+      ...(fonts.length > 0 ? { fonts } : {}),
+    },
+  );
+
+  response.headers.set(
+    "Cache-Control",
+    "private, max-age=3600, stale-while-revalidate=86400",
+  );
+  return response;
 }

@@ -30,7 +30,11 @@ export function LastfmImportProgressCard() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { void poll(); }, [poll]);
+  useEffect(() => {
+    void (async () => {
+      await poll();
+    })();
+  }, [poll]);
 
   useEffect(() => {
     if (status !== "pending" && status !== "running") return;

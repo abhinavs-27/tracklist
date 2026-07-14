@@ -55,7 +55,7 @@ export function ProfileReviewsTab({ username, isOwnProfile, hasLastfm, initialRe
     <div>
       {showLastfmNudge ? (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-sm text-zinc-400">
-          <span>Connect Last.fm to see how many times you've listened to each of these.</span>
+          <span>Connect Last.fm to see how many times you&apos;ve listened to each of these.</span>
           <button
             type="button"
             onClick={() => setLastfmModalOpen(true)}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs } from "expo-router";
 import {
   Animated,
@@ -68,9 +68,21 @@ function GlassPillBg() {
 
 // ─── Custom floating tab bar ──────────────────────────────────────────────────
 
+// Minimal shape of the tab-bar render props actually used here (expo-router does
+// not re-export BottomTabBarProps from its barrel).
 type TabBarProps = {
-  state: { index: number; routes: Array<{ key: string; name: string }> };
-  navigation: any;
+  state: {
+    index: number;
+    routes: Array<{ key: string; name: string }>;
+  };
+  navigation: {
+    emit: (event: {
+      type: "tabPress";
+      target: string;
+      canPreventDefault: true;
+    }) => { defaultPrevented: boolean };
+    navigate: (name: string, params?: object) => void;
+  };
 };
 
 function FloatingTabBar({ state, navigation }: TabBarProps) {
@@ -81,7 +93,7 @@ function FloatingTabBar({ state, navigation }: TabBarProps) {
   // before onLayout fires (avoids a one-frame jump).
   const [barW, setBarW] = useState(Dimensions.get("window").width - 32);
 
-  const slideAnim = useRef(new Animated.Value(state.index)).current;
+  const [slideAnim] = useState(() => new Animated.Value(state.index));
 
   useEffect(() => {
     Animated.spring(slideAnim, {

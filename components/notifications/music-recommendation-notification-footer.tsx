@@ -22,8 +22,6 @@ export function MusicRecommendationNotificationFooter({
   actorUsername,
   initialResponded,
 }: Props) {
-  if (!SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED) return null;
-
   const router = useRouter();
   const [recOpen, setRecOpen] = useState(false);
   const [snap, setSnap] = useState<ReactionSnapshot | null>(null);
@@ -44,6 +42,8 @@ export function MusicRecommendationNotificationFooter({
     }),
     [notificationId],
   );
+
+  if (!SOCIAL_INBOX_AND_MUSIC_REC_UI_ENABLED) return null;
 
   return (
     <>
@@ -66,7 +66,7 @@ export function MusicRecommendationNotificationFooter({
               ? " sent you a recommendation — send one back or like above."
               : " sent you a recommendation — send one back below."}
           </p>
-          <p className="text-[11px] text-amber-200/75">You haven't responded yet.</p>
+          <p className="text-[11px] text-amber-200/75">You haven&apos;t responded yet.</p>
           <button
             type="button"
             onClick={() => setRecOpen(true)}

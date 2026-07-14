@@ -28,10 +28,14 @@ export function HomeWelcomeOverlay({
 
   useEffect(() => {
     if (!welcomeParam) {
-      setVisible(false);
+      (() => {
+        setVisible(false);
+      })();
       return;
     }
-    setVisible(true);
+    (() => {
+      setVisible(true);
+    })();
     const t = window.setTimeout(() => setVisible(false), 2000);
     return () => window.clearTimeout(t);
   }, [welcomeParam]);
@@ -57,7 +61,7 @@ export function HomeWelcomeOverlay({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.12, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           >
-            You're in
+            You&apos;re in
           </motion.p>
           <motion.p
             className="mt-3 max-w-sm px-6 text-center text-sm text-zinc-400 sm:text-base"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useReviews } from "@/lib/hooks/use-reviews";
 import type { ReviewsResponse } from "@/lib/hooks/use-reviews";
 import { useAlbumReviewsContext } from "@/app/album/[id]/album-reviews-context";
@@ -36,17 +36,22 @@ export function ReviewsSectionWithData({
   const count = data?.count ?? 0;
   const submitLoading = isCreating || isDeleting;
 
-  const [editRating, setEditRating] = useState(3);
-  const [editText, setEditText] = useState("");
+  // Seed from an existing review so the edit form is correct on the very first
+  // render (song page passes my_review via server initialData; warm album cache
+  // has it too). The guarded block below keeps it in sync when myReview changes.
+  const [editRating, setEditRating] = useState(() => myReview?.rating ?? 3);
+  const [editText, setEditText] = useState(() => myReview?.review_text ?? "");
   const [textOpen, setTextOpen] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const [prevMyReviewId, setPrevMyReviewId] = useState(myReview?.id);
+  if (myReview?.id !== prevMyReviewId) {
+    setPrevMyReviewId(myReview?.id);
     if (myReview) {
       setEditRating(myReview.rating);
       setEditText(myReview.review_text ?? "");
     }
-  }, [myReview?.id]);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

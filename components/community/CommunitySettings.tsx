@@ -44,16 +44,29 @@ export function CommunitySettings({
   const [isPrivate, setIsPrivate] = useState(community.is_private);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+
+  const [prevCommunitySnapshot, setPrevCommunitySnapshot] = useState({
+    id: community.id,
+    name: community.name,
+    description: community.description,
+    is_private: community.is_private,
+  });
+  if (
+    community.id !== prevCommunitySnapshot.id ||
+    community.name !== prevCommunitySnapshot.name ||
+    community.description !== prevCommunitySnapshot.description ||
+    community.is_private !== prevCommunitySnapshot.is_private
+  ) {
+    setPrevCommunitySnapshot({
+      id: community.id,
+      name: community.name,
+      description: community.description,
+      is_private: community.is_private,
+    });
     setName(community.name);
     setDescription(community.description ?? "");
     setIsPrivate(community.is_private);
-  }, [
-    community.id,
-    community.name,
-    community.description,
-    community.is_private,
-  ]);
+  }
 
   /** Hero layout: edit opens a modal (not a block below the hero). */
   useEffect(() => {

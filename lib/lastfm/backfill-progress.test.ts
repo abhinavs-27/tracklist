@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { backfillLastfmScrobblesSince } from "@/lib/lastfm/backfill-scrobbles-since";
 
 vi.mock("@/lib/lastfm/fetch-recent", () => ({
@@ -16,7 +17,7 @@ vi.mock("@/lib/lastfm/ingest", () => ({
 
 const mockSupabase = {
   from: () => ({ update: () => ({ eq: () => Promise.resolve({ error: null }) }) }),
-} as any;
+} as unknown as SupabaseClient;
 
 describe("backfillLastfmScrobblesSince onProgress", () => {
   it("calls onProgress callback when provided", async () => {

@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { theme } from "@/lib/theme";
+import appIcon from "../../assets/icon.png";
 
 const PRIVACY_URL = `${process.env.EXPO_PUBLIC_API_URL ?? "https://tracklist.lol"}/privacy`;
 
@@ -71,7 +72,7 @@ export default function LoginScreen() {
       <View style={s.hero}>
         <View style={s.iconWrap}>
           <Image
-            source={require("../../assets/icon.png")}
+            source={appIcon}
             style={s.icon}
             resizeMode="cover"
           />

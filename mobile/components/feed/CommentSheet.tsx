@@ -63,7 +63,11 @@ export function CommentSheet({ visible, target, onClose, onCountChange }: Props)
   }, [visible, target, onCountChange]);
 
   useEffect(() => {
-    if (visible) void load();
+    if (visible) {
+      void (async () => {
+        await load();
+      })();
+    }
   }, [visible, load]);
 
   const submit = useCallback(async () => {

@@ -354,7 +354,9 @@ export function CommunityFeedClient(props: {
   const skipFirstLoad = useRef(true);
   const filterRef = useRef<Filter>("all");
   const feedTopRef = useRef<HTMLDivElement>(null);
-  filterRef.current = filter;
+  useEffect(() => {
+    filterRef.current = filter;
+  });
 
   const rows = useMemo(() => buildLiveFeedRows(items, filter), [items, filter]);
 
@@ -470,11 +472,25 @@ export function CommunityFeedClient(props: {
     };
   }, [props.communityId, load]);
 
-  useEffect(() => {
+  // Reset local state whenever the parent hands us a new initial page (new
+  // community, or a re-fetched initial page for the same one). Computed
+  // during render so the reset lands in the very first render for the new
+  // props, rather than flashing the previous community's stale items.
+  const [prevInitCommunityId, setPrevInitCommunityId] = useState(props.communityId);
+  const [prevInitItems, setPrevInitItems] = useState(props.initialItems);
+  const [prevInitNextOffset, setPrevInitNextOffset] = useState(props.initialNextOffset);
+  if (
+    props.communityId !== prevInitCommunityId ||
+    props.initialItems !== prevInitItems ||
+    props.initialNextOffset !== prevInitNextOffset
+  ) {
+    setPrevInitCommunityId(props.communityId);
+    setPrevInitItems(props.initialItems);
+    setPrevInitNextOffset(props.initialNextOffset);
     setItems(props.initialItems);
     setNextOffset(props.initialNextOffset ?? null);
     setPage(1);
-  }, [props.communityId, props.initialItems, props.initialNextOffset]);
+  }
 
   const hasNextPage = nextOffset != null;
 

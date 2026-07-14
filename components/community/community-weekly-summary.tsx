@@ -35,7 +35,9 @@ export function CommunityWeeklySummary(props: {
 
   useEffect(() => {
     if (props.initialPayload !== undefined) return;
-    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    (() => {
+      setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    })();
   }, [props.initialPayload]);
 
   const { data, isPending, error } = useQuery({
@@ -76,7 +78,7 @@ export function CommunityWeeklySummary(props: {
     return (
       <Wrap className={wrapClass}>
         <p className={`${communityBody} text-zinc-500`}>
-          Couldn't load this week's vibe.
+          Couldn&apos;t load this week&apos;s vibe.
         </p>
       </Wrap>
     );

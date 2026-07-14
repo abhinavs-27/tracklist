@@ -52,6 +52,7 @@ export function useReviews(
   // Normalize + fix double-encoded ids (`lfm%253A...` → `lfm:...`) so query key matches server
   const normalizedId = normalizeReviewEntityId(String(entityId ?? ""));
   const reviewsKey = queryKeys.reviews(entityType, normalizedId);
+  const initialData = options?.initialData;
 
   const {
     data,
@@ -61,8 +62,13 @@ export function useReviews(
     queryKey: reviewsKey,
     queryFn: () => fetchReviews(entityType, normalizedId),
     enabled: !!normalizedId,
-    initialData: options?.initialData ?? undefined,
-    initialDataUpdatedAt: options?.initialData ? Date.now() : undefined,
+    initialData: initialData ?? undefined,
+    // Pass a getter instead of calling Date.now() directly during render
+    // (impure) — React Query only invokes this itself, internally, the one
+    // time it constructs a brand-new Query for a key that has no cache yet
+    // (see `getDefaultState` in @tanstack/query-core), which is exactly the
+    // moment "freshness of this initialData" should be stamped as "now".
+    initialDataUpdatedAt: initialData ? () => Date.now() : undefined,
     staleTime: 30 * 1000,
   });
 

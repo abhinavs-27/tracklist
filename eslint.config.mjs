@@ -20,6 +20,13 @@ const eslintConfig = defineConfig([
     // Untracked one-off scripts (not yet part of the codebase)
     "scripts/refresh-all-taste-identity.ts",
   ]),
+  // Files that are legitimately CommonJS — `.cjs` by extension, or config
+  // files (babel) that Babel/Metro load synchronously via require(). require()
+  // is correct here, so the no-require-imports rule does not apply.
+  {
+    files: ["**/*.cjs", "**/babel.config.js"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
 ]);
 
 export default eslintConfig;
