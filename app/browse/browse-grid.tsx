@@ -207,13 +207,23 @@ export function BrowseGrid({
     pushUrl(e, s, er, cf, ct);
   };
 
+  // Reset to a loading/empty grid synchronously (during render, not in the
+  // effect below) whenever the filter combination changes — mirrors what the
+  // effect used to do at its top, just without a direct setState call inside
+  // the effect body itself.
+  const filterKey = buildApiUrl(entity, sort, era, customFrom, customTo, 0);
+  const [syncedFilterKey, setSyncedFilterKey] = useState(filterKey);
+  if (filterKey !== syncedFilterKey) {
+    setSyncedFilterKey(filterKey);
+    setLoading(true);
+    setItems([]);
+    setNextCursor(null);
+  }
+
   useEffect(() => {
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
-    setLoading(true);
-    setItems([]);
-    setNextCursor(null);
 
     fetch(buildApiUrl(entity, sort, era, customFrom, customTo, 0), { signal: ac.signal })
       .then((r) => r.json())

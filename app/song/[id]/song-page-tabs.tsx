@@ -84,14 +84,23 @@ export function SongPageTabs({
   const [creditsEnrichedAtState, setCreditsEnrichedAt] = useState(initialCreditsEnrichedAt ?? null);
   // Only poll when enrichment hasn't run yet (null timestamp at page load).
   // If the timestamp is already set, enrichment already ran — show the result immediately.
-  const [isPolling, setIsPolling] = useState(!initialHasContent && initialCreditsEnrichedAt === null);
+  const needsCreditsPolling = !initialHasContent && initialCreditsEnrichedAt === null;
+  const [isPolling, setIsPolling] = useState(needsCreditsPolling);
+  // Restart polling synchronously (during render, not in the effect below) when
+  // navigating to a different song id while this component instance persists —
+  // mirrors the effect's own guard so a re-poll is only ever kicked off when the
+  // new song actually needs it, matching the previous behavior exactly.
+  const [pollingForId, setPollingForId] = useState(entityId);
+  if (entityId !== pollingForId && needsCreditsPolling) {
+    setPollingForId(entityId);
+    setIsPolling(true);
+  }
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttemptsRef = useRef(0);
 
   useEffect(() => {
     if (initialHasContent || initialCreditsEnrichedAt !== null) return;
     let cancelled = false;
-    setIsPolling(true);
     pollAttemptsRef.current = 0;
     const poll = async () => {
       if (pollAttemptsRef.current >= 10) {

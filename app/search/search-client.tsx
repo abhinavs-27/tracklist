@@ -376,7 +376,9 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
   const [albums, setAlbums] = useState<SpotifyApi.AlbumObjectSimplified[]>([]);
   const [tracks, setTracks] = useState<SpotifyApi.TrackObjectFull[]>([]);
   const [people, setPeople] = useState<UserSearchResultType[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Correct from the very first render if the URL had ?q= — no effect needed,
+  // this is purely a function of the initial prop.
+  const [loading, setLoading] = useState(() => initialQuery.length > 0);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -384,12 +386,6 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  // Kick off initial search if URL had ?q=
-  const hasInitialQuery = initialQuery.length > 0;
-  useEffect(() => {
-    if (hasInitialQuery) setLoading(true);
-  }, [hasInitialQuery]);
 
   const doSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -446,16 +442,24 @@ export function SearchClient({ initialQuery = "" }: { initialQuery?: string }) {
     }
   }, []);
 
-  // Debounced search on query change
-  useEffect(() => {
+  // Clear results synchronously (during render) the moment `query` is emptied
+  // out — mirrors what the debounce effect below used to do at its top,
+  // without a direct setState call inside the effect body.
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
     if (!query.trim()) {
       setArtists([]);
       setAlbums([]);
       setTracks([]);
       setPeople([]);
       setLoading(false);
-      return;
     }
+  }
+
+  // Debounced search on query change
+  useEffect(() => {
+    if (!query.trim()) return;
     const timer = setTimeout(() => void doSearch(query), DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query, doSearch]);
