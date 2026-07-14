@@ -224,15 +224,17 @@ describe('Critical Flows: API Integration (Vitest)', () => {
       expect(res.status).toBe(400);
     });
 
-    it('should return 400 if entity resolution fails', async () => {
+    it('returns a retriable 503 (not a hard 400) when an entity cannot be resolved offline or via network', async () => {
+      // A rating must never hard-fail because Spotify is unreachable. An unresolvable
+      // Spotify id degrades to a retriable "still syncing" response instead of a dead 400.
       const req = new NextRequest('http://localhost/api/reviews', {
         method: 'POST',
         body: JSON.stringify({ entity_type: 'album', entity_id: 'ERR4567890123456789012', rating: 5 }),
       });
       const res = await reviewPOST(req, { user: { id: 'test-user-id' } } as any);
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(503);
       const body = await res.json();
-      expect(body.error).toContain('Could not resolve entity');
+      expect(body.code).toBe('entity_pending');
     });
   });
 

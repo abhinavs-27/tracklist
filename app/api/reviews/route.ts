@@ -5,6 +5,7 @@ import {
   apiBadRequest,
   apiInternalError,
   apiOk,
+  apiServiceUnavailable,
 } from "@/lib/api-response";
 import { parseBody, getPaginationParams } from "@/lib/api-utils";
 import { ReviewCreateBody } from "@/types";
@@ -19,6 +20,11 @@ import {
 } from "@/lib/validation";
 import { getReviewsForEntity, fetchUserSummary } from "@/lib/queries";
 import { getOrCreateEntity } from "@/lib/catalog/getOrCreateEntity";
+import { resolveReviewEntityId } from "@/lib/reviews/resolve-review-entity-id";
+import {
+  resolveCanonicalAlbumUuidFromEntityId,
+  resolveCanonicalTrackUuidFromEntityId,
+} from "@/lib/catalog/entity-resolution";
 
 /** GET ?entity_type=album|song&entity_id=<spotify_or_lfm_id>&limit= optional */
 export const GET = withHandler(async (request: NextRequest, { user }) => {
@@ -65,27 +71,40 @@ export const POST = withHandler(
       return apiBadRequest("Invalid entity_id");
     }
 
-    // reviews.entity_id is UUID — resolve Spotify IDs to internal UUIDs.
-    if (!isValidUuid(entity_id) && isValidSpotifyId(entity_id)) {
-      try {
+    const supabase = await createSupabaseServerClient();
+
+    // reviews.entity_id is a canonical UUID. Resolve Spotify IDs to it OFFLINE first —
+    // if the user can view the entity to rate it, it's already in our catalog and needs
+    // no Spotify network. Only a genuinely-absent entity falls back to the network, and
+    // if that also fails we return a retriable 503 rather than hard-failing the rating.
+    const resolution = await resolveReviewEntityId(entity_id, {
+      isUuid: isValidUuid,
+      isSpotifyId: isValidSpotifyId,
+      resolveOffline: (spotifyId) =>
+        typeResult.value === "album"
+          ? resolveCanonicalAlbumUuidFromEntityId(supabase, spotifyId)
+          : resolveCanonicalTrackUuidFromEntityId(supabase, spotifyId),
+      resolveWithNetwork: async (spotifyId) => {
         const resolved = await getOrCreateEntity({
           type: typeResult.value === "album" ? "album" : "track",
-          spotifyId: entity_id,
+          spotifyId,
           allowNetwork: true,
         });
-        entity_id = resolved.id;
-      } catch (e) {
-        console.error("[reviews] entity resolution failed", e);
-        return apiBadRequest("Could not resolve entity. Try again.");
-      }
+        return resolved.id;
+      },
+    });
+    if (resolution.kind === "pending") {
+      return apiServiceUnavailable(
+        "This is still syncing from the catalog. Try again in a moment.",
+        { code: "entity_pending" },
+      );
     }
+    entity_id = resolution.id;
 
     const ratingResult = validateRating(rating);
     if (!ratingResult.ok) return apiBadRequest(ratingResult.error);
 
     const reviewText = validateReviewContent(review_text);
-
-    const supabase = await createSupabaseServerClient();
     const row = {
       user_id: me!.id,
       entity_type: typeResult.value,
