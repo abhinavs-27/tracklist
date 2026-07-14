@@ -97,19 +97,19 @@ export default function UserSearchScreen() {
   useEffect(() => {
     if (authLoading) return;
     if (!session?.access_token) {
-      setBrowseLoading(false);
+      (() => { setBrowseLoading(false); })();
       return;
     }
-    void loadBrowse(0);
+    void (async () => { await loadBrowse(0); })();
   }, [authLoading, session?.access_token, loadBrowse]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!session?.access_token) {
-      setOverlapLoading(false);
+      (() => { setOverlapLoading(false); })();
       return;
     }
-    void loadOverlap();
+    void (async () => { await loadOverlap(); })();
   }, [authLoading, session?.access_token, loadOverlap]);
 
   const runSearch = useCallback(async (q: string) => {
@@ -134,7 +134,7 @@ export default function UserSearchScreen() {
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < MIN_QUERY_LENGTH) {
-      setResults([]);
+      (() => { setResults([]); })();
       return;
     }
     const t = setTimeout(() => void runSearch(query), DEBOUNCE_MS);

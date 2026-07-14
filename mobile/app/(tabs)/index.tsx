@@ -428,6 +428,9 @@ function PulseTab({
   pulse: import("@/lib/hooks/useHomeDashboard").ProfilePulseInsights;
   isLoading: boolean;
 }) {
+  const prefetchArtist = usePrefetchArtist();
+  const prefetchAlbum = usePrefetchAlbum();
+
   if (isLoading) {
     return (
       <View style={styles.centered}>
@@ -436,8 +439,6 @@ function PulseTab({
     );
   }
 
-  const prefetchArtist = usePrefetchArtist();
-  const prefetchAlbum = usePrefetchAlbum();
   const weeklyTop = billboard?.weeklyTop;
   const narrative = billboard?.narrative;
   const artists = weeklyTop?.artists.slice(0, 12) ?? [];
@@ -1002,7 +1003,9 @@ function ActivityTab() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const stateRef = useRef({ hasMore: true, loadingMore: false, count: 0 });
-  stateRef.current = { hasMore, loadingMore, count: items.length };
+  useEffect(() => {
+    stateRef.current = { hasMore, loadingMore, count: items.length };
+  });
 
   const fetchPage = useCallback(async (offset: number, append: boolean) => {
     if (append) setLoadingMore(true);
@@ -1021,7 +1024,7 @@ function ActivityTab() {
     }
   }, []);
 
-  useEffect(() => { void fetchPage(0, false); }, [fetchPage]);
+  useEffect(() => { void (async () => { await fetchPage(0, false); })(); }, [fetchPage]);
 
   const onEndReached = useCallback(() => {
     if (stateRef.current.hasMore && !stateRef.current.loadingMore) {

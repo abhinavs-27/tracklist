@@ -112,7 +112,7 @@ const ListenSessionsSummaryBlock = memo(function ListenSessionsSummaryBlock({
     if (activity.user?.username) {
       router.push(`/user/${encodeURIComponent(activity.user.username)}`);
     }
-  }, [activity.user?.username, router]);
+  }, [activity.user, router]);
 
   return (
     <View style={styles.summaryCard}>
@@ -217,7 +217,7 @@ function ReviewBlock({
     if (user?.username) {
       router.push(`/user/${encodeURIComponent(user.username)}`);
     }
-  }, [user?.username, router]);
+  }, [user, router]);
 
   const openEntity = useCallback(() => {
     if (review.entity_type === "album") {
@@ -292,7 +292,7 @@ function ListenSessionBlock({ activity }: { activity: Extract<FeedActivity, { ty
     if (activity.user?.username) {
       router.push(`/user/${encodeURIComponent(activity.user.username)}`);
     }
-  }, [activity.user?.username, router]);
+  }, [activity.user, router]);
 
   return (
     <View style={styles.card}>

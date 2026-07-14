@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs } from "expo-router";
 import {
   Animated,
@@ -93,7 +93,7 @@ function FloatingTabBar({ state, navigation }: TabBarProps) {
   // before onLayout fires (avoids a one-frame jump).
   const [barW, setBarW] = useState(Dimensions.get("window").width - 32);
 
-  const slideAnim = useRef(new Animated.Value(state.index)).current;
+  const [slideAnim] = useState(() => new Animated.Value(state.index));
 
   useEffect(() => {
     Animated.spring(slideAnim, {
