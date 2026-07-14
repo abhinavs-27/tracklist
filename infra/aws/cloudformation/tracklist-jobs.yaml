@@ -46,7 +46,10 @@ Resources:
       MessageRetentionPeriod: 1209600
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt CronJobsDLQ.Arn
-        maxReceiveCount: 5
+        # A throwing cron job re-runs a full DB scan on every receive before hitting the
+        # DLQ. At 5 that turned each failure (e.g. refresh_stats) into 5 heavy re-invocations
+        # + alert amplification. 2 keeps one retry for transient blips without the storm.
+        maxReceiveCount: 2
 
   EnrichJobsDLQ:
     Type: AWS::SQS::Queue
@@ -132,9 +135,9 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: tracklist-cron-compute-cooccurrence
-      Description: Weekly Sunday 03:30 UTC — COMPUTE_COOCCURRENCE
+      Description: DISABLED — COMPUTE_COOCCURRENCE (0 successful runs; recommendation-quality garnish only). Re-enable after fixing the underlying error and only if reco quality matters.
       ScheduleExpression: cron(30 3 ? * SUN *)
-      State: ENABLED
+      State: DISABLED
       Targets:
         - Id: SqsCooccurrence
           Arn: !GetAtt CronJobsQueue.Arn
@@ -236,8 +239,8 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: tracklist-cron-repair-lastfm-aggregates
-      Description: Daily 01:40 UTC — REPAIR_LASTFM_AGGREGATES
-      ScheduleExpression: cron(40 1 * * ? *)
+      Description: Weekly Monday 01:40 UTC — REPAIR_LASTFM_AGGREGATES (backfill-repair for the enrichment attribution gap; daily was overkill)
+      ScheduleExpression: cron(40 1 ? * MON *)
       State: ENABLED
       Targets:
         - Id: SqsRepairLfm
@@ -258,18 +261,9 @@ Resources:
           RoleArn: !GetAtt EventBridgeRole.Arn
           Input: '{"type":"UPGRADE_LASTFM_ALBUM_COVERS","batch":20,"scan":600}'
 
-  RuleArchiveOldLogs:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: tracklist-cron-archive-old-logs
-      Description: Monthly 1st 03:00 UTC — ARCHIVE_OLD_LOGS
-      ScheduleExpression: cron(0 3 1 * ? *)
-      State: ENABLED
-      Targets:
-        - Id: SqsArchiveLogs
-          Arn: !GetAtt CronJobsQueue.Arn
-          RoleArn: !GetAtt EventBridgeRole.Arn
-          Input: '{"type":"ARCHIVE_OLD_LOGS","cutoff_days":180}'
+  # ARCHIVE_OLD_LOGS rule intentionally removed. It would delete ~82% of listening
+  # history and was only "safe" because it errored on every run. There is no schedule
+  # for it; if archival is ever needed it must be run deliberately, never on a cron.
 
   RuleSnapshotTasteMonthly:
     Type: AWS::Events::Rule
