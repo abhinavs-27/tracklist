@@ -18,6 +18,9 @@ import {
   fetchMyCommunityInvites,
 } from "@/lib/api-communities";
 import { useMyCommunities } from "@/lib/hooks/useMyCommunities";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useRecommendedCommunities } from "@/lib/hooks/useRecommendedCommunities";
+import { RecommendedCommunities } from "@/components/explore/RecommendedCommunities";
 import { NOTIFICATION_BELL_GUTTER } from "@/lib/layout";
 import { queryKeys } from "@/lib/query-keys";
 import { theme } from "@/lib/theme";
@@ -48,6 +51,10 @@ export default function CommunitiesTabScreen() {
   });
 
   const invites: CommunityInvitePending[] = inviteData ?? [];
+
+  const { session } = useAuth();
+  const { data: recommendedData } = useRecommendedCommunities(!!session);
+  const recommended = recommendedData?.recommendations ?? [];
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.communitiesMine() });
@@ -93,7 +100,8 @@ export default function CommunitiesTabScreen() {
   );
 
   const listHeader = (
-    <View style={styles.invitesBlock}>
+    <View>
+      <View style={styles.invitesBlock}>
       <Text style={styles.sectionLabel}>Pending Invites</Text>
       {invitesPending ? (
         <View style={styles.invitesLoading}>
@@ -132,9 +140,19 @@ export default function CommunitiesTabScreen() {
           ))}
         </View>
       )}
-      <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
-        Your Communities
-      </Text>
+      </View>
+
+      {recommended.length > 0 ? (
+        <View style={{ paddingTop: 8, paddingBottom: 4 }}>
+          <RecommendedCommunities items={recommended} />
+        </View>
+      ) : null}
+
+      <View style={styles.invitesBlock}>
+        <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
+          Your Communities
+        </Text>
+      </View>
     </View>
   );
 
