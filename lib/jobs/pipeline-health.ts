@@ -12,6 +12,13 @@ import { sendJobAlert } from "@/lib/jobs/alert";
 /** How far back to scan for `error` runs. */
 const ERROR_LOOKBACK_MS = 24 * 3600_000;
 
+/**
+ * Statuses that count as "the job ran and is healthy" for staleness. `skipped` means the
+ * job ran but had no work (e.g. listening_aggregates with nothing to drain) — that is a
+ * live, healthy run, not a stale one, so it must reset the dead-man's-switch alongside `ok`.
+ */
+const HEALTHY_STATUSES = ["ok", "skipped"] as const;
+
 export type PipelineHealthResult = {
   checked: number;
   stale: HealthFinding[];
@@ -30,11 +37,11 @@ export async function runPipelineHealthCheck(): Promise<PipelineHealthResult> {
   const maxWindow = Math.max(...Object.values(EXPECTED_JOBS));
   const okSince = new Date(now - maxWindow - 3600_000).toISOString();
 
-  // 1. Latest ok run per expected job (for staleness).
+  // 1. Latest healthy (ok or skipped) run per expected job (for staleness).
   const { data: okRows, error: okErr } = await admin
     .from("job_runs")
     .select("job_name, started_at")
-    .eq("status", "ok")
+    .in("status", HEALTHY_STATUSES as unknown as string[])
     .in("job_name", jobNames)
     .gte("started_at", okSince)
     .order("started_at", { ascending: false });

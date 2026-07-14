@@ -12,19 +12,17 @@ export function RecommendedCommunities({ items }: Props) {
 
   if (items.length === 0) return null;
 
+  // A fresh/low-taste account gets popularity fallbacks — don't claim they're
+  // "matched to your listening" when there's no listening yet.
+  const allFallback = items.every((c) => c.isFallback);
+
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Recommended for you</Text>
-        <Pressable
-          onPress={() => router.push("/communities" as const)}
-          hitSlop={8}
-        >
-          <Text style={styles.browseLink}>All →</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.title}>Discover communities</Text>
       <Text style={styles.desc}>
-        Communities matched to your recent listening.
+        {allFallback
+          ? "Popular communities to get you started."
+          : "Communities matched to your recent listening."}
       </Text>
       <ScrollView
         horizontal
@@ -69,22 +67,11 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 18,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: 8,
-  },
   title: {
     fontSize: 20,
     fontWeight: "700",
     color: theme.colors.text,
     letterSpacing: -0.3,
-  },
-  browseLink: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: theme.colors.gold,
   },
   desc: {
     fontSize: 14,

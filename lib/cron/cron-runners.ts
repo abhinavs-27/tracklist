@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { startJobRun } from "@/lib/jobs/job-logger";
+import { classifyBatchRunStatus } from "@/lib/jobs/job-run-status";
 import { snapshotAllUsersLastMonth } from "@/lib/cron/snapshot-taste";
 import {
   hydrateStatsCatalogFromSpotify,
@@ -272,7 +273,7 @@ export async function runLastfmSync(): Promise<{
   }
 
   await run.finish({
-    status: failures === 0 ? "ok" : "error",
+    status: classifyBatchRunStatus(processed, failures),
     items_ok: totalInserted,
     items_failed: failures,
   });
