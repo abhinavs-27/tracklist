@@ -28,10 +28,14 @@ export function HomeWelcomeOverlay({
 
   useEffect(() => {
     if (!welcomeParam) {
-      setVisible(false);
+      (() => {
+        setVisible(false);
+      })();
       return;
     }
-    setVisible(true);
+    (() => {
+      setVisible(true);
+    })();
     const t = window.setTimeout(() => setVisible(false), 2000);
     return () => window.clearTimeout(t);
   }, [welcomeParam]);

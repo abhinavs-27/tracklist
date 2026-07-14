@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { CommunityMemberRosterEntry } from "@/lib/community/community-member-roster-types";
 import { CommunityMembersGrid } from "@/components/community/community-members-grid";
 import {
@@ -45,13 +45,33 @@ export function CommunityMembersSectionClient({
   const [roster, setRoster] = useState(initialRoster);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const [prevInit, setPrevInit] = useState({
+    initialPage,
+    initialTotal,
+    initialTotalPages,
+    initialPageSize,
+    initialRoster,
+  });
+  if (
+    initialPage !== prevInit.initialPage ||
+    initialTotal !== prevInit.initialTotal ||
+    initialTotalPages !== prevInit.initialTotalPages ||
+    initialPageSize !== prevInit.initialPageSize ||
+    initialRoster !== prevInit.initialRoster
+  ) {
+    setPrevInit({
+      initialPage,
+      initialTotal,
+      initialTotalPages,
+      initialPageSize,
+      initialRoster,
+    });
     setPage(initialPage);
     setTotal(initialTotal);
     setTotalPages(initialTotalPages);
     setPageSize(initialPageSize);
     setRoster(initialRoster);
-  }, [initialPage, initialTotal, initialTotalPages, initialPageSize, initialRoster]);
+  }
 
   const goToPage = useCallback(
     async (next: number) => {

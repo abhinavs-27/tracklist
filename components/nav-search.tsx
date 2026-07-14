@@ -65,14 +65,18 @@ export function NavSearch() {
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
-      setArtists([]);
-      setAlbums([]);
-      setTracks([]);
-      setOpen(false);
-      setLoading(false);
+      (() => {
+        setArtists([]);
+        setAlbums([]);
+        setTracks([]);
+        setOpen(false);
+        setLoading(false);
+      })();
       return;
     }
-    setLoading(true);
+    (() => {
+      setLoading(true);
+    })();
     const timer = setTimeout(() => void doSearch(trimmed), DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query, doSearch]);

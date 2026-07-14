@@ -35,7 +35,9 @@ export function CommunityWeeklySummary(props: {
 
   useEffect(() => {
     if (props.initialPayload !== undefined) return;
-    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    (() => {
+      setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    })();
   }, [props.initialPayload]);
 
   const { data, isPending, error } = useQuery({

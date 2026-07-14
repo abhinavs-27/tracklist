@@ -71,9 +71,11 @@ export function LastfmConnectModal({
     onClose();
   }, [onSkip, onClose]);
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) setSkipWarningOpen(false);
-  }, [open]);
+  }
 
   const runPreview = useCallback(async () => {
     setError(null);

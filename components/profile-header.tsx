@@ -50,9 +50,11 @@ export function ProfileHeader({
   const displayAvatarUrl = avatarCtx?.optimisticAvatarUrl ?? avatarUrl;
   const imgSrc = resolveUserAvatarUrl(userId, displayAvatarUrl);
 
-  useEffect(() => {
+  const [prevFollowersCount, setPrevFollowersCount] = useState(followersCount);
+  if (followersCount !== prevFollowersCount) {
+    setPrevFollowersCount(followersCount);
     setOptimisticFollowerCount(followersCount);
-  }, [followersCount]);
+  }
 
   useEffect(() => {
     if (

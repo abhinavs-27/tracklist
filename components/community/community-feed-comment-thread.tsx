@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 type CommentRow = {
   id: string;
@@ -29,29 +29,27 @@ export function CommunityFeedCommentThread(props: {
 
   const base = `/api/communities/${encodeURIComponent(props.communityId)}/activity-comments`;
 
-  const fetchComments = useCallback(async () => {
-    setFetching(true);
-    try {
-      const q = new URLSearchParams({
-        target_type: props.targetType,
-        target_id: props.targetId,
-      });
-      const res = await fetch(`${base}?${q.toString()}`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setComments(data);
-        setCount(data.length);
-      }
-    } finally {
-      setFetching(false);
-    }
-  }, [base, props.targetType, props.targetId]);
-
   useEffect(() => {
     if (open && comments.length === 0 && !fetching) {
-      void fetchComments();
+      void (async () => {
+        setFetching(true);
+        try {
+          const q = new URLSearchParams({
+            target_type: props.targetType,
+            target_id: props.targetId,
+          });
+          const res = await fetch(`${base}?${q.toString()}`);
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setComments(data);
+            setCount(data.length);
+          }
+        } finally {
+          setFetching(false);
+        }
+      })();
     }
-  }, [open, comments.length, fetching, fetchComments]);
+  }, [open, comments.length, fetching, base, props.targetType, props.targetId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

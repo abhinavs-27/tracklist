@@ -208,11 +208,28 @@ export function CommunityWeeklyBillboardClient(props: {
   const weeks = weeksByType[chartType] ?? [];
   const weeksReady = weeksByType[chartType] !== undefined;
 
-  useEffect(() => {
-    if (!weekStart || weeks.length === 0) return;
-    const ok = weeks.some((w) => w.week_start === weekStart);
-    if (!ok) setWeekStart(null);
-  }, [weekStart, weeks]);
+  // Validate the current weekStart against the (possibly just-loaded) weeks list
+  // for this tab, resetting to "latest" if it's no longer a valid choice. Tracked
+  // against the raw (stable-reference) weeksByType[chartType] rather than the
+  // `weeks` fallback-to-[] value above, since that fallback allocates a fresh
+  // array every render and would never settle into an "unchanged" state.
+  const currentWeeksList = weeksByType[chartType];
+  const [prevWeekValidation, setPrevWeekValidation] = useState({
+    weekStart,
+    chartType,
+    currentWeeksList,
+  });
+  if (
+    weekStart !== prevWeekValidation.weekStart ||
+    chartType !== prevWeekValidation.chartType ||
+    currentWeeksList !== prevWeekValidation.currentWeeksList
+  ) {
+    setPrevWeekValidation({ weekStart, chartType, currentWeeksList });
+    if (weekStart && currentWeeksList && currentWeeksList.length > 0) {
+      const ok = currentWeeksList.some((w) => w.week_start === weekStart);
+      if (!ok) setWeekStart(null);
+    }
+  }
 
   const firstWeek = weeks[0]?.week_start;
   const selectedIndex =

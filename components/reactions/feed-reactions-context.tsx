@@ -60,12 +60,16 @@ export function FeedReactionsProvider({
 
   useEffect(() => {
     if (!LIKES_ENABLED || targets.length === 0) {
-      setMap(new Map());
-      setLoaded(true);
+      (() => {
+        setMap(new Map());
+        setLoaded(true);
+      })();
       return;
     }
     let cancelled = false;
-    setLoaded(false);
+    (() => {
+      setLoaded(false);
+    })();
     fetch("/api/reactions/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
