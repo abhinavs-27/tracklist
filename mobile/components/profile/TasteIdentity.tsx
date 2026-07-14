@@ -87,6 +87,9 @@ export function TasteIdentity({ userId }: Props) {
 
   const hasAny =
     t.totalLogs > 0 || t.topArtists.length > 0 || t.topGenres.length > 0;
+  // Onboarding favorites seed the identity with a fabricated listenCount (no real plays).
+  // Don't show "N plays" until the account has actually logged listens.
+  const hasRealPlays = t.totalLogs > 0;
 
   const styleKey = normalizeListeningStyle(t.listeningStyle as string);
   const styleDisplay = getListeningStyleDisplay(styleKey);
@@ -181,16 +184,18 @@ export function TasteIdentity({ userId }: Props) {
                 >
                   {a.name}
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: theme.colors.muted,
-                    textAlign: "center",
-                    marginTop: 2,
-                  }}
-                >
-                  {a.listenCount} plays
-                </Text>
+                {hasRealPlays ? (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: theme.colors.muted,
+                      textAlign: "center",
+                      marginTop: 2,
+                    }}
+                  >
+                    {a.listenCount} plays
+                  </Text>
+                ) : null}
               </Pressable>
             ))}
           </ScrollView>
@@ -225,7 +230,9 @@ export function TasteIdentity({ userId }: Props) {
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "600", color: theme.colors.text }}>{al.name}</Text>
                   <Text numberOfLines={1} style={{ fontSize: 12, color: theme.colors.muted }}>{al.artistName}</Text>
-                  <Text style={{ fontSize: 11, color: "#52525b", marginTop: 2 }}>{al.listenCount} plays</Text>
+                  {hasRealPlays ? (
+                    <Text style={{ fontSize: 11, color: "#52525b", marginTop: 2 }}>{al.listenCount} plays</Text>
+                  ) : null}
                 </View>
               </Pressable>
             ))}

@@ -245,7 +245,10 @@ export function useProfile(userIdentifier?: string) {
         following: 0,
         reviewCount: null,
       } satisfies ProfileStats),
-    isLoading,
+    // When the query is disabled because auth isn't ready yet (own profile, session
+    // still resolving), TanStack Query reports isLoading=false. Treat that window as
+    // loading so the UI shows a skeleton instead of flashing "Could not load profile".
+    isLoading: isLoading || (!enabled && !data),
     error,
     refetch,
     isRefetching,

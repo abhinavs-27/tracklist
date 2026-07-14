@@ -450,6 +450,26 @@ function PulseTab({
 
   return (
     <ScrollView contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
+      {/* Empty state — a fresh/no-data account has no pulse yet. Without this the
+          conditional blocks below all collapse to null, leaving a blank void. */}
+      {!narrative && !hasTopContent && !hasBody ? (
+        <View style={styles.emptySection}>
+          <Text style={styles.emptyText}>
+            Your Pulse shows how your listening shifts week to week.
+          </Text>
+          <Text style={[styles.emptyText, { marginTop: 6 }]}>
+            Connect Last.fm in{" "}
+            <Text
+              style={{ color: theme.colors.gold }}
+              onPress={() => router.push("/(tabs)/profile" as never)}
+            >
+              Settings
+            </Text>
+            {" "}to start building it.
+          </Text>
+        </View>
+      ) : null}
+
       {/* Narrative lede */}
       {narrative ? (
         <View style={styles.narrativeCard}>
@@ -819,8 +839,10 @@ function InsightCards({ data }: { data: TasteInsightsData }) {
     signature = { traits, narrative: raw.charAt(0).toUpperCase() + raw.slice(1) };
   }
 
-  const showArc = arc?.kind !== "insufficient";
-  const showDisc = discovery?.kind !== "insufficient";
+  // Must exist AND not be "insufficient" — an undefined arc/discovery would otherwise
+  // pass (`undefined !== "insufficient"`) and then crash on `arc.kind` below.
+  const showArc = !!arc && arc.kind !== "insufficient";
+  const showDisc = !!discovery && discovery.kind !== "insufficient";
   if (!showArc && !showDisc && !signature) return null;
 
   return (
