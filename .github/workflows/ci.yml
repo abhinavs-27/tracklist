@@ -24,3 +24,17 @@ jobs:
         run: npm ci
       - name: Verify (typecheck + unit)
         run: npm run verify
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Lint
+        run: npm run lint
