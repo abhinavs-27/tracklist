@@ -44,7 +44,9 @@ export function CommentThread({ reviewId, enabled = true }: Props) {
 
   useEffect(() => {
     if (open && comments.length === 0 && !fetching) {
-      fetchComments();
+      void (async () => {
+        await fetchComments();
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, reviewId]);

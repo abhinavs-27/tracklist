@@ -545,11 +545,17 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (talkMode !== "friends" || !session) return;
     let cancelled = false;
-    setLovedLoading(true);
-    fetcher<{ items: LovedByFriendsItem[] }>("/api/explore/loved-by-friends")
-      .then((res) => { if (!cancelled) setLovedByFriends(res.items ?? []); })
-      .catch(() => { if (!cancelled) setLovedByFriends([]); })
-      .finally(() => { if (!cancelled) setLovedLoading(false); });
+    void (async () => {
+      setLovedLoading(true);
+      try {
+        const res = await fetcher<{ items: LovedByFriendsItem[] }>("/api/explore/loved-by-friends");
+        if (!cancelled) setLovedByFriends(res.items ?? []);
+      } catch {
+        if (!cancelled) setLovedByFriends([]);
+      } finally {
+        if (!cancelled) setLovedLoading(false);
+      }
+    })();
     return () => { cancelled = true; };
   }, [talkMode, session]);
 

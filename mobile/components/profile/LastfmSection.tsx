@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -121,13 +121,22 @@ export function LastfmSection({
   const [listAddBusy, setListAddBusy] = useState(false);
   const [lastImportTrackIds, setLastImportTrackIds] = useState<string[]>([]);
 
-  useEffect(() => {
+  // Sync local editable copies from server-provided props. Adjusted during
+  // render (rather than effect+setState) so a fresh server value (e.g. after
+  // a profile refetch) is reflected in the very first render.
+  const [prevInitialUsername, setPrevInitialUsername] = useState(initialUsername);
+  if (initialUsername !== prevInitialUsername) {
+    setPrevInitialUsername(initialUsername);
     setUsernameInput(initialUsername ?? "");
-  }, [initialUsername]);
+  }
 
-  useEffect(() => {
+  const [prevInitialLastSyncedAt, setPrevInitialLastSyncedAt] = useState(
+    initialLastSyncedAt,
+  );
+  if (initialLastSyncedAt !== prevInitialLastSyncedAt) {
+    setPrevInitialLastSyncedAt(initialLastSyncedAt);
     setLastSyncedAt(initialLastSyncedAt ?? null);
-  }, [initialLastSyncedAt]);
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {

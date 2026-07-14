@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import * as FileSystem from "expo-file-system/legacy";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -178,11 +178,15 @@ function RangeSheet({
   const [localStart, setLocalStart] = useState(startDate);
   const [localEnd, setLocalEnd] = useState(endDate);
 
-  // Sync local state when parent date props change (e.g. after clearing a custom range)
-  useEffect(() => {
+  // Sync local state when parent date props change (e.g. after clearing a custom
+  // range). Adjusted during render (rather than effect+setState) so the new
+  // value is reflected in the very first render for the changed props.
+  const [prevDateProps, setPrevDateProps] = useState({ startDate, endDate });
+  if (startDate !== prevDateProps.startDate || endDate !== prevDateProps.endDate) {
+    setPrevDateProps({ startDate, endDate });
     setLocalStart(startDate);
     setLocalEnd(endDate);
-  }, [startDate, endDate]);
+  }
 
   function handleChip(r: ReportRange) {
     if (r !== "custom") {

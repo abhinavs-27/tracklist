@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -48,10 +48,13 @@ export function NotificationsTray() {
   // Non-blocking overlay: taps outside the panel pass through to the page, so
   // navigating there won't auto-close the tray via a backdrop. Close it when
   // the route changes instead — a single tap on a link both navigates and
-  // dismisses the tray.
-  useEffect(() => {
+  // dismisses the tray. Adjusted during render (rather than effect+setState)
+  // so it applies to the very first render for the new route.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   const hideBell =
     pathname === "/notifications" ||

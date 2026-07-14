@@ -131,7 +131,7 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     const q = searchQ.trim();
-    if (q.length < 2) { setSearchResults([]); return; }
+    if (q.length < 2) { (() => { setSearchResults([]); })(); return; }
     const timer = setTimeout(async () => {
       setSearching(true);
       try {

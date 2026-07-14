@@ -62,7 +62,9 @@ export function CreateListModal({ visible, onClose }: Props) {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const selectedRef = useRef<Picked[]>([]);
-  selectedRef.current = selected;
+  useEffect(() => {
+    selectedRef.current = selected;
+  });
 
   const search = useCallback(
     async (q: string) => {
@@ -113,7 +115,12 @@ export function CreateListModal({ visible, onClose }: Props) {
     return () => clearTimeout(t);
   }, [query, search, visible]);
 
-  useEffect(() => {
+  // Clear the form once the modal closes, so the next open starts fresh.
+  // Adjusted during render (rather than effect+setState) to satisfy the
+  // linter's direct-call scan without changing when the reset is visible.
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (!visible) {
       setTitle("");
       setDescription("");
@@ -124,7 +131,7 @@ export function CreateListModal({ visible, onClose }: Props) {
       setSelected([]);
       setError("");
     }
-  }, [visible]);
+  }
 
   const onPickPress = useCallback((p: Picked) => {
     const has = selectedRef.current.some((x) => x.id === p.id);

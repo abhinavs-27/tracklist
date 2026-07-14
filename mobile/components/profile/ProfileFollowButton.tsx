@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -29,9 +29,17 @@ export function ProfileFollowButton({
   const [following, setFollowing] = useState(initialFollowing);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // Sync from props when a new target user (or its initial following state)
+  // is handed to us. Adjusted during render (rather than effect+setState) so
+  // it applies to the very first render for the new props.
+  const [prevSync, setPrevSync] = useState({ initialFollowing, targetUserId });
+  if (
+    initialFollowing !== prevSync.initialFollowing ||
+    targetUserId !== prevSync.targetUserId
+  ) {
+    setPrevSync({ initialFollowing, targetUserId });
     setFollowing(initialFollowing);
-  }, [initialFollowing, targetUserId]);
+  }
 
   async function toggle() {
     if (!API_URL) return;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -50,7 +50,22 @@ export function ListEditModal({
   );
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  // Sync local editable copies from props whenever the modal (re)opens with a
+  // possibly new list. Adjusted during render (rather than effect+setState)
+  // so it applies to the very first render for the new prop values.
+  const [prevResetKey, setPrevResetKey] = useState({
+    visible,
+    initialTitle,
+    initialDescription,
+    initialVisibility,
+  });
+  if (
+    visible !== prevResetKey.visible ||
+    initialTitle !== prevResetKey.initialTitle ||
+    initialDescription !== prevResetKey.initialDescription ||
+    initialVisibility !== prevResetKey.initialVisibility
+  ) {
+    setPrevResetKey({ visible, initialTitle, initialDescription, initialVisibility });
     if (visible) {
       setTitle(initialTitle);
       setDescription(initialDescription ?? "");
@@ -61,7 +76,7 @@ export function ListEditModal({
       );
       setError("");
     }
-  }, [visible, initialTitle, initialDescription, initialVisibility]);
+  }
 
   const saveMutation = useMutation({
     mutationFn: () =>

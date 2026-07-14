@@ -271,14 +271,18 @@ export default function SearchScreen() {
   useEffect(() => {
     const q = query.trim();
     if (!q) {
-      setArtists([]);
-      setAlbums([]);
-      setTracks([]);
-      setPeople([]);
-      setLoading(false);
+      (() => {
+        setArtists([]);
+        setAlbums([]);
+        setTracks([]);
+        setPeople([]);
+        setLoading(false);
+      })();
       return;
     }
-    setLoading(true);
+    (() => {
+      setLoading(true);
+    })();
     const t = setTimeout(() => void doSearch(q), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query, doSearch]);

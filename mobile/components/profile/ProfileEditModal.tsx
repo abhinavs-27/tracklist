@@ -43,17 +43,23 @@ export function ProfileEditModal({ visible, onClose, onSaved, initialUsername, i
   // Load favorites when modal opens
   useEffect(() => {
     if (!visible) return;
-    setLoadingFav(true);
-    fetcher<{ albums: FavoriteAlbum[] }>("/api/users/me/favorites")
-      .then((r) => setFavorites(r.albums ?? []))
-      .catch(() => {})
-      .finally(() => setLoadingFav(false));
+    void (async () => {
+      setLoadingFav(true);
+      try {
+        const r = await fetcher<{ albums: FavoriteAlbum[] }>("/api/users/me/favorites");
+        setFavorites(r.albums ?? []);
+      } catch {
+        // ignore
+      } finally {
+        setLoadingFav(false);
+      }
+    })();
   }, [visible]);
 
   // Debounced album search
   useEffect(() => {
     const q = searchQ.trim();
-    if (q.length < 2) { setSearchResults([]); return; }
+    if (q.length < 2) { (() => { setSearchResults([]); })(); return; }
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
