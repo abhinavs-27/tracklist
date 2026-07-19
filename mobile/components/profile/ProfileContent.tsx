@@ -328,6 +328,24 @@ export function ProfileContent({ userIdentifier, showBack }: Props) {
     />
   ) : tab === "settings" && isOwn ? (
     <View style={{ paddingHorizontal: 16, gap: 20 }}>
+      {/* Notifications */}
+      <View style={sectionCard}>
+        <Text style={sectionCardTitle}>Notifications</Text>
+        <Pressable
+          onPress={() => router.push("/settings/notifications" as never)}
+          style={({ pressed }: { pressed: boolean }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 14,
+            paddingVertical: 11,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 14, color: theme.colors.text }}>Notification preferences</Text>
+          <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+        </Pressable>
+      </View>
       {/* Last.fm */}
       <LastfmSection userId={user.id} username={user.username}
         initialUsername={user.lastfm_username ?? null}

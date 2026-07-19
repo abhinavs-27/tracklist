@@ -1,3 +1,13 @@
+export type NotificationType =
+  | "follow"
+  | "like"
+  | "review_like"
+  | "comment"
+  | "music_recommendation"
+  | "community_invite"
+  | "community_follow"
+  | "weekly_charts";
+
 /** Mirrors `NotificationRow` from `lib/queries.ts` / GET `/api/notifications`. */
 export type NotificationRow = {
   id: string;

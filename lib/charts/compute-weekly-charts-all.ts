@@ -57,12 +57,16 @@ export async function computeWeeklyChartsForAllUsers(options?: {
   if (userIds.length > 0) {
     try {
       const { createSupabaseAdminClient } = await import("@/lib/supabase-admin");
-      const { sendPushToUsers } = await import("@/lib/push/send");
+      const { notifyMany } = await import("@/lib/notifications/notify");
       const admin = createSupabaseAdminClient();
-      await sendPushToUsers(admin, userIds, {
-        title: "Your weekly chart is ready 🎵",
-        body: "See what you listened to most this week",
-        data: { url: "/" },
+      await notifyMany(userIds, {
+        admin,
+        type: "weekly_charts",
+        push: {
+          title: "Your weekly chart is ready 🎵",
+          body: "See what you listened to most this week",
+          data: { url: "/" },
+        },
       });
     } catch (e) {
       console.warn("[charts] billboard push failed", e);

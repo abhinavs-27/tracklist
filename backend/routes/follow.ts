@@ -10,6 +10,7 @@ import {
   ok,
   unauthorized,
 } from "../lib/http";
+import { notify } from "@/lib/notifications/notify";
 
 /** POST / DELETE /api/follow — mirrors Next.js `app/api/follow/route.ts`. */
 export const followRouter = Router();
@@ -47,11 +48,21 @@ followRouter.post("/", async (req, res) => {
     return internalError(res, error);
   }
 
-  await supabase.from("notifications").insert({
-    user_id: followingId,
-    actor_user_id: me.id,
-    type: "follow",
-  });
+  try {
+    await notify({
+      admin: supabase,
+      userId: followingId,
+      actorUserId: me.id,
+      type: "follow",
+      push: {
+        title: "New follower",
+        body: `@${me.username ?? "Someone"} started following you`,
+        data: { url: `/user/${me.username ?? ""}` },
+      },
+    });
+  } catch (e) {
+    console.warn("[follow] notify failed", e);
+  }
 
   return ok(res, { success: true });
 });

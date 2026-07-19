@@ -107,6 +107,30 @@ export const POST = withHandler(
         console.error("[recommendations/send] social thread", threadRes.error);
         return apiInternalError(new Error(threadRes.error));
       }
+
+      try {
+        const { sendPushToUser } = await import("@/lib/push/send");
+        const { categoryForType } = await import("@/lib/notifications/types");
+        // Respect the recipient's "recommendations" preference.
+        const { data: pref } = await admin
+          .from("notification_preferences")
+          .select("recommendations")
+          .eq("user_id", recipientUserId)
+          .maybeSingle();
+        const allowed =
+          (pref as { recommendations?: boolean } | null)?.recommendations ?? true;
+        if (allowed && categoryForType("music_recommendation") === "recommendations") {
+          await sendPushToUser(admin, recipientUserId, {
+            title: "New recommendation",
+            body: `@${me!.username ?? "Someone"} recommended ${
+              cleanPayload?.title?.trim() || "something"
+            }`,
+            data: { url: "/notifications" },
+          });
+        }
+      } catch (e) {
+        console.warn("[recommendations/send] push failed", e);
+      }
     }
 
     return apiOk({ ok: true });

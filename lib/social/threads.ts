@@ -820,13 +820,20 @@ export async function afterReactionHook(
   // Send a like notification to the content owner (skip self-likes).
   try {
     const ownerId = await resolveReactionTargetOwner(viewerUserId, targetType, targetId);
-    if (ownerId && ownerId !== viewerUserId) {
-      await admin.from("notifications").insert({
-        user_id: ownerId,
-        actor_user_id: viewerUserId,
+    if (ownerId) {
+      const { notify } = await import("@/lib/notifications/notify");
+      await notify({
+        admin,
+        userId: ownerId,
+        actorUserId: viewerUserId,
         type: "like",
-        entity_type: targetType,
-        entity_id: targetId,
+        entityType: targetType,
+        entityId: targetId,
+        push: {
+          title: "New like",
+          body: "Someone liked your post",
+          data: { url: "/notifications" },
+        },
       });
     }
   } catch (e) {
@@ -892,7 +899,6 @@ export async function addThreadReply(
 
   // Push other thread participants about the new reply
   try {
-    const { sendPushToUsers } = await import("@/lib/push/send");
     const { data: participants } = await admin
       .from("social_thread_participants")
       .select("user_id")
@@ -910,10 +916,16 @@ export async function addThreadReply(
         .maybeSingle();
       const username = (actor as { username?: string } | null)?.username ?? "Someone";
 
-      await sendPushToUsers(admin, otherIds, {
-        title: "New reply",
-        body: `@${username}: ${trimmed.slice(0, 80)}${trimmed.length > 80 ? "…" : ""}`,
-        data: { url: "/notifications" },
+      const { notifyMany } = await import("@/lib/notifications/notify");
+      await notifyMany(otherIds, {
+        admin,
+        actorUserId: userId,
+        type: "comment",
+        push: {
+          title: "New reply",
+          body: `@${username}: ${trimmed.slice(0, 80)}${trimmed.length > 80 ? "…" : ""}`,
+          data: { url: "/notifications" },
+        },
       });
     }
   } catch (e) {

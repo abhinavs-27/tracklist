@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useNotifications } from "@/lib/hooks/useNotifications";
 import { queryKeys } from "@/lib/query-keys";
 import {
   Notifications,
@@ -19,6 +20,12 @@ export function NotificationsBootstrap() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const lastRegisteredUid = useRef<string | null>(null);
+  const { unreadCount } = useNotifications();
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    void Notifications.setBadgeCountAsync(unreadCount);
+  }, [unreadCount]);
 
   useEffect(() => {
     if (isLoading) return;

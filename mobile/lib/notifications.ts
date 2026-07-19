@@ -7,6 +7,8 @@ const isNative = Platform.OS === "ios" || Platform.OS === "android";
 
 const ANDROID_CHANNEL_ID = "default";
 
+let lastRegisteredToken: string | null = null;
+
 if (isNative) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -75,23 +77,37 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   return tokenResponse.data ?? null;
 }
 
-export async function sendExpoPushTokenToBackend(token: string | null): Promise<void> {
+export async function sendExpoPushTokenToBackend(token: string): Promise<void> {
   if (!isNative) return;
   await fetcher<{ ok: boolean }>("/api/users/me/push-token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ expo_push_token: token }),
+    body: JSON.stringify({ expo_push_token: token, platform: Platform.OS }),
   });
+  lastRegisteredToken = token;
 }
 
 export async function registerPushWithBackend(): Promise<void> {
   try {
     const token = await registerForPushNotificationsAsync();
-    if (token) {
-      await sendExpoPushTokenToBackend(token);
-    }
+    if (token) await sendExpoPushTokenToBackend(token);
   } catch (e) {
     console.warn("[push] registerPushWithBackend:", e);
+  }
+}
+
+export async function unregisterPushWithBackend(): Promise<void> {
+  if (!isNative) return;
+  if (!lastRegisteredToken) return;
+  try {
+    await fetcher<{ ok: boolean }>("/api/users/me/push-token", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expo_push_token: lastRegisteredToken }),
+    });
+    lastRegisteredToken = null;
+  } catch (e) {
+    console.warn("[push] unregisterPushWithBackend:", e);
   }
 }
 

@@ -47,7 +47,7 @@ export async function computeCommunityWeeklyChartsForAll(options?: {
     // Push all community members when their chart drops
     try {
       const { createSupabaseAdminClient } = await import("@/lib/supabase-admin");
-      const { sendPushToUsers } = await import("@/lib/push/send");
+      const { notifyMany } = await import("@/lib/notifications/notify");
       const admin = createSupabaseAdminClient();
 
       const [nameRes, membersRes] = await Promise.all([
@@ -60,10 +60,14 @@ export async function computeCommunityWeeklyChartsForAll(options?: {
         .map((m) => m.user_id);
 
       if (memberIds.length > 0) {
-        await sendPushToUsers(admin, memberIds, {
-          title: `${communityName} weekly chart is ready`,
-          body: "See what your community listened to most this week",
-          data: { url: `/communities/${communityId}` },
+        await notifyMany(memberIds, {
+          admin,
+          type: "weekly_charts",
+          push: {
+            title: `${communityName} weekly chart is ready`,
+            body: "See what your community listened to most this week",
+            data: { url: `/communities/${communityId}` },
+          },
         });
       }
     } catch (e) {
